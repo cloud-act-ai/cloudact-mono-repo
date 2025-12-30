@@ -21,7 +21,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from google.cloud import bigquery
 import google.api_core.exceptions
 
-from src.core.engine.bq_client import get_bigquery_client
+from src.core.engine.bq_client import BigQueryClient, get_bigquery_client
 from src.core.exceptions import BigQueryResourceNotFoundError
 from src.app.config import get_settings
 from src.app.models.hierarchy_models import (
@@ -79,7 +79,7 @@ SAAS_SUBSCRIPTION_PLANS_TABLE = "saas_subscription_plans"
 class HierarchyService:
     """Service for managing organizational hierarchy in BigQuery."""
 
-    def __init__(self, bq_client: bigquery.Client = None):
+    def __init__(self, bq_client: Optional[BigQueryClient] = None):
         """Initialize with optional BigQuery client."""
         self.bq_client = bq_client or get_bigquery_client()
         self.project_id = settings.gcp_project_id
@@ -871,6 +871,6 @@ class HierarchyService:
 # Service Instance
 # ==============================================================================
 
-def get_hierarchy_service() -> HierarchyService:
+def get_hierarchy_crud_service() -> HierarchyService:
     """Get hierarchy service instance."""
     return HierarchyService()

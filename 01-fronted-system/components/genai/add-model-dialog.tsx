@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Sparkles, Zap, Clock, Server } from "lucide-react"
+import { Sparkles, Zap, Clock, Server } from "lucide-react"
 import {
   Dialog,
   DialogContent,

@@ -18,27 +18,14 @@ import {
   RefreshCw,
   Trash2,
   CheckCircle2,
-  ChevronDown,
   AlertTriangle,
   Eye,
   EyeOff,
 } from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
@@ -82,7 +69,7 @@ function parseDocStep(htmlContent: string): ParsedSegment[] {
   const segments: ParsedSegment[] = []
 
   // Clone content to work with - strip any dangerous patterns first
-  let safeContent = htmlContent
+  const safeContent = htmlContent
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
     .replace(/javascript:/gi, '')
@@ -215,7 +202,7 @@ export interface CloudProviderPageTemplateProps {
 
 interface IntegrationStatus {
   provider: string
-  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED"
+  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED" | "EXPIRED"
   credential_name?: string
   last_validated_at?: string
   last_error?: string
@@ -286,7 +273,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 
 export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateProps) {
   const params = useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const orgSlug = params.orgSlug as string
   const fileInputRef = useRef<HTMLInputElement>(null)
 

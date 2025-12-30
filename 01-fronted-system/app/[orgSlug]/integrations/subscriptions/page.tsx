@@ -5,11 +5,13 @@ import { useParams, useRouter } from "next/navigation"
 import {
   Loader2, Check, Brain, Palette, FileText, MessageSquare, Code, Cloud,
   ChevronRight, ChevronDown, AlertCircle, Plus, ArrowUpRight,
-  TrendingUp, Settings2, Layers, Search, X, HelpCircle, BookOpen
+  TrendingUp, Settings2, Layers, Search, X, BookOpen
 } from "lucide-react"
 import Link from "next/link"
 
 import { ProviderLogo } from "@/components/ui/provider-logo"
+import { StatRow } from "@/components/ui/stat-row"
+import { LoadingState } from "@/components/ui/loading-state"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import {
   getAllProviders,
@@ -278,84 +280,71 @@ export default function SubscriptionIntegrationsPage() {
 
   const displayedAvailable = showAllAvailable ? filteredAvailable : filteredAvailable.slice(0, 12)
 
+  // Stats for StatRow component - same pattern as dashboard/pipelines
+  const stats = [
+    { icon: Check, value: String(trackingProviders.length), label: "Tracking", color: "mint" as const },
+    ...(setupProviders.length > 0 ? [{ icon: Settings2, value: String(setupProviders.length), label: "Setup", color: "coral" as const }] : []),
+    { icon: Layers, value: String(availableProviders.length), label: "Available", color: "slate" as const },
+  ]
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        {/* Header - Same pattern as dashboard */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Layers className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                Subscriptions
+              </h1>
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                Track your SaaS spending across all providers
+              </p>
+            </div>
           </div>
-          <p className="text-[14px] text-slate-500 font-medium">Loading providers...</p>
         </div>
+        <LoadingState message="Loading subscription providers..." />
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-0">
-      {/* Header */}
-      <div className="mb-6 sm:mb-10">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Layers className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+          </div>
           <div>
-            <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
               Subscriptions
             </h1>
-            <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Track your SaaS spending across all providers
             </p>
           </div>
-          <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-            <button className="h-10 sm:h-11 w-full sm:w-auto px-4 sm:px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[12px] sm:text-[13px] font-semibold rounded-lg sm:rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm touch-manipulation">
-              <TrendingUp className="h-4 w-4" />
-              View Costs
-              <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
-            </button>
-          </Link>
         </div>
+        <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
+          <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 text-[13px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+            <TrendingUp className="h-4 w-4" />
+            View Costs
+            <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
+          </button>
+        </Link>
+      </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-hide pb-2">
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
-            </div>
-            <div>
-              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{trackingProviders.length}</p>
-              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Tracking</p>
-            </div>
-          </div>
-
-          {setupProviders.length > 0 && (
-            <>
-              <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
-              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-amber-100 flex items-center justify-center">
-                  <Settings2 className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{setupProviders.length}</p>
-                  <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Setup</p>
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-slate-100 flex items-center justify-center">
-              <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500" />
-            </div>
-            <div>
-              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
-              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
-            </div>
-          </div>
-        </div>
+      {/* Stats Row - Using StatRow component like dashboard/pipelines */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <StatRow stats={stats} size="md" />
       </div>
 
       {/* Backend Warning */}
       {(!backendConnected || !hasApiKey) && (
-        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
           <div className="flex items-start gap-4">
             <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-rose-500" />
@@ -379,14 +368,14 @@ export default function SubscriptionIntegrationsPage() {
 
       {/* Alerts */}
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           <p className="text-[13px] font-medium text-rose-700">{error}</p>
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
           <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
           <p className="text-[13px] font-medium text-[#1a7a3a]">{successMessage}</p>
         </div>
@@ -394,8 +383,8 @@ export default function SubscriptionIntegrationsPage() {
 
       {/* Tracking Section */}
       {trackingProviders.length > 0 && (
-        <section className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
             <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
               Active Tracking
             </h2>
@@ -418,8 +407,8 @@ export default function SubscriptionIntegrationsPage() {
 
       {/* Setup Section */}
       {setupProviders.length > 0 && (
-        <section className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
             <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
               Needs Configuration
             </h2>
@@ -443,8 +432,8 @@ export default function SubscriptionIntegrationsPage() {
       )}
 
       {/* Available Section */}
-      <section>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <h2 className="text-[12px] sm:text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
               Available Providers

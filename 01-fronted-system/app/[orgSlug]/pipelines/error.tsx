@@ -13,8 +13,7 @@ export default function PipelinesError({
 }) {
   useEffect(() => {
     // Log the error for debugging (in production, send to error tracking service)
-    if (process.env.NODE_ENV === "development") {
-    }
+    console.error("[Pipelines Error]", error.message, error.stack)
     // In production, you would send this to your error tracking service (e.g., Sentry)
     // Example: captureException(error)
   }, [error])

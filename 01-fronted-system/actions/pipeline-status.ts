@@ -97,8 +97,11 @@ export async function getPipelineStatus(
     }
 
     return await response.json()
-  } catch (error) {
-    
+  } catch (pipelineError) {
+    // Log pipeline status fetch errors for debugging
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getPipelineStatus] Failed to fetch status:", pipelineError)
+    }
     return null
   }
 }

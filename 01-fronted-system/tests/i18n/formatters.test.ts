@@ -345,7 +345,8 @@ describe('formatAmountWithSymbol - USD & INR', () => {
 
     it('should format JPY with 0 decimals', () => {
       const result = formatAmountWithSymbol(100, 'JPY')
-      expect(result).toBe('¥100')
+      // JP¥ is used to distinguish from CNY which also uses ¥
+      expect(result).toBe('JP¥100')
     })
 
     it('should format KWD with 3 decimals', () => {
@@ -372,8 +373,9 @@ describe('getCurrencySymbol - USD & INR', () => {
     expect(getCurrencySymbol('GBP')).toBe('£')
   })
 
-  it('should return ¥ for JPY', () => {
-    expect(getCurrencySymbol('JPY')).toBe('¥')
+  it('should return JP¥ for JPY', () => {
+    // JP¥ is used to distinguish from CNY which also uses ¥
+    expect(getCurrencySymbol('JPY')).toBe('JP¥')
   })
 
   it('should return د.إ for AED', () => {

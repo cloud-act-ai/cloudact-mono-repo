@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Calendar,
   ExternalLink,
-  Loader2,
   Check,
   AlertCircle,
   Sparkles,
@@ -18,6 +17,11 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Badge } from "@/components/ui/badge"
+
+// Premium components - same as dashboard/pipeline pages
+import { StatRow } from "@/components/ui/stat-row"
+import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
+import { LoadingState } from "@/components/ui/loading-state"
 
 interface OrgData {
   id: string
@@ -30,32 +34,34 @@ interface OrgData {
   stripe_subscription_id?: string
 }
 
-// Plan features for display
+// Plan features for display - matches Stripe product metadata plan_id values
 const PLAN_FEATURES: Record<string, { name: string; color: string; icon: React.ReactNode; features: string[] }> = {
-  free: {
-    name: "Free",
-    color: "#8B5CF6",
-    icon: <Sparkles className="h-5 w-5" />,
-    features: ["Up to 3 team members", "Basic cost analytics", "Community support"],
-  },
   starter: {
     name: "Starter",
     color: "#007AFF",
     icon: <Zap className="h-5 w-5" />,
-    features: ["Up to 10 team members", "Advanced analytics", "Email support", "API access"],
+    features: ["Up to 5 team members", "3 integrations", "10 pipeline runs/day", "Email support"],
   },
-  pro: {
+  professional: {
     name: "Professional",
     color: "#90FCA6",
     icon: <TrendingUp className="h-5 w-5" />,
-    features: ["Up to 50 team members", "Custom integrations", "Priority support", "SSO authentication"],
+    features: ["Up to 20 team members", "10 integrations", "50 pipeline runs/day", "Priority support"],
   },
-  enterprise: {
-    name: "Enterprise",
-    color: "#FF6C5E",
+  scale: {
+    name: "Scale",
+    color: "#8B5CF6",
     icon: <Building2 className="h-5 w-5" />,
-    features: ["Unlimited team members", "Dedicated support", "Custom contracts", "SLA guarantee"],
+    features: ["Up to 100 team members", "Unlimited integrations", "Unlimited pipelines", "Dedicated support"],
   },
+}
+
+// Fallback for unknown plans
+const DEFAULT_PLAN = {
+  name: "Unknown",
+  color: "#64748B",
+  icon: <Sparkles className="h-5 w-5" />,
+  features: ["Contact support for plan details"],
 }
 
 export default function BillingPage() {
@@ -78,13 +84,16 @@ export default function BillingPage() {
       const { data: org, error: orgError } = await supabase
         .from("organizations")
         .select("*")
-        .eq("slug", orgSlug)
+        .eq("org_slug", orgSlug)
         .single()
 
       if (orgError) throw orgError
 
       setOrgData(org)
-    } catch {
+    } catch (fetchError) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[BillingPage] Failed to fetch org data:", fetchError)
+      }
       setError("Failed to load billing data")
     } finally {
       setIsLoading(false)
@@ -95,31 +104,25 @@ export default function BillingPage() {
     void fetchOrgData()
   }, [fetchOrgData])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-          </div>
-          <p className="text-[14px] text-slate-500 font-medium">Loading billing information...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const currentPlan = orgData?.plan || "free"
-  const planInfo = PLAN_FEATURES[currentPlan] || PLAN_FEATURES.free
+  // Stats for StatRow component - same pattern as dashboard/pipelines
+  const currentPlan = orgData?.plan || "starter"
+  const planInfo = PLAN_FEATURES[currentPlan] || DEFAULT_PLAN
   const billingStatus = orgData?.billing_status || "active"
 
-  return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header - Mobile optimized */}
-      <div className="mb-6 sm:mb-10">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+  const stats = [
+    { icon: CreditCard, value: planInfo.name, label: "Current Plan", color: "mint" as const },
+    { icon: Check, value: billingStatus.charAt(0).toUpperCase() + billingStatus.slice(1), label: "Status", color: billingStatus === "active" ? "mint" as const : "coral" as const },
+    { icon: Calendar, value: "Monthly", label: "Billing Cycle", color: "slate" as const },
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        {/* Header - Same pattern as dashboard */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-start gap-3 sm:gap-4">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
-              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
               <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
@@ -131,73 +134,54 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+        <LoadingState message="Loading billing information..." />
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+          </div>
+          <div>
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              Billing & Subscription
+            </h1>
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              Manage your subscription plan and payment methods
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Row - Using StatRow component like pipelines */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <StatRow stats={stats} size="md" />
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           <p className="text-[13px] font-medium text-rose-700">{error}</p>
         </div>
       )}
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div className="metric-card">
-          <div className="flex items-center gap-4">
-            <div
-              className="h-12 w-12 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: `${planInfo.color}15` }}
-            >
-              <div style={{ color: planInfo.color }}>{planInfo.icon}</div>
-            </div>
-            <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none tracking-tight">{planInfo.name}</p>
-              <p className="text-[13px] text-slate-500 font-medium mt-1">Current Plan</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center">
-              <Check className="h-6 w-6 text-[#1a7a3a]" />
-            </div>
-            <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none tracking-tight capitalize">{billingStatus}</p>
-              <p className="text-[13px] text-slate-500 font-medium mt-1">Billing Status</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-slate-600" />
-            </div>
-            <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none tracking-tight">Monthly</p>
-              <p className="text-[13px] text-slate-500 font-medium mt-1">Billing Cycle</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Current Plan Card */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
-            Current Plan
-          </h2>
-        </div>
+      <div className="space-y-4 sm:space-y-6">
+        <SectionHeader title="Current Plan" icon={CreditCard} />
 
-        <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-          <div className="p-6">
+        <PremiumCard hover={true}>
+          <div>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex items-start gap-4">
                 <div
                   className="h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm"
-                  style={{ backgroundColor: planInfo.color, color: currentPlan === "pro" ? "#000" : "#fff" }}
+                  style={{ backgroundColor: planInfo.color, color: currentPlan === "professional" ? "#000" : "#fff" }}
                 >
                   {planInfo.icon}
                 </div>
@@ -206,7 +190,7 @@ export default function BillingPage() {
                     <h3 className="text-[17px] font-bold text-slate-900">{planInfo.name} Plan</h3>
                     <Badge
                       className="text-[11px] font-semibold px-3 py-1 rounded-lg border-0"
-                      style={{ backgroundColor: `${planInfo.color}15`, color: currentPlan === "pro" ? "#1a7a3a" : planInfo.color }}
+                      style={{ backgroundColor: `${planInfo.color}15`, color: currentPlan === "professional" ? "#1a7a3a" : planInfo.color }}
                     >
                       Current
                     </Badge>
@@ -232,18 +216,14 @@ export default function BillingPage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </PremiumCard>
+      </div>
 
       {/* Payment Method */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
-            Payment Method
-          </h2>
-        </div>
+      <div className="space-y-4 sm:space-y-6">
+        <SectionHeader title="Payment Method" icon={CreditCard} />
 
-        <div className="metric-card shadow-sm">
+        <PremiumCard hover={false}>
           <div className="group relative">
             <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-slate-300 opacity-60 group-hover:opacity-100 transition-opacity" />
             <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
@@ -267,19 +247,15 @@ export default function BillingPage() {
               </button>
             </div>
           </div>
-        </div>
-      </section>
+        </PremiumCard>
+      </div>
 
       {/* Billing History */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
-            Billing History
-          </h2>
-        </div>
+      <div className="space-y-4 sm:space-y-6">
+        <SectionHeader title="Billing History" icon={Receipt} />
 
-        <div className="metric-card shadow-sm">
-          <div className="py-12 text-center">
+        <PremiumCard hover={false}>
+          <div className="py-8 text-center">
             <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
               <Receipt className="h-7 w-7 text-slate-400" />
             </div>
@@ -288,12 +264,12 @@ export default function BillingPage() {
               Your billing history will appear here once you upgrade to a paid plan
             </p>
           </div>
-        </div>
-      </section>
+        </PremiumCard>
+      </div>
 
       {/* Help Section */}
-      <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
-        <div className="p-6">
+      <PremiumCard hover={false} className="bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
+        <div>
           <div className="flex items-start gap-4">
             <div className="h-10 w-10 rounded-xl bg-white border border-[#90FCA6]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
               <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
@@ -315,7 +291,7 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
-      </div>
+      </PremiumCard>
     </div>
   )
 }

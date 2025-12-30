@@ -14,6 +14,7 @@ export default function IntegrationsError({
   useEffect(() => {
     // Log the error for debugging (in production, send to error tracking service)
     if (process.env.NODE_ENV === "development") {
+      console.error("[IntegrationsError]", error)
     }
   }, [error])
 

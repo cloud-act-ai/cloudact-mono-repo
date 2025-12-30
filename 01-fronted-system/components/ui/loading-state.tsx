@@ -47,8 +47,11 @@ export function LoadingState({
           "flex items-center justify-center gap-2 py-4",
           className
         )}
+        role="status"
+        aria-live="polite"
+        aria-label={message}
       >
-        <Loader2 className="h-4 w-4 animate-spin text-[var(--cloudact-mint-dark)]" />
+        <Loader2 className="h-4 w-4 animate-spin text-[var(--cloudact-mint-dark)]" aria-hidden="true" />
         <span className="text-[13px] text-slate-500 font-medium">{message}</span>
       </div>
     )
@@ -61,6 +64,9 @@ export function LoadingState({
           "absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10",
           className
         )}
+        role="status"
+        aria-live="polite"
+        aria-label={message}
       >
         <div className="text-center">
           <div
@@ -74,6 +80,7 @@ export function LoadingState({
                 "animate-spin text-[var(--cloudact-mint-dark)]",
                 sizes.icon
               )}
+              aria-hidden="true"
             />
           </div>
           <p className={cn("text-slate-500 font-medium", sizes.text)}>
@@ -92,6 +99,9 @@ export function LoadingState({
         variant === "card" && "py-12 px-4 sm:px-6",
         className
       )}
+      role="status"
+      aria-live="polite"
+      aria-label={message}
     >
       <div className="text-center">
         <div
@@ -105,6 +115,7 @@ export function LoadingState({
               "animate-spin text-[var(--cloudact-mint-dark)]",
               sizes.icon
             )}
+            aria-hidden="true"
           />
         </div>
         <p className={cn("text-slate-500 font-medium", sizes.text)}>

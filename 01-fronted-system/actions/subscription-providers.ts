@@ -170,12 +170,11 @@ export async function triggerCostBackfill(
       }
     }
 
-    const result = await safeJsonParse<{ status?: string; message?: string; pipeline_logging_id?: string }>(
+    await safeJsonParse<{ status?: string; message?: string; pipeline_logging_id?: string }>(
       response,
       { status: "unknown" }
     )
 
-    
     return {
       success: true,
       message: `Cost backfill triggered from ${startDate} to ${actualEndDate}`,
@@ -381,7 +380,7 @@ export interface SubscriptionPlan {
   status: 'active' | 'cancelled' | 'expired' | 'pending'
   start_date?: string
   end_date?: string
-  billing_cycle: string
+  billing_cycle: BillingCycle
   currency: string
   seats: number
   pricing_model: 'PER_SEAT' | 'FLAT_FEE'
@@ -775,9 +774,7 @@ export async function createCustomProviderWithPlan(
         : `Plan created but cost calculation failed: ${pipelineResult.error}`
     }
 
-    if (!pipelineResult.success) {
-      
-    }
+    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
 
     return {
       success: true,
@@ -867,12 +864,12 @@ export async function disableProvider(
               if (deleteResponse.ok) {
                 plansDeleted++
               } else {
-                const errorText = await deleteResponse.text()
-                
                 failures.push(plan.subscription_id)
               }
             } catch (deleteError) {
-              
+              if (process.env.NODE_ENV === "development") {
+                console.warn(`[disableProvider] Failed to delete plan ${plan.subscription_id}:`, deleteError)
+              }
               failures.push(plan.subscription_id)
             }
           }
@@ -962,7 +959,10 @@ export async function getAllProviders(orgSlug: string): Promise<{
           })
         }
       } catch (apiError) {
-        
+        // Non-critical - we'll use in-memory defaults if API fails
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getAllProviders] Failed to fetch plan counts from API:", apiError)
+        }
       }
     }
 
@@ -1632,9 +1632,7 @@ export async function createCustomPlan(
         : `Plan created but cost calculation failed: ${pipelineResult.error}`
     }
 
-    if (!pipelineResult.success) {
-      
-    }
+    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
 
     return {
       success: true,
@@ -1940,9 +1938,7 @@ export async function editPlanWithVersion(
       ? `Costs recalculated from ${pipelineStartDate}`
       : `Plan updated but cost recalculation failed: ${pipelineResult.error}`
 
-    if (!pipelineResult.success) {
-      
-    }
+    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
 
     return {
       success: true,
@@ -2037,9 +2033,7 @@ export async function endSubscription(
       ? `Costs recalculated (subscription ended on ${endDate})`
       : `Subscription ended but cost recalculation failed: ${pipelineResult.error}`
 
-    if (!pipelineResult.success) {
-      
-    }
+    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
 
     return {
       success: true,

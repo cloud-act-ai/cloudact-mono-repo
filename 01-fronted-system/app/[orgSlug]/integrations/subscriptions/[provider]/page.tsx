@@ -34,13 +34,16 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
+// Premium components - same as dashboard/pipeline pages
+import { StatRow } from "@/components/ui/stat-row"
+import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
+import { LoadingState } from "@/components/ui/loading-state"
 import {
   Select,
   SelectContent,
@@ -66,9 +69,10 @@ import {
   type ProviderMeta,
   type AvailablePlan,
   type PlanCreate,
+  type BillingCycle,
 } from "@/actions/subscription-providers"
 import { getDepartments, getProjects, getTeams, type HierarchyEntity } from "@/actions/hierarchy"
-import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
+import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
 // Provider display names
@@ -139,7 +143,7 @@ interface FormDataWithAudit {
   display_name: string
   unit_price: number | undefined
   seats: number | undefined
-  billing_cycle: string
+  billing_cycle: BillingCycle
   pricing_model: 'PER_SEAT' | 'FLAT_FEE'
   currency: string
   notes: string
@@ -164,7 +168,7 @@ interface HierarchyOption {
 
 export default function ProviderDetailPage() {
   const params = useParams<{ orgSlug: string; provider: string }>()
-  const router = useRouter()
+  const _router = useRouter()
   const { orgSlug, provider: rawProvider } = params
 
   // Canonicalize provider name (handle aliases like chatgpt_enterprise → chatgpt_plus)
@@ -178,11 +182,11 @@ export default function ProviderDetailPage() {
 
   // State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-  const [totalMonthlyCost, setTotalMonthlyCost] = useState(0)  // From plan data
+  const [_totalMonthlyCost, setTotalMonthlyCost] = useState(0)  // From plan data
   const [loading, setLoading] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [providerMeta, setProviderMeta] = useState<ProviderMeta | null>(null)
+  const [_providerMeta, setProviderMeta] = useState<ProviderMeta | null>(null)
   const [showDeleted, setShowDeleted] = useState(false)
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
 
@@ -267,7 +271,7 @@ export default function ProviderDetailPage() {
           setError(plansResult.error || "Failed to load plans")
         }
       }
-    } catch (err) {
+    } catch {
       // Handle unexpected errors during parallel fetching
       if (!isMounted || isMounted()) {
         setError("Failed to load provider data. Please try again.")
@@ -296,7 +300,7 @@ export default function ProviderDetailPage() {
       } else {
         setAvailablePlans([])
       }
-    } catch (err) {
+    } catch {
       setAvailablePlans([])
     } finally {
       setLoadingTemplates(false)
@@ -313,7 +317,7 @@ export default function ProviderDetailPage() {
       display_name: template.display_name || template.plan_name,
       unit_price: convertedPrice,
       seats: template.seats || 1,
-      billing_cycle: template.billing_cycle,
+      billing_cycle: template.billing_cycle as BillingCycle,
       pricing_model: template.pricing_model,
       currency: orgCurrency,
       notes: template.notes || "",
@@ -570,63 +574,37 @@ export default function ProviderDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-8 rounded" />
-            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10">
-              <CreditCard className="h-6 w-6 text-[#1a7a3a]" />
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        {/* Header - Same pattern as dashboard */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <Skeleton className="h-8 w-48 mb-2" />
-              <Skeleton className="h-4 w-64" />
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                {providerDisplayName}
+              </h1>
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                Manage subscription plans for {providerDisplayName}
+              </p>
             </div>
           </div>
-          <Skeleton className="h-10 w-48" />
         </div>
-
-        {/* Summary Cards Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <CardSkeleton count={3} />
-        </div>
-
-        {/* Plans Table Skeleton */}
-        <Card className="console-table-card">
-          <CardHeader>
-            <Skeleton className="h-6 w-48 mb-2" />
-            <Skeleton className="h-4 w-96" />
-          </CardHeader>
-          <CardContent className="px-0">
-            {/* Table Header */}
-            <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#90FCA6]/[0.02]">
-              {[1, 3, 2, 2, 2, 2].map((span, i) => (
-                <div key={i} className={`col-span-${span}`}>
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ))}
-            </div>
-            {/* Table Rows */}
-            <div className="divide-y divide-slate-100">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3.5">
-                  <div className="col-span-1"><Skeleton className="h-6 w-10" /></div>
-                  <div className="col-span-3"><Skeleton className="h-6 w-full" /></div>
-                  <div className="col-span-2"><Skeleton className="h-6 w-20 ml-auto" /></div>
-                  <div className="col-span-2"><Skeleton className="h-6 w-16" /></div>
-                  <div className="col-span-2"><Skeleton className="h-6 w-12 ml-auto" /></div>
-                  <div className="col-span-2"><Skeleton className="h-6 w-16 ml-auto" /></div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <LoadingState message="Loading subscription plans..." />
       </div>
     )
   }
 
+  // Stats for StatRow component - same pattern as dashboard/pipelines
+  const stats = [
+    { icon: CreditCard, value: String(totalActiveSeats), label: "Active Seats", color: "coral" as const },
+    { icon: Check, value: String(activeSubscriptionsCount), label: "Subscriptions", color: "mint" as const },
+    { icon: CreditCard, value: String(visiblePlans.length), label: "Plans", color: "slate" as const },
+  ]
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
@@ -640,45 +618,52 @@ export default function ProviderDetailPage() {
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title={providerDisplayName}>{providerDisplayName}</span>
       </nav>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href={`/${orgSlug}/integrations/subscriptions`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <Link href={`/${orgSlug}/integrations/subscriptions`} className="flex-shrink-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10 text-[#1a7a3a]">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm text-[#1a7a3a]">
             {/* Get category from first plan if available, otherwise use default icon */}
-            {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-6 w-6" />}
+            {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />}
           </div>
           <div>
-            <h1 className="console-page-title">{providerDisplayName}</h1>
-            <p className="console-subheading">
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              {providerDisplayName}
+            </h1>
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Manage subscription plans for {providerDisplayName}
             </p>
           </div>
         </div>
         {plans.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
             <Button
               onClick={openTemplateSheet}
-              className="console-button-primary"
+              className="h-11 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
               data-testid="add-from-template-btn"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Add from Template
             </Button>
             <Button
               onClick={openCustomSheet}
-              className="console-button-secondary"
+              className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2"
               data-testid="add-custom-subscription-btn"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Add Custom
             </Button>
           </div>
         )}
+      </div>
+
+      {/* Stats Row - Using StatRow component like dashboard/pipelines */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <StatRow stats={stats} size="md" />
       </div>
 
       {/* Provider Alias Info Banner */}
@@ -716,38 +701,16 @@ export default function ProviderDetailPage() {
         </Card>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="console-stat-card border-[#FF6C5E]/20">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6C5E]">{totalActiveSeats}</div>
-            <p className="text-sm text-muted-foreground">Total Active Seats</p>
-          </CardContent>
-        </Card>
-        <Card className="console-stat-card border-[#FF6C5E]/20">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6C5E]">{activeSubscriptionsCount}</div>
-            <p className="text-sm text-muted-foreground">Active Subscriptions</p>
-          </CardContent>
-        </Card>
-        <Card className="console-stat-card border-[#FF6C5E]/20">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6C5E]">{visiblePlans.length}</div>
-            <p className="text-sm text-muted-foreground">Available Plans</p>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Plans Table */}
-      <Card className="console-table-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="console-card-title">{providerDisplayName} Plans</CardTitle>
-              <CardDescription>
-                Toggle plans on/off to include them in cost tracking. Click a row to see more details.
-              </CardDescription>
-            </div>
+      {/* Plans Section */}
+      <div className="space-y-4 sm:space-y-6">
+        <SectionHeader title={`${providerDisplayName} Plans`} icon={CreditCard} />
+
+        <PremiumCard hover={false}>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[13px] text-slate-600">
+              Click a row to see more details. Toggle plans to include them in cost tracking.
+            </p>
             {deletedPlansCount > 0 && (
               <div className="flex items-center gap-2">
                 <label htmlFor="show-deleted" className="text-sm text-muted-foreground cursor-pointer" data-testid="show-deleted-label">
@@ -764,8 +727,6 @@ export default function ProviderDetailPage() {
               </div>
             )}
           </div>
-        </CardHeader>
-        <CardContent className="px-0">
           {visiblePlans.length === 0 ? (
             <div className="text-center py-12 px-6">
               <div className="inline-flex p-4 rounded-2xl bg-[#90FCA6]/10 mb-4">
@@ -1003,8 +964,8 @@ export default function ProviderDetailPage() {
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
+        </PremiumCard>
+      </div>
 
       {/* Template Sheet - Select from predefined templates */}
       <Sheet open={templateSheetOpen} onOpenChange={setTemplateSheetOpen}>
@@ -1227,7 +1188,7 @@ export default function ProviderDetailPage() {
                 <Label>Billing Cycle *</Label>
                 <Select
                   value={formData.billing_cycle}
-                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}
+                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value as BillingCycle })}
                 >
                   <SelectTrigger>
                     <SelectValue />

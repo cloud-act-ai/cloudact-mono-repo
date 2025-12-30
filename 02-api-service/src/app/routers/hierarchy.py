@@ -21,7 +21,7 @@ import logging
 import csv
 import io
 
-from src.core.services.hierarchy_service import HierarchyService, get_hierarchy_service
+from src.core.services.hierarchy_crud import HierarchyService, get_hierarchy_crud_service
 from src.app.dependencies.auth import get_current_org
 from src.app.models.hierarchy_models import (
     HierarchyEntityType,
@@ -57,7 +57,7 @@ async def list_hierarchy(
     entity_type: Optional[HierarchyEntityType] = Query(None, description="Filter by entity type"),
     include_inactive: bool = Query(False, description="Include inactive entities"),
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all hierarchy entities."""
     try:
@@ -81,7 +81,7 @@ async def list_hierarchy(
 async def get_hierarchy_tree(
     org_slug: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get hierarchy as a tree structure."""
     try:
@@ -110,7 +110,7 @@ async def list_departments(
     org_slug: str,
     include_inactive: bool = Query(False, description="Include inactive departments"),
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all departments."""
     return await service.get_all_entities(
@@ -128,7 +128,7 @@ async def get_department(
     org_slug: str,
     dept_id: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get a department by ID."""
     entity = await service.get_entity(org_slug, HierarchyEntityType.DEPARTMENT, dept_id)
@@ -151,7 +151,7 @@ async def create_department(
     org_slug: str,
     request: CreateDepartmentRequest,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Create a new department."""
     user_id = org_data.get("user_id", "system")
@@ -176,7 +176,7 @@ async def list_department_projects(
     org_slug: str,
     dept_id: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all projects under a department."""
     # First verify department exists
@@ -212,7 +212,7 @@ async def list_projects(
     org_slug: str,
     include_inactive: bool = Query(False, description="Include inactive projects"),
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all projects."""
     return await service.get_all_entities(
@@ -230,7 +230,7 @@ async def get_project(
     org_slug: str,
     project_id: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get a project by ID."""
     entity = await service.get_entity(org_slug, HierarchyEntityType.PROJECT, project_id)
@@ -253,7 +253,7 @@ async def create_project(
     org_slug: str,
     request: CreateProjectRequest,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Create a new project."""
     user_id = org_data.get("user_id", "system")
@@ -278,7 +278,7 @@ async def list_project_teams(
     org_slug: str,
     project_id: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all teams under a project."""
     # First verify project exists
@@ -314,7 +314,7 @@ async def list_teams(
     org_slug: str,
     include_inactive: bool = Query(False, description="Include inactive teams"),
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all teams."""
     return await service.get_all_entities(
@@ -332,7 +332,7 @@ async def get_team(
     org_slug: str,
     team_id: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get a team by ID."""
     entity = await service.get_entity(org_slug, HierarchyEntityType.TEAM, team_id)
@@ -355,7 +355,7 @@ async def create_team(
     org_slug: str,
     request: CreateTeamRequest,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Create a new team."""
     user_id = org_data.get("user_id", "system")
@@ -386,7 +386,7 @@ async def update_entity(
     entity_id: str,
     request: UpdateHierarchyEntityRequest,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Update a hierarchy entity."""
     user_id = org_data.get("user_id", "system")
@@ -412,7 +412,7 @@ async def check_can_delete(
     entity_type: HierarchyEntityType,
     entity_id: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Check if an entity can be deleted."""
     return await service.check_deletion_blocked(org_slug, entity_type, entity_id)
@@ -430,7 +430,7 @@ async def delete_entity(
     entity_id: str,
     force: bool = Query(False, description="Force delete even if blocked"),
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Delete a hierarchy entity."""
     user_id = org_data.get("user_id", "system")
@@ -460,7 +460,7 @@ async def import_hierarchy(
     org_slug: str,
     request: HierarchyImportRequest,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Import hierarchy from CSV rows."""
     user_id = org_data.get("user_id", "system")
@@ -484,7 +484,7 @@ async def import_hierarchy(
 async def export_hierarchy(
     org_slug: str,
     org_data: dict = Depends(get_current_org),
-    service: HierarchyService = Depends(get_hierarchy_service)
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Export hierarchy as CSV."""
     try:

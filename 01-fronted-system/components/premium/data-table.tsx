@@ -122,26 +122,28 @@ interface SearchInputProps {
 
 function SearchInput({ value, onChange, placeholder = "Search...", className }: SearchInputProps) {
   return (
-    <div className={cn("relative", className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+    <div className={cn("relative group", className)}>
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--cloudact-mint)]/20 to-[var(--cloudact-mint-light)]/20 blur-sm opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-[var(--cloudact-mint-dark)] transition-colors z-10" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "w-full h-10 pl-10 pr-10 text-[14px] rounded-xl border border-slate-200",
-          "bg-white placeholder:text-slate-400 text-slate-900",
-          "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30 focus:border-[var(--cloudact-mint)]",
-          "transition-all duration-200"
+          "relative w-full h-11 pl-10 pr-10 text-[14px] rounded-xl border border-slate-200",
+          "bg-white/80 backdrop-blur-sm placeholder:text-slate-400 text-slate-900",
+          "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40 focus:border-[var(--cloudact-mint)]",
+          "focus:bg-white focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
+          "transition-all duration-300 ease-out"
         )}
       />
       {value && (
         <button
           onClick={() => onChange("")}
-          className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)] flex items-center justify-center transition-all duration-200 z-10"
         >
-          <X className="h-3 w-3 text-slate-500" />
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
     </div>
@@ -175,36 +177,39 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "inline-flex items-center gap-2 h-9 px-3 text-[13px] font-medium rounded-lg border transition-colors",
+          "inline-flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-xl border transition-all duration-200",
           hasValue
-            ? "bg-[var(--cloudact-mint)]/10 border-[var(--cloudact-mint)]/30 text-[#1a7a3a]"
-            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+            ? "bg-gradient-to-r from-[var(--cloudact-mint)]/15 to-[var(--cloudact-mint-light)]/15 border-[var(--cloudact-mint)]/40 text-[#1a7a3a] shadow-sm"
+            : "bg-white/80 backdrop-blur-sm border-slate-200 text-slate-600 hover:border-[var(--cloudact-mint)]/30 hover:bg-[var(--cloudact-mint)]/5"
         )}
       >
-        <Filter className="h-3.5 w-3.5" />
+        <Filter className={cn("h-3.5 w-3.5", hasValue && "text-[var(--cloudact-mint-dark)]")} />
         {column.header}
         {hasValue && (
-          <span className="ml-1 h-5 w-5 rounded-full bg-[var(--cloudact-mint)] text-slate-900 text-[11px] flex items-center justify-center">
+          <span className="ml-1 h-5 w-5 rounded-full bg-[var(--cloudact-mint)] text-slate-900 text-[10px] font-bold flex items-center justify-center shadow-sm">
             {Array.isArray(value) ? value.length : 1}
           </span>
         )}
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && column.filterOptions && (
-        <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl border border-slate-200 shadow-lg z-50 py-1 overflow-hidden">
+        <div className="absolute top-full left-0 mt-2 w-52 bg-white/95 backdrop-blur-lg rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 z-50 py-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-200">
           <button
             onClick={() => {
               onChange("")
               setIsOpen(false)
             }}
             className={cn(
-              "w-full px-3 py-2 text-left text-[13px] hover:bg-slate-50 transition-colors",
-              !hasValue && "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a]"
+              "w-full px-4 py-2.5 text-left text-[13px] font-medium transition-all duration-150",
+              !hasValue
+                ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             )}
           >
             All
           </button>
+          <div className="h-px bg-slate-100 mx-3 my-1" />
           {column.filterOptions.map((option) => (
             <button
               key={option.value}
@@ -213,8 +218,10 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
                 setIsOpen(false)
               }}
               className={cn(
-                "w-full px-3 py-2 text-left text-[13px] hover:bg-slate-50 transition-colors",
-                value === option.value && "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a]"
+                "w-full px-4 py-2.5 text-left text-[13px] font-medium transition-all duration-150",
+                value === option.value
+                  ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               {option.label}
@@ -249,13 +256,13 @@ function Pagination({
   const endItem = Math.min(currentPage * pageSize, totalItems)
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-200">
-      <div className="flex items-center gap-2 text-[13px] text-slate-500">
-        <span>Show</span>
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-200/80 bg-gradient-to-r from-slate-50/50 to-transparent">
+      <div className="flex items-center gap-2.5 text-[13px] text-slate-500">
+        <span className="font-medium">Show</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30"
+          className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30 focus:border-[var(--cloudact-mint)] transition-all cursor-pointer"
         >
           {pageSizeOptions.map((size) => (
             <option key={size} value={size}>
@@ -263,46 +270,46 @@ function Pagination({
             </option>
           ))}
         </select>
-        <span>
-          of {totalItems} {totalItems === 1 ? "item" : "items"}
+        <span className="font-medium">
+          of <span className="text-slate-900 font-semibold">{totalItems}</span> {totalItems === 1 ? "item" : "items"}
         </span>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
         >
-          <ChevronsLeft className="h-4 w-4 text-slate-600" />
+          <ChevronsLeft className="h-4 w-4" />
         </button>
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
         >
-          <ChevronLeft className="h-4 w-4 text-slate-600" />
+          <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <div className="flex items-center gap-1 px-2">
-          <span className="text-[13px] text-slate-600">
-            {startItem}-{endItem}
+        <div className="flex items-center px-4 h-9 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
+          <span className="text-[13px] font-semibold text-[#1a7a3a]">
+            {startItem}–{endItem}
           </span>
         </div>
 
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
         >
-          <ChevronRight className="h-4 w-4 text-slate-600" />
+          <ChevronRight className="h-4 w-4" />
         </button>
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
-          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
         >
-          <ChevronsRight className="h-4 w-4 text-slate-600" />
+          <ChevronsRight className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -313,7 +320,7 @@ function Pagination({
 // Main Component
 // ============================================================================
 
-export function PremiumDataTable<T extends Record<string, unknown>>({
+export function PremiumDataTable<T extends object>({
   data,
   columns,
   keyField,
@@ -463,8 +470,11 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
         try {
           const details = await expandable.loadDetails(row)
           setExpandedDetails((prev) => ({ ...prev, [rowKey]: details }))
-        } catch {
-          // Handle error silently
+        } catch (detailsError) {
+          // Log error but keep row expanded (user will see empty/fallback content)
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[PremiumDataTable] Failed to load row details:", detailsError)
+          }
         } finally {
           setLoadingDetails((prev) => {
             const next = new Set(prev)
@@ -495,7 +505,9 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden",
+        "bg-white/95 backdrop-blur-sm rounded-2xl border border-slate-200/80 overflow-hidden",
+        "shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
+        "transition-shadow duration-300",
         className
       )}
     >
@@ -594,17 +606,17 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
         <div className={cn("overflow-x-auto", mobileCard && "hidden md:block")}>
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#E5E5EA]">
-                {expandable && <th className="w-10 px-4 py-3" />}
+              <tr className="border-b border-[#E5E5EA] bg-gradient-to-r from-slate-50/80 to-transparent">
+                {expandable && <th className="w-10 px-4 py-3.5" />}
                 {columns.map((column) => (
                   <th
                     key={column.id}
                     className={cn(
-                      "px-4 py-3 text-[12px] font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap",
+                      "px-4 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap",
                       column.align === "center" && "text-center",
                       column.align === "right" && "text-right",
                       column.hideOnMobile && "hidden lg:table-cell",
-                      column.sortable !== false && sortable && "cursor-pointer hover:text-slate-900 transition-colors"
+                      column.sortable !== false && sortable && "cursor-pointer hover:text-[var(--cloudact-mint-dark)] transition-colors group"
                     )}
                     style={{ width: column.width, minWidth: column.minWidth }}
                     onClick={() => column.sortable !== false && sortable && handleSort(column.id)}
@@ -618,15 +630,15 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
                     >
                       {column.header}
                       {column.sortable !== false && sortable && (
-                        <span className="text-slate-400">
+                        <span className="text-slate-400 group-hover:text-[var(--cloudact-mint-dark)] transition-colors">
                           {sortColumn === column.id ? (
                             sortDirection === "asc" ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
+                              <ChevronUp className="h-3.5 w-3.5 text-[var(--cloudact-mint-dark)]" />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5" />
+                              <ChevronDown className="h-3.5 w-3.5 text-[var(--cloudact-mint-dark)]" />
                             )
                           ) : (
-                            <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                            <ArrowUpDown className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100" />
                           )}
                         </span>
                       )}
@@ -647,9 +659,11 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
                   <React.Fragment key={rowKey}>
                     <tr
                       className={cn(
-                        "border-b border-[#E5E5EA] last:border-b-0",
-                        "hover:bg-[var(--cloudact-mint)]/5 transition-colors",
+                        "border-b border-[#E5E5EA]/80 last:border-b-0 group/row",
+                        "hover:bg-gradient-to-r hover:from-[var(--cloudact-mint)]/5 hover:to-transparent",
+                        "transition-all duration-200",
                         (canExpand || onRowClick) && "cursor-pointer",
+                        isExpanded && "bg-[var(--cloudact-mint)]/[0.03]",
                         rowClasses
                       )}
                       onClick={() => {
@@ -661,13 +675,20 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
                       }}
                     >
                       {expandable && (
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           {canExpand && (
-                            isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-slate-400" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-slate-400" />
-                            )
+                            <div className={cn(
+                              "h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-200",
+                              isExpanded
+                                ? "bg-[var(--cloudact-mint)]/20 text-[var(--cloudact-mint-dark)]"
+                                : "bg-slate-100 text-slate-400 group-hover/row:bg-[var(--cloudact-mint)]/10 group-hover/row:text-[var(--cloudact-mint-dark)]"
+                            )}>
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </div>
                           )}
                         </td>
                       )}
@@ -688,18 +709,26 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
 
                     {/* Expanded row */}
                     {expandable && isExpanded && (
-                      <tr className="bg-[var(--cloudact-mint)]/5">
+                      <tr className="bg-gradient-to-br from-[var(--cloudact-mint)]/[0.04] via-[var(--cloudact-mint)]/[0.02] to-transparent animate-in fade-in-0 slide-in-from-top-1 duration-200">
                         <td
                           colSpan={columns.length + 1}
-                          className="px-4 sm:px-6 py-4"
+                          className="px-4 sm:px-8 py-6"
                         >
-                          {isLoadingDetail ? (
-                            <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
+                          <div className="relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[var(--cloudact-mint)] to-transparent rounded-full" />
+                            <div className="pl-4">
+                              {isLoadingDetail ? (
+                                <div className="flex items-center justify-center py-8">
+                                  <div className="relative">
+                                    <div className="absolute inset-0 rounded-full bg-[var(--cloudact-mint)]/20 animate-ping" />
+                                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)] relative z-10" />
+                                  </div>
+                                </div>
+                              ) : (
+                                expandable.renderExpanded(row, expandedDetails[rowKey])
+                              )}
                             </div>
-                          ) : (
-                            expandable.renderExpanded(row, expandedDetails[rowKey])
-                          )}
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -740,5 +769,6 @@ export function PremiumDataTable<T extends Record<string, unknown>>({
   )
 }
 
-// Export types
-export type { FilterValue, ColumnDef }
+// Types are already exported above as interfaces:
+// - ColumnDef (line 26)
+// - FilterValue (line 42)

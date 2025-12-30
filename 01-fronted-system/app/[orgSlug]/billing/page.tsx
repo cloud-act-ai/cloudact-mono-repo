@@ -5,7 +5,6 @@ import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -14,12 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 import {
   Check,
   Loader2,
-  AlertTriangle,
   CreditCard,
   Receipt,
   ExternalLink,
@@ -28,12 +24,9 @@ import {
   Calendar,
   Lock,
   Shield,
-  TrendingUp,
   Users,
   Zap,
-  Crown,
   ArrowRight,
-  BarChart3,
   AlertCircle,
 } from "lucide-react"
 import {
@@ -42,9 +35,11 @@ import {
   getBillingInfo,
   getStripePlans,
   changeSubscriptionPlan,
+  resyncBillingFromStripe,
   type BillingInfo,
   type DynamicPlan,
 } from "@/actions/stripe"
+import { RefreshCw } from "lucide-react"
 import { logError } from "@/lib/utils"
 import { formatCurrency as formatCurrencyI18n, DEFAULT_CURRENCY } from "@/lib/i18n"
 
@@ -73,9 +68,45 @@ export default function BillingPage() {
   }>({ open: false, plan: null, isUpgrade: false })
   const [downgradeLimitError, setDowngradeLimitError] = useState<string | null>(null)
   const [currentMemberCount, setCurrentMemberCount] = useState<number>(0)
+  const [seatLimit, setSeatLimit] = useState<number | null>(null)
+  const [providersLimit, setProvidersLimit] = useState<number | null>(null)
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
+  const [isResyncing, setIsResyncing] = useState(false)
+  const [resyncMessage, setResyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const orgSlug = params.orgSlug
+
+  // Handler for manual resync from Stripe
+  const handleResyncFromStripe = async () => {
+    setIsResyncing(true)
+    setResyncMessage(null)
+    try {
+      const result = await resyncBillingFromStripe(orgSlug)
+      if (result.success) {
+        setResyncMessage({
+          type: 'success',
+          text: result.message || 'Billing data synced successfully from Stripe!'
+        })
+        // Refresh billing data to show updated values
+        await fetchBillingData()
+      } else {
+        setResyncMessage({
+          type: 'error',
+          text: result.error || 'Failed to sync billing data'
+        })
+      }
+    } catch (err) {
+      const errorMessage = logError("BillingPage:handleResyncFromStripe", err)
+      setResyncMessage({
+        type: 'error',
+        text: errorMessage || 'Failed to sync billing data'
+      })
+    } finally {
+      setIsResyncing(false)
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setResyncMessage(null), 5000)
+    }
+  }
 
   const fetchBillingData = useCallback(async () => {
     setIsLoadingBilling(true)
@@ -100,7 +131,7 @@ export default function BillingPage() {
 
       const { data: orgData, error: orgError } = await supabase
         .from("organizations")
-        .select("plan, billing_status, stripe_subscription_id, id, created_by, default_currency")
+        .select("plan, billing_status, stripe_subscription_id, id, created_by, default_currency, seat_limit, providers_limit")
         .eq("org_slug", orgSlug)
         .single()
 
@@ -114,6 +145,12 @@ export default function BillingPage() {
         setHasStripeSubscription(!!orgData.stripe_subscription_id)
         if (orgData.default_currency) {
           setOrgCurrency(orgData.default_currency)
+        }
+        if (orgData.seat_limit) {
+          setSeatLimit(orgData.seat_limit)
+        }
+        if (orgData.providers_limit) {
+          setProvidersLimit(orgData.providers_limit)
         }
 
         const { count: memberCount } = await supabase
@@ -154,7 +191,10 @@ export default function BillingPage() {
         setBillingError(null)
         if (result.data.subscription) {
           setHasStripeSubscription(true)
-          setCurrentPlan(result.data.subscription.plan.id)
+          // Null check for plan object to prevent runtime errors
+          if (result.data.subscription.plan?.id) {
+            setCurrentPlan(result.data.subscription.plan.id)
+          }
           setBillingStatus(result.data.subscription.status)
         }
       }
@@ -244,7 +284,10 @@ export default function BillingPage() {
       const parsed = new URL(url)
       const allowedHosts = ["checkout.stripe.com", "billing.stripe.com"]
       return allowedHosts.includes(parsed.hostname)
-    } catch {
+    } catch (parseError) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[BillingPage] Invalid redirect URL:", url, parseError)
+      }
       return false
     }
   }
@@ -323,8 +366,11 @@ export default function BillingPage() {
           }
         }
       }
-    } catch {
-      // Don't block downgrade on error
+    } catch (integrationError) {
+      // Don't block downgrade on integration check error
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[BillingPage] Failed to check integrations for downgrade:", integrationError)
+      }
     }
 
     return { canDowngrade: true, reason: null }
@@ -482,18 +528,29 @@ export default function BillingPage() {
                 </div>
               </div>
               {isOwner && (
-                <button
-                  onClick={handleManageSubscription}
-                  disabled={isPortalLoading}
-                  className="console-button-secondary whitespace-nowrap"
-                >
-                  {isPortalLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Settings className="h-4 w-4 mr-2" />
-                  )}
-                  Manage Subscription
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleResyncFromStripe}
+                    disabled={isResyncing}
+                    className="h-10 px-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-[13px] font-medium transition-colors flex items-center gap-2"
+                    title="Sync billing data from Stripe"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isResyncing ? 'animate-spin' : ''}`} />
+                    {isResyncing ? 'Syncing...' : 'Sync'}
+                  </button>
+                  <button
+                    onClick={handleManageSubscription}
+                    disabled={isPortalLoading}
+                    className="console-button-secondary whitespace-nowrap"
+                  >
+                    {isPortalLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Settings className="h-4 w-4 mr-2" />
+                    )}
+                    Manage Subscription
+                  </button>
+                </div>
               )}
             </div>
             {isCanceledButActive && (
@@ -502,6 +559,24 @@ export default function BillingPage() {
                 <p className="text-[13px] font-medium text-rose-700">
                   Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
                   Click "Manage Subscription" to resume.
+                </p>
+              </div>
+            )}
+            {resyncMessage && (
+              <div className={`mt-4 p-3 rounded-lg flex items-center gap-3 ${
+                resyncMessage.type === 'success'
+                  ? 'bg-[var(--cloudact-mint)]/5 border border-[#90FCA6]/20'
+                  : 'bg-rose-50 border border-rose-200'
+              }`}>
+                {resyncMessage.type === 'success' ? (
+                  <Check className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+                )}
+                <p className={`text-[13px] font-medium ${
+                  resyncMessage.type === 'success' ? 'text-[var(--cloudact-mint-text)]' : 'text-rose-700'
+                }`}>
+                  {resyncMessage.text}
                 </p>
               </div>
             )}
@@ -520,7 +595,7 @@ export default function BillingPage() {
               <p className="text-[24px] font-bold text-slate-900 leading-none">
                 {currentMemberCount}
                 <span className="text-[16px] text-slate-400 ml-1">
-                  / {billingInfo.subscription.plan.metadata?.team_members || '∞'}
+                  / {seatLimit || 'Contact us'}
                 </span>
               </p>
               <p className="text-[12px] text-slate-500 font-medium mt-0.5">Team Members</p>
@@ -533,7 +608,7 @@ export default function BillingPage() {
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">
-                {billingInfo.subscription.plan.metadata?.providers || '∞'}
+                {providersLimit || 'Contact us'}
               </p>
               <p className="text-[12px] text-slate-500 font-medium mt-0.5">Integrations</p>
             </div>
@@ -734,8 +809,8 @@ export default function BillingPage() {
                       : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  {/* Popular Badge */}
-                  {isPopular && !isCurrentPlan && (
+                  {/* Popular Badge - Only show for users without subscription (pricing page context) */}
+                  {isPopular && !isCurrentPlan && !hasStripeSubscription && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                       <div className="bg-[var(--cloudact-mint)] text-[#000000] px-3 py-1 rounded-md text-[11px] font-bold shadow-sm">
                         MOST POPULAR
@@ -813,7 +888,7 @@ export default function BillingPage() {
                       ) : (
                         <button
                           className={`h-11 px-6 w-full rounded-xl text-[14px] font-semibold transition-all duration-200 ${
-                            isUpgrade || isPopular
+                            isUpgrade
                               ? "console-button-primary"
                               : "console-button-secondary"
                           }`}
@@ -871,17 +946,24 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Contact & Cancel Links */}
-        <div className="text-center space-y-2 pt-4">
-          <p className="text-[13px] text-slate-500">
-            Need enterprise pricing?{" "}
-            <a
-              href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}`}
-              className="text-slate-900 font-semibold hover:text-slate-700 underline transition-colors"
-            >
-              Contact {process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}
-            </a>
+        {/* Enterprise CTA */}
+        <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-[#90FCA6]/5 to-white border border-[#90FCA6]/20 text-center">
+          <h3 className="text-[20px] font-bold text-slate-900 mb-2">
+            Need enterprise pricing?
+          </h3>
+          <p className="text-[15px] text-slate-600 mb-4">
+            Custom limits, dedicated support, and volume discounts
           </p>
+          <a
+            href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}?subject=Enterprise Pricing Inquiry`}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-[14px] font-semibold rounded-xl hover:bg-slate-800 transition-colors"
+          >
+            Contact {process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}
+          </a>
+        </div>
+
+        {/* Cancel Link */}
+        <div className="text-center space-y-2 pt-4">
           {isOwner && (
             <p className="text-[13px] text-slate-500">
               {hasStripeSubscription && !isCanceledButActive ? (
@@ -1064,48 +1146,50 @@ export default function BillingPage() {
             <DialogTitle className="text-[20px] font-bold text-slate-900">
               {confirmDialog.isUpgrade ? "Upgrade" : "Downgrade"} to {confirmDialog.plan?.name}?
             </DialogTitle>
-            <DialogDescription className="text-[13px] leading-relaxed space-y-3 pt-2 text-slate-600">
-              {confirmDialog.isUpgrade ? (
-                <>
-                  <p>
-                    You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
-                  </p>
-                  <p className="text-[var(--cloudact-mint-text)] font-medium">
-                    Your card will be charged the prorated difference immediately.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p>
-                    You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
-                  </p>
-                  <p className="text-[var(--cloudact-mint-text)] font-medium">
-                    You'll receive a prorated credit on your next invoice.
-                  </p>
-                  <div className="rounded-lg bg-amber-50 p-3 border border-amber-200">
-                    <p className="text-amber-800 font-medium text-[13px]">
-                      Note: Your plan limits will be reduced. Ensure you're within the new plan's limits before downgrading.
+            <DialogDescription asChild>
+              <div className="text-[13px] leading-relaxed space-y-3 pt-2 text-slate-600">
+                {confirmDialog.isUpgrade ? (
+                  <>
+                    <p>
+                      You&apos;re upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
                     </p>
-                  </div>
-                  {confirmDialog.plan?.limits && (
-                    <div className="space-y-2 text-[13px]">
-                      <p className="font-medium text-slate-900">Current usage vs. new plan limits:</p>
-                      <ul className="space-y-1">
-                        <li className="flex items-center justify-between p-2 rounded bg-slate-50">
-                          <span className="text-slate-600">Team Members:</span>
-                          <span className={`font-semibold ${
-                            currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
-                              ? "text-rose-600"
-                              : "text-[var(--cloudact-mint-text)]"
-                          }`}>
-                            {currentMemberCount} / {confirmDialog.plan?.limits?.teamMembers ?? 0}
-                          </span>
-                        </li>
-                      </ul>
+                    <p className="text-[var(--cloudact-mint-text)] font-medium">
+                      Your card will be charged the prorated difference immediately.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      You&apos;re downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
+                    </p>
+                    <p className="text-[var(--cloudact-mint-text)] font-medium">
+                      You&apos;ll receive a prorated credit on your next invoice.
+                    </p>
+                    <div className="rounded-lg bg-amber-50 p-3 border border-amber-200">
+                      <p className="text-amber-800 font-medium text-[13px]">
+                        Note: Your plan limits will be reduced. Ensure you&apos;re within the new plan&apos;s limits before downgrading.
+                      </p>
                     </div>
-                  )}
-                </>
-              )}
+                    {confirmDialog.plan?.limits && (
+                      <div className="space-y-2 text-[13px]">
+                        <p className="font-medium text-slate-900">Current usage vs. new plan limits:</p>
+                        <ul className="space-y-1">
+                          <li className="flex items-center justify-between p-2 rounded bg-slate-50">
+                            <span className="text-slate-600">Team Members:</span>
+                            <span className={`font-semibold ${
+                              currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
+                                ? "text-rose-600"
+                                : "text-[var(--cloudact-mint-text)]"
+                            }`}>
+                              {currentMemberCount} / {confirmDialog.plan?.limits?.teamMembers ?? 0}
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-3 sm:gap-2">

@@ -22,9 +22,6 @@ export type {
 // Import types for internal use
 import type {
   GenAIFlow,
-  PAYGPricingRecord,
-  CommitmentPricingRecord,
-  InfrastructurePricingRecord,
   GenAIPricingResponse,
   PaginationParams,
   CustomPricingData,
@@ -435,7 +432,9 @@ export async function getGenAIPricing(
 
     return { success: true, data: enrichedData }
   } catch (error) {
-    console.error("Error fetching GenAI pricing:", error)
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error fetching GenAI pricing:", error)
+    }
     return { success: false, error: "Failed to fetch pricing data" }
   }
 }
@@ -489,7 +488,9 @@ export async function getGenAIPricingByFlow<T extends GenAIFlow>(
       has_more: records.length >= limit,
     }
   } catch (error) {
-    console.error(`Error fetching ${flow} pricing:`, error)
+    if (process.env.NODE_ENV === "development") {
+      console.error(`Error fetching ${flow} pricing:`, error)
+    }
     return { success: false, error: `Failed to fetch ${flow} pricing data` }
   }
 }
@@ -657,7 +658,9 @@ export async function addCustomPricing(
 
     // Validate that we received a pricing ID - this is required for subsequent operations
     if (!pricingId) {
-      console.error(`No pricing ID returned from API for ${flow} pricing. Response:`, data)
+      if (process.env.NODE_ENV === "development") {
+        console.error(`No pricing ID returned from API for ${flow} pricing. Response:`, data)
+      }
       return {
         success: false,
         error: `Pricing was created but no ID was returned. Please refresh and verify the pricing entry.`
@@ -670,7 +673,9 @@ export async function addCustomPricing(
       data: data.data || data
     }
   } catch (error) {
-    console.error(`Error adding custom ${flow} pricing:`, error)
+    if (process.env.NODE_ENV === "development") {
+      console.error(`Error adding custom ${flow} pricing:`, error)
+    }
     return { success: false, error: `Failed to add custom ${flow} pricing` }
   }
 }
@@ -719,7 +724,9 @@ export async function setPricingOverride(
 
     return { success: true }
   } catch (error) {
-    console.error("Error setting pricing override:", error)
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error setting pricing override:", error)
+    }
     return { success: false, error: "Failed to set pricing override" }
   }
 }
@@ -763,7 +770,9 @@ export async function deleteCustomPricing(
 
     return { success: true }
   } catch (error) {
-    console.error("Error deleting pricing:", error)
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error deleting pricing:", error)
+    }
     return { success: false, error: "Failed to delete pricing" }
   }
 }
@@ -807,7 +816,9 @@ export async function resetPricingOverride(
 
     return { success: true }
   } catch (error) {
-    console.error("Error resetting pricing override:", error)
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error resetting pricing override:", error)
+    }
     return { success: false, error: "Failed to reset pricing override" }
   }
 }

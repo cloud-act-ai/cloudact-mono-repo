@@ -13,11 +13,23 @@ import {
   CalendarDays,
   TrendingUp,
   Check,
+  Crown,
 } from "lucide-react"
 import {
   getOrgQuotaLimits,
   type OrgQuotaLimits,
 } from "@/actions/organization-locale"
+
+// Plan display configuration - matches Stripe product metadata plan_id values
+const PLAN_DISPLAY: Record<string, { name: string; color: string; bgColor: string }> = {
+  starter: { name: "Starter", color: "#007AFF", bgColor: "bg-[#007AFF]/15" },
+  professional: { name: "Professional", color: "#90FCA6", bgColor: "bg-[#90FCA6]/15" },
+  scale: { name: "Scale", color: "#8B5CF6", bgColor: "bg-[#8B5CF6]/15" },
+}
+
+function getPlanDisplay(planName: string) {
+  return PLAN_DISPLAY[planName] || { name: planName.charAt(0).toUpperCase() + planName.slice(1), color: "#64748B", bgColor: "bg-slate-100" }
+}
 
 export default function QuotaUsagePage() {
   const params = useParams()
@@ -41,7 +53,10 @@ export default function QuotaUsagePage() {
       } else {
         setError(result.error || "Failed to load quota information")
       }
-    } catch {
+    } catch (fetchError) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[QuotaUsagePage] Failed to load quota limits:", fetchError)
+      }
       setError("Failed to load quota information")
     } finally {
       setIsLoading(false)
@@ -105,7 +120,7 @@ export default function QuotaUsagePage() {
                   {quotaLimits.team_members_count}
                 </p>
                 <p className="text-[13px] text-slate-500 font-medium mt-1">
-                  of {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "∞"} seats
+                  of {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "Contact us"} seats
                 </p>
               </div>
             </div>
@@ -121,7 +136,7 @@ export default function QuotaUsagePage() {
                   {quotaLimits.configured_providers_count}
                 </p>
                 <p className="text-[13px] text-slate-500 font-medium mt-1">
-                  of {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "∞"} integrations
+                  of {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "Contact us"} integrations
                 </p>
               </div>
             </div>
@@ -129,12 +144,16 @@ export default function QuotaUsagePage() {
 
           <div className="metric-card">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center">
-                <Check className="h-6 w-6 text-[#1a7a3a]" />
+              <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${getPlanDisplay(quotaLimits.plan_name).bgColor}`}>
+                <Crown className="h-6 w-6" style={{ color: getPlanDisplay(quotaLimits.plan_name).color }} />
               </div>
               <div>
-                <p className="text-[15px] text-slate-600 font-medium">Plan Status</p>
-                <p className="text-[13px] text-[#1a7a3a] font-semibold mt-0.5">Active</p>
+                <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">
+                  {getPlanDisplay(quotaLimits.plan_name).name}
+                </p>
+                <p className="text-[13px] font-medium mt-1" style={{ color: quotaLimits.billing_status === "active" ? "#1a7a3a" : "#FF6C5E" }}>
+                  {quotaLimits.billing_status === "active" ? "Active" : quotaLimits.billing_status.charAt(0).toUpperCase() + quotaLimits.billing_status.slice(1).replace("_", " ")}
+                </p>
               </div>
             </div>
           </div>
@@ -184,7 +203,7 @@ export default function QuotaUsagePage() {
                       <p className="text-[24px] font-bold text-slate-900 tracking-tight">
                         {quotaLimits.team_members_count}
                         <span className="text-[15px] font-normal text-slate-500">
-                          {" "}/ {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "∞"}
+                          {" "}/ {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "Contact us"}
                         </span>
                       </p>
                     </div>
@@ -239,7 +258,7 @@ export default function QuotaUsagePage() {
                       <p className="text-[24px] font-bold text-slate-900 tracking-tight">
                         {quotaLimits.configured_providers_count}
                         <span className="text-[15px] font-normal text-slate-500">
-                          {" "}/ {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "∞"}
+                          {" "}/ {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "Contact us"}
                         </span>
                       </p>
                     </div>
@@ -287,7 +306,7 @@ export default function QuotaUsagePage() {
                   Daily
                 </p>
                 <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
-                  {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "∞"}
+                  {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "Contact us"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per day</p>
               </div>
@@ -301,7 +320,7 @@ export default function QuotaUsagePage() {
                   Weekly
                 </p>
                 <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
-                  {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "∞"}
+                  {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "Contact us"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per week</p>
               </div>
@@ -315,12 +334,30 @@ export default function QuotaUsagePage() {
                   Monthly
                 </p>
                 <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
-                  {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "∞"}
+                  {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "Contact us"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per month</p>
               </div>
             </div>
           </section>
+
+          {/* Enterprise CTA */}
+          <div className="metric-card bg-gradient-to-br from-[#90FCA6]/5 to-white border-[#90FCA6]/20">
+            <div className="text-center py-4">
+              <h3 className="text-[20px] font-bold text-slate-900 mb-2">
+                Need higher limits?
+              </h3>
+              <p className="text-[15px] text-slate-600 mb-4">
+                Contact us for enterprise pricing with custom limits
+              </p>
+              <a
+                href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}?subject=Enterprise Pricing Inquiry`}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-[14px] font-semibold rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                Contact {process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}
+              </a>
+            </div>
+          </div>
 
           {/* Info Footer */}
           <div className="metric-card bg-gradient-to-br from-slate-50 to-white">

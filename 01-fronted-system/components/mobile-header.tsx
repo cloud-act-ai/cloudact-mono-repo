@@ -72,8 +72,11 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
         if (isMounted && result.success && result.org?.logoUrl) {
           setLogoUrl(result.org.logoUrl)
         }
-      } catch {
-        // Silently handle error
+      } catch (logoError) {
+        // Non-critical: logo fetch failed, component will show fallback icon
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[MobileHeader] Failed to fetch org logo:", logoError)
+        }
       }
     }
     fetchLogo()

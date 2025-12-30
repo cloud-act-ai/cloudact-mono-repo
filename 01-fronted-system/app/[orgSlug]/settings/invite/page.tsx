@@ -473,7 +473,7 @@ export default function InviteMembersPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {members.map((member, idx) => (
+              {members.map((member) => (
                 <div key={member.id} className="console-table-row group relative">
                   {/* Left accent */}
                   <div

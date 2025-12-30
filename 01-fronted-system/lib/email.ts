@@ -46,7 +46,9 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
       text: text || subject,
     })
     return true
-  } catch {
+  } catch (emailError) {
+    // Log error for debugging - email failures should be visible in logs
+    console.error("[Email] Failed to send email:", emailError instanceof Error ? emailError.message : emailError)
     return false
   }
 }

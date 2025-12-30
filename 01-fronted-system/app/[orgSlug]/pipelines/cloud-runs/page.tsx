@@ -9,32 +9,31 @@ import {
   XCircle,
   AlertCircle,
   Info,
-  ChevronDown,
-  ChevronRight,
-  Clock,
   RefreshCw,
   History,
   Cloud,
   Plug,
-  TrendingUp,
-  Database,
-  CalendarClock,
-  Check,
 } from "lucide-react"
 import Link from "next/link"
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+// Premium components
+import { PremiumDataTable, ColumnDef } from "@/components/premium/data-table"
+import { PipelineRunCard, AvailablePipelineCard, StepTimeline } from "@/components/premium/table-card"
+import { PremiumCard } from "@/components/ui/premium-card"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { StatRow } from "@/components/ui/stat-row"
+import { LoadingState } from "@/components/ui/loading-state"
+import { EmptyState } from "@/components/ui/empty-state"
+
+// Actions
 import { runPipeline, getAvailablePipelines, getPipelineRuns, getPipelineRunDetail } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import { PipelineRunSummary, PipelineRunDetail as PipelineRunDetailType } from "@/lib/api/backend"
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface PipelineConfig {
   id: string
@@ -48,50 +47,100 @@ interface PipelineConfig {
   enabled: boolean
 }
 
-export default function CostRunsPage() {
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+const filterDomain = (domain: string) => {
+  const d = domain.toLowerCase()
+  return d === "cost" || d === "billing" || d.includes("cloud")
+}
+
+const formatDateTime = (dateString?: string) => {
+  if (!dateString) return "-"
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor(diff / (1000 * 60))
+
+    if (minutes < 1) return "Just now"
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  } catch {
+    return dateString
+  }
+}
+
+const formatDuration = (ms?: number) => {
+  if (ms === undefined || ms === null) return "-"
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+export default function CloudRunsPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
+  // Pipeline state
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([])
   const [integrations, setIntegrations] = useState<Record<string, { status: string }>>({})
   const [runningPipeline, setRunningPipeline] = useState<string | null>(null)
-  const [lastResult, setLastResult] = useState<{ pipelineId: string; success: boolean; message?: string } | null>(null)
+  const [lastResult, setLastResult] = useState<{
+    pipelineId: string
+    success: boolean
+    message?: string
+  } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [backendConnected, setBackendConnected] = useState(true)
   const [hasApiKey, setHasApiKey] = useState(true)
 
+  // Run history state
   const [pipelineRuns, setPipelineRuns] = useState<PipelineRunSummary[]>([])
   const [runsLoading, setRunsLoading] = useState(false)
-  const [expandedRun, setExpandedRun] = useState<string | null>(null)
   const [runDetails, setRunDetails] = useState<Record<string, PipelineRunDetailType>>({})
-  const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
 
   const MAX_RUNS = 100
 
-  // Filter for cloud cost domain pipelines (gcp, aws, azure billing)
-  const filterDomain = (domain: string) => {
-    const d = domain.toLowerCase()
-    return d === 'cost' || d === 'billing' || d.includes('cloud')
-  }
-
+  // Load pipeline runs
   const loadPipelineRuns = useCallback(async () => {
     setRunsLoading(true)
     try {
       const result = await getPipelineRuns(orgSlug, { limit: MAX_RUNS })
       if (result.success && result.data) {
-        // Filter runs by cost/billing domain
         const filteredRuns = result.data.runs.filter((run: PipelineRunSummary) => {
           const pipelineId = run.pipeline_id.toLowerCase()
-          return pipelineId.includes('cost') || pipelineId.includes('billing') ||
-                 pipelineId.includes('gcp') || pipelineId.includes('aws') || pipelineId.includes('azure')
+          return (
+            pipelineId.includes("cost") ||
+            pipelineId.includes("billing") ||
+            pipelineId.includes("gcp") ||
+            pipelineId.includes("aws") ||
+            pipelineId.includes("azure")
+          )
         })
         setPipelineRuns(filteredRuns)
       }
-    } catch (err: unknown) {
+    } catch {
+      // Handle error silently
     }
     setRunsLoading(false)
   }, [orgSlug])
 
+  // Load initial data
   const loadData = useCallback(async () => {
     setIsLoading(true)
 
@@ -105,13 +154,12 @@ export default function CostRunsPage() {
     setHasApiKey(apiKeyResult.hasKey)
 
     if (pipelinesResult.success && pipelinesResult.pipelines) {
-      const filtered = pipelinesResult.pipelines.filter((p: PipelineConfig) =>
-        p.enabled && filterDomain(p.domain)
+      const filtered = pipelinesResult.pipelines.filter(
+        (p: PipelineConfig) => p.enabled && filterDomain(p.domain)
       )
       setPipelines(filtered)
     }
 
-    // Load integrations for checking connected providers
     const result = await getIntegrations(orgSlug)
     if (result.success && result.integrations) {
       setIntegrations(result.integrations.integrations)
@@ -124,25 +172,19 @@ export default function CostRunsPage() {
     }
   }, [orgSlug, loadPipelineRuns])
 
-  const toggleRunExpansion = async (runId: string) => {
-    if (expandedRun === runId) {
-      setExpandedRun(null)
-      return
-    }
-
-    setExpandedRun(runId)
-
-    if (!runDetails[runId]) {
-      setLoadingDetail(runId)
-      try {
-        const result = await getPipelineRunDetail(orgSlug, runId)
-        if (result.success && result.data) {
-          setRunDetails(prev => ({ ...prev, [runId]: result.data! }))
-        }
-      } catch (err: unknown) {
+  // Load run details
+  const loadRunDetail = async (runId: string): Promise<PipelineRunDetailType | undefined> => {
+    if (runDetails[runId]) return runDetails[runId]
+    try {
+      const result = await getPipelineRunDetail(orgSlug, runId)
+      if (result.success && result.data) {
+        setRunDetails((prev) => ({ ...prev, [runId]: result.data! }))
+        return result.data
       }
-      setLoadingDetail(null)
+    } catch {
+      // Handle error silently
     }
+    return undefined
   }
 
   useEffect(() => {
@@ -157,6 +199,7 @@ export default function CostRunsPage() {
     }
   }, [lastResult])
 
+  // Run pipeline handler
   const handleRun = async (pipelineId: string) => {
     setRunningPipeline(pipelineId)
     setLastResult(null)
@@ -185,80 +228,6 @@ export default function CostRunsPage() {
     setTimeout(() => loadPipelineRuns(), 2000)
   }
 
-  const formatDateTime = (dateString?: string) => {
-    if (!dateString) return "-"
-    try {
-      const date = new Date(dateString)
-      const now = new Date()
-      const diff = now.getTime() - date.getTime()
-      const hours = Math.floor(diff / (1000 * 60 * 60))
-      const minutes = Math.floor(diff / (1000 * 60))
-
-      if (minutes < 1) return "Just now"
-      if (minutes < 60) return `${minutes}m ago`
-      if (hours < 24) return `${hours}h ago`
-
-      return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      })
-    } catch {
-      return dateString
-    }
-  }
-
-  const formatDuration = (ms?: number) => {
-    if (ms === undefined || ms === null) return "-"
-    if (ms < 1000) return `${ms}ms`
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
-    return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`
-  }
-
-  const getDurationWidth = (ms?: number) => {
-    if (!ms) return "0%"
-    const maxMs = 300000 // 5 minutes max for visualization
-    const percentage = Math.min((ms / maxMs) * 100, 100)
-    return `${percentage}%`
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toUpperCase()) {
-      case "COMPLETED":
-        return "bg-[#B8FDCA] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/20"
-      case "FAILED":
-      case "TIMEOUT":
-        return "bg-rose-50 text-rose-600 border border-rose-200"
-      case "RUNNING":
-      case "PENDING":
-      case "CANCELLING":
-        return "bg-amber-50 text-amber-600 border border-amber-200"
-      case "CANCELLED":
-        return "bg-amber-50 text-amber-600 border border-amber-200"
-      case "SKIPPED":
-        return "bg-slate-100 text-slate-500 border border-slate-200"
-      default:
-        return "bg-slate-100 text-slate-500 border border-slate-200"
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status.toUpperCase()) {
-      case "COMPLETED":
-        return <CheckCircle2 className="h-4 w-4" />
-      case "FAILED":
-      case "TIMEOUT":
-        return <XCircle className="h-4 w-4" />
-      case "RUNNING":
-      case "PENDING":
-        return <Loader2 className="h-4 w-4 animate-spin" />
-      default:
-        return null
-    }
-  }
-
   // Filter to only connected pipelines
   const connectedPipelines = pipelines.filter((pipeline) => {
     if (!pipeline.required_integration || pipeline.required_integration === "") {
@@ -271,48 +240,124 @@ export default function CostRunsPage() {
   // Calculate run statistics
   const runStats = {
     total: pipelineRuns.length,
-    completed: pipelineRuns.filter(r => r.status === "COMPLETED").length,
-    failed: pipelineRuns.filter(r => r.status === "FAILED" || r.status === "TIMEOUT").length,
-    running: pipelineRuns.filter(r => r.status === "RUNNING" || r.status === "PENDING").length,
+    completed: pipelineRuns.filter((r) => r.status === "COMPLETED").length,
+    failed: pipelineRuns.filter((r) => r.status === "FAILED" || r.status === "TIMEOUT").length,
+    running: pipelineRuns.filter((r) => r.status === "RUNNING" || r.status === "PENDING").length,
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
+  // Build stats for StatRow
+  const stats = [
+    { icon: History, value: runStats.total, label: "Total", color: "mint" as const },
+    { icon: CheckCircle2, value: runStats.completed, label: "Done", color: "mint" as const },
+    ...(runStats.failed > 0
+      ? [{ icon: XCircle, value: runStats.failed, label: "Failed", color: "coral" as const }]
+      : []),
+    ...(runStats.running > 0
+      ? [{ icon: Loader2, value: runStats.running, label: "Running", color: "blue" as const }]
+      : []),
+  ]
+
+  // Column definitions for run history table
+  const runHistoryColumns: ColumnDef<PipelineRunSummary>[] = [
+    {
+      id: "pipeline_id",
+      header: "Pipeline",
+      accessorKey: "pipeline_id",
+      cell: (row) => (
+        <div className="space-y-0.5">
+          <div className="text-[15px] font-semibold text-slate-900">{row.pipeline_id}</div>
+          <div className="text-[11px] text-slate-500 font-mono">
+            {row.pipeline_logging_id.slice(0, 8)}...
           </div>
-          <p className="text-[14px] text-slate-500 font-medium">Loading runs...</p>
         </div>
-      </div>
-    )
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      filterable: true,
+      filterOptions: [
+        { label: "Completed", value: "COMPLETED" },
+        { label: "Failed", value: "FAILED" },
+        { label: "Running", value: "RUNNING" },
+        { label: "Pending", value: "PENDING" },
+      ],
+      cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      id: "start_time",
+      header: "Started",
+      accessorKey: "start_time",
+      cell: (row) => (
+        <div className="text-[13px] text-slate-700">{formatDateTime(row.start_time)}</div>
+      ),
+    },
+    {
+      id: "duration_ms",
+      header: "Duration",
+      accessorKey: "duration_ms",
+      cell: (row) => {
+        const getDurationWidth = (ms?: number) => {
+          if (!ms) return "0%"
+          const maxMs = 300000
+          return `${Math.min((ms / maxMs) * 100, 100)}%`
+        }
+        const getDurationColor = () => {
+          if (row.status === "COMPLETED") return "bg-[var(--cloudact-mint)]"
+          if (row.status === "FAILED") return "bg-[var(--cloudact-coral)]"
+          return "bg-[var(--cloudact-mint)]/50"
+        }
+        return (
+          <div className="space-y-1.5">
+            <div className="text-[13px] font-medium text-slate-900">
+              {formatDuration(row.duration_ms)}
+            </div>
+            <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${getDurationColor()}`}
+                style={{ width: getDurationWidth(row.duration_ms) }}
+              />
+            </div>
+          </div>
+        )
+      },
+    },
+  ]
+
+  // Loading state
+  if (isLoading) {
+    return <LoadingState message="Loading cloud pipelines..." size="lg" />
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
-      <div className="mb-6 sm:mb-10">
-        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Cost Pipeline Runs
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          Cloud Cost Pipelines
         </h1>
-        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
           Monitor your cloud cost data pipeline executions
         </p>
       </div>
 
+      {/* Backend Warning */}
       {(!backendConnected || !hasApiKey) && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-rose-50 p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-            <div className="space-y-3">
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-rose-500" />
+            </div>
+            <div className="flex-1">
               <h3 className="text-[15px] font-semibold text-slate-900">
-                {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
+                {!backendConnected ? "Backend not connected" : "API key missing"}
               </h3>
-              <p className="text-[13px] text-slate-500">
+              <p className="text-[13px] text-slate-600 mt-1">
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
+                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[12px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -321,218 +366,96 @@ export default function CostRunsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-mint)]/5 p-4 border border-[var(--cloudact-mint)]/20">
+      {/* Info Banner */}
+      <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-          <p className="text-[15px] text-slate-900">
+          <p className="text-[13px] text-slate-700 font-medium">
             Cloud cost pipelines sync billing data from your cloud provider accounts.
           </p>
         </div>
       </div>
 
+      {/* Result Message */}
       {lastResult && (
-        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/5 border-[var(--cloudact-mint)]/20' : 'bg-rose-50 border-rose-200'}`}>
-          <div className="flex items-center gap-3">
-            {lastResult.success ? (
-              <CheckCircle2 className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0" />
-            )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#1a7a3a]' : 'text-rose-600'}`}>
-              {lastResult.message}
-            </p>
-          </div>
+        <div
+          className={`p-4 rounded-xl border flex items-center gap-3 ${
+            lastResult.success
+              ? "bg-[var(--cloudact-mint)]/10 border-[var(--cloudact-mint)]/20"
+              : "bg-rose-50 border-rose-200"
+          }`}
+        >
+          {lastResult.success ? (
+            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+          )}
+          <p
+            className={`text-[13px] font-medium ${
+              lastResult.success ? "text-[#1a7a3a]" : "text-rose-700"
+            }`}
+          >
+            {lastResult.message}
+          </p>
         </div>
       )}
 
+      {/* Available Pipelines Section */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
-          <div className="px-4 sm:px-6 py-4 border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <Cloud className="h-[18px] w-[18px] text-[#1a7a3a]" />
-              <span className="text-[15px] font-semibold text-[#1a7a3a]">Cloud provider billing pipelines</span>
-            </div>
-          </div>
-
-          {/* Empty state */}
-          {connectedPipelines.length === 0 && (
-            <div className="px-4 sm:px-6 py-12 text-center">
-              <div className="space-y-4">
-                <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
-                  <Plug className="h-12 w-12 text-[var(--cloudact-mint-dark)]" />
-                </div>
-                <h3 className="text-[20px] font-semibold text-slate-900">No cloud cost pipelines</h3>
-                <p className="text-[15px] text-slate-500 max-w-md mx-auto">
-                  Connect a cloud provider to see available cost pipelines.
-                </p>
-                <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
-                    <Cloud className="h-4 w-4" />
-                    Configure Cloud Providers
-                  </button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile card view */}
-          {connectedPipelines.length > 0 && (
-            <div className="md:hidden divide-y divide-slate-200">
-              {connectedPipelines.map((pipeline) => {
-                const isRunning = runningPipeline === pipeline.id
-
-                return (
-                  <div key={pipeline.id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
-                        <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/20 flex-shrink-0">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Connected
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 uppercase border border-slate-200">
-                        {pipeline.provider}
-                      </span>
-                      <button
-                        onClick={() => handleRun(pipeline.id)}
-                        disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
-                      >
-                        {isRunning ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Running...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4" />
-                            Run Now
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">
+          Available Pipelines
+        </h2>
+        <PremiumCard>
+          {connectedPipelines.length === 0 ? (
+            <EmptyState
+              icon={Plug}
+              title="No cloud cost pipelines"
+              description="Connect a cloud provider to see available cost pipelines."
+              action={{
+                label: "Configure Cloud Providers",
+                href: `/${orgSlug}/integrations/cloud-providers`,
+                icon: Cloud,
+              }}
+              size="lg"
+            />
+          ) : (
+            <div className="divide-y divide-[#E5E5EA]">
+              {connectedPipelines.map((pipeline) => (
+                <AvailablePipelineCard
+                  key={pipeline.id}
+                  id={pipeline.id}
+                  name={pipeline.name}
+                  description={pipeline.description}
+                  provider={pipeline.provider}
+                  status="ready"
+                  running={runningPipeline === pipeline.id}
+                  onRun={() => handleRun(pipeline.id)}
+                  runIcon={Play}
+                />
+              ))}
             </div>
           )}
-
-          {/* Desktop table view */}
-          {connectedPipelines.length > 0 && (
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-slate-200">
-                    <TableHead className="console-table-header">Pipeline</TableHead>
-                    <TableHead className="console-table-header">Provider</TableHead>
-                    <TableHead className="console-table-header">Status</TableHead>
-                    <TableHead className="console-table-header text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {connectedPipelines.map((pipeline) => {
-                    const isRunning = runningPipeline === pipeline.id
-
-                    return (
-                      <TableRow key={pipeline.id} className="console-table-row">
-                        <TableCell className="console-table-cell">
-                          <div className="space-y-0.5">
-                            <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
-                            <div className="text-[13px] text-slate-500">{pipeline.description}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 uppercase border border-slate-200">
-                            {pipeline.provider}
-                          </span>
-                        </TableCell>
-                        <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/20">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Connected
-                          </span>
-                        </TableCell>
-                        <TableCell className="console-table-cell text-right">
-                          <button
-                            onClick={() => handleRun(pipeline.id)}
-                            disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
-                          >
-                            {isRunning ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Running...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4" />
-                                Run Now
-                              </>
-                            )}
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
+        </PremiumCard>
       </div>
 
+      {/* Run History Section */}
       {backendConnected && hasApiKey && (
-        <div className="space-y-6">
-          <div className="mb-6">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Run History</h2>
+        <div>
+          {/* Stats Row */}
+          {pipelineRuns.length > 0 && (
+            <div className="mb-4">
+              <StatRow stats={stats} />
+            </div>
+          )}
 
-            {pipelineRuns.length > 0 && (
-              <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8 overflow-x-auto scrollbar-hide pb-2">
-                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-                    <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
-                  </div>
-                  <div>
-                    <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
-                    <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Success</p>
-                  </div>
-                </div>
-                <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
-                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-rose-100 flex items-center justify-center">
-                    <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-rose-600" />
-                  </div>
-                  <div>
-                    <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
-                    <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
-                  </div>
-                </div>
-                {runStats.running > 0 && (
-                  <>
-                    <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
-                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-amber-100 flex items-center justify-center">
-                        <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 animate-spin" />
-                      </div>
-                      <div>
-                        <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
-                        <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">
+              Run History
+            </h2>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[15px] font-medium rounded-xl hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation border border-[var(--cloudact-mint)]/20"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[13px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -543,299 +466,87 @@ export default function CostRunsPage() {
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
-            {/* Loading state */}
-            {runsLoading && pipelineRuns.length === 0 && (
-              <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
-                  </div>
-                  <p className="text-[14px] text-slate-500 font-medium">Loading runs...</p>
-                </div>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {!runsLoading && pipelineRuns.length === 0 && (
-              <div className="px-4 sm:px-6 py-12 text-center">
-                <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
-                    <History className="h-10 w-10 text-[var(--cloudact-mint-dark)]" />
-                  </div>
-                  <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
-                  <p className="text-[15px] text-slate-500">Run a cost pipeline to see history</p>
-                </div>
-              </div>
-            )}
-
-            {/* Mobile card view */}
-            {pipelineRuns.length > 0 && (
-              <div className="md:hidden divide-y divide-slate-200">
-                {pipelineRuns.map((run) => {
-                  const isExpanded = expandedRun === run.pipeline_logging_id
-                  const detail = runDetails[run.pipeline_logging_id]
-                  const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id
-
+          {/* Data Table */}
+          <PremiumDataTable
+            data={pipelineRuns}
+            columns={runHistoryColumns}
+            keyField="pipeline_logging_id"
+            searchable
+            searchPlaceholder="Search pipelines..."
+            searchFields={["pipeline_id"]}
+            filterable
+            sortable
+            defaultSort={{ column: "start_time", direction: "desc" }}
+            paginated
+            pageSize={10}
+            pageSizeOptions={[10, 25, 50, 100]}
+            loading={runsLoading && pipelineRuns.length === 0}
+            loadingMessage="Loading run history..."
+            emptyState={{
+              icon: History,
+              title: "No runs yet",
+              description: "Run a cloud cost pipeline to see history",
+            }}
+            expandable={{
+              loadDetails: async (row) => {
+                return await loadRunDetail(row.pipeline_logging_id)
+              },
+              renderExpanded: (row, details) => {
+                const detail = details as PipelineRunDetailType | undefined
+                if (!detail) {
                   return (
-                    <div key={run.pipeline_logging_id}>
-                      <button
-                        className="w-full p-4 text-left touch-manipulation hover:bg-slate-50 transition-colors"
-                        onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-slate-400 mt-1 flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-slate-400 mt-1 flex-shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <div className="text-[15px] font-semibold text-slate-900 truncate">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                                {run.pipeline_logging_id.slice(0, 8)}...
-                              </div>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border flex-shrink-0 ${getStatusColor(run.status)}`}>
-                            {getStatusIcon(run.status)}
-                            {run.status}
-                          </span>
-                        </div>
-
-                        <div className="ml-6 space-y-2">
-                          <div className="flex items-center gap-4 text-[13px] text-slate-500">
-                            <span className="flex items-center gap-1">
-                              <CalendarClock className="h-3 w-3" />
-                              {formatDateTime(run.start_time)}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-slate-500">Duration</span>
-                              <span className="font-medium text-slate-900">{formatDuration(run.duration_ms)}</span>
-                            </div>
-                            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
-                                style={{ width: getDurationWidth(run.duration_ms) }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="px-4 pb-4 bg-slate-50">
-                          {isLoadingThisDetail ? (
-                            <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                            </div>
-                          ) : detail ? (
-                            <div className="space-y-4">
-                              {run.error_message && (
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-rose-50 p-4 border-l-4 border-rose-500">
-                                  <div className="flex items-start gap-3">
-                                    <XCircle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
-                                      <p className="text-[13px] text-slate-500 mt-1 break-words font-mono">{run.error_message}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
-                                  <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
-                                </div>
-                                {detail.steps.length === 0 ? (
-                                  <p className="text-center text-slate-500 text-[13px] py-4">No step logs available</p>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {detail.steps.map((step, index) => (
-                                      <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
-                                        <div className="flex items-center justify-between gap-3 mb-2">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold flex-shrink-0">
-                                              {step.step_index}
-                                            </span>
-                                            <span className="text-[13px] font-semibold text-slate-900 truncate">{step.step_name}</span>
-                                          </div>
-                                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex-shrink-0 ${getStatusColor(step.status)}`}>
-                                            {step.status}
-                                          </span>
-                                        </div>
-                                        <div className="ml-8 space-y-1">
-                                          <div className="flex items-center justify-between text-[11px]">
-                                            <span className="text-slate-500">Duration</span>
-                                            <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
-                                          </div>
-                                          <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-                                            <div
-                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
-                                              style={{ width: getDurationWidth(step.duration_ms) }}
-                                            ></div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center text-slate-500 text-[13px] py-6">
-                              Failed to load details
-                            </div>
-                          )}
-                        </div>
-                      )}
+                    <div className="text-center text-slate-500 text-[13px] py-6">
+                      Failed to load details
                     </div>
                   )
-                })}
-              </div>
-            )}
-
-            {/* Desktop table view */}
-            {pipelineRuns.length > 0 && (
-              <div className="hidden md:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-slate-200">
-                      <TableHead className="console-table-header w-10"></TableHead>
-                      <TableHead className="console-table-header">Pipeline</TableHead>
-                      <TableHead className="console-table-header">Status</TableHead>
-                      <TableHead className="console-table-header">Started</TableHead>
-                      <TableHead className="console-table-header">Duration</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pipelineRuns.map((run) => {
-                      const isExpanded = expandedRun === run.pipeline_logging_id
-                      const detail = runDetails[run.pipeline_logging_id]
-                      const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id
-
-                      return (
-                        <React.Fragment key={run.pipeline_logging_id}>
-                          <TableRow
-                            className="console-table-row cursor-pointer touch-manipulation hover:bg-slate-50 transition-colors"
-                            onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
-                          >
-                            <TableCell className="console-table-cell">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-slate-400" />
-                              )}
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              <div className="text-[15px] font-semibold text-slate-900">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                                {run.pipeline_logging_id.slice(0, 8)}...
-                              </div>
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border ${getStatusColor(run.status)}`}>
-                                {getStatusIcon(run.status)}
-                                {run.status}
-                              </span>
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              <div className="text-[13px] text-slate-900">{formatDateTime(run.start_time)}</div>
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              <div className="space-y-1.5">
-                                <div className="text-[13px] font-medium text-slate-900">{formatDuration(run.duration_ms)}</div>
-                                <div className="h-1.5 w-24 bg-slate-200 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
-                                    style={{ width: getDurationWidth(run.duration_ms) }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-
-                          {isExpanded && (
-                            <TableRow className="bg-slate-50">
-                              <TableCell colSpan={5} className="px-4 sm:px-6 py-6">
-                                {isLoadingThisDetail ? (
-                                  <div className="flex items-center justify-center py-6">
-                                    <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                                  </div>
-                                ) : detail ? (
-                                  <div className="space-y-4">
-                                    {run.error_message && (
-                                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-rose-50 p-4 border-l-4 border-rose-500">
-                                        <div className="flex items-start gap-3">
-                                          <XCircle className="h-5 w-5 text-rose-600 mt-0.5 flex-shrink-0" />
-                                          <div className="flex-1">
-                                            <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
-                                            <p className="text-[13px] text-slate-500 mt-1 font-mono">{run.error_message}</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    <div className="space-y-3">
-                                      <div className="flex items-center gap-2">
-                                        <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
-                                        <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
-                                      </div>
-                                      <div className="grid gap-3">
-                                        {detail.steps.length === 0 ? (
-                                          <p className="text-center text-slate-500 text-[13px] py-6">No step logs available</p>
-                                        ) : (
-                                          detail.steps.map((step) => (
-                                            <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                                              <div className="flex items-center justify-between gap-4 mb-3">
-                                                <div className="flex items-center gap-3">
-                                                  <span className="flex items-center justify-center h-8 w-8 rounded-full bg-slate-100 text-slate-600 text-[13px] font-bold">
-                                                    {step.step_index}
-                                                  </span>
-                                                  <span className="text-[15px] font-semibold text-slate-900">{step.step_name}</span>
-                                                </div>
-                                                <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
-                                                  {step.status}
-                                                </span>
-                                              </div>
-                                              <div className="ml-11 space-y-1.5">
-                                                <div className="flex items-center justify-between text-[13px]">
-                                                  <span className="text-slate-500">Duration</span>
-                                                  <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
-                                                </div>
-                                                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                  <div
-                                                    className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
-                                                    style={{ width: getDurationWidth(step.duration_ms) }}
-                                                  ></div>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-center text-slate-500 text-[13px] py-6">
-                                    Failed to load details
-                                  </div>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
+                }
+                return (
+                  <StepTimeline
+                    steps={detail.steps.map((step) => ({
+                      id: step.step_logging_id,
+                      index: step.step_index,
+                      name: step.step_name,
+                      status: step.status,
+                      duration: step.duration_ms,
+                    }))}
+                    error={row.error_message}
+                  />
+                )
+              },
+            }}
+            mobileCard={{
+              render: (row, expanded, onToggle) => (
+                <PipelineRunCard
+                  id={row.pipeline_logging_id}
+                  pipelineId={row.pipeline_id}
+                  status={row.status}
+                  startTime={row.start_time}
+                  duration={row.duration_ms}
+                  error={row.error_message}
+                  expanded={expanded}
+                  onToggle={onToggle}
+                  expandedContent={
+                    runDetails[row.pipeline_logging_id] ? (
+                      <StepTimeline
+                        steps={runDetails[row.pipeline_logging_id].steps.map((step) => ({
+                          id: step.step_logging_id,
+                          index: step.step_index,
+                          name: step.step_name,
+                          status: step.status,
+                          duration: step.duration_ms,
+                        }))}
+                        error={row.error_message}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
+                      </div>
+                    )
+                  }
+                />
+              ),
+            }}
+          />
         </div>
       )}
     </div>

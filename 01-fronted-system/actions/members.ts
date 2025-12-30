@@ -340,7 +340,7 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     const inviteLink = `${appUrl}/invite/${token}`
 
     // Send invite email via SMTP
-    const emailSent = await sendInviteEmail({
+    await sendInviteEmail({
       to: normalizedEmail,
       inviterName,
       orgName: org.org_name,
@@ -587,8 +587,11 @@ export async function acceptInvite(token: string) {
 
     // Check if expired
     if (new Date(invite.expires_at) < new Date()) {
-      // Mark as expired in database
-      await adminClient.from("invites").update({ status: "expired" }).eq("id", invite.id)
+      // Mark as expired in database (non-blocking, log errors)
+      const { error: expireError } = await adminClient.from("invites").update({ status: "expired" }).eq("id", invite.id)
+      if (expireError) {
+        console.warn("[acceptInvite] Failed to mark invite as expired:", expireError.message)
+      }
       return { success: false, error: "This invite has expired. Please ask the organization owner for a new invite." }
     }
 
@@ -609,8 +612,11 @@ export async function acceptInvite(token: string) {
       .maybeSingle()
 
     if (existingMember && existingMember.status === "active") {
-      // Update invite status to accepted
-      await adminClient.from("invites").update({ status: "accepted" }).eq("id", invite.id)
+      // Update invite status to accepted (non-blocking, log errors)
+      const { error: acceptError } = await adminClient.from("invites").update({ status: "accepted" }).eq("id", invite.id)
+      if (acceptError) {
+        console.warn("[acceptInvite] Failed to mark invite as accepted:", acceptError.message)
+      }
       return { success: false, error: "You are already a member of this organization" }
     }
 
@@ -686,8 +692,11 @@ export async function acceptInvite(token: string) {
       }
     }
 
-    // Update invite status to accepted
-    await adminClient.from("invites").update({ status: "accepted", accepted_at: new Date().toISOString(), accepted_by: user.id }).eq("id", invite.id)
+    // Update invite status to accepted (non-blocking, log errors)
+    const { error: finalAcceptError } = await adminClient.from("invites").update({ status: "accepted", accepted_at: new Date().toISOString(), accepted_by: user.id }).eq("id", invite.id)
+    if (finalAcceptError) {
+      console.warn("[acceptInvite] Failed to update invite status:", finalAcceptError.message)
+    }
 
     return {
       success: true,
@@ -750,7 +759,10 @@ export async function getInviteInfo(token: string) {
         },
       },
     }
-  } catch (err: unknown) {
+  } catch (inviteError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getInviteInfo] Failed to fetch invite:", inviteError)
+    }
     return { success: false, error: "Failed to fetch invite. Please try again." }
   }
 }

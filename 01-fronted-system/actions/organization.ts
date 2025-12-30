@@ -321,12 +321,28 @@ export async function completeOnboarding(sessionId: string) {
       .from("organizations")
       .select("org_slug")
       .eq("org_slug", orgSlug)
-      .single()
+      .maybeSingle() // Use maybeSingle to avoid throwing on no match
 
     if (existingOrg) {
       // Add timestamp suffix for uniqueness
       const suffix = Date.now().toString(36)
-      orgSlug = `${orgSlug}_${suffix}`
+      const newSlug = `${orgSlug}_${suffix}`
+
+      // Validate new slug doesn't exceed max length (50 chars) and still matches pattern
+      const slugPattern = /^[a-zA-Z0-9_]{3,50}$/
+      if (!slugPattern.test(newSlug)) {
+        // Truncate base slug to fit within 50 chars total
+        const maxBaseLength = 50 - suffix.length - 1 // -1 for underscore
+        const truncatedBase = orgSlug.slice(0, maxBaseLength)
+        orgSlug = `${truncatedBase}_${suffix}`
+
+        // Final validation
+        if (!slugPattern.test(orgSlug)) {
+          return { success: false, error: "Unable to generate valid organization slug. Please choose a shorter name." }
+        }
+      } else {
+        orgSlug = newSlug
+      }
     }
 
     // Get subscription ID from session
@@ -441,12 +457,15 @@ export async function completeOnboarding(sessionId: string) {
           },
         })
         updateSuccess = true
-      } catch {
+      } catch (stripeUpdateError) {
         retryCount++
 
         if (retryCount >= maxRetries) {
           // Max retries exceeded - org created but Stripe metadata update failed
           // Non-critical: webhook will still process subscription events correctly
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[CompleteOnboarding] Stripe subscription metadata update failed after retries:", stripeUpdateError)
+          }
           break
         } else {
           // Wait before retry (exponential backoff)
@@ -466,8 +485,11 @@ export async function completeOnboarding(sessionId: string) {
           onboarding_completed_at: new Date().toISOString(),
         },
       })
-    } catch {
-      // Non-critical, continue
+    } catch (userUpdateError) {
+      // Non-critical, continue - but log for debugging
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[CompleteOnboarding] Failed to clear pending metadata:", userUpdateError)
+      }
     }
 
     // Step 2: Backend onboarding (async, non-blocking)
@@ -490,8 +512,11 @@ export async function completeOnboarding(sessionId: string) {
       } else {
         backendOnboardingFailed = true
       }
-    } catch {
+    } catch (backendError) {
       backendOnboardingFailed = true
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[CompleteOnboarding] Backend onboarding failed:", backendError)
+      }
     }
 
     return {

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useState, useEffect } from "react"
 import { ArrowRight, Menu, X, Shield, Lock, CreditCard } from "lucide-react"
 import "./landing.css"
@@ -23,11 +24,11 @@ const ORGANIZATION_JSON_LD = {
   "@type": "Organization",
   "@id": "https://cloudact.ai/#organization",
   name: "CloudAct.ai",
-  alternateName: "CloudAct",
+  alternateName: "CloudAct Inc.",
   url: "https://cloudact.ai",
   logo: {
     "@type": "ImageObject",
-    url: "https://cloudact.ai/logo.png",
+    url: "https://cloudact.ai/android-chrome-512x512.png",
     width: 512,
     height: 512,
   },
@@ -139,9 +140,16 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="container flex h-16 items-center justify-between px-4 md:px-12">
           <Link
             href="/"
-            className="flex items-center gap-2 text-2xl md:text-3xl font-bold text-mint-text tracking-tight hover:text-mint-dark transition-colors focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 rounded-lg px-2 -ml-2"
+            className="flex items-center hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 rounded-lg"
           >
-            CloudAct.ai
+            <Image
+              src="/logos/cloudact-logo-black.svg"
+              alt="CloudAct.ai"
+              width={160}
+              height={32}
+              className="h-7 md:h-8 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -231,9 +239,15 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="container px-4 md:px-12 py-12 md:py-16 max-w-[1400px] mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 mb-12">
             <div className="col-span-2 space-y-4">
-              <div className="text-2xl font-bold text-mint-text tracking-tight">
-                CloudAct.ai
-              </div>
+              <Link href="/" className="inline-block">
+                <Image
+                  src="/logos/cloudact-logo-black.svg"
+                  alt="CloudAct.ai"
+                  width={140}
+                  height={28}
+                  className="h-7 w-auto"
+                />
+              </Link>
               <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
                 The enterprise standard for GenAI and cloud cost intelligence.
               </p>
@@ -303,7 +317,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-              <p className="text-sm text-gray-600">© 2025 CloudAct.ai. All rights reserved.</p>
+              <p className="text-sm text-gray-600">© 2025 CloudAct Inc. All rights reserved.</p>
               <div className="flex gap-6 text-sm text-gray-600">
                 <Link href="/privacy" className="hover:text-mint-text transition-colors">Privacy Policy</Link>
                 <Link href="/terms" className="hover:text-mint-text transition-colors">Terms of Service</Link>

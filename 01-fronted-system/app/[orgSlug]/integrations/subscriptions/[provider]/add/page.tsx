@@ -11,11 +11,9 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { toast } from "sonner"
 import {
   ArrowLeft,
   Plus,
-  Loader2,
   CreditCard,
   ChevronRight,
   Brain,
@@ -143,7 +141,7 @@ export default function AddFromTemplatePage() {
           setTemplateError(plansResult.error || "Failed to load available plans")
         }
       }
-    } catch (err) {
+    } catch {
       if (!isMounted || isMounted()) {
         setTemplateError("Failed to load template data. Please try again.")
         setAvailablePlans([])

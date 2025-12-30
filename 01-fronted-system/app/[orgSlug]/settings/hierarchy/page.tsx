@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
+// Badge available if needed: import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -61,6 +61,10 @@ import {
   type HierarchyEntityType,
   type HierarchyCSVRow,
 } from "@/actions/hierarchy"
+
+// Premium components - same as dashboard/pipeline pages
+import { StatRow } from "@/components/ui/stat-row"
+import { LoadingState } from "@/components/ui/loading-state"
 
 interface CreateFormData {
   entity_id: string
@@ -513,26 +517,59 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
     )
   }
 
+  // Stats for StatRow component - same pattern as dashboard/pipelines
+  const stats = [
+    { icon: Building2, value: treeData?.total_departments || 0, label: "Departments", color: "mint" as const },
+    { icon: FolderKanban, value: treeData?.total_projects || 0, label: "Projects", color: "coral" as const },
+    { icon: Users, value: treeData?.total_teams || 0, label: "Teams", color: "blue" as const },
+  ]
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-mint" />
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        {/* Header - Same pattern as dashboard */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Network className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                Organizational Hierarchy
+              </h1>
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                Manage departments, projects, and teams
+              </p>
+            </div>
+          </div>
+        </div>
+        <LoadingState message="Loading hierarchy..." />
       </div>
     )
   }
 
   return (
-    <div className="space-y-5 sm:space-y-8 animate-in fade-in duration-500 px-4 sm:px-0">
-      <div>
-        <h1 className="text-[24px] sm:text-[32px] lg:text-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-2.5 sm:gap-3">
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-gradient-mint flex items-center justify-center shadow-sm flex-shrink-0">
-            <Network className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Network className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
-          <span className="leading-tight">Organizational Hierarchy</span>
-        </h1>
-        <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1.5 sm:mt-2 ml-[46px] sm:ml-[52px]">
-          Manage departments, projects, and teams
-        </p>
+          <div>
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              Organizational Hierarchy
+            </h1>
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              Manage departments, projects, and teams
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Row - Using StatRow component like pipelines */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <StatRow stats={stats} size="md" />
       </div>
 
       {error && (
@@ -753,75 +790,42 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <div className="metric-card shadow-sm border-l-4 border-l-mint p-3 sm:p-4">
-          <div className="metric-card-content flex items-center gap-2 sm:gap-4">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-mint/10 flex items-center justify-center flex-shrink-0">
-              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-mint" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-[13px] text-muted-foreground">Depts</p>
-              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900">{treeData?.total_departments || 0}</p>
-            </div>
-          </div>
-        </div>
-        <div className="metric-card shadow-sm border-l-4 border-l-coral p-3 sm:p-4">
-          <div className="metric-card-content flex items-center gap-2 sm:gap-4">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-coral/10 flex items-center justify-center flex-shrink-0">
-              <FolderKanban className="h-5 w-5 sm:h-6 sm:w-6 text-coral" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-[13px] text-muted-foreground">Projects</p>
-              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900">{treeData?.total_projects || 0}</p>
-            </div>
-          </div>
-        </div>
-        <div className="metric-card shadow-sm border-l-4 border-l-ca-blue p-3 sm:p-4">
-          <div className="metric-card-content flex items-center gap-2 sm:gap-4">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-ca-blue/10 flex items-center justify-center flex-shrink-0">
-              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-ca-blue" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-[13px] text-muted-foreground">Teams</p>
-              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900">{treeData?.total_teams || 0}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Tabs - Horizontally scrollable on mobile */}
+      {/* Content Tabs - Premium border-bottom tabs (genai-runs pattern) */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full sm:w-auto flex gap-1 bg-slate-50/80 border border-slate-200 p-1 rounded-xl overflow-x-auto scrollbar-hide whitespace-nowrap">
-          <TabsTrigger
-            value="tree"
-            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
-          >
-            <Network className="h-4 w-4 mr-2 flex-shrink-0" />
-            Tree View
-          </TabsTrigger>
-          <TabsTrigger
-            value="departments"
-            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
-          >
-            <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-            Departments
-          </TabsTrigger>
-          <TabsTrigger
-            value="projects"
-            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
-          >
-            <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
-            Projects
-          </TabsTrigger>
-          <TabsTrigger
-            value="teams"
-            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
-          >
-            <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-            Teams
-          </TabsTrigger>
-        </TabsList>
+        <div className="border-b border-slate-200">
+          <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
+            <TabsTrigger
+              value="tree"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+            >
+              <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Tree View</span>
+              <span className="sm:hidden">Tree</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="departments"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+            >
+              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Departments</span>
+              <span className="sm:hidden">Depts</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="projects"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+            >
+              <FolderKanban className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              Projects
+            </TabsTrigger>
+            <TabsTrigger
+              value="teams"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+            >
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              Teams
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="tree" className="mt-6">
           <div className="console-table-card p-4">

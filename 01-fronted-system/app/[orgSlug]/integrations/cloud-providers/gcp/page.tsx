@@ -5,11 +5,6 @@ import { useParams } from "next/navigation"
 import { Cloud, Loader2, Check, AlertCircle, ArrowLeft, Upload, FileJson, X, Key, Clock, Shield, RefreshCw, Trash2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -28,7 +23,7 @@ import {
 
 interface IntegrationStatus {
   provider: string
-  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED"
+  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED" | "EXPIRED"
   credential_name?: string
   last_validated_at?: string
   last_error?: string
@@ -186,8 +181,8 @@ export default function GCPIntegrationPage() {
       setUploadedFile(file)
       setFileContent(content)
       setParsedSA({
-        project_id: parsed.project_id,
-        client_email: parsed.client_email,
+        project_id: parsed.project_id as string,
+        client_email: parsed.client_email as string,
       })
       setWizardStep(2)
     } catch {

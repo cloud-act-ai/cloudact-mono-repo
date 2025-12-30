@@ -233,6 +233,7 @@ export async function getGenAICosts(
     })
 
     if (!response.ok) {
+      // 404 means no data found for this org/date range - this is NOT an error
       if (response.status === 404) {
         return {
           success: true,
@@ -241,6 +242,30 @@ export async function getGenAICosts(
           cache_hit: false,
           query_time_ms: 0,
           currency: "USD",
+        }
+      }
+      // 401/403 indicate auth issues
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 5xx errors indicate server issues
+      if (response.status >= 500) {
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: "Cost service is temporarily unavailable. Please try again later.",
         }
       }
       const errorText = await response.text()

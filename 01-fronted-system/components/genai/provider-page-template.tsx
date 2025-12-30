@@ -85,7 +85,7 @@ function parseDocStep(htmlContent: string): ParsedSegment[] {
   let match: RegExpExecArray | null
 
   // Clone content to work with - strip any dangerous patterns first
-  let safeContent = htmlContent
+  const safeContent = htmlContent
     // Remove script tags entirely
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     // Remove event handlers

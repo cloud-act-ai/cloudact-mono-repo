@@ -3,15 +3,12 @@
 import { Brain } from "lucide-react"
 import { GenAIProviderPageTemplate, ProviderConfig } from "@/components/genai/provider-page-template"
 import {
-  GENAI_PAYG_PRICING,
   getPaygPricingByProvider,
 } from "@/lib/data/genai/genai-payg-pricing"
 import {
   GENAI_COMMITMENT_PRICING,
-  getCommitmentPricingByProvider,
 } from "@/lib/data/genai/genai-commitment-pricing"
 import {
-  GENAI_INFRASTRUCTURE_PRICING,
   getInfraPricingByCloudProvider,
 } from "@/lib/data/genai/genai-infrastructure-pricing"
 

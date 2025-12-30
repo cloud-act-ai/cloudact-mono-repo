@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Cloud, TrendingDown, BarChart3, Clock, Users } from "lucide-react"
+import { TrendingDown, BarChart3, Clock, Users } from "lucide-react"
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -57,7 +57,7 @@ const teamAvatars = [
   { name: "Jordan", color: "#96CEB4", initial: "J" },
 ]
 
-export function AuthLayout({ children, variant = "login" }: AuthLayoutProps) {
+export function AuthLayout({ children, variant: _variant = "login" }: AuthLayoutProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -103,13 +103,15 @@ export function AuthLayout({ children, variant = "login" }: AuthLayoutProps) {
         <div className="relative z-10 flex flex-col h-full w-full px-6 xl:px-8 py-5">
           {/* Logo - Top */}
           <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
-            <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0a0a0b] shadow-lg group-hover:scale-105 transition-transform">
-                <Cloud className="h-5 w-5 text-[#90FCA6]" strokeWidth={2.5} />
-              </div>
-              <span className="text-xl font-bold text-[#0a0a0b] tracking-tight">
-                Cloud<span className="text-[#16a34a]">Act</span>
-              </span>
+            <Link href="/" className="inline-flex items-center group">
+              <Image
+                src="/logos/cloudact-logo-black.svg"
+                alt="CloudAct"
+                width={160}
+                height={32}
+                className="h-8 w-auto group-hover:scale-105 transition-transform"
+                priority
+              />
             </Link>
           </div>
 
@@ -292,13 +294,23 @@ export function AuthLayout({ children, variant = "login" }: AuthLayoutProps) {
       <div className="flex-1 flex flex-col min-h-svh bg-white dark:bg-[#0a0a0b] relative">
         {/* Mobile Logo Header */}
         <div className="lg:hidden p-4 sm:p-6 relative z-10 border-b border-gray-100 dark:border-white/10">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-[#0a0a0b] shadow-lg">
-              <Cloud className="h-4 w-4 sm:h-5 sm:w-5 text-[#90FCA6]" strokeWidth={2.5} />
-            </div>
-            <span className="text-lg sm:text-xl font-bold text-[#0a0a0b] dark:text-white tracking-tight">
-              Cloud<span className="text-[#16a34a] dark:text-[#90FCA6]">Act</span>
-            </span>
+          <Link href="/" className="inline-flex items-center">
+            <Image
+              src="/logos/cloudact-logo-black.svg"
+              alt="CloudAct"
+              width={140}
+              height={28}
+              className="h-7 sm:h-8 w-auto dark:hidden"
+              priority
+            />
+            <Image
+              src="/logos/cloudact-logo-white.svg"
+              alt="CloudAct"
+              width={140}
+              height={28}
+              className="h-7 sm:h-8 w-auto hidden dark:block"
+              priority
+            />
           </Link>
         </div>
 
@@ -311,7 +323,7 @@ export function AuthLayout({ children, variant = "login" }: AuthLayoutProps) {
 
         {/* Footer */}
         <div className="p-4 sm:p-6 text-center text-xs sm:text-sm text-gray-400 dark:text-white/40 relative z-10 border-t border-gray-100 dark:border-white/10 lg:border-t-0">
-          <span>&copy; {new Date().getFullYear()} CloudAct. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} CloudAct Inc. All rights reserved.</span>
           <span className="mx-1 sm:mx-2">·</span>
           <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-white/60 transition-colors">Privacy</Link>
           <span className="mx-1 sm:mx-2">·</span>

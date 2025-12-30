@@ -84,9 +84,6 @@ function isValidOrgSlug(orgSlug: string): boolean {
   return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
 }
 
-/** ORG_SLUG_PATTERN constant for validation */
-const ORG_SLUG_PATTERN = /^[a-zA-Z0-9_]{3,50}$/
-
 /**
  * Validate currency code (ISO 4217).
  */
@@ -142,6 +139,8 @@ export interface OrgQuotaLimits {
   pipelines_per_month_limit: number
   team_members_count: number
   configured_providers_count: number
+  plan_name: string
+  billing_status: string
 }
 
 export interface GetOrgContactDetailsResult {
@@ -853,7 +852,7 @@ export async function uploadOrgLogo(
     }
 
     // Upload the new file
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("org-logos")
       .upload(filePath, file, {
         cacheControl: "3600",
@@ -861,7 +860,9 @@ export async function uploadOrgLogo(
       })
 
     if (uploadError) {
-      console.error("[uploadOrgLogo] Storage upload error:", uploadError)
+      if (process.env.NODE_ENV === "development") {
+        console.error("[uploadOrgLogo] Storage upload error:", uploadError)
+      }
       return { success: false, error: `Failed to upload logo: ${uploadError.message}` }
     }
 
@@ -883,7 +884,9 @@ export async function uploadOrgLogo(
       .eq("org_slug", orgSlug)
 
     if (updateError) {
-      console.error("[uploadOrgLogo] Database update error:", updateError)
+      if (process.env.NODE_ENV === "development") {
+        console.error("[uploadOrgLogo] Database update error:", updateError)
+      }
       // Logo was uploaded but DB update failed - still return success with URL
       return {
         success: true,
@@ -892,14 +895,18 @@ export async function uploadOrgLogo(
       }
     }
 
-    console.log(`[uploadOrgLogo] Successfully uploaded logo for ${orgSlug}: ${logoUrl}`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[uploadOrgLogo] Successfully uploaded logo for ${orgSlug}: ${logoUrl}`)
+    }
 
     return {
       success: true,
       logoUrl,
     }
   } catch (err: unknown) {
-    console.error("[uploadOrgLogo] Unexpected error:", err)
+    if (process.env.NODE_ENV === "development") {
+      console.error("[uploadOrgLogo] Unexpected error:", err)
+    }
     const errorMessage = err instanceof Error ? err.message : "Failed to upload organization logo"
     return { success: false, error: errorMessage }
   }
@@ -938,7 +945,9 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
         .remove(filesToDelete)
 
       if (deleteError) {
-        console.error("[deleteOrgLogo] Storage delete error:", deleteError)
+        if (process.env.NODE_ENV === "development") {
+          console.error("[deleteOrgLogo] Storage delete error:", deleteError)
+        }
         // Continue anyway to clear the URL from database
       }
     }
@@ -950,15 +959,21 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
       .eq("org_slug", orgSlug)
 
     if (updateError) {
-      console.error("[deleteOrgLogo] Database update error:", updateError)
+      if (process.env.NODE_ENV === "development") {
+        console.error("[deleteOrgLogo] Database update error:", updateError)
+      }
       return { success: false, error: "Failed to clear logo URL from database" }
     }
 
-    console.log(`[deleteOrgLogo] Successfully deleted logo for ${orgSlug}`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[deleteOrgLogo] Successfully deleted logo for ${orgSlug}`)
+    }
 
     return { success: true }
   } catch (err: unknown) {
-    console.error("[deleteOrgLogo] Unexpected error:", err)
+    if (process.env.NODE_ENV === "development") {
+      console.error("[deleteOrgLogo] Unexpected error:", err)
+    }
     const errorMessage = err instanceof Error ? err.message : "Failed to delete organization logo"
     return { success: false, error: errorMessage }
   }
@@ -1273,6 +1288,8 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
       .from("organizations")
       .select(`
         id,
+        plan,
+        billing_status,
         seat_limit,
         providers_limit,
         pipelines_per_day_limit,
@@ -1315,6 +1332,9 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
     return {
       success: true,
       quotaLimits: {
+        // Plan info from Stripe (via webhook)
+        plan_name: org.plan ?? "starter",
+        billing_status: org.billing_status ?? "active",
         // Limits from Stripe (via webhook) - defaults indicate no limit set
         seat_limit: org.seat_limit ?? 0,
         providers_limit: org.providers_limit ?? 0,

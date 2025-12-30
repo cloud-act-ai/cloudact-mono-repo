@@ -89,15 +89,27 @@ async function handleReconciliation() {
     mismatches: [] as { orgSlug: string; field: string; stripe: unknown; supabase: unknown }[],
   }
 
+  // Type for organization data
+  type OrgData = {
+    id: string
+    org_slug: string
+    stripe_subscription_id: string | null
+    billing_status: string | null
+    plan: string | null
+    seat_limit: number | null
+    providers_limit: number | null
+    pipelines_per_day_limit: number | null
+  }
+
   try {
     // Get all organizations with Stripe subscriptions - paginate to handle more than 100
     const PAGE_SIZE = 100
-    let allOrgs: typeof orgs = []
+    let allOrgs: OrgData[] = []
     let offset = 0
     let hasMore = true
 
     while (hasMore) {
-      const { data: orgs, error: orgsError } = await adminClient
+      const { data: pageOrgs, error: orgsError } = await adminClient
         .from("organizations")
         .select("id, org_slug, stripe_subscription_id, billing_status, plan, seat_limit, providers_limit, pipelines_per_day_limit")
         .not("stripe_subscription_id", "is", null)
@@ -107,10 +119,10 @@ async function handleReconciliation() {
         throw new Error(`Failed to fetch organizations: ${orgsError.message}`)
       }
 
-      if (orgs && orgs.length > 0) {
-        allOrgs = [...allOrgs, ...orgs]
+      if (pageOrgs && pageOrgs.length > 0) {
+        allOrgs = [...allOrgs, ...pageOrgs]
         offset += PAGE_SIZE
-        hasMore = orgs.length === PAGE_SIZE
+        hasMore = pageOrgs.length === PAGE_SIZE
       } else {
         hasMore = false
       }

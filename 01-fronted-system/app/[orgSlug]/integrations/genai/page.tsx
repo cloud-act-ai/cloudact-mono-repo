@@ -12,7 +12,7 @@ import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboa
 
 interface Integration {
   provider: string
-  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED"
+  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED" | "EXPIRED"
   credential_name?: string
   last_validated_at?: string
   last_error?: string

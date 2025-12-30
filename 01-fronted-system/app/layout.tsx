@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   description:
     "Intelligent cost monitoring and optimization for GenAI and cloud infrastructure. Reduce costs by 67% on average.",
-  generator: "v0.app",
+  generator: "CloudAct.ai",
   keywords: ["cloud cost optimization", "GenAI costs", "FinOps", "AWS", "Azure", "GCP", "OpenAI", "Anthropic", "cost management"],
   authors: [{ name: "CloudAct.ai" }],
   creator: "CloudAct.ai",
@@ -76,20 +76,23 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
+        url: "/favicon-32x32.png",
+        sizes: "32x32",
+        type: "image/png",
       },
       {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
+        url: "/favicon-16x16.png",
+        sizes: "16x16",
+        type: "image/png",
       },
       {
         url: "/icon.svg",
         type: "image/svg+xml",
       },
     ],
-    apple: "/apple-icon.png",
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/site.webmanifest",
 }
 
 export default function RootLayout({

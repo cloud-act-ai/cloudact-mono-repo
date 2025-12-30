@@ -17,12 +17,8 @@ import Link from "next/link"
 
 // Premium components
 import { PremiumDataTable, ColumnDef } from "@/components/premium/data-table"
-import {
-  PipelineRunCard,
-  AvailablePipelineCard,
-  StepTimeline,
-} from "@/components/premium/table-card"
-import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
+import { PipelineRunCard, AvailablePipelineCard, StepTimeline } from "@/components/premium/table-card"
+import { PremiumCard } from "@/components/ui/premium-card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { StatRow } from "@/components/ui/stat-row"
 import { LoadingState } from "@/components/ui/loading-state"
@@ -361,13 +357,13 @@ export default function SubscriptionRunsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Subscription Pipeline Runs
+        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          Subscription Pipelines
         </h1>
-        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
           Monitor your SaaS subscription sync pipeline executions
         </p>
       </div>
@@ -432,17 +428,10 @@ export default function SubscriptionRunsPage() {
       )}
 
       {/* Available Pipelines Section */}
-      <div className="space-y-4">
-        <SectionHeader title="Available Pipelines" />
-
-        <PremiumCard
-          header={{
-            icon: Wallet,
-            title: "SaaS subscription cost pipelines",
-          }}
-        >
-          {/* Empty state */}
-          {pipelines.length === 0 && (
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Available Pipelines</h2>
+        <PremiumCard>
+          {pipelines.length === 0 ? (
             <EmptyState
               icon={Wallet}
               title="No subscription pipelines"
@@ -454,11 +443,8 @@ export default function SubscriptionRunsPage() {
               }}
               size="lg"
             />
-          )}
-
-          {/* Mobile card view */}
-          {pipelines.length > 0 && (
-            <div className="md:hidden divide-y divide-[#E5E5EA]">
+          ) : (
+            <div className="divide-y divide-[#E5E5EA]">
               {pipelines.map((pipeline) => (
                 <AvailablePipelineCard
                   key={pipeline.id}
@@ -474,106 +460,34 @@ export default function SubscriptionRunsPage() {
               ))}
             </div>
           )}
-
-          {/* Desktop table view */}
-          {pipelines.length > 0 && (
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#E5E5EA]">
-                    <th className="px-4 sm:px-6 py-3 text-left text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
-                      Pipeline
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
-                      Provider
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-[12px] font-semibold text-slate-600 uppercase tracking-wide">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pipelines.map((pipeline) => {
-                    const isRunning = runningPipeline === pipeline.id
-                    return (
-                      <tr
-                        key={pipeline.id}
-                        className="border-b border-[#E5E5EA] last:border-b-0 hover:bg-[var(--cloudact-mint)]/5 transition-colors"
-                      >
-                        <td className="px-4 sm:px-6 py-4">
-                          <div className="space-y-0.5">
-                            <div className="text-[15px] font-semibold text-slate-900">
-                              {pipeline.name}
-                            </div>
-                            <div className="text-[13px] text-slate-500">
-                              {pipeline.description}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--cloudact-mint)]/5 text-slate-500 border border-slate-200">
-                            {pipeline.provider}
-                          </span>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4">
-                          <StatusBadge status="ready" />
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleRun(pipeline.id)}
-                            disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all shadow-sm hover:shadow-md"
-                          >
-                            {isRunning ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Running...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4" />
-                                Run Now
-                              </>
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </PremiumCard>
       </div>
 
       {/* Run History Section */}
       {backendConnected && hasApiKey && (
-        <div className="space-y-4">
+        <div>
           {/* Stats Row */}
-          <StatRow stats={stats} />
+          {pipelineRuns.length > 0 && (
+            <div className="mb-4">
+              <StatRow stats={stats} />
+            </div>
+          )}
 
-          {/* Section Header with Refresh */}
-          <SectionHeader
-            title="Run History"
-            action={
-              <button
-                onClick={loadPipelineRuns}
-                disabled={runsLoading}
-                className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[13px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {runsLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                <span>Refresh</span>
-              </button>
-            }
-          />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Run History</h2>
+            <button
+              onClick={loadPipelineRuns}
+              disabled={runsLoading}
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[13px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {runsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              <span>Refresh</span>
+            </button>
+          </div>
 
           {/* Data Table with search, filter, sort, pagination, expand */}
           <PremiumDataTable

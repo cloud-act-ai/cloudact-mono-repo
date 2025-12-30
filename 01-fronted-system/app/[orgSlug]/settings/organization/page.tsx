@@ -74,6 +74,12 @@ import {
 } from "@/actions/backend-onboarding"
 import { getBillingInfo } from "@/actions/stripe"
 
+// Premium components - same as dashboard/pipeline pages
+import { StatRow } from "@/components/ui/stat-row"
+// Premium components available: PremiumCard, SectionHeader
+// Currently using custom components matching dashboard/pipeline patterns
+import { LoadingState } from "@/components/ui/loading-state"
+
 interface OwnedOrg {
   id: string
   org_name: string
@@ -187,7 +193,7 @@ export default function OrganizationSettingsPage() {
       setApiKeyFingerprint(result.apiKeyFingerprint || null)
       setApiKeyValid(result.apiKeyValid)
       setBackendError(result.error || null)
-    } catch (err: unknown) {
+    } catch {
       setBackendError("Failed to check backend connection status")
     } finally {
       setLoadingBackendStatus(false)
@@ -292,7 +298,7 @@ export default function OrganizationSettingsPage() {
                   : "Backend connection restored successfully! No active subscription to sync."
               )
             }
-          } catch (syncErr: unknown) {
+          } catch {
             setSuccess(
               onboardResult.apiKey
                 ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync error.`
@@ -463,7 +469,7 @@ export default function OrganizationSettingsPage() {
           getOrgLocale(orgSlug),
           getOrgLogo(orgSlug)
         ])
-      } catch (promiseErr) {
+      } catch {
         setError("Failed to load organization settings")
         return
       }
@@ -710,7 +716,7 @@ export default function OrganizationSettingsPage() {
       } else {
         setTransferMembers([])
       }
-    } catch (err: unknown) {
+    } catch {
       setTransferMembers([])
     } finally {
       setLoadingTransferMembers(false)
@@ -798,24 +804,58 @@ export default function OrganizationSettingsPage() {
     }
   }
 
+  // Stats for StatRow component - same pattern as dashboard/pipelines
+  const stats = [
+    { icon: Building2, value: "Active", label: "Organization", color: "mint" as const },
+    { icon: Activity, value: backendOnboarded ? "Connected" : "Pending", label: "Backend", color: backendOnboarded ? "mint" as const : "amber" as const },
+  ]
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-[#90FCA6]" />
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        {/* Header - Same pattern as dashboard */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                Organization Settings
+              </h1>
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                Manage your organization locale, branding, and backend configuration
+              </p>
+            </div>
+          </div>
+        </div>
+        <LoadingState message="Loading organization settings..." />
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500">
-      {/* Premium Header - Mobile-optimized */}
-      <div className="mb-4 sm:mb-8">
-        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
-          Organization Settings
-        </h1>
-        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
-          Manage your organization locale, branding, and backend configuration
-        </p>
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+          </div>
+          <div>
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              Organization Settings
+            </h1>
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              Manage your organization locale, branding, and backend configuration
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Row - Using StatRow component like pipelines */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <StatRow stats={stats} size="md" />
       </div>
 
       {error && (
@@ -833,44 +873,42 @@ export default function OrganizationSettingsPage() {
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        {/* Tab Navigation - Premium mobile scrollable tabs */}
-        <div className="relative mb-6 sm:mb-8">
-          {/* Left fade gradient for scroll indication - mobile only */}
-          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
-
-          <TabsList className="w-full sm:w-auto flex gap-1.5 bg-slate-100/80 p-1.5 rounded-xl h-auto overflow-x-auto scrollbar-hide scroll-smooth touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Tab Navigation - Premium border-bottom tabs (genai-runs pattern) */}
+        <div className="border-b border-slate-200 mb-6 sm:mb-8">
+          <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="general"
-              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
-              <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="whitespace-nowrap">General</span>
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">General</span>
+              <span className="sm:hidden">General</span>
             </TabsTrigger>
             <TabsTrigger
               value="contact"
-              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
-              <User className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="whitespace-nowrap">Contact</span>
+              <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Contact</span>
+              <span className="sm:hidden">Contact</span>
             </TabsTrigger>
             <TabsTrigger
               value="backend"
-              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
-              <Activity className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="whitespace-nowrap">Backend</span>
+              <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Backend</span>
+              <span className="sm:hidden">Backend</span>
             </TabsTrigger>
             <TabsTrigger
               value="danger"
-              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:bg-[#FF6C5E]/10 data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:text-[#FF6C5E]/80 data-[state=inactive]:hover:border-[#FF6C5E]/50 data-[state=inactive]:bg-transparent data-[state=active]:border-[#FF6C5E] data-[state=active]:text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E]/5 data-[state=active]:shadow-none min-w-fit"
             >
-              <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="whitespace-nowrap">Danger Zone</span>
+              <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Danger Zone</span>
+              <span className="sm:hidden">Danger</span>
             </TabsTrigger>
           </TabsList>
-
-          {/* Right fade gradient for scroll indication - mobile only */}
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
         </div>
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

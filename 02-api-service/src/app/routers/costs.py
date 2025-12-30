@@ -21,11 +21,11 @@ import re
 
 from src.app.dependencies.auth import verify_api_key, OrgContext
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
-from src.core.services.cost_service import (
-    get_cost_service,
+from src.core.services.cost_read import (
+    get_cost_read_service,
     CostQuery,
     CostResponse,
-    PolarsCostService
+    CostReadService,
 )
 from src.app.models.i18n_models import DEFAULT_CURRENCY, validate_currency
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
@@ -253,7 +253,7 @@ async def get_costs(
     limit: int = Query(1000, ge=1, le=10000, description="Max records"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -322,7 +322,7 @@ async def get_cost_summary(
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -382,7 +382,7 @@ async def get_cost_by_provider(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -405,7 +405,12 @@ async def get_cost_by_provider(
         endpoint_name="get_cost_by_provider"
     )
 
-    result = await cost_service.get_cost_by_provider(org_slug, start_date, end_date)
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date
+    )
+    result = await cost_service.get_cost_by_provider(query)
 
     if not result.success:
         raise HTTPException(
@@ -431,7 +436,7 @@ async def get_cost_by_service(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -455,7 +460,12 @@ async def get_cost_by_service(
         endpoint_name="get_cost_by_service"
     )
 
-    result = await cost_service.get_cost_by_service(org_slug, start_date, end_date)
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date
+    )
+    result = await cost_service.get_cost_by_service(query)
 
     if not result.success:
         raise HTTPException(
@@ -481,7 +491,7 @@ async def get_cost_trend(
     granularity: Granularity = Query(Granularity.DAILY, description="Time granularity"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -497,6 +507,9 @@ async def get_cost_trend(
     - Record count
     - Providers active in period
     """
+    from datetime import timedelta
+    from src.core.services._shared import DatePeriod
+
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
 
@@ -508,7 +521,14 @@ async def get_cost_trend(
         endpoint_name="get_cost_trend"
     )
 
-    result = await cost_service.get_cost_trend(org_slug, granularity.value, days)
+    # Build query with LAST_N_DAYS equivalent
+    today = date.today()
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=today - timedelta(days=days),
+        end_date=today
+    )
+    result = await cost_service.get_cost_trend(query, granularity.value)
 
     if not result.success:
         raise HTTPException(
@@ -538,7 +558,7 @@ async def get_saas_subscription_costs(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -566,7 +586,12 @@ async def get_saas_subscription_costs(
         endpoint_name="get_saas_subscription_costs"
     )
 
-    result = await cost_service.get_saas_subscription_costs(org_slug, start_date, end_date)
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date
+    )
+    result = await cost_service.get_saas_subscription_costs(query)
 
     if not result.success:
         raise HTTPException(
@@ -596,7 +621,7 @@ async def get_cloud_costs(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -621,7 +646,12 @@ async def get_cloud_costs(
         endpoint_name="get_cloud_costs"
     )
 
-    result = await cost_service.get_cloud_costs(org_slug, start_date, end_date)
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date
+    )
+    result = await cost_service.get_cloud_costs(query)
 
     if not result.success:
         raise HTTPException(
@@ -651,7 +681,7 @@ async def get_llm_costs(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -679,7 +709,12 @@ async def get_llm_costs(
         endpoint_name="get_llm_costs"
     )
 
-    result = await cost_service.get_llm_costs(org_slug, start_date, end_date)
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date
+    )
+    result = await cost_service.get_llm_costs(query)
 
     if not result.success:
         raise HTTPException(
@@ -720,7 +755,7 @@ async def get_total_costs(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service),
+    cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -750,11 +785,18 @@ async def get_total_costs(
 
     start_time = time.time()
 
+    # Build query
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date
+    )
+
     # Fetch all cost types in parallel
     saas_result, cloud_result, llm_result = await asyncio.gather(
-        cost_service.get_saas_subscription_costs(org_slug, start_date, end_date),
-        cost_service.get_cloud_costs(org_slug, start_date, end_date),
-        cost_service.get_llm_costs(org_slug, start_date, end_date)
+        cost_service.get_saas_subscription_costs(query),
+        cost_service.get_cloud_costs(query),
+        cost_service.get_llm_costs(query)
     )
 
     # Validate date ranges match across cost types
@@ -855,7 +897,7 @@ async def get_total_costs(
 async def get_cache_stats(
     org_slug: str,
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: CostReadService = Depends(get_cost_read_service)
 ):
     """
     Get cache statistics.
@@ -871,7 +913,7 @@ async def get_cache_stats(
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
 
-    stats = cost_service.get_cache_stats()
+    stats = cost_service.cache_stats
     return CacheStat(**stats)
 
 
@@ -883,7 +925,7 @@ async def get_cache_stats(
 async def invalidate_cache(
     org_slug: str,
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: CostReadService = Depends(get_cost_read_service)
 ):
     """
     Invalidate all cached data for the organization.

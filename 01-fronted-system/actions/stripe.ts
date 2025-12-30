@@ -40,11 +40,24 @@ const safeParseInt = (value: string | undefined, defaultValue: number): number =
 }
 
 // Simple in-memory rate limiting for checkout sessions
+// NOTE: This is per-instance only. In serverless/multi-instance deployments,
+// this provides basic protection but is not a full rate limiter.
+// For production at scale, consider Redis-based rate limiting.
 const checkoutRateLimits = new Map<string, number>()
 const CHECKOUT_RATE_LIMIT_MS = 30000 // 30 seconds between checkout attempts
 const MAX_RATE_LIMIT_ENTRIES = 1000
 
+/**
+ * Check if user is rate limited for checkout operations.
+ * Returns true if allowed, false if rate limited.
+ * Thread-safety note: Map operations are atomic in single-threaded JS,
+ * but this doesn't protect against concurrent requests in serverless.
+ */
 function checkRateLimit(userId: string): boolean {
+  if (!userId || typeof userId !== "string") {
+    return false // Invalid userId should be rate limited
+  }
+
   const now = Date.now()
   const lastAttempt = checkoutRateLimits.get(userId)
 
@@ -52,10 +65,8 @@ function checkRateLimit(userId: string): boolean {
     return false // Rate limited
   }
 
-  checkoutRateLimits.set(userId, now)
-
-  // Clean up old entries periodically with LRU eviction
-  if (checkoutRateLimits.size > MAX_RATE_LIMIT_ENTRIES) {
+  // Clean up old entries periodically with LRU eviction (do this BEFORE adding new entry)
+  if (checkoutRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
     const cutoff = now - CHECKOUT_RATE_LIMIT_MS * 2
     const entries = Array.from(checkoutRateLimits.entries())
 
@@ -64,13 +75,14 @@ function checkRateLimit(userId: string): boolean {
     expiredKeys.forEach(key => checkoutRateLimits.delete(key))
 
     // If still over limit, remove oldest entries (LRU)
-    if (checkoutRateLimits.size > MAX_RATE_LIMIT_ENTRIES) {
+    if (checkoutRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
       const sortedEntries = Array.from(checkoutRateLimits.entries()).sort((a, b) => a[1] - b[1])
-      const toRemove = sortedEntries.slice(0, checkoutRateLimits.size - MAX_RATE_LIMIT_ENTRIES)
+      const toRemove = sortedEntries.slice(0, Math.max(1, checkoutRateLimits.size - MAX_RATE_LIMIT_ENTRIES + 1))
       toRemove.forEach(([key]) => checkoutRateLimits.delete(key))
     }
   }
 
+  checkoutRateLimits.set(userId, now)
   return true
 }
 
@@ -88,6 +100,11 @@ export interface BillingInfo {
       price: number
       currency: string
       interval: string
+      metadata?: {
+        team_members?: string
+        providers?: string
+        [key: string]: string | undefined
+      }
     }
   } | null
   invoices: {
@@ -480,8 +497,11 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
           })
         }
       }
-    } catch {
+    } catch (subscriptionFetchError) {
       // Subscription fetch failed - continue with null subscription
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[getBillingInfo] Subscription fetch failed:", subscriptionFetchError)
+      }
     }
 
     if (subscription) {
@@ -541,8 +561,11 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
             }
           }
         }
-      } catch {
+      } catch (subscriptionProcessError) {
         // Error processing subscription details - subscription remains with partial data
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getBillingInfo] Error processing subscription details:", subscriptionProcessError)
+        }
       }
     }
 
@@ -564,8 +587,11 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
         hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
         invoicePdf: inv.invoice_pdf ?? null,
       }))
-    } catch {
+    } catch (invoiceFetchError) {
       // Invoice fetch failed - return partial billing info without invoices
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[getBillingInfo] Invoice fetch failed:", invoiceFetchError)
+      }
     }
 
     return { data: billingInfo, error: null }
@@ -658,8 +684,12 @@ export async function createBillingPortalSession(orgSlug: string): Promise<{ url
     }
 
     return { url: session.url, error: null }
-  } catch {
-    return { url: null, error: "Unable to access billing portal. Please try again or contact support if the issue persists." }
+  } catch (portalError) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[createBillingPortalSession] Portal creation failed:", portalError)
+    }
+    const errorDetail = portalError instanceof Error ? portalError.message : "Unknown error"
+    return { url: null, error: `Unable to access billing portal: ${errorDetail}. Please try again or contact support.` }
   }
 }
 
@@ -844,7 +874,7 @@ export async function changeSubscriptionPlan(
     const periodStart = subscriptionItem?.current_period_start ?? Math.floor(Date.now() / 1000)
     const periodEnd = subscriptionItem?.current_period_end ?? Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60
 
-    const { error: updateError } = await adminClient
+    const { error: _updateError } = await adminClient
       .from("organizations")
       .update({
         plan: planId,
@@ -856,7 +886,7 @@ export async function changeSubscriptionPlan(
       })
       .eq("id", org.id)
 
-    // Note: if updateError, don't fail - Stripe is updated, webhook will sync
+    // Note: if _updateError, don't fail - Stripe is updated, webhook will sync
 
     // Get the old price from current subscription for comparison
     const oldPriceItem = currentSubscription.items.data[0]?.price
@@ -886,8 +916,11 @@ export async function changeSubscriptionPlan(
             proration_behavior: 'create_prorations',
           }
         })
-    } catch {
+    } catch (auditError) {
       // Non-blocking - don't fail plan change if audit fails
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[changeSubscriptionPlan] Audit log insert failed:", auditError)
+      }
     }
 
     // Sync subscription limits to backend BigQuery immediately
@@ -1105,12 +1138,13 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
   error?: string
   message?: string
 }> {
+  const isDev = process.env.NODE_ENV === "development"
   try {
-    console.log("[Billing Resync] Starting manual resync for:", orgSlug)
+    if (isDev) console.log("[Billing Resync] Starting manual resync for:", orgSlug)
 
     // Validate orgSlug format (prevent path traversal/injection)
     if (!isValidOrgSlug(orgSlug)) {
-      console.error("[Billing Resync] Invalid org slug format")
+      if (isDev) console.error("[Billing Resync] Invalid org slug format")
       return { success: false, error: "Invalid organization" }
     }
 
@@ -1133,7 +1167,7 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
       .single()
 
     if (orgError || !org) {
-      console.error("[Billing Resync] Organization not found:", orgError)
+      if (isDev) console.error("[Billing Resync] Organization not found:", orgError)
       return { success: false, error: "Organization not found" }
     }
 
@@ -1147,13 +1181,13 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
       .single()
 
     if (membership?.role !== "owner") {
-      console.error("[Billing Resync] User is not owner")
+      if (isDev) console.error("[Billing Resync] User is not owner")
       return { success: false, error: "Only the owner can resync billing data" }
     }
 
     // Check if org has Stripe customer
     if (!org.stripe_customer_id) {
-      console.log("[Billing Resync] No Stripe customer found")
+      if (isDev) console.log("[Billing Resync] No Stripe customer found")
       return {
         success: true,
         message: "No Stripe subscription to sync. Please subscribe first."
@@ -1182,19 +1216,19 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
       }
     } catch (stripeError: unknown) {
       const errorMessage = stripeError instanceof Error ? stripeError.message : "Unknown Stripe error"
-      console.error("[Billing Resync] Failed to fetch from Stripe:", errorMessage)
+      if (isDev) console.error("[Billing Resync] Failed to fetch from Stripe:", errorMessage)
       return { success: false, error: `Failed to fetch subscription from Stripe: ${errorMessage}` }
     }
 
     if (!subscription) {
-      console.log("[Billing Resync] No active subscription found in Stripe")
+      if (isDev) console.log("[Billing Resync] No active subscription found in Stripe")
       return {
         success: true,
         message: "No active subscription found in Stripe."
       }
     }
 
-    console.log("[Billing Resync] Found subscription in Stripe:", subscription.id)
+    if (isDev) console.log("[Billing Resync] Found subscription in Stripe:", subscription.id)
 
     // Extract plan info from Stripe (single source of truth)
     const priceItem = subscription.items.data[0]?.price
@@ -1208,12 +1242,17 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
 
     // Get limits from Stripe product metadata
     const metadata = productData?.metadata || {}
+    const pipelinesPerDay = safeParseInt(metadata.pipelinesPerDay, 6)
     const limits = {
       seat_limit: safeParseInt(metadata.teamMembers, 2),
       providers_limit: safeParseInt(metadata.providers, 3),
-      pipelines_per_day_limit: safeParseInt(metadata.pipelinesPerDay, 6),
+      pipelines_per_day_limit: pipelinesPerDay,
+      pipelines_per_week_limit: pipelinesPerDay * 7,
+      pipelines_per_month_limit: pipelinesPerDay * 30,
       concurrent_pipelines_limit: safeParseInt(metadata.concurrentPipelines, 2),
     }
+
+    if (isDev) console.log("[Billing Resync] Calculated limits from Stripe metadata:", { planId, limits })
 
     // Update Supabase with latest Stripe data
     // Type assertion needed for Stripe SDK v20+ compatibility
@@ -1235,11 +1274,11 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
       .eq("id", org.id)
 
     if (updateError) {
-      console.error("[Billing Resync] Failed to update Supabase:", updateError)
+      if (isDev) console.error("[Billing Resync] Failed to update Supabase:", updateError)
       return { success: false, error: `Failed to update database: ${updateError.message}` }
     }
 
-    console.log("[Billing Resync] Supabase updated successfully")
+    if (isDev) console.log("[Billing Resync] Supabase updated successfully")
 
     // Sync to backend BigQuery
     try {
@@ -1259,13 +1298,13 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
       })
 
       if (syncResult.success) {
-        console.log("[Billing Resync] Backend sync successful")
+        if (isDev) console.log("[Billing Resync] Backend sync successful")
         return {
           success: true,
           message: "Billing data successfully synced from Stripe to Supabase and backend."
         }
       } else {
-        console.warn("[Billing Resync] Backend sync failed:", syncResult.error)
+        if (isDev) console.warn("[Billing Resync] Backend sync failed:", syncResult.error)
         return {
           success: true,
           message: `Supabase updated, but backend sync ${syncResult.queued ? 'queued for retry' : 'failed'}. ${syncResult.error || ''}`
@@ -1273,7 +1312,7 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
       }
     } catch (syncErr: unknown) {
       const errorMessage = syncErr instanceof Error ? syncErr.message : "Backend sync error"
-      console.error("[Billing Resync] Backend sync error:", syncErr)
+      if (isDev) console.error("[Billing Resync] Backend sync error:", syncErr)
       return {
         success: true,
         message: `Supabase updated successfully, but backend sync failed: ${errorMessage}`
@@ -1281,7 +1320,7 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to resync billing data"
-    console.error("[Billing Resync] Error:", error)
+    if (isDev) console.error("[Billing Resync] Error:", error)
     return { success: false, error: errorMessage }
   }
 }

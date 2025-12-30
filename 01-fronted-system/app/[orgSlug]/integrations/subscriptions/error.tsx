@@ -16,6 +16,7 @@ export default function SubscriptionsError({
   useEffect(() => {
     // Log the error for debugging (in production, send to error tracking service)
     if (process.env.NODE_ENV === "development") {
+      console.error("[SubscriptionsError]", error)
     }
     // In production, you would send this to your error tracking service (e.g., Sentry)
     // Example: captureException(error)

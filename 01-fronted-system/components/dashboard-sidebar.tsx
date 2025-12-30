@@ -30,7 +30,6 @@ import {
   UserPlus,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
   HelpCircle,
   BarChart3,
   LayoutDashboard,

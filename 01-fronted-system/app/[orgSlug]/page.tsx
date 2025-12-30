@@ -27,7 +27,7 @@ export default async function OrgRootRedirectPage({
   try {
     const { data: org } = await supabase
       .from("organizations")
-      .select("org_name, plan, billing_status, locale_currency, locale_timezone, integration_gcp_status, integration_openai_status")
+      .select("org_name, plan, billing_status, default_currency, default_timezone, integration_gcp_status, integration_openai_status")
       .eq("org_slug", orgSlug)
       .single()
 
@@ -63,7 +63,7 @@ export default async function OrgRootRedirectPage({
           <div className="h-5 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-slate-400" />
-            <span className="text-[14px] text-slate-600">{org.locale_currency || 'USD'}</span>
+            <span className="text-[14px] text-slate-600">{org.default_currency || 'USD'}</span>
           </div>
           <div className="h-5 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
@@ -268,15 +268,10 @@ export default async function OrgRootRedirectPage({
           </div>
         </div>
 
-        {/* Auto-redirect script */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              setTimeout(function() {
-                window.location.href = '/${orgSlug}/cost-dashboards/overview';
-              }, 3000);
-            `,
-          }}
+        {/* Auto-redirect using safe meta refresh */}
+        <meta
+          httpEquiv="refresh"
+          content={`3; url=/${encodeURIComponent(orgSlug)}/cost-dashboards/overview`}
         />
       </div>
     )

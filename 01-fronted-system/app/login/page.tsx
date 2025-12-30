@@ -48,7 +48,11 @@ function LoginForm() {
         } else if (reason === 'auth_error') {
           setError("Authentication error. Please sign in again.")
         }
-      } catch {
+      } catch (signOutError) {
+        // Sign out may fail if no session exists - log but continue
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[Login] Failed to clear stale session:", signOutError)
+        }
         setSessionCleared(true)
       }
     }
@@ -81,18 +85,24 @@ function LoginForm() {
       if (authError) throw new Error(authError.message)
       if (!authData.user) throw new Error("Login failed")
 
-      try {
-        await supabase.rpc("update_last_login", { p_user_id: authData.user.id })
-      } catch {
-        // Ignore - function may not exist yet
-      }
+      // Update last login timestamp (non-blocking, errors logged but not thrown)
+      // Using Promise.resolve to ensure proper catch handling
+      Promise.resolve(supabase.rpc("update_last_login", { p_user_id: authData.user.id }))
+        .catch((err: unknown) => {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[Login] Failed to update last login:", err)
+          }
+        })
 
       if (redirectTo) {
-        if (typeof window !== "undefined") window.location.href = redirectTo
+        if (typeof window !== "undefined") {
+          setIsLoading(false) // Reset before redirect
+          window.location.href = redirectTo
+        }
         return
       }
 
-      const { data: orgData } = await supabase
+      const { data: orgData, error: orgError } = await supabase
         .from("organization_members")
         .select(`org_id, organizations!inner(org_slug)`)
         .eq("user_id", authData.user.id)
@@ -100,14 +110,24 @@ function LoginForm() {
         .limit(1)
         .maybeSingle()
 
-      if (orgData?.organizations) {
-        const org = (Array.isArray(orgData.organizations)
-          ? orgData.organizations[0]
-          : orgData.organizations) as { org_slug: string }
+      if (orgError) {
+        console.error("[Login] Failed to fetch organization:", orgError)
+        // Still redirect to onboarding if we can't determine org
+      }
 
-        if (typeof window !== "undefined") window.location.href = `/${org.org_slug}/dashboard`
-      } else {
-        if (typeof window !== "undefined") window.location.href = "/onboarding/billing"
+      // Safe extraction of org_slug with proper type checking
+      let targetPath = "/onboarding/billing"
+      if (orgData?.organizations) {
+        const orgs = orgData.organizations
+        const org = Array.isArray(orgs) ? orgs[0] : orgs
+        if (org && typeof org === "object" && "org_slug" in org && typeof org.org_slug === "string") {
+          targetPath = `/${org.org_slug}/dashboard`
+        }
+      }
+
+      if (typeof window !== "undefined") {
+        setIsLoading(false) // Reset before redirect
+        window.location.href = targetPath
       }
     } catch (err: unknown) {
       setError("Invalid email or password")

@@ -42,6 +42,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 
 import {
   createCustomProviderWithPlan,
+  type BillingCycle,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
 import { SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
@@ -66,7 +67,7 @@ interface FormData {
   display_name: string
   unit_price: number | undefined
   seats: number | undefined
-  billing_cycle: string
+  billing_cycle: BillingCycle
   pricing_model: string
   currency: string
   notes: string
@@ -116,7 +117,8 @@ export default function AddCustomProviderPage() {
           setOrgCurrency(currency)
           setFormData(prev => ({ ...prev, currency }))
         }
-      } catch (err) {
+      } catch {
+        // Silent fail - use default currency if fetch fails
       } finally {
         setLoading(false)
       }
@@ -415,7 +417,7 @@ export default function AddCustomProviderPage() {
                 <Label htmlFor="billing_cycle">Billing Cycle *</Label>
                 <Select
                   value={formData.billing_cycle}
-                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}
+                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value as BillingCycle })}
                   disabled={submitting}
                   required
                 >

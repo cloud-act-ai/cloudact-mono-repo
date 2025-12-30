@@ -42,12 +42,24 @@ export default function BillingPage() {
           .eq("status", "active")
           .limit(1)
 
+        if (membershipError) {
+          // Log membership check error for debugging
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[Billing] Membership check failed:", membershipError.message)
+          }
+          // Continue anyway - user might be new
+        }
+
         if (memberships && memberships.length > 0) {
           // User already has an org, redirect to dashboard
-          const org = memberships[0].organizations as unknown as { org_slug: string }
-          if (org?.org_slug) {
-            router.push(`/${org.org_slug}/dashboard`)
-            return
+          const orgData = memberships[0].organizations
+          // Safe null check before type assertion
+          if (orgData && typeof orgData === "object" && "org_slug" in orgData) {
+            const org = orgData as { org_slug: string }
+            if (org.org_slug) {
+              router.push(`/${org.org_slug}/dashboard`)
+              return
+            }
           }
         }
 
@@ -60,7 +72,11 @@ export default function BillingPage() {
 
         setUser(user)
         setIsCheckingAuth(false)
-      } catch {
+      } catch (authCheckError) {
+        // Auth check failed - log and redirect to signup
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[Billing] Auth check failed:", authCheckError)
+        }
         router.push("/signup")
       }
     }
@@ -90,7 +106,11 @@ export default function BillingPage() {
 
         // Don't auto-select any plan - user must choose
         // Middle plan will be highlighted as "Most Popular"
-      } catch {
+      } catch (planFetchError) {
+        // Log the actual error for debugging
+        if (process.env.NODE_ENV === "development") {
+          console.error("[Billing] Failed to fetch plans:", planFetchError)
+        }
         setError("Failed to load pricing. Please try again.")
       } finally {
         setIsLoadingPlans(false)

@@ -59,19 +59,11 @@ export function EmptyState({
   const sizes = sizeClasses[size]
   const ActionIcon = action?.icon
 
-  const buttonContent = (
-    <button
-      onClick={action?.onClick}
-      className={cn(
-        "inline-flex items-center gap-2 bg-[var(--cloudact-mint)] text-slate-900",
-        "font-semibold hover:bg-[var(--cloudact-mint-dark)] transition-colors",
-        "shadow-sm hover:shadow-md",
-        sizes.button
-      )}
-    >
-      {ActionIcon && <ActionIcon className="h-4 w-4" />}
-      {action?.label}
-    </button>
+  const buttonClassName = cn(
+    "inline-flex items-center gap-2 bg-[var(--cloudact-mint)] text-slate-900",
+    "font-semibold hover:bg-[var(--cloudact-mint-dark)] transition-colors",
+    "shadow-sm hover:shadow-md",
+    sizes.button
   )
 
   const content = (
@@ -92,6 +84,7 @@ export function EmptyState({
         >
           <Icon
             className={cn("text-[var(--cloudact-mint-dark)]", sizes.icon)}
+            aria-hidden="true"
           />
         </div>
         <h3 className={cn("font-semibold text-slate-900", sizes.title)}>
@@ -105,9 +98,24 @@ export function EmptyState({
         {action && (
           <div className="pt-2">
             {action.href ? (
-              <Link href={action.href}>{buttonContent}</Link>
+              <Link
+                href={action.href}
+                className={buttonClassName}
+                aria-label={action.label}
+              >
+                {ActionIcon && <ActionIcon className="h-4 w-4" aria-hidden="true" />}
+                {action.label}
+              </Link>
             ) : (
-              buttonContent
+              <button
+                type="button"
+                onClick={action.onClick}
+                className={buttonClassName}
+                aria-label={action.label}
+              >
+                {ActionIcon && <ActionIcon className="h-4 w-4" aria-hidden="true" />}
+                {action.label}
+              </button>
             )}
           </div>
         )}
@@ -144,8 +152,10 @@ export function InlineEmptyState({
         "flex items-center justify-center gap-2 py-6 text-slate-500",
         className
       )}
+      role="status"
+      aria-label={message}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4" aria-hidden="true" />
       <span className="text-[13px]">{message}</span>
     </div>
   )

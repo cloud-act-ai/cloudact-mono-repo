@@ -880,7 +880,7 @@ export class PipelineBackendClient {
    */
   async setupIntegration(
     orgSlug: string,
-    provider: "openai" | "anthropic" | "gemini" | "deepseek" | "gcp" | "gcp_service_account",
+    provider: "openai" | "anthropic" | "gemini" | "deepseek" | "gcp" | "gcp_service_account" | "aws" | "azure" | "oci",
     request: SetupIntegrationRequest
   ): Promise<SetupIntegrationResponse> {
     validateOrgSlug(orgSlug)

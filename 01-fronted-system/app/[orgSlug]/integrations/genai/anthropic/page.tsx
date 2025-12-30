@@ -7,7 +7,6 @@ import {
   GENAI_COMMITMENT_PRICING,
 } from "@/lib/data/genai/genai-commitment-pricing"
 import {
-  GENAI_INFRASTRUCTURE_PRICING,
   getInfraPricingByCloudProvider,
 } from "@/lib/data/genai/genai-infrastructure-pricing"
 

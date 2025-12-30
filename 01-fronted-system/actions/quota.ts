@@ -127,8 +127,11 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
         // TODO: Implement GET /api/v1/organizations/{org}/quota endpoint in backend
         // const _backend = new BackendClient({ orgApiKey: apiKey })
       }
-    } catch {
+    } catch (quotaError) {
       // Backend quota check failed - use defaults
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[getOrgQuotaUsage] Backend quota check failed:", quotaError)
+      }
     }
 
     const seatLimit = org.seat_limit || 2
@@ -183,7 +186,8 @@ export async function canAddTeamMember(orgSlug: string): Promise<{
   const result = await getQuotaUsage(orgSlug)
 
   if (!result.success || !result.data) {
-    return { canAdd: true, currentCount: 0, limit: 0, message: "Could not verify limits" }
+    // SECURITY: Fail closed - don't allow adding when we can't verify limits
+    return { canAdd: false, currentCount: 0, limit: 0, message: "Could not verify limits. Please try again." }
   }
 
   const { teamMembers, seatLimit } = result.data
@@ -219,7 +223,8 @@ export async function canAddIntegration(orgSlug: string): Promise<{
   const result = await getQuotaUsage(orgSlug)
 
   if (!result.success || !result.data) {
-    return { canAdd: true, currentCount: 0, limit: 0, message: "Could not verify limits" }
+    // SECURITY: Fail closed - don't allow adding when we can't verify limits
+    return { canAdd: false, currentCount: 0, limit: 0, message: "Could not verify limits. Please try again." }
   }
 
   const { configuredProviders, providersLimit } = result.data

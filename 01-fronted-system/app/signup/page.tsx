@@ -106,7 +106,7 @@ function SignupForm() {
   const [companyName, setCompanyName] = useState("")
   const [companyType, setCompanyType] = useState("company")
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
-  const [timezone, setTimezone] = useState("UTC")
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [focusedField, setFocusedField] = useState<string | null>(null)
@@ -120,8 +120,11 @@ function SignupForm() {
         if (emailRegex.test(decoded) && decoded.length <= 254) {
           setEmail(decoded)
         }
-      } catch {
-        // Invalid URL encoding
+      } catch (decodeError) {
+        // Invalid URL encoding - log for debugging but don't surface to user
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[Signup] Failed to decode prefill email:", decodeError)
+        }
       }
     }
   }, [prefillEmail])

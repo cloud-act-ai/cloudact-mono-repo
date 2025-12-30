@@ -35,6 +35,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import {
   createCustomPlan,
   type PlanCreate,
+  type BillingCycle,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
 import { formatCurrency, SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
@@ -140,7 +141,7 @@ export default function AddCustomSubscriptionPage() {
             seats: prev.seats !== undefined ? prev.seats : 1,
           }))
         }
-      } catch (err) {
+      } catch {
         // Default to USD on error, and set default numeric values
         setFormData(prev => ({
           ...prev,
@@ -164,7 +165,7 @@ export default function AddCustomSubscriptionPage() {
       const unitPrice = parseFloat(searchParams.get("unit_price") || "0")
       const currency = searchParams.get("currency") || orgCurrency
       const seats = parseInt(searchParams.get("seats") || "1", 10)
-      const billingCycle = searchParams.get("billing_cycle") || "monthly"
+      const billingCycle = (searchParams.get("billing_cycle") || "monthly") as BillingCycle
       const pricingModel = (searchParams.get("pricing_model") || "FLAT_FEE") as "PER_SEAT" | "FLAT_FEE"
       const notes = searchParams.get("notes") || ""
 
@@ -492,7 +493,7 @@ export default function AddCustomSubscriptionPage() {
                 <Label htmlFor="billing_cycle">Billing Cycle *</Label>
                 <Select
                   value={formData.billing_cycle}
-                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}
+                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value as BillingCycle })}
                   disabled={submitting}
                   required
                 >

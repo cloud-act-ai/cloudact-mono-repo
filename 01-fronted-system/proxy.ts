@@ -1,6 +1,12 @@
 /**
  * Proxy for Route Protection (Next.js 16+)
  *
+ * !!! IMPORTANT FOR AI AGENTS !!!
+ * - Next.js 16+ uses proxy.ts, NOT middleware.ts
+ * - DO NOT create a middleware.ts file - it will conflict with this file
+ * - Session refresh logic is in: ./lib/supabase/middleware.ts (utility, not Next.js middleware)
+ * - @see https://nextjs.org/docs/messages/middleware-to-proxy
+ *
  * SECURITY MEASURES IMPLEMENTED:
  * 1. Public Routes: Explicit whitelist of unauthenticated paths
  * 2. Nested Path Handling: /invite/[token], /onboarding/organization supported
@@ -72,5 +78,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|csv)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|csv|ico|json|webmanifest|xml|txt|woff|woff2)$).*)"],
 }

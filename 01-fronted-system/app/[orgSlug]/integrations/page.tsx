@@ -12,7 +12,6 @@ import {
   Sparkles,
   Cpu,
   Gem,
-  Loader2,
   Shield,
   Palette,
   FileText,
@@ -22,12 +21,13 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { getIntegrations } from "@/actions/integrations"
+import { LoadingState } from "@/components/ui/loading-state"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import { getAllProviders, type ProviderInfo } from "@/actions/subscription-providers"
 
 interface Integration {
   provider: string
-  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED"
+  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED" | "EXPIRED"
   is_enabled?: boolean
 }
 
@@ -35,7 +35,7 @@ interface IntegrationCategory {
   id: string
   name: string
   description: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   href: string
   accent: string
   providers: ProviderConfig[]
@@ -196,33 +196,45 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 max-w-7xl mx-auto">
-        <div className="mb-10">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">Integrations</h1>
-          <p className="text-[15px] text-slate-500 mt-2">
-            Connect cloud providers, LLM APIs, and subscription services
-          </p>
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        {/* Header - Same pattern as dashboard */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
-            <p className="text-[14px] text-slate-500 font-medium">Loading integrations...</p>
+            <div>
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                Integrations
+              </h1>
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                Connect cloud providers, LLM APIs, and subscription services
+              </p>
+            </div>
           </div>
         </div>
+        <LoadingState message="Loading integrations..." />
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">Integrations</h1>
-        <p className="text-[15px] text-slate-500 mt-2">
-          Connect cloud providers, LLM APIs, and subscription services
-        </p>
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+          </div>
+          <div>
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              Integrations
+            </h1>
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              Connect cloud providers, LLM APIs, and subscription services
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Backend Warning */}
@@ -251,40 +263,49 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {/* Stats Row */}
-      <div className="flex flex-wrap items-center gap-6 py-5 px-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
+      {/* Stats Row - Ultra-premium styling */}
+      <div className="relative overflow-hidden flex flex-wrap items-center gap-6 py-5 px-6 bg-white/[0.98] backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        {/* Top gradient accent */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[var(--cloudact-mint)] via-[var(--cloudact-mint-light)]/50 to-transparent" />
+
         <div className="flex items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-[#90FCA6] shadow-sm"></div>
+          <div className="h-3 w-3 rounded-full bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] shadow-[0_0_8px_rgba(144,252,166,0.5)] animate-pulse"></div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-slate-900">{connectedCount}</span> Connected
+            <span className="font-bold text-slate-900">{connectedCount}</span> Connected
           </span>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-2">
-          <Cloud className="h-4 w-4 text-[#1a7a3a]" />
+        <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+            <Cloud className="h-4 w-4 text-[#1a7a3a]" />
+          </div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-slate-900">{cloudCount}</span> Cloud
+            <span className="font-bold text-slate-900">{cloudCount}</span> Cloud
           </span>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-[#FF6C5E]" />
+        <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+            <Brain className="h-4 w-4 text-[#FF6C5E]" />
+          </div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-slate-900">{llmCount}</span> LLM
+            <span className="font-bold text-slate-900">{llmCount}</span> LLM
           </span>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-slate-500" />
+        <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
+            <CreditCard className="h-4 w-4 text-slate-500" />
+          </div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-slate-900">{saasCount}</span> SaaS
+            <span className="font-bold text-slate-900">{saasCount}</span> SaaS
           </span>
         </div>
       </div>
 
-      {/* Integration Categories */}
+      {/* Integration Categories - Ultra-premium styling */}
       <div className="space-y-5">
-        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Categories</h2>
+        <h2 className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Categories</h2>
 
         <div className="space-y-3">
           {INTEGRATION_CATEGORIES.map((category) => {
@@ -297,58 +318,66 @@ export default function IntegrationsPage() {
                 href={`/${orgSlug}/integrations/${category.href}`}
                 className="group block"
               >
-                <div className="relative p-6 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
-                  {/* Left accent */}
+                <div className="relative p-6 bg-white/[0.98] backdrop-blur-sm rounded-2xl border border-slate-200/80 hover:border-slate-300 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300">
+                  {/* Left accent bar - always visible with opacity animation */}
                   <div
-                    className="absolute left-0 top-6 bottom-6 w-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute left-0 top-4 bottom-4 w-1 rounded-full transition-all duration-300 opacity-30 group-hover:opacity-100"
                     style={{ backgroundColor: getAccentStyle(category.accent).css }}
                   />
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
                       <div
-                        className={`h-12 w-12 rounded-xl flex items-center justify-center ${getAccentStyle(category.accent).iconBg}`}
+                        className="h-14 w-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm transition-all duration-200 group-hover:shadow-md group-hover:scale-105"
+                        style={{ backgroundColor: `${getAccentStyle(category.accent).css}15` }}
                       >
-                        <Icon className="h-6 w-6" />
+                        <Icon className="h-7 w-7" style={{ color: getAccentStyle(category.accent).css }} />
                       </div>
-                      <div>
-                        <h3 className="text-[17px] font-semibold text-slate-900">{category.name}</h3>
+                      <div className="min-w-0">
+                        <h3 className="text-[18px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors">{category.name}</h3>
                         <p className="text-[13px] text-slate-500 mt-1">{category.description}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      {/* Provider icons */}
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      {/* Provider icons - premium styling */}
                       <div className="hidden sm:flex items-center gap-1.5">
                         {category.providers.slice(0, 4).map((provider) => (
                           <div
                             key={provider.id}
-                            className="h-8 w-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+                            className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200/80 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:shadow-sm transition-all duration-200"
                           >
                             {provider.icon}
                           </div>
                         ))}
                         {category.providers.length > 4 && (
-                          <span className="text-[12px] text-slate-500 font-medium ml-1">
+                          <span className="text-[11px] text-slate-500 font-semibold ml-1.5 bg-slate-100 px-2 py-0.5 rounded-full">
                             +{category.providers.length - 4}
                           </span>
                         )}
                       </div>
 
-                      {/* Status badge */}
+                      {/* Status badge - premium gradient */}
                       <div className="flex items-center gap-3">
                         {connected > 0 ? (
                           <span
-                            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold ${getAccentStyle(category.accent).iconBg}`}
+                            className="px-3.5 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-all duration-200"
+                            style={{
+                              backgroundColor: `${getAccentStyle(category.accent).css}20`,
+                              color: category.accent === 'mint' ? '#1a7a3a' : category.accent === 'coral' ? '#FF6C5E' : '#007AFF'
+                            }}
                           >
+                            <span className="h-1.5 w-1.5 rounded-full mr-1.5 inline-block animate-pulse" style={{ backgroundColor: getAccentStyle(category.accent).css }} />
                             {connected} active
                           </span>
                         ) : (
-                          <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold">
+                          <span className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 text-slate-500 text-[11px] font-semibold border border-slate-200/50">
                             Not configured
                           </span>
                         )}
-                        <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                        <div className="h-8 w-8 rounded-lg bg-slate-50 group-hover:bg-[var(--cloudact-mint)]/10 flex items-center justify-center transition-all duration-200">
+                          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1a7a3a] group-hover:translate-x-0.5 transition-all duration-200" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -359,14 +388,17 @@ export default function IntegrationsPage() {
         </div>
       </div>
 
-      {/* Security Notice */}
-      <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
-            <Shield className="h-6 w-6 text-[#1a7a3a]" />
+      {/* Security Notice - Ultra-premium styling */}
+      <div className="relative overflow-hidden p-6 bg-white/[0.98] backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--cloudact-mint)]/[0.03] to-transparent" />
+
+        <div className="relative flex items-start gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/15 to-[var(--cloudact-mint-light)]/15 border border-[var(--cloudact-mint)]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Shield className="h-7 w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[17px] font-semibold text-slate-900">Enterprise Security</h3>
+            <h3 className="text-[18px] font-bold text-slate-900">Enterprise Security</h3>
             <p className="text-[14px] text-slate-600 mt-2 leading-relaxed">
               All credentials are encrypted using Google Cloud KMS. Your integration keys are protected with AES-256 encryption and never stored in plain text.
             </p>

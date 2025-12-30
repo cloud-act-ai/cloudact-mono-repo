@@ -3,10 +3,16 @@ import { createBrowserClient } from "@supabase/ssr"
 /**
  * Browser client for Supabase
  *
- * IMPORTANT: autoRefreshToken is set to false because token refresh
- * is handled by the middleware (proxy.ts -> updateSession).
- * Having both browser and middleware refresh tokens causes race conditions
- * resulting in "Invalid Refresh Token: Already Used" errors.
+ * Token refresh strategy:
+ * - autoRefreshToken: true - Browser client refreshes tokens during SPA navigation
+ * - Middleware (proxy.ts -> updateSession) also refreshes on server requests
+ *
+ * Both are needed because:
+ * 1. Client-side navigation (Link, router.push) doesn't trigger middleware
+ * 2. Full page loads/server requests use middleware refresh
+ *
+ * Modern Supabase SSR handles coordination via cookie-based storage,
+ * preventing "Invalid Refresh Token: Already Used" errors.
  *
  * @see https://github.com/supabase/supabase/issues/18981
  * @see https://github.com/supabase/ssr/issues/68
@@ -21,9 +27,11 @@ export function createClient() {
 
   return createBrowserClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      // Middleware handles token refresh - disable browser auto-refresh
-      // to prevent race conditions with simultaneous refresh attempts
-      autoRefreshToken: false,
+      // Enable browser auto-refresh to prevent session expiry during SPA navigation
+      // Middleware also refreshes on server requests, but client-side navigation
+      // doesn't trigger middleware, so browser must handle its own refresh.
+      // Modern Supabase SSR coordinates refresh tokens properly via cookies.
+      autoRefreshToken: true,
       // Keep session persistence enabled for cookie-based auth
       persistSession: true,
       // Detect session from URL (for OAuth callbacks)

@@ -42,6 +42,7 @@ import {
   editPlanWithVersion,
   SubscriptionPlan,
   PlanUpdate,
+  type BillingCycle,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
 import { formatCurrency, formatDateOnly, DEFAULT_CURRENCY } from "@/lib/i18n"
@@ -158,7 +159,7 @@ export default function EditSubscriptionPage() {
         } else {
           setError(plansResult.error || "Failed to load subscription")
         }
-      } catch (err) {
+      } catch {
         if (mounted) {
           setError("Failed to load subscription. Please try again.")
         }
@@ -553,7 +554,7 @@ export default function EditSubscriptionPage() {
                 <Label htmlFor="billing_cycle">Billing Cycle</Label>
                 <Select
                   value={editData.billing_cycle}
-                  onValueChange={(value) => setEditData({ ...editData, billing_cycle: value })}
+                  onValueChange={(value) => setEditData({ ...editData, billing_cycle: value as BillingCycle })}
                   disabled={saving}
                 >
                   <SelectTrigger id="billing_cycle" data-testid="edit-billing-select">

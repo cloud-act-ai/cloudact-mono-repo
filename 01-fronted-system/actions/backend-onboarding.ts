@@ -189,13 +189,17 @@ async function storeApiKeySecure(
       })
 
     if (error) {
-      console.error(`[storeApiKeySecure] Failed to store API key for ${orgSlug}:`, error.message)
+      if (process.env.NODE_ENV === "development") {
+        console.error(`[storeApiKeySecure] Failed to store API key for ${orgSlug}:`, error.message)
+      }
       return false
     }
 
     return true
   } catch (err) {
-    console.error(`[storeApiKeySecure] Exception storing API key for ${orgSlug}:`, err)
+    if (process.env.NODE_ENV === "development") {
+      console.error(`[storeApiKeySecure] Exception storing API key for ${orgSlug}:`, err)
+    }
     return false
   }
 }
@@ -229,7 +233,10 @@ export async function getOrgApiKeySecure(orgSlug: string): Promise<string | null
     }
 
     return null
-  } catch {
+  } catch (fetchError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getOrgApiKeySecure] Failed to fetch API key:", fetchError)
+    }
     return null
   }
 }
@@ -339,6 +346,9 @@ export async function onboardToBackend(input: {
 
     if (updateError) {
       // Don't fail - backend onboarding succeeded, just metadata update failed
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[onboardToBackend] Failed to update org with backend status:", updateError.message)
+      }
     }
 
     // Store API key in secure server-side table (NOT user metadata)
@@ -415,7 +425,7 @@ export async function onboardToBackend(input: {
         // Update Supabase to mark as onboarded
         const adminClient = createServiceRoleClient()
 
-        const { error: updateError } = await adminClient
+        const { error: _updateError } = await adminClient
           .from("organizations")
           .update({
             backend_onboarded: true,
@@ -424,7 +434,7 @@ export async function onboardToBackend(input: {
           })
           .eq("org_slug", input.orgSlug)
 
-        // updateError silently handled - sync attempted
+        // _updateError silently handled - sync attempted
 
         // SECURITY FIX #3: Generate reveal token for retry case too
         let retryRevealToken: string | undefined
@@ -583,7 +593,10 @@ export async function checkBackendOnboarding(
       onboarded: data.backend_onboarded || false,
       apiKeyFingerprint: data.backend_api_key_fingerprint,
     }
-  } catch {
+  } catch (checkError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[checkBackendOnboarding] Check failed:", checkError)
+    }
     return { onboarded: false }
   }
 }
@@ -642,7 +655,10 @@ export async function getOrgDataForReonboarding(orgSlug: string): Promise<{
         timezone: orgData.default_timezone || "UTC",
       },
     }
-  } catch {
+  } catch (getOrgError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getOrgDataForReonboarding] Failed:", getOrgError)
+    }
     return { success: false, error: "Failed to get organization data" }
   }
 }
@@ -782,8 +798,11 @@ async function acquireRotationLock(orgSlug: string): Promise<{
     }
 
     return { acquired: true, lockId }
-  } catch {
+  } catch (lockError) {
     // Fall back to in-memory lock if DB operation fails
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[acquireRotationLock] DB lock failed, using in-memory:", lockError)
+    }
     if (rotationLocks.get(orgSlug)) {
       return { acquired: false, error: "API key rotation already in progress. Please wait." }
     }
@@ -809,8 +828,11 @@ async function releaseRotationLock(orgSlug: string, lockId: string): Promise<voi
         .eq("org_slug", orgSlug)
         .eq("lock_id", lockId)
     }
-  } catch {
-    // Silently fail - lock will expire anyway
+  } catch (releaseError) {
+    // Lock release failed - lock will expire anyway
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[releaseRotationLock] Release failed:", releaseError)
+    }
     rotationLocks.delete(orgSlug)
   }
 }
@@ -923,7 +945,7 @@ export async function rotateApiKey(orgSlug: string): Promise<{
       ? generateApiKeyFingerprint(rotateResponse.api_key)
       : rotateResponse.api_key_fingerprint
 
-    const { error: updateError } = await adminClient
+    const { error: _updateError } = await adminClient
       .from("organizations")
       .update({
         backend_api_key_fingerprint: newFingerprint,
@@ -1038,7 +1060,10 @@ export async function hasStoredApiKey(orgSlug: string): Promise<{
 
     const apiKey = await getOrgApiKeySecure(orgSlug)
     return { hasKey: !!apiKey }
-  } catch {
+  } catch (checkError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[hasStoredApiKey] Check failed:", checkError)
+    }
     return { hasKey: false, error: "Failed to check API key" }
   }
 }
@@ -1069,7 +1094,10 @@ export async function revealApiKeyFromToken(revealToken: string): Promise<{
       const error = err instanceof Error ? err.message : "Invalid token"
       return { success: false, error }
     }
-  } catch {
+  } catch (revealError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[revealApiKeyFromToken] Reveal failed:", revealError)
+    }
     return { success: false, error: "Failed to reveal API key" }
   }
 }
@@ -1135,11 +1163,17 @@ async function queueFailedSync(
       .single()
 
     if (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[queueFailedSync] Insert failed:", error.message)
+      }
       return null
     }
 
     return data.id
-  } catch {
+  } catch (queueError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[queueFailedSync] Queue failed:", queueError)
+    }
     return null
   }
 }
@@ -1219,8 +1253,11 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
             p_id: sync.id,
             p_error_message: errorMessage
           })
-        } catch {
-          // Silently ignore database update failure
+        } catch (dbUpdateError) {
+          // Database update failure - log for debugging
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[processPendingSyncs] Failed to mark sync as failed:", dbUpdateError)
+          }
         }
       }
     }
@@ -1265,7 +1302,10 @@ export async function getSyncQueueStats(): Promise<{
       completedToday: Number(stats.completed_today) || 0,
       oldestPending: stats.oldest_pending || null,
     }
-  } catch {
+  } catch (statsError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getSyncQueueStats] Failed to get stats:", statsError)
+    }
     return null
   }
 }

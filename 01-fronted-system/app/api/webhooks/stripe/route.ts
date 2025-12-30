@@ -72,7 +72,11 @@ function safeTimestampToISO(
   if (!timestamp || timestamp <= 0) return null;
   try {
     return new Date(timestamp * 1000).toISOString();
-  } catch {
+  } catch (dateError) {
+    // Invalid timestamp - expected for edge cases, return null
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Stripe Webhook] Invalid timestamp conversion:", timestamp, dateError)
+    }
     return null;
   }
 }
@@ -145,14 +149,17 @@ const STRIPE_API_TIMEOUT_MS = 15000;
 
 // Fetch plan details from Stripe price/product metadata
 // Returns plan ID and limits - all from Stripe (no hardcoded values)
+// CRITICAL: This function must NEVER silently fail - all errors are logged and re-thrown
 async function getPlanDetailsFromStripe(priceId: string): Promise<{
   planId: string;
   limits: {
     seat_limit: number;
     providers_limit: number;
     pipelines_per_day_limit: number;
+    pipelines_per_week_limit: number;
+    pipelines_per_month_limit: number;
   };
-} | null> {
+}> {
   try {
     // Fetch the price with expanded product (with explicit timeout)
     const price = await stripe.prices.retrieve(priceId, {
@@ -164,12 +171,20 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     const product = price.product;
 
     if (!product || typeof product === "string") {
-      return null;
+      const error = new Error(
+        `[Stripe Webhook] PRODUCT_NOT_FOUND: Price ${priceId} has no associated product or product is a string reference.`
+      );
+      console.error(error.message);
+      throw error;
     }
 
     // Check if product is deleted
     if (product.deleted) {
-      return null;
+      const error = new Error(
+        `[Stripe Webhook] PRODUCT_DELETED: Product ${product.id} for price ${priceId} has been deleted.`
+      );
+      console.error(error.message);
+      throw error;
     }
 
     // Get metadata from product
@@ -178,10 +193,12 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     // Plan ID from metadata - REQUIRED, no fallback
     const planId = metadata.plan_id;
     if (!planId) {
-      throw new Error(
+      const error = new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} (${product.name}) is missing plan_id metadata. ` +
-          `Add plan_id to Stripe product metadata. No fallback allowed.`,
+          `Add plan_id to Stripe product metadata. No fallback allowed.`
       );
+      console.error(error.message);
+      throw error;
     }
 
     // Validate ALL required metadata exists - REQUIRED, no fallback
@@ -190,38 +207,53 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
       !metadata.providers ||
       !metadata.pipelinesPerDay
     ) {
-      throw new Error(
+      const error = new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} missing required metadata. ` +
           `teamMembers: ${metadata.teamMembers}, providers: ${metadata.providers}, pipelinesPerDay: ${metadata.pipelinesPerDay}. ` +
-          `All fields are required in Stripe product metadata.`,
+          `All fields are required in Stripe product metadata.`
       );
+      console.error(error.message);
+      throw error;
     }
 
     // Parse and validate numeric values with lower bound validation
     const seatLimit = safeParseInt(metadata.teamMembers, 0);
     const providersLimit = safeParseInt(metadata.providers, 0);
-    const pipelinesLimit = safeParseInt(metadata.pipelinesPerDay, 0);
+    const pipelinesPerDayLimit = safeParseInt(metadata.pipelinesPerDay, 0);
 
     // Validate all limits are positive after parsing
-    if (seatLimit <= 0 || providersLimit <= 0 || pipelinesLimit <= 0) {
-      throw new Error(
+    if (seatLimit <= 0 || providersLimit <= 0 || pipelinesPerDayLimit <= 0) {
+      const error = new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has invalid limits. ` +
           `teamMembers: "${metadata.teamMembers}" (parsed: ${seatLimit}), ` +
           `providers: "${metadata.providers}" (parsed: ${providersLimit}), ` +
-          `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesLimit}). ` +
-          `All values must be positive integers (>0).`,
+          `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesPerDayLimit}). ` +
+          `All values must be positive integers (>0).`
       );
+      console.error(error.message);
+      throw error;
     }
+
+    // Calculate weekly and monthly limits from daily
+    const pipelinesPerWeekLimit = pipelinesPerDayLimit * 7;
+    const pipelinesPerMonthLimit = pipelinesPerDayLimit * 30;
 
     const limits = {
       seat_limit: seatLimit,
       providers_limit: providersLimit,
-      pipelines_per_day_limit: pipelinesLimit,
+      pipelines_per_day_limit: pipelinesPerDayLimit,
+      pipelines_per_week_limit: pipelinesPerWeekLimit,
+      pipelines_per_month_limit: pipelinesPerMonthLimit,
     };
 
+    console.log(`[Stripe Webhook] Fetched plan details for ${priceId}: planId=${planId}, limits=`, limits);
+
     return { planId, limits };
-  } catch {
-    return null;
+  } catch (err) {
+    // CRITICAL: Log ALL errors - never silently swallow
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`[Stripe Webhook] CRITICAL ERROR in getPlanDetailsFromStripe for price ${priceId}:`, errorMessage);
+    throw err; // Re-throw to ensure webhook returns 500 and Stripe retries
   }
 }
 
@@ -255,7 +287,10 @@ export async function POST(request: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
-  } catch {
+  } catch (signatureError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Stripe Webhook] Signature verification failed:", signatureError)
+    }
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -340,11 +375,10 @@ export async function POST(request: NextRequest) {
         const priceId = subscriptionItem.price.id;
 
         // Fetch plan details from Stripe (no hardcoded values)
+        // Note: getPlanDetailsFromStripe throws on error, never returns null
         const planDetails = await getPlanDetailsFromStripe(priceId);
 
-        if (!planDetails) {
-          throw new Error(`Failed to fetch plan details for price: ${priceId}`);
-        }
+        console.log(`[Stripe Webhook] checkout.session.completed: Updating org ${metadata.org_id} with plan ${planDetails.planId}`);
 
         // Update organization with Stripe data (atomic operation - all fields updated together)
         // Note: In newer Stripe API, current_period_* moved to subscription items
@@ -443,11 +477,13 @@ export async function POST(request: NextRequest) {
         const priceId = subscriptionItem.price.id;
 
         // Fetch plan details from Stripe (no hardcoded values)
+        // Note: getPlanDetailsFromStripe throws on error, never returns null
         const planDetails = await getPlanDetailsFromStripe(priceId);
 
-        if (!planDetails) {
-          throw new Error(`Failed to fetch plan details for price: ${priceId}`);
-        }
+        console.log(`[Stripe Webhook] customer.subscription.updated: Updating subscription ${subscription.id} to plan ${planDetails.planId}`, {
+          priceId,
+          limits: planDetails.limits,
+        });
 
         // Map Stripe status to our status
         let billingStatus = "active";
@@ -710,7 +746,7 @@ export async function POST(request: NextRequest) {
         // Update billing status to active if it was past_due
         const subscriptionId = getSubscriptionIdFromInvoice(invoice);
         if (subscriptionId) {
-          const { error } = await supabase
+          const { error: paymentSuccessError } = await supabase
             .from("organizations")
             .update({
               billing_status: "active",
@@ -718,6 +754,10 @@ export async function POST(request: NextRequest) {
             })
             .eq("stripe_subscription_id", subscriptionId)
             .eq("billing_status", "past_due");
+
+          if (paymentSuccessError) {
+            console.warn("[Stripe Webhook] Failed to update billing status on payment success:", paymentSuccessError.message);
+          }
         }
         break;
       }
@@ -851,8 +891,9 @@ export async function POST(request: NextRequest) {
                     billingLink,
                   });
                 }
-              } catch {
-                // Customer fetch failed
+              } catch (customerFetchError) {
+                // Customer fetch failed - log but don't throw (email is non-critical)
+                console.warn("[Stripe Webhook] Failed to fetch customer for trial ending email:", customerFetchError instanceof Error ? customerFetchError.message : customerFetchError);
               }
             }
           }
@@ -872,7 +913,7 @@ export async function POST(request: NextRequest) {
         const customer = event.data.object;
 
         // Atomic update - clear all Stripe references together (org remains, just unlinked from Stripe)
-        const { data: updatedOrg, error } = await supabase
+        const { error: customerDeleteError } = await supabase
           .from("organizations")
           .update({
             stripe_customer_id: null,
@@ -881,8 +922,11 @@ export async function POST(request: NextRequest) {
             billing_status: "canceled",
             stripe_webhook_last_event_id: event.id,
           })
-          .eq("stripe_customer_id", customer.id)
-          .select();
+          .eq("stripe_customer_id", customer.id);
+
+        if (customerDeleteError) {
+          console.warn("[Stripe Webhook] Failed to clear Stripe references on customer delete:", customerDeleteError.message);
+        }
         break;
       }
 
@@ -901,9 +945,27 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch {
+  } catch (err) {
+    // CRITICAL: Log ALL webhook errors with full context
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+
+    console.error(`[Stripe Webhook] CRITICAL FAILURE:`, {
+      error: errorMessage,
+      stack: errorStack,
+      eventId: event?.id,
+      eventType: event?.type,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Return 500 so Stripe will retry the webhook
     return NextResponse.json(
-      { error: "Webhook processing failed" },
+      {
+        error: "Webhook processing failed",
+        message: errorMessage,
+        eventId: event?.id,
+        eventType: event?.type,
+      },
       { status: 500 },
     );
   }

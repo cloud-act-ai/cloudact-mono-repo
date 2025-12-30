@@ -4,10 +4,8 @@ import React, { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
-  TrendingUp,
   DollarSign,
   Cloud,
-  Sparkles,
   Play,
   Settings,
   BarChart3,
@@ -70,7 +68,7 @@ export default function DashboardPage() {
         getIntegrations(orgSlug),
         supabase
           .from("organizations")
-          .select("locale_currency")
+          .select("default_currency")
           .eq("org_slug", orgSlug)
           .single(),
       ])
@@ -122,8 +120,8 @@ export default function DashboardPage() {
         setIntegrations(integrationList.slice(0, 4))
       }
 
-      if (orgResult.data?.locale_currency) {
-        setOrgCurrency(orgResult.data.locale_currency)
+      if (orgResult.data?.default_currency) {
+        setOrgCurrency(orgResult.data.default_currency)
       }
     } catch {
       // Silently handle errors - show empty state

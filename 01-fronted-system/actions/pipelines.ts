@@ -221,11 +221,12 @@ export async function getAvailablePipelines(): Promise<{
     // Fall back to hardcoded defaults if API fails
     
     return { success: true, pipelines: FALLBACK_PIPELINES }
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error"
-    
+  } catch (pipelineError) {
     // Clear cache on error
     pipelinesCache.clear()
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getAvailablePipelines] Failed to fetch pipelines, using fallback:", pipelineError)
+    }
     // Fall back to hardcoded defaults
     return { success: true, pipelines: FALLBACK_PIPELINES }
   }
@@ -479,7 +480,6 @@ export async function runPipeline(
     const org = authResult.orgData
     // IMPORTANT: Status values are case-insensitive to handle both frontend (lowercase)
     // and backend (UPPERCASE) conventions. Backend uses ACTIVE/TRIAL, Supabase uses active/trialing.
-    const validSubscriptionStatuses = ["active", "trialing", "ACTIVE", "TRIAL"]
     const billingStatus = org.billing_status?.toLowerCase() || ""
     const isValidStatus = billingStatus === "active" || billingStatus === "trialing" ||
                           billingStatus === "trial"  // Backend uses TRIAL, not TRIALING

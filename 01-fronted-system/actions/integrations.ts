@@ -45,8 +45,6 @@ const VALID_PROVIDERS: IntegrationProvider[] = ["openai", "anthropic", "gemini",
 
 const CLOUD_PROVIDERS: CloudProvider[] = ["gcp", "gcp_service_account", "aws", "azure", "oci"]
 
-const LLM_PROVIDERS: LLMIntegrationProvider[] = ["openai", "anthropic", "gemini", "deepseek"]
-
 function isCloudProvider(provider: string): provider is CloudProvider {
   return CLOUD_PROVIDERS.includes(provider.toLowerCase() as CloudProvider)
 }
@@ -65,6 +63,7 @@ export interface IntegrationResult {
   validationStatus?: string
   error?: string
   message?: string
+  lastError?: string
 }
 
 // IntegrationStatus is imported from lib/api/backend.ts
@@ -372,7 +371,7 @@ export async function getIntegrations(
     }
 
     // Get LLM integrations from organizations table
-    const { data: org, error: orgError } = await supabase
+    const { data: org, error: _orgError } = await supabase
       .from("organizations")
       .select(`
         integration_openai_status,
@@ -395,7 +394,7 @@ export async function getIntegrations(
       .single()
 
     // Get cloud provider integrations from junction table (primary per provider)
-    const { data: cloudIntegrations, error: cloudError } = await supabase
+    const { data: cloudIntegrations, error: _cloudError } = await supabase
       .from("cloud_provider_integrations")
       .select("*")
       .eq("org_id", orgExists.id)
@@ -516,7 +515,10 @@ export async function getIntegrations(
         providers_configured: providersConfigured,
       },
     }
-  } catch {
+  } catch (integrationsError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getIntegrations] Failed to fetch integrations:", integrationsError)
+    }
     return defaultResponse
   }
 }
@@ -1574,6 +1576,7 @@ export async function deleteCloudIntegration(
 }
 
 // Re-export types for use in components
+// Note: CloudProvider is already exported above on line 39
 export type {
   LLMPricing,
   LLMPricingCreate,
@@ -1581,6 +1584,5 @@ export type {
   SaaSSubscription,
   SaaSSubscriptionCreate,
   SaaSSubscriptionUpdate,
-  LLMProvider,
-  CloudProvider
+  LLMProvider
 }

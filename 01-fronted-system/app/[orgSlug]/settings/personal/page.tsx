@@ -37,6 +37,11 @@ import {
   requestAccountDeletion,
 } from "@/actions/account"
 
+// Premium components - same as dashboard/pipeline pages
+import { StatRow } from "@/components/ui/stat-row"
+import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
+import { LoadingState } from "@/components/ui/loading-state"
+
 // Parse phone to extract country code and number
 function parsePhone(phone: string | null): { countryCode: string; phoneNumber: string } {
   if (!phone) return { countryCode: "+1", phoneNumber: "" }
@@ -75,7 +80,7 @@ const TIMEZONES = [
 export default function PersonalSettingsPage() {
   const router = useRouter()
   const params = useParams()
-  const orgSlug = params.orgSlug as string
+  const _orgSlug = params.orgSlug as string // Used for context, may be needed for future org-specific settings
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -265,126 +270,115 @@ export default function PersonalSettingsPage() {
     }
   }
 
+  // Stats for StatRow component - same pattern as dashboard/pipelines
+  const stats = [
+    { icon: User, value: "Active", label: "Account", color: "mint" as const },
+    { icon: Shield, value: "Protected", label: "Security", color: "slate" as const },
+  ]
+
   if (isLoading) {
     return (
-      <div className="max-w-7xl">
-        <div className="mb-10">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-            Personal Settings
-          </h1>
-          <p className="text-[15px] text-slate-500 mt-2">
-            Manage your profile, security, and account preferences
-          </p>
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <User className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
-            <p className="text-[14px] text-slate-500 font-medium">Loading settings...</p>
+            <div>
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                Personal Settings
+              </h1>
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                Manage your profile, security, and account preferences
+              </p>
+            </div>
           </div>
         </div>
+        <LoadingState message="Loading settings..." />
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl">
-      {/* Header - Mobile optimized */}
-      <div className="mb-6 sm:mb-10">
-        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Personal Settings
-        </h1>
-        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-2">
-          Manage your profile, security, and account preferences
-        </p>
-      </div>
-
-      {/* Stats Row - Mobile optimized */}
-      <div className="flex flex-wrap items-center gap-4 sm:gap-6 py-4 sm:py-5 px-4 sm:px-6 bg-white rounded-2xl border border-slate-200 shadow-sm mb-6 sm:mb-8">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-            <User className="h-5 w-5 text-[#1a7a3a]" />
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Same pattern as dashboard */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <User className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[12px] text-slate-500 font-medium">Account Status</p>
-            <div className="inline-flex items-center gap-1.5">
-              <div className="h-2 w-2 rounded-full bg-[#1a7a3a]" />
-              <p className="text-[14px] text-slate-900 font-semibold">Active</p>
-            </div>
-          </div>
-        </div>
-        <div className="h-8 w-px bg-slate-200" />
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-slate-500" />
-          </div>
-          <div>
-            <p className="text-[12px] text-slate-500 font-medium">Security</p>
-            <p className="text-[14px] text-slate-900 font-semibold">Password protected</p>
+            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              Personal Settings
+            </h1>
+            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              Manage your profile, security, and account preferences
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Alerts */}
+      {/* Stats Row - Using StatRow component like pipelines */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <StatRow stats={stats} size="md" />
+      </div>
+
+      {/* Alerts - Same pattern as dashboard */}
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           <p className="text-[13px] font-medium text-rose-700">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/20 flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/15 border border-[var(--cloudact-mint)]/20 flex items-center gap-3">
           <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
           <p className="text-[13px] font-medium text-[#1a7a3a]">{success}</p>
         </div>
       )}
 
-      {/* Tab Navigation - Premium mobile scrollable tabs */}
-      <div className="relative mb-6 sm:mb-8">
-        {/* Left fade gradient - mobile only */}
-        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
-
-        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/80 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-hide scroll-smooth touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Tab Navigation - Border-bottom tabs (same as genai-runs) */}
+      <div className="border-b border-slate-200">
+        <nav className="flex gap-0.5 sm:gap-1 -mb-px overflow-x-auto scrollbar-hide pb-px">
           {[
-            { id: "profile", label: "Profile", icon: <User className="h-4 w-4 flex-shrink-0" /> },
-            { id: "security", label: "Security", icon: <Shield className="h-4 w-4 flex-shrink-0" /> },
-            { id: "danger", label: "Danger Zone", icon: <AlertCircle className="h-4 w-4 flex-shrink-0" />, danger: true },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
-              className={`h-11 sm:h-10 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all flex-shrink-0 whitespace-nowrap min-w-fit ${
-                activeTab === tab.id
-                  ? tab.danger
-                    ? "bg-[#FF6C5E] text-white shadow-sm"
-                    : "bg-[#90FCA6] text-slate-900 shadow-sm"
-                  : tab.danger
-                    ? "text-[#FF6C5E] hover:bg-[#FF6C5E]/10"
-                    : "text-slate-600 hover:bg-white/60"
-              }`}
-            >
-              {tab.icon}
-              <span className="whitespace-nowrap">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Right fade gradient - mobile only */}
-        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
+            { id: "profile", label: "Profile", icon: User },
+            { id: "security", label: "Security", icon: Shield },
+            { id: "danger", label: "Danger Zone", mobileLabel: "Danger", icon: AlertCircle, danger: true },
+          ].map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation ${
+                  isActive
+                    ? tab.danger
+                      ? "border-[#FF6C5E] text-[#FF6C5E] bg-[#FF6C5E]/5"
+                      : "border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5"
+                    : tab.danger
+                      ? "border-transparent text-[#FF6C5E] hover:text-[#FF6C5E]/80 hover:border-[#FF6C5E]/50"
+                      : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 ${isActive && !tab.danger ? "text-[var(--cloudact-mint-dark)]" : ""}`} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{"mobileLabel" in tab ? tab.mobileLabel : tab.label}</span>
+              </button>
+            )
+          })}
+        </nav>
       </div>
 
       {/* Profile Tab */}
       {activeTab === "profile" && (
-        <section className="space-y-6">
-          {/* Section Label */}
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
-            Personal Information
-          </h2>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Section Header - Using SectionHeader component */}
+          <SectionHeader title="Personal Information" icon={User} />
 
-          {/* Profile Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Profile Card - Using PremiumCard */}
+          <PremiumCard padding="none" hover={false}>
             <div className="p-6 sm:p-8 space-y-7">
               {/* Email - Read Only with Premium Style */}
               <div className="group relative">
@@ -513,20 +507,18 @@ export default function PersonalSettingsPage() {
                 )}
               </button>
             </div>
-          </div>
-        </section>
+          </PremiumCard>
+        </div>
       )}
 
       {/* Security Tab */}
       {activeTab === "security" && (
-        <section className="space-y-6">
-          {/* Section Label */}
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
-            Authentication
-          </h2>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Section Header - Using SectionHeader component */}
+          <SectionHeader title="Authentication" icon={Key} />
 
-          {/* Password Reset Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          {/* Password Reset Card - Using PremiumCard */}
+          <PremiumCard hover={false}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
@@ -552,10 +544,10 @@ export default function PersonalSettingsPage() {
                 )}
               </button>
             </div>
-          </div>
+          </PremiumCard>
 
-          {/* Security Tips */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          {/* Security Tips - Using PremiumCard */}
+          <PremiumCard hover={false}>
             <div className="flex items-start gap-4">
               <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
                 <Shield className="h-6 w-6 text-[#1a7a3a]" />
@@ -578,25 +570,28 @@ export default function PersonalSettingsPage() {
                 </ul>
               </div>
             </div>
-          </div>
-        </section>
+          </PremiumCard>
+        </div>
       )}
 
       {/* Danger Zone Tab */}
       {activeTab === "danger" && (
-        <section className="space-y-6">
-          {/* Section Label */}
-          <h2 className="text-[13px] font-semibold text-[#FF6C5E] uppercase tracking-wide">
-            Danger Zone
-          </h2>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Section Header - Danger variant */}
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-lg bg-[#FF6C5E]/10 flex items-center justify-center">
+              <AlertCircle className="h-3.5 w-3.5 text-[#FF6C5E]" />
+            </div>
+            <h2 className="text-[13px] font-semibold text-[#FF6C5E] uppercase tracking-wide">
+              Danger Zone
+            </h2>
+          </div>
 
           {/* Owned Organizations Warning */}
           {loadingOwnedOrgs ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]/50" />
-            </div>
+            <LoadingState message="Loading organizations..." />
           ) : ownedOrgs.length > 0 && (
-            <div className="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 rounded-2xl border-2 border-amber-200/60 p-6 sm:p-8 shadow-sm">
+            <PremiumCard hover={false} className="border-amber-200/60 bg-gradient-to-br from-amber-50 via-white to-amber-50/50">
               <div className="flex items-center gap-4 mb-5">
                 <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-amber-500/10 border border-amber-200">
                   <Building2 className="h-6 w-6 text-amber-600" />
@@ -624,11 +619,11 @@ export default function PersonalSettingsPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </PremiumCard>
           )}
 
-          {/* Delete Account Card */}
-          <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
+          {/* Delete Account Card - Using PremiumCard with danger styling */}
+          <PremiumCard padding="none" hover={false} className="border-2 border-[#FF6C5E]/20">
             <div className="p-6 sm:p-8">
               <div className="flex items-start gap-4 mb-6">
                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#FF6C5E]/15 to-[#FF6C5E]/5 flex items-center justify-center ring-4 ring-[#FF6C5E]/10">
@@ -723,8 +718,8 @@ export default function PersonalSettingsPage() {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          </div>
-        </section>
+          </PremiumCard>
+        </div>
       )}
     </div>
   )

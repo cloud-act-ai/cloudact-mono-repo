@@ -63,8 +63,11 @@ async function cleanupExpiredTokens(): Promise<void> {
     if (error) {
       // Token cleanup failed - non-critical, continue
     }
-  } catch {
-    // Error cleaning up expired tokens - non-critical background task, suppress error
+  } catch (cleanupError) {
+    // Error cleaning up expired tokens - non-critical background task
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[cleanupExpiredTokens] Failed to clean up expired tokens:", cleanupError)
+    }
   }
 }
 
@@ -90,10 +93,16 @@ async function storeDeletionToken(
       })
 
     if (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[storeDeletionToken] Database insert failed:", error.message)
+      }
       return false
     }
     return true
-  } catch {
+  } catch (storeError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[storeDeletionToken] Failed to store deletion token:", storeError)
+    }
     return false
   }
 }
@@ -130,7 +139,10 @@ async function consumeDeletionToken(
     }
 
     return { userId: data.user_id, email: data.email }
-  } catch {
+  } catch (consumeError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[consumeDeletionToken] Failed to consume deletion token:", consumeError)
+    }
     return null
   }
 }
@@ -398,11 +410,13 @@ export async function transferOwnership(
       },
       status: "success",
     })).then(({ error }) => {
-      if (error) {
-        // Activity log failed
+      if (error && process.env.NODE_ENV === "development") {
+        console.warn("[transferOwnership] Activity log insert failed:", error.message)
       }
-    }).catch(() => {
-      // Activity log promise rejected
+    }).catch((logError) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[transferOwnership] Activity log promise rejected:", logError)
+      }
     })
 
     return { success: true }
@@ -483,8 +497,11 @@ export async function deleteOrganization(
       try {
         const stripe = (await import("@/lib/stripe")).stripe
         await stripe.subscriptions.cancel(org.stripe_subscription_id)
-      } catch {
-        // Continue with deletion even if Stripe fails
+      } catch (stripeError) {
+        // Continue with deletion even if Stripe fails - log for debugging
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[deleteOrganization] Stripe subscription cancel failed:", stripeError)
+        }
       }
     }
 
@@ -519,6 +536,8 @@ export async function deleteOrganization(
 
     // Clean up backend BigQuery data (#43 - Offboard from backend)
     // This removes org data from all meta tables and optionally deletes the dataset
+    let backendCleanupFailed = false
+    let backendCleanupError: string | undefined
     if (org.org_slug && org.backend_onboarded) {
       try {
         const { getPipelineBackendClient } = await import("@/lib/api/backend")
@@ -529,10 +548,23 @@ export async function deleteOrganization(
             org.org_slug,
             true // Delete the BigQuery dataset as well
           )
+        } else {
+          backendCleanupFailed = true
+          backendCleanupError = "Missing admin API key for backend cleanup"
         }
-      } catch {
+      } catch (backendErr: unknown) {
         // Log but don't fail - Supabase deletion succeeded
+        backendCleanupFailed = true
+        backendCleanupError = backendErr instanceof Error ? backendErr.message : "Backend cleanup failed"
+        if (process.env.NODE_ENV === "development") {
+          console.error("[deleteOrganization] Backend cleanup failed:", backendCleanupError)
+        }
       }
+    }
+
+    // Log warning if backend cleanup failed (success=true since Supabase deletion succeeded)
+    if (backendCleanupFailed && process.env.NODE_ENV === "development") {
+      console.warn(`[deleteOrganization] Backend cleanup warning: ${backendCleanupError}`)
     }
 
     return { success: true }
@@ -607,8 +639,11 @@ export async function requestAccountDeletion(): Promise<{
         `,
         text: `Account Deletion Request\n\nYou have requested to delete your CloudAct.ai account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
       })
-    } catch {
-      // Email send failed, providing direct link
+    } catch (emailError) {
+      // Email send failed - non-critical, user can still access deletion link from logs
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[requestAccountDeletion] Email send failed:", emailError)
+      }
     }
 
     // Log the deletion request
@@ -802,11 +837,13 @@ export async function leaveOrganization(orgSlug: string): Promise<{
       },
       status: "success",
     })).then(({ error }) => {
-      if (error) {
-        // Activity log failed
+      if (error && process.env.NODE_ENV === "development") {
+        console.warn("[leaveOrganization] Activity log insert failed:", error.message)
       }
-    }).catch(() => {
-      // Activity log promise rejected
+    }).catch((logError) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[leaveOrganization] Activity log promise rejected:", logError)
+      }
     })
 
     return { success: true }
