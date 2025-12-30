@@ -33,6 +33,7 @@ import {
   isDateInPastUTC,
   isValidOrgSlug as isValidOrgSlugHelper,
   isValidSubscriptionId as isValidSubscriptionIdHelper,
+  extractErrorMessage,
 } from "@/lib/api/helpers"
 
 // REMOVED: Local helper functions - now imported from lib/api/helpers.ts
@@ -77,16 +78,8 @@ const sanitizeProviderName = (provider: string): string => {
     .slice(0, 50)                  // Limit length
 }
 
-/**
- * Helper to extract error message from HTML error pages
- */
-function extractErrorMessage(text: string): string {
-  // If it looks like HTML, return generic message
-  if (text.trim().startsWith("<!") || text.trim().startsWith("<html")) {
-    return "Server error occurred"
-  }
-  return text.slice(0, 500) // Truncate long messages
-}
+// REMOVED: extractErrorMessage - now imported from lib/api/helpers.ts
+// The shared version properly parses JSON error responses from FastAPI
 
 /**
  * Escape display name for XSS prevention

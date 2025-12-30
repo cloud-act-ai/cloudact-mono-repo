@@ -14,6 +14,8 @@ import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
+  safeJsonParse,
+  extractErrorMessage,
   isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
 
@@ -189,10 +191,15 @@ export async function getHierarchy(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to fetch hierarchy: ${errorText}` }
+      return { success: false, error: `Failed to fetch hierarchy: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json()
+    // Use safeJsonParse with default to handle empty/invalid responses
+    const data = await safeJsonParse<HierarchyListResponse>(response, {
+      org_slug: orgSlug,
+      entities: [],
+      total: 0,
+    })
     return { success: true, data }
   } catch (error) {
     logError("getHierarchy", error)
@@ -227,10 +234,17 @@ export async function getHierarchyTree(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to fetch hierarchy tree: ${errorText}` }
+      return { success: false, error: `Failed to fetch hierarchy tree: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json()
+    // Use safeJsonParse with default to handle empty/invalid responses
+    const data = await safeJsonParse<HierarchyTreeResponse>(response, {
+      org_slug: orgSlug,
+      departments: [],
+      total_departments: 0,
+      total_projects: 0,
+      total_teams: 0,
+    })
     return { success: true, data }
   } catch (error) {
     logError("getHierarchyTree", error)
@@ -274,10 +288,10 @@ export async function createDepartment(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to create department: ${errorText}` }
+      return { success: false, error: `Failed to create department: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json()
+    const data = await response.json() as HierarchyEntity
     return { success: true, data }
   } catch (error) {
     logError("createDepartment", error)
@@ -320,7 +334,7 @@ export async function createProject(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to create project: ${errorText}` }
+      return { success: false, error: `Failed to create project: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.json()
@@ -366,7 +380,7 @@ export async function createTeam(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to create team: ${errorText}` }
+      return { success: false, error: `Failed to create team: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.json()
@@ -418,7 +432,7 @@ export async function updateEntity(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to update entity: ${errorText}` }
+      return { success: false, error: `Failed to update entity: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.json()
@@ -468,7 +482,7 @@ export async function checkCanDelete(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to check deletion: ${errorText}` }
+      return { success: false, error: `Failed to check deletion: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.json()
@@ -515,7 +529,7 @@ export async function deleteEntity(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to delete entity: ${errorText}` }
+      return { success: false, error: `Failed to delete entity: ${extractErrorMessage(errorText)}` }
     }
 
     return { success: true }
@@ -563,7 +577,7 @@ export async function importHierarchy(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to import hierarchy: ${errorText}` }
+      return { success: false, error: `Failed to import hierarchy: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.json() as HierarchyImportResult
@@ -611,7 +625,7 @@ export async function exportHierarchy(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to export hierarchy: ${errorText}` }
+      return { success: false, error: `Failed to export hierarchy: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.text()
@@ -648,7 +662,7 @@ export async function getHierarchyTemplate(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to get template: ${errorText}` }
+      return { success: false, error: `Failed to get template: ${extractErrorMessage(errorText)}` }
     }
 
     const data = await response.text()
