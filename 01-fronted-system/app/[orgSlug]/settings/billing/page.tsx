@@ -113,7 +113,7 @@ export default function BillingPage() {
   const billingStatus = orgData?.billing_status || "active"
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* Header - Mobile optimized */}
       <div className="mb-6 sm:mb-10">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">

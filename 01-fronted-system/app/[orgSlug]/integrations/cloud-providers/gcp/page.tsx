@@ -324,7 +324,7 @@ export default function GCPIntegrationPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 max-w-7xl">
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>

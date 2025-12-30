@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function SettingsLoading() {
   return (
-    <div className="container mx-auto py-10 max-w-4xl space-y-8" role="status" aria-busy="true" aria-label="Loading settings">
+    <div className="container mx-auto py-10 max-w-7xl space-y-8" role="status" aria-busy="true" aria-label="Loading settings">
       {/* Header Skeleton */}
       <div className="space-y-2">
         <Skeleton className="h-9 w-48 rounded-lg" />

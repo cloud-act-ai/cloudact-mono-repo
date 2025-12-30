@@ -279,7 +279,7 @@ export default function SubscriptionRunsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-0">
+    <div className="max-w-7xl mx-auto px-4 sm:px-0">
       <div className="mb-6 sm:mb-10">
         <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           Subscription Pipeline Runs

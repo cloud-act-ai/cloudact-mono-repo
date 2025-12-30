@@ -196,7 +196,7 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 max-w-6xl mx-auto">
+      <div className="space-y-8 max-w-7xl mx-auto">
         <div className="mb-10">
           <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">Integrations</h1>
           <p className="text-[15px] text-slate-500 mt-2">
@@ -216,7 +216,7 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-10">
         <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">Integrations</h1>

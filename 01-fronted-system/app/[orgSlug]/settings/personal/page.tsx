@@ -267,7 +267,7 @@ export default function PersonalSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl">
+      <div className="max-w-7xl">
         <div className="mb-10">
           <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
             Personal Settings
@@ -289,7 +289,7 @@ export default function PersonalSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-7xl">
       {/* Header - Mobile optimized */}
       <div className="mb-6 sm:mb-10">
         <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">

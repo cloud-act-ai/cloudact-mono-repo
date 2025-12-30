@@ -74,7 +74,7 @@ export default function QuotaUsagePage() {
     : 0
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-10">
         <div className="flex items-start gap-4">

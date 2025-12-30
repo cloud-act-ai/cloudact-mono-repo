@@ -349,7 +349,7 @@ export default function GenAIRunsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-10">
           <div className="h-8 w-64 bg-slate-200 rounded-lg animate-pulse"></div>
           <div className="h-4 w-96 bg-slate-100 rounded-lg animate-pulse mt-2"></div>
@@ -375,7 +375,7 @@ export default function GenAIRunsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
       <div className="mb-6 sm:mb-10">
         <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           GenAI Pipeline Runs

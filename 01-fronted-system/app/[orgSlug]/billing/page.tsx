@@ -432,7 +432,7 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-12">
+    <div className="space-y-8 max-w-7xl mx-auto pb-12">
       {reason === "subscription_required" && (
         <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />

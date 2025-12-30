@@ -292,7 +292,7 @@ export default function SubscriptionIntegrationsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-0">
+    <div className="max-w-7xl mx-auto px-4 sm:px-0">
       {/* Header */}
       <div className="mb-6 sm:mb-10">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">

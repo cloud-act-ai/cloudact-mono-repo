@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function SubscriptionsLoading() {
   return (
-    <div className="container mx-auto py-10 max-w-6xl space-y-8" role="status" aria-busy="true" aria-label="Loading subscriptions">
+    <div className="container mx-auto py-10 max-w-7xl space-y-8" role="status" aria-busy="true" aria-label="Loading subscriptions">
       {/* Header Skeleton */}
       <div className="space-y-2">
         <Skeleton className="h-9 w-64 rounded-lg" />

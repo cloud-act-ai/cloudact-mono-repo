@@ -129,7 +129,7 @@ export default function OperationsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto py-8">
+      <div className="max-w-7xl mx-auto py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
         </div>
@@ -138,7 +138,7 @@ export default function OperationsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

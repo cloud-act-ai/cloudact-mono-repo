@@ -247,7 +247,7 @@ export default function InviteMembersPage() {
   const seatsAvailable = seatLimit ? seatLimit - currentSeats : 0
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-0">
+    <div className="max-w-7xl mx-auto px-4 sm:px-0">
       {/* Header */}
       <div className="mb-6 sm:mb-10">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

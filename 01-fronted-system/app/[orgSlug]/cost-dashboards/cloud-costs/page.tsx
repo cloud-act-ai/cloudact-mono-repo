@@ -110,7 +110,7 @@ export default function CloudCostsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto py-8">
+      <div className="max-w-7xl mx-auto py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
         </div>
@@ -120,7 +120,7 @@ export default function CloudCostsPage() {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto py-8">
+      <div className="max-w-7xl mx-auto py-8">
         <div className="p-4 rounded-xl bg-red-50 border border-red-200">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
@@ -146,7 +146,7 @@ export default function CloudCostsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-4 sm:py-8 px-4 sm:px-0 space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto py-4 sm:py-8 px-4 sm:px-0 space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">

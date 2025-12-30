@@ -97,7 +97,7 @@ export default function SecurityPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-0">
+    <div className="max-w-7xl mx-auto px-4 sm:px-0">
       {/* Header */}
       <div className="mb-6 sm:mb-10">
         <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">

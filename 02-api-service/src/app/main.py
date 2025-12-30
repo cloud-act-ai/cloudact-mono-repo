@@ -751,7 +751,7 @@ async def readiness_probe():
     """
     Kubernetes readiness probe endpoint.
     Checks if the application is ready to accept traffic.
-    Verifies BigQuery connectivity and critical dependencies.
+    Verifies BigQuery connectivity, KMS, and pipeline service.
     Returns 200 if ready, 503 if not ready.
     """
     global shutdown_event
@@ -763,6 +763,9 @@ async def readiness_probe():
             content={
                 "status": "not_ready",
                 "service": "api-service",
+                "version": settings.app_version,
+                "release": settings.release_version,
+                "release_timestamp": settings.release_timestamp,
                 "reason": "shutting_down",
                 "checks": {
                     "shutdown": False
@@ -772,7 +775,9 @@ async def readiness_probe():
 
     checks = {
         "shutdown": True,
-        "bigquery": False
+        "bigquery": False,
+        "kms": False,
+        "pipeline_service": False
     }
 
     # Check BigQuery connectivity
@@ -793,14 +798,38 @@ async def readiness_probe():
         logger.warning(f"BigQuery health check failed: {e}")
         checks["bigquery"] = False
 
-    # Determine overall readiness
-    all_ready = all(checks.values())
+    # Check KMS availability
+    try:
+        from src.core.security.kms_encryption import _get_key_name, _get_kms_client
+        key_name = _get_key_name()
+        _get_kms_client()
+        checks["kms"] = True
+    except Exception as e:
+        logger.warning(f"KMS health check failed: {e}")
+        checks["kms"] = False
 
-    if all_ready:
+    # Check Pipeline Service connectivity
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{settings.pipeline_service_url}/health")
+            if response.status_code == 200:
+                checks["pipeline_service"] = True
+    except Exception as e:
+        logger.warning(f"Pipeline service health check failed: {e}")
+        checks["pipeline_service"] = False
+
+    # Determine overall readiness (BigQuery is critical, others are warnings)
+    critical_checks = checks["shutdown"] and checks["bigquery"]
+
+    if critical_checks:
         return {
             "status": "ready",
             "service": "api-service",
             "version": settings.app_version,
+            "release": settings.release_version,
+            "release_timestamp": settings.release_timestamp,
+            "environment": settings.environment,
             "checks": checks
         }
     else:
@@ -809,6 +838,9 @@ async def readiness_probe():
             content={
                 "status": "not_ready",
                 "service": "api-service",
+                "version": settings.app_version,
+                "release": settings.release_version,
+                "release_timestamp": settings.release_timestamp,
                 "checks": checks
             }
         )
@@ -819,7 +851,10 @@ async def root():
     """Root endpoint with API information and documentation links."""
     return {
         "message": "Welcome to CloudAct API Service",
+        "service": "api-service",
         "version": settings.app_version,
+        "release": settings.release_version,
+        "release_timestamp": settings.release_timestamp,
         "environment": settings.environment,
         "docs": "/docs" if settings.enable_api_docs else "disabled",
         "redoc": "/redoc" if settings.enable_api_docs else "disabled",

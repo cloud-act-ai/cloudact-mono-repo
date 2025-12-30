@@ -1,6 +1,6 @@
 export default function GenAIRunsLoading() {
   return (
-    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {/* Header Skeleton */}
       <div className="mb-10">
         <div className="h-8 w-56 skeleton" />

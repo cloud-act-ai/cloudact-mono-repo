@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function BillingLoading() {
   return (
-    <div className="container mx-auto py-10 max-w-6xl space-y-8" role="status" aria-busy="true" aria-label="Loading billing information">
+    <div className="container mx-auto py-10 max-w-7xl space-y-8" role="status" aria-busy="true" aria-label="Loading billing information">
       {/* Header Skeleton */}
       <div className="text-center space-y-2">
         <Skeleton className="h-9 w-64 mx-auto rounded-lg" />

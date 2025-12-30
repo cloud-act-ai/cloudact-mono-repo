@@ -147,7 +147,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
       {/* Main Content Area - Extra padding on mobile to account for settings tabs */}
       <main className="relative min-h-screen pt-4 md:pt-0">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-12">
           {children}
         </div>
       </main>
