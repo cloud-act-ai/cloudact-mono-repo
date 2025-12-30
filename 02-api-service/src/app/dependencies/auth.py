@@ -878,14 +878,14 @@ async def reserve_pipeline_quota_atomic(
             f"daily={daily_limit}, monthly={monthly_limit}, concurrent={concurrent_limit}"
         )
 
-    # ATOMIC check-and-increment: Only increments if ALL limits are not exceeded
-    # The WHERE clause checks all limits BEFORE incrementing
+    # ATOMIC check-and-increment for CONCURRENT slot only
+    # FIX: Daily/monthly quota is now incremented on SUCCESS, not at validation
+    # This prevents burning quota on failed pipeline runs
+    # We still check daily/monthly limits here to prevent starting pipelines that would exceed quota
     atomic_update_query = f"""
     UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
     SET
         concurrent_pipelines_running = concurrent_pipelines_running + 1,
-        pipelines_run_today = pipelines_run_today + 1,
-        pipelines_run_month = pipelines_run_month + 1,
         last_updated = CURRENT_TIMESTAMP()
     WHERE org_slug = @org_slug
         AND usage_date = @usage_date
@@ -1080,15 +1080,11 @@ async def increment_pipeline_usage(
     if pipeline_status == "RUNNING":
         # NOTE: This path is deprecated for new code. Use reserve_pipeline_quota_atomic() instead.
         # Kept for backward compatibility with existing callers.
-        # CRITICAL: Increment BOTH concurrent counter AND daily/monthly counters atomically
-        # This prevents race conditions where multiple requests pass quota check before any increments happen
-        # The daily counter is incremented HERE to reserve the quota slot immediately
+        # FIX: Only increment concurrent counter - daily/monthly now incremented on SUCCESS only
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
-            concurrent_pipelines_running = concurrent_pipelines_running + 1,
-            pipelines_run_today = pipelines_run_today + 1,
-            pipelines_run_month = pipelines_run_month + 1
+            concurrent_pipelines_running = concurrent_pipelines_running + 1
         WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
@@ -1112,17 +1108,22 @@ async def increment_pipeline_usage(
 
     elif pipeline_status in ["SUCCESS", "FAILED"]:
         # Update completion counters and decrement concurrent
-        # NOTE: pipelines_run_today and pipelines_run_month are already incremented when RUNNING
-        # so we only update success/failed counts and decrement concurrent counter here
+        # FIX: Daily/monthly quota is now ONLY incremented on SUCCESS
+        # This prevents burning quota on failed pipeline runs
         # SECURITY: Use parameterized query parameters instead of f-string interpolation
         success_increment = 1 if pipeline_status == "SUCCESS" else 0
         failed_increment = 1 if pipeline_status == "FAILED" else 0
+        # Only count toward daily/monthly quota on success
+        daily_increment = 1 if pipeline_status == "SUCCESS" else 0
+        monthly_increment = 1 if pipeline_status == "SUCCESS" else 0
 
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
             pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
             pipelines_failed_today = pipelines_failed_today + @failed_increment,
+            pipelines_run_today = pipelines_run_today + @daily_increment,
+            pipelines_run_month = pipelines_run_month + @monthly_increment,
             concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
         WHERE org_slug = @org_slug
             AND usage_date = @usage_date
@@ -1136,13 +1137,15 @@ async def increment_pipeline_usage(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                         bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
-                        bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment)
+                        bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment),
+                        bigquery.ScalarQueryParameter("daily_increment", "INT64", daily_increment),
+                        bigquery.ScalarQueryParameter("monthly_increment", "INT64", monthly_increment)
                     ],
                     job_timeout_ms=settings.bq_auth_timeout_ms
                 )
             ).result()
 
-            logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
+            logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}, daily_increment={daily_increment}")
 
         except Exception as e:
             logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)

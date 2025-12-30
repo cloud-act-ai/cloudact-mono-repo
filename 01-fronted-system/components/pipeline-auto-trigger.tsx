@@ -11,13 +11,20 @@
  * 2. For each pipeline, check if:
  *    - NOT currently running (status !== "RUNNING" && status !== "PENDING")
  *    - NOT completed today (succeeded_today === false)
- * 3. Only trigger pipelines that meet both conditions
+ *    - NOT exceeded max retries (3/day) for failed pipelines
+ * 3. Only trigger pipelines that meet all conditions
  * 4. Call callbacks for success/error handling
  *
  * Duplicate Prevention:
  * - Frontend: localStorage debounce (1 min) prevents rapid re-checks
  * - Backend: Pipeline service has atomic INSERT with duplicate check
  *   Even if 10 users trigger simultaneously, only 1 execution happens
+ *
+ * Retry Limits:
+ * - Max 3 retries per day per pipeline for failures
+ * - Prevents burning through quota on repeated failures
+ * - Counter resets at midnight (localStorage-based)
+ * - Quota errors don't count toward retry limit
  *
  * Multi-Tenancy:
  * - Each org's pipelines are checked/triggered independently
@@ -30,6 +37,7 @@
  * - #15: Stabilized callback refs to prevent infinite re-renders
  * - #20: Added localStorage debouncing to prevent rapid re-triggers
  * - #22: Explicit check-then-trigger flow with status validation
+ * - #XX: Added max retry limits (3/day) to prevent quota burn on failures
  */
 
 import { useEffect, useRef, useCallback } from "react"
@@ -55,10 +63,13 @@ const DAILY_PIPELINES = [
 ]
 
 // ============================================
-// Debounce Configuration
+// Debounce & Retry Configuration
 // ============================================
 const DEBOUNCE_KEY_PREFIX = "pipeline-auto-trigger-"
 const DEBOUNCE_MS = 60000 // 1 minute debounce between triggers for same org
+const FAILED_COUNT_KEY_PREFIX = "pipeline-failed-count-"
+const MAX_RETRIES_PER_DAY = 3 // Maximum retry attempts per day for failed pipelines
+const FAILED_COUNT_RESET_KEY_PREFIX = "pipeline-failed-reset-"
 
 /**
  * Check if we should debounce (skip) this trigger based on localStorage.
@@ -86,6 +97,54 @@ function recordCheck(orgSlug: string): void {
 
   const key = `${DEBOUNCE_KEY_PREFIX}${orgSlug}`
   localStorage.setItem(key, String(Date.now()))
+}
+
+/**
+ * Get the current failed count for a pipeline today.
+ * Resets at midnight (based on stored date).
+ */
+function getFailedCount(orgSlug: string, pipelineId: string): number {
+  if (typeof window === "undefined") return 0
+
+  const countKey = `${FAILED_COUNT_KEY_PREFIX}${orgSlug}-${pipelineId}`
+  const resetKey = `${FAILED_COUNT_RESET_KEY_PREFIX}${orgSlug}-${pipelineId}`
+
+  const today = new Date().toISOString().split("T")[0]
+  const storedDate = localStorage.getItem(resetKey)
+
+  // Reset count if it's a new day
+  if (storedDate !== today) {
+    localStorage.setItem(resetKey, today)
+    localStorage.setItem(countKey, "0")
+    return 0
+  }
+
+  const count = localStorage.getItem(countKey)
+  return count ? parseInt(count, 10) : 0
+}
+
+/**
+ * Increment the failed count for a pipeline.
+ */
+function incrementFailedCount(orgSlug: string, pipelineId: string): void {
+  if (typeof window === "undefined") return
+
+  const countKey = `${FAILED_COUNT_KEY_PREFIX}${orgSlug}-${pipelineId}`
+  const resetKey = `${FAILED_COUNT_RESET_KEY_PREFIX}${orgSlug}-${pipelineId}`
+  const today = new Date().toISOString().split("T")[0]
+
+  // Ensure date is set
+  localStorage.setItem(resetKey, today)
+
+  const currentCount = getFailedCount(orgSlug, pipelineId)
+  localStorage.setItem(countKey, String(currentCount + 1))
+}
+
+/**
+ * Check if we've exceeded max retries for a pipeline today.
+ */
+function hasExceededMaxRetries(orgSlug: string, pipelineId: string): boolean {
+  return getFailedCount(orgSlug, pipelineId) >= MAX_RETRIES_PER_DAY
 }
 
 interface PipelineAutoTriggerProps {
@@ -189,9 +248,15 @@ export function PipelineAutoTrigger({
           continue
         }
 
-        // Check 3: Ran today but failed? → Log and retry
+        // Check 3: Ran today but failed? → Check retry limits
         if (pipelineStatus?.ran_today && !pipelineStatus?.succeeded_today) {
-          if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Failed today, retrying`)
+          // Check 3a: Exceeded max retries? → Skip to prevent quota burn
+          if (hasExceededMaxRetries(orgSlug, pipeline.id)) {
+            if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Max retries (${MAX_RETRIES_PER_DAY}) exceeded today, skipping`)
+            result.errors.push(`${pipeline.id}: Max retries exceeded (${MAX_RETRIES_PER_DAY}/day)`)
+            continue
+          }
+          if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Failed today, retrying (${getFailedCount(orgSlug, pipeline.id)}/${MAX_RETRIES_PER_DAY})`)
         }
 
         // ============================================
@@ -214,8 +279,14 @@ export function PipelineAutoTrigger({
           if (triggerResult.error?.includes("already running")) {
             if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already running (race condition)`)
             result.already_running.push(pipeline.id)
+          } else if (triggerResult.error?.includes("quota")) {
+            // Quota exceeded - don't increment failed count (not a pipeline failure)
+            if (debug) console.warn(`[PipelineAutoTrigger] ${pipeline.id}: Quota exceeded - ${triggerResult.error}`)
+            result.errors.push(`${pipeline.id}: ${triggerResult.error}`)
           } else {
-            if (debug) console.warn(`[PipelineAutoTrigger] ${pipeline.id}: Trigger failed - ${triggerResult.error}`)
+            // Pipeline trigger failed - increment retry counter
+            incrementFailedCount(orgSlug, pipeline.id)
+            if (debug) console.warn(`[PipelineAutoTrigger] ${pipeline.id}: Trigger failed (retry ${getFailedCount(orgSlug, pipeline.id)}/${MAX_RETRIES_PER_DAY}) - ${triggerResult.error}`)
             result.errors.push(`${pipeline.id}: ${triggerResult.error}`)
           }
         }

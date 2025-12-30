@@ -72,10 +72,11 @@ Also tagged as :latest for convenience
 | Environment | GCP Project | Service Account | Auth Mode |
 |-------------|-------------|-----------------|-----------|
 | `test` | `cloudact-testing-1` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | Public (app auth) |
-| `stage` | `cloudact-stage` | `cloudact-sa-stage@cloudact-stage.iam.gserviceaccount.com` | Public (app auth) |
-| `prod` | `cloudact-prod` | `cloudact-sa-prod@cloudact-prod.iam.gserviceaccount.com` | Public (app auth) |
+| `stage` | `cloudact-stage` | `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` | Public (app auth) |
+| `prod` | `cloudact-prod` | `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` | Public (app auth) |
 
 > **Note:** All environments allow unauthenticated Cloud Run access. App handles auth via `X-CA-Root-Key` and `X-API-Key` headers.
+> **Important:** Stage/prod service accounts use `cloudact-{env}@` NOT `cloudact-sa-{env}@`.
 
 ### Credentials Location
 ```
@@ -426,7 +427,31 @@ PROD (cloudact-prod):
 
 ## Critical Learnings
 
-### 1. Credentials Handling
+### 1. Version is Hardcoded in config.py (CRITICAL)
+**Problem:** Release version shown in health endpoint (`/health`) is hardcoded in source code, not passed as build arg.
+
+**Location:**
+- `02-api-service/src/app/config.py` - `release_version` and `release_timestamp` fields
+- `03-data-pipeline-service/src/app/config.py` - same fields
+
+**Solution:** Before creating a new release:
+1. Update `release_version` and `release_timestamp` in BOTH config.py files
+2. Commit the changes
+3. Create git tag: `git tag vX.Y.Z`
+4. Build images (version will be baked in)
+5. Push and deploy
+
+### 2. Service Account Naming Convention
+**Problem:** Service account names differ from expected `cloudact-sa-{env}@` pattern.
+
+**Actual Names:**
+- test: `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` (has `-sa-`)
+- stage: `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` (NO `-sa-`)
+- prod: `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` (NO `-sa-`)
+
+**Note:** This is configured in `environments.conf`.
+
+### 3. Credentials Handling
 **Problem:** Local `.env.local` files contain machine-specific paths that don't exist in containers.
 
 **Solution:**
@@ -434,14 +459,14 @@ PROD (cloudact-prod):
 - `config.py` checks if credential file exists before setting `GOOGLE_APPLICATION_CREDENTIALS`
 - Cloud Run uses service account identity automatically
 
-### 2. Service-to-Service Communication
+### 4. Service-to-Service Communication
 Cloud Run services cannot use `localhost`. Configure URLs via env vars:
 - `PIPELINE_SERVICE_URL` - for api-service to call pipeline-service
 - `API_SERVICE_URL` - for pipeline-service to call api-service
 
 The deploy.sh script auto-fetches and configures these.
 
-### 3. Environment Files
+### 5. Environment Files
 ```
 {service}/
 ├── .env.local    # Local only (excluded from Docker)
@@ -450,12 +475,27 @@ The deploy.sh script auto-fetches and configures these.
 ```
 Use `TARGET_ENV` build arg to select environment.
 
-### 4. Version Build Args
-Images include version metadata:
-- `VERSION` - The release version (e.g., v1.0.0)
-- `BUILD_DATE` - ISO timestamp of build
+### 6. Image Tag Convention
+**Push script creates:**
+- `gcr.io/{project}/cloudact-{service}-{env}:{env}-{timestamp}` (e.g., `prod-20251230-123456`)
+- `gcr.io/{project}/cloudact-{service}-{env}:latest`
 
-### 5. Service Resource Configuration
+**Deploy script expects:**
+- Default: `{env}-latest` (e.g., `prod-latest`)
+- Or specific version tag: `prod-vX.Y.Z`
+
+**Manual tag addition (if needed):**
+```bash
+for service in api-service pipeline-service frontend; do
+  DIGEST=$(gcloud container images describe gcr.io/cloudact-prod/cloudact-${service}-prod --format="value(image_summary.digest)")
+  gcloud container images add-tag \
+    "gcr.io/cloudact-prod/cloudact-${service}-prod@${DIGEST}" \
+    "gcr.io/cloudact-prod/cloudact-${service}-prod:prod-latest" \
+    --quiet
+done
+```
+
+### 7. Service Resource Configuration
 | Service | CPU | Memory | Timeout | Max Instances |
 |---------|-----|--------|---------|---------------|
 | api-service | 2 | 2Gi | 300s | 10 |
@@ -523,4 +563,4 @@ Images include version metadata:
 ```
 
 ---
-**Last Updated:** 2025-12-29
+**Last Updated:** 2025-12-30

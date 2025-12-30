@@ -288,7 +288,69 @@ External Services:
 
 ## Critical Learnings
 
-### 1. Frontend Secrets Configuration (CRITICAL)
+### 1. Version is Hardcoded in config.py (CRITICAL)
+
+**Problem:** Release version shown in health endpoint (`/health`) is hardcoded in source code, not passed as build arg.
+
+**Location:**
+- `02-api-service/src/app/config.py` - `release_version` and `release_timestamp` fields
+- `03-data-pipeline-service/src/app/config.py` - same fields
+
+**Solution:** Before creating a new release, update version in BOTH config.py files:
+```python
+release_version: str = Field(
+    default="v1.0.4",  # Update this!
+    description="Git release tag version (e.g., v1.0.0)"
+)
+release_timestamp: str = Field(
+    default="2025-12-30T20:45:00Z",  # Update this!
+    description="Release build timestamp in ISO 8601 format"
+)
+```
+
+**Workflow:**
+1. Update version in both `config.py` files
+2. Commit the changes
+3. Create git tag: `git tag vX.Y.Z`
+4. Build images (version will be baked in)
+5. Push and deploy
+
+### 2. Service Account Naming Convention (CRITICAL)
+
+**Problem:** Service account names differ from expected pattern.
+
+**Actual Service Accounts:**
+| Environment | Service Account | Credentials File |
+|-------------|-----------------|------------------|
+| `test` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| `stage` | `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` | `~/.gcp/cloudact-stage.json` |
+| `prod` | `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` | `~/.gcp/cloudact-prod.json` |
+
+**Note:** Stage and prod use `cloudact-{env}@` NOT `cloudact-sa-{env}@`. This is configured in `environments.conf`.
+
+### 3. Image Tag Convention
+
+**Push script creates:**
+- `gcr.io/{project}/cloudact-{service}-{env}:{env}-{timestamp}` (e.g., `prod-20251230-123456`)
+- `gcr.io/{project}/cloudact-{service}-{env}:latest`
+
+**Deploy script expects:**
+- Default: `{env}-latest` (e.g., `prod-latest`)
+- Or specific tag: `prod-vX.Y.Z`
+
+**Manual tag addition (if needed):**
+```bash
+# Add prod-latest tag to latest image
+for service in api-service pipeline-service frontend; do
+  DIGEST=$(gcloud container images describe gcr.io/cloudact-prod/cloudact-${service}-prod --format="value(image_summary.digest)")
+  gcloud container images add-tag \
+    "gcr.io/cloudact-prod/cloudact-${service}-prod@${DIGEST}" \
+    "gcr.io/cloudact-prod/cloudact-${service}-prod:prod-latest" \
+    --quiet
+done
+```
+
+### 4. Frontend Secrets Configuration (CRITICAL)
 
 **Problem:** Signup was failing because Stripe secret key wasn't available at runtime.
 
@@ -464,4 +526,4 @@ Before deploying to production:
 - [ ] Monitor logs for 15 minutes: `./monitor/watch-all.sh prod 50`
 
 ---
-**Last Updated:** 2025-12-29
+**Last Updated:** 2025-12-30

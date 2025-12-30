@@ -227,10 +227,11 @@ cd $REPO_ROOT/04-inra-cicd-automation/CICD/secrets
 | Env | Project | Service Account | Auth Mode |
 |-----|---------|-----------------|-----------|
 | test | cloudact-testing-1 | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | Public (app auth) |
-| stage | cloudact-stage | `cloudact-sa-stage@cloudact-stage.iam.gserviceaccount.com` | Public (app auth) |
-| prod | cloudact-prod | `cloudact-sa-prod@cloudact-prod.iam.gserviceaccount.com` | Public (app auth) |
+| stage | cloudact-stage | `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` | Public (app auth) |
+| prod | cloudact-prod | `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` | Public (app auth) |
 
 > **Note:** All environments allow unauthenticated Cloud Run access. App handles auth via `X-CA-Root-Key` and `X-API-Key` headers.
+> **Important:** Stage/prod service accounts use `cloudact-{env}@` NOT `cloudact-sa-{env}@`.
 
 ### Service URLs
 - **Cloud Run Pattern:** `cloudact-{service}-{env}-{hash}.us-central1.run.app`
@@ -285,6 +286,9 @@ cd $REPO_ROOT/04-inra-cicd-automation/CICD/secrets
 5. **Deploy order: api-service -> pipeline-service -> frontend**
 6. **Monitor logs for 15 minutes after prod deploy**
 7. **Rollback if health check fails after 5 minutes**
+8. **Update version in config.py BEFORE building** - Version is hardcoded in:
+   - `02-api-service/src/app/config.py` (`release_version`, `release_timestamp`)
+   - `03-data-pipeline-service/src/app/config.py` (same fields)
 
 ## Recommended Production Workflow
 

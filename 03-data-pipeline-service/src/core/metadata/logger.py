@@ -432,6 +432,7 @@ class MetadataLogger:
             parameters_serialized = _serialize_datetime_values(parameters) if parameters else None
             parameters_json_str = json.dumps(parameters_serialized) if parameters_serialized is not None else None
 
+            now = datetime.utcnow()
             log_entry = {
                 "insertId": f"{pipeline_logging_id}_start",  # Idempotency
                 "json": {
@@ -443,13 +444,14 @@ class MetadataLogger:
                     "status": PipelineStatus.RUNNING.value,
                     "trigger_type": trigger_type,
                     "trigger_by": trigger_by,
-                    "start_time": datetime.utcnow().isoformat(),
+                    "start_time": now.isoformat(),
                     "end_time": None,
                     "duration_ms": None,
                     "config_version": self.config_version,
                     "worker_instance": self.worker_instance,
                     "error_message": None,
-                    "parameters": parameters_json_str
+                    "parameters": parameters_json_str,
+                    "run_date": now.strftime("%Y-%m-%d")  # FIX: Set run_date for status queries
                 }
             }
 

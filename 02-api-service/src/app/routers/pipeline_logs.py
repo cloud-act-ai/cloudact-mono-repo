@@ -161,6 +161,7 @@ async def get_pipeline_status(
         # Query for today's pipeline runs
         # Match pipeline_id patterns like: "saas_subscription/costs/saas_cost"
         # or "{org}-saas_subscription-costs-saas_cost"
+        # FIX: Use DATE(start_time) instead of run_date which can be NULL
         query = f"""
         SELECT
             pipeline_id,
@@ -169,7 +170,7 @@ async def get_pipeline_status(
             run_date
         FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
         WHERE org_slug = @org_slug
-          AND run_date = @today
+          AND DATE(start_time) = @today
         ORDER BY start_time DESC
         """
 

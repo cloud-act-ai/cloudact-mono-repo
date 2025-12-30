@@ -5,19 +5,21 @@
  *
  * Features:
  * - Preset ranges (MTD, Last 30 days, Quarter, YTD)
- * - Custom date range picker
+ * - Custom date range picker with calendar
  * - Consistent styling with cost dashboard design
  */
 
 import React, { useState, useCallback } from "react"
-import { Calendar, ChevronDown, Check } from "lucide-react"
+import { Calendar as CalendarIcon, ChevronDown, Check, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import type { DateRange as DayPickerDateRange } from "react-day-picker"
 
 // ============================================
 // Types
@@ -202,15 +204,55 @@ export function DateRangeFilter({
   disabled = false,
 }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false)
+  const [showCustom, setShowCustom] = useState(value.preset === "custom")
+  const [customRange, setCustomRange] = useState<DayPickerDateRange | undefined>(
+    value.preset === "custom" ? { from: value.start, to: value.end } : undefined
+  )
 
   const handlePresetSelect = useCallback((preset: DateRangePreset) => {
+    if (preset === "custom") {
+      setShowCustom(true)
+      return
+    }
     const range = getPresetRange(preset)
     onChange(range)
+    setShowCustom(false)
     setOpen(false)
   }, [onChange])
 
+  const handleCustomRangeSelect = useCallback((range: DayPickerDateRange | undefined) => {
+    setCustomRange(range)
+  }, [])
+
+  const applyCustomRange = useCallback(() => {
+    if (customRange?.from && customRange?.to) {
+      const formatDate = (d: Date) => d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined
+      })
+      onChange({
+        start: customRange.from,
+        end: customRange.to,
+        preset: "custom",
+        label: `${formatDate(customRange.from)} - ${formatDate(customRange.to)}`
+      })
+      setOpen(false)
+    }
+  }, [customRange, onChange])
+
+  const handleBackToPresets = useCallback(() => {
+    setShowCustom(false)
+    setCustomRange(undefined)
+  }, [])
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen)
+      if (!isOpen) {
+        setShowCustom(value.preset === "custom")
+      }
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -226,7 +268,7 @@ export function DateRangeFilter({
           aria-expanded={open}
         >
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-500" aria-hidden="true" />
+            <CalendarIcon className="h-4 w-4 text-slate-500" aria-hidden="true" />
             <span className="text-sm font-medium">
               {formatDateRangeDisplay(value)}
             </span>
@@ -241,62 +283,148 @@ export function DateRangeFilter({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-56 p-2"
+        className={cn("p-2", showCustom ? "w-auto" : "w-56")}
         align="end"
         sideOffset={4}
       >
-        <div className="space-y-1" role="listbox" aria-label="Date range options">
-          {PRESETS.map((preset) => {
-            const isSelected = value.preset === preset.id
-            return (
+        {!showCustom ? (
+          <>
+            {/* Preset Options */}
+            <div className="space-y-1" role="listbox" aria-label="Date range options">
+              {PRESETS.map((preset) => {
+                const isSelected = value.preset === preset.id
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => handlePresetSelect(preset.id)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm",
+                      "transition-colors",
+                      isSelected
+                        ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
+                        : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    <span>{preset.label}</span>
+                    {isSelected && (
+                      <Check className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                )
+              })}
+
+              {/* Custom Range Option */}
               <button
-                key={preset.id}
                 type="button"
                 role="option"
-                aria-selected={isSelected}
-                onClick={() => handlePresetSelect(preset.id)}
+                aria-selected={value.preset === "custom"}
+                onClick={() => handlePresetSelect("custom")}
                 className={cn(
                   "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm",
                   "transition-colors",
-                  isSelected
+                  value.preset === "custom"
                     ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
                     : "text-slate-700 hover:bg-slate-100"
                 )}
               >
-                <span>{preset.label}</span>
-                {isSelected && (
-                  <Check className="h-4 w-4" aria-hidden="true" />
-                )}
+                <span>Custom Range</span>
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
-            )
-          })}
-        </div>
+            </div>
 
-        {/* Date range info */}
-        <div className="mt-3 pt-3 border-t border-slate-100">
-          <div className="px-3 py-2 text-xs text-slate-500">
-            <div className="flex justify-between">
-              <span>From:</span>
-              <span className="font-medium text-slate-700">
-                {value.start.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric"
-                })}
-              </span>
+            {/* Date range info */}
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <div className="px-3 py-2 text-xs text-slate-500">
+                <div className="flex justify-between">
+                  <span>From:</span>
+                  <span className="font-medium text-slate-700">
+                    {value.start.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>To:</span>
+                  <span className="font-medium text-slate-700">
+                    {value.end.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between mt-1">
-              <span>To:</span>
-              <span className="font-medium text-slate-700">
-                {value.end.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric"
-                })}
-              </span>
+          </>
+        ) : (
+          <>
+            {/* Custom Date Range Picker */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-2">
+                <button
+                  type="button"
+                  onClick={handleBackToPresets}
+                  className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                >
+                  ← Presets
+                </button>
+                <span className="text-sm font-medium text-slate-700">Custom Range</span>
+              </div>
+
+              <Calendar
+                mode="range"
+                selected={customRange}
+                onSelect={handleCustomRangeSelect}
+                numberOfMonths={2}
+                disabled={{ after: new Date() }}
+                defaultMonth={customRange?.from || new Date()}
+              />
+
+              {/* Selected Range Display */}
+              <div className="px-3 py-2 bg-slate-50 rounded-lg">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-slate-600">
+                    {customRange?.from ? (
+                      customRange.from.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })
+                    ) : (
+                      <span className="text-slate-400">Start date</span>
+                    )}
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-slate-400" />
+                  <div className="text-slate-600">
+                    {customRange?.to ? (
+                      customRange.to.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })
+                    ) : (
+                      <span className="text-slate-400">End date</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Apply Button */}
+              <Button
+                onClick={applyCustomRange}
+                disabled={!customRange?.from || !customRange?.to}
+                className="w-full bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium"
+              >
+                Apply Range
+              </Button>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   )
