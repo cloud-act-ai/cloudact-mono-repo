@@ -101,53 +101,10 @@ export {
 } from "./filters"
 
 // ============================================
-// Comparisons
+// NOTE: Comparisons and Summary functions removed
+// Backend handles all cost calculations via /api/v1/costs/*
+// Frontend only does UI transformation (colors, names, table rows)
 // ============================================
-
-export {
-  // Core comparison
-  comparePeriods,
-  // Pre-built comparisons
-  monthOverMonth,
-  weekOverWeek,
-  quarterOverQuarter,
-  yearOverYear,
-  mtdComparison,
-  ytdComparison,
-  last7DaysComparison,
-  last30DaysComparison,
-  compareWithPreviousPeriod,
-  // Provider/category comparisons
-  compareProviderCosts,
-  compareCategoryCosts,
-  // Trend analysis
-  calculateGrowthRate,
-  analyzeTrend,
-} from "./comparisons"
-
-// ============================================
-// Summary
-// ============================================
-
-export {
-  // Main summary
-  calculateSummary,
-  calculateQuickSummary,
-  // Run rates
-  calculateDailyRate,
-  calculateMonthlyRunRate,
-  calculateAnnualRunRate,
-  // Forecasts
-  forecastMonthEnd,
-  forecastYearEnd,
-  forecastPeriod,
-  // Statistics
-  calculateAverageDailyCost,
-  calculateMedianDailyCost,
-  findHighestCostDay,
-  findLowestCostDay,
-  calculatePercentiles,
-} from "./summary"
 
 // ============================================
 // Formatters
@@ -191,7 +148,6 @@ export {
   type ProviderData,
   type CategoryData,
   type EntityConfig,
-  type RawSubscriptionRecord,
   // Date utilities
   getDateInfo,
   isInCurrentMonth,
@@ -219,9 +175,6 @@ export {
   GENAI_PROVIDER_SET,
   filterCloudProviders,
   filterGenAIProviders,
-  // Aggregation
-  aggregateByCategory,
-  aggregateByProvider,
   // Safe value extraction
   getSafeValue,
   calculatePercentage,

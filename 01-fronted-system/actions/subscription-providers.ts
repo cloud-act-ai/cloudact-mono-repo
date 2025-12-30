@@ -1340,6 +1340,19 @@ export interface SaaSCostSummary {
     start: string
     end: string
   }
+  // Backend-calculated breakdowns (use these instead of client-side aggregation)
+  by_provider?: Array<{
+    provider: string
+    total_cost: number
+    record_count: number
+    percentage: number
+  }>
+  by_category?: Array<{
+    category: string
+    total_cost: number
+    record_count: number
+    percentage: number
+  }>
 }
 
 /**

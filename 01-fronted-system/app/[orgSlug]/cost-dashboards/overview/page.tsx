@@ -28,14 +28,12 @@ import { getSaaSSubscriptionCosts, type SaaSCostSummary } from "@/actions/subscr
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
   getDateInfo,
-  aggregateByProvider,
   transformProvidersToBreakdownItems,
   transformProvidersToTableRows,
   getSafeValue,
   calculatePercentage,
   OVERVIEW_CATEGORY_CONFIG,
   type ProviderData,
-  type RawSubscriptionRecord,
 } from "@/lib/costs"
 
 export default function CostOverviewPage() {
@@ -58,9 +56,6 @@ export default function CostOverviewPage() {
     setError(null)
 
     try {
-      // Get cached date info for consistent calculations
-      const dateInfo = getDateInfo()
-
       // Convert date range to API parameters
       const { startDate, endDate } = dateRangeToApiParams(dateRange)
 
@@ -77,24 +72,16 @@ export default function CostOverviewPage() {
         }
       }
 
-      // Calculate provider breakdown from SaaS data using centralized helper
-      if (saasResult.success && saasResult.data && saasResult.data.length > 0) {
-        // Custom provider aggregation for overview (uses ServiceProviderName)
-        const rawRecords = saasResult.data.map(row => ({
-          ...row,
-          ServiceCategory: row.ServiceProviderName || row.ProviderName,
-        })) as RawSubscriptionRecord[]
-
-        const aggregatedProviders = aggregateByProvider(rawRecords, dateInfo, "ServiceCategory")
+      // Use backend-calculated provider breakdown (no client-side aggregation)
+      if (saasResult.success && saasResult.summary?.by_provider && saasResult.summary.by_provider.length > 0) {
+        const validProviders: ProviderBreakdown[] = saasResult.summary.by_provider
           .slice(0, 10)
-
-        // Convert to ProviderBreakdown type for state
-        const validProviders: ProviderBreakdown[] = aggregatedProviders.map(p => ({
-          provider: p.provider,
-          total_cost: p.total_cost,
-          record_count: p.record_count ?? 0,
-          percentage: p.percentage ?? 0,
-        }))
+          .map(p => ({
+            provider: p.provider,
+            total_cost: p.total_cost,
+            record_count: p.record_count ?? 0,
+            percentage: p.percentage ?? 0,
+          }))
 
         setProviders(validProviders)
       } else if (providersResult.success) {

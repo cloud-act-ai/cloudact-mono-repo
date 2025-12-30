@@ -22,12 +22,10 @@ import {
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
   getDateInfo,
-  aggregateByCategory,
   transformCategoriesToBreakdownItems,
   transformCategoriesToTableRows,
   CATEGORY_CONFIG,
   type CategoryData,
-  type RawSubscriptionRecord,
 } from "@/lib/costs"
 
 export default function SubscriptionCostsPage() {
@@ -59,14 +57,14 @@ export default function SubscriptionCostsPage() {
           setOrgCurrency(costsResult.currency)
         }
 
-        // Build category breakdown using centralized helper
-        // Filters to current month and counts unique subscriptions per category
-        if (costsResult.data && costsResult.data.length > 0) {
-          const dateInfo = getDateInfo()
-          const breakdown = aggregateByCategory(
-            costsResult.data as RawSubscriptionRecord[],
-            dateInfo
-          )
+        // Use backend-calculated category breakdown (no client-side aggregation)
+        if (costsResult.summary.by_category && costsResult.summary.by_category.length > 0) {
+          const breakdown: CategoryData[] = costsResult.summary.by_category.map(c => ({
+            category: c.category,
+            total_cost: c.total_cost,
+            count: c.record_count,
+            percentage: c.percentage,
+          }))
           setCategories(breakdown)
         }
       } else {

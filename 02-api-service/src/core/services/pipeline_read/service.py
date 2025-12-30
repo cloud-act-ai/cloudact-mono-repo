@@ -261,7 +261,7 @@ class PipelineReadService:
         status_counts = (
             df.lazy()
             .group_by("status")
-            .agg(pl.len().alias("count"))
+            .agg(pl.count().alias("count"))
             .collect()
         )
 
@@ -301,7 +301,7 @@ class PipelineReadService:
         status_breakdown = (
             df.lazy()
             .group_by("status")
-            .agg(pl.len().alias("count"))
+            .agg(pl.count().alias("count"))
             .collect()
         )
         by_status = {row["status"]: row["count"] for row in status_breakdown.iter_rows(named=True)}
@@ -311,7 +311,7 @@ class PipelineReadService:
             df.lazy()
             .group_by("pipeline_id")
             .agg([
-                pl.len().alias("total"),
+                pl.count().alias("total"),
                 (pl.col("status") == "COMPLETED").sum().alias("completed"),
                 (pl.col("status") == "FAILED").sum().alias("failed"),
                 pl.col("duration_ms").mean().alias("avg_duration"),
@@ -335,7 +335,7 @@ class PipelineReadService:
             df.lazy()
             .group_by("run_date")
             .agg([
-                pl.len().alias("total"),
+                pl.count().alias("total"),
                 (pl.col("status") == "COMPLETED").sum().alias("completed"),
                 (pl.col("status") == "FAILED").sum().alias("failed"),
             ])
