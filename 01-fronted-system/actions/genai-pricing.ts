@@ -419,7 +419,13 @@ export async function getGenAIPricing(
       return { success: false, error: getClientSafeErrorMessage(errorData, "Failed to get pricing data") }
     }
 
-    const data = await response.json()
+    // Defensive JSON parsing - even successful responses could have malformed JSON
+    let data: GenAIPricingResponse
+    try {
+      data = await response.json()
+    } catch {
+      return { success: false, error: "Invalid response from pricing service" }
+    }
 
     // Add pagination metadata to response
     const totalRecords = (data.payg?.length || 0) + (data.commitment?.length || 0) + (data.infrastructure?.length || 0)
@@ -478,7 +484,13 @@ export async function getGenAIPricingByFlow<T extends GenAIFlow>(
       return { success: false, error: getClientSafeErrorMessage(errorData, `Failed to get ${flow} pricing`) }
     }
 
-    const data = await response.json()
+    // Defensive JSON parsing
+    let data: { data?: FlowPricingRecord<T>[]; total_count?: number }
+    try {
+      data = await response.json()
+    } catch {
+      return { success: false, error: `Invalid response from ${flow} pricing service` }
+    }
     const records = data.data || []
 
     return {
@@ -651,7 +663,13 @@ export async function addCustomPricing(
       return { success: false, error: getClientSafeErrorMessage(errorData, `Failed to add custom ${flow} pricing`) }
     }
 
-    const data = await response.json()
+    // Defensive JSON parsing
+    let data: { pricing_id?: string; id?: string; data?: { pricing_id?: string; id?: string } }
+    try {
+      data = await response.json()
+    } catch {
+      return { success: false, error: `Invalid response when adding ${flow} pricing` }
+    }
 
     // Extract pricing_id from response - check multiple possible field names
     const pricingId = data.pricing_id || data.id || data.data?.pricing_id || data.data?.id

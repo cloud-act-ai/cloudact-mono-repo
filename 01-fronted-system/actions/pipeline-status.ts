@@ -92,11 +92,16 @@ export async function getPipelineStatus(
     )
 
     if (!response.ok) {
-      
+
       return null
     }
 
-    return await response.json()
+    // Defensive JSON parsing - even successful responses could have malformed JSON
+    try {
+      return await response.json()
+    } catch {
+      return null
+    }
   } catch (pipelineError) {
     // Log pipeline status fetch errors for debugging
     if (process.env.NODE_ENV === "development") {
@@ -158,15 +163,23 @@ export async function triggerPipelineViaApi(
 
     if (!response.ok) {
       const errorText = await response.text()
-      
+
       return {
         success: false,
         error: `Pipeline trigger failed: ${errorText}`,
       }
     }
 
-    const result = await response.json()
-    
+    // Defensive JSON parsing
+    let result: { pipeline_logging_id?: string; message?: string }
+    try {
+      result = await response.json()
+    } catch {
+      return {
+        success: false,
+        error: "Invalid response from pipeline service",
+      }
+    }
 
     return {
       success: true,
