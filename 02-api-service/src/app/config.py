@@ -133,11 +133,11 @@ class Settings(BaseSettings):
         description="Application version"
     )
     release_version: str = Field(
-        default="v1.0.1",
+        default="v1.0.2",
         description="Git release tag version (e.g., v1.0.0)"
     )
     release_timestamp: str = Field(
-        default="2025-12-29T21:15:00Z",
+        default="2025-12-29T20:35:00Z",
         description="Release build timestamp in ISO 8601 format"
     )
     environment: str = Field(
