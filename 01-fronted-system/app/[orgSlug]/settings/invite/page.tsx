@@ -247,19 +247,19 @@ export default function InviteMembersPage() {
   const seatsAvailable = seatLimit ? seatLimit - currentSeats : 0
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-4 sm:px-0">
       {/* Header */}
-      <div className="mb-10">
+      <div className="mb-6 sm:mb-10">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Users className="h-6 w-6 text-slate-900" />
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
             </div>
             <div>
-              <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+              <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
                 Team Members
               </h1>
-              <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+              <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
                 Manage who has access to your organization
               </p>
             </div>
@@ -269,7 +269,7 @@ export default function InviteMembersPage() {
               <DialogTrigger asChild>
                 <button
                   disabled={!seatLimit || seatsAvailable <= 0}
-                  className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-10 sm:h-11 w-full sm:w-auto px-5 sm:px-6 text-[12px] sm:text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-lg sm:rounded-xl transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                 >
                   <UserPlus className="h-4 w-4" />
                   Invite Member
@@ -375,41 +375,41 @@ export default function InviteMembersPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="metric-card">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center">
-              <Users className="h-6 w-6 text-[#1a7a3a]" />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
+        <div className="metric-card p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
-            <div>
-              <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{currentSeats}</p>
-              <p className="text-[13px] text-slate-500 font-medium mt-1">
+            <div className="min-w-0">
+              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900 leading-none tracking-tight">{currentSeats}</p>
+              <p className="text-[10px] sm:text-[13px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">
                 of {seatLimit ?? "∞"} seats
               </p>
             </div>
           </div>
         </div>
 
-        <div className="metric-card">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-[#FF6C5E]/15 flex items-center justify-center">
-              <Clock className="h-6 w-6 text-[#FF6C5E]" />
+        <div className="metric-card p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#FF6C5E]/15 flex items-center justify-center flex-shrink-0">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-[#FF6C5E]" />
             </div>
-            <div>
-              <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{invites.length}</p>
-              <p className="text-[13px] text-slate-500 font-medium mt-1">pending invites</p>
+            <div className="min-w-0">
+              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900 leading-none tracking-tight">{invites.length}</p>
+              <p className="text-[10px] sm:text-[13px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">pending</p>
             </div>
           </div>
         </div>
 
-        <div className="metric-card">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center">
-              <Check className="h-6 w-6 text-[#1a7a3a]" />
+        <div className="metric-card p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
+              <Check className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
-            <div>
-              <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{seatsAvailable}</p>
-              <p className="text-[13px] text-slate-500 font-medium mt-1">seats available</p>
+            <div className="min-w-0">
+              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900 leading-none tracking-tight">{seatsAvailable}</p>
+              <p className="text-[10px] sm:text-[13px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">available</p>
             </div>
           </div>
         </div>

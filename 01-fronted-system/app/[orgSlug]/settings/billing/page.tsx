@@ -114,18 +114,18 @@ export default function BillingPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
-              <CreditCard className="h-6 w-6 text-slate-900" />
+      {/* Header - Mobile optimized */}
+      <div className="mb-6 sm:mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
             </div>
             <div>
-              <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
                 Billing & Subscription
               </h1>
-              <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                 Manage your subscription plan and payment methods
               </p>
             </div>

@@ -279,12 +279,12 @@ export default function SubscriptionRunsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+    <div className="max-w-6xl mx-auto px-4 sm:px-0">
+      <div className="mb-6 sm:mb-10">
+        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           Subscription Pipeline Runs
         </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
           Monitor your SaaS subscription sync pipeline executions
         </p>
       </div>
@@ -476,51 +476,59 @@ export default function SubscriptionRunsPage() {
       </div>
 
       {backendConnected && hasApiKey && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Stats Row */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-                <History className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+          <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-hide pb-2">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                <History className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
               </div>
               <div>
-                <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
-                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Total Runs</p>
+                <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
+                <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Total</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+            <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
               </div>
               <div>
-                <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
-                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Completed</p>
+                <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
+                <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Done</p>
               </div>
             </div>
 
             {runStats.failed > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-rose-500" />
+              <>
+                <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-rose-100 flex items-center justify-center">
+                    <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-rose-500" />
+                  </div>
+                  <div>
+                    <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
+                    <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
-                  <p className="text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
-                </div>
-              </div>
+              </>
             )}
 
             {runStats.running > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+              <>
+                <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-blue-100 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 animate-spin" />
+                  </div>
+                  <div>
+                    <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
+                    <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
-                  <p className="text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
-                </div>
-              </div>
+              </>
             )}
           </div>
 

@@ -225,14 +225,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      {/* Welcome Header */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Welcome Header - Mobile optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
             {greeting}
           </h1>
-          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
             Here&#39;s what&#39;s happening with your cloud costs today.
           </p>
         </div>
@@ -241,66 +241,66 @@ export default function DashboardPage() {
           disabled={isRefreshing}
           variant="outline"
           size="sm"
-          className="h-9"
+          className="h-10 sm:h-9 w-full sm:w-auto flex-shrink-0"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Metric Cards Grid - Apple Health Style */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Metric Cards Grid - Mobile optimized Apple Health Style */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         {/* Total Spend */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Monthly</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Total</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(costSummary?.total?.total_monthly_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">all services</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">all services</div>
         </div>
 
         {/* GenAI Costs */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Brain className="h-4 w-4 text-[#10A37F]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">GenAI</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#10A37F]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">GenAI</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(costSummary?.llm?.total_monthly_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
             {costSummary?.llm?.providers?.length || 0} providers
           </div>
         </div>
 
         {/* Cloud Costs */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Cloud className="h-4 w-4 text-[#4285F4]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Cloud</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#4285F4]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Cloud</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(costSummary?.cloud?.total_monthly_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
             {costSummary?.cloud?.providers?.length || 0} providers
           </div>
         </div>
 
         {/* SaaS Costs */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Wallet className="h-4 w-4 text-[#FF6C5E]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">SaaS</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#FF6C5E]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">SaaS</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(costSummary?.saas?.total_monthly_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            {costSummary?.saas?.providers?.length || 0} subscriptions
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
+            {costSummary?.saas?.providers?.length || 0} subs
           </div>
         </div>
       </div>

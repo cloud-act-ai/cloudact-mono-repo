@@ -809,17 +809,13 @@ export default function OrganizationSettingsPage() {
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500">
       {/* Premium Header - Mobile-optimized */}
-      <div className="mb-6 sm:mb-10">
-        <div className="flex items-start justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
-          <div>
-            <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-              Organization Settings
-            </h1>
-            <p className="text-[13px] sm:text-[15px] text-slate-500 mt-2 max-w-lg">
-              Manage your organization locale, branding, and backend configuration
-            </p>
-          </div>
-        </div>
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          Organization Settings
+        </h1>
+        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+          Manage your organization locale, branding, and backend configuration
+        </p>
       </div>
 
       {error && (
@@ -837,37 +833,45 @@ export default function OrganizationSettingsPage() {
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        {/* Tab Navigation - Horizontally scrollable on mobile */}
-        <TabsList className="w-full sm:w-auto flex gap-1.5 bg-slate-100/80 p-1.5 rounded-xl h-auto mb-8 overflow-x-auto scrollbar-hide whitespace-nowrap">
-          <TabsTrigger
-            value="general"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-          >
-            <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
-            General
-          </TabsTrigger>
-          <TabsTrigger
-            value="contact"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-          >
-            <User className="h-4 w-4 mr-2 flex-shrink-0" />
-            Contact
-          </TabsTrigger>
-          <TabsTrigger
-            value="backend"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-          >
-            <Activity className="h-4 w-4 mr-2 flex-shrink-0" />
-            Backend
-          </TabsTrigger>
-          <TabsTrigger
-            value="danger"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:bg-[#FF6C5E]/10 data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm"
-          >
-            <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
-            Danger Zone
-          </TabsTrigger>
-        </TabsList>
+        {/* Tab Navigation - Premium mobile scrollable tabs */}
+        <div className="relative mb-6 sm:mb-8">
+          {/* Left fade gradient for scroll indication - mobile only */}
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
+
+          <TabsList className="w-full sm:w-auto flex gap-1.5 bg-slate-100/80 p-1.5 rounded-xl h-auto overflow-x-auto scrollbar-hide scroll-smooth touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <TabsTrigger
+              value="general"
+              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm min-w-fit"
+            >
+              <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="whitespace-nowrap">General</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="contact"
+              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm min-w-fit"
+            >
+              <User className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="whitespace-nowrap">Contact</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="backend"
+              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm min-w-fit"
+            >
+              <Activity className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="whitespace-nowrap">Backend</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="danger"
+              className="cursor-pointer h-11 sm:h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:bg-[#FF6C5E]/10 data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm min-w-fit"
+            >
+              <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="whitespace-nowrap">Danger Zone</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Right fade gradient for scroll indication - mobile only */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
+        </div>
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Organization Branding - Premium Card */}

@@ -341,30 +341,38 @@ export default function PersonalSettingsPage() {
         </div>
       )}
 
-      {/* Tab Navigation - Horizontally scrollable on mobile */}
-      <div className="flex items-center gap-1.5 mb-8 p-1.5 bg-slate-100/80 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-hide">
-        {[
-          { id: "profile", label: "Profile", icon: <User className="h-4 w-4 flex-shrink-0" /> },
-          { id: "security", label: "Security", icon: <Shield className="h-4 w-4 flex-shrink-0" /> },
-          { id: "danger", label: "Danger Zone", icon: <AlertCircle className="h-4 w-4 flex-shrink-0" />, danger: true },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
-            className={`h-10 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all flex-shrink-0 whitespace-nowrap ${
-              activeTab === tab.id
-                ? tab.danger
-                  ? "bg-[#FF6C5E] text-white shadow-sm"
-                  : "bg-[#90FCA6] text-slate-900 shadow-sm"
-                : tab.danger
-                  ? "text-[#FF6C5E] hover:bg-[#FF6C5E]/10"
-                  : "text-slate-600 hover:bg-white/60"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      {/* Tab Navigation - Premium mobile scrollable tabs */}
+      <div className="relative mb-6 sm:mb-8">
+        {/* Left fade gradient - mobile only */}
+        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
+
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/80 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-hide scroll-smooth touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {[
+            { id: "profile", label: "Profile", icon: <User className="h-4 w-4 flex-shrink-0" /> },
+            { id: "security", label: "Security", icon: <Shield className="h-4 w-4 flex-shrink-0" /> },
+            { id: "danger", label: "Danger Zone", icon: <AlertCircle className="h-4 w-4 flex-shrink-0" />, danger: true },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
+              className={`h-11 sm:h-10 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all flex-shrink-0 whitespace-nowrap min-w-fit ${
+                activeTab === tab.id
+                  ? tab.danger
+                    ? "bg-[#FF6C5E] text-white shadow-sm"
+                    : "bg-[#90FCA6] text-slate-900 shadow-sm"
+                  : tab.danger
+                    ? "text-[#FF6C5E] hover:bg-[#FF6C5E]/10"
+                    : "text-slate-600 hover:bg-white/60"
+              }`}
+            >
+              {tab.icon}
+              <span className="whitespace-nowrap">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Right fade gradient - mobile only */}
+        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none sm:hidden" />
       </div>
 
       {/* Profile Tab */}

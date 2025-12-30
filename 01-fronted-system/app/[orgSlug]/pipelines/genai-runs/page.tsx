@@ -375,57 +375,57 @@ export default function GenAIRunsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
+      <div className="mb-6 sm:mb-10">
+        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           GenAI Pipeline Runs
         </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
-          Monitor your AI/ML cost pipeline executions across all providers
+        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+          Monitor your AI/ML cost pipeline executions
         </p>
       </div>
 
       {/* Stats Row */}
-      <div className="flex items-center gap-6 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
-            <Brain className="h-5 w-5 text-[#8B5CF6]" />
+      <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8 overflow-x-auto scrollbar-hide pb-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
+            <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-[#8B5CF6]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Total Runs</p>
+            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Total</p>
           </div>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-            <CheckCircle2 className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+        <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+            <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Completed</p>
+            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Done</p>
           </div>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
-            <XCircle className="h-5 w-5 text-[var(--cloudact-coral)]" />
+        <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+            <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-coral)]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
+            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
           </div>
         </div>
         {runStats.running > 0 && (
           <>
-            <div className="h-8 w-px bg-slate-200"></div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+            <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-blue-50 flex items-center justify-center">
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 animate-spin" />
               </div>
               <div>
-                <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
-                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
+                <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
+                <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
               </div>
             </div>
           </>
@@ -469,8 +469,8 @@ export default function GenAIRunsPage() {
       )}
 
       {/* Tabs Navigation */}
-      <div className="border-b border-slate-200">
-        <nav className="flex gap-1 -mb-px overflow-x-auto pb-px">
+      <div className="border-b border-slate-200 -mx-4 sm:mx-0">
+        <nav className="flex gap-0.5 sm:gap-1 -mb-px overflow-x-auto pb-px scrollbar-hide px-4 sm:px-0">
           {PIPELINE_TABS.map((tab) => {
             const Icon = tab.icon
             const tabPipelineCount = pipelines.filter(tab.filter).length
@@ -481,17 +481,18 @@ export default function GenAIRunsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  flex items-center gap-2 px-4 py-3 text-[14px] font-medium whitespace-nowrap border-b-2 transition-all
+                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation
                   ${isActive
                     ? 'border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                   }
                 `}
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-[var(--cloudact-mint-dark)]' : ''}`} />
-                {tab.label}
+                <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isActive ? 'text-[var(--cloudact-mint-dark)]' : ''}`} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                 <span className={`
-                  inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold
+                  inline-flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-4 sm:h-5 px-1 sm:px-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold
                   ${isActive
                     ? 'bg-[var(--cloudact-mint)] text-[#1a7a3a]'
                     : 'bg-slate-100 text-slate-500'

@@ -2215,3 +2215,278 @@ a.disabled {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
               0 8px 16px rgba(0, 0, 0, 0.06);
 }
+
+/* ============================================
+   MOBILE-SPECIFIC UTILITIES - Premium UX
+   Optimized for touch devices and small screens
+   ============================================ */
+
+/* Scrollbar hide utility - for horizontal scrolling tabs */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+/* Mobile touch-friendly scrolling */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+.touch-pan-x {
+  touch-action: pan-x;
+}
+
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+/* Mobile tab container - horizontal scrollable tabs */
+.mobile-tabs-container {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0.25rem;
+}
+
+.mobile-tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile tab item */
+.mobile-tab-item {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 44px; /* Touch target */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.mobile-tab-item:active {
+  transform: scale(0.98);
+}
+
+.mobile-tab-item-active {
+  background: var(--cloudact-mint);
+  color: #000000;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile card padding adjustment */
+@media (max-width: 640px) {
+  .mobile-card-padding {
+    padding: 1rem !important;
+  }
+
+  .mobile-card-padding-sm {
+    padding: 0.75rem !important;
+  }
+
+  /* Reduce margins on mobile */
+  .mobile-margin-reduce {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Full width buttons on mobile */
+  .mobile-full-width {
+    width: 100% !important;
+  }
+
+  /* Stack flex items on mobile */
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* Smaller text on mobile */
+  .mobile-text-sm {
+    font-size: 0.875rem !important;
+  }
+
+  .mobile-text-xs {
+    font-size: 0.8125rem !important;
+  }
+}
+
+/* Touch target minimum size */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Safe area padding for notch devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent iOS zoom on input focus */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS auto-zoom */
+  }
+}
+
+/* Mobile-optimized card styles */
+@media (max-width: 640px) {
+  .metric-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .metric-card-value {
+    font-size: 1.375rem;
+  }
+
+  .metric-card-label {
+    font-size: 0.8125rem;
+  }
+
+  .health-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .health-card-value {
+    font-size: 1.375rem;
+  }
+
+  /* Smaller shadows on mobile for performance */
+  .premium-card,
+  .metric-card,
+  .health-card {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  }
+}
+
+/* Mobile-optimized typography */
+@media (max-width: 640px) {
+  .heading-hero {
+    font-size: 2rem;
+  }
+
+  .heading-page {
+    font-size: 1.5rem;
+  }
+
+  .heading-section {
+    font-size: 1.25rem;
+  }
+
+  .heading-card {
+    font-size: 1.125rem;
+  }
+
+  .metric-value {
+    font-size: 1.75rem;
+  }
+
+  .metric-value-lg {
+    font-size: 2.25rem;
+  }
+}
+
+/* Mobile navigation header sticky */
+.mobile-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* Mobile bottom safe area for fixed elements */
+.mobile-bottom-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Prevent text selection on interactive elements */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Mobile-friendly button group */
+@media (max-width: 640px) {
+  .btn-group-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .btn-group-mobile > * {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Form field mobile adjustments */
+@media (max-width: 640px) {
+  .form-field-mobile {
+    margin-bottom: 1rem;
+  }
+
+  .form-label-mobile {
+    font-size: 0.8125rem;
+    margin-bottom: 0.375rem;
+  }
+}
+
+/* Mobile card grid - single column */
+@media (max-width: 640px) {
+  .card-grid-mobile {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+}
+
+/* Premium mobile animations - reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
