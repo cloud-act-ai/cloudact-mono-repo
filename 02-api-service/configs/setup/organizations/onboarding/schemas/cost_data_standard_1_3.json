@@ -384,181 +384,181 @@
     "description": "Key-value tags associated with the resource for cost allocation and grouping. Includes user-defined and provider-defined tags (JSON object)."
   },
   {
-    "name": "x_SourceSystem",
+    "name": "x_source_system",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] System that generated the record. Examples: 'gcp_billing', 'saas_subscription_pipeline', 'openai_usage', 'manual_import'."
   },
   {
-    "name": "x_SourceRecordId",
+    "name": "x_source_record_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Unique identifier in the source system for traceability and deduplication."
   },
   {
-    "name": "x_AmortizationClass",
+    "name": "x_amortization_class",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Amortization status. Values: 'Amortized', 'Non-Amortized', 'Prorated'. Indicates cost spreading method."
   },
   {
-    "name": "x_ServiceModel",
+    "name": "x_service_model",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Service delivery model. Values: 'IaaS', 'PaaS', 'SaaS', 'FaaS', 'LLM-API'. Maps to cloud service taxonomy."
   },
   {
-    "name": "x_CostAllocationKey",
+    "name": "x_cost_allocation_key",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Key used for cost allocation to business units or cost centers."
   },
   {
-    "name": "x_ExchangeRateUsed",
+    "name": "x_exchange_rate_used",
     "type": "FLOAT64",
     "mode": "NULLABLE",
     "description": "[Extension] Exchange rate applied when converting from PricingCurrency to BillingCurrency."
   },
   {
-    "name": "x_OriginalCurrency",
+    "name": "x_original_currency",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Original currency before conversion (for audit trail in multi-currency orgs)."
   },
   {
-    "name": "x_OriginalCost",
+    "name": "x_original_cost",
     "type": "NUMERIC",
     "mode": "NULLABLE",
     "description": "[Extension] Original cost amount before currency conversion (for historical accuracy)."
   },
   {
-    "name": "x_UpdatedAt",
+    "name": "x_updated_at",
     "type": "TIMESTAMP",
     "mode": "NULLABLE",
     "description": "[Extension] Timestamp when the record was last created or updated in the data warehouse."
   },
   {
-    "name": "x_OrgSlug",
+    "name": "x_org_slug",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization slug (tenant identifier). Redundant with SubAccountId but included for clarity in multi-tenant queries."
   },
   {
-    "name": "x_OrgName",
+    "name": "x_org_name",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization display name from org_profiles. Human-readable tenant name."
   },
   {
-    "name": "x_OrgOwnerEmail",
+    "name": "x_org_owner_email",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Primary admin email for the organization. Used for billing contact and notifications."
   },
   {
-    "name": "x_OrgDefaultCurrency",
+    "name": "x_org_default_currency",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization's default currency from org_profiles (ISO 4217). Used for currency conversion validation."
   },
   {
-    "name": "x_OrgDefaultTimezone",
+    "name": "x_org_default_timezone",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization's default timezone from org_profiles (IANA). Used for period boundary calculations."
   },
   {
-    "name": "x_OrgDefaultCountry",
+    "name": "x_org_default_country",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization's default country from org_profiles (ISO 3166-1 alpha-2). Used for tax and compliance."
   },
   {
-    "name": "x_OrgSubscriptionPlan",
+    "name": "x_org_subscription_plan",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization's subscription plan (FREE, STARTER, PRO, ENTERPRISE). Affects quota limits."
   },
   {
-    "name": "x_OrgSubscriptionStatus",
+    "name": "x_org_subscription_status",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Organization's subscription status (ACTIVE, TRIAL, SUSPENDED, CANCELLED). Affects pipeline execution."
   },
   {
-    "name": "x_PipelineId",
+    "name": "x_pipeline_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "[Extension] Pipeline template name. Example: focus_convert_gcp. KEY for idempotent re-runs."
   },
   {
-    "name": "x_PipelineRunId",
+    "name": "x_pipeline_run_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "[Extension] Unique pipeline run UUID for full traceability."
   },
   {
-    "name": "x_CredentialId",
+    "name": "x_credential_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "[Extension] Credential ID from org_integration_credentials. KEY for multi-account isolation."
   },
   {
-    "name": "x_PipelineRunDate",
+    "name": "x_pipeline_run_date",
     "type": "DATE",
     "mode": "REQUIRED",
     "description": "[Extension] The DATA date being processed. KEY for idempotent re-runs."
   },
   {
-    "name": "x_IngestedAt",
+    "name": "x_ingested_at",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
     "description": "[Extension] Timestamp when data was written to this table."
   },
   {
-    "name": "x_DataQualityScore",
+    "name": "x_data_quality_score",
     "type": "FLOAT64",
     "mode": "NULLABLE",
     "description": "[Extension] Data quality score (0.0 to 1.0) from DQ validation. Higher is better."
   },
   {
-    "name": "x_CreatedAt",
+    "name": "x_created_at",
     "type": "TIMESTAMP",
     "mode": "NULLABLE",
     "description": "[Extension] Timestamp when the record was first created in the data warehouse."
   },
   {
-    "name": "x_HierarchyDeptId",
+    "name": "x_hierarchy_dept_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Reference to org_hierarchy department entity_id for cost allocation."
   },
   {
-    "name": "x_HierarchyDeptName",
+    "name": "x_hierarchy_dept_name",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Department name for reporting (denormalized from org_hierarchy)."
   },
   {
-    "name": "x_HierarchyProjectId",
+    "name": "x_hierarchy_project_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Reference to org_hierarchy project entity_id for cost allocation."
   },
   {
-    "name": "x_HierarchyProjectName",
+    "name": "x_hierarchy_project_name",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Project name for reporting (denormalized from org_hierarchy)."
   },
   {
-    "name": "x_HierarchyTeamId",
+    "name": "x_hierarchy_team_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Reference to org_hierarchy team entity_id for cost allocation."
   },
   {
-    "name": "x_HierarchyTeamName",
+    "name": "x_hierarchy_team_name",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] Team name for reporting (denormalized from org_hierarchy)."
@@ -582,39 +582,9 @@
     "description": "[Extension] GenAI model identifier."
   },
   {
-    "name": "x_hierarchy_dept_id",
-    "type": "STRING",
+    "name": "x_hierarchy_validated_at",
+    "type": "TIMESTAMP",
     "mode": "NULLABLE",
-    "description": "[Extension] Department ID for GenAI cost allocation."
-  },
-  {
-    "name": "x_hierarchy_dept_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Department name (denormalized)."
-  },
-  {
-    "name": "x_hierarchy_project_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Project ID for GenAI cost allocation."
-  },
-  {
-    "name": "x_hierarchy_project_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Project name (denormalized)."
-  },
-  {
-    "name": "x_hierarchy_team_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Team ID for GenAI cost allocation."
-  },
-  {
-    "name": "x_hierarchy_team_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Team name (denormalized)."
+    "description": "[Extension] Timestamp when hierarchy IDs were last validated against org_hierarchy table."
   }
 ]

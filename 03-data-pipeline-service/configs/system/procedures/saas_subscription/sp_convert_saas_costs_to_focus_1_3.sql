@@ -11,10 +11,11 @@
 --   - ProviderName/PublisherName → Deprecated, use ServiceProviderName/HostProviderName
 --   - InvoiceIssuer → InvoiceIssuerName
 --   - Added: HostProviderName, ServiceProviderName, InvoiceIssuerName
---   - SourceSystem/SourceRecordId/UpdatedAt → x_SourceSystem/x_SourceRecordId/x_UpdatedAt
+--   - x_* fields use snake_case: x_source_system, x_pipeline_id, etc.
 --   - Tags stored as JSON instead of REPEATED RECORD
 --   - ContractApplied field for linking to contract_commitment_1_3
 --
+-- UPDATED: 2025-12-30 - Standardized x_* fields to snake_case, fixed org_slug extraction
 -- ================================================================================
 
 CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_3(
@@ -27,9 +28,17 @@ OPTIONS(strict_mode=TRUE)
 BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_slug STRING;
+  DECLARE v_org_exists INT64 DEFAULT 0;
 
-  -- Extract org_slug from dataset_id (remove _prod/_stage/_dev/_local suffix)
-  SET v_org_slug = REGEXP_REPLACE(p_dataset_id, '_prod$|_stage$|_dev$|_local$', '');
+  -- Extract org_slug from dataset_id using safe extraction
+  -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
+  -- Handles edge cases like org_slug = "acme_prod_team" → extracts "acme_prod_team" not "acme"
+  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+?)_(prod|stage|dev|local|test)$', 1);
+
+  -- Fallback: if no match, assume entire dataset_id is org_slug (for backward compatibility)
+  IF v_org_slug IS NULL THEN
+    SET v_org_slug = p_dataset_id;
+  END IF;
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
