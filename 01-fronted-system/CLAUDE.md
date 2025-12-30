@@ -331,6 +331,160 @@ a { color: #1C1C1E; }
 
 **Premium theme:** White surfaces, mint tints - NO gray backgrounds
 
+### Layout System (Apple Health / Fitness+ Pattern) - Updated 2025-12-30
+
+**Design Philosophy:** CloudAct follows the Apple Health / Apple Fitness+ dashboard pattern:
+- Content containers with bounded max-width (not full-bleed)
+- Centered layout with premium breathing room
+- Cards that don't stretch infinitely on ultra-wide monitors
+- White space as a design element on large screens
+
+#### Container Widths (Tailwind Classes)
+
+| Class | Width | Usage |
+|-------|-------|-------|
+| `max-w-7xl` | **1280px** | **Console pages** - Dashboard, Analytics, Pipelines, Settings, Integrations |
+| `max-w-3xl` | 768px | Focused forms (subscription add, custom forms) |
+| `max-w-2xl` | 672px | Error pages, centered messages |
+| `max-w-xl` | 576px | Modals, dialogs |
+
+**Standard Console Page Container:**
+```tsx
+<div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+  {/* Page content */}
+</div>
+```
+
+#### Spacing Scale (8px Grid)
+
+| Variable | Value | Usage |
+|----------|-------|-------|
+| `space-1` | 4px | Tight spacing, icon gaps |
+| `space-2` | 8px | Inline elements, small gaps |
+| `space-3` | 12px | Card padding (mobile), list items |
+| `space-4` | 16px | Standard gaps, section margins |
+| `space-5` | 20px | Card padding (desktop) |
+| `space-6` | 24px | Page padding, section gaps |
+| `space-8` | 32px | Large section margins |
+| `space-10` | 40px | Hero sections |
+| `space-12` | 48px | Page top/bottom padding |
+
+**Responsive Spacing Pattern:**
+```tsx
+className="space-y-4 sm:space-y-6 lg:space-y-8"  // Vertical
+className="gap-3 sm:gap-4"                        // Grid gaps
+className="p-3 sm:p-5"                            // Card padding
+```
+
+#### Border Radius Scale
+
+| Variable | Value | Usage |
+|----------|-------|-------|
+| `radius-xs` | 4px | Badges, small elements |
+| `radius-sm` | 8px | Buttons, inputs |
+| `radius-md` | 12px | Cards (mobile) |
+| `radius-lg` | 16px | Cards (desktop) |
+| `radius-xl` | 20px | Metric cards, feature cards |
+| `radius-2xl` | 24px | Hero sections, large panels |
+| `radius-full` | 9999px | Pills, avatars, circular buttons |
+
+**Responsive Radius Pattern:**
+```tsx
+className="rounded-xl sm:rounded-2xl"  // Cards
+className="rounded-lg sm:rounded-xl"   // Buttons
+```
+
+#### Shadow System (Apple-style Subtle Shadows)
+
+| Variable | Value | Usage |
+|----------|-------|-------|
+| `shadow-xs` | `0 1px 2px rgba(0,0,0,0.03)` | Subtle lift |
+| `shadow-sm` | `0 1px 3px rgba(0,0,0,0.04)` | Cards at rest |
+| `shadow-md` | `0 4px 12px rgba(0,0,0,0.06)` | Cards on hover |
+| `shadow-lg` | `0 8px 24px rgba(0,0,0,0.08)` | Elevated elements |
+| `shadow-xl` | `0 16px 48px rgba(0,0,0,0.1)` | Modals, dropdowns |
+| `shadow-glow-mint` | `0 0 40px rgba(144,252,166,0.25)` | Mint hover glow |
+| `shadow-glow-coral` | `0 0 40px rgba(255,108,94,0.15)` | Coral hover glow |
+
+#### Typography Scale
+
+| Variable | Size | Usage |
+|----------|------|-------|
+| `text-xs` | 11px | Micro labels, badges |
+| `text-sm` | 13px | Secondary text, captions |
+| `text-base` | 15px | Body text, inputs |
+| `text-lg` | 18px | Emphasized body |
+| `text-xl` | 20px | Section titles |
+| `text-2xl` | 24px | Card titles |
+| `text-3xl` | 30px | Page subtitles |
+| `text-4xl` | 36px | Page titles |
+| `text-5xl` | 48px | Hero headlines |
+
+**Font Weights:** 400 (normal), 500 (medium), 600 (semibold), 700 (bold)
+
+**Letter Spacing:** `-0.03em` (tight headings), `-0.02em` (subheadings), `0` (body)
+
+#### Grid System
+
+**Metric Cards (4-column on desktop):**
+```tsx
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+```
+
+**Two-Column Layout (2:1 ratio):**
+```tsx
+<div className="grid gap-6 lg:grid-cols-3">
+  <div className="lg:col-span-2">{/* Main content */}</div>
+  <div className="lg:col-span-1">{/* Sidebar */}</div>
+</div>
+```
+
+**Quick Actions (3-column):**
+```tsx
+<div className="grid gap-4 sm:grid-cols-3">
+```
+
+#### Mobile Breakpoints
+
+| Breakpoint | Width | Usage |
+|------------|-------|-------|
+| (default) | < 640px | Mobile-first base styles |
+| `sm:` | ≥ 640px | Large phones, small tablets |
+| `md:` | ≥ 768px | Tablets |
+| `lg:` | ≥ 1024px | Desktop |
+| `xl:` | ≥ 1280px | Large desktop |
+| `2xl:` | ≥ 1536px | Ultra-wide |
+
+**Touch Targets:** Minimum 44px height for buttons/interactive elements on mobile.
+
+#### Page Template Classes
+
+```css
+/* Page container with gradient */
+.page-container {
+  min-height: 100%;
+  padding: var(--space-6);
+  background: var(--surface-primary);
+  background-image: radial-gradient(ellipse 120% 40% at 50% -10%, rgba(144, 252, 166, 0.08) 0%, transparent 60%);
+}
+
+/* Premium card with hover lift */
+.premium-card {
+  background: var(--surface-primary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-premium-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  box-shadow: var(--shadow-premium-md);
+  transform: translateY(-2px);
+  border-color: var(--border-mint);
+}
+```
+
 ### Auth Pages (FINALIZED - 2025-12-27)
 
 **Status:** LOCKED - No changes without explicit user permission.

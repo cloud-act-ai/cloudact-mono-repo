@@ -98,10 +98,22 @@ Frontend (3000)              API Service (8000)           Pipeline Engine (8001)
 | API Service | `02-api-service/CLAUDE.md` |
 | Pipeline Engine | `03-data-pipeline-service/CLAUDE.md` |
 | Frontend | `01-fronted-system/CLAUDE.md` |
+| **Design System** | `01-fronted-system/CLAUDE.md` → Design System section |
 | Security | `03-data-pipeline-service/SECURITY.md` |
 | **CI/CD & Deployment** | `04-inra-cicd-automation/CICD/README.md` |
 
 **Feature Docs (00-requirements-specs/):** Internationalization, User Management, Billing, Costs, Pipelines, Integrations, Security, Testing
+
+## Frontend Design Pattern
+
+**Apple Health / Fitness+ Dashboard Pattern** - CloudAct console follows premium bounded-width design:
+- `max-w-7xl` (1280px) for all console pages
+- Centered layout with `mx-auto`
+- 8px spacing grid
+- Premium white surfaces with mint accent gradients
+- Cards don't stretch on ultra-wide monitors
+
+See `01-fronted-system/CLAUDE.md` → "Layout System" section for complete design tokens.
 
 ## API Key Hierarchy
 

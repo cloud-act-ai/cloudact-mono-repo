@@ -334,8 +334,8 @@ app = FastAPI(
     redoc_url="/redoc" if settings.enable_api_docs else None,
     openapi_tags=tags_metadata,
     contact={
-        "name": "CloudAct Platform Team",
-        "email": "support@cloudact.io"
+        "name": "CloudAct.ai",
+        "email": "support@cloudact.ai"
     },
     license_info={
         "name": "Proprietary"

@@ -224,7 +224,7 @@ async def lifespan(app: FastAPI):
 
 # OpenAPI metadata and tags
 api_description = """
-## CloudAct API Service
+## CloudAct.ai API Service
 
 Enterprise-grade API service for multi-cloud cost analytics platform.
 
@@ -308,15 +308,15 @@ tags_metadata = [
 
 # Create FastAPI application with comprehensive metadata
 app = FastAPI(
-    title="CloudAct API Service",
+    title="CloudAct.ai API Service",
     version=settings.app_version,
     description=api_description,
     docs_url="/docs" if settings.enable_api_docs else None,
     redoc_url="/redoc" if settings.enable_api_docs else None,
     openapi_tags=tags_metadata,
     contact={
-        "name": "CloudAct Platform Team",
-        "email": "support@cloudact.io"
+        "name": "CloudAct.ai",
+        "email": "support@cloudact.ai"
     },
     license_info={
         "name": "Proprietary"
@@ -850,7 +850,7 @@ async def readiness_probe():
 async def root():
     """Root endpoint with API information and documentation links."""
     return {
-        "message": "Welcome to CloudAct API Service",
+        "message": "Welcome to CloudAct.ai API Service",
         "service": "api-service",
         "version": settings.app_version,
         "release": settings.release_version,

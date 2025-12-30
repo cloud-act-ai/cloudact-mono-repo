@@ -199,7 +199,7 @@ class Settings(BaseSettings):
         if '*' in v and len(v) == 1:
             raise ValueError(
                 "CORS wildcard '*' is not allowed when cors_allow_credentials=true. "
-                "Specify explicit origins instead (e.g., ['https://app.cloudact.io'])"
+                "Specify explicit origins instead (e.g., ['https://cloudact.ai'])"
             )
         return v
 

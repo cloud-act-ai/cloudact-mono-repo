@@ -227,7 +227,7 @@ class APIConnector:
     def _build_headers(self) -> Dict[str, str]:
         """Build request headers with authentication."""
         headers = {
-            "User-Agent": "CloudAct-Data-Pipeline/1.0",
+            "User-Agent": "CloudAct.ai-Pipeline-Service/1.0",
             "Accept": "application/json",
         }
 
