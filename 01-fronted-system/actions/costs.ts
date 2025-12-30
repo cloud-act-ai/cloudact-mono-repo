@@ -16,6 +16,7 @@ import {
   getApiServiceUrl,
   fetchWithTimeout,
   safeJsonParse,
+  extractErrorMessage,
   isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
 
@@ -244,6 +245,19 @@ export async function getGenAICosts(
           currency: "USD",
         }
       }
+      // 400 indicates validation error
+      if (response.status === 400) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: `Invalid request: ${extractErrorMessage(errorText)}`,
+        }
+      }
       // 401/403 indicate auth issues
       if (response.status === 401 || response.status === 403) {
         return {
@@ -254,6 +268,18 @@ export async function getGenAICosts(
           query_time_ms: 0,
           currency: "USD",
           error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 429 indicates rate limiting
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: "Too many requests. Please wait a moment and try again.",
         }
       }
       // 5xx errors indicate server issues
@@ -276,7 +302,7 @@ export async function getGenAICosts(
         cache_hit: false,
         query_time_ms: 0,
         currency: "USD",
-        error: `Failed to fetch GenAI costs: ${errorText}`,
+        error: `Failed to fetch GenAI costs: ${extractErrorMessage(errorText)}`,
       }
     }
 
@@ -345,6 +371,7 @@ export async function getCloudCosts(
     })
 
     if (!response.ok) {
+      // 404 means no data found for this org/date range - this is NOT an error
       if (response.status === 404) {
         return {
           success: true,
@@ -355,6 +382,55 @@ export async function getCloudCosts(
           currency: "USD",
         }
       }
+      // 400 indicates validation error
+      if (response.status === 400) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: `Invalid request: ${extractErrorMessage(errorText)}`,
+        }
+      }
+      // 401/403 indicate auth issues
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 429 indicates rate limiting
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: "Too many requests. Please wait a moment and try again.",
+        }
+      }
+      // 5xx errors indicate server issues
+      if (response.status >= 500) {
+        return {
+          success: false,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+          currency: "USD",
+          error: "Cost service is temporarily unavailable. Please try again later.",
+        }
+      }
       const errorText = await response.text()
       return {
         success: false,
@@ -363,7 +439,7 @@ export async function getCloudCosts(
         cache_hit: false,
         query_time_ms: 0,
         currency: "USD",
-        error: `Failed to fetch cloud costs: ${errorText}`,
+        error: `Failed to fetch cloud costs: ${extractErrorMessage(errorText)}`,
       }
     }
 
@@ -432,14 +508,48 @@ export async function getTotalCosts(
     })
 
     if (!response.ok) {
+      // 404 means no data found - this is NOT an error
       if (response.status === 404) {
         return { success: true, data: null }
+      }
+      // 400 indicates validation error
+      if (response.status === 400) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          data: null,
+          error: `Invalid request: ${extractErrorMessage(errorText)}`,
+        }
+      }
+      // 401/403 indicate auth issues
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          data: null,
+          error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 429 indicates rate limiting
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: null,
+          error: "Too many requests. Please wait a moment and try again.",
+        }
+      }
+      // 5xx errors indicate server issues
+      if (response.status >= 500) {
+        return {
+          success: false,
+          data: null,
+          error: "Cost service is temporarily unavailable. Please try again later.",
+        }
       }
       const errorText = await response.text()
       return {
         success: false,
         data: null,
-        error: `Failed to fetch total costs: ${errorText}`,
+        error: `Failed to fetch total costs: ${extractErrorMessage(errorText)}`,
       }
     }
 
@@ -501,15 +611,53 @@ export async function getCostTrend(
     })
 
     if (!response.ok) {
+      // 404 means no data found - this is NOT an error
       if (response.status === 404) {
         return { success: true, data: [], currency: "USD" }
+      }
+      // 400 indicates validation error
+      if (response.status === 400) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: `Invalid request: ${extractErrorMessage(errorText)}`,
+        }
+      }
+      // 401/403 indicate auth issues
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 429 indicates rate limiting
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Too many requests. Please wait a moment and try again.",
+        }
+      }
+      // 5xx errors indicate server issues
+      if (response.status >= 500) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Cost service is temporarily unavailable. Please try again later.",
+        }
       }
       const errorText = await response.text()
       return {
         success: false,
         data: [],
         currency: "USD",
-        error: `Failed to fetch cost trend: ${errorText}`,
+        error: `Failed to fetch cost trend: ${extractErrorMessage(errorText)}`,
       }
     }
 
@@ -582,15 +730,53 @@ export async function getCostByProvider(
     })
 
     if (!response.ok) {
+      // 404 means no data found - this is NOT an error
       if (response.status === 404) {
         return { success: true, data: [], currency: "USD" }
+      }
+      // 400 indicates validation error
+      if (response.status === 400) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: `Invalid request: ${extractErrorMessage(errorText)}`,
+        }
+      }
+      // 401/403 indicate auth issues
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 429 indicates rate limiting
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Too many requests. Please wait a moment and try again.",
+        }
+      }
+      // 5xx errors indicate server issues
+      if (response.status >= 500) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Cost service is temporarily unavailable. Please try again later.",
+        }
       }
       const errorText = await response.text()
       return {
         success: false,
         data: [],
         currency: "USD",
-        error: `Failed to fetch cost by provider: ${errorText}`,
+        error: `Failed to fetch cost by provider: ${extractErrorMessage(errorText)}`,
       }
     }
 
@@ -694,15 +880,53 @@ export async function getCostByService(
     })
 
     if (!response.ok) {
+      // 404 means no data found - this is NOT an error
       if (response.status === 404) {
         return { success: true, data: [], currency: "USD" }
+      }
+      // 400 indicates validation error
+      if (response.status === 400) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: `Invalid request: ${extractErrorMessage(errorText)}`,
+        }
+      }
+      // 401/403 indicate auth issues
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Authentication failed. Please check your API key.",
+        }
+      }
+      // 429 indicates rate limiting
+      if (response.status === 429) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Too many requests. Please wait a moment and try again.",
+        }
+      }
+      // 5xx errors indicate server issues
+      if (response.status >= 500) {
+        return {
+          success: false,
+          data: [],
+          currency: "USD",
+          error: "Cost service is temporarily unavailable. Please try again later.",
+        }
       }
       const errorText = await response.text()
       return {
         success: false,
         data: [],
         currency: "USD",
-        error: `Failed to fetch cost by service: ${errorText}`,
+        error: `Failed to fetch cost by service: ${extractErrorMessage(errorText)}`,
       }
     }
 
