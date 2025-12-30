@@ -1279,8 +1279,9 @@ async def reset_daily_quotas(
 
         logger.info(f"Archived {archived_count} old quota records")
 
+        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "success",
+            "status": "SUCCESS",
             "records_reset": reset_count,
             "records_archived": archived_count,
             "message": f"Reset {reset_count} daily quotas for today, archived {archived_count} old records",
@@ -1344,8 +1345,9 @@ async def cleanup_orphaned_pipelines(
         orgs_results = list(bq_client.client.query(orgs_query).result())
 
         if not orgs_results:
+            # Issue #21: Standardized status to UPPERCASE
             return {
-                "status": "success",
+                "status": "SUCCESS",
                 "total_pipelines_cleaned": 0,
                 "orgs_processed": 0,
                 "message": "No active orgs found",
@@ -1420,8 +1422,9 @@ async def cleanup_orphaned_pipelines(
                 # Continue processing other orgs
                 continue
 
+        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "success",
+            "status": "SUCCESS",
             "total_pipelines_cleaned": total_cleaned,
             "orgs_processed": len(orgs_results),
             "orgs_with_cleanup": len(org_details),

@@ -221,4 +221,9 @@ BEGIN
     v_rows_inserted as rows_inserted,
     v_total_cost as total_cost_usd,
     CURRENT_TIMESTAMP() as executed_at;
+
+-- Issue #16-18 FIX: Add error handling with rollback
+EXCEPTION WHEN ERROR THEN
+  ROLLBACK TRANSACTION;
+  RAISE USING MESSAGE = CONCAT('sp_consolidate_genai_costs_daily Failed: ', @@error.message);
 END;

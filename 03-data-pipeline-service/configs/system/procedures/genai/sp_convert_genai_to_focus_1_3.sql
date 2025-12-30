@@ -41,7 +41,7 @@ BEGIN
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE ChargePeriodStart = @p_date
           AND x_genai_cost_type IS NOT NULL
-          AND x_CredentialId = @p_credential_id
+          AND x_credential_id = @p_credential_id
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_credential_id AS p_credential_id;
     ELSE
@@ -68,9 +68,10 @@ BEGIN
        x_hierarchy_dept_id, x_hierarchy_dept_name,
        x_hierarchy_project_id, x_hierarchy_project_name,
        x_hierarchy_team_id, x_hierarchy_team_name,
-       -- STATE-001 FIX: Required lineage columns for FOCUS 1.3
-       x_PipelineId, x_PipelineRunId, x_DataQualityScore, x_CreatedAt,
-       x_CredentialId, x_PipelineRunDate, x_IngestedAt)
+       x_hierarchy_validated_at,  -- Issue #8-11 FIX: Add hierarchy validation timestamp
+       -- STATE-001 FIX: Required lineage columns for FOCUS 1.3 (Issue #1: snake_case)
+       x_pipeline_id, x_run_id, x_data_quality_score, x_created_at,
+       x_credential_id, x_pipeline_run_date, x_ingested_at)
       SELECT
         cost_date as ChargePeriodStart,
         cost_date as ChargePeriodEnd,
@@ -166,15 +167,21 @@ BEGIN
         hierarchy_project_name as x_hierarchy_project_name,
         hierarchy_team_id as x_hierarchy_team_id,
         hierarchy_team_name as x_hierarchy_team_name,
+        -- Issue #8-11 FIX: Set validation timestamp when hierarchy IDs present
+        CASE
+          WHEN hierarchy_dept_id IS NOT NULL OR hierarchy_project_id IS NOT NULL OR hierarchy_team_id IS NOT NULL
+          THEN CURRENT_TIMESTAMP()
+          ELSE NULL
+        END as x_hierarchy_validated_at,
 
-        -- STATE-001 FIX: Lineage values for FOCUS 1.3
-        COALESCE(x_pipeline_id, @p_pipeline_id) as x_PipelineId,
-        COALESCE(x_run_id, @p_run_id) as x_PipelineRunId,
-        100.0 as x_DataQualityScore,  -- GenAI consolidated costs are high quality
-        CURRENT_TIMESTAMP() as x_CreatedAt,
-        COALESCE(x_credential_id, @p_credential_id, 'internal') as x_CredentialId,
-        COALESCE(x_pipeline_run_date, cost_date) as x_PipelineRunDate,
-        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_IngestedAt
+        -- STATE-001 FIX: Lineage values for FOCUS 1.3 (Issue #1: snake_case)
+        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        COALESCE(x_run_id, @p_run_id) as x_run_id,
+        100.0 as x_data_quality_score,  -- GenAI consolidated costs are high quality
+        CURRENT_TIMESTAMP() as x_created_at,
+        COALESCE(x_credential_id, @p_credential_id, 'internal') as x_credential_id,
+        COALESCE(x_pipeline_run_date, cost_date) as x_pipeline_run_date,
+        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
 
       FROM `%s.%s.genai_costs_daily_unified`
       WHERE cost_date = @p_date
@@ -194,4 +201,9 @@ BEGIN
     v_rows_inserted as rows_inserted,
     'cost_data_standard_1_3' as target_table,
     CURRENT_TIMESTAMP() as executed_at;
+
+-- Issue #16-18 FIX: Add error handling with rollback
+EXCEPTION WHEN ERROR THEN
+  ROLLBACK TRANSACTION;
+  RAISE USING MESSAGE = CONCAT('sp_convert_genai_to_focus_1_3 Failed: ', @@error.message);
 END;

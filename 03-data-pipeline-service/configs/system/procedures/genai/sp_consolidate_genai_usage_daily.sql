@@ -221,4 +221,9 @@ BEGIN
     v_rows_deleted as rows_deleted,
     v_rows_inserted as rows_inserted,
     CURRENT_TIMESTAMP() as executed_at;
+
+-- Issue #16-18 FIX: Add error handling with rollback
+EXCEPTION WHEN ERROR THEN
+  ROLLBACK TRANSACTION;
+  RAISE USING MESSAGE = CONCAT('sp_consolidate_genai_usage_daily Failed: ', @@error.message);
 END;

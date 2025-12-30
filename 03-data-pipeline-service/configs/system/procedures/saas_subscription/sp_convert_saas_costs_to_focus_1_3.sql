@@ -54,7 +54,7 @@ BEGIN
     EXECUTE IMMEDIATE FORMAT("""
       DELETE FROM `%s.%s.cost_data_standard_1_3`
       WHERE DATE(ChargePeriodStart) BETWEEN @p_start AND @p_end
-        AND x_SourceSystem = 'saas_subscription_costs_daily'
+        AND x_source_system = 'saas_subscription_costs_daily'
     """, p_project_id, p_dataset_id)
     USING p_start_date AS p_start, p_end_date AS p_end;
 
@@ -103,19 +103,24 @@ BEGIN
         SkuId, SkuMeter, SkuPriceDetails, SkuPriceId,
         -- Tags (JSON in FOCUS 1.3)
         Tags,
-        -- Extension fields (x_ prefix per FOCUS convention)
-        x_SourceSystem, x_SourceRecordId, x_AmortizationClass, x_ServiceModel,
-        x_CostAllocationKey, x_ExchangeRateUsed, x_OriginalCurrency, x_OriginalCost, x_UpdatedAt,
+        -- Extension fields (x_ prefix per FOCUS convention - snake_case)
+        x_source_system, x_source_record_id, x_amortization_class, x_service_model,
+        x_cost_allocation_key, x_exchange_rate_used, x_original_currency, x_original_cost, x_updated_at,
         -- Org-specific extension fields (from org_profiles)
-        x_OrgSlug, x_OrgName, x_OrgOwnerEmail, x_OrgDefaultCurrency, x_OrgDefaultTimezone,
-        x_OrgDefaultCountry, x_OrgSubscriptionPlan, x_OrgSubscriptionStatus,
-        x_PipelineId, x_PipelineRunId, x_DataQualityScore, x_CreatedAt,
+        x_org_slug, x_org_name, x_org_owner_email, x_org_default_currency, x_org_default_timezone,
+        x_org_default_country, x_org_subscription_plan, x_org_subscription_status,
+        -- Issue #2 FIX: Standardize to x_run_id (matches genai procedure)
+        x_pipeline_id, x_run_id, x_data_quality_score, x_created_at,
         -- Required pipeline lineage fields (FOCUS extension)
-        x_CredentialId, x_PipelineRunDate, x_IngestedAt,
+        x_credential_id, x_pipeline_run_date, x_ingested_at,
         -- Hierarchy extension fields for cost allocation
-        x_HierarchyDeptId, x_HierarchyDeptName,
-        x_HierarchyProjectId, x_HierarchyProjectName,
-        x_HierarchyTeamId, x_HierarchyTeamName
+        x_hierarchy_dept_id, x_hierarchy_dept_name,
+        x_hierarchy_project_id, x_hierarchy_project_name,
+        x_hierarchy_team_id, x_hierarchy_team_name,
+        -- GenAI extension fields
+        x_genai_cost_type, x_genai_provider, x_genai_model,
+        -- Hierarchy validation timestamp
+        x_hierarchy_validated_at
       )
       SELECT
         -- Billing Account (REQUIRED - use subscription_id as fallback)
@@ -267,43 +272,55 @@ BEGIN
           'cost_date', CAST(spc.cost_date AS STRING)
         ) AS Tags,
 
-        -- Extension fields (x_ prefix per FOCUS convention - all populated)
-        'saas_subscription_costs_daily' AS x_SourceSystem,
-        spc.subscription_id AS x_SourceRecordId,
-        'Amortized' AS x_AmortizationClass,
-        'SaaS' AS x_ServiceModel,
-        COALESCE(sp.department, 'default') AS x_CostAllocationKey,
-        COALESCE(sp.exchange_rate_used, 1.0) AS x_ExchangeRateUsed,
-        COALESCE(sp.source_currency, spc.currency) AS x_OriginalCurrency,
-        CAST(COALESCE(sp.source_price, sp.unit_price) AS NUMERIC) AS x_OriginalCost,
-        CURRENT_TIMESTAMP() AS x_UpdatedAt,
+        -- Extension fields (x_ prefix per FOCUS convention - snake_case)
+        'saas_subscription_costs_daily' AS x_source_system,
+        spc.subscription_id AS x_source_record_id,
+        'Amortized' AS x_amortization_class,
+        'SaaS' AS x_service_model,
+        COALESCE(sp.department, 'default') AS x_cost_allocation_key,
+        COALESCE(sp.exchange_rate_used, 1.0) AS x_exchange_rate_used,
+        COALESCE(sp.source_currency, spc.currency) AS x_original_currency,
+        CAST(COALESCE(sp.source_price, sp.unit_price) AS NUMERIC) AS x_original_cost,
+        CURRENT_TIMESTAMP() AS x_updated_at,
 
         -- Org-specific extension fields (with fallbacks from spc when org_profiles is NULL)
-        spc.org_slug AS x_OrgSlug,
-        COALESCE(op.company_name, spc.org_slug) AS x_OrgName,
-        COALESCE(op.admin_email, CONCAT('admin@', spc.org_slug, '.com')) AS x_OrgOwnerEmail,
-        COALESCE(op.default_currency, spc.currency, 'USD') AS x_OrgDefaultCurrency,
-        COALESCE(op.default_timezone, 'UTC') AS x_OrgDefaultTimezone,
-        COALESCE(op.default_country, 'US') AS x_OrgDefaultCountry,
-        COALESCE(os.plan_name, 'FREE') AS x_OrgSubscriptionPlan,
-        COALESCE(os.status, 'ACTIVE') AS x_OrgSubscriptionStatus,
-        'saas_subscription_costs_pipeline' AS x_PipelineId,
-        GENERATE_UUID() AS x_PipelineRunId,
-        1.0 AS x_DataQualityScore,
-        CURRENT_TIMESTAMP() AS x_CreatedAt,
+        spc.org_slug AS x_org_slug,
+        COALESCE(op.company_name, spc.org_slug) AS x_org_name,
+        COALESCE(op.admin_email, 'noreply@cloudact.ai') AS x_org_owner_email,
+        COALESCE(op.default_currency, spc.currency, 'USD') AS x_org_default_currency,
+        COALESCE(op.default_timezone, 'UTC') AS x_org_default_timezone,
+        COALESCE(op.default_country, 'US') AS x_org_default_country,
+        COALESCE(os.plan_name, 'FREE') AS x_org_subscription_plan,
+        COALESCE(os.status, 'ACTIVE') AS x_org_subscription_status,
+        'saas_subscription_costs_pipeline' AS x_pipeline_id,
+        GENERATE_UUID() AS x_run_id,  -- Issue #2 FIX: Standardized field name
+        1.0 AS x_data_quality_score,
+        CURRENT_TIMESTAMP() AS x_created_at,
 
         -- Required pipeline lineage fields
-        'internal' AS x_CredentialId,
-        spc.cost_date AS x_PipelineRunDate,
-        CURRENT_TIMESTAMP() AS x_IngestedAt,
+        'internal' AS x_credential_id,
+        spc.cost_date AS x_pipeline_run_date,
+        CURRENT_TIMESTAMP() AS x_ingested_at,
 
         -- Hierarchy extension fields for cost allocation (from subscription plans)
-        spc.hierarchy_dept_id AS x_HierarchyDeptId,
-        spc.hierarchy_dept_name AS x_HierarchyDeptName,
-        spc.hierarchy_project_id AS x_HierarchyProjectId,
-        spc.hierarchy_project_name AS x_HierarchyProjectName,
-        spc.hierarchy_team_id AS x_HierarchyTeamId,
-        spc.hierarchy_team_name AS x_HierarchyTeamName
+        spc.hierarchy_dept_id AS x_hierarchy_dept_id,
+        spc.hierarchy_dept_name AS x_hierarchy_dept_name,
+        spc.hierarchy_project_id AS x_hierarchy_project_id,
+        spc.hierarchy_project_name AS x_hierarchy_project_name,
+        spc.hierarchy_team_id AS x_hierarchy_team_id,
+        spc.hierarchy_team_name AS x_hierarchy_team_name,
+
+        -- GenAI extension fields (NULL for SaaS)
+        NULL AS x_genai_cost_type,
+        NULL AS x_genai_provider,
+        NULL AS x_genai_model,
+
+        -- Hierarchy validation timestamp (set when hierarchy IDs are validated)
+        CASE
+          WHEN spc.hierarchy_dept_id IS NOT NULL OR spc.hierarchy_project_id IS NOT NULL OR spc.hierarchy_team_id IS NOT NULL
+          THEN CURRENT_TIMESTAMP()
+          ELSE NULL
+        END AS x_hierarchy_validated_at
 
       FROM `%s.%s.saas_subscription_plan_costs_daily` spc
       LEFT JOIN `%s.%s.saas_subscription_plans` sp
@@ -324,7 +341,7 @@ BEGIN
   EXECUTE IMMEDIATE FORMAT("""
     SELECT COUNT(*) FROM `%s.%s.cost_data_standard_1_3`
     WHERE ChargePeriodStart BETWEEN @p_start AND @p_end
-      AND x_SourceSystem = 'saas_subscription_costs_daily'
+      AND x_source_system = 'saas_subscription_costs_daily'
   """, p_project_id, p_dataset_id)
   INTO v_rows_inserted USING TIMESTAMP(p_start_date) AS p_start, TIMESTAMP(p_end_date) AS p_end;
 

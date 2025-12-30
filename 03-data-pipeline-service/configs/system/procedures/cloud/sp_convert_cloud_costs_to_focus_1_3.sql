@@ -29,8 +29,15 @@ BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_slug STRING;
 
-  -- Extract org_slug from dataset_id
-  SET v_org_slug = REGEXP_REPLACE(p_dataset_id, '_prod$|_stage$|_dev$|_local$', '');
+  -- Extract org_slug from dataset_id using safe extraction
+  -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
+  -- Handles edge cases like org_slug = "acme_prod_team" → extracts "acme_prod_team" not "acme"
+  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+?)_(prod|stage|dev|local|test)$', 1);
+
+  -- Fallback: if no match, assume entire dataset_id is org_slug (for backward compatibility)
+  IF v_org_slug IS NULL THEN
+    SET v_org_slug = p_dataset_id;
+  END IF;
 
   -- Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -48,7 +55,7 @@ BEGIN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE DATE(ChargePeriodStart) = @p_date
-          AND x_SourceSystem IN ('gcp_billing_cost_daily', 'aws_billing_cost_daily',
+          AND x_source_system IN ('gcp_billing_cost_daily', 'aws_billing_cost_daily',
                                   'azure_billing_cost_daily', 'oci_billing_cost_daily')
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date;
@@ -56,7 +63,7 @@ BEGIN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE DATE(ChargePeriodStart) = @p_date
-          AND x_SourceSystem = CONCAT(@p_provider, '_billing_cost_daily')
+          AND x_source_system = CONCAT(@p_provider, '_billing_cost_daily')
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_provider AS p_provider;
     END IF;
@@ -77,9 +84,10 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_SourceRecordId, x_UpdatedAt,
-         x_CloudProvider, x_CloudAccountId,
-         x_PipelineId, x_CredentialId, x_PipelineRunDate, x_PipelineRunId, x_IngestedAt)
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           TIMESTAMP(usage_start_time) as ChargePeriodStart,
           TIMESTAMP(usage_end_time) as ChargePeriodEnd,
@@ -132,17 +140,18 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(labels_json), JSON_OBJECT()) as Tags,
 
-          'gcp_billing_cost_daily' as x_SourceSystem,
-          GENERATE_UUID() as x_SourceRecordId,
-          CURRENT_TIMESTAMP() as x_UpdatedAt,
-          'gcp' as x_CloudProvider,
-          billing_account_id as x_CloudAccountId,
+          'gcp_billing_cost_daily' as x_source_system,
+          GENERATE_UUID() as x_source_record_id,
+          CURRENT_TIMESTAMP() as x_updated_at,
+          -- Issue #3 FIX: snake_case for x_* fields
+          'gcp' as x_cloud_provider,
+          billing_account_id as x_cloud_account_id,
           -- Lineage columns (REQUIRED)
-          @p_pipeline_id as x_PipelineId,
-          @p_credential_id as x_CredentialId,
-          @p_date as x_PipelineRunDate,
-          @p_run_id as x_PipelineRunId,
-          CURRENT_TIMESTAMP() as x_IngestedAt
+          @p_pipeline_id as x_pipeline_id,
+          @p_credential_id as x_credential_id,
+          @p_date as x_pipeline_run_date,
+          @p_run_id as x_run_id,
+          CURRENT_TIMESTAMP() as x_ingested_at
 
         FROM `%s.%s.gcp_billing_cost_daily`
         WHERE DATE(usage_start_time) = @p_date
@@ -169,10 +178,11 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_SourceRecordId, x_UpdatedAt,
-         x_CloudProvider, x_CloudAccountId,
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountType,
-         x_PipelineId, x_CredentialId, x_PipelineRunDate, x_PipelineRunId, x_IngestedAt)
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           COALESCE(usage_start_time, TIMESTAMP(usage_date)) as ChargePeriodStart,
           COALESCE(usage_end_time, TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
@@ -229,11 +239,12 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(resource_tags_json), JSON_OBJECT()) as Tags,
 
-          'aws_billing_cost_daily' as x_SourceSystem,
-          GENERATE_UUID() as x_SourceRecordId,
-          CURRENT_TIMESTAMP() as x_UpdatedAt,
-          'aws' as x_CloudProvider,
-          payer_account_id as x_CloudAccountId,
+          'aws_billing_cost_daily' as x_source_system,
+          GENERATE_UUID() as x_source_record_id,
+          CURRENT_TIMESTAMP() as x_updated_at,
+          -- Issue #3 FIX: snake_case for x_* fields
+          'aws' as x_cloud_provider,
+          payer_account_id as x_cloud_account_id,
 
           COALESCE(reservation_arn, savings_plan_arn) as CommitmentDiscountId,
           CASE
@@ -242,11 +253,11 @@ BEGIN
             ELSE NULL
           END as CommitmentDiscountType,
           -- Lineage columns (REQUIRED)
-          @p_pipeline_id as x_PipelineId,
-          @p_credential_id as x_CredentialId,
-          @p_date as x_PipelineRunDate,
-          @p_run_id as x_PipelineRunId,
-          CURRENT_TIMESTAMP() as x_IngestedAt
+          @p_pipeline_id as x_pipeline_id,
+          @p_credential_id as x_credential_id,
+          @p_date as x_pipeline_run_date,
+          @p_run_id as x_run_id,
+          CURRENT_TIMESTAMP() as x_ingested_at
 
         FROM `%s.%s.aws_billing_cost_daily`
         WHERE usage_date = @p_date
@@ -273,10 +284,11 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_SourceRecordId, x_UpdatedAt,
-         x_CloudProvider, x_CloudAccountId,
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountName,
-         x_PipelineId, x_CredentialId, x_PipelineRunDate, x_PipelineRunId, x_IngestedAt)
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           TIMESTAMP(usage_date) as ChargePeriodStart,
           TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
@@ -323,20 +335,21 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(tags_json), JSON_OBJECT()) as Tags,
 
-          'azure_billing_cost_daily' as x_SourceSystem,
-          GENERATE_UUID() as x_SourceRecordId,
-          CURRENT_TIMESTAMP() as x_UpdatedAt,
-          'azure' as x_CloudProvider,
-          subscription_id as x_CloudAccountId,
+          'azure_billing_cost_daily' as x_source_system,
+          GENERATE_UUID() as x_source_record_id,
+          CURRENT_TIMESTAMP() as x_updated_at,
+          -- Issue #3 FIX: snake_case for x_* fields
+          'azure' as x_cloud_provider,
+          subscription_id as x_cloud_account_id,
 
           reservation_id as CommitmentDiscountId,
           reservation_name as CommitmentDiscountName,
           -- Lineage columns (REQUIRED)
-          @p_pipeline_id as x_PipelineId,
-          @p_credential_id as x_CredentialId,
-          @p_date as x_PipelineRunDate,
-          @p_run_id as x_PipelineRunId,
-          CURRENT_TIMESTAMP() as x_IngestedAt
+          @p_pipeline_id as x_pipeline_id,
+          @p_credential_id as x_credential_id,
+          @p_date as x_pipeline_run_date,
+          @p_run_id as x_run_id,
+          CURRENT_TIMESTAMP() as x_ingested_at
 
         FROM `%s.%s.azure_billing_cost_daily`
         WHERE usage_date = @p_date
@@ -363,9 +376,10 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_SourceRecordId, x_UpdatedAt,
-         x_CloudProvider, x_CloudAccountId,
-         x_PipelineId, x_CredentialId, x_PipelineRunDate, x_PipelineRunId, x_IngestedAt)
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           TIMESTAMP(usage_date) as ChargePeriodStart,
           TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
@@ -417,17 +431,18 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(tags_json), JSON_OBJECT()) as Tags,
 
-          'oci_billing_cost_daily' as x_SourceSystem,
-          GENERATE_UUID() as x_SourceRecordId,
-          CURRENT_TIMESTAMP() as x_UpdatedAt,
-          'oci' as x_CloudProvider,
-          tenancy_ocid as x_CloudAccountId,
+          'oci_billing_cost_daily' as x_source_system,
+          GENERATE_UUID() as x_source_record_id,
+          CURRENT_TIMESTAMP() as x_updated_at,
+          -- Issue #3 FIX: snake_case for x_* fields
+          'oci' as x_cloud_provider,
+          tenancy_ocid as x_cloud_account_id,
           -- Lineage columns (REQUIRED)
-          @p_pipeline_id as x_PipelineId,
-          @p_credential_id as x_CredentialId,
-          @p_date as x_PipelineRunDate,
-          @p_run_id as x_PipelineRunId,
-          CURRENT_TIMESTAMP() as x_IngestedAt
+          @p_pipeline_id as x_pipeline_id,
+          @p_credential_id as x_credential_id,
+          @p_date as x_pipeline_run_date,
+          @p_run_id as x_run_id,
+          CURRENT_TIMESTAMP() as x_ingested_at
 
         FROM `%s.%s.oci_billing_cost_daily`
         WHERE usage_date = @p_date

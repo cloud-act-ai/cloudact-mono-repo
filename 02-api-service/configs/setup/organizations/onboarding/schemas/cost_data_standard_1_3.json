@@ -492,10 +492,10 @@
     "description": "[Extension] Pipeline template name. Example: focus_convert_gcp. KEY for idempotent re-runs."
   },
   {
-    "name": "x_pipeline_run_id",
+    "name": "x_run_id",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "[Extension] Unique pipeline run UUID for full traceability."
+    "description": "[Extension] Unique pipeline run UUID for full traceability. Issue #4-5 FIX: Renamed from x_pipeline_run_id for consistency."
   },
   {
     "name": "x_credential_id",
@@ -580,6 +580,18 @@
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] GenAI model identifier."
+  },
+  {
+    "name": "x_cloud_provider",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Cloud provider: gcp, aws, azure, oci. Issue #4-5 FIX: Added for cloud billing costs."
+  },
+  {
+    "name": "x_cloud_account_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Cloud account ID (billing_account_id, payer_account_id, subscription_id, tenancy_ocid). Issue #4-5 FIX: Added for cloud billing costs."
   },
   {
     "name": "x_hierarchy_validated_at",

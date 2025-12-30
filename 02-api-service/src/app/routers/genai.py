@@ -967,8 +967,9 @@ async def set_pricing_override(
 
         logger.info(f"Set pricing override for {flow.value}/{identifier} in org {org_slug}")
         # SECURITY FIX: Issue #15 - Remove identifier_field from response (internal table info)
+        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "success",
+            "status": "SUCCESS",
             "message": f"Override set for {flow.value} pricing",
             "identifier": identifier,
             "flow": flow.value,
@@ -1308,8 +1309,9 @@ async def add_custom_pricing(
         # MERGE provides atomic upsert - action is "upserted" since we can't distinguish
         # insert vs update without additional query (which would reintroduce race condition)
         logger.info(f"Upserted {flow.value} pricing for org {org_slug}")
+        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "success",
+            "status": "SUCCESS",
             "message": f"Custom {flow.value} pricing saved",
             "action": "upserted",
             "flow": flow.value
@@ -1422,8 +1424,9 @@ async def delete_custom_pricing(
             if record.get("status") == "deleted":
                 # Already deleted - return success (idempotent)
                 logger.info(f"Delete request for already-deleted {flow.value} pricing {identifier} in org {org_slug} (idempotent)")
+                # Issue #21: Standardized status to UPPERCASE
                 return {
-                    "status": "success",
+                    "status": "SUCCESS",
                     "message": "Pricing entry already deleted",
                     "identifier": identifier,
                     "flow": flow.value,
@@ -1451,8 +1454,9 @@ async def delete_custom_pricing(
         )
 
         # SECURITY FIX: Issue #15 - Remove internal identifier_field from response
+        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "success",
+            "status": "SUCCESS",
             "message": f"Pricing entry deleted",
             "identifier": identifier,
             "flow": flow.value
@@ -1539,8 +1543,9 @@ async def reset_pricing_override(
 
         logger.info(f"Reset {flow.value} pricing override {identifier} for org {org_slug}")
         # SECURITY FIX: Issue #15 - Remove identifier_field from response (internal table info)
+        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "success",
+            "status": "SUCCESS",
             "message": f"Pricing override reset to default",
             "identifier": identifier,
             "flow": flow.value
@@ -1936,7 +1941,7 @@ async def seed_default_pricing(
                 errors=["Pricing data files not found or path validation failed"]
             )
         return {
-            "status": "partial",
+            "status": "PARTIAL",  # Issue #21-27 FIX: UPPERCASE status
             "org_slug": org_slug,
             "message": "Pricing data files not available",
             "flows_seeded": {k: v.model_dump() for k, v in results.items()}
@@ -2051,12 +2056,13 @@ async def seed_default_pricing(
             results[f.value] = result
 
         # Determine overall status
+        # Issue #21: Standardized status to UPPERCASE
         all_success = all(r.status == "success" for r in results.values())
         any_success = any(r.status == "success" for r in results.values())
 
         logger.info(f"Seeded default pricing for org {org_slug}: {results}")
         return {
-            "status": "success" if all_success else ("partial" if any_success else "failed"),
+            "status": "SUCCESS" if all_success else ("PARTIAL" if any_success else "FAILED"),
             "org_slug": org_slug,
             "flows_seeded": {k: v.model_dump() for k, v in results.items()}
         }
