@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useState, useEffect, useCallback } from "react"
 import {
   ArrowRight,
@@ -20,130 +21,73 @@ import {
   ArrowUpRight,
   Play,
   Loader2,
+  BarChart3,
+  DollarSign,
+  Users,
 } from "lucide-react"
 import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 
-// Provider data
-const PROVIDERS = [
-  { name: "OpenAI", icon: "🤖", type: "GenAI", angle: 0 },
-  { name: "Anthropic", icon: "🧠", type: "GenAI", angle: 45 },
-  { name: "AWS", icon: "☁️", type: "Cloud", angle: 90 },
-  { name: "GCP", icon: "🌐", type: "Cloud", angle: 135 },
-  { name: "Azure", icon: "⚡", type: "Cloud", angle: 180 },
-  { name: "Stripe", icon: "💳", type: "SaaS", angle: 225 },
-  { name: "Slack", icon: "💬", type: "SaaS", angle: 270 },
-  { name: "Datadog", icon: "📊", type: "SaaS", angle: 315 },
+// Provider logos with actual SVG files
+const PROVIDER_LOGOS = [
+  { name: "OpenAI", logo: "/logos/providers/openai.svg" },
+  { name: "Anthropic", logo: "/logos/providers/anthropic.svg" },
+  { name: "AWS", logo: "/logos/providers/aws.svg" },
+  { name: "GCP", logo: "/logos/providers/gcp.svg" },
+  { name: "Azure", logo: "/logos/providers/azure.svg" },
+  { name: "Gemini", logo: "/logos/providers/gemini.svg" },
+  { name: "Cursor", logo: "/logos/providers/cursor.svg" },
+  { name: "GitHub", logo: "/logos/providers/github.svg" },
+  { name: "Slack", logo: "/logos/providers/slack.svg" },
+  { name: "Notion", logo: "/logos/providers/notion.svg" },
+  { name: "Figma", logo: "/logos/providers/figma.svg" },
+  { name: "Linear", logo: "/logos/providers/linear.svg" },
+  { name: "Supabase", logo: "/logos/providers/supabase.svg" },
+  { name: "Perplexity", logo: "/logos/providers/perplexity.svg" },
 ]
 
-// Live status component - shows platform capabilities
-function LiveStatus() {
+// Hero badge component
+function HeroBadge() {
   return (
-    <div className="ca-ticker ca-animate">
-      <div className="ca-ticker-item">
-        <div className="ca-ticker-dot" />
-        <span className="ca-ticker-label">Platform</span>
-        <span className="ca-ticker-value">Live</span>
-      </div>
-      <div className="ca-ticker-item">
-        <div className="ca-ticker-dot" />
-        <span className="ca-ticker-label">Integrations</span>
-        <span className="ca-ticker-value">50+</span>
-      </div>
-      <div className="ca-ticker-item">
-        <div className="ca-ticker-dot" />
-        <span className="ca-ticker-label">Real-time</span>
-        <span className="ca-ticker-value">Tracking</span>
-      </div>
+    <div className="ca-badge ca-animate">
+      <span className="ca-badge-dot" />
+      <span>Now tracking 50+ integrations</span>
+      <ArrowRight className="w-3.5 h-3.5 ml-1" />
     </div>
   )
 }
 
-// Provider constellation
-function Constellation() {
-  const radius = 170
+// Logo carousel/marquee with real SVGs
+function LogoCarousel() {
+  // Double the logos for seamless infinite scroll
+  const doubledLogos = [...PROVIDER_LOGOS, ...PROVIDER_LOGOS]
 
   return (
-    <div className="ca-constellation ca-animate ca-delay-3">
-      {/* SVG for connection lines */}
-      <svg className="ca-constellation-lines" viewBox="0 0 900 420">
-        <defs>
-          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="var(--cloudact-mint)" />
-            <stop offset="100%" stopColor="var(--cloudact-coral)" />
-          </linearGradient>
-        </defs>
-        {PROVIDERS.map((provider, i) => {
-          const angle = (provider.angle * Math.PI) / 180
-          const x = 450 + Math.cos(angle) * radius
-          const y = 210 + Math.sin(angle) * radius
-          return (
-            <line
-              key={i}
-              className="ca-constellation-line"
-              x1="450"
-              y1="210"
-              x2={x}
-              y2={y}
+    <div className="ca-logo-carousel">
+      <div className="ca-logo-track">
+        {doubledLogos.map((provider, i) => (
+          <div key={`${provider.name}-${i}`} className="ca-logo-item">
+            <Image
+              src={provider.logo}
+              alt={provider.name}
+              width={120}
+              height={40}
+              className="h-7 w-auto object-contain"
             />
-          )
-        })}
-      </svg>
-
-      {/* Center hub */}
-      <div className="ca-constellation-center">
-        <div className="ca-constellation-center-logo">CloudAct</div>
-        <div className="ca-constellation-center-sub">Cost Hub</div>
-      </div>
-
-      {/* Provider nodes */}
-      {PROVIDERS.map((provider, i) => {
-        const angle = (provider.angle * Math.PI) / 180
-        const x = Math.cos(angle) * radius
-        const y = Math.sin(angle) * radius
-
-        return (
-          <div
-            key={provider.name}
-            className="ca-constellation-node"
-            style={{
-              left: `calc(50% + ${x}px)`,
-              top: `calc(50% + ${y}px)`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <span className="ca-constellation-node-icon">{provider.icon}</span>
-            <span className="ca-constellation-node-name">{provider.name}</span>
-            <span className="ca-constellation-node-type">{provider.type}</span>
           </div>
-        )
-      })}
-
-      {/* Floating particles */}
-      {[...Array(6)].map((_, i) => (
-        <div
-          key={i}
-          className="ca-particle"
-          style={{
-            left: `${20 + Math.random() * 60}%`,
-            top: `${20 + Math.random() * 60}%`,
-            '--tx': `${-50 + Math.random() * 100}px`,
-            '--ty': `${-50 + Math.random() * 100}px`,
-            animationDelay: `${i * 0.6}s`,
-          } as React.CSSProperties}
-        />
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
 
-// Dashboard preview
-function DashboardPreview() {
-  const chartData = Array.from({ length: 30 }, () => ({
-    cloud: 30 + Math.random() * 40,
-    genai: 20 + Math.random() * 30,
-    saas: 10 + Math.random() * 15,
+// Dashboard preview mockup - cleaner version
+function DashboardMockup() {
+  const chartData = Array.from({ length: 24 }, (_, i) => ({
+    cloud: 25 + Math.sin(i * 0.3) * 15 + Math.random() * 10,
+    genai: 15 + Math.cos(i * 0.4) * 10 + Math.random() * 8,
+    saas: 8 + Math.sin(i * 0.5) * 5 + Math.random() * 4,
   }))
 
   return (
@@ -152,54 +96,54 @@ function DashboardPreview() {
         <div className="ca-dashboard-dot ca-dashboard-dot-red" />
         <div className="ca-dashboard-dot ca-dashboard-dot-yellow" />
         <div className="ca-dashboard-dot ca-dashboard-dot-green" />
-        <span className="ca-dashboard-title">cloudact.ai/dashboard — Cost Intelligence</span>
+        <span className="ca-dashboard-title">cloudact.ai — Cost Intelligence Dashboard</span>
       </div>
       <div className="ca-dashboard-content">
         <div className="ca-metrics-grid">
           <div className="ca-metric-card">
-            <div className="ca-metric-label">Monthly Spend</div>
-            <div className="ca-metric-value ca-mono">Your costs</div>
+            <div className="ca-metric-label">Total Spend</div>
+            <div className="ca-metric-value ca-mono">$24.8K</div>
             <div className="ca-metric-change ca-metric-change-positive">
-              <TrendingDown className="w-3 h-3" /> Tracked
+              <TrendingDown className="w-3 h-3" /> -12% vs last month
             </div>
           </div>
           <div className="ca-metric-card">
             <div className="ca-metric-label">GenAI Costs</div>
-            <div className="ca-metric-value ca-mono text-coral">AI spend</div>
+            <div className="ca-metric-value ca-mono" style={{ color: 'var(--ca-coral)' }}>$8.2K</div>
             <div className="ca-metric-change ca-metric-change-negative">
-              <Activity className="w-3 h-3" /> Token usage
+              <Activity className="w-3 h-3" /> +23% growth
             </div>
           </div>
           <div className="ca-metric-card">
             <div className="ca-metric-label">Cloud Infra</div>
-            <div className="ca-metric-value ca-mono">Cloud spend</div>
+            <div className="ca-metric-value ca-mono">$12.4K</div>
             <div className="ca-metric-change ca-metric-change-positive">
-              <Globe className="w-3 h-3" /> All providers
+              <Globe className="w-3 h-3" /> -8% optimized
             </div>
           </div>
           <div className="ca-metric-card ca-metric-card-highlight">
             <div className="ca-metric-label">Savings Found</div>
-            <div className="ca-metric-value ca-mono">Optimized</div>
-            <div className="ca-metric-change" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>
-              <Sparkles className="w-3 h-3" /> AI tips
+            <div className="ca-metric-value ca-mono">$4.2K</div>
+            <div className="ca-metric-change" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
+              <Sparkles className="w-3 h-3" /> AI recommendations
             </div>
           </div>
         </div>
 
         <div className="ca-chart-container">
           <div className="ca-chart-header">
-            <span className="ca-chart-title">Cost Trend (30 days)</span>
+            <span className="ca-chart-title">Cost Trend (Last 24 Days)</span>
             <div className="ca-chart-legend">
               <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot bg-mint" />
+                <div className="ca-chart-legend-dot" style={{ background: 'var(--ca-mint)' }} />
                 Cloud
               </div>
               <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot bg-coral" />
+                <div className="ca-chart-legend-dot" style={{ background: 'var(--ca-coral)' }} />
                 GenAI
               </div>
               <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot" style={{ background: '#D4D4D8' }} />
+                <div className="ca-chart-legend-dot" style={{ background: 'var(--ca-gray-300)' }} />
                 SaaS
               </div>
             </div>
@@ -228,22 +172,22 @@ function DashboardPreview() {
   )
 }
 
-// Feature card
+// Feature card component
 function FeatureCard({
   icon: Icon,
   title,
   description,
-  color = "teal",
+  color = "mint",
 }: {
   icon: React.ElementType
   title: string
   description: string
-  color?: "teal" | "coral" | "green"
+  color?: "mint" | "coral" | "blue" | "purple" | "green"
 }) {
   return (
     <div className="ca-feature-card">
       <div className={`ca-feature-icon ca-feature-icon-${color}`}>
-        <Icon className="w-7 h-7" />
+        <Icon className="w-6 h-6" />
       </div>
       <h3 className="ca-feature-title">{title}</h3>
       <p className="ca-feature-desc">{description}</p>
@@ -251,7 +195,7 @@ function FeatureCard({
   )
 }
 
-// Pricing card
+// Pricing card component
 function PricingCard({
   name,
   price,
@@ -298,12 +242,13 @@ function PricingCard({
   )
 }
 
-// Testimonials
+// Testimonials data
 const TESTIMONIALS = [
   {
     quote: "CloudAct.ai gave us complete visibility into token usage across OpenAI and Anthropic. The unified dashboard was a game-changer for our FinOps team.",
     author: "Sarah Chen",
     role: "VP of Engineering",
+    company: "Series B Startup",
     avatar: "SC",
     highlight: "Complete visibility",
   },
@@ -311,6 +256,7 @@ const TESTIMONIALS = [
     quote: "Finally, a single dashboard for all our cloud and AI costs. We went from spending days on monthly reports to having real-time insights.",
     author: "Marcus Rodriguez",
     role: "CTO",
+    company: "AI Platform",
     avatar: "MR",
     highlight: "Real-time insights",
   },
@@ -318,6 +264,7 @@ const TESTIMONIALS = [
     quote: "The automated recommendations helped us identify significant optimization opportunities. CloudAct.ai is essential for any team using LLMs at scale.",
     author: "Emily Watson",
     role: "Head of FinOps",
+    company: "Enterprise SaaS",
     avatar: "EW",
     highlight: "AI recommendations",
   },
@@ -352,30 +299,12 @@ export default function PremiumLandingPage() {
 
   return (
     <div className="ca-landing">
-      {/* Promo Banner */}
-      <div style={{
-        background: 'linear-gradient(90deg, var(--cloudact-mint) 0%, var(--cloudact-mint-dark) 100%)',
-        color: '#000000',
-        padding: '12px 16px',
-        textAlign: 'center',
-        fontSize: '0.875rem',
-      }}>
-        <span style={{
-          display: 'inline-block',
-          background: 'rgba(255,255,255,0.2)',
-          padding: '2px 10px',
-          borderRadius: '100px',
-          fontSize: '0.625rem',
-          fontWeight: 700,
-          marginRight: '8px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}>
-          New
-        </span>
-        GenAI cost tracking now supports Claude 3.5, GPT-4o & Gemini 2.0
-        <Link href="/features" style={{ marginLeft: '8px', textDecoration: 'underline', opacity: 0.9 }}>
-          Learn more →
+      {/* Announcement Banner */}
+      <div className="ca-announcement-banner">
+        <span className="ca-announcement-badge">New</span>
+        <span>GenAI cost tracking now supports Claude 3.5 Sonnet, GPT-4o & Gemini 2.0</span>
+        <Link href="/features" className="ca-announcement-link">
+          Learn more <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
 
@@ -389,19 +318,19 @@ export default function PremiumLandingPage() {
         </div>
 
         <div className="ca-hero-content">
-          <LiveStatus />
+          <HeroBadge />
 
-          <h1 className="ca-display-xl ca-animate ca-delay-1" style={{ marginBottom: '24px', maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <h1 className="ca-display-xl ca-animate ca-delay-1">
             Track Every Dollar Across{' '}
             <span className="ca-gradient-text">GenAI, Cloud & SaaS</span>
           </h1>
 
-          <p className="ca-body ca-animate ca-delay-2" style={{ maxWidth: '650px', margin: '0 auto 40px', fontSize: '1.25rem' }}>
+          <p className="ca-body ca-hero-subtitle ca-animate ca-delay-2">
             The unified cost intelligence platform for engineering and finance teams.
             Complete visibility into OpenAI, Anthropic, AWS, GCP, Azure, and 50+ integrations.
           </p>
 
-          <div className="ca-animate ca-delay-3" style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="ca-hero-cta ca-animate ca-delay-3">
             <Link href="/signup" className="ca-btn ca-btn-primary ca-btn-lg">
               Start Free Trial
               <ArrowRight className="w-5 h-5" />
@@ -412,44 +341,73 @@ export default function PremiumLandingPage() {
             </Link>
           </div>
 
-          <div className="ca-animate ca-delay-4" style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginTop: '32px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
-              <Shield className="w-4 h-4 text-mint" />
-              SOC 2 Type II
+          <div className="ca-hero-trust ca-animate ca-delay-4">
+            <div className="ca-hero-trust-item">
+              <Shield className="w-4 h-4" style={{ color: 'var(--ca-mint-dark)' }} />
+              <span>SOC 2 Type II</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
-              <Zap className="w-4 h-4 text-coral" />
-              5-minute setup
+            <div className="ca-hero-trust-item">
+              <Zap className="w-4 h-4" style={{ color: 'var(--ca-coral)' }} />
+              <span>5-minute setup</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
-              <TrendingDown className="w-4 h-4" style={{ color: '#10B981' }} />
-              Reduce costs
+            <div className="ca-hero-trust-item">
+              <TrendingDown className="w-4 h-4" style={{ color: 'var(--ca-green)' }} />
+              <span>Reduce costs 20%+</span>
             </div>
           </div>
 
-          <Constellation />
-          <DashboardPreview />
+          <DashboardMockup />
         </div>
       </section>
 
-      {/* Trusted By */}
-      <section className="ca-trusted">
-        <p className="ca-trusted-label">Trusted by forward-thinking teams</p>
-        <div className="ca-trusted-logos">
-          {["Anthropic", "OpenAI", "Stripe", "Vercel", "Cloudflare", "MongoDB", "Supabase"].map((company) => (
-            <span key={company} className="ca-trusted-logo">{company}</span>
-          ))}
+      {/* Logo Carousel - Trusted By */}
+      <section className="ca-trusted-section">
+        <p className="ca-trusted-label">Integrates with your entire stack</p>
+        <LogoCarousel />
+      </section>
+
+      {/* Stats Section */}
+      <section className="ca-stats-section">
+        <div className="ca-stats-grid">
+          <div className="ca-stat-item">
+            <div className="ca-stat-icon">
+              <Layers className="w-6 h-6" />
+            </div>
+            <div className="ca-stat-value ca-mono">50+</div>
+            <p className="ca-stat-label">Integrations</p>
+          </div>
+          <div className="ca-stat-item">
+            <div className="ca-stat-icon">
+              <Globe className="w-6 h-6" />
+            </div>
+            <div className="ca-stat-value ca-mono">3</div>
+            <p className="ca-stat-label">Major clouds</p>
+          </div>
+          <div className="ca-stat-item">
+            <div className="ca-stat-icon">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div className="ca-stat-value ca-mono">Real-time</div>
+            <p className="ca-stat-label">Cost tracking</p>
+          </div>
+          <div className="ca-stat-item">
+            <div className="ca-stat-icon">
+              <DollarSign className="w-6 h-6" />
+            </div>
+            <div className="ca-stat-value ca-mono">20%+</div>
+            <p className="ca-stat-label">Avg. savings</p>
+          </div>
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features Section */}
       <section className="ca-section">
         <div className="ca-section-header">
           <span className="ca-section-label">Platform Features</span>
-          <h2 className="ca-display-lg" style={{ marginBottom: '16px' }}>
+          <h2 className="ca-display-lg">
             Everything you need to control costs
           </h2>
-          <p className="ca-body" style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <p className="ca-body ca-section-desc">
             From real-time tracking to AI-powered optimization, CloudAct.ai gives you
             complete visibility and control over your spending.
           </p>
@@ -466,19 +424,19 @@ export default function PremiumLandingPage() {
             icon={Globe}
             title="Multi-Cloud Support"
             description="Unified view of AWS, GCP, and Azure costs with automatic data sync and intelligent categorization."
-            color="teal"
+            color="mint"
           />
           <FeatureCard
             icon={Layers}
             title="SaaS Subscription Tracking"
             description="Never lose track of a subscription again. Monitor Slack, GitHub, Datadog, and 50+ SaaS tools."
-            color="green"
+            color="purple"
           />
           <FeatureCard
             icon={LineChart}
             title="Cost Forecasting"
             description="ML-powered predictions help you budget accurately and avoid surprise bills at month-end."
-            color="teal"
+            color="blue"
           />
           <FeatureCard
             icon={Bell}
@@ -495,20 +453,36 @@ export default function PremiumLandingPage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="ca-stats-section">
-        <div className="ca-stats-grid">
-          <div>
-            <div className="ca-stat-value ca-mono">50+</div>
-            <p className="ca-stat-label">Integrations supported</p>
+      {/* How It Works */}
+      <section className="ca-section ca-section-alt">
+        <div className="ca-section-header">
+          <span className="ca-section-label">How It Works</span>
+          <h2 className="ca-display-lg">
+            Get started in 3 simple steps
+          </h2>
+        </div>
+
+        <div className="ca-steps-grid">
+          <div className="ca-step-card">
+            <div className="ca-step-number">1</div>
+            <h3 className="ca-step-title">Connect Your Tools</h3>
+            <p className="ca-step-desc">
+              Link your cloud providers, GenAI APIs, and SaaS subscriptions with read-only access in minutes.
+            </p>
           </div>
-          <div>
-            <div className="ca-stat-value ca-mono">3</div>
-            <p className="ca-stat-label">Major cloud providers</p>
+          <div className="ca-step-card">
+            <div className="ca-step-number">2</div>
+            <h3 className="ca-step-title">See Your Costs</h3>
+            <p className="ca-step-desc">
+              Get a unified dashboard showing all your spending with automatic categorization and trends.
+            </p>
           </div>
-          <div>
-            <div className="ca-stat-value ca-mono">Real-time</div>
-            <p className="ca-stat-label">Cost tracking & alerts</p>
+          <div className="ca-step-card">
+            <div className="ca-step-number">3</div>
+            <h3 className="ca-step-title">Optimize & Save</h3>
+            <p className="ca-step-desc">
+              Receive AI-powered recommendations to reduce waste and optimize your infrastructure spend.
+            </p>
           </div>
         </div>
       </section>
@@ -527,7 +501,9 @@ export default function PremiumLandingPage() {
             </div>
             <div>
               <div className="ca-testimonial-author">{TESTIMONIALS[activeTestimonial].author}</div>
-              <div className="ca-testimonial-role">{TESTIMONIALS[activeTestimonial].role}</div>
+              <div className="ca-testimonial-role">
+                {TESTIMONIALS[activeTestimonial].role} · {TESTIMONIALS[activeTestimonial].company}
+              </div>
             </div>
             <div className="ca-testimonial-savings">
               {TESTIMONIALS[activeTestimonial].highlight}
@@ -542,6 +518,7 @@ export default function PremiumLandingPage() {
           <button
             className="ca-testimonial-btn"
             onClick={() => setActiveTestimonial(prev => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)}
+            aria-label="Previous testimonial"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -551,12 +528,14 @@ export default function PremiumLandingPage() {
                 key={i}
                 className={`ca-testimonial-dot ${i === activeTestimonial ? 'active' : ''}`}
                 onClick={() => setActiveTestimonial(i)}
+                aria-label={`Go to testimonial ${i + 1}`}
               />
             ))}
           </div>
           <button
             className="ca-testimonial-btn"
             onClick={() => setActiveTestimonial(prev => (prev + 1) % TESTIMONIALS.length)}
+            aria-label="Next testimonial"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -567,18 +546,18 @@ export default function PremiumLandingPage() {
       <section className="ca-section">
         <div className="ca-section-header">
           <span className="ca-section-label">Simple Pricing</span>
-          <h2 className="ca-display-lg" style={{ marginBottom: '16px' }}>
+          <h2 className="ca-display-lg">
             Start free, scale as you grow
           </h2>
-          <p className="ca-body" style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <p className="ca-body ca-section-desc">
             No hidden fees. No surprise charges. Just transparent pricing.
           </p>
         </div>
 
         <div className="ca-pricing-grid">
           {isLoadingPlans ? (
-            <div className="col-span-3 flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint)]" />
+            <div className="ca-pricing-loading">
+              <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--ca-mint)' }} />
             </div>
           ) : plans.length > 0 ? (
             <>
@@ -656,7 +635,7 @@ export default function PremiumLandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA Section */}
       <section className="ca-cta">
         <div className="ca-cta-box">
           <div className="ca-cta-content">
@@ -666,7 +645,7 @@ export default function PremiumLandingPage() {
             </div>
             <h2 className="ca-cta-title">Ready to take control of your costs?</h2>
             <p className="ca-cta-subtitle">
-              Use CloudAct.ai to track, analyze, and optimize your
+              Join hundreds of teams using CloudAct.ai to track, analyze, and optimize their
               GenAI, cloud, and SaaS spending in one unified platform.
             </p>
             <div className="ca-cta-buttons">
