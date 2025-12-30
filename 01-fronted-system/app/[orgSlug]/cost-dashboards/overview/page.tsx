@@ -28,7 +28,7 @@ import {
   type HierarchyEntity,
 } from "@/components/costs"
 import { getTotalCosts, getCostByProvider, type TotalCostSummary, type ProviderBreakdown } from "@/actions/costs"
-import { getSaaSSubscriptionCosts, type SaaSCostSummary } from "@/actions/subscription-providers"
+import { getSaaSSubscriptionCosts, type SaaSCostSummary, type SaaSCostFilterParams } from "@/actions/subscription-providers"
 import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
@@ -64,8 +64,8 @@ export default function CostOverviewPage() {
     async function loadHierarchy() {
       try {
         const result = await getHierarchy(orgSlug)
-        if (result.success && result.data) {
-          const entities: HierarchyEntity[] = result.data.map((h: { entity_id: string; entity_name: string; entity_type: string; parent_id?: string }) => ({
+        if (result.success && result.data?.entities) {
+          const entities: HierarchyEntity[] = result.data.entities.map((h) => ({
             entity_id: h.entity_id,
             entity_name: h.entity_name,
             entity_type: h.entity_type as "department" | "project" | "team",
@@ -90,12 +90,29 @@ export default function CostOverviewPage() {
       // Convert date range to API parameters
       const { startDate, endDate } = dateRangeToApiParams(dateRange)
 
-      // TODO: Pass filters to API when backend supports filtering
-      // For now, filters are applied client-side
+      // Convert UI filters to API filter params
+      const apiFilters = {
+        departmentId: filters.department,
+        projectId: filters.project,
+        teamId: filters.team,
+        providers: filters.providers.length > 0 ? filters.providers : undefined,
+        categories: filters.categories.length > 0 ? filters.categories : undefined,
+      }
+
+      // SaaS filter params (same structure but different type for now)
+      const saasFilters: SaaSCostFilterParams = {
+        departmentId: filters.department,
+        projectId: filters.project,
+        teamId: filters.team,
+        providers: filters.providers.length > 0 ? filters.providers : undefined,
+        categories: filters.categories.length > 0 ? filters.categories : undefined,
+      }
+
+      // Pass filters to backend API
       const [costsResult, providersResult, saasResult] = await Promise.all([
-        getTotalCosts(orgSlug),
-        getCostByProvider(orgSlug, startDate, endDate),
-        getSaaSSubscriptionCosts(orgSlug, startDate, endDate),
+        getTotalCosts(orgSlug, startDate, endDate, apiFilters),
+        getCostByProvider(orgSlug, startDate, endDate, apiFilters),
+        getSaaSSubscriptionCosts(orgSlug, startDate, endDate, saasFilters),
       ])
 
       if (costsResult.success && costsResult.data) {
@@ -105,8 +122,25 @@ export default function CostOverviewPage() {
         }
       }
 
-      // Use backend-calculated provider breakdown (no client-side aggregation)
-      if (saasResult.success && saasResult.summary?.by_provider && saasResult.summary.by_provider.length > 0) {
+      // Use backend-calculated provider breakdown
+      // When filters are active, always use the filtered providersResult
+      const hasActiveFilters = filters.providers.length > 0 ||
+        filters.department || filters.project || filters.team
+
+      if (hasActiveFilters && providersResult.success) {
+        // Use filtered provider breakdown when filters are active
+        const validProviders = providersResult.data
+          .filter(p => p.provider && p.provider.trim() !== "" && p.provider !== "Unknown" && p.total_cost > 0)
+          .slice(0, 10)
+        setProviders(validProviders)
+        // Keep available providers from unfiltered source for filter dropdown
+        if (saasResult.success && saasResult.summary?.by_provider && saasResult.summary.by_provider.length > 0) {
+          setAvailableProviders(saasResult.summary.by_provider.map(p => p.provider))
+        } else {
+          setAvailableProviders(validProviders.map(p => p.provider))
+        }
+      } else if (saasResult.success && saasResult.summary?.by_provider && saasResult.summary.by_provider.length > 0) {
+        // No filters active - use SaaS summary which includes all provider data
         const validProviders: ProviderBreakdown[] = saasResult.summary.by_provider
           .slice(0, 10)
           .map(p => ({
@@ -120,6 +154,7 @@ export default function CostOverviewPage() {
         // Extract unique provider names for filter
         setAvailableProviders(validProviders.map(p => p.provider))
       } else if (providersResult.success) {
+        // Fallback to providersResult
         const validProviders = providersResult.data
           .filter(p => p.provider && p.provider.trim() !== "" && p.provider !== "Unknown" && p.total_cost > 0)
           .slice(0, 10)
@@ -180,7 +215,7 @@ export default function CostOverviewPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [orgSlug, dateRange])
+  }, [orgSlug, dateRange, filters])
 
   useEffect(() => {
     loadData()
@@ -191,10 +226,9 @@ export default function CostOverviewPage() {
     setDateRange(newRange)
   }, [])
 
-  // Handle filter changes
+  // Handle filter changes - triggers data reload via loadData dependency
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
-    // TODO: Reload data with filters when backend supports it
   }, [])
 
   const handleRefresh = async () => {

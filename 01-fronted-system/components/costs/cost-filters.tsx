@@ -37,7 +37,7 @@ export interface HierarchyEntity {
   entity_id: string
   entity_name: string
   entity_type: "department" | "project" | "team"
-  parent_id?: string
+  parent_id?: string | null
 }
 
 export interface CostFiltersState {

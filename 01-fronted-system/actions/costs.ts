@@ -131,6 +131,22 @@ export interface TotalCostSummary {
   query_time_ms: number
 }
 
+/**
+ * Filter parameters for cost queries
+ */
+export interface CostFilterParams {
+  /** Filter by department ID (hierarchy) */
+  departmentId?: string
+  /** Filter by project ID (hierarchy) */
+  projectId?: string
+  /** Filter by team ID (hierarchy) */
+  teamId?: string
+  /** Filter by providers (comma-separated) */
+  providers?: string[]
+  /** Filter by service categories (comma-separated) */
+  categories?: string[]
+}
+
 // ============================================
 // Auth Helpers
 // ============================================
@@ -203,7 +219,8 @@ async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
 export async function getGenAICosts(
   orgSlug: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  filters?: CostFilterParams
 ): Promise<CostDataResponse> {
   try {
     await requireOrgMembership(orgSlug)
@@ -227,6 +244,17 @@ export async function getGenAICosts(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
+    // Hierarchy filters
+    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    if (filters?.projectId) params.append("project_id", filters.projectId)
+    if (filters?.teamId) params.append("team_id", filters.teamId)
+    // Provider and category filters
+    if (filters?.providers && filters.providers.length > 0) {
+      params.append("providers", filters.providers.join(","))
+    }
+    if (filters?.categories && filters.categories.length > 0) {
+      params.append("service_categories", filters.categories.join(","))
+    }
     if (params.toString()) url += `?${params.toString()}`
 
     const response = await fetchWithTimeout(url, {
@@ -340,7 +368,8 @@ export async function getGenAICosts(
 export async function getCloudCosts(
   orgSlug: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  filters?: CostFilterParams
 ): Promise<CostDataResponse> {
   try {
     await requireOrgMembership(orgSlug)
@@ -364,6 +393,17 @@ export async function getCloudCosts(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
+    // Hierarchy filters
+    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    if (filters?.projectId) params.append("project_id", filters.projectId)
+    if (filters?.teamId) params.append("team_id", filters.teamId)
+    // Provider and category filters
+    if (filters?.providers && filters.providers.length > 0) {
+      params.append("providers", filters.providers.join(","))
+    }
+    if (filters?.categories && filters.categories.length > 0) {
+      params.append("service_categories", filters.categories.join(","))
+    }
     if (params.toString()) url += `?${params.toString()}`
 
     const response = await fetchWithTimeout(url, {
@@ -477,7 +517,8 @@ export async function getCloudCosts(
 export async function getTotalCosts(
   orgSlug: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  filters?: CostFilterParams
 ): Promise<{
   success: boolean
   data: TotalCostSummary | null
@@ -501,6 +542,17 @@ export async function getTotalCosts(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
+    // Hierarchy filters
+    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    if (filters?.projectId) params.append("project_id", filters.projectId)
+    if (filters?.teamId) params.append("team_id", filters.teamId)
+    // Provider and category filters
+    if (filters?.providers && filters.providers.length > 0) {
+      params.append("providers", filters.providers.join(","))
+    }
+    if (filters?.categories && filters.categories.length > 0) {
+      params.append("service_categories", filters.categories.join(","))
+    }
     if (params.toString()) url += `?${params.toString()}`
 
     const response = await fetchWithTimeout(url, {
@@ -697,7 +749,8 @@ export async function getCostTrend(
 export async function getCostByProvider(
   orgSlug: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  filters?: CostFilterParams
 ): Promise<{
   success: boolean
   data: ProviderBreakdown[]
@@ -723,6 +776,17 @@ export async function getCostByProvider(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
+    // Hierarchy filters
+    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    if (filters?.projectId) params.append("project_id", filters.projectId)
+    if (filters?.teamId) params.append("team_id", filters.teamId)
+    // Provider and category filters
+    if (filters?.providers && filters.providers.length > 0) {
+      params.append("providers", filters.providers.join(","))
+    }
+    if (filters?.categories && filters.categories.length > 0) {
+      params.append("service_categories", filters.categories.join(","))
+    }
     if (params.toString()) url += `?${params.toString()}`
 
     const response = await fetchWithTimeout(url, {
@@ -847,7 +911,8 @@ export async function getCostByProvider(
 export async function getCostByService(
   orgSlug: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  filters?: CostFilterParams
 ): Promise<{
   success: boolean
   data: ServiceBreakdown[]
@@ -873,6 +938,17 @@ export async function getCostByService(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
+    // Hierarchy filters
+    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    if (filters?.projectId) params.append("project_id", filters.projectId)
+    if (filters?.teamId) params.append("team_id", filters.teamId)
+    // Provider and category filters
+    if (filters?.providers && filters.providers.length > 0) {
+      params.append("providers", filters.providers.join(","))
+    }
+    if (filters?.categories && filters.categories.length > 0) {
+      params.append("service_categories", filters.categories.join(","))
+    }
     if (params.toString()) url += `?${params.toString()}`
 
     const response = await fetchWithTimeout(url, {

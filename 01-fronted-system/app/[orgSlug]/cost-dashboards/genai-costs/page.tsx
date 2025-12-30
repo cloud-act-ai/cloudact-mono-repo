@@ -10,12 +10,17 @@ import {
   CostBreakdownChart,
   CostDataTable,
   DateRangeFilter,
+  CostFilters,
   getDefaultDateRange,
+  getDefaultFilters,
   dateRangeToApiParams,
   type CostSummaryData,
   type DateRange,
+  type CostFiltersState,
+  type HierarchyEntity,
 } from "@/components/costs"
-import { getGenAICosts, getCostByProvider, type CostSummary, type ProviderBreakdown } from "@/actions/costs"
+import { getGenAICosts, getCostByProvider, type CostSummary, type ProviderBreakdown, type CostFilterParams } from "@/actions/costs"
+import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
   getDateInfo,
@@ -38,6 +43,32 @@ export default function GenAICostsPage() {
   const [error, setError] = useState<string | null>(null)
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
+  const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
+  const [hierarchy, setHierarchy] = useState<HierarchyEntity[]>([])
+  const [availableProviders, setAvailableProviders] = useState<string[]>([])
+
+  // Load hierarchy data once on mount
+  useEffect(() => {
+    async function loadHierarchy() {
+      try {
+        const result = await getHierarchy(orgSlug)
+        if (result.success && result.data?.entities) {
+          const entities: HierarchyEntity[] = result.data.entities.map((h) => ({
+            entity_id: h.entity_id,
+            entity_name: h.entity_name,
+            entity_type: h.entity_type as "department" | "project" | "team",
+            parent_id: h.parent_id,
+          }))
+          setHierarchy(entities)
+        }
+      } catch (err) {
+        console.error("Failed to load hierarchy:", err)
+      }
+    }
+    if (orgSlug) {
+      loadHierarchy()
+    }
+  }, [orgSlug])
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -47,9 +78,18 @@ export default function GenAICostsPage() {
       // Convert date range to API parameters
       const { startDate, endDate } = dateRangeToApiParams(dateRange)
 
+      // Convert UI filters to API filter params
+      const apiFilters: CostFilterParams = {
+        departmentId: filters.department,
+        projectId: filters.project,
+        teamId: filters.team,
+        providers: filters.providers.length > 0 ? filters.providers : undefined,
+        categories: filters.categories.length > 0 ? filters.categories : undefined,
+      }
+
       const [costsResult, providersResult] = await Promise.all([
-        getGenAICosts(orgSlug, startDate, endDate),
-        getCostByProvider(orgSlug, startDate, endDate),
+        getGenAICosts(orgSlug, startDate, endDate, apiFilters),
+        getCostByProvider(orgSlug, startDate, endDate, apiFilters),
       ])
 
       if (costsResult.success) {
@@ -65,6 +105,8 @@ export default function GenAICostsPage() {
         // Filter to only LLM providers using centralized helper
         const filtered = filterGenAIProviders(providersResult.data)
         setProviders(filtered)
+        // Set available providers for filter dropdown
+        setAvailableProviders(filtered.map(p => p.provider))
       }
     } catch (err) {
       console.error("GenAI costs error:", err)
@@ -72,7 +114,7 @@ export default function GenAICostsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [orgSlug, dateRange])
+  }, [orgSlug, dateRange, filters])
 
   useEffect(() => {
     loadData()
@@ -81,6 +123,11 @@ export default function GenAICostsPage() {
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange) => {
     setDateRange(newRange)
+  }, [])
+
+  // Handle filter changes
+  const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
+    setFilters(newFilters)
   }, [])
 
   const handleRefresh = async () => {
@@ -145,11 +192,21 @@ export default function GenAICostsPage() {
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
       headerActions={
-        <DateRangeFilter
-          value={dateRange}
-          onChange={handleDateRangeChange}
-          disabled={isLoading || isRefreshing}
-        />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <CostFilters
+            value={filters}
+            onChange={handleFiltersChange}
+            hierarchy={hierarchy}
+            availableProviders={availableProviders}
+            disabled={isLoading || isRefreshing}
+            loading={isLoading}
+          />
+          <DateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            disabled={isLoading || isRefreshing}
+          />
+        </div>
       }
     >
       {/* Summary Metrics */}

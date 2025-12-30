@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Cloud, Loader2, Check, Lock, Shield } from "lucide-react"
+import Image from "next/image"
+import { Loader2, Check, Lock, Shield } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 import { getStripePlans, createOnboardingCheckoutSession, type DynamicPlan } from "@/actions/stripe"
@@ -176,10 +177,17 @@ export default function BillingPage() {
     <div className="flex min-h-svh w-full flex-col items-center bg-white p-4 py-8 md:py-12">
       <div className="w-full max-w-[900px] space-y-4">
         {/* Header */}
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#90FCA6] text-black shadow-lg">
-            <Cloud className="h-6 w-6" />
-          </div>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Link href="/" className="inline-flex items-center">
+            <Image
+              src="/logos/cloudact-logo-black.svg"
+              alt="CloudAct"
+              width={160}
+              height={32}
+              className="h-8 w-auto"
+              priority
+            />
+          </Link>
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Choose your plan</h1>
             <p className="text-sm text-gray-600">

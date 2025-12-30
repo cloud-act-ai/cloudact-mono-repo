@@ -18,15 +18,17 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_consolidate_genai_co
   p_project_id STRING,
   p_dataset_id STRING,
   p_cost_date DATE,
-  p_credential_id STRING DEFAULT NULL,  -- MT-001 FIX: Add credential_id for multi-account isolation
-  p_pipeline_id STRING DEFAULT 'genai_consolidate',  -- STATE-001 FIX: Add lineage params
-  p_run_id STRING DEFAULT NULL
+  p_credential_id STRING,  -- MT-001 FIX: Add credential_id for multi-account isolation (pass NULL if not filtering)
+  p_pipeline_id STRING,    -- STATE-001 FIX: Add lineage params (pass NULL for default 'genai_consolidate')
+  p_run_id STRING          -- Pass NULL for auto-generated UUID
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
   DECLARE v_rows_deleted INT64 DEFAULT 0;
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_total_cost FLOAT64 DEFAULT 0.0;
+  -- Handle NULL defaults inside procedure body for BigQuery compatibility
+  DECLARE v_pipeline_id STRING DEFAULT COALESCE(p_pipeline_id, 'genai_consolidate');
   DECLARE v_run_id STRING DEFAULT COALESCE(p_run_id, GENERATE_UUID());
 
   -- Validation
@@ -103,7 +105,7 @@ BEGIN
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
     USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
-          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
+          v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     -- Step 3: Insert Commitment costs with lineage columns (STATE-001 FIX)
     EXECUTE IMMEDIATE FORMAT("""
@@ -152,7 +154,7 @@ BEGIN
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
     USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
-          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
+          v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     -- Step 4: Insert Infrastructure costs with lineage columns (STATE-001 FIX)
     EXECUTE IMMEDIATE FORMAT("""
@@ -201,7 +203,7 @@ BEGIN
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
     USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
-          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
+          v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     -- Get total count and cost
     EXECUTE IMMEDIATE FORMAT("""

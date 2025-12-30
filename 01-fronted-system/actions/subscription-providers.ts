@@ -1349,6 +1349,22 @@ export interface SaaSCostSummary {
 }
 
 /**
+ * Filter parameters for SaaS subscription cost queries
+ */
+export interface SaaSCostFilterParams {
+  /** Filter by providers (client-side filtering) */
+  providers?: string[]
+  /** Filter by categories (client-side filtering) */
+  categories?: string[]
+  /** Filter by department ID (future backend support) */
+  departmentId?: string
+  /** Filter by project ID (future backend support) */
+  projectId?: string
+  /** Filter by team ID (future backend support) */
+  teamId?: string
+}
+
+/**
  * Get SaaS subscription costs from Polars API (cost_data_standard_1_3)
  *
  * This is the SOURCE OF TRUTH for actual calculated subscription costs.
@@ -1367,7 +1383,7 @@ export async function getSaaSSubscriptionCosts(
   orgSlug: string,
   startDate?: string,
   endDate?: string,
-  provider?: string  // Optional: filter by provider (client-side)
+  providerOrFilters?: string | SaaSCostFilterParams  // Optional: filter by provider(s) (client-side)
 ): Promise<{
   success: boolean
   data: SaaSCostRecord[]
@@ -1445,15 +1461,40 @@ export async function getSaaSSubscriptionCosts(
       query_time_ms: 0,
     })
 
-    // Filter by provider if specified (client-side filtering)
+    // Parse filter parameters (support both legacy string and new object format)
+    let providerFilters: string[] = []
+    let categoryFilters: string[] = []
+
+    if (typeof providerOrFilters === "string") {
+      // Legacy: single provider string
+      providerFilters = [providerOrFilters.toLowerCase()]
+    } else if (providerOrFilters && typeof providerOrFilters === "object") {
+      // New: filter params object
+      if (providerOrFilters.providers && providerOrFilters.providers.length > 0) {
+        providerFilters = providerOrFilters.providers.map(p => p.toLowerCase())
+      }
+      if (providerOrFilters.categories && providerOrFilters.categories.length > 0) {
+        categoryFilters = providerOrFilters.categories.map(c => c.toLowerCase())
+      }
+    }
+
+    // Filter by provider(s) if specified (client-side filtering)
     let filteredData = result.data || []
-    if (provider && filteredData.length > 0) {
-      const normalizedProvider = provider.toLowerCase()
+    if (providerFilters.length > 0 && filteredData.length > 0) {
       // Issue 6: Fix Provider filter null coalescing
       // Use ServiceProviderName (FOCUS 1.3) or ProviderName (legacy)
-      filteredData = filteredData.filter(
-        (record) => (record.ServiceProviderName ?? record.ProviderName ?? "").toLowerCase() === normalizedProvider
-      )
+      filteredData = filteredData.filter((record) => {
+        const recordProvider = (record.ServiceProviderName ?? record.ProviderName ?? "").toLowerCase()
+        return providerFilters.includes(recordProvider)
+      })
+    }
+
+    // Filter by category if specified (client-side filtering)
+    if (categoryFilters.length > 0 && filteredData.length > 0) {
+      filteredData = filteredData.filter((record) => {
+        const recordCategory = (record.ServiceCategory ?? "").toLowerCase()
+        return categoryFilters.includes(recordCategory)
+      })
     }
 
     // Recalculate summary for filtered data (client-side filtering)
@@ -1461,7 +1502,8 @@ export async function getSaaSSubscriptionCosts(
     // client-side, we need to recalculate. However, YTD/MTD calculations require full date range
     // data which we don't have client-side, so we'll use simplified calculations.
     let summary = result.summary
-    if (provider && filteredData.length > 0) {
+    const hasFilters = providerFilters.length > 0 || categoryFilters.length > 0
+    if (hasFilters && filteredData.length > 0) {
       // Get latest record per subscription for daily rate
       const latestBySubscription = new Map<string, typeof filteredData[0]>()
       filteredData.forEach(row => {
@@ -1484,6 +1526,18 @@ export async function getSaaSSubscriptionCosts(
       const forecastMonthly = totalDaily * daysInMonth
       const forecastAnnual = totalDaily * daysInYear
 
+      // Extract unique providers and categories from filtered data
+      const filteredProviders = Array.from(
+        new Set(
+          filteredData
+            .map(r => r.ServiceProviderName ?? r.ProviderName)
+            .filter((p): p is string => Boolean(p))
+        )
+      )
+      const filteredCategories = Array.from(
+        new Set(filteredData.map(r => r.ServiceCategory).filter(Boolean))
+      )
+
       summary = {
         total_daily_cost: Math.round(totalDaily * 100) / 100,
         total_monthly_cost: Math.round(totalBilledCost * 100) / 100,  // Use total billed as MTD approximation
@@ -1493,12 +1547,12 @@ export async function getSaaSSubscriptionCosts(
         mtd_cost: Math.round(totalBilledCost * 100) / 100,  // Approximation
         forecast_monthly_cost: Math.round(forecastMonthly * 100) / 100,
         forecast_annual_cost: Math.round(forecastAnnual * 100) / 100,
-        providers: [provider],
-        service_categories: Array.from(new Set(filteredData.map(r => r.ServiceCategory).filter(Boolean))),
+        providers: filteredProviders,
+        service_categories: filteredCategories,
         record_count: filteredData.length,
         date_range: result.summary?.date_range || { start: "", end: "" },
       }
-    } else if (provider && filteredData.length === 0) {
+    } else if (hasFilters && filteredData.length === 0) {
       summary = null  // No costs for this provider
     }
 

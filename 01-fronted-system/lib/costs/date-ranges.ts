@@ -410,7 +410,7 @@ export const dateRanges = {
    */
   fy2025: (): DateRange => ({
     start: new Date(2024, 3, 1), // Apr 1, 2024
-    end: endOfDay(new Date(2025, 2, 31)), // Mar 31, 2025
+    end: endOfDay(new Date(2025, 3, 0)), // Mar 31, 2025 (day 0 of Apr = last day of Mar)
     label: "FY2025",
   }),
 
@@ -419,7 +419,7 @@ export const dateRanges = {
    */
   fy2026: (): DateRange => ({
     start: new Date(2025, 3, 1),
-    end: endOfDay(new Date(2026, 2, 31)),
+    end: endOfDay(new Date(2026, 3, 0)), // Mar 31, 2026 (day 0 of Apr = last day of Mar)
     label: "FY2026",
   }),
 

@@ -776,6 +776,7 @@ async def readiness_probe():
     checks = {
         "shutdown": True,
         "bigquery": False,
+        "bootstrap": False,
         "kms": False,
         "pipeline_service": False
     }
@@ -797,6 +798,28 @@ async def readiness_probe():
     except Exception as e:
         logger.warning(f"BigQuery health check failed: {e}")
         checks["bigquery"] = False
+
+    # Check if bootstrap is complete (organizations dataset and meta tables exist)
+    try:
+        from src.core.engine.bq_client import get_bigquery_client
+
+        bq_client = get_bigquery_client()
+
+        # Check if org_profiles table exists (core bootstrap table)
+        query = f"""
+            SELECT COUNT(*) as table_count
+            FROM `{settings.gcp_project_id}.organizations.INFORMATION_SCHEMA.TABLES`
+            WHERE table_name IN ('org_profiles', 'org_api_keys', 'org_subscriptions')
+        """
+        query_job = bq_client.client.query(query)
+        result = list(query_job.result(timeout=5))
+
+        # Bootstrap is complete if at least 3 core tables exist
+        checks["bootstrap"] = result[0].table_count >= 3
+
+    except Exception as e:
+        logger.warning(f"Bootstrap check failed: {e}")
+        checks["bootstrap"] = False
 
     # Check KMS availability
     try:

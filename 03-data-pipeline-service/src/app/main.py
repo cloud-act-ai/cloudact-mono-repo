@@ -606,6 +606,7 @@ async def readiness_probe():
     checks = {
         "shutdown": True,
         "bigquery": False,
+        "procedures_synced": False,
         "kms": False,
         "api_service": False
     }
@@ -627,6 +628,42 @@ async def readiness_probe():
     except Exception as e:
         logger.warning(f"BigQuery health check failed: {e}")
         checks["bigquery"] = False
+
+    # Check if stored procedures are synced (required for pipeline execution)
+    try:
+        from src.core.engine.bq_client import get_bigquery_client
+
+        bq_client = get_bigquery_client()
+
+        # Check for key stored procedures that must exist
+        # These are in the organizations dataset
+        required_procedures = [
+            'sp_run_saas_subscription_costs_pipeline',
+            'sp_calculate_saas_subscription_plan_costs_daily',
+            'sp_convert_saas_costs_to_focus_1_3',
+        ]
+
+        query = f"""
+            SELECT routine_name
+            FROM `{settings.gcp_project_id}.organizations.INFORMATION_SCHEMA.ROUTINES`
+            WHERE routine_name IN ({','.join([f"'{p}'" for p in required_procedures])})
+        """
+        query_job = bq_client.client.query(query)
+        result = list(query_job.result(timeout=5))
+
+        # All required procedures must exist
+        found_procedures = [row.routine_name for row in result]
+        missing_procedures = [p for p in required_procedures if p not in found_procedures]
+
+        if missing_procedures:
+            logger.warning(f"Missing stored procedures: {missing_procedures}")
+            checks["procedures_synced"] = False
+        else:
+            checks["procedures_synced"] = True
+
+    except Exception as e:
+        logger.warning(f"Stored procedures check failed: {e}")
+        checks["procedures_synced"] = False
 
     # Check KMS availability
     try:

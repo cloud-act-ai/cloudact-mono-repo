@@ -129,12 +129,17 @@ export function groupByDay(records: CostRecord[]): Map<string, number> {
 
 /**
  * Group records by week (ISO week starting Monday)
+ * Handles NaN and null values safely
  */
 export function groupByWeek(records: CostRecord[]): Map<string, number> {
   const grouped = new Map<string, number>()
+  if (!records || !Array.isArray(records)) return grouped
 
   for (const record of records) {
+    if (!record.ChargePeriodStart) continue
     const date = new Date(record.ChargePeriodStart)
+    if (isNaN(date.getTime())) continue
+
     // Get Monday of the week
     const day = date.getDay()
     const diff = date.getDate() - day + (day === 0 ? -6 : 1)
@@ -142,8 +147,9 @@ export function groupByWeek(records: CostRecord[]): Map<string, number> {
     monday.setDate(diff)
     const weekKey = monday.toISOString().split("T")[0]
 
+    const cost = record.EffectiveCost ?? record.BilledCost ?? 0
     const current = grouped.get(weekKey) || 0
-    grouped.set(weekKey, current + (record.EffectiveCost || record.BilledCost || 0))
+    grouped.set(weekKey, current + (Number.isFinite(cost) ? cost : 0))
   }
 
   return grouped
@@ -151,16 +157,21 @@ export function groupByWeek(records: CostRecord[]): Map<string, number> {
 
 /**
  * Group records by month
+ * Handles NaN and null values safely
  */
 export function groupByMonth(records: CostRecord[]): Map<string, number> {
   const grouped = new Map<string, number>()
+  if (!records || !Array.isArray(records)) return grouped
 
   for (const record of records) {
+    if (!record.ChargePeriodStart) continue
     const date = new Date(record.ChargePeriodStart)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+    if (isNaN(date.getTime())) continue
 
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+    const cost = record.EffectiveCost ?? record.BilledCost ?? 0
     const current = grouped.get(monthKey) || 0
-    grouped.set(monthKey, current + (record.EffectiveCost || record.BilledCost || 0))
+    grouped.set(monthKey, current + (Number.isFinite(cost) ? cost : 0))
   }
 
   return grouped
@@ -168,14 +179,18 @@ export function groupByMonth(records: CostRecord[]): Map<string, number> {
 
 /**
  * Group records by provider
+ * Handles NaN, null, and empty string values safely
  */
 export function groupByProvider(records: CostRecord[]): Map<string, number> {
   const grouped = new Map<string, number>()
+  if (!records || !Array.isArray(records)) return grouped
 
   for (const record of records) {
-    const provider = record.ServiceProviderName || "Unknown"
+    // Handle empty string as "Unknown" too
+    const provider = record.ServiceProviderName?.trim() || "Unknown"
+    const cost = record.EffectiveCost ?? record.BilledCost ?? 0
     const current = grouped.get(provider) || 0
-    grouped.set(provider, current + (record.EffectiveCost || record.BilledCost || 0))
+    grouped.set(provider, current + (Number.isFinite(cost) ? cost : 0))
   }
 
   return grouped
@@ -183,14 +198,17 @@ export function groupByProvider(records: CostRecord[]): Map<string, number> {
 
 /**
  * Group records by category
+ * Handles NaN, null, and empty string values safely
  */
 export function groupByCategory(records: CostRecord[]): Map<string, number> {
   const grouped = new Map<string, number>()
+  if (!records || !Array.isArray(records)) return grouped
 
   for (const record of records) {
-    const category = record.ServiceCategory || "Unknown"
+    const category = record.ServiceCategory?.trim() || "Unknown"
+    const cost = record.EffectiveCost ?? record.BilledCost ?? 0
     const current = grouped.get(category) || 0
-    grouped.set(category, current + (record.EffectiveCost || record.BilledCost || 0))
+    grouped.set(category, current + (Number.isFinite(cost) ? cost : 0))
   }
 
   return grouped
@@ -198,14 +216,17 @@ export function groupByCategory(records: CostRecord[]): Map<string, number> {
 
 /**
  * Group records by service
+ * Handles NaN, null, and empty string values safely
  */
 export function groupByService(records: CostRecord[]): Map<string, number> {
   const grouped = new Map<string, number>()
+  if (!records || !Array.isArray(records)) return grouped
 
   for (const record of records) {
-    const service = record.ServiceName || "Unknown"
+    const service = record.ServiceName?.trim() || "Unknown"
+    const cost = record.EffectiveCost ?? record.BilledCost ?? 0
     const current = grouped.get(service) || 0
-    grouped.set(service, current + (record.EffectiveCost || record.BilledCost || 0))
+    grouped.set(service, current + (Number.isFinite(cost) ? cost : 0))
   }
 
   return grouped
@@ -273,15 +294,22 @@ export function toTimeSeries(
 
 /**
  * Convert records to time series with provider breakdown
+ * Handles NaN, null, and empty values safely
  */
 export function toTimeSeriesWithProviders(
   records: CostRecord[],
   granularity: "daily" | "weekly" | "monthly" = "daily"
 ): TimeSeriesPoint[] {
   const grouped = new Map<string, { total: number; providers: Record<string, number> }>()
+  if (!records || !Array.isArray(records)) return []
 
   for (const record of records) {
+    // Skip records with missing or invalid ChargePeriodStart
+    if (!record.ChargePeriodStart) continue
+
     const date = new Date(record.ChargePeriodStart)
+    if (isNaN(date.getTime())) continue
+
     let dateKey: string
 
     switch (granularity) {
@@ -300,16 +328,17 @@ export function toTimeSeriesWithProviders(
         dateKey = record.ChargePeriodStart.split("T")[0]
     }
 
-    const cost = record.EffectiveCost || record.BilledCost || 0
-    const provider = record.ServiceProviderName || "Unknown"
+    const cost = record.EffectiveCost ?? record.BilledCost ?? 0
+    const safeCost = Number.isFinite(cost) ? cost : 0
+    const provider = record.ServiceProviderName?.trim() || "Unknown"
 
     if (!grouped.has(dateKey)) {
       grouped.set(dateKey, { total: 0, providers: {} })
     }
 
     const entry = grouped.get(dateKey)!
-    entry.total += cost
-    entry.providers[provider] = (entry.providers[provider] || 0) + cost
+    entry.total += safeCost
+    entry.providers[provider] = (entry.providers[provider] || 0) + safeCost
   }
 
   const sortedEntries = Array.from(grouped.entries()).sort(([a], [b]) =>
@@ -368,18 +397,27 @@ export function getUniqueServices(records: CostRecord[]): string[] {
 
 /**
  * Get date range from records
+ * Handles null, undefined, and invalid date values safely
  */
 export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null {
-  if (records.length === 0) return null
+  if (!records || !Array.isArray(records) || records.length === 0) return null
 
-  let minDate = new Date(records[0].ChargePeriodStart)
-  let maxDate = new Date(records[0].ChargePeriodStart)
+  // Find first valid date to initialize min/max
+  let minDate: Date | null = null
+  let maxDate: Date | null = null
 
   for (const record of records) {
+    if (!record.ChargePeriodStart) continue
+
     const date = new Date(record.ChargePeriodStart)
-    if (date < minDate) minDate = date
-    if (date > maxDate) maxDate = date
+    if (isNaN(date.getTime())) continue
+
+    if (minDate === null || date < minDate) minDate = date
+    if (maxDate === null || date > maxDate) maxDate = date
   }
+
+  // No valid dates found
+  if (minDate === null || maxDate === null) return null
 
   return {
     start: minDate,

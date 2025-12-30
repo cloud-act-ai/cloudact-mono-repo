@@ -156,6 +156,19 @@ class CostReadService:
             where_conditions.append("ServiceCategory IN UNNEST(@service_categories)")
             query_params.append(bigquery.ArrayQueryParameter("service_categories", "STRING", query.service_categories))
 
+        # Hierarchy filters
+        if query.department_id:
+            where_conditions.append("x_HierarchyDeptId = @department_id")
+            query_params.append(bigquery.ScalarQueryParameter("department_id", "STRING", query.department_id))
+
+        if query.project_id:
+            where_conditions.append("x_HierarchyProjectId = @project_id")
+            query_params.append(bigquery.ScalarQueryParameter("project_id", "STRING", query.project_id))
+
+        if query.team_id:
+            where_conditions.append("x_HierarchyTeamId = @team_id")
+            query_params.append(bigquery.ScalarQueryParameter("team_id", "STRING", query.team_id))
+
         where_clause = " AND ".join(where_conditions)
 
         sql = f"""

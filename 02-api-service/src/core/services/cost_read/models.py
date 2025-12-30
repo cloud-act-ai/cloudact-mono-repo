@@ -24,6 +24,11 @@ class CostQuery:
     2. period → predefined period (MTD, QTD, YTD, etc.)
     3. fiscal_year → specific fiscal year
     4. Default → current fiscal YTD
+
+    Hierarchy filtering:
+    - department_id: Filter by x_HierarchyDeptId
+    - project_id: Filter by x_HierarchyProjectId
+    - team_id: Filter by x_HierarchyTeamId
     """
     org_slug: str
     start_date: Optional[date] = None
@@ -33,6 +38,10 @@ class CostQuery:
     fiscal_year_start_month: int = 1  # From org settings
     providers: Optional[List[str]] = None
     service_categories: Optional[List[str]] = None
+    # Hierarchy filters
+    department_id: Optional[str] = None
+    project_id: Optional[str] = None
+    team_id: Optional[str] = None
     group_by: Optional[List[str]] = None
     limit: int = 10000
     offset: int = 0
@@ -58,6 +67,9 @@ class CostQuery:
             f"end:{resolved_end}",
             f"providers:{sorted(self.providers or [])}",
             f"categories:{sorted(self.service_categories or [])}",
+            f"dept:{self.department_id or ''}",
+            f"proj:{self.project_id or ''}",
+            f"team:{self.team_id or ''}",
             f"group:{sorted(self.group_by or [])}",
             f"limit:{self.limit}",
             f"offset:{self.offset}"

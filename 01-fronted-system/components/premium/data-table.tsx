@@ -210,23 +210,29 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
             All
           </button>
           <div className="h-px bg-slate-100 mx-3 my-1" />
-          {column.filterOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => {
-                onChange(option.value)
-                setIsOpen(false)
-              }}
-              className={cn(
-                "w-full px-4 py-2.5 text-left text-[13px] font-medium transition-all duration-150",
-                value === option.value
-                  ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
+          {column.filterOptions.map((option) => {
+            // Handle both string and array values for comparison
+            const isSelected = Array.isArray(value)
+              ? value.includes(option.value)
+              : value === option.value
+            return (
+              <button
+                key={option.value}
+                onClick={() => {
+                  onChange(option.value)
+                  setIsOpen(false)
+                }}
+                className={cn(
+                  "w-full px-4 py-2.5 text-left text-[13px] font-medium transition-all duration-150",
+                  isSelected
+                    ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                )}
+              >
+                {option.label}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -390,13 +396,27 @@ export function PremiumDataTable<T extends object>({
         const column = columns.find((c) => c.id === filter.columnId)
         if (!column || !column.accessorKey) return true
 
-        const value = row[column.accessorKey]
+        const rawValue = row[column.accessorKey]
         const filterValue = filter.value
 
-        if (Array.isArray(filterValue)) {
-          return filterValue.length === 0 || filterValue.includes(String(value))
+        // Handle null/undefined values - don't convert to string "null"/"undefined"
+        if (rawValue === null || rawValue === undefined) {
+          return !filterValue // Only match if no filter is set
         }
-        return !filterValue || String(value) === filterValue
+
+        // Normalize value for comparison (case-insensitive)
+        const normalizedValue = String(rawValue).toUpperCase()
+
+        if (Array.isArray(filterValue)) {
+          // Empty array means no filter - show all
+          if (filterValue.length === 0) return true
+          // Check if any filter value matches (case-insensitive)
+          return filterValue.some(fv => String(fv).toUpperCase() === normalizedValue)
+        }
+
+        // Single value filter - empty string means show all
+        if (!filterValue) return true
+        return String(filterValue).toUpperCase() === normalizedValue
       })
     )
   }, [searchFilteredData, filters, filterable, columns])

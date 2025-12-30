@@ -2,7 +2,9 @@
 
 import { useEffect, useState, Suspense, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Cloud, Loader2, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react"
+import Link from "next/link"
+import Image from "next/image"
+import { Loader2, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
@@ -227,11 +229,17 @@ export default function SuccessPage() {
   return (
     <div className="flex min-h-svh w-full flex-col bg-white">
       {/* Header with Logo */}
-      <div className="flex items-center gap-2 p-6 md:p-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#90FCA6] text-black shadow">
-          <Cloud className="h-5 w-5" />
-        </div>
-        <span className="font-semibold text-gray-900">CloudAct.ai</span>
+      <div className="p-6 md:p-8">
+        <Link href="/" className="inline-flex items-center">
+          <Image
+            src="/logos/cloudact-logo-black.svg"
+            alt="CloudAct"
+            width={160}
+            height={32}
+            className="h-8 w-auto"
+            priority
+          />
+        </Link>
       </div>
 
       {/* Main Content Centered */}
@@ -239,6 +247,15 @@ export default function SuccessPage() {
         <Suspense fallback={<SuccessFallback />}>
           <SuccessContent />
         </Suspense>
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 sm:p-6 text-center text-xs sm:text-sm text-gray-400 border-t border-gray-100">
+        <span>&copy; {new Date().getFullYear()} CloudAct Inc. All rights reserved.</span>
+        <span className="mx-1 sm:mx-2">·</span>
+        <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
+        <span className="mx-1 sm:mx-2">·</span>
+        <Link href="/terms" className="hover:text-gray-600 transition-colors">Terms</Link>
       </div>
     </div>
   )

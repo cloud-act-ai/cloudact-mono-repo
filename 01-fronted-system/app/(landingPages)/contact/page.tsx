@@ -10,7 +10,6 @@ import {
   Clock,
   MessageSquare,
   Users,
-  Globe,
   ArrowRight,
   Building2
 } from "lucide-react"
@@ -215,12 +214,13 @@ export default function ContactPage() {
                       <h3 className="ca-heading text-base mb-1">Call Us</h3>
                       <p className="ca-body-sm mb-2">Mon-Fri, 9am-6pm PT</p>
                       <a
-                        href="tel:+15551234567"
+                        href="tel:+18509887471"
                         className="text-[var(--ca-teal)] font-medium text-sm hover:underline inline-flex items-center gap-1 group/link"
                       >
-                        +1 (555) 123-4567
+                        (850) 988-7471
                         <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
                       </a>
+                      <p className="ca-body-sm text-[var(--ca-gray-500)] mt-1">Fax: (408) 825-6915</p>
                     </div>
                   </div>
                 </div>
@@ -252,8 +252,9 @@ export default function ContactPage() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-2">Headquarters</h3>
                     <p className="text-white/90 text-sm leading-relaxed">
-                      123 Innovation Drive<br />
-                      San Francisco, CA 94105<br />
+                      CloudAct Inc.<br />
+                      100 S Murphy Ave, STE 200 PMB4013<br />
+                      Sunnyvale, CA 94086<br />
                       United States
                     </p>
                   </div>
@@ -485,99 +486,70 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Office Locations */}
+      {/* Office Location */}
       <section className="py-20 bg-[var(--ca-gray-50)]">
         <div className="container mx-auto px-4 md:px-8 max-w-7xl">
-          <div className="text-center mb-12">
-            <span className="ca-label text-[var(--ca-teal)]">Global Presence</span>
-            <h2 className="ca-display-md mt-4 mb-4">Our Locations</h2>
-            <p className="ca-body max-w-2xl mx-auto">
-              We have offices around the world to better serve our global customer base.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* San Francisco */}
-            <div className="ca-card group">
-              <div className="aspect-video bg-gradient-to-br from-[var(--ca-teal)] to-[var(--ca-teal-dark)] rounded-lg mb-5 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                  }} />
-                </div>
-                <Globe className="w-16 h-16 text-white relative z-10" />
-              </div>
-              <div className="flex items-start gap-3 mb-3">
-                <MapPin className="w-5 h-5 text-[var(--ca-teal)] mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="ca-heading mb-1">San Francisco</h3>
-                  <p className="ca-body-sm">
-                    123 Innovation Drive<br />
-                    San Francisco, CA 94105<br />
-                    United States
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[var(--ca-gray-600)] pt-3 border-t border-[var(--ca-gray-200)]">
-                <Building2 className="w-4 h-4" />
-                <span>Headquarters</span>
-              </div>
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-8">
+              <span className="ca-label text-[var(--ca-teal)]">Visit Us</span>
+              <h2 className="ca-display-md mt-4 mb-4">Our Headquarters</h2>
             </div>
 
-            {/* London */}
-            <div className="ca-card group">
-              <div className="aspect-video bg-gradient-to-br from-[var(--ca-coral)] to-[var(--ca-coral-dark)] rounded-lg mb-5 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                  }} />
+            <div className="ca-card p-8 md:p-10">
+              <div className="grid md:grid-cols-2 gap-8 items-center">
+                {/* Map/Visual */}
+                <div className="aspect-square md:aspect-video bg-gradient-to-br from-[var(--ca-teal)] to-[var(--ca-teal-dark)] rounded-2xl flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute inset-0" style={{
+                      backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
+                      backgroundSize: '20px 20px'
+                    }} />
+                  </div>
+                  <div className="text-center relative z-10">
+                    <Building2 className="w-16 h-16 text-white mx-auto mb-3" />
+                    <p className="text-white font-semibold text-lg">CloudAct Inc.</p>
+                    <p className="text-white/80 text-sm">Silicon Valley, CA</p>
+                  </div>
                 </div>
-                <Globe className="w-16 h-16 text-white relative z-10" />
-              </div>
-              <div className="flex items-start gap-3 mb-3">
-                <MapPin className="w-5 h-5 text-[var(--ca-coral)] mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="ca-heading mb-1">London</h3>
-                  <p className="ca-body-sm">
-                    45 Tech Square<br />
-                    London EC2M 4BJ<br />
-                    United Kingdom
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[var(--ca-gray-600)] pt-3 border-t border-[var(--ca-gray-200)]">
-                <Building2 className="w-4 h-4" />
-                <span>European Office</span>
-              </div>
-            </div>
 
-            {/* Singapore */}
-            <div className="ca-card group">
-              <div className="aspect-video bg-gradient-to-br from-[var(--ca-green)] to-[var(--ca-teal)] rounded-lg mb-5 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                  }} />
+                {/* Address Details */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="ca-heading text-xl mb-4">CloudAct Inc.</h3>
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-[var(--ca-teal)] mt-1 flex-shrink-0" />
+                      <div className="ca-body-sm">
+                        <p>100 S Murphy Ave</p>
+                        <p>STE 200 PMB4013</p>
+                        <p>Sunnyvale, CA 94086</p>
+                        <p>United States</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-5 h-5 text-[var(--ca-teal)] mt-1 flex-shrink-0" />
+                    <div className="ca-body-sm">
+                      <p>Phone: <a href="tel:+18509887471" className="text-[var(--ca-teal)] hover:underline">(850) 988-7471</a></p>
+                      <p>Fax: (408) 825-6915</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-5 h-5 text-[var(--ca-teal)] mt-1 flex-shrink-0" />
+                    <div className="ca-body-sm">
+                      <p>General: <a href="mailto:hello@cloudact.ai" className="text-[var(--ca-teal)] hover:underline">hello@cloudact.ai</a></p>
+                      <p>Support: <a href="mailto:support@cloudact.ai" className="text-[var(--ca-teal)] hover:underline">support@cloudact.ai</a></p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-[var(--ca-gray-200)]">
+                    <p className="ca-body-sm text-[var(--ca-gray-500)]">
+                      <Clock className="w-4 h-4 inline mr-2" />
+                      Business Hours: Mon-Fri, 9am-6pm PT
+                    </p>
+                  </div>
                 </div>
-                <Globe className="w-16 h-16 text-white relative z-10" />
-              </div>
-              <div className="flex items-start gap-3 mb-3">
-                <MapPin className="w-5 h-5 text-[var(--ca-green)] mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="ca-heading mb-1">Singapore</h3>
-                  <p className="ca-body-sm">
-                    88 Marina Bay<br />
-                    Singapore 018981<br />
-                    Singapore
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[var(--ca-gray-600)] pt-3 border-t border-[var(--ca-gray-200)]">
-                <Building2 className="w-4 h-4" />
-                <span>Asia Pacific Office</span>
               </div>
             </div>
           </div>
