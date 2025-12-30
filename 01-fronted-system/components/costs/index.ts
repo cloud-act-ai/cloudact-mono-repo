@@ -111,3 +111,15 @@ export {
   type DateRangePreset,
   type DateRangeFilterProps,
 } from "./date-range-filter"
+
+// ============================================
+// Cost Filters (Hierarchy, Provider, Category)
+// ============================================
+
+export {
+  CostFilters,
+  getDefaultFilters,
+  type CostFiltersState,
+  type CostFiltersProps,
+  type HierarchyEntity,
+} from "./cost-filters"

@@ -88,6 +88,11 @@ export default function QuotaUsagePage() {
     ? Math.round((quotaLimits.configured_providers_count / quotaLimits.providers_limit) * 100)
     : 0
 
+  // Calculate pipeline limits - derive weekly/monthly from daily if not set
+  const dailyLimit = quotaLimits?.pipelines_per_day_limit || 0
+  const weeklyLimit = quotaLimits?.pipelines_per_week_limit || (dailyLimit > 0 ? dailyLimit * 7 : 0)
+  const monthlyLimit = quotaLimits?.pipelines_per_month_limit || (dailyLimit > 0 ? dailyLimit * 30 : 0)
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -306,7 +311,7 @@ export default function QuotaUsagePage() {
                   Daily
                 </p>
                 <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
-                  {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "Contact us"}
+                  {dailyLimit > 0 ? dailyLimit : "Contact us"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per day</p>
               </div>
@@ -320,7 +325,7 @@ export default function QuotaUsagePage() {
                   Weekly
                 </p>
                 <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
-                  {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "Contact us"}
+                  {weeklyLimit > 0 ? weeklyLimit : "Contact us"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per week</p>
               </div>
@@ -334,7 +339,7 @@ export default function QuotaUsagePage() {
                   Monthly
                 </p>
                 <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
-                  {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "Contact us"}
+                  {monthlyLimit > 0 ? monthlyLimit : "Contact us"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per month</p>
               </div>

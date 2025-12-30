@@ -17,14 +17,19 @@ import {
   CostBreakdownChart,
   CostDataTable,
   DateRangeFilter,
+  CostFilters,
   getDefaultDateRange,
+  getDefaultFilters,
   dateRangeToApiParams,
   type BreakdownItem,
   type CostSummaryData,
   type DateRange,
+  type CostFiltersState,
+  type HierarchyEntity,
 } from "@/components/costs"
 import { getTotalCosts, getCostByProvider, type TotalCostSummary, type ProviderBreakdown } from "@/actions/costs"
 import { getSaaSSubscriptionCosts, type SaaSCostSummary } from "@/actions/subscription-providers"
+import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
   getDateInfo,
@@ -50,6 +55,32 @@ export default function CostOverviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
+  const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
+  const [hierarchy, setHierarchy] = useState<HierarchyEntity[]>([])
+  const [availableProviders, setAvailableProviders] = useState<string[]>([])
+
+  // Load hierarchy data once on mount
+  useEffect(() => {
+    async function loadHierarchy() {
+      try {
+        const result = await getHierarchy(orgSlug)
+        if (result.success && result.data) {
+          const entities: HierarchyEntity[] = result.data.map((h: { entity_id: string; entity_name: string; entity_type: string; parent_id?: string }) => ({
+            entity_id: h.entity_id,
+            entity_name: h.entity_name,
+            entity_type: h.entity_type as "department" | "project" | "team",
+            parent_id: h.parent_id,
+          }))
+          setHierarchy(entities)
+        }
+      } catch (err) {
+        console.error("Failed to load hierarchy:", err)
+      }
+    }
+    if (orgSlug) {
+      loadHierarchy()
+    }
+  }, [orgSlug])
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -59,6 +90,8 @@ export default function CostOverviewPage() {
       // Convert date range to API parameters
       const { startDate, endDate } = dateRangeToApiParams(dateRange)
 
+      // TODO: Pass filters to API when backend supports filtering
+      // For now, filters are applied client-side
       const [costsResult, providersResult, saasResult] = await Promise.all([
         getTotalCosts(orgSlug),
         getCostByProvider(orgSlug, startDate, endDate),
@@ -84,11 +117,15 @@ export default function CostOverviewPage() {
           }))
 
         setProviders(validProviders)
+        // Extract unique provider names for filter
+        setAvailableProviders(validProviders.map(p => p.provider))
       } else if (providersResult.success) {
         const validProviders = providersResult.data
           .filter(p => p.provider && p.provider.trim() !== "" && p.provider !== "Unknown" && p.total_cost > 0)
           .slice(0, 10)
         setProviders(validProviders)
+        // Extract unique provider names for filter
+        setAvailableProviders(validProviders.map(p => p.provider))
       }
 
       if (saasResult.success) {
@@ -152,6 +189,12 @@ export default function CostOverviewPage() {
   // Handle date range change
   const handleDateRangeChange = useCallback((newRange: DateRange) => {
     setDateRange(newRange)
+  }, [])
+
+  // Handle filter changes
+  const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
+    setFilters(newFilters)
+    // TODO: Reload data with filters when backend supports it
   }, [])
 
   const handleRefresh = async () => {
@@ -225,11 +268,21 @@ export default function CostOverviewPage() {
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
       headerActions={
-        <DateRangeFilter
-          value={dateRange}
-          onChange={handleDateRangeChange}
-          disabled={isLoading || isRefreshing}
-        />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <CostFilters
+            value={filters}
+            onChange={handleFiltersChange}
+            hierarchy={hierarchy}
+            availableProviders={availableProviders}
+            disabled={isLoading || isRefreshing}
+            loading={isLoading}
+          />
+          <DateRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            disabled={isLoading || isRefreshing}
+          />
+        </div>
       }
     >
       {/* Summary Metrics */}
