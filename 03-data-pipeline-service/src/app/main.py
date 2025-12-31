@@ -604,11 +604,11 @@ async def readiness_probe():
         )
 
     checks = {
-        "shutdown": True,
+        "ready": True,
         "bigquery": False,
-        "procedures_synced": False,
-        "kms": False,
-        "api_service": False
+        "procedures": False,
+        "encryption": False,
+        "api": False
     }
 
     # Check BigQuery connectivity
@@ -657,23 +657,23 @@ async def readiness_probe():
 
         if missing_procedures:
             logger.warning(f"Missing stored procedures: {missing_procedures}")
-            checks["procedures_synced"] = False
+            checks["procedures"] = False
         else:
-            checks["procedures_synced"] = True
+            checks["procedures"] = True
 
     except Exception as e:
         logger.warning(f"Stored procedures check failed: {e}")
-        checks["procedures_synced"] = False
+        checks["procedures"] = False
 
     # Check KMS availability
     try:
         from src.core.security.kms_encryption import _get_key_name, _get_kms_client
         key_name = _get_key_name()
         _get_kms_client()
-        checks["kms"] = True
+        checks["encryption"] = True
     except Exception as e:
         logger.warning(f"KMS health check failed: {e}")
-        checks["kms"] = False
+        checks["encryption"] = False
 
     # Check API Service connectivity
     try:
@@ -681,13 +681,13 @@ async def readiness_probe():
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{settings.api_service_url}/health")
             if response.status_code == 200:
-                checks["api_service"] = True
+                checks["api"] = True
     except Exception as e:
         logger.warning(f"API service health check failed: {e}")
-        checks["api_service"] = False
+        checks["api"] = False
 
     # Determine overall readiness (BigQuery is critical, others are warnings)
-    critical_checks = checks["shutdown"] and checks["bigquery"]
+    critical_checks = checks["ready"] and checks["bigquery"]
 
     if critical_checks:
         return {

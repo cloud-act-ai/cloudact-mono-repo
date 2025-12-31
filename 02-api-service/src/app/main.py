@@ -774,11 +774,11 @@ async def readiness_probe():
         )
 
     checks = {
-        "shutdown": True,
+        "ready": True,
         "bigquery": False,
-        "bootstrap": False,
-        "kms": False,
-        "pipeline_service": False
+        "setup": False,
+        "encryption": False,
+        "pipeline": False
     }
 
     # Check BigQuery connectivity
@@ -815,21 +815,21 @@ async def readiness_probe():
         result = list(query_job.result(timeout=5))
 
         # Bootstrap is complete if at least 3 core tables exist
-        checks["bootstrap"] = result[0].table_count >= 3
+        checks["setup"] = result[0].table_count >= 3
 
     except Exception as e:
         logger.warning(f"Bootstrap check failed: {e}")
-        checks["bootstrap"] = False
+        checks["setup"] = False
 
     # Check KMS availability
     try:
         from src.core.security.kms_encryption import _get_key_name, _get_kms_client
         key_name = _get_key_name()
         _get_kms_client()
-        checks["kms"] = True
+        checks["encryption"] = True
     except Exception as e:
         logger.warning(f"KMS health check failed: {e}")
-        checks["kms"] = False
+        checks["encryption"] = False
 
     # Check Pipeline Service connectivity
     try:
@@ -837,13 +837,13 @@ async def readiness_probe():
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{settings.pipeline_service_url}/health")
             if response.status_code == 200:
-                checks["pipeline_service"] = True
+                checks["pipeline"] = True
     except Exception as e:
         logger.warning(f"Pipeline service health check failed: {e}")
-        checks["pipeline_service"] = False
+        checks["pipeline"] = False
 
     # Determine overall readiness (BigQuery is critical, others are warnings)
-    critical_checks = checks["shutdown"] and checks["bigquery"]
+    critical_checks = checks["ready"] and checks["bigquery"]
 
     if critical_checks:
         return {

@@ -23,10 +23,10 @@ interface HealthResponse {
   release_timestamp: string
   environment: string
   checks: {
-    supabase: ServiceHealth
-    stripe: ServiceHealth
-    api_service: ServiceHealth
-    pipeline_service: ServiceHealth
+    database: ServiceHealth
+    payments: ServiceHealth
+    api: ServiceHealth
+    pipeline: ServiceHealth
   }
 }
 
@@ -139,10 +139,10 @@ export async function GET() {
   ])
 
   const checks = {
-    supabase,
-    stripe,
-    api_service: apiService,
-    pipeline_service: pipelineService,
+    database: supabase,
+    payments: stripe,
+    api: apiService,
+    pipeline: pipelineService,
   }
 
   // Determine overall status
