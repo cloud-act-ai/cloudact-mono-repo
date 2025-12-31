@@ -29,6 +29,7 @@ import {
   Star,
   Rocket,
 } from "lucide-react"
+import { NewsletterForm } from "@/components/landing/newsletter-form"
 import "../premium.css"
 
 // Resource categories
@@ -411,20 +412,7 @@ export default function ResourcesPage() {
             Get the latest guides, case studies, and cloud cost optimization insights
             delivered to your inbox every week
           </p>
-          <form className="ca-resources-newsletter-form" aria-label="Newsletter signup">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="ca-resources-newsletter-input"
-              aria-label="Email address"
-              autoComplete="email"
-              required
-            />
-            <button type="submit" className="ca-btn-hero-primary">
-              Subscribe
-              <CheckCircle2 className="w-5 h-5" />
-            </button>
-          </form>
+          <NewsletterForm source="resources-page" />
           <p className="ca-resources-newsletter-note">
             Weekly insights for cloud professionals. Unsubscribe anytime.
           </p>

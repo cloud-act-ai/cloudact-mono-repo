@@ -163,9 +163,50 @@ const RESOURCES = [
 export default function HelpPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex(openFaqIndex === index ? null : index)
+  }
+
+  // Search functionality
+  const normalizedQuery = searchQuery.toLowerCase().trim()
+
+  const filteredCategories = isSearching
+    ? HELP_CATEGORIES.filter(
+        (cat) =>
+          cat.title.toLowerCase().includes(normalizedQuery) ||
+          cat.description.toLowerCase().includes(normalizedQuery)
+      )
+    : HELP_CATEGORIES
+
+  const filteredArticles = isSearching
+    ? POPULAR_ARTICLES.filter(
+        (article) =>
+          article.title.toLowerCase().includes(normalizedQuery) ||
+          article.category.toLowerCase().includes(normalizedQuery)
+      )
+    : POPULAR_ARTICLES
+
+  const filteredFaqs = isSearching
+    ? FAQS.filter(
+        (faq) =>
+          faq.question.toLowerCase().includes(normalizedQuery) ||
+          faq.answer.toLowerCase().includes(normalizedQuery)
+      )
+    : FAQS
+
+  const totalResults = filteredCategories.length + filteredArticles.length + filteredFaqs.length
+  const hasNoResults = isSearching && totalResults === 0
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSearching(searchQuery.trim().length > 0)
+  }
+
+  const clearSearch = () => {
+    setSearchQuery("")
+    setIsSearching(false)
   }
 
   return (
@@ -186,116 +227,154 @@ export default function HelpPage() {
           </p>
 
           {/* Search */}
-          <form className="ca-help-search" role="search" aria-label="Search help articles" onSubmit={(e) => e.preventDefault()}>
+          <form className="ca-help-search" role="search" aria-label="Search help articles" onSubmit={handleSearch}>
             <div className="ca-help-search-inner">
               <Search className="w-5 h-5" aria-hidden="true" />
               <input
                 type="search"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  if (e.target.value.trim() === "") {
+                    setIsSearching(false)
+                  }
+                }}
                 placeholder="Search for help articles..."
                 className="ca-help-search-input"
                 aria-label="Search help articles"
               />
+              {isSearching && (
+                <button type="button" onClick={clearSearch} className="ca-help-search-clear" aria-label="Clear search">
+                  &times;
+                </button>
+              )}
               <button type="submit" className="ca-btn-hero-primary ca-help-search-btn">
                 Search
               </button>
             </div>
           </form>
+
+          {/* Search Results Summary */}
+          {isSearching && (
+            <div className="ca-help-search-results-summary">
+              {hasNoResults ? (
+                <p className="ca-help-no-results">
+                  No results found for &ldquo;{searchQuery}&rdquo;. Try a different search term or{" "}
+                  <Link href="/contact">contact support</Link>.
+                </p>
+              ) : (
+                <p>
+                  Found {totalResults} result{totalResults !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
+                  <button type="button" onClick={clearSearch} className="ca-help-clear-search-link">
+                    Clear search
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
       {/* Help Categories */}
-      <section className="ca-help-categories-section">
-        <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Book className="w-4 h-4" />
-            Browse by Topic
-          </span>
-          <h2 className="ca-section-title">Help Categories</h2>
-        </div>
+      {filteredCategories.length > 0 && (
+        <section className="ca-help-categories-section">
+          <div className="ca-section-header-centered">
+            <span className="ca-section-eyebrow">
+              <Book className="w-4 h-4" />
+              Browse by Topic
+            </span>
+            <h2 className="ca-section-title">Help Categories</h2>
+          </div>
 
-        <div className="ca-help-categories-grid">
-          {HELP_CATEGORIES.map((category) => {
-            const Icon = category.icon
-            return (
-              <Link key={category.title} href={category.href} className="ca-help-category-card">
-                <div className="ca-help-category-icon">
-                  <Icon className="w-6 h-6" />
-                </div>
-                <h3 className="ca-help-category-title">{category.title}</h3>
-                <p className="ca-help-category-desc">{category.description}</p>
-                <div className="ca-help-category-footer">
-                  <span>{category.articles} articles</span>
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
+          <div className="ca-help-categories-grid">
+            {filteredCategories.map((category) => {
+              const Icon = category.icon
+              return (
+                <Link key={category.title} href={category.href} className="ca-help-category-card">
+                  <div className="ca-help-category-icon">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="ca-help-category-title">{category.title}</h3>
+                  <p className="ca-help-category-desc">{category.description}</p>
+                  <div className="ca-help-category-footer">
+                    <span>{category.articles} articles</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Popular Articles */}
-      <section className="ca-help-articles-section">
-        <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Zap className="w-4 h-4" />
-            Quick Answers
-          </span>
-          <h2 className="ca-section-title">Popular Articles</h2>
-        </div>
+      {filteredArticles.length > 0 && (
+        <section className="ca-help-articles-section">
+          <div className="ca-section-header-centered">
+            <span className="ca-section-eyebrow">
+              <Zap className="w-4 h-4" />
+              Quick Answers
+            </span>
+            <h2 className="ca-section-title">Popular Articles</h2>
+          </div>
 
-        <div className="ca-help-articles-list">
-          {POPULAR_ARTICLES.map((article) => (
-            <Link key={article.title} href={article.href} className="ca-help-article-card">
-              <div className="ca-help-article-content">
-                <HelpCircle className="w-5 h-5 ca-icon-mint" />
-                <div>
-                  <h3 className="ca-help-article-title">{article.title}</h3>
-                  <span className="ca-help-article-category">{article.category}</span>
+          <div className="ca-help-articles-list">
+            {filteredArticles.map((article) => (
+              <Link key={article.title} href={article.href} className="ca-help-article-card">
+                <div className="ca-help-article-content">
+                  <HelpCircle className="w-5 h-5 ca-icon-mint" />
+                  <div>
+                    <h3 className="ca-help-article-title">{article.title}</h3>
+                    <span className="ca-help-article-category">{article.category}</span>
+                  </div>
                 </div>
-              </div>
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          ))}
-        </div>
-      </section>
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* FAQ Section */}
-      <section className="ca-help-faq-section">
-        <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <HelpCircle className="w-4 h-4" />
-            FAQ
-          </span>
-          <h2 className="ca-section-title">Frequently Asked Questions</h2>
-        </div>
+      {filteredFaqs.length > 0 && (
+        <section className="ca-help-faq-section">
+          <div className="ca-section-header-centered">
+            <span className="ca-section-eyebrow">
+              <HelpCircle className="w-4 h-4" />
+              FAQ
+            </span>
+            <h2 className="ca-section-title">Frequently Asked Questions</h2>
+          </div>
 
-        <div className="ca-help-faq-container" role="region" aria-label="Frequently Asked Questions">
-          {FAQS.map((faq, index) => (
-            <div
-              key={index}
-              className={`ca-help-faq-item ${openFaqIndex === index ? "ca-help-faq-item-open" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => toggleFaq(index)}
-                className="ca-help-faq-question"
-                aria-expanded={openFaqIndex === index}
-                aria-controls={`help-faq-answer-${index}`}
-              >
-                <span>{faq.question}</span>
-                <ChevronDown className={`w-5 h-5 ca-help-faq-icon ${openFaqIndex === index ? "ca-help-faq-icon-open" : ""}`} />
-              </button>
-              {openFaqIndex === index && (
-                <div id={`help-faq-answer-${index}`} className="ca-help-faq-answer" role="region">
-                  <p>{faq.answer}</p>
+          <div className="ca-help-faq-container" role="region" aria-label="Frequently Asked Questions">
+            {filteredFaqs.map((faq, index) => {
+              const originalIndex = FAQS.findIndex(f => f.question === faq.question)
+              return (
+                <div
+                  key={originalIndex}
+                  className={`ca-help-faq-item ${openFaqIndex === originalIndex ? "ca-help-faq-item-open" : ""}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleFaq(originalIndex)}
+                    className="ca-help-faq-question"
+                    aria-expanded={openFaqIndex === originalIndex}
+                    aria-controls={`help-faq-answer-${originalIndex}`}
+                  >
+                    <span>{faq.question}</span>
+                    <ChevronDown className={`w-5 h-5 ca-help-faq-icon ${openFaqIndex === originalIndex ? "ca-help-faq-icon-open" : ""}`} />
+                  </button>
+                  {openFaqIndex === originalIndex && (
+                    <div id={`help-faq-answer-${originalIndex}`} className="ca-help-faq-answer" role="region">
+                      <p>{faq.answer}</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Support Channels */}
       <section className="ca-help-support-section">

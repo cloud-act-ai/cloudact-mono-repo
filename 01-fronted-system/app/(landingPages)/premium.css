@@ -2152,7 +2152,7 @@ a:focus-visible {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   animation: slideInFromTop 0.25s var(--ease-out);
-  z-index: 99;
+  z-index: 1000;
 }
 
 @keyframes slideInFromTop {
@@ -8397,6 +8397,80 @@ a:focus-visible {
   color: var(--ca-gray-500);
 }
 
+/* Newsletter Success/Error States */
+.ca-newsletter-success {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: rgba(144, 252, 166, 0.1);
+  border: 1px solid var(--ca-mint);
+  border-radius: var(--radius-lg);
+  color: var(--ca-gray-900);
+  font-size: 0.9375rem;
+}
+
+.ca-newsletter-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--ca-coral);
+  font-size: 0.8125rem;
+  width: 100%;
+}
+
+/* Form Error Banner */
+.ca-form-error-banner {
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 108, 94, 0.1);
+  border: 1px solid var(--ca-coral);
+  border-radius: var(--radius-md);
+  color: var(--ca-coral);
+  font-size: 0.875rem;
+  margin-bottom: var(--space-4);
+}
+
+/* Demo Form Success */
+.ca-demo-form-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  gap: var(--space-4);
+}
+
+.ca-demo-form-success h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ca-gray-900);
+  margin: 0;
+}
+
+.ca-demo-form-success p {
+  font-size: 1rem;
+  color: var(--ca-gray-600);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* Form Spinner */
+.ca-form-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ca-spin 0.8s linear infinite;
+}
+
+@keyframes ca-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ==========================================================================
    LEGAL PAGES STYLES (Privacy, Terms, Security, Compliance)
    ========================================================================== */
@@ -9809,6 +9883,7 @@ a:focus-visible {
   border: 1px solid var(--ca-gray-200);
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-md);
+  position: relative;
 }
 
 .ca-help-search-inner svg {
@@ -9832,6 +9907,66 @@ a:focus-visible {
 .ca-help-search-btn {
   padding: 12px 24px;
   border-radius: var(--radius-full);
+}
+
+/* Search Clear Button */
+.ca-help-search-clear {
+  position: absolute;
+  right: 130px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ca-gray-200);
+  border: none;
+  border-radius: 50%;
+  color: var(--ca-gray-600);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ca-help-search-clear:hover {
+  background: var(--ca-gray-300);
+  color: var(--ca-gray-900);
+}
+
+/* Search Results Summary */
+.ca-help-search-results-summary {
+  margin-top: var(--space-4);
+  text-align: center;
+}
+
+.ca-help-search-results-summary p {
+  font-size: 0.9375rem;
+  color: var(--ca-gray-600);
+}
+
+.ca-help-no-results {
+  color: var(--ca-gray-500);
+}
+
+.ca-help-no-results a {
+  color: var(--ca-mint-dark);
+  text-decoration: underline;
+}
+
+.ca-help-clear-search-link {
+  margin-left: var(--space-3);
+  background: none;
+  border: none;
+  color: var(--ca-mint-dark);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.ca-help-clear-search-link:hover {
+  color: var(--ca-gray-900);
 }
 
 .ca-help-categories-section {

@@ -131,10 +131,32 @@ export default function ContactPage() {
     e.preventDefault()
     if (!validateForm()) return
     setIsSubmitting(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    setIsSuccess(true)
-    setFormData({ firstName: "", lastName: "", email: "", company: "", inquiryType: "", message: "" })
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.errors) {
+          setErrors(data.errors)
+        } else {
+          setErrors({ form: data.error || "Something went wrong. Please try again." })
+        }
+        return
+      }
+
+      setIsSuccess(true)
+      setFormData({ firstName: "", lastName: "", email: "", company: "", inquiryType: "", message: "" })
+    } catch {
+      setErrors({ form: "Network error. Please check your connection and try again." })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (field: keyof FormData, value: string) => {

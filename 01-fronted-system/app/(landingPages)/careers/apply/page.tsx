@@ -141,45 +141,41 @@ function CareerApplyForm() {
 
     setIsSubmitting(true)
 
-    // Build mailto link with form data (files will need to be attached manually or use a form submission service)
-    const subject = `Job Application: ${formData.position} - ${formData.firstName} ${formData.lastName}`
-    const body = `
-Job Application for: ${formData.position}
+    try {
+      const response = await fetch("/api/careers/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          position: formData.position,
+          linkedin: formData.linkedin,
+          github: formData.github,
+          portfolio: formData.portfolio,
+          coverLetter: formData.coverLetter,
+          resumeFileName: attachments.length > 0 ? attachments.map(a => a.name).join(", ") : undefined,
+        }),
+      })
 
-PERSONAL INFORMATION
---------------------
-Name: ${formData.firstName} ${formData.lastName}
-Email: ${formData.email}
-Phone: ${formData.phone || "Not provided"}
+      const data = await response.json()
 
-ONLINE PROFILES
----------------
-LinkedIn: ${formData.linkedin || "Not provided"}
-GitHub: ${formData.github || "Not provided"}
-Portfolio: ${formData.portfolio || "Not provided"}
+      if (!response.ok) {
+        if (data.errors) {
+          setErrors(data.errors)
+        } else {
+          setErrors({ form: data.error || "Something went wrong. Please try again." })
+        }
+        return
+      }
 
-COVER LETTER
-------------
-${formData.coverLetter || "Not provided"}
-
-ATTACHMENTS
------------
-${attachments.map(a => `- ${a.name} (${formatFileSize(a.size)})`).join("\n")}
-
-Note: Please reply to this email to receive the attached files, or the applicant can send them in a follow-up email.
-    `.trim()
-
-    // Create mailto link
-    const mailtoLink = `mailto:careers@cloudact.ai?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-
-    // Open email client
-    window.location.href = mailtoLink
-
-    // Show success after a short delay
-    setTimeout(() => {
-      setIsSubmitting(false)
       setIsSuccess(true)
-    }, 1000)
+    } catch {
+      setErrors({ form: "Network error. Please check your connection and try again." })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (field: keyof FormData, value: string) => {
