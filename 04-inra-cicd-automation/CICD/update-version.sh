@@ -47,17 +47,15 @@ if [ -f "$PIPELINE_CONFIG" ]; then
     echo -e "\033[0;32m✓ Updated $PIPELINE_CONFIG\033[0m"
 fi
 
-# Update Frontend health endpoint (if version is there)
+# Update Frontend health endpoint
 FRONTEND_HEALTH="$REPO_ROOT/01-fronted-system/app/api/health/route.ts"
 if [ -f "$FRONTEND_HEALTH" ]; then
     echo -e "\033[1;33mUpdating: frontend\033[0m"
-    # Check if release field exists and update it
-    if grep -q "release:" "$FRONTEND_HEALTH"; then
-        sed -i '' "s/release: \"v[0-9]*\.[0-9]*\.[0-9]*\"/release: \"$VERSION\"/" "$FRONTEND_HEALTH"
-        echo -e "\033[0;32m✓ Updated $FRONTEND_HEALTH\033[0m"
-    else
-        echo -e "\033[1;33m  No release field found, skipping\033[0m"
-    fi
+    # Update RELEASE_VERSION constant
+    sed -i '' "s/const RELEASE_VERSION = \"v[0-9]*\.[0-9]*\.[0-9]*\"/const RELEASE_VERSION = \"$VERSION\"/" "$FRONTEND_HEALTH"
+    # Update RELEASE_TIMESTAMP constant
+    sed -i '' "s/const RELEASE_TIMESTAMP = \"[^\"]*\"/const RELEASE_TIMESTAMP = \"$TIMESTAMP\"/" "$FRONTEND_HEALTH"
+    echo -e "\033[0;32m✓ Updated $FRONTEND_HEALTH\033[0m"
 fi
 
 echo ""

@@ -6,8 +6,8 @@ export const runtime = "nodejs" // Need nodejs for Stripe SDK
 export const dynamic = "force-dynamic"
 
 // Release info - matches backend services format
-const RELEASE_VERSION = "v1.0.5"
-const RELEASE_TIMESTAMP = "2025-12-30T16:15:00-08:00" // PST timezone
+const RELEASE_VERSION = "v1.0.11"
+const RELEASE_TIMESTAMP = "2025-12-31T07:03:49-08:00" // PST timezone
 
 interface ServiceHealth {
   status: "healthy" | "unhealthy" | "degraded"
