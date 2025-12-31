@@ -107,7 +107,7 @@ function HeroSection() {
 
           {/* Subheadline */}
           <p className="ca-hero-subheadline">
-            Multi-cloud and enterprise-ready, CloudAct gives Finance, Engineering, and FinOps teams
+            Multi-cloud and enterprise-ready, CloudAct.ai gives Finance, Engineering, and FinOps teams
             a shared system of record for managing spend so you can align on budgets, act on insights,
             and scale with control.
           </p>
@@ -416,7 +416,7 @@ function PlatformPillarsSection() {
         </span>
         <h2 className="ca-section-title">One platform for all your cost intelligence</h2>
         <p className="ca-section-subtitle">
-          Stop juggling multiple tools. CloudAct unifies GenAI, cloud infrastructure, and SaaS
+          Stop juggling multiple tools. CloudAct.ai unifies GenAI, cloud infrastructure, and SaaS
           spending into a single source of truth for your entire organization.
         </p>
       </div>
@@ -623,7 +623,7 @@ function IntegrationsSection() {
 // ============================================
 const TESTIMONIALS = [
   {
-    quote: "CloudAct gave us complete visibility into our GenAI spending. We identified $40K in monthly savings within the first week.",
+    quote: "CloudAct.ai gave us complete visibility into our GenAI spending. We identified $40K in monthly savings within the first week.",
     author: "Sarah Chen",
     role: "VP of Engineering",
     company: "TechScale Inc.",
@@ -639,7 +639,7 @@ const TESTIMONIALS = [
     metric: "80% time saved",
   },
   {
-    quote: "The AI recommendations alone paid for the platform 10x over. CloudAct is essential for any team using LLMs at scale.",
+    quote: "The AI recommendations alone paid for the platform 10x over. CloudAct.ai is essential for any team using LLMs at scale.",
     author: "Emily Watson",
     role: "CTO",
     company: "AI Ventures",
@@ -832,7 +832,7 @@ function FinalCTASection() {
         </div>
         <h2 className="ca-final-cta-title">Ready to take control of your costs?</h2>
         <p className="ca-final-cta-subtitle">
-          Join hundreds of teams using CloudAct to track, analyze, and optimize their
+          Join hundreds of teams using CloudAct.ai to track, analyze, and optimize their
           GenAI, cloud, and SaaS spending.
         </p>
         <div className="ca-final-cta-buttons">

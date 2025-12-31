@@ -111,7 +111,7 @@ const OPEN_POSITIONS = [
     department: "Sales",
     location: "Remote (US)",
     type: "Full-time",
-    description: "Help enterprise customers integrate CloudAct and optimize their cloud spend.",
+    description: "Help enterprise customers integrate CloudAct.ai and optimize their cloud spend.",
   },
 ]
 

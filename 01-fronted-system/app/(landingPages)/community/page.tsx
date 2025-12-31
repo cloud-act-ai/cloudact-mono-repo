@@ -128,7 +128,7 @@ export default function CommunityPage() {
           </span>
           <h2 className="ca-section-title">Community Channels</h2>
           <p className="ca-section-subtitle">
-            Choose your preferred way to engage with the CloudAct community
+            Choose your preferred way to engage with the CloudAct.ai community
           </p>
         </div>
 
@@ -194,7 +194,7 @@ export default function CommunityPage() {
             <Sparkles className="w-4 h-4" />
             Ready to Connect?
           </div>
-          <h2 className="ca-final-cta-title">Join the CloudAct Community Today</h2>
+          <h2 className="ca-final-cta-title">Join the CloudAct.ai Community Today</h2>
           <p className="ca-final-cta-subtitle">
             Get started by joining our Discord server or following us on social media.
           </p>

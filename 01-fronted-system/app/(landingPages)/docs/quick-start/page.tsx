@@ -85,7 +85,7 @@ const QUICK_START_STEPS = [
 ]
 
 const CODE_EXAMPLES = {
-  aws: `# Create IAM role for CloudAct (read-only)
+  aws: `# Create IAM role for CloudAct.ai (read-only)
 aws iam create-role \\
   --role-name CloudActReadOnly \\
   --assume-role-policy-document file://trust-policy.json

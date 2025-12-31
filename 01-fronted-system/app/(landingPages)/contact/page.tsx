@@ -42,7 +42,7 @@ const CONTACT_CARDS = [
   },
   {
     title: "Schedule a Demo",
-    description: "See CloudAct in action. Book a personalized demo with our product specialists.",
+    description: "See CloudAct.ai in action. Book a personalized demo with our product specialists.",
     icon: Calendar,
     cta: "Book Demo",
     href: "/demo",
@@ -57,7 +57,7 @@ const CONTACT_CARDS = [
   },
   {
     title: "Partnerships",
-    description: "Interested in partnering with CloudAct? Let's explore opportunities together.",
+    description: "Interested in partnering with CloudAct.ai? Let's explore opportunities together.",
     email: "partners@cloudact.ai",
     icon: Handshake,
     cta: "Partner With Us",
@@ -377,7 +377,7 @@ export default function ContactPage() {
               Check out our documentation and help center for guides, tutorials, and FAQs.
             </p>
           </div>
-          <Link href="/resources#docs" className="ca-contact-help-cta">
+          <Link href="/help" className="ca-contact-help-cta">
             Visit Help Center
             <ArrowRight className="w-4 h-4" />
           </Link>

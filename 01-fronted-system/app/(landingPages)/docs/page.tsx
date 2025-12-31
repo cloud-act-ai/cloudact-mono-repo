@@ -47,21 +47,21 @@ const QUICK_START_GUIDES = [
     icon: Cloud,
     title: "Connect Cloud Providers",
     description: "AWS, Azure, GCP integration guide",
-    href: "/docs/cloud-integration",
+    href: "/integrations",
     time: "10 min",
   },
   {
     icon: Cpu,
     title: "GenAI Cost Tracking",
     description: "Monitor LLM API costs",
-    href: "/docs/genai-tracking",
+    href: "/features#genai",
     time: "8 min",
   },
   {
     icon: CreditCard,
     title: "SaaS Subscriptions",
     description: "Track software subscriptions",
-    href: "/docs/saas-tracking",
+    href: "/features#saas",
     time: "6 min",
   },
 ]
@@ -77,27 +77,27 @@ const API_SECTIONS = [
     icon: Lock,
     title: "Authentication",
     description: "API keys, OAuth, and security",
-    href: "/docs/api/authentication",
+    href: "/docs/api/reference",
   },
   {
     icon: Database,
     title: "Data Models",
     description: "Cost data schemas and types",
-    href: "/docs/api/data-models",
+    href: "/docs/api/reference",
   },
   {
     icon: Webhook,
     title: "Webhooks",
     description: "Real-time event notifications",
-    href: "/docs/api/webhooks",
+    href: "/docs/api/reference",
   },
 ]
 
 const SDK_LIBRARIES = [
-  { name: "JavaScript/TypeScript", status: "Available", href: "/docs/sdk/javascript" },
-  { name: "Python", status: "Available", href: "/docs/sdk/python" },
-  { name: "Go", status: "Coming Soon", href: "#" },
-  { name: "Ruby", status: "Coming Soon", href: "#" },
+  { name: "JavaScript/TypeScript", status: "Available", href: "/docs/api/reference" },
+  { name: "Python", status: "Available", href: "/docs/api/reference" },
+  { name: "Go", status: "Coming Soon", href: "/docs/api/reference" },
+  { name: "Ruby", status: "Coming Soon", href: "/docs/api/reference" },
 ]
 
 const DOC_CATEGORIES = [
@@ -106,10 +106,10 @@ const DOC_CATEGORIES = [
     title: "Guides",
     description: "Step-by-step tutorials and how-tos",
     articles: [
-      { title: "Setting up cost alerts", href: "/docs/guides/cost-alerts" },
-      { title: "Creating custom reports", href: "/docs/guides/custom-reports" },
-      { title: "Team management", href: "/docs/guides/team-management" },
-      { title: "Budget management", href: "/docs/guides/budgets" },
+      { title: "Setting up cost alerts", href: "/features#alerts" },
+      { title: "Creating custom reports", href: "/features#analytics" },
+      { title: "Team management", href: "/docs/api/reference" },
+      { title: "Budget management", href: "/pricing" },
     ],
   },
   {
@@ -117,10 +117,10 @@ const DOC_CATEGORIES = [
     title: "Integrations",
     description: "Connect your tools and services",
     articles: [
-      { title: "AWS Cost Explorer", href: "/docs/integrations/aws" },
-      { title: "Google Cloud Billing", href: "/docs/integrations/gcp" },
-      { title: "Azure Cost Management", href: "/docs/integrations/azure" },
-      { title: "OpenAI API", href: "/docs/integrations/openai" },
+      { title: "AWS Cost Explorer", href: "/integrations" },
+      { title: "Google Cloud Billing", href: "/integrations" },
+      { title: "Azure Cost Management", href: "/integrations" },
+      { title: "OpenAI API", href: "/integrations" },
     ],
   },
   {
@@ -128,10 +128,10 @@ const DOC_CATEGORIES = [
     title: "Analytics",
     description: "Understand your cost data",
     articles: [
-      { title: "Dashboard overview", href: "/docs/analytics/dashboard" },
-      { title: "Cost allocation", href: "/docs/analytics/cost-allocation" },
-      { title: "Trend analysis", href: "/docs/analytics/trends" },
-      { title: "Forecasting", href: "/docs/analytics/forecasting" },
+      { title: "Dashboard overview", href: "/features#analytics" },
+      { title: "Cost allocation", href: "/features#analytics" },
+      { title: "Trend analysis", href: "/features#analytics" },
+      { title: "Forecasting", href: "/features#analytics" },
     ],
   },
   {
@@ -139,19 +139,19 @@ const DOC_CATEGORIES = [
     title: "Configuration",
     description: "Customize your setup",
     articles: [
-      { title: "Organization settings", href: "/docs/config/organization" },
-      { title: "User permissions", href: "/docs/config/permissions" },
-      { title: "Notification settings", href: "/docs/config/notifications" },
-      { title: "Data retention", href: "/docs/config/retention" },
+      { title: "Organization settings", href: "/docs/api/reference" },
+      { title: "User permissions", href: "/docs/api/reference" },
+      { title: "Notification settings", href: "/features#alerts" },
+      { title: "Data retention", href: "/security" },
     ],
   },
 ]
 
 const RESOURCES = [
   { title: "API Status", description: "Real-time API status and uptime", href: "https://status.cloudact.ai", external: true },
-  { title: "Changelog", description: "Latest updates and releases", href: "/docs/changelog", external: false },
-  { title: "Postman Collection", description: "Import our API collection", href: "/docs/postman", external: false },
-  { title: "OpenAPI Spec", description: "Download OpenAPI 3.0 spec", href: "/docs/openapi", external: false },
+  { title: "Changelog", description: "Latest updates and releases", href: "/resources/blog", external: false },
+  { title: "Postman Collection", description: "Import our API collection", href: "/docs/api/reference", external: false },
+  { title: "OpenAPI Spec", description: "Download OpenAPI 3.0 spec", href: "/docs/api/reference", external: false },
 ]
 
 export default function DocsPage() {

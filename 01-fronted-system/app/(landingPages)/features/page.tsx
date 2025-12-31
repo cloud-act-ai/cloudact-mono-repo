@@ -54,7 +54,7 @@ export default function FeaturesPage() {
             <span className="ca-hero-highlight-genai">Master</span> Your Costs
           </h1>
           <p className="ca-page-hero-subtitle">
-            From GenAI tracking to multi-cloud analytics, CloudAct provides enterprise-grade
+            From GenAI tracking to multi-cloud analytics, CloudAct.ai provides enterprise-grade
             cost intelligence for modern engineering teams. One platform, complete visibility.
           </p>
           <div className="ca-page-hero-actions">
@@ -84,7 +84,7 @@ export default function FeaturesPage() {
 
         <div className="ca-pillars-grid">
           {/* GenAI Pillar */}
-          <div className="ca-pillar-card ca-pillar-coral">
+          <div id="genai" className="ca-pillar-card ca-pillar-coral">
             <div className="ca-pillar-icon ca-pillar-icon-coral">
               <Cpu className="w-7 h-7" />
             </div>
@@ -105,7 +105,7 @@ export default function FeaturesPage() {
           </div>
 
           {/* Cloud Pillar */}
-          <div className="ca-pillar-card ca-pillar-blue">
+          <div id="cloud" className="ca-pillar-card ca-pillar-blue">
             <div className="ca-pillar-icon ca-pillar-icon-blue">
               <Cloud className="w-7 h-7" />
             </div>
@@ -126,7 +126,7 @@ export default function FeaturesPage() {
           </div>
 
           {/* SaaS Pillar */}
-          <div className="ca-pillar-card ca-pillar-purple">
+          <div id="saas" className="ca-pillar-card ca-pillar-purple">
             <div className="ca-pillar-icon ca-pillar-icon-purple">
               <CreditCard className="w-7 h-7" />
             </div>
@@ -162,7 +162,7 @@ export default function FeaturesPage() {
         </div>
 
         <div className="ca-features-grid-premium">
-          <div className="ca-feature-card-premium ca-feature-mint">
+          <div id="analytics" className="ca-feature-card-premium ca-feature-mint">
             <div className="ca-feature-icon-premium ca-feature-icon-mint">
               <LineChart className="w-6 h-6" />
             </div>
@@ -172,7 +172,7 @@ export default function FeaturesPage() {
             </p>
           </div>
 
-          <div className="ca-feature-card-premium ca-feature-coral">
+          <div id="optimization" className="ca-feature-card-premium ca-feature-coral">
             <div className="ca-feature-icon-premium ca-feature-icon-coral">
               <Brain className="w-6 h-6" />
             </div>
@@ -182,7 +182,7 @@ export default function FeaturesPage() {
             </p>
           </div>
 
-          <div className="ca-feature-card-premium ca-feature-blue">
+          <div id="alerts" className="ca-feature-card-premium ca-feature-blue">
             <div className="ca-feature-icon-premium ca-feature-icon-blue">
               <Bell className="w-6 h-6" />
             </div>
@@ -249,7 +249,7 @@ export default function FeaturesPage() {
             <div className="ca-how-number">02</div>
             <h3 className="ca-how-title">Automatic Data Sync</h3>
             <p className="ca-how-desc">
-              CloudAct pulls usage and billing data every 5 minutes. No manual exports needed.
+              CloudAct.ai pulls usage and billing data every 5 minutes. No manual exports needed.
             </p>
           </div>
           <div className="ca-how-step">
@@ -362,7 +362,7 @@ export default function FeaturesPage() {
           </div>
           <h2 className="ca-final-cta-title">Ready to Master Your Costs?</h2>
           <p className="ca-final-cta-subtitle">
-            Join hundreds of teams using CloudAct to track, analyze, and optimize their
+            Join hundreds of teams using CloudAct.ai to track, analyze, and optimize their
             GenAI, cloud, and SaaS spending.
           </p>
           <div className="ca-final-cta-buttons">

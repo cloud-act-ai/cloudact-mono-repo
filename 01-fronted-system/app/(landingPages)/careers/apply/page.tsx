@@ -203,7 +203,7 @@ Note: Please reply to this email to receive the attached files, or the applicant
             Apply Now
           </div>
           <h1 className="ca-apply-hero-title">
-            Join the <span className="ca-hero-highlight-mint">CloudAct</span> Team
+            Join the <span className="ca-hero-highlight-mint">CloudAct.ai</span> Team
           </h1>
           <p className="ca-apply-hero-subtitle">
             Submit your application and we'll be in touch within 48 hours.

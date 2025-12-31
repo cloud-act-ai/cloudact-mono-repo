@@ -35,7 +35,7 @@ function AnnouncementBanner({
         <span className="ca-announcement-text">
           Introducing AI-Powered Cost Anomaly Detection — Catch overspend before it happens
         </span>
-        <Link href="/features#ai-anomaly" className="ca-announcement-link">
+        <Link href="/features#alerts" className="ca-announcement-link">
           Learn more <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
@@ -103,7 +103,7 @@ const RESOURCES_MENU = {
       heading: "Learn",
       items: [
         { href: "/resources", title: "Blog & Guides", desc: "FinOps best practices" },
-        { href: "/resources#docs", title: "Documentation", desc: "API reference and guides" },
+        { href: "/resources#documentation", title: "Documentation", desc: "API reference and guides" },
         { href: "/resources#case-studies", title: "Case Studies", desc: "Customer success stories" },
       ],
     },
@@ -312,6 +312,18 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileMenuOpen])
 
   // Close mobile menu on route change
   const handleMobileLinkClick = () => {

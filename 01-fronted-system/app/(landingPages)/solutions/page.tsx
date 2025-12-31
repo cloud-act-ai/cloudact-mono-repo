@@ -32,6 +32,7 @@ import "../premium.css"
 // Role-based solutions data
 const ROLE_SOLUTIONS = [
   {
+    id: "finops",
     title: "For FinOps Teams",
     icon: Gauge,
     description: "Advanced cost allocation, chargeback automation, and executive reporting tools built for FinOps professionals.",
@@ -44,6 +45,7 @@ const ROLE_SOLUTIONS = [
     ],
   },
   {
+    id: "engineering",
     title: "For Engineering Teams",
     icon: Code2,
     description: "Developer-friendly APIs, CI/CD integrations, and real-time cost feedback in your existing workflow.",
@@ -56,6 +58,7 @@ const ROLE_SOLUTIONS = [
     ],
   },
   {
+    id: "finance",
     title: "For Finance Leaders",
     icon: DollarSign,
     description: "Budget controls, forecasting models, and financial reporting aligned with your accounting systems.",
@@ -232,6 +235,7 @@ export default function SolutionsPage() {
             return (
               <div
                 key={solution.title}
+                id={solution.id}
                 className={`ca-solution-role-card ca-solution-role-${solution.color}`}
               >
                 <div className={`ca-solution-role-icon ca-solution-role-icon-${solution.color}`}>
@@ -308,7 +312,7 @@ export default function SolutionsPage() {
             <Briefcase className="w-4 h-4" />
             Use Cases
           </span>
-          <h2 className="ca-section-title">How Teams Use CloudAct</h2>
+          <h2 className="ca-section-title">How Teams Use CloudAct.ai</h2>
         </div>
 
         <div className="ca-usecases-grid">
@@ -341,7 +345,7 @@ export default function SolutionsPage() {
         </div>
 
         <div className="ca-industry-grid">
-          <div className="ca-industry-card">
+          <div id="enterprise" className="ca-industry-card">
             <div className="ca-industry-icon">
               <Building2 className="w-6 h-6" />
             </div>
@@ -359,16 +363,16 @@ export default function SolutionsPage() {
               GenAI cost tracking, unit economics, and COGS optimization for software companies.
             </p>
           </div>
-          <div className="ca-industry-card">
+          <div id="partners" className="ca-industry-card">
             <div className="ca-industry-icon">
               <PieChart className="w-6 h-6" />
             </div>
-            <h3 className="ca-industry-title">Financial Services</h3>
+            <h3 className="ca-industry-title">Partners & MSPs</h3>
             <p className="ca-industry-desc">
-              Compliance-ready reporting, budget controls, and multi-currency support for finance.
+              Multi-tenant cost management and white-label reporting for managed service providers.
             </p>
           </div>
-          <div className="ca-industry-card">
+          <div id="startups" className="ca-industry-card">
             <div className="ca-industry-icon">
               <Users className="w-6 h-6" />
             </div>
@@ -385,7 +389,7 @@ export default function SolutionsPage() {
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
             <Award className="w-4 h-4" />
-            Why CloudAct
+            Why CloudAct.ai
           </span>
           <h2 className="ca-section-title">The Platform Advantage</h2>
         </div>

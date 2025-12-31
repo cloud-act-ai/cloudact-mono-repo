@@ -162,7 +162,7 @@ export default function APIReferencePage() {
           <div className="ca-docs-section-content">
             <p>
               All API requests require authentication using an API key. You can generate
-              API keys from your organization settings in the CloudAct dashboard.
+              API keys from your organization settings in the CloudAct.ai dashboard.
             </p>
             <div className="ca-docs-alert ca-docs-alert-info">
               <AlertCircle className="w-5 h-5" />
@@ -305,7 +305,7 @@ export default function APIReferencePage() {
           <div className="ca-docs-support">
             <h3>Need Help?</h3>
             <p>
-              Our developer support team is here to help you integrate with the CloudAct API.
+              Our developer support team is here to help you integrate with the CloudAct.ai API.
             </p>
             <div className="ca-docs-support-links">
               <Link href="/help" className="ca-docs-support-link">

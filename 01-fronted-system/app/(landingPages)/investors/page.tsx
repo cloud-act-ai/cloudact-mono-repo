@@ -37,7 +37,7 @@ const KEY_METRICS = [
   {
     value: "340+",
     label: "Teams",
-    description: "Engineering and FinOps teams using CloudAct",
+    description: "Engineering and FinOps teams using CloudAct.ai",
   },
   {
     value: "99.9%",

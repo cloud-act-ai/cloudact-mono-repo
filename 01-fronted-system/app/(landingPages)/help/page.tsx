@@ -31,52 +31,52 @@ const HELP_CATEGORIES = [
     title: "Getting Started",
     description: "Quick start guides and tutorials",
     articles: 12,
-    href: "/help/getting-started",
+    href: "/docs/quick-start",
   },
   {
     icon: Cloud,
     title: "Cloud Integrations",
     description: "Connect AWS, Azure, GCP",
     articles: 18,
-    href: "/help/cloud-integrations",
+    href: "/integrations",
   },
   {
     icon: Cpu,
     title: "GenAI Tracking",
     description: "LLM cost monitoring setup",
     articles: 8,
-    href: "/help/genai-tracking",
+    href: "/features#genai",
   },
   {
     icon: CreditCard,
     title: "Billing & Payments",
     description: "Subscription and invoice help",
     articles: 10,
-    href: "/help/billing",
+    href: "/pricing",
   },
   {
     icon: Settings,
     title: "Account Settings",
     description: "Team management and preferences",
     articles: 14,
-    href: "/help/account",
+    href: "/docs/api/reference",
   },
   {
     icon: Shield,
     title: "Security & Privacy",
     description: "Data protection and compliance",
     articles: 6,
-    href: "/help/security",
+    href: "/security",
   },
 ]
 
 const POPULAR_ARTICLES = [
-  { title: "How to connect your AWS account", category: "Cloud Integrations", href: "/help/articles/connect-aws" },
-  { title: "Understanding your GenAI cost breakdown", category: "GenAI Tracking", href: "/help/articles/genai-breakdown" },
-  { title: "Setting up team members and permissions", category: "Account Settings", href: "/help/articles/team-setup" },
-  { title: "Configuring cost alerts and budgets", category: "Getting Started", href: "/help/articles/alerts" },
-  { title: "Exporting reports and data", category: "Analytics", href: "/help/articles/export-data" },
-  { title: "Managing your subscription plan", category: "Billing", href: "/help/articles/manage-subscription" },
+  { title: "How to connect your AWS account", category: "Cloud Integrations", href: "/integrations" },
+  { title: "Understanding your GenAI cost breakdown", category: "GenAI Tracking", href: "/features#genai" },
+  { title: "Setting up team members and permissions", category: "Account Settings", href: "/docs/api/reference" },
+  { title: "Configuring cost alerts and budgets", category: "Getting Started", href: "/features#alerts" },
+  { title: "Exporting reports and data", category: "Analytics", href: "/features#analytics" },
+  { title: "Managing your subscription plan", category: "Billing", href: "/pricing" },
 ]
 
 const FAQS = [
@@ -86,7 +86,7 @@ const FAQS = [
   },
   {
     question: "Can I add multiple cloud accounts?",
-    answer: "Yes! CloudAct supports multiple cloud accounts across AWS, Azure, and GCP. You can add as many accounts as your plan allows from the Integrations page in your dashboard.",
+    answer: "Yes! CloudAct.ai supports multiple cloud accounts across AWS, Azure, and GCP. You can add as many accounts as your plan allows from the Integrations page in your dashboard.",
   },
   {
     question: "How often is cost data updated?",

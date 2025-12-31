@@ -92,7 +92,7 @@ const FEATURED_RESOURCES = [
     readTime: "15 min read",
     date: "Dec 18, 2025",
     tags: ["Cost Optimization", "Best Practices", "Strategy"],
-    href: "/guides/cloud-cost-optimization",
+    href: "/resources/guides",
     featured: true,
   },
   {
@@ -102,7 +102,7 @@ const FEATURED_RESOURCES = [
     readTime: "8 min read",
     date: "Dec 15, 2025",
     tags: ["Success Story", "Enterprise", "ROI"],
-    href: "/case-studies/enterprise",
+    href: "/resources/case-studies",
   },
   {
     category: "Blog",
@@ -111,7 +111,7 @@ const FEATURED_RESOURCES = [
     readTime: "10 min read",
     date: "Dec 12, 2025",
     tags: ["GenAI", "LLM", "Cost Control"],
-    href: "/blog/genai-cost-management",
+    href: "/resources/blog",
   },
   {
     category: "Video Tutorial",
@@ -120,7 +120,7 @@ const FEATURED_RESOURCES = [
     readTime: "12 min watch",
     date: "Dec 10, 2025",
     tags: ["Tutorial", "Setup", "Beginner"],
-    href: "/tutorials/getting-started",
+    href: "/docs/quick-start",
   },
   {
     category: "Documentation",
@@ -129,7 +129,7 @@ const FEATURED_RESOURCES = [
     readTime: "Reference",
     date: "Updated Dec 20",
     tags: ["API", "Integration", "Developer"],
-    href: "/docs/api-reference",
+    href: "/docs/api/reference",
   },
   {
     category: "Webinar",
@@ -138,7 +138,7 @@ const FEATURED_RESOURCES = [
     readTime: "45 min session",
     date: "Jan 5, 2026",
     tags: ["Webinar", "Live", "Expert Panel"],
-    href: "/webinars/2025-optimization",
+    href: "/resources/webinars",
   },
 ]
 
@@ -159,21 +159,21 @@ const POPULAR_DOWNLOADS = [
     type: "PDF",
     size: "2.4 MB",
     label: "Popular",
-    href: "/downloads/cost-optimization-checklist.pdf",
+    href: "/resources/documentation",
   },
   {
     title: "GenAI Cost Calculator Template",
     type: "Excel",
     size: "156 KB",
     label: "New",
-    href: "/downloads/genai-cost-calculator.xlsx",
+    href: "/resources/documentation",
   },
   {
     title: "Multi-Cloud Strategy Guide",
     type: "PDF",
     size: "3.1 MB",
     label: "Featured",
-    href: "/downloads/multi-cloud-strategy.pdf",
+    href: "/resources/documentation",
   },
 ]
 
@@ -275,6 +275,7 @@ export default function ResourcesPage() {
             return (
               <Link
                 key={category.id}
+                id={category.id}
                 href={`/resources/${category.id}`}
                 className={`ca-resources-category-card ca-resources-category-${category.color}`}
               >

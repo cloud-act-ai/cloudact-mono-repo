@@ -48,7 +48,7 @@ const DEMO_BENEFITS = [
 ]
 
 const WHAT_TO_EXPECT = [
-  "Personalized walkthrough of the CloudAct platform",
+  "Personalized walkthrough of the CloudAct.ai platform",
   "Custom demo based on your specific use cases",
   "Q&A session with our product experts",
   "Discussion of pricing and implementation",

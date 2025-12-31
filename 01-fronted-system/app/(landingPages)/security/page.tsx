@@ -79,7 +79,7 @@ export default function SecurityPage() {
             Enterprise Security
           </div>
           <h1 className="ca-page-hero-title">
-            Security at <span className="ca-hero-highlight-mint">CloudAct</span>
+            Security at <span className="ca-hero-highlight-mint">CloudAct.ai</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Your data security is our top priority. We implement industry-leading security measures
