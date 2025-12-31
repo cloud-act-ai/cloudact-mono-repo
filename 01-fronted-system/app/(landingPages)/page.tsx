@@ -37,10 +37,48 @@ import {
   Plug,
   MessageSquare,
   Rocket,
+  X,
 } from "lucide-react"
 import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
+
+// ============================================
+// HOME PAGE ANNOUNCEMENT BANNER
+// ============================================
+function HomeAnnouncementBanner({
+  isVisible,
+  onClose
+}: {
+  isVisible: boolean
+  onClose: () => void
+}) {
+  if (!isVisible) return null
+
+  return (
+    <div className="ca-home-announcement">
+      <div className="ca-home-announcement-inner">
+        <div className="ca-home-announcement-content">
+          <span className="ca-home-announcement-badge">New</span>
+          <span className="ca-home-announcement-text">
+            Introducing AI-Powered Cost Anomaly Detection — Catch overspend before it happens
+          </span>
+          <Link href="/features#alerts" className="ca-home-announcement-link">
+            Learn more <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ca-home-announcement-close"
+          aria-label="Close announcement"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ============================================
 // INDUSTRY BADGES (More credible than fake company logos)
@@ -854,8 +892,11 @@ function FinalCTASection() {
 // MAIN PAGE COMPONENT
 // ============================================
 export default function PremiumLandingPage() {
+  const [bannerVisible, setBannerVisible] = useState(true)
+
   return (
     <div className="ca-landing-page">
+      <HomeAnnouncementBanner isVisible={bannerVisible} onClose={() => setBannerVisible(false)} />
       <HeroSection />
       <TrustedBySection />
       <IntegrationsSection />

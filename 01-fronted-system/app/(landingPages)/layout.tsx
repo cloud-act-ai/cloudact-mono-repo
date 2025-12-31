@@ -16,41 +16,6 @@ import {
 import "./landing.css"
 import "./premium.css"
 
-// ============================================
-// TOP ANNOUNCEMENT BANNER
-// ============================================
-function AnnouncementBanner({
-  isVisible,
-  onClose
-}: {
-  isVisible: boolean
-  onClose: () => void
-}) {
-  if (!isVisible) return null
-
-  return (
-    <div className="ca-announcement-banner">
-      <div className="ca-announcement-content">
-        <span className="ca-announcement-badge">New</span>
-        <span className="ca-announcement-text">
-          Introducing AI-Powered Cost Anomaly Detection — Catch overspend before it happens
-        </span>
-        <Link href="/features#alerts" className="ca-announcement-link">
-          Learn more <ArrowRight className="w-3 h-3" />
-        </Link>
-      </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="ca-announcement-close"
-        aria-label="Close announcement"
-      >
-        <X className="w-4 h-4" />
-      </button>
-    </div>
-  )
-}
-
 // Clean Menu Data Structure (C3.ai style - no icons)
 const PLATFORM_MENU = {
   title: "Platform",
@@ -300,7 +265,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [openAccordion, setOpenAccordion] = useState<string | null>(null)
-  const [bannerVisible, setBannerVisible] = useState(true)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -341,9 +305,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         Skip to main content
       </a>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON_LD_STRING }} />
-
-      {/* Top Announcement Banner - ABOVE header */}
-      <AnnouncementBanner isVisible={bannerVisible} onClose={() => setBannerVisible(false)} />
 
       {/* Premium Header with Mega Menu */}
       <header className={`ca-header ${scrolled ? 'ca-header-scrolled' : ''}`}>

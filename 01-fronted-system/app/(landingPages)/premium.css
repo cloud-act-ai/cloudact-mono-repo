@@ -13328,3 +13328,115 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================
+   HOME PAGE ANNOUNCEMENT BANNER
+   In-body announcement above hero section
+   ============================================ */
+.ca-home-announcement {
+  width: 100%;
+  background: linear-gradient(135deg, var(--ca-mint-50) 0%, #fff 50%, var(--ca-purple-50) 100%);
+  border-bottom: 1px solid rgba(144, 252, 166, 0.2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.ca-home-announcement-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.ca-home-announcement-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ca-home-announcement-badge {
+  background: var(--ca-coral);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.ca-home-announcement-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #000);
+  text-align: center;
+}
+
+.ca-home-announcement-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ca-mint-dark);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.ca-home-announcement-link:hover {
+  color: var(--ca-teal-dark, #5DD879);
+  text-decoration: underline;
+}
+
+.ca-home-announcement-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary, #8E8E93);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.ca-home-announcement-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary, #000);
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .ca-home-announcement {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .ca-home-announcement-inner {
+    gap: var(--space-2);
+  }
+
+  .ca-home-announcement-content {
+    gap: var(--space-2);
+  }
+
+  .ca-home-announcement-text {
+    font-size: 13px;
+  }
+
+  .ca-home-announcement-link {
+    font-size: 13px;
+  }
+
+  .ca-home-announcement-close {
+    width: 24px;
+    height: 24px;
+  }
+}

@@ -10,7 +10,13 @@ Deploy services to test/stage/prod, manage versioned releases, backups, rollback
 
 ## Actions
 
-### Release (Production Workflow - Recommended)
+### Quick Release (ONE COMMAND - Recommended)
+```
+/infra-cicd quick v1.0.11                     # Full release: update version + test + build + deploy + verify
+/infra-cicd quick v1.0.11 --skip-tests        # Skip tests for faster release
+```
+
+### Release (Production Workflow)
 ```
 /infra-cicd release v1.0.0                    # Create release (tag + build + push)
 /infra-cicd release v1.0.0 --deploy           # Create and deploy to prod
@@ -18,6 +24,11 @@ Deploy services to test/stage/prod, manage versioned releases, backups, rollback
 /infra-cicd releases                          # List all releases
 /infra-cicd releases deployed                 # Show deployed versions
 /infra-cicd releases next                     # Suggest next version
+```
+
+### Update Version Only
+```
+/infra-cicd update-version v1.0.11            # Update version in all config files (no deploy)
 ```
 
 ### Deploy (Development/Testing)
@@ -73,7 +84,37 @@ Deploy services to test/stage/prod, manage versioned releases, backups, rollback
 
 ## Instructions
 
-### Release Action (Recommended for Production)
+### Quick Release Action (ONE COMMAND - Recommended)
+When user requests a quick release:
+
+```bash
+cd $REPO_ROOT/04-inra-cicd-automation/CICD
+
+# Full release with tests
+./quick-release.sh v1.0.11
+
+# Skip tests for faster release
+./quick-release.sh v1.0.11 --skip-tests
+```
+
+This single command will:
+1. Update version in all service config files
+2. Commit the version change
+3. Run tests (unless --skip-tests)
+4. Validate production secrets
+5. Build, tag, push all Docker images
+6. Deploy all services to production
+7. Verify health of all services
+
+### Update Version Action
+When user just wants to update version (no deploy):
+
+```bash
+cd $REPO_ROOT/04-inra-cicd-automation/CICD
+./update-version.sh v1.0.11
+```
+
+### Release Action (Manual Control)
 When user requests a release:
 
 1. **Check current version:**
