@@ -193,10 +193,14 @@ function SignupForm() {
       if (signinError) {
         const loginUrl = `/login?redirect=${encodeURIComponent(finalRedirect)}&message=Please sign in to continue`
         setIsLoading(false)
-        router.push(loginUrl)
+        // Use window.location for reliable navigation after auth state change
+        if (typeof window !== "undefined") {
+          window.location.href = loginUrl
+        }
         return
       }
 
+      // Use window.location for full page navigation after auth
       if (typeof window !== "undefined") window.location.href = finalRedirect
     } catch (error: unknown) {
       setServerError(error instanceof Error ? error.message : "An error occurred during signup")

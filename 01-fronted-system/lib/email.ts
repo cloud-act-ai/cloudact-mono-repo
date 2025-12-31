@@ -241,7 +241,7 @@ export async function sendTrialEndingEmail({
 }): Promise<boolean> {
   const safeOrgName = escapeHtml(orgName)
   const safeBillingLink = escapeHtml(billingLink)
-  const daysRemaining = Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const daysRemaining = Math.max(0, Math.floor((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
   const formattedDate = trialEndsAt.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",

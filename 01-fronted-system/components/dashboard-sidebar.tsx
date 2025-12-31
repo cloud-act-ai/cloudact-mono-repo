@@ -56,7 +56,7 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "settings"
+type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "settings" | null
 
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
@@ -192,7 +192,8 @@ export function DashboardSidebar({
   }
 
   const toggleSection = (section: SectionId) => {
-    setActiveSection(section)
+    // Toggle: collapse if same section clicked, otherwise expand new section
+    setActiveSection((prev) => (prev === section ? null : section))
   }
 
   // Active state helper

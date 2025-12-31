@@ -188,6 +188,30 @@ function HeroSection() {
 // ============================================
 // DASHBOARD PREVIEW COMPONENT
 // ============================================
+// Pre-generated bar heights to avoid hydration mismatch (server/client must match)
+const CHART_BAR_DATA = [
+  { purple: 22, blue: 35, coral: 18 },
+  { purple: 19, blue: 42, coral: 21 },
+  { purple: 26, blue: 31, coral: 16 },
+  { purple: 18, blue: 38, coral: 24 },
+  { purple: 24, blue: 29, coral: 19 },
+  { purple: 21, blue: 44, coral: 17 },
+  { purple: 28, blue: 33, coral: 22 },
+  { purple: 17, blue: 40, coral: 20 },
+  { purple: 23, blue: 36, coral: 15 },
+  { purple: 25, blue: 32, coral: 23 },
+  { purple: 20, blue: 41, coral: 18 },
+  { purple: 27, blue: 30, coral: 21 },
+  { purple: 16, blue: 43, coral: 19 },
+  { purple: 22, blue: 37, coral: 16 },
+  { purple: 29, blue: 34, coral: 24 },
+  { purple: 18, blue: 39, coral: 20 },
+  { purple: 24, blue: 31, coral: 17 },
+  { purple: 21, blue: 45, coral: 22 },
+  { purple: 26, blue: 33, coral: 15 },
+  { purple: 19, blue: 38, coral: 23 },
+]
+
 function DashboardPreview() {
   return (
     <div className="ca-dashboard-mockup">
@@ -246,11 +270,11 @@ function DashboardPreview() {
             </div>
           </div>
           <div className="ca-dash-chart-bars">
-            {[...Array(20)].map((_, i) => (
+            {CHART_BAR_DATA.map((bar, i) => (
               <div key={i} className="ca-chart-bar-stack">
-                <div className="ca-bar ca-bar-purple" style={{ height: `${15 + Math.random() * 15}%` }} />
-                <div className="ca-bar ca-bar-blue" style={{ height: `${25 + Math.random() * 20}%` }} />
-                <div className="ca-bar ca-bar-coral" style={{ height: `${15 + Math.random() * 15}%` }} />
+                <div className="ca-bar ca-bar-purple" style={{ height: `${bar.purple}%` }} />
+                <div className="ca-bar ca-bar-blue" style={{ height: `${bar.blue}%` }} />
+                <div className="ca-bar ca-bar-coral" style={{ height: `${bar.coral}%` }} />
               </div>
             ))}
           </div>

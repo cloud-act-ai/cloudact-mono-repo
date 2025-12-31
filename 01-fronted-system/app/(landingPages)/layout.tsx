@@ -361,71 +361,71 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             )}
           </button>
         </div>
-
-        {/* Mobile Menu with Accordions */}
-        {mobileMenuOpen && (
-          <div id="mobile-menu" className="ca-mobile-menu" role="navigation" aria-label="Mobile navigation">
-            <nav className="ca-mobile-menu-nav">
-              <Link
-                href="/"
-                className="ca-mobile-nav-link"
-                onClick={handleMobileLinkClick}
-              >
-                Home
-              </Link>
-              <MobileAccordion
-                menu={PLATFORM_MENU}
-                isOpen={openAccordion === "platform"}
-                onToggle={() => setOpenAccordion(openAccordion === "platform" ? null : "platform")}
-                onLinkClick={handleMobileLinkClick}
-              />
-              <MobileAccordion
-                menu={SOLUTIONS_MENU}
-                isOpen={openAccordion === "solutions"}
-                onToggle={() => setOpenAccordion(openAccordion === "solutions" ? null : "solutions")}
-                onLinkClick={handleMobileLinkClick}
-              />
-              <Link
-                href="/pricing"
-                className="ca-mobile-nav-link"
-                onClick={handleMobileLinkClick}
-              >
-                Pricing
-              </Link>
-              <MobileAccordion
-                menu={RESOURCES_MENU}
-                isOpen={openAccordion === "resources"}
-                onToggle={() => setOpenAccordion(openAccordion === "resources" ? null : "resources")}
-                onLinkClick={handleMobileLinkClick}
-              />
-              <MobileAccordion
-                menu={COMPANY_MENU}
-                isOpen={openAccordion === "company"}
-                onToggle={() => setOpenAccordion(openAccordion === "company" ? null : "company")}
-                onLinkClick={handleMobileLinkClick}
-              />
-
-              <div className="ca-mobile-menu-divider" />
-
-              <Link
-                href="/login"
-                className="ca-mobile-nav-link"
-                onClick={handleMobileLinkClick}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/signup"
-                className="ca-btn ca-btn-primary ca-btn-lg ca-mobile-cta"
-                onClick={handleMobileLinkClick}
-              >
-                Get Started
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </nav>
-          </div>
-        )}
       </header>
+
+      {/* Mobile Menu with Accordions - OUTSIDE header to avoid backdrop-filter stacking context issue */}
+      {mobileMenuOpen && (
+        <div id="mobile-menu" className="ca-mobile-menu" role="navigation" aria-label="Mobile navigation">
+          <nav className="ca-mobile-menu-nav">
+            <Link
+              href="/"
+              className="ca-mobile-nav-link"
+              onClick={handleMobileLinkClick}
+            >
+              Home
+            </Link>
+            <MobileAccordion
+              menu={PLATFORM_MENU}
+              isOpen={openAccordion === "platform"}
+              onToggle={() => setOpenAccordion(openAccordion === "platform" ? null : "platform")}
+              onLinkClick={handleMobileLinkClick}
+            />
+            <MobileAccordion
+              menu={SOLUTIONS_MENU}
+              isOpen={openAccordion === "solutions"}
+              onToggle={() => setOpenAccordion(openAccordion === "solutions" ? null : "solutions")}
+              onLinkClick={handleMobileLinkClick}
+            />
+            <Link
+              href="/pricing"
+              className="ca-mobile-nav-link"
+              onClick={handleMobileLinkClick}
+            >
+              Pricing
+            </Link>
+            <MobileAccordion
+              menu={RESOURCES_MENU}
+              isOpen={openAccordion === "resources"}
+              onToggle={() => setOpenAccordion(openAccordion === "resources" ? null : "resources")}
+              onLinkClick={handleMobileLinkClick}
+            />
+            <MobileAccordion
+              menu={COMPANY_MENU}
+              isOpen={openAccordion === "company"}
+              onToggle={() => setOpenAccordion(openAccordion === "company" ? null : "company")}
+              onLinkClick={handleMobileLinkClick}
+            />
+
+            <div className="ca-mobile-menu-divider" />
+
+            <Link
+              href="/login"
+              className="ca-mobile-nav-link"
+              onClick={handleMobileLinkClick}
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/signup"
+              className="ca-btn ca-btn-primary ca-btn-lg ca-mobile-cta"
+              onClick={handleMobileLinkClick}
+            >
+              Get Started
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </nav>
+        </div>
+      )}
 
       <main id="main-content" className="ca-main" tabIndex={-1}>{children}</main>
 

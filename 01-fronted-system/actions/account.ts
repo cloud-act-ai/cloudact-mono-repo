@@ -262,9 +262,9 @@ export async function getEligibleTransferMembers(orgId: string): Promise<{
       .eq("org_id", orgId)
       .eq("user_id", user.id)
       .eq("status", "active")
-      .single()
+      .maybeSingle()
 
-    if (membership?.role !== "owner") {
+    if (!membership || membership.role !== "owner") {
       return { success: false, error: "Only the owner can transfer ownership" }
     }
 

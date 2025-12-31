@@ -37,27 +37,37 @@ function LoginForm() {
   const [focusedField, setFocusedField] = useState<string | null>(null)
 
   useEffect(() => {
+    let isMounted = true
+
     const clearStaleSession = async () => {
       try {
         const supabase = createClient()
         await supabase.auth.signOut({ scope: 'local' })
-        setSessionCleared(true)
+        if (isMounted) {
+          setSessionCleared(true)
 
-        if (reason === 'session_expired') {
-          setError("Your session has expired. Please sign in again.")
-        } else if (reason === 'auth_error') {
-          setError("Authentication error. Please sign in again.")
+          if (reason === 'session_expired') {
+            setError("Your session has expired. Please sign in again.")
+          } else if (reason === 'auth_error') {
+            setError("Authentication error. Please sign in again.")
+          }
         }
       } catch (signOutError) {
         // Sign out may fail if no session exists - log but continue
         if (process.env.NODE_ENV === "development") {
           console.warn("[Login] Failed to clear stale session:", signOutError)
         }
-        setSessionCleared(true)
+        if (isMounted) {
+          setSessionCleared(true)
+        }
       }
     }
 
     clearStaleSession()
+
+    return () => {
+      isMounted = false
+    }
   }, [reason])
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -86,13 +96,16 @@ function LoginForm() {
       if (!authData.user) throw new Error("Login failed")
 
       // Update last login timestamp (non-blocking, errors logged but not thrown)
-      // Using Promise.resolve to ensure proper catch handling
-      Promise.resolve(supabase.rpc("update_last_login", { p_user_id: authData.user.id }))
-        .catch((err: unknown) => {
+      // Fire-and-forget with proper error handling - don't block navigation
+      void (async () => {
+        try {
+          await supabase.rpc("update_last_login", { p_user_id: authData.user.id })
+        } catch (err: unknown) {
           if (process.env.NODE_ENV === "development") {
             console.warn("[Login] Failed to update last login:", err)
           }
-        })
+        }
+      })()
 
       if (redirectTo) {
         if (typeof window !== "undefined") {

@@ -293,6 +293,8 @@ export default function BillingPage() {
   }
 
   const handleSubscribe = async (priceId: string) => {
+    // Prevent double-click during checkout
+    if (isLoading) return
     setIsLoading(priceId)
     try {
       const { url, error } = await createCheckoutSession(priceId, orgSlug)
@@ -312,6 +314,8 @@ export default function BillingPage() {
   }
 
   const handleManageSubscription = async () => {
+    // Prevent double-click during portal loading
+    if (isPortalLoading) return
     setIsPortalLoading(true)
     try {
       const { url, error } = await createBillingPortalSession(orgSlug)
@@ -665,7 +669,7 @@ export default function BillingPage() {
       )}
 
       {!hasStripeSubscription && billingInfo?.trialEndsAt && (() => {
-        const daysRemaining = Math.ceil((new Date(billingInfo.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        const daysRemaining = Math.max(0, Math.floor((new Date(billingInfo.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
         const isTrialExpired = daysRemaining <= 0
         const isUrgent = daysRemaining <= 7 && daysRemaining > 0
         const isWarning = daysRemaining <= 14 && daysRemaining > 7

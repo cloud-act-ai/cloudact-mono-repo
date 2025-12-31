@@ -322,6 +322,8 @@ export default function PipelinesPage() {
 
   // Run pipeline
   const handleRun = async (pipelineId: string) => {
+    // Prevent double-clicks while pipeline is running
+    if (runningPipeline) return
     setRunningPipeline(pipelineId)
     setLastResult(null)
 

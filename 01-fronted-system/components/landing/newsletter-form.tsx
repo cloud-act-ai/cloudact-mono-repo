@@ -83,7 +83,10 @@ export function NewsletterForm({
         value={email}
         onChange={(e) => {
           setEmail(e.target.value)
-          if (status === "error") setStatus("idle")
+          if (status === "error") {
+            setStatus("idle")
+            setErrorMessage("")
+          }
         }}
         placeholder="Enter your email"
         className={`${inputClassName} ${status === "error" ? "error" : ""}`}
@@ -95,16 +98,17 @@ export function NewsletterForm({
         type="submit"
         className={buttonClassName}
         disabled={status === "submitting"}
+        aria-busy={status === "submitting"}
       >
         {status === "submitting" ? (
           <>
-            <span className="ca-form-spinner" />
-            Subscribing...
+            <span className="ca-form-spinner" aria-hidden="true" />
+            <span>Subscribing...</span>
           </>
         ) : (
           <>
-            Subscribe
-            <Send className="w-5 h-5" />
+            <span>Subscribe</span>
+            <Send className="w-5 h-5" aria-hidden="true" />
           </>
         )}
       </button>

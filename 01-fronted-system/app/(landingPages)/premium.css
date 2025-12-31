@@ -738,6 +738,21 @@ a:focus-visible {
   }
 }
 
+@media (max-width: 480px) {
+  .ca-credibility-stats {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .ca-credibility-value {
+    font-size: 1.25rem;
+  }
+
+  .ca-credibility-stat {
+    padding: var(--space-3);
+  }
+}
+
 /* ============================================
    PREMIUM BADGE / PILL
    ============================================ */
@@ -1139,8 +1154,16 @@ a:focus-visible {
 
 @media (max-width: 1024px) {
   .ca-pricing-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 700px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ca-pricing-grid {
     grid-template-columns: 1fr;
     max-width: 420px;
+    gap: var(--space-4);
   }
 }
 
@@ -2120,14 +2143,17 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   background: transparent;
   color: var(--ca-gray-700);
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ca-mobile-menu-btn:hover {
@@ -2153,6 +2179,7 @@ a:focus-visible {
   -webkit-overflow-scrolling: touch;
   animation: slideInFromTop 0.25s var(--ease-out);
   z-index: 1000;
+  padding-bottom: max(var(--space-8), env(safe-area-inset-bottom, 32px));
 }
 
 @keyframes slideInFromTop {

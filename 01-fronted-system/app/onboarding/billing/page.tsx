@@ -126,6 +126,9 @@ export default function BillingPage() {
   }
 
   const handleContinue = async () => {
+    // Prevent double-click during checkout
+    if (isLoading) return
+
     if (!selectedPlan) {
       setError("Please select a plan")
       return

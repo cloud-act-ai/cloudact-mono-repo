@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "cost-analytics" | "pipelines" | "integrations" | "settings"
+type SectionId = "cost-analytics" | "pipelines" | "integrations" | "settings" | null
 
 interface MobileNavProps {
   isOpen: boolean
@@ -103,7 +103,7 @@ export function MobileNav({
 }: MobileNavProps) {
   const pathname = usePathname()
   const router = useRouter()
-  // Accordion: only one section open at a time
+  // Accordion: only one section open at a time (null = all collapsed)
   const [activeSection, setActiveSection] = useState<SectionId>("cost-analytics")
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
@@ -183,7 +183,8 @@ export function MobileNav({
   }
 
   const toggleSection = (section: SectionId) => {
-    setActiveSection(section)
+    // Toggle: collapse if same section clicked, otherwise expand new section
+    setActiveSection((prev) => (prev === section ? null : section))
   }
 
   if (!isOpen) return null
@@ -200,9 +201,10 @@ export function MobileNav({
     isItemActive: boolean
   }) => (
     <button
+      type="button"
       onClick={() => handleNavigation(href)}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg",
+        "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg min-h-[44px]",
         isItemActive
           ? "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] font-semibold"
           : "text-slate-600 hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)]"
@@ -219,12 +221,13 @@ export function MobileNav({
     isExpanded,
   }: {
     title: string
-    section: SectionId
+    section: Exclude<SectionId, null>
     isExpanded: boolean
   }) => (
     <button
+      type="button"
       onClick={() => toggleSection(section)}
-      className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+      className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors min-h-[44px]"
     >
       <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
         {title}
@@ -245,8 +248,8 @@ export function MobileNav({
         onClick={onClose}
       />
 
-      {/* Navigation Panel */}
-      <div className="absolute inset-y-0 left-0 w-[280px] bg-white shadow-xl flex flex-col animate-in slide-in-from-left duration-200">
+      {/* Navigation Panel - z-10 ensures it's above the backdrop */}
+      <div className="absolute inset-y-0 left-0 w-[280px] bg-white shadow-xl flex flex-col animate-in slide-in-from-left duration-200 z-10">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -280,9 +283,10 @@ export function MobileNav({
           {/* Dashboard - Direct link to main summary dashboard */}
           <div className="px-2 pb-2">
             <button
+              type="button"
               onClick={() => handleNavigation(`/${orgSlug}/dashboard`)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg",
+                "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg min-h-[44px]",
                 isActive(`/${orgSlug}/dashboard`, true)
                   ? "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] font-semibold"
                   : "text-slate-600 hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)]"

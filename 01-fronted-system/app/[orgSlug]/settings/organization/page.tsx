@@ -202,6 +202,8 @@ export default function OrganizationSettingsPage() {
 
   // Handle resync backend connection
   const handleResync = async () => {
+    // Prevent double-clicks while resyncing
+    if (isResyncing) return
     setIsResyncing(true)
     setError(null)
     setSuccess(null)
@@ -618,6 +620,8 @@ export default function OrganizationSettingsPage() {
   }
 
   const handleSave = async () => {
+    // Prevent double-clicks while saving
+    if (isSaving) return
     setError(null)
     setSuccess(null)
 
