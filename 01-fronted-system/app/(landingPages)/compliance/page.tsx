@@ -1,6 +1,17 @@
 import type { Metadata } from "next"
-import { Shield, FileCheck, Globe, Lock, CheckCircle2, AlertTriangle } from "lucide-react"
 import Link from "next/link"
+import {
+  Shield,
+  FileText,
+  Scale,
+  Lock,
+  Globe,
+  AlertTriangle,
+  Mail,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react"
+import "../premium.css"
 
 export const metadata: Metadata = {
   title: "Compliance | CloudAct.ai",
@@ -16,226 +27,202 @@ export const metadata: Metadata = {
   },
 }
 
+const CERTIFICATIONS = [
+  {
+    title: "SOC 2 Type II",
+    icon: Shield,
+    description: "Annual third-party audits verify our security controls meet AICPA standards.",
+  },
+  {
+    title: "GDPR",
+    icon: Globe,
+    description: "Compliant with European Union General Data Protection Regulation requirements.",
+  },
+  {
+    title: "CCPA",
+    icon: Lock,
+    description: "Compliant with California Consumer Privacy Act data protection standards.",
+  },
+]
+
 export default function CompliancePage() {
   return (
-    <>
+    <div className="ca-landing-page">
       {/* Hero Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-32 border-b">
-        <div className="container px-4">
-          <div className="mx-auto max-w-3xl text-center space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#90FCA6]/10 rounded-full mb-4">
-              <FileCheck className="w-4 h-4 text-[#1a7a3a]" />
-              <span className="text-sm font-medium text-[#1a7a3a]">Compliance Standards</span>
+      <section className="ca-page-hero">
+        <div className="ca-page-hero-content">
+          <div className="ca-section-eyebrow">
+            <Scale className="w-4 h-4" />
+            Compliance Standards
+          </div>
+          <h1 className="ca-page-hero-title">
+            Compliance at <span className="ca-hero-highlight-mint">CloudAct</span>
+          </h1>
+          <p className="ca-page-hero-subtitle">
+            We maintain rigorous compliance standards to ensure your data is handled with the
+            highest level of care and regulatory adherence.
+          </p>
+
+          {/* Legal Navigation */}
+          <div className="ca-legal-nav">
+            <Link href="/privacy" className="ca-legal-nav-link">
+              <Shield className="w-4 h-4" />
+              Privacy
+            </Link>
+            <Link href="/terms" className="ca-legal-nav-link">
+              <FileText className="w-4 h-4" />
+              Terms
+            </Link>
+            <Link href="/security" className="ca-legal-nav-link">
+              <Lock className="w-4 h-4" />
+              Security
+            </Link>
+            <Link href="/compliance" className="ca-legal-nav-link active">
+              <Scale className="w-4 h-4" />
+              Compliance
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Content Section */}
+      <section className="ca-legal-content-section">
+        <div className="ca-legal-content">
+          {/* Certifications Grid */}
+          <div className="ca-legal-certs-grid">
+            {CERTIFICATIONS.map((cert) => {
+              const Icon = cert.icon
+              return (
+                <div key={cert.title} className="ca-legal-cert-card">
+                  <div className="ca-legal-cert-icon">
+                    <Icon className="w-8 h-8" />
+                  </div>
+                  <h3 className="ca-legal-cert-title">{cert.title}</h3>
+                  <p className="ca-legal-cert-desc">{cert.description}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Important Disclaimer */}
+          <div className="ca-legal-alert">
+            <AlertTriangle className="ca-legal-alert-icon" />
+            <div className="ca-legal-alert-content">
+              <h3>Important Disclaimer</h3>
+              <p>
+                While CloudAct.ai maintains these compliance certifications, they do not guarantee absolute security
+                or immunity from data breaches. No system is 100% secure. We strongly recommend always using
+                <strong> READ-ONLY API keys</strong> when connecting cloud providers, regularly rotating and
+                auditing your credentials, and implementing your own security best practices.
+              </p>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">Compliance at CloudAct</h1>
-            <p className="text-base sm:text-lg text-muted-foreground">
-              We maintain rigorous compliance standards to ensure your data is handled with the highest level of care and regulatory adherence.
+          </div>
+
+          {/* Data Protection Measures */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Data Protection Measures</h2>
+            <ul className="ca-legal-list">
+              <li><strong>Encryption:</strong> AES-256 at rest, TLS 1.3 in transit</li>
+              <li><strong>Data Residency:</strong> Data stored in Google Cloud Platform (US regions)</li>
+              <li><strong>Access Controls:</strong> Role-based access, MFA, audit logging</li>
+              <li><strong>Data Retention:</strong> Configurable retention policies per organization</li>
+            </ul>
+          </div>
+
+          {/* Your Data Rights */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Your Data Rights</h2>
+            <p className="ca-legal-section-text">
+              Under GDPR and CCPA, you have the following rights:
+            </p>
+            <ul className="ca-legal-list">
+              <li><strong>Right to Access:</strong> Request a copy of your personal data</li>
+              <li><strong>Right to Rectification:</strong> Correct inaccurate personal data</li>
+              <li><strong>Right to Erasure:</strong> Request deletion of your personal data</li>
+              <li><strong>Right to Portability:</strong> Export your data in a machine-readable format</li>
+              <li><strong>Right to Opt-Out:</strong> Opt out of data sales (we do not sell data)</li>
+            </ul>
+            <p className="ca-legal-section-text">
+              To exercise these rights, contact us at{" "}
+              <a href="mailto:privacy@cloudact.ai" style={{ color: "#1a7a3a", fontWeight: 600 }}>
+                privacy@cloudact.ai
+              </a>
             </p>
           </div>
-        </div>
-      </section>
 
-      {/* Compliance Certifications */}
-      <section className="py-12 sm:py-16 md:py-24">
-        <div className="container px-4">
-          <div className="mx-auto max-w-4xl">
-            <h2 className="text-2xl font-bold text-center mb-12">Our Compliance Certifications</h2>
+          {/* Third-Party Sub-processors */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Third-Party Sub-processors</h2>
+            <p className="ca-legal-section-text">
+              We use the following sub-processors to deliver our services:
+            </p>
+            <ul className="ca-legal-list">
+              <li><strong>Google Cloud Platform:</strong> Infrastructure and data storage (US)</li>
+              <li><strong>Stripe:</strong> Payment processing</li>
+              <li><strong>Supabase:</strong> Authentication services</li>
+            </ul>
+          </div>
 
-            <div className="grid md:grid-cols-3 gap-8 mb-16">
-              {/* SOC 2 */}
-              <div className="text-center p-8 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-16 h-16 rounded-full bg-[#90FCA6]/10 flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">SOC 2 Type II</h3>
-                <p className="text-muted-foreground text-sm">
-                  Annual third-party audits verify our security controls meet AICPA standards.
-                </p>
-              </div>
+          {/* Limitation of Liability */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Limitation of Liability</h2>
+            <p className="ca-legal-section-text">
+              Compliance certifications and security measures do not constitute a guarantee against data breaches.
+              CloudAct.ai assumes <strong>zero liability</strong> for security incidents arising from factors outside
+              our direct control, including but not limited to:
+            </p>
+            <ul className="ca-legal-list">
+              <li>Credentials provided with excessive permissions (non-read-only)</li>
+              <li>Security incidents at third-party cloud providers</li>
+              <li>User failure to follow security best practices</li>
+              <li>Nation-state attacks or advanced persistent threats</li>
+            </ul>
+          </div>
 
-              {/* GDPR */}
-              <div className="text-center p-8 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-16 h-16 rounded-full bg-[#90FCA6]/10 flex items-center justify-center mx-auto mb-4">
-                  <Globe className="w-8 h-8 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">GDPR</h3>
-                <p className="text-muted-foreground text-sm">
-                  Compliant with European Union General Data Protection Regulation requirements.
-                </p>
-              </div>
-
-              {/* CCPA */}
-              <div className="text-center p-8 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-16 h-16 rounded-full bg-[#90FCA6]/10 flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-8 h-8 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">CCPA</h3>
-                <p className="text-muted-foreground text-sm">
-                  Compliant with California Consumer Privacy Act data protection standards.
-                </p>
-              </div>
-            </div>
-
-            {/* Important Disclaimer */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-12">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-amber-800 mb-2">Important Disclaimer</h3>
-                  <p className="text-amber-700 text-sm leading-relaxed mb-3">
-                    While CloudAct.ai maintains these compliance certifications, they do not guarantee absolute security
-                    or immunity from data breaches. No system is 100% secure. We strongly recommend:
-                  </p>
-                  <ul className="space-y-1 text-amber-700 text-sm">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Always use <strong>READ-ONLY API keys</strong> when connecting cloud providers</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Regularly rotate and audit your credentials</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <span>Implement your own security best practices</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Detailed Compliance Info */}
-            <div className="prose dark:prose-invert max-w-none space-y-6 sm:space-y-8">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Data Protection Measures</h2>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Encryption:</strong> AES-256 at rest, TLS 1.3 in transit</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Data Residency:</strong> Data stored in Google Cloud Platform (US regions)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Access Controls:</strong> Role-based access, MFA, audit logging</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Data Retention:</strong> Configurable retention policies per organization</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Your Data Rights</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  Under GDPR and CCPA, you have the following rights:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Right to Access:</strong> Request a copy of your personal data</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Right to Rectification:</strong> Correct inaccurate personal data</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Right to Erasure:</strong> Request deletion of your personal data</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Right to Portability:</strong> Export your data in a machine-readable format</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Right to Opt-Out:</strong> Opt out of data sales (we do not sell data)</span>
-                  </li>
-                </ul>
-                <p className="text-muted-foreground leading-relaxed">
-                  To exercise these rights, contact us at{" "}
-                  <a href="mailto:privacy@cloudact.ai" className="text-foreground font-medium hover:underline">
-                    privacy@cloudact.ai
-                  </a>
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Third-Party Sub-processors</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  We use the following sub-processors to deliver our services:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Google Cloud Platform:</strong> Infrastructure and data storage (US)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Stripe:</strong> Payment processing</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Supabase:</strong> Authentication services</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Limitation of Liability</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  Compliance certifications and security measures do not constitute a guarantee against data breaches.
-                  CloudAct.ai assumes <strong className="text-foreground">zero liability</strong> for security incidents
-                  arising from factors outside our direct control, including but not limited to:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Credentials provided with excessive permissions (non-read-only)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Security incidents at third-party cloud providers</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>User failure to follow security best practices</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Nation-state attacks or advanced persistent threats</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-4 pt-8 border-t">
-                <h2 className="text-2xl font-bold">Contact Us</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  For compliance inquiries, contact us at{" "}
-                  <a href="mailto:compliance@cloudact.ai" className="text-foreground font-medium hover:underline">
-                    compliance@cloudact.ai
-                  </a>
-                </p>
-                <p className="text-muted-foreground leading-relaxed mt-4">
-                  <strong className="text-foreground">CloudAct Inc.</strong><br />
-                  100 S Murphy Ave, STE 200 PMB4013<br />
-                  Sunnyvale, CA 94086<br />
-                  United States<br />
-                  Phone: (850) 988-7471
-                </p>
-                <p className="text-sm text-muted-foreground mt-4">
-                  See also: <Link href="/privacy" className="text-foreground hover:underline">Privacy Policy</Link> |{" "}
-                  <Link href="/terms" className="text-foreground hover:underline">Terms of Service</Link> |{" "}
-                  <Link href="/security" className="text-foreground hover:underline">Security</Link>
-                </p>
-              </div>
+          {/* Contact */}
+          <div className="ca-legal-contact">
+            <h3 className="ca-legal-contact-title">Compliance Contact</h3>
+            <p className="ca-legal-section-text" style={{ marginBottom: "1rem" }}>
+              For compliance inquiries, contact us:
+            </p>
+            <a href="mailto:compliance@cloudact.ai" className="ca-legal-contact-email">
+              <Mail className="w-5 h-5" />
+              compliance@cloudact.ai
+            </a>
+            <p className="ca-legal-contact-address">
+              <strong>CloudAct Inc.</strong><br />
+              100 S Murphy Ave, STE 200 PMB4013<br />
+              Sunnyvale, CA 94086<br />
+              United States<br />
+              Phone: (850) 988-7471
+            </p>
+            <div className="ca-legal-links">
+              <Link href="/privacy" className="ca-legal-link">Privacy Policy</Link>
+              <Link href="/terms" className="ca-legal-link">Terms of Service</Link>
+              <Link href="/security" className="ca-legal-link">Security</Link>
             </div>
           </div>
         </div>
       </section>
-    </>
+
+      {/* Final CTA */}
+      <section className="ca-final-cta-section">
+        <div className="ca-final-cta-container">
+          <h2 className="ca-final-cta-title">Questions About Compliance?</h2>
+          <p className="ca-final-cta-subtitle">
+            Our compliance team is here to help with your regulatory and data protection questions.
+          </p>
+          <div className="ca-final-cta-buttons">
+            <Link href="/contact" className="ca-btn-cta-primary">
+              Contact Compliance Team
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/security" className="ca-btn-cta-secondary">
+              View Security
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }

@@ -8,22 +8,7 @@ import {
   ArrowRight,
   Menu,
   X,
-  Shield,
-  Lock,
-  CreditCard,
-  Globe,
   ChevronDown,
-  Cpu,
-  Cloud,
-  Layers,
-  LineChart,
-  Sparkles,
-  Users,
-  Building2,
-  Briefcase,
-  BookOpen,
-  FileText,
-  Headphones,
   Mail,
   Phone,
   MapPin,
@@ -31,105 +16,118 @@ import {
 import "./landing.css"
 import "./premium.css"
 
-// Mega Menu Data Structure
+// ============================================
+// TOP ANNOUNCEMENT BANNER
+// ============================================
+function AnnouncementBanner({
+  isVisible,
+  onClose
+}: {
+  isVisible: boolean
+  onClose: () => void
+}) {
+  if (!isVisible) return null
+
+  return (
+    <div className="ca-announcement-banner">
+      <div className="ca-announcement-content">
+        <span className="ca-announcement-badge">New</span>
+        <span className="ca-announcement-text">
+          Introducing AI-Powered Cost Anomaly Detection — Catch overspend before it happens
+        </span>
+        <Link href="/features#ai-anomaly" className="ca-announcement-link">
+          Learn more <ArrowRight className="w-3 h-3" />
+        </Link>
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="ca-announcement-close"
+        aria-label="Close announcement"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
+
+// Clean Menu Data Structure (C3.ai style - no icons)
 const PLATFORM_MENU = {
   title: "Platform",
-  items: [
+  columns: [
     {
-      href: "/features#genai",
-      icon: Cpu,
-      color: "coral",
-      title: "GenAI Costs",
-      desc: "Track OpenAI, Anthropic, Google AI spending",
+      heading: "Products",
+      items: [
+        { href: "/features#genai", title: "GenAI Costs", desc: "Track OpenAI, Anthropic & LLM spending" },
+        { href: "/features#cloud", title: "Cloud Infrastructure", desc: "AWS, Azure, GCP cost management" },
+        { href: "/features#saas", title: "SaaS Subscriptions", desc: "Monitor all your SaaS spending" },
+      ],
     },
     {
-      href: "/features#cloud",
-      icon: Cloud,
-      color: "mint",
-      title: "Cloud Infrastructure",
-      desc: "AWS, Azure, GCP cost management",
-    },
-    {
-      href: "/features#saas",
-      icon: Layers,
-      color: "purple",
-      title: "SaaS Subscriptions",
-      desc: "Monitor all your SaaS spending",
-    },
-    {
-      href: "/features#analytics",
-      icon: LineChart,
-      color: "blue",
-      title: "Analytics & Forecasting",
-      desc: "AI-powered cost predictions",
+      heading: "Capabilities",
+      items: [
+        { href: "/features#analytics", title: "Analytics & Reports", desc: "AI-powered insights and forecasting" },
+        { href: "/features#alerts", title: "Smart Alerts", desc: "Anomaly detection and notifications" },
+        { href: "/features#optimization", title: "Cost Optimization", desc: "Automated savings recommendations" },
+      ],
     },
   ],
 }
 
 const SOLUTIONS_MENU = {
   title: "Solutions",
-  items: [
+  columns: [
     {
-      href: "/solutions#engineering",
-      icon: Users,
-      color: "mint",
-      title: "For Engineering",
-      desc: "Developer-friendly cost visibility",
+      heading: "By Role",
+      items: [
+        { href: "/solutions#engineering", title: "Engineering Teams", desc: "Cost visibility and attribution" },
+        { href: "/solutions#finops", title: "FinOps Teams", desc: "Enterprise cost intelligence" },
+        { href: "/solutions#finance", title: "Finance Teams", desc: "Budget management and reporting" },
+      ],
     },
     {
-      href: "/solutions#finops",
-      icon: Sparkles,
-      color: "coral",
-      title: "For FinOps",
-      desc: "Enterprise cost intelligence",
-    },
-    {
-      href: "/solutions#startups",
-      icon: Building2,
-      color: "purple",
-      title: "For Startups",
-      desc: "Scale with cost control",
-    },
-    {
-      href: "/solutions#enterprise",
-      icon: Briefcase,
-      color: "blue",
-      title: "For Enterprise",
-      desc: "Advanced security & compliance",
+      heading: "By Company",
+      items: [
+        { href: "/solutions#startups", title: "Startups", desc: "Scale with cost control" },
+        { href: "/solutions#enterprise", title: "Enterprise", desc: "Security, SSO, and compliance" },
+        { href: "/solutions#partners", title: "Partners & MSPs", desc: "Multi-tenant management" },
+      ],
     },
   ],
 }
 
 const RESOURCES_MENU = {
   title: "Resources",
-  items: [
+  columns: [
     {
-      href: "/resources#blog",
-      icon: BookOpen,
-      color: "mint",
-      title: "Blog",
-      desc: "Insights on FinOps and cost optimization",
+      heading: "Learn",
+      items: [
+        { href: "/resources", title: "Blog & Guides", desc: "FinOps best practices" },
+        { href: "/resources#docs", title: "Documentation", desc: "API reference and guides" },
+        { href: "/resources#case-studies", title: "Case Studies", desc: "Customer success stories" },
+      ],
+    },
+  ],
+}
+
+const COMPANY_MENU = {
+  title: "Company",
+  columns: [
+    {
+      heading: "About",
+      items: [
+        { href: "/about", title: "About Us", desc: "Our mission and story" },
+        { href: "/careers", title: "Careers", desc: "Join our team" },
+        { href: "/contact", title: "Contact", desc: "Get in touch" },
+      ],
     },
     {
-      href: "/resources#docs",
-      icon: FileText,
-      color: "blue",
-      title: "Documentation",
-      desc: "Guides and API reference",
-    },
-    {
-      href: "/contact",
-      icon: Headphones,
-      color: "purple",
-      title: "Support",
-      desc: "Get help from our team",
-    },
-    {
-      href: "/about",
-      icon: Building2,
-      color: "coral",
-      title: "About Us",
-      desc: "Our mission and story",
+      heading: "Connect",
+      items: [
+        { href: "/partners", title: "Partners", desc: "Partner with us" },
+        { href: "/investors", title: "Investors", desc: "Investor relations" },
+        { href: "/press", title: "Press", desc: "Media inquiries" },
+      ],
     },
   ],
 }
@@ -201,7 +199,7 @@ const SOFTWARE_JSON_LD = {
     "AI-powered cost optimization recommendations",
     "Custom dashboards and reporting",
     "Budget alerts and forecasting",
-    "SOC 2 Type II certified security",
+    "Enterprise-grade security",
   ],
 }
 
@@ -222,45 +220,30 @@ const WEBSITE_JSON_LD = {
 
 const JSON_LD_STRING = JSON.stringify([ORGANIZATION_JSON_LD, SOFTWARE_JSON_LD, WEBSITE_JSON_LD])
 
-// Mega Menu Item Component
-function MegaMenuItem({
-  href,
-  icon: Icon,
-  color,
-  title,
-  desc
-}: {
-  href: string
-  icon: React.ElementType
-  color: string
-  title: string
-  desc: string
-}) {
-  return (
-    <Link href={href} className="ca-mega-menu-item">
-      <div className={`ca-mega-menu-icon ca-mega-menu-icon-${color}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="ca-mega-menu-content">
-        <div className="ca-mega-menu-title">{title}</div>
-        <div className="ca-mega-menu-desc">{desc}</div>
-      </div>
-    </Link>
-  )
-}
-
-// Desktop Mega Menu Dropdown
+// Desktop Mega Menu Dropdown (C3.ai style - clean columns, no icons)
 function MegaMenuDropdown({ menu }: { menu: typeof PLATFORM_MENU }) {
   return (
     <div className="ca-nav-item">
-      <button className="ca-nav-item-trigger" aria-expanded="false">
+      <button type="button" className="ca-nav-item-trigger" aria-expanded="false" aria-haspopup="true">
         {menu.title}
-        <ChevronDown />
+        <ChevronDown aria-hidden="true" />
       </button>
       <div className="ca-mega-menu">
-        <div className="ca-mega-menu-grid">
-          {menu.items.map((item) => (
-            <MegaMenuItem key={item.href} {...item} />
+        <div className="ca-mega-menu-columns">
+          {menu.columns.map((column) => (
+            <div key={column.heading} className="ca-mega-menu-column">
+              <div className="ca-mega-menu-column-heading">{column.heading}</div>
+              <ul className="ca-mega-menu-column-list">
+                {column.items.map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href} className="ca-mega-menu-link">
+                      <span className="ca-mega-menu-link-title">{item.title}</span>
+                      <span className="ca-mega-menu-link-desc">{item.desc}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
         </div>
       </div>
@@ -268,7 +251,7 @@ function MegaMenuDropdown({ menu }: { menu: typeof PLATFORM_MENU }) {
   )
 }
 
-// Mobile Accordion Menu
+// Mobile Accordion Menu (C3.ai style - clean text, no icons)
 function MobileAccordion({
   menu,
   isOpen,
@@ -283,26 +266,30 @@ function MobileAccordion({
   return (
     <div className="ca-mobile-accordion">
       <button
+        type="button"
         className="ca-mobile-accordion-trigger"
         onClick={onToggle}
+        aria-expanded={isOpen}
         data-open={isOpen}
       >
         {menu.title}
-        <ChevronDown />
+        <ChevronDown aria-hidden="true" />
       </button>
       <div className="ca-mobile-accordion-content" data-open={isOpen}>
-        {menu.items.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="ca-mobile-accordion-item"
-            onClick={onLinkClick}
-          >
-            <div className={`ca-mobile-accordion-icon ca-mega-menu-icon-${item.color}`}>
-              <item.icon className="w-4 h-4" />
-            </div>
-            <span>{item.title}</span>
-          </Link>
+        {menu.columns.map((column) => (
+          <div key={column.heading} className="ca-mobile-accordion-group">
+            <div className="ca-mobile-accordion-heading">{column.heading}</div>
+            {column.items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="ca-mobile-accordion-item"
+                onClick={onLinkClick}
+              >
+                {item.title}
+              </Link>
+            ))}
+          </div>
         ))}
       </div>
     </div>
@@ -313,6 +300,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [openAccordion, setOpenAccordion] = useState<string | null>(null)
+  const [bannerVisible, setBannerVisible] = useState(true)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -342,6 +330,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       </a>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON_LD_STRING }} />
 
+      {/* Top Announcement Banner - ABOVE header */}
+      <AnnouncementBanner isVisible={bannerVisible} onClose={() => setBannerVisible(false)} />
+
       {/* Premium Header with Mega Menu */}
       <header className={`ca-header ${scrolled ? 'ca-header-scrolled' : ''}`}>
         <div className="ca-header-inner">
@@ -358,12 +349,16 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
           {/* Desktop Navigation with Mega Menus */}
           <nav className="ca-nav-desktop" aria-label="Main navigation">
+            <Link href="/" className="ca-nav-link">
+              Home
+            </Link>
             <MegaMenuDropdown menu={PLATFORM_MENU} />
             <MegaMenuDropdown menu={SOLUTIONS_MENU} />
             <Link href="/pricing" className="ca-nav-link">
               Pricing
             </Link>
             <MegaMenuDropdown menu={RESOURCES_MENU} />
+            <MegaMenuDropdown menu={COMPANY_MENU} />
           </nav>
 
           {/* Desktop Auth Buttons */}
@@ -379,10 +374,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
           {/* Mobile Menu Button */}
           <button
+            type="button"
             className="ca-mobile-menu-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
           >
             {mobileMenuOpen ? (
               <X className="h-5 w-5" aria-hidden="true" />
@@ -394,8 +391,15 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
         {/* Mobile Menu with Accordions */}
         {mobileMenuOpen && (
-          <div className="ca-mobile-menu" role="navigation" aria-label="Mobile navigation">
+          <div id="mobile-menu" className="ca-mobile-menu" role="navigation" aria-label="Mobile navigation">
             <nav className="ca-mobile-menu-nav">
+              <Link
+                href="/"
+                className="ca-mobile-nav-link"
+                onClick={handleMobileLinkClick}
+              >
+                Home
+              </Link>
               <MobileAccordion
                 menu={PLATFORM_MENU}
                 isOpen={openAccordion === "platform"}
@@ -419,6 +423,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 menu={RESOURCES_MENU}
                 isOpen={openAccordion === "resources"}
                 onToggle={() => setOpenAccordion(openAccordion === "resources" ? null : "resources")}
+                onLinkClick={handleMobileLinkClick}
+              />
+              <MobileAccordion
+                menu={COMPANY_MENU}
+                isOpen={openAccordion === "company"}
+                onToggle={() => setOpenAccordion(openAccordion === "company" ? null : "company")}
                 onLinkClick={handleMobileLinkClick}
               />
 
@@ -478,7 +488,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Mail className="w-4 h-4" />
-                  <a href="mailto:hello@cloudact.ai" className="hover:text-gray-900">hello@cloudact.ai</a>
+                  <a href="mailto:info@cloudact.ai" className="hover:text-gray-900">info@cloudact.ai</a>
                 </div>
               </div>
 
@@ -511,8 +521,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 <ul className="ca-footer-links">
                   <li><Link href="/about">About Us</Link></li>
                   <li><Link href="/careers">Careers</Link></li>
-                  <li><Link href="/resources">Resources</Link></li>
-                  <li><Link href="/contact">Contact</Link></li>
+                  <li><Link href="/partners">Partners</Link></li>
+                  <li><Link href="/investors">Investors</Link></li>
+                  <li><Link href="/contact">Contact Us</Link></li>
                 </ul>
               </div>
               <div className="ca-footer-col">
@@ -523,28 +534,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                   <li><Link href="/security">Security</Link></li>
                   <li><Link href="/compliance">Compliance</Link></li>
                 </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Trust Badges */}
-          <div className="ca-footer-trust">
-            <div className="ca-trust-badges">
-              <div className="ca-trust-badge">
-                <Shield className="h-4 w-4" />
-                <span>SOC 2 Type II</span>
-              </div>
-              <div className="ca-trust-badge">
-                <Lock className="h-4 w-4" />
-                <span>GDPR Compliant</span>
-              </div>
-              <div className="ca-trust-badge">
-                <Globe className="h-4 w-4" />
-                <span>99.9% Uptime</span>
-              </div>
-              <div className="ca-trust-badge">
-                <CreditCard className="h-4 w-4" />
-                <span>Secure Payments</span>
               </div>
             </div>
           </div>

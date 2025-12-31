@@ -1,6 +1,19 @@
 import type { Metadata } from "next"
-import { Shield, Lock, Key, Eye, Server, FileCheck, AlertTriangle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
+import {
+  Shield,
+  FileText,
+  Scale,
+  Lock,
+  Key,
+  Eye,
+  Server,
+  AlertTriangle,
+  Mail,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react"
+import "../premium.css"
 
 export const metadata: Metadata = {
   title: "Security | CloudAct.ai",
@@ -16,218 +29,202 @@ export const metadata: Metadata = {
   },
 }
 
+const SECURITY_FEATURES = [
+  {
+    title: "Encryption",
+    icon: Lock,
+    features: [
+      "AES-256 encryption at rest",
+      "TLS 1.3 encryption in transit",
+      "Encrypted credential storage",
+    ],
+  },
+  {
+    title: "Access Control",
+    icon: Key,
+    features: [
+      "Role-based access control (RBAC)",
+      "Multi-factor authentication (MFA)",
+      "SSO integration support",
+    ],
+  },
+  {
+    title: "Infrastructure",
+    icon: Server,
+    features: [
+      "Google Cloud Platform hosting",
+      "Isolated tenant environments",
+      "Regular security audits",
+    ],
+  },
+  {
+    title: "Monitoring",
+    icon: Eye,
+    features: [
+      "24/7 security monitoring",
+      "Intrusion detection systems",
+      "Automated threat response",
+    ],
+  },
+]
+
 export default function SecurityPage() {
   return (
-    <>
+    <div className="ca-landing-page">
       {/* Hero Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-32 border-b">
-        <div className="container px-4">
-          <div className="mx-auto max-w-3xl text-center space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#90FCA6]/10 rounded-full mb-4">
-              <Shield className="w-4 h-4 text-[#1a7a3a]" />
-              <span className="text-sm font-medium text-[#1a7a3a]">Enterprise Security</span>
+      <section className="ca-page-hero">
+        <div className="ca-page-hero-content">
+          <div className="ca-section-eyebrow">
+            <Lock className="w-4 h-4" />
+            Enterprise Security
+          </div>
+          <h1 className="ca-page-hero-title">
+            Security at <span className="ca-hero-highlight-mint">CloudAct</span>
+          </h1>
+          <p className="ca-page-hero-subtitle">
+            Your data security is our top priority. We implement industry-leading security measures
+            to protect your cloud cost information.
+          </p>
+
+          {/* Legal Navigation */}
+          <div className="ca-legal-nav">
+            <Link href="/privacy" className="ca-legal-nav-link">
+              <Shield className="w-4 h-4" />
+              Privacy
+            </Link>
+            <Link href="/terms" className="ca-legal-nav-link">
+              <FileText className="w-4 h-4" />
+              Terms
+            </Link>
+            <Link href="/security" className="ca-legal-nav-link active">
+              <Lock className="w-4 h-4" />
+              Security
+            </Link>
+            <Link href="/compliance" className="ca-legal-nav-link">
+              <Scale className="w-4 h-4" />
+              Compliance
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Content Section */}
+      <section className="ca-legal-content-section">
+        <div className="ca-legal-content">
+          {/* Security Alert */}
+          <div className="ca-legal-alert">
+            <AlertTriangle className="ca-legal-alert-icon" />
+            <div className="ca-legal-alert-content">
+              <h3>Important Security Recommendation</h3>
+              <p>
+                We strongly recommend using <strong>READ-ONLY API keys and credentials</strong> at all times
+                when connecting your cloud providers to CloudAct.ai. Read-only access is sufficient for cost
+                monitoring and analytics, and minimizes security risk in the unlikely event of any security incident.
+              </p>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">Security at CloudAct</h1>
-            <p className="text-base sm:text-lg text-muted-foreground">
-              Your data security is our top priority. We implement industry-leading security measures to protect your cloud cost information.
+          </div>
+
+          {/* Security Features Grid */}
+          <div className="ca-legal-features-grid">
+            {SECURITY_FEATURES.map((feature) => {
+              const Icon = feature.icon
+              return (
+                <div key={feature.title} className="ca-legal-feature-card">
+                  <div className="ca-legal-feature-icon">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="ca-legal-feature-title">{feature.title}</h3>
+                  <ul className="ca-legal-feature-list">
+                    {feature.features.map((item) => (
+                      <li key={item}>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Your Security Responsibilities */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Your Security Responsibilities</h2>
+            <p className="ca-legal-section-text">
+              Security is a shared responsibility. While we implement robust security measures, you are responsible for:
+            </p>
+            <ul className="ca-legal-list">
+              <li><strong>Using read-only credentials</strong> — We strongly recommend read-only API keys for all integrations</li>
+              <li><strong>Credential management</strong> — Regularly rotating and securely storing your credentials</li>
+              <li><strong>Access management</strong> — Properly managing who has access to your CloudAct account</li>
+              <li><strong>Reporting incidents</strong> — Promptly reporting any suspected security issues</li>
+            </ul>
+          </div>
+
+          {/* Liability Disclaimer */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Liability Disclaimer</h2>
+            <p className="ca-legal-section-text">
+              CloudAct.ai assumes <strong>zero liability</strong> for any data breaches, security incidents, or
+              unauthorized access arising from:
+            </p>
+            <ul className="ca-legal-list">
+              <li>Use of credentials with write or administrative permissions</li>
+              <li>Third-party cloud providers or integration services</li>
+              <li>Your failure to implement recommended security practices</li>
+              <li>Cyberattacks or malicious activities beyond our control</li>
+            </ul>
+          </div>
+
+          {/* Report a Vulnerability */}
+          <div className="ca-legal-section">
+            <h2 className="ca-legal-section-title">Report a Vulnerability</h2>
+            <p className="ca-legal-section-text">
+              If you discover a security vulnerability, please report it responsibly. We take all security reports
+              seriously and will respond promptly.
             </p>
           </div>
-        </div>
-      </section>
 
-      {/* Important Notice */}
-      <section className="py-8 bg-amber-50 border-b border-amber-200">
-        <div className="container px-4">
-          <div className="mx-auto max-w-3xl">
-            <div className="flex items-start gap-4">
-              <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="font-semibold text-amber-800 mb-2">Important Security Recommendation</h3>
-                <p className="text-amber-700 text-sm leading-relaxed">
-                  We strongly recommend using <strong>READ-ONLY API keys and credentials</strong> at all times when connecting
-                  your cloud providers to CloudAct.ai. Read-only access is sufficient for cost monitoring and analytics,
-                  and minimizes security risk in the unlikely event of any security incident.
-                </p>
-              </div>
+          {/* Contact */}
+          <div className="ca-legal-contact">
+            <h3 className="ca-legal-contact-title">Security Contact</h3>
+            <a href="mailto:security@cloudact.ai" className="ca-legal-contact-email">
+              <Mail className="w-5 h-5" />
+              security@cloudact.ai
+            </a>
+            <p className="ca-legal-contact-address">
+              <strong>CloudAct Inc.</strong><br />
+              100 S Murphy Ave, STE 200 PMB4013<br />
+              Sunnyvale, CA 94086<br />
+              United States
+            </p>
+            <div className="ca-legal-links">
+              <Link href="/privacy" className="ca-legal-link">Privacy Policy</Link>
+              <Link href="/terms" className="ca-legal-link">Terms of Service</Link>
+              <Link href="/compliance" className="ca-legal-link">Compliance</Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Security Features */}
-      <section className="py-12 sm:py-16 md:py-24">
-        <div className="container px-4">
-          <div className="mx-auto max-w-4xl">
-            <div className="grid md:grid-cols-2 gap-8 mb-16">
-              {/* Encryption */}
-              <div className="p-6 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center mb-4">
-                  <Lock className="w-6 h-6 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Encryption</h3>
-                <ul className="space-y-2 text-muted-foreground text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>AES-256 encryption at rest</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>TLS 1.3 encryption in transit</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Encrypted credential storage</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Access Control */}
-              <div className="p-6 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center mb-4">
-                  <Key className="w-6 h-6 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Access Control</h3>
-                <ul className="space-y-2 text-muted-foreground text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Role-based access control (RBAC)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Multi-factor authentication (MFA)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>SSO integration support</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Infrastructure */}
-              <div className="p-6 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center mb-4">
-                  <Server className="w-6 h-6 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Infrastructure</h3>
-                <ul className="space-y-2 text-muted-foreground text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Google Cloud Platform hosting</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Isolated tenant environments</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Regular security audits</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Monitoring */}
-              <div className="p-6 rounded-2xl border border-gray-200 hover:border-[#90FCA6] transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center mb-4">
-                  <Eye className="w-6 h-6 text-[#1a7a3a]" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Monitoring</h3>
-                <ul className="space-y-2 text-muted-foreground text-sm">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>24/7 security monitoring</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Intrusion detection systems</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                    <span>Automated threat response</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Your Responsibility */}
-            <div className="prose dark:prose-invert max-w-none space-y-6 sm:space-y-8">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Your Security Responsibilities</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  Security is a shared responsibility. While we implement robust security measures, you are responsible for:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Using read-only credentials</strong> — We strongly recommend read-only API keys for all integrations</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Credential management</strong> — Regularly rotating and securely storing your credentials</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Access management</strong> — Properly managing who has access to your CloudAct account</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span><strong className="text-foreground">Reporting incidents</strong> — Promptly reporting any suspected security issues</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Liability Disclaimer</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  CloudAct.ai assumes <strong className="text-foreground">zero liability</strong> for any data breaches,
-                  security incidents, or unauthorized access arising from:
-                </p>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Use of credentials with write or administrative permissions</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Third-party cloud providers or integration services</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Your failure to implement recommended security practices</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-foreground mt-1">•</span>
-                    <span>Cyberattacks or malicious activities beyond our control</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Report a Vulnerability</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  If you discover a security vulnerability, please report it responsibly to{" "}
-                  <a href="mailto:security@cloudact.ai" className="text-foreground font-medium hover:underline">
-                    security@cloudact.ai
-                  </a>
-                </p>
-              </div>
-
-              <div className="space-y-4 pt-8 border-t">
-                <p className="text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">CloudAct Inc.</strong><br />
-                  100 S Murphy Ave, STE 200 PMB4013<br />
-                  Sunnyvale, CA 94086<br />
-                  United States
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  For more information, see our{" "}
-                  <Link href="/privacy" className="text-foreground hover:underline">Privacy Policy</Link> and{" "}
-                  <Link href="/terms" className="text-foreground hover:underline">Terms of Service</Link>.
-                </p>
-              </div>
-            </div>
+      {/* Final CTA */}
+      <section className="ca-final-cta-section">
+        <div className="ca-final-cta-container">
+          <h2 className="ca-final-cta-title">Questions About Security?</h2>
+          <p className="ca-final-cta-subtitle">
+            Our security team is here to help you understand how we protect your data.
+          </p>
+          <div className="ca-final-cta-buttons">
+            <Link href="/contact" className="ca-btn-cta-primary">
+              Contact Security Team
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/compliance" className="ca-btn-cta-secondary">
+              View Compliance
+            </Link>
           </div>
         </div>
       </section>
-    </>
+    </div>
   )
 }

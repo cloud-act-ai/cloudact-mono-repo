@@ -3,8 +3,7 @@
 import Link from "next/link"
 import {
   ArrowRight,
-  CheckCircle,
-  TrendingDown,
+  CheckCircle2,
   Users,
   BarChart3,
   Shield,
@@ -13,547 +12,433 @@ import {
   Target,
   Eye,
   Settings,
-  Award,
   Gauge,
-  Clock,
-  LineChart
+  LineChart,
+  Sparkles,
+  Building2,
+  Code2,
+  PieChart,
+  TrendingDown,
+  Cpu,
+  Puzzle,
+  UserCog,
+  AlertTriangle,
+  Briefcase,
+  Award,
+  Rocket,
 } from "lucide-react"
+import "../premium.css"
+
+// Role-based solutions data
+const ROLE_SOLUTIONS = [
+  {
+    title: "For FinOps Teams",
+    icon: Gauge,
+    description: "Advanced cost allocation, chargeback automation, and executive reporting tools built for FinOps professionals.",
+    color: "mint",
+    features: [
+      "Custom tagging strategies",
+      "Automated cost allocation",
+      "Multi-cloud normalization",
+      "FinOps maturity tracking",
+    ],
+  },
+  {
+    title: "For Engineering Teams",
+    icon: Code2,
+    description: "Developer-friendly APIs, CI/CD integrations, and real-time cost feedback in your existing workflow.",
+    color: "coral",
+    features: [
+      "Cost-per-deployment tracking",
+      "GenAI cost attribution",
+      "Slack/Teams alerts",
+      "Infrastructure as Code scanning",
+    ],
+  },
+  {
+    title: "For Finance Leaders",
+    icon: DollarSign,
+    description: "Budget controls, forecasting models, and financial reporting aligned with your accounting systems.",
+    color: "blue",
+    features: [
+      "Budget vs. actual tracking",
+      "Multi-currency support",
+      "Monthly/quarterly reporting",
+      "ERP/accounting integrations",
+    ],
+  },
+  {
+    title: "For Executives",
+    icon: BarChart3,
+    description: "High-level dashboards, ROI tracking, and strategic insights to inform cloud investment decisions.",
+    color: "purple",
+    features: [
+      "Executive summary reports",
+      "Strategic cost trends",
+      "Cloud ROI metrics",
+      "Savings opportunity pipeline",
+    ],
+  },
+  {
+    title: "For Product Teams",
+    icon: Target,
+    description: "Feature-level cost tracking, unit economics, and profitability analysis for product decisions.",
+    color: "coral",
+    features: [
+      "Cost per user/transaction",
+      "Feature profitability",
+      "A/B test cost impact",
+      "Product margin analysis",
+    ],
+  },
+  {
+    title: "For DevOps Teams",
+    icon: Settings,
+    description: "Infrastructure optimization, rightsizing recommendations, and automated remediation workflows.",
+    color: "mint",
+    features: [
+      "Automated rightsizing",
+      "Idle resource detection",
+      "Kubernetes cost optimization",
+      "Reserved instance planning",
+    ],
+  },
+]
+
+// Challenge-based solutions
+const CHALLENGE_SOLUTIONS = [
+  {
+    title: "Cost Visibility",
+    subtitle: "See exactly where every dollar goes",
+    icon: Eye,
+    color: "mint",
+    features: [
+      "Real-time cost dashboards",
+      "Team/project cost breakdown",
+      "GenAI usage tracking",
+      "Multi-cloud unified view",
+    ],
+    benefit: "Instant visibility",
+  },
+  {
+    title: "Budget Management",
+    subtitle: "Stay on budget automatically",
+    icon: Shield,
+    color: "coral",
+    features: [
+      "Custom budget alerts",
+      "Anomaly detection",
+      "Automated spending controls",
+      "Forecast accuracy tracking",
+    ],
+    benefit: "Automated alerts",
+  },
+  {
+    title: "Cost Optimization",
+    subtitle: "Reduce waste, maximize efficiency",
+    icon: LineChart,
+    color: "blue",
+    features: [
+      "AI-powered recommendations",
+      "Idle resource cleanup",
+      "Reserved instance planning",
+      "Commitment optimization",
+    ],
+    benefit: "AI recommendations",
+  },
+  {
+    title: "GenAI Cost Control",
+    subtitle: "Optimize LLM and AI workloads",
+    icon: Cpu,
+    color: "purple",
+    features: [
+      "Token usage tracking",
+      "Model cost comparison",
+      "Prompt optimization insights",
+      "OpenAI/Anthropic/AWS integration",
+    ],
+    benefit: "Token optimization",
+  },
+]
+
+// Use cases
+const USE_CASES = [
+  {
+    title: "GenAI Cost Optimization",
+    subtitle: "AI-First Teams",
+    description: "Track token usage and optimize LLM costs across OpenAI, Anthropic, and more",
+    color: "coral",
+  },
+  {
+    title: "Unified Cost Visibility",
+    subtitle: "Multi-Cloud Teams",
+    description: "Get complete cost visibility across all cloud and SaaS providers",
+    color: "mint",
+  },
+  {
+    title: "Smart Resource Management",
+    subtitle: "DevOps Teams",
+    description: "Identify idle resources and get AI-powered optimization recommendations",
+    color: "blue",
+  },
+]
 
 export default function SolutionsPage() {
   return (
-    <div className="ca-landing">
+    <div className="ca-landing-page">
       {/* Hero Section */}
-      <section className="ca-hero" style={{ minHeight: "80vh" }}>
-        <div className="ca-hero-bg">
-          <div className="ca-hero-orb ca-hero-orb-1" />
-          <div className="ca-hero-orb ca-hero-orb-2" />
-          <div className="ca-hero-grid" />
-        </div>
-
-        <div className="ca-hero-content">
-          <div className="ca-animate">
-            <span className="ca-label" style={{ marginBottom: "var(--space-6)", display: "block" }}>
-              SOLUTIONS FOR EVERY TEAM
-            </span>
-            <h1 className="ca-display-xl" style={{ marginBottom: "var(--space-6)" }}>
-              Built for How You{" "}
-              <span className="ca-gradient-text">Actually Work</span>
-            </h1>
-            <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto var(--space-10)" }}>
-              Whether you're a FinOps engineer optimizing costs, a CFO managing budgets, or a developer
-              building GenAI features - we have the right solution for your workflow.
-            </p>
-
-            <div style={{ display: "flex", gap: "var(--space-4)", justifyContent: "center", flexWrap: "wrap" }}>
-              <Link href="/signup" className="ca-btn ca-btn-primary ca-btn-lg">
-                Start Free Trial
-                <ArrowRight size={20} />
-              </Link>
-              <Link href="/contact" className="ca-btn ca-btn-secondary ca-btn-lg">
-                Talk to Sales
-              </Link>
-            </div>
+      <section className="ca-page-hero">
+        <div className="ca-page-hero-content">
+          <div className="ca-section-eyebrow">
+            <Puzzle className="w-4 h-4" />
+            Solutions
           </div>
-
-          {/* Platform Features */}
-          <div className="ca-ticker ca-animate ca-delay-2">
-            <div className="ca-ticker-item">
-              <div className="ca-ticker-dot" />
-              <div>
-                <div className="ca-ticker-label">Integrations</div>
-                <div className="ca-ticker-value">50+</div>
-              </div>
-            </div>
-            <div className="ca-ticker-item">
-              <div className="ca-ticker-dot" style={{ background: "var(--ca-coral)" }} />
-              <div>
-                <div className="ca-ticker-label">Setup Time</div>
-                <div className="ca-ticker-value">5 min</div>
-              </div>
-            </div>
-            <div className="ca-ticker-item">
-              <div className="ca-ticker-dot" style={{ background: "var(--ca-green)" }} />
-              <div>
-                <div className="ca-ticker-label">Tracking</div>
-                <div className="ca-ticker-value">Real-time</div>
-              </div>
-            </div>
+          <h1 className="ca-page-hero-title">
+            Built for How You{" "}
+            <span className="ca-hero-highlight-coral">Actually Work</span>
+          </h1>
+          <p className="ca-page-hero-subtitle">
+            Whether you're a FinOps engineer optimizing costs, a CFO managing budgets, or a developer
+            building GenAI features - we have the right solution for your workflow.
+          </p>
+          <div className="ca-page-hero-actions">
+            <Link href="/signup" className="ca-btn-hero-primary">
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/contact" className="ca-btn-hero-secondary">
+              Talk to Sales
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Solutions by Role */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <span className="ca-section-label">SOLUTIONS BY ROLE</span>
-          <h2 className="ca-display-lg" style={{ marginBottom: "var(--space-4)" }}>
-            Every Role, Perfectly Supported
-          </h2>
-          <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto" }}>
+      <section className="ca-solutions-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <UserCog className="w-4 h-4" />
+            By Role
+          </span>
+          <h2 className="ca-section-title">Every Role, Perfectly Supported</h2>
+          <p className="ca-section-subtitle">
             Custom workflows and insights designed for how each team actually works
           </p>
         </div>
 
-        <div className="ca-features-grid">
-          {/* FinOps */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-teal">
-              <Gauge size={28} />
-            </div>
-            <h3 className="ca-feature-title">For FinOps Teams</h3>
-            <p className="ca-feature-desc" style={{ marginBottom: "var(--space-5)" }}>
-              Advanced cost allocation, chargeback automation, and executive reporting tools built for FinOps professionals.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Custom tagging strategies
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Automated cost allocation
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Multi-cloud normalization
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                FinOps maturity tracking
-              </li>
-            </ul>
-          </div>
-
-          {/* Engineering */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-coral">
-              <Settings size={28} />
-            </div>
-            <h3 className="ca-feature-title">For Engineering Teams</h3>
-            <p className="ca-feature-desc" style={{ marginBottom: "var(--space-5)" }}>
-              Developer-friendly APIs, CI/CD integrations, and real-time cost feedback in your existing workflow.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                Cost-per-deployment tracking
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                GenAI cost attribution
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                Slack/Teams alerts
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                Infrastructure as Code scanning
-              </li>
-            </ul>
-          </div>
-
-          {/* Finance */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-teal">
-              <DollarSign size={28} />
-            </div>
-            <h3 className="ca-feature-title">For Finance Leaders</h3>
-            <p className="ca-feature-desc" style={{ marginBottom: "var(--space-5)" }}>
-              Budget controls, forecasting models, and financial reporting aligned with your accounting systems.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Budget vs. actual tracking
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Multi-currency support
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Monthly/quarterly reporting
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                ERP/accounting integrations
-              </li>
-            </ul>
-          </div>
-
-          {/* Executives */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-green">
-              <BarChart3 size={28} />
-            </div>
-            <h3 className="ca-feature-title">For Executives</h3>
-            <p className="ca-feature-desc" style={{ marginBottom: "var(--space-5)" }}>
-              High-level dashboards, ROI tracking, and strategic insights to inform cloud investment decisions.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-green)", flexShrink: 0, marginTop: "2px" }} />
-                Executive summary reports
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-green)", flexShrink: 0, marginTop: "2px" }} />
-                Strategic cost trends
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-green)", flexShrink: 0, marginTop: "2px" }} />
-                Cloud ROI metrics
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-green)", flexShrink: 0, marginTop: "2px" }} />
-                Savings opportunity pipeline
-              </li>
-            </ul>
-          </div>
-
-          {/* Product Teams */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-coral">
-              <Target size={28} />
-            </div>
-            <h3 className="ca-feature-title">For Product Teams</h3>
-            <p className="ca-feature-desc" style={{ marginBottom: "var(--space-5)" }}>
-              Feature-level cost tracking, unit economics, and profitability analysis for product decisions.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                Cost per user/transaction
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                Feature profitability
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                A/B test cost impact
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-coral)", flexShrink: 0, marginTop: "2px" }} />
-                Product margin analysis
-              </li>
-            </ul>
-          </div>
-
-          {/* DevOps */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-teal">
-              <Zap size={28} />
-            </div>
-            <h3 className="ca-feature-title">For DevOps Teams</h3>
-            <p className="ca-feature-desc" style={{ marginBottom: "var(--space-5)" }}>
-              Infrastructure optimization, rightsizing recommendations, and automated remediation workflows.
-            </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Automated rightsizing
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Idle resource detection
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-3)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Kubernetes cost optimization
-              </li>
-              <li style={{ display: "flex", gap: "var(--space-2)", alignItems: "flex-start" }}>
-                <CheckCircle size={18} style={{ color: "var(--ca-teal)", flexShrink: 0, marginTop: "2px" }} />
-                Reserved instance planning
-              </li>
-            </ul>
-          </div>
+        <div className="ca-solutions-role-grid">
+          {ROLE_SOLUTIONS.map((solution) => {
+            const Icon = solution.icon
+            return (
+              <div
+                key={solution.title}
+                className={`ca-solution-role-card ca-solution-role-${solution.color}`}
+              >
+                <div className={`ca-solution-role-icon ca-solution-role-icon-${solution.color}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+                <h3 className="ca-solution-role-title">{solution.title}</h3>
+                <p className="ca-solution-role-desc">{solution.description}</p>
+                <ul className="ca-solution-role-features">
+                  {solution.features.map((feature, i) => (
+                    <li key={i}>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })}
         </div>
       </section>
 
       {/* Solutions by Challenge */}
-      <section className="ca-section" style={{ background: "var(--ca-gray-50)" }}>
-        <div className="ca-section-header">
-          <span className="ca-section-label">SOLUTIONS BY CHALLENGE</span>
-          <h2 className="ca-display-lg" style={{ marginBottom: "var(--space-4)" }}>
-            Solve Your Biggest Cost Challenges
-          </h2>
-          <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto" }}>
+      <section className="ca-challenges-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <AlertTriangle className="w-4 h-4" />
+            By Challenge
+          </span>
+          <h2 className="ca-section-title">Solve Your Biggest Cost Challenges</h2>
+          <p className="ca-section-subtitle">
             Purpose-built solutions for the most common cloud cost problems
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "var(--space-6)", maxWidth: "1100px", margin: "0 auto" }} className="ca-responsive-grid">
-          {/* Cost Visibility */}
-          <div className="ca-card" style={{ padding: "var(--space-10)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-5)", marginBottom: "var(--space-6)" }}>
-              <div className="ca-feature-icon ca-feature-icon-teal" style={{ width: "64px", height: "64px" }}>
-                <Eye size={32} />
+        <div className="ca-challenges-grid">
+          {CHALLENGE_SOLUTIONS.map((challenge) => {
+            const Icon = challenge.icon
+            return (
+              <div
+                key={challenge.title}
+                className={`ca-challenge-card ca-challenge-${challenge.color}`}
+              >
+                <div className="ca-challenge-header">
+                  <div className={`ca-challenge-icon ca-challenge-icon-${challenge.color}`}>
+                    <Icon className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="ca-challenge-title">{challenge.title}</h3>
+                    <p className="ca-challenge-subtitle">{challenge.subtitle}</p>
+                  </div>
+                </div>
+                <ul className="ca-challenge-features">
+                  {challenge.features.map((feature, i) => (
+                    <li key={i}>{feature}</li>
+                  ))}
+                </ul>
+                <div className={`ca-challenge-benefit ca-challenge-benefit-${challenge.color}`}>
+                  <TrendingDown className="w-5 h-5" />
+                  <div>
+                    <span className="ca-challenge-benefit-label">Key Benefit</span>
+                    <span className="ca-challenge-benefit-value">{challenge.benefit}</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="ca-display-md" style={{ marginBottom: "var(--space-2)" }}>Cost Visibility</h3>
-                <p className="ca-body-sm">See exactly where every dollar goes</p>
-              </div>
-            </div>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 var(--space-6) 0", fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ marginBottom: "var(--space-3)" }}>Real-time cost dashboards</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Team/project cost breakdown</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>GenAI usage tracking</li>
-              <li>Multi-cloud unified view</li>
-            </ul>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-teal-50)", borderRadius: "12px" }}>
-              <TrendingDown size={24} style={{ color: "var(--ca-teal)" }} />
-              <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-teal)" }}>Instant visibility</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Budget Management */}
-          <div className="ca-card" style={{ padding: "var(--space-10)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-5)", marginBottom: "var(--space-6)" }}>
-              <div className="ca-feature-icon ca-feature-icon-coral" style={{ width: "64px", height: "64px" }}>
-                <Shield size={32} />
-              </div>
-              <div>
-                <h3 className="ca-display-md" style={{ marginBottom: "var(--space-2)" }}>Budget Management</h3>
-                <p className="ca-body-sm">Stay on budget automatically</p>
-              </div>
-            </div>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 var(--space-6) 0", fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ marginBottom: "var(--space-3)" }}>Custom budget alerts</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Anomaly detection</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Automated spending controls</li>
-              <li>Forecast accuracy tracking</li>
-            </ul>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-coral-50)", borderRadius: "12px" }}>
-              <Clock size={24} style={{ color: "var(--ca-coral)" }} />
-              <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-coral)" }}>Automated alerts</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cost Optimization */}
-          <div className="ca-card" style={{ padding: "var(--space-10)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-5)", marginBottom: "var(--space-6)" }}>
-              <div className="ca-feature-icon ca-feature-icon-green" style={{ width: "64px", height: "64px" }}>
-                <LineChart size={32} />
-              </div>
-              <div>
-                <h3 className="ca-display-md" style={{ marginBottom: "var(--space-2)" }}>Cost Optimization</h3>
-                <p className="ca-body-sm">Reduce waste, maximize efficiency</p>
-              </div>
-            </div>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 var(--space-6) 0", fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ marginBottom: "var(--space-3)" }}>AI-powered recommendations</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Idle resource cleanup</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Reserved instance planning</li>
-              <li>Commitment optimization</li>
-            </ul>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-green-light)", borderRadius: "12px" }}>
-              <Award size={24} style={{ color: "var(--ca-green)" }} />
-              <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-green)" }}>AI recommendations</div>
-              </div>
-            </div>
-          </div>
-
-          {/* GenAI Cost Control */}
-          <div className="ca-card" style={{ padding: "var(--space-10)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-5)", marginBottom: "var(--space-6)" }}>
-              <div className="ca-feature-icon ca-feature-icon-teal" style={{ width: "64px", height: "64px" }}>
-                <Zap size={32} />
-              </div>
-              <div>
-                <h3 className="ca-display-md" style={{ marginBottom: "var(--space-2)" }}>GenAI Cost Control</h3>
-                <p className="ca-body-sm">Optimize LLM and AI workloads</p>
-              </div>
-            </div>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 var(--space-6) 0", fontSize: "0.9375rem", color: "var(--ca-gray-600)" }}>
-              <li style={{ marginBottom: "var(--space-3)" }}>Token usage tracking</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Model cost comparison</li>
-              <li style={{ marginBottom: "var(--space-3)" }}>Prompt optimization insights</li>
-              <li>OpenAI/Anthropic/AWS integration</li>
-            </ul>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-teal-50)", borderRadius: "12px" }}>
-              <Users size={24} style={{ color: "var(--ca-teal)" }} />
-              <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-teal)" }}>Token optimization</div>
-              </div>
-            </div>
-          </div>
+            )
+          })}
         </div>
       </section>
 
       {/* Use Cases */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <span className="ca-section-label">USE CASES</span>
-          <h2 className="ca-display-lg" style={{ marginBottom: "var(--space-4)" }}>
-            How Teams Use CloudAct
-          </h2>
+      <section className="ca-usecases-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <Briefcase className="w-4 h-4" />
+            Use Cases
+          </span>
+          <h2 className="ca-section-title">How Teams Use CloudAct</h2>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--space-6)", maxWidth: "1200px", margin: "0 auto" }} className="ca-case-studies">
-          <div className="ca-card" style={{ padding: "var(--space-8)", textAlign: "center" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "var(--space-4)" }}>🚀</div>
-            <div className="ca-metric-value" style={{ color: "var(--ca-coral)", marginBottom: "var(--space-2)" }}>GenAI</div>
-            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Cost Optimization</div>
-            <p className="ca-body-sm" style={{ marginBottom: "var(--space-4)" }}>
-              Track token usage and optimize LLM costs across OpenAI, Anthropic, and more
-            </p>
-            <div className="ca-label">AI-FIRST TEAMS</div>
-          </div>
-
-          <div className="ca-card" style={{ padding: "var(--space-8)", textAlign: "center" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "var(--space-4)" }}>📊</div>
-            <div className="ca-metric-value" style={{ color: "var(--ca-teal)", marginBottom: "var(--space-2)" }}>Unified</div>
-            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Cost Visibility</div>
-            <p className="ca-body-sm" style={{ marginBottom: "var(--space-4)" }}>
-              Get complete cost visibility across all cloud and SaaS providers
-            </p>
-            <div className="ca-label">MULTI-CLOUD TEAMS</div>
-          </div>
-
-          <div className="ca-card" style={{ padding: "var(--space-8)", textAlign: "center" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "var(--space-4)" }}>⚡</div>
-            <div className="ca-metric-value" style={{ color: "var(--ca-green)", marginBottom: "var(--space-2)" }}>Smart</div>
-            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Resource Management</div>
-            <p className="ca-body-sm" style={{ marginBottom: "var(--space-4)" }}>
-              Identify idle resources and get AI-powered optimization recommendations
-            </p>
-            <div className="ca-label">DEVOPS TEAMS</div>
-          </div>
+        <div className="ca-usecases-grid">
+          {USE_CASES.map((useCase) => (
+            <div
+              key={useCase.title}
+              className={`ca-usecase-card ca-usecase-${useCase.color}`}
+            >
+              <div className={`ca-usecase-badge ca-usecase-badge-${useCase.color}`}>
+                {useCase.subtitle}
+              </div>
+              <h3 className="ca-usecase-title">{useCase.title}</h3>
+              <p className="ca-usecase-desc">{useCase.description}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Integration Ecosystem */}
-      <section className="ca-section" style={{ background: "var(--ca-gray-50)" }}>
-        <div className="ca-section-header">
-          <span className="ca-section-label">SEAMLESS INTEGRATIONS</span>
-          <h2 className="ca-display-lg" style={{ marginBottom: "var(--space-4)" }}>
-            Works with Your Entire Stack
-          </h2>
-          <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto" }}>
-            Connect CloudAct to your cloud providers, GenAI platforms, and business tools in minutes
+      {/* Industry Solutions */}
+      <section className="ca-industry-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <Building2 className="w-4 h-4" />
+            By Industry
+          </span>
+          <h2 className="ca-section-title">Trusted Across Industries</h2>
+          <p className="ca-section-subtitle">
+            Tailored solutions for the unique cost challenges of every industry
           </p>
         </div>
 
-        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
-            {/* Cloud Providers */}
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>☁️</div>
-              <div className="ca-subheading">GCP</div>
+        <div className="ca-industry-grid">
+          <div className="ca-industry-card">
+            <div className="ca-industry-icon">
+              <Building2 className="w-6 h-6" />
             </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>☁️</div>
-              <div className="ca-subheading">AWS</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>☁️</div>
-              <div className="ca-subheading">Azure</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>🔷</div>
-              <div className="ca-subheading">Kubernetes</div>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
-            {/* GenAI Platforms */}
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>🤖</div>
-              <div className="ca-subheading">OpenAI</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>🧠</div>
-              <div className="ca-subheading">Anthropic</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>⚡</div>
-              <div className="ca-subheading">Bedrock</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>🔮</div>
-              <div className="ca-subheading">Vertex AI</div>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-4)" }}>
-            {/* Business Tools */}
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>💬</div>
-              <div className="ca-subheading">Slack</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>📧</div>
-              <div className="ca-subheading">Email</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>📊</div>
-              <div className="ca-subheading">Jira</div>
-            </div>
-            <div className="ca-card" style={{ padding: "var(--space-6)", textAlign: "center" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-3)" }}>🔔</div>
-              <div className="ca-subheading">PagerDuty</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: "var(--space-10)" }}>
-          <Link href="/integrations" className="ca-btn ca-btn-secondary">
-            View All Integrations
-            <ArrowRight size={18} />
-          </Link>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="ca-cta">
-        <div className="ca-cta-box">
-          <div className="ca-cta-content">
-            <div className="ca-cta-badge">
-              <div className="ca-ticker-dot" style={{ background: "white" }} />
-              <span>Start optimizing your cloud costs today</span>
-            </div>
-
-            <h2 className="ca-cta-title">
-              Ready to Solve Your Cost Challenge?
-            </h2>
-            <p className="ca-cta-subtitle">
-              Start your free 14-day trial. No credit card required. Setup in 5 minutes.
+            <h3 className="ca-industry-title">Enterprise</h3>
+            <p className="ca-industry-desc">
+              Multi-cloud governance, chargeback automation, and executive reporting for large organizations.
             </p>
-
-            <div className="ca-cta-buttons">
-              <Link href="/signup" className="ca-cta-btn-white">
-                Start Free Trial
-                <ArrowRight size={20} />
-              </Link>
-              <Link href="/contact" className="ca-cta-btn-outline">
-                Talk to Sales
-              </Link>
+          </div>
+          <div className="ca-industry-card">
+            <div className="ca-industry-icon">
+              <Zap className="w-6 h-6" />
             </div>
+            <h3 className="ca-industry-title">SaaS & Tech</h3>
+            <p className="ca-industry-desc">
+              GenAI cost tracking, unit economics, and COGS optimization for software companies.
+            </p>
+          </div>
+          <div className="ca-industry-card">
+            <div className="ca-industry-icon">
+              <PieChart className="w-6 h-6" />
+            </div>
+            <h3 className="ca-industry-title">Financial Services</h3>
+            <p className="ca-industry-desc">
+              Compliance-ready reporting, budget controls, and multi-currency support for finance.
+            </p>
+          </div>
+          <div className="ca-industry-card">
+            <div className="ca-industry-icon">
+              <Users className="w-6 h-6" />
+            </div>
+            <h3 className="ca-industry-title">Startups</h3>
+            <p className="ca-industry-desc">
+              Cost-efficient growth, runway optimization, and investor-ready reporting for growing teams.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Mobile responsive styles */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .ca-responsive-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .ca-case-studies {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+      {/* Why CloudAct */}
+      <section className="ca-why-section ca-section-gray">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <Award className="w-4 h-4" />
+            Why CloudAct
+          </span>
+          <h2 className="ca-section-title">The Platform Advantage</h2>
+        </div>
+
+        <div className="ca-why-grid">
+          <div className="ca-why-card">
+            <div className="ca-why-stat">5 min</div>
+            <div className="ca-why-label">Setup Time</div>
+            <p className="ca-why-desc">Connect your first integration in under 5 minutes with our guided setup.</p>
+          </div>
+          <div className="ca-why-card">
+            <div className="ca-why-stat">50+</div>
+            <div className="ca-why-label">Integrations</div>
+            <p className="ca-why-desc">Connect all your cloud, GenAI, and SaaS tools in one unified platform.</p>
+          </div>
+          <div className="ca-why-card">
+            <div className="ca-why-stat">Real-time</div>
+            <div className="ca-why-label">Cost Tracking</div>
+            <p className="ca-why-desc">See costs as they happen, not days or weeks later. Act fast on anomalies.</p>
+          </div>
+          <div className="ca-why-card">
+            <div className="ca-why-stat">AI</div>
+            <div className="ca-why-label">Recommendations</div>
+            <p className="ca-why-desc">Machine learning identifies savings opportunities you might miss.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="ca-final-cta-section">
+        <div className="ca-final-cta-container">
+          <div className="ca-final-cta-badge">
+            <Sparkles className="w-4 h-4" />
+            Find Your Solution
+          </div>
+          <h2 className="ca-final-cta-title">Ready to Solve Your Cost Challenge?</h2>
+          <p className="ca-final-cta-subtitle">
+            Start your free 14-day trial. No credit card required. Setup in 5 minutes.
+          </p>
+          <div className="ca-final-cta-buttons">
+            <Link href="/signup" className="ca-btn-cta-primary">
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/contact" className="ca-btn-cta-secondary">
+              Talk to Sales
+            </Link>
+          </div>
+          <p className="ca-final-cta-note">
+            No credit card required • Cancel anytime • 30-day money-back guarantee
+          </p>
+        </div>
+      </section>
     </div>
   )
 }

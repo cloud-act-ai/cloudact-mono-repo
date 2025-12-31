@@ -1,56 +1,97 @@
-import type { Metadata } from "next"
+"use client"
+
+import Link from "next/link"
 import {
+  ArrowRight,
   Target,
   Shield,
   Sparkles,
   Users,
   TrendingUp,
   Heart,
-  Zap,
-  Globe,
+  MapPin,
+  Phone,
+  Building2,
+  Lightbulb,
+  Info,
+  BookOpen,
   Award,
-  ArrowRight,
+  MessageCircle,
+  Rocket,
 } from "lucide-react"
-import Link from "next/link"
+import "../premium.css"
 
-export const metadata: Metadata = {
-  title: "About Us - Building the Future of Cost Intelligence | CloudAct.ai",
-  description:
-    "CloudAct.ai is on a mission to make GenAI and cloud infrastructure affordable for every organization. Meet our team, learn our story, and discover how we're transforming cost management with AI-powered intelligence.",
-  openGraph: {
-    title: "About Us - Building the Future of Cost Intelligence | CloudAct.ai",
-    description:
-      "Meet the team behind CloudAct.ai and learn how we're democratizing cost intelligence for the GenAI era.",
-    type: "website",
+// Company values
+const VALUES = [
+  {
+    title: "Customer Obsessed",
+    description: "We measure our success by the money we save our customers. Every feature is designed with your bottom line in mind.",
+    icon: Target,
+    color: "mint",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "About Us - Building the Future of Cost Intelligence | CloudAct.ai",
-    description: "Making GenAI and cloud infrastructure affordable for every organization.",
+  {
+    title: "Trust & Transparency",
+    description: "Your data is your most valuable asset. We're SOC 2 Type II certified and committed to the highest standards of security.",
+    icon: Shield,
+    color: "coral",
   },
-}
+  {
+    title: "Innovation First",
+    description: "The cloud and AI landscape changes daily. We stay ahead of the curve, continuously innovating to help you optimize.",
+    icon: Lightbulb,
+    color: "blue",
+  },
+  {
+    title: "Built for Teams",
+    description: "Cost optimization is a team sport. We bring engineering, finance, and leadership together around shared efficiency goals.",
+    icon: Users,
+    color: "purple",
+  },
+  {
+    title: "Data-Driven Excellence",
+    description: "Every recommendation is backed by real data and proven results. We analyze, test, and validate for measurable impact.",
+    icon: TrendingUp,
+    color: "mint",
+  },
+  {
+    title: "Empathy & Impact",
+    description: "We understand the pressure of managing budgets and delivering innovation. Our team supports you with expertise and care.",
+    icon: Heart,
+    color: "coral",
+  },
+]
+
+// Team expertise areas
+const EXPERTISE_AREAS = [
+  { area: "Cloud Architecture", description: "AWS, GCP, Azure experts" },
+  { area: "AI & Machine Learning", description: "GenAI optimization" },
+  { area: "FinOps", description: "Cost management specialists" },
+  { area: "Data Engineering", description: "BigQuery, analytics" },
+]
+
+// Platform stats
+const PLATFORM_STATS = [
+  { value: "50+", label: "Integrations", description: "Cloud, GenAI, and SaaS providers" },
+  { value: "Real-time", label: "Cost Intelligence", description: "Live tracking and alerts" },
+  { value: "AI-Powered", label: "Recommendations", description: "Smart optimization insights" },
+  { value: "SOC 2", label: "Type II Certified", description: "Enterprise-grade security" },
+]
 
 export default function AboutPage() {
   return (
-    <div className="ca-landing">
+    <div className="ca-landing-page">
       {/* Hero Section */}
-      <section className="ca-hero">
-        <div className="ca-hero-bg">
-          <div className="ca-hero-orb ca-hero-orb-1" />
-          <div className="ca-hero-orb ca-hero-orb-2" />
-          <div className="ca-hero-grid" />
-        </div>
-
-        <div className="ca-hero-content">
-          <div className="ca-label ca-animate">Our Mission</div>
-          <h1 className="ca-display-xl ca-animate ca-delay-1" style={{ marginTop: "1rem" }}>
+      <section className="ca-page-hero">
+        <div className="ca-page-hero-content">
+          <div className="ca-section-eyebrow">
+            <Info className="w-4 h-4" />
+            About Us
+          </div>
+          <h1 className="ca-page-hero-title">
             Democratizing Cost Intelligence{" "}
-            <span className="ca-gradient-text">for the GenAI Era</span>
+            <span className="ca-hero-highlight-mint">for the GenAI Era</span>
           </h1>
-          <p
-            className="ca-body ca-animate ca-delay-2"
-            style={{ maxWidth: "700px", margin: "2rem auto 0" }}
-          >
+          <p className="ca-page-hero-subtitle">
             We believe every organization should have access to enterprise-grade cost intelligence.
             CloudAct.ai makes GenAI and cloud infrastructure affordable, transparent, and optimized.
           </p>
@@ -58,47 +99,39 @@ export default function AboutPage() {
       </section>
 
       {/* Our Story Section */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <div className="ca-section-label">The Beginning</div>
-          <h2 className="ca-display-md">How CloudAct.ai Started</h2>
+      <section className="ca-story-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <BookOpen className="w-4 h-4" />
+            The Beginning
+          </span>
+          <h2 className="ca-section-title">How CloudAct.ai Started</h2>
         </div>
 
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <div className="ca-card" style={{ padding: "3rem" }}>
-            <div className="ca-body" style={{ fontSize: "1.125rem", lineHeight: "1.9" }}>
-              <p style={{ marginBottom: "1.5rem" }}>
-                <span
-                  className="ca-gradient-text-teal"
-                  style={{
-                    fontSize: "4rem",
-                    fontWeight: 700,
-                    float: "left",
-                    lineHeight: "3rem",
-                    marginRight: "1rem",
-                  }}
-                >
-                  I
-                </span>
-                n early 2024, our founding team watched companies struggle with exploding GenAI costs.
-                Engineering leaders couldn't explain why their OpenAI bills tripled overnight. Finance teams
-                had no visibility into which features or users drove costs. Developers lacked tools to
-                optimize without sacrificing quality.
+        <div className="ca-story-container">
+          <div className="ca-story-card">
+            <div className="ca-story-content">
+              <p className="ca-story-lead">
+                <span className="ca-story-dropcap">I</span>n early 2024, our founding team watched
+                companies struggle with exploding GenAI costs. Engineering leaders couldn't explain
+                why their OpenAI bills tripled overnight. Finance teams had no visibility into which
+                features or users drove costs.
               </p>
-              <p style={{ marginBottom: "1.5rem" }}>
-                We had all experienced this pain ourselves—seeing innovative AI projects shut down not because
-                they didn't work, but because costs spiraled out of control. Millions of dollars were being
-                wasted on inefficient prompts, redundant API calls, and unoptimized cloud resources.
+              <p>
+                We had all experienced this pain ourselves—seeing innovative AI projects shut down
+                not because they didn't work, but because costs spiraled out of control. Millions of
+                dollars were being wasted on inefficient prompts, redundant API calls, and unoptimized
+                cloud resources.
               </p>
-              <p style={{ marginBottom: "1.5rem" }}>
+              <p>
                 That's when we built the first version of CloudAct.ai in a weekend hackathon. A simple
                 dashboard that tracked OpenAI usage by feature and user. Within weeks, our pilot customers
                 were saving 40-60% on their GenAI bills. Word spread fast.
               </p>
               <p>
-                Today, CloudAct.ai has grown into a comprehensive platform for GenAI and multi-cloud cost
-                intelligence. We help teams gain visibility into their costs and find optimization opportunities
-                —all while accelerating their AI innovation.
+                Today, CloudAct.ai has grown into a comprehensive platform for GenAI and multi-cloud
+                cost intelligence. We help teams gain visibility into their costs and find optimization
+                opportunities—all while accelerating their AI innovation.
               </p>
             </div>
           </div>
@@ -106,228 +139,145 @@ export default function AboutPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="ca-stats-section">
-        <div className="ca-stats-grid">
-          <div>
-            <div className="ca-stat-value">50+</div>
-            <div className="ca-stat-label">Integrations</div>
-          </div>
-          <div>
-            <div className="ca-stat-value">3</div>
-            <div className="ca-stat-label">Cloud Providers</div>
-          </div>
-          <div>
-            <div className="ca-stat-value">Real-time</div>
-            <div className="ca-stat-label">Cost Intelligence</div>
-          </div>
+      <section className="ca-about-stats-section">
+        <div className="ca-about-stats-grid">
+          {PLATFORM_STATS.map((stat) => (
+            <div key={stat.label} className="ca-about-stat-card">
+              <div className="ca-about-stat-value">{stat.value}</div>
+              <div className="ca-about-stat-label">{stat.label}</div>
+              <div className="ca-about-stat-desc">{stat.description}</div>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Team Section */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <div className="ca-section-label">Our Team</div>
-          <h2 className="ca-display-md">Building CloudAct.ai</h2>
-          <p className="ca-body" style={{ maxWidth: "700px", margin: "1rem auto 0" }}>
-            We're a team of cloud infrastructure veterans, AI engineers, and data scientists passionate about
-            making cost intelligence accessible to everyone.
+      <section className="ca-team-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <Users className="w-4 h-4" />
+            Our Team
+          </span>
+          <h2 className="ca-section-title">Building CloudAct.ai</h2>
+          <p className="ca-section-subtitle">
+            We're a team of cloud infrastructure veterans, AI engineers, and data scientists
+            passionate about making cost intelligence accessible to everyone.
           </p>
         </div>
 
-        <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-          <div className="ca-card" style={{ padding: "3rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
-              <Users size={32} />
-            </div>
-            <h3 className="ca-heading" style={{ marginBottom: "1rem" }}>
-              Our Expertise
-            </h3>
-            <p className="ca-body" style={{ marginBottom: "2rem" }}>
-              Our team brings deep expertise from leading cloud and AI companies. We combine experience in
-              cloud infrastructure, machine learning, and FinOps to build the most comprehensive cost
-              intelligence platform.
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
-              <div style={{ textAlign: "center" }}>
-                <div className="ca-subheading">Cloud Architecture</div>
-                <p className="ca-body-sm">AWS, GCP, Azure experts</p>
+        <div className="ca-team-expertise-card">
+          <div className="ca-team-expertise-icon">
+            <Users className="w-8 h-8" />
+          </div>
+          <h3 className="ca-team-expertise-title">Our Expertise</h3>
+          <p className="ca-team-expertise-desc">
+            Our team brings deep expertise from leading cloud and AI companies. We combine experience
+            in cloud infrastructure, machine learning, and FinOps to build the most comprehensive
+            cost intelligence platform.
+          </p>
+          <div className="ca-team-expertise-grid">
+            {EXPERTISE_AREAS.map((expertise) => (
+              <div key={expertise.area} className="ca-team-expertise-item">
+                <div className="ca-team-expertise-item-title">{expertise.area}</div>
+                <div className="ca-team-expertise-item-desc">{expertise.description}</div>
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div className="ca-subheading">AI & ML</div>
-                <p className="ca-body-sm">GenAI optimization</p>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div className="ca-subheading">FinOps</div>
-                <p className="ca-body-sm">Cost management specialists</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Values Section */}
-      <section className="ca-section" style={{ background: "var(--ca-gray-50)" }}>
-        <div className="ca-section-header">
-          <div className="ca-section-label">Core Values</div>
-          <h2 className="ca-display-md">What Drives Us Every Day</h2>
-          <p className="ca-body" style={{ maxWidth: "700px", margin: "1rem auto 0" }}>
-            Our values aren't just words on a wall—they guide every decision we make and every feature we
-            build.
+      <section className="ca-values-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <Award className="w-4 h-4" />
+            Core Values
+          </span>
+          <h2 className="ca-section-title">What Drives Us Every Day</h2>
+          <p className="ca-section-subtitle">
+            Our values aren't just words on a wall—they guide every decision we make
+            and every feature we build.
           </p>
         </div>
 
-        <div className="ca-features-grid">
-          {/* Value 1 */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-teal">
-              <Target size={28} />
+        <div className="ca-values-grid">
+          {VALUES.map((value) => {
+            const Icon = value.icon
+            return (
+              <div key={value.title} className={`ca-value-card ca-value-${value.color}`}>
+                <div className={`ca-value-icon ca-value-icon-${value.color}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+                <h3 className="ca-value-title">{value.title}</h3>
+                <p className="ca-value-desc">{value.description}</p>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Company Info */}
+      <section className="ca-company-info-section">
+        <div className="ca-section-header-centered">
+          <span className="ca-section-eyebrow">
+            <MessageCircle className="w-4 h-4" />
+            Get in Touch
+          </span>
+          <h2 className="ca-section-title">Our Office</h2>
+        </div>
+
+        <div className="ca-company-info-grid">
+          <div className="ca-company-info-card">
+            <div className="ca-company-info-icon">
+              <MapPin className="w-6 h-6" />
             </div>
-            <h3 className="ca-feature-title">Customer Obsessed</h3>
-            <p className="ca-feature-desc">
-              We measure our success by the money we save our customers. Every feature, every optimization,
-              every improvement is designed with your bottom line and success in mind.
+            <h3 className="ca-company-info-label">Address</h3>
+            <p className="ca-company-info-value">
+              100 S Murphy Ave, STE 200 PMB4013<br />
+              Sunnyvale, CA 94086
             </p>
           </div>
-
-          {/* Value 2 */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-coral">
-              <Shield size={28} />
+          <div className="ca-company-info-card">
+            <div className="ca-company-info-icon">
+              <Phone className="w-6 h-6" />
             </div>
-            <h3 className="ca-feature-title">Trust & Transparency</h3>
-            <p className="ca-feature-desc">
-              Your data is your most valuable asset. We're SOC 2 Type II certified and committed to the
-              highest standards of security, privacy, and complete transparency.
+            <h3 className="ca-company-info-label">Phone</h3>
+            <p className="ca-company-info-value">
+              (850) 988-7471
             </p>
           </div>
-
-          {/* Value 3 */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-teal">
-              <Sparkles size={28} />
+          <div className="ca-company-info-card">
+            <div className="ca-company-info-icon">
+              <Building2 className="w-6 h-6" />
             </div>
-            <h3 className="ca-feature-title">Innovation First</h3>
-            <p className="ca-feature-desc">
-              The cloud and AI landscape changes daily. We stay ahead of the curve, continuously innovating to
-              help you optimize costs in new and better ways.
-            </p>
-          </div>
-
-          {/* Value 4 */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-coral">
-              <Users size={28} />
-            </div>
-            <h3 className="ca-feature-title">Built for Teams</h3>
-            <p className="ca-feature-desc">
-              Cost optimization is a team sport. We build tools that bring engineering, finance, and
-              leadership together around a shared goal: efficiency and innovation.
-            </p>
-          </div>
-
-          {/* Value 5 */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-teal">
-              <TrendingUp size={28} />
-            </div>
-            <h3 className="ca-feature-title">Data-Driven Excellence</h3>
-            <p className="ca-feature-desc">
-              Every recommendation is backed by real data and proven results. We don't guess—we analyze,
-              test, and validate to ensure measurable impact for your business.
-            </p>
-          </div>
-
-          {/* Value 6 */}
-          <div className="ca-feature-card">
-            <div className="ca-feature-icon ca-feature-icon-coral">
-              <Heart size={28} />
-            </div>
-            <h3 className="ca-feature-title">Empathy & Impact</h3>
-            <p className="ca-feature-desc">
-              We understand the pressure of managing budgets and delivering innovation. Our team is here to
-              support you with expertise, empathy, and actionable solutions.
+            <h3 className="ca-company-info-label">Headquarters</h3>
+            <p className="ca-company-info-value">
+              Silicon Valley, California
             </p>
           </div>
         </div>
       </section>
 
-      {/* Platform Capabilities */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <div className="ca-section-label">Platform Capabilities</div>
-          <h2 className="ca-display-md">What We Offer</h2>
-        </div>
-
-        <div className="ca-features-grid">
-          {/* Capability 1 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
-              <Globe size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              50+
-            </div>
-            <p className="ca-body-sm">Integrations with cloud, GenAI, and SaaS providers</p>
+      {/* Final CTA - Careers */}
+      <section className="ca-final-cta-section">
+        <div className="ca-final-cta-container">
+          <div className="ca-final-cta-badge">
+            <Sparkles className="w-4 h-4" />
+            We're Hiring
           </div>
-
-          {/* Capability 2 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-coral" style={{ margin: "0 auto 1.5rem" }}>
-              <TrendingUp size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              Real-time
-            </div>
-            <p className="ca-body-sm">Cost tracking and anomaly detection</p>
-          </div>
-
-          {/* Capability 3 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-green" style={{ margin: "0 auto 1.5rem" }}>
-              <Zap size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              AI-Powered
-            </div>
-            <p className="ca-body-sm">Optimization recommendations</p>
-          </div>
-
-          {/* Capability 4 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
-              <Shield size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              SOC 2
-            </div>
-            <p className="ca-body-sm">Type II certified with enterprise-grade security</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Join Us CTA */}
-      <section className="ca-cta">
-        <div className="ca-cta-box">
-          <div className="ca-cta-content">
-            <div className="ca-cta-badge">
-              <Sparkles size={16} />
-              <span>We're Hiring</span>
-            </div>
-            <h2 className="ca-cta-title">Join Us in Building the Future</h2>
-            <p className="ca-cta-subtitle">
-              We're looking for exceptional engineers, designers, and leaders who want to make cost
-              intelligence accessible to everyone. Work on cutting-edge AI, serve global customers, and make
-              a real impact.
-            </p>
-            <div className="ca-cta-buttons">
-              <Link href="/careers" className="ca-cta-btn-white">
-                View Open Positions
-                <ArrowRight size={20} />
-              </Link>
-              <Link href="/contact" className="ca-cta-btn-outline">
-                Get in Touch
-              </Link>
-            </div>
+          <h2 className="ca-final-cta-title">Join Us in Building the Future</h2>
+          <p className="ca-final-cta-subtitle">
+            We're looking for exceptional engineers, designers, and leaders who want to make
+            cost intelligence accessible to everyone. Work on cutting-edge AI and make real impact.
+          </p>
+          <div className="ca-final-cta-buttons">
+            <Link href="/careers" className="ca-btn-cta-primary">
+              View Open Positions
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/contact" className="ca-btn-cta-secondary">
+              Get in Touch
+            </Link>
           </div>
         </div>
       </section>

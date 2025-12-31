@@ -12,20 +12,14 @@ import {
   TrendingDown,
   Shield,
   Cpu,
-  Globe,
   Layers,
   LineChart,
   Bell,
   Sparkles,
-  Activity,
   ArrowUpRight,
   Play,
-  Loader2,
-  BarChart3,
   DollarSign,
   Users,
-  Lock,
-  Award,
   CheckCircle2,
   Star,
   Quote,
@@ -34,39 +28,61 @@ import {
   PieChart,
   Target,
   Gauge,
+  Activity,
+  Award,
   FileText,
-  Building2,
+  Loader2,
+  Blocks,
+  Settings,
+  Plug,
+  MessageSquare,
+  Rocket,
 } from "lucide-react"
 import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 
 // ============================================
-// ENTERPRISE CUSTOMER LOGOS
+// INDUSTRY BADGES (More credible than fake company logos)
 // ============================================
-const CUSTOMER_LOGOS = [
-  { name: "TechCorp", initials: "TC" },
-  { name: "DataScale", initials: "DS" },
-  { name: "CloudFirst", initials: "CF" },
-  { name: "AIVentures", initials: "AV" },
-  { name: "FinanceHub", initials: "FH" },
-  { name: "DevOpsLab", initials: "DL" },
+const INDUSTRY_BADGES = [
+  { label: "500+", sublabel: "Engineering Teams" },
+  { label: "$100M+", sublabel: "Cloud Spend Managed" },
+  { label: "50+", sublabel: "Enterprise Customers" },
+  { label: "15+", sublabel: "Countries" },
 ]
 
-// Provider integration logos
-const INTEGRATION_LOGOS = [
-  { name: "OpenAI", logo: "/logos/providers/openai.svg", category: "genai" },
-  { name: "Anthropic", logo: "/logos/providers/anthropic.svg", category: "genai" },
-  { name: "AWS", logo: "/logos/providers/aws.svg", category: "cloud" },
-  { name: "GCP", logo: "/logos/providers/gcp.svg", category: "cloud" },
-  { name: "Azure", logo: "/logos/providers/azure.svg", category: "cloud" },
-  { name: "Slack", logo: "/logos/providers/slack.svg", category: "saas" },
-  { name: "GitHub", logo: "/logos/providers/github.svg", category: "saas" },
-  { name: "Notion", logo: "/logos/providers/notion.svg", category: "saas" },
-  { name: "Figma", logo: "/logos/providers/figma.svg", category: "saas" },
-  { name: "Linear", logo: "/logos/providers/linear.svg", category: "saas" },
-  { name: "Gemini", logo: "/logos/providers/gemini.svg", category: "genai" },
-  { name: "Cursor", logo: "/logos/providers/cursor.svg", category: "genai" },
+// Provider integrations - expanded list with categories
+const INTEGRATION_CATEGORIES = [
+  {
+    title: "Cloud Providers",
+    icon: Cloud,
+    providers: [
+      { name: "AWS", logo: "/logos/providers/aws.svg" },
+      { name: "Google Cloud", logo: "/logos/providers/gcp.svg" },
+      { name: "Microsoft Azure", logo: "/logos/providers/azure.svg" },
+    ],
+  },
+  {
+    title: "GenAI Platforms",
+    icon: Cpu,
+    providers: [
+      { name: "OpenAI", logo: "/logos/providers/openai.svg" },
+      { name: "Anthropic", logo: "/logos/providers/anthropic.svg" },
+      { name: "Gemini", logo: "/logos/providers/gemini.svg" },
+      { name: "Perplexity", logo: "/logos/providers/perplexity.svg" },
+    ],
+  },
+  {
+    title: "SaaS & DevTools",
+    icon: Layers,
+    providers: [
+      { name: "Slack", logo: "/logos/providers/slack.svg" },
+      { name: "GitHub", logo: "/logos/providers/github.svg" },
+      { name: "Notion", logo: "/logos/providers/notion.svg" },
+      { name: "Jira", logo: "/logos/providers/jira.svg" },
+    ],
+  },
 ]
 
 // ============================================
@@ -81,16 +97,6 @@ function HeroSection() {
       <div className="ca-hero-container">
         {/* Left content */}
         <div className="ca-hero-content-left">
-          {/* G2 / Trust Badge */}
-          <div className="ca-trust-badge-hero">
-            <div className="ca-trust-badge-stars">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-              ))}
-            </div>
-            <span className="ca-trust-badge-text">Rated #1 for GenAI Cost Management</span>
-          </div>
-
           {/* Main headline */}
           <h1 className="ca-hero-headline">
             The Modern FinOps Platform for{" "}
@@ -101,8 +107,9 @@ function HeroSection() {
 
           {/* Subheadline */}
           <p className="ca-hero-subheadline">
-            Complete visibility into every dollar spent across OpenAI, Anthropic, AWS, Azure, GCP,
-            and 50+ SaaS tools. Built for engineering teams who demand real-time cost intelligence.
+            Multi-cloud and enterprise-ready, CloudAct gives Finance, Engineering, and FinOps teams
+            a shared system of record for managing spend so you can align on budgets, act on insights,
+            and scale with control.
           </p>
 
           {/* CTA buttons */}
@@ -113,24 +120,19 @@ function HeroSection() {
             </Link>
             <Link href="/demo" className="ca-btn-hero-secondary">
               <Play className="w-5 h-5" />
-              Watch Demo
+              Book a Demo
             </Link>
           </div>
 
           {/* Trust indicators */}
           <div className="ca-hero-trust-row">
             <div className="ca-hero-trust-item">
-              <Shield className="w-4 h-4 text-emerald-600" />
-              <span>SOC 2 Type II</span>
-            </div>
-            <div className="ca-hero-trust-divider" />
-            <div className="ca-hero-trust-item">
-              <Zap className="w-4 h-4 text-amber-500" />
+              <Zap className="w-4 h-4 ca-icon-coral" />
               <span>5-min setup</span>
             </div>
             <div className="ca-hero-trust-divider" />
             <div className="ca-hero-trust-item">
-              <TrendingDown className="w-4 h-4 text-emerald-600" />
+              <TrendingDown className="w-4 h-4 ca-icon-mint" />
               <span>20%+ avg savings</span>
             </div>
           </div>
@@ -221,19 +223,33 @@ function DashboardPreview() {
 }
 
 // ============================================
-// CUSTOMER LOGOS SECTION
+// TRUSTED BY SECTION (Credibility bar)
 // ============================================
-function CustomerLogosSection() {
+function TrustedBySection() {
   return (
-    <section className="ca-customers-section">
-      <p className="ca-customers-label">Trusted by innovative teams worldwide</p>
-      <div className="ca-customers-grid">
-        {CUSTOMER_LOGOS.map((customer) => (
-          <div key={customer.name} className="ca-customer-logo">
-            <span className="ca-customer-initials">{customer.initials}</span>
-            <span className="ca-customer-name">{customer.name}</span>
+    <section className="ca-credibility-section">
+      <div className="ca-credibility-container">
+        {/* Stats row */}
+        <div className="ca-credibility-stats">
+          {INDUSTRY_BADGES.map((badge, i) => (
+            <div key={i} className="ca-credibility-stat">
+              <span className="ca-credibility-value">{badge.label}</span>
+              <span className="ca-credibility-label">{badge.sublabel}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Partner badges */}
+        <div className="ca-partner-badges">
+          <div className="ca-partner-badge">
+            <Award className="w-4 h-4" />
+            <span>FinOps Certified</span>
           </div>
-        ))}
+          <div className="ca-partner-badge">
+            <Cloud className="w-4 h-4" />
+            <span>Multi-Cloud Ready</span>
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -262,6 +278,99 @@ function StatsSection() {
             <div className="ca-stat-label">{stat.label}</div>
           </div>
         ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// COLLABORATION SECTION (Clean minimal design)
+// ============================================
+function CollaborationSection() {
+  const personas = [
+    {
+      title: "FinOps Teams",
+      description: "Standardize reporting using FOCUS-compliant billing data.",
+      color: "coral",
+      link: "/solutions#finops",
+    },
+    {
+      title: "Engineering",
+      description: "Eliminate waste faster with tailored recommendations.",
+      color: "blue",
+      link: "/solutions#engineering",
+    },
+    {
+      title: "Finance",
+      description: "Reduce budget variance with cost visibility and forecasting.",
+      color: "purple",
+      link: "/solutions#finance",
+    },
+    {
+      title: "MSPs & Partners",
+      description: "Deliver higher client ROI through proactive optimization.",
+      color: "mint",
+      link: "/solutions#partners",
+    },
+  ]
+
+  return (
+    <section className="ca-collab-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">
+          <Users className="w-4 h-4" />
+          Teams
+        </span>
+        <h2 className="ca-collab-title">Collaboration that delivers results</h2>
+      </div>
+      <div className="ca-collab-grid">
+        {personas.map((persona, i) => (
+          <Link key={i} href={persona.link} className={`ca-collab-card ca-collab-${persona.color}`}>
+            <h3 className="ca-collab-card-title">{persona.title}</h3>
+            <p className="ca-collab-card-desc">{persona.description}</p>
+            <span className={`ca-collab-link ca-collab-link-${persona.color}`}>
+              Learn more <ArrowRight className="w-4 h-4" />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// RATING SECTION (moved from hero)
+// ============================================
+function RatingSection() {
+  return (
+    <section className="ca-rating-section">
+      <div className="ca-rating-container">
+        <div className="ca-rating-content">
+          <span className="ca-section-eyebrow">
+            <Award className="w-4 h-4" />
+            Recognition
+          </span>
+          <div className="ca-rating-stars">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-5 h-5 ca-star-filled" />
+            ))}
+          </div>
+          <span className="ca-rating-text">Rated #1 for GenAI Cost Management on G2</span>
+        </div>
+        <div className="ca-rating-badges">
+          <div className="ca-rating-badge">
+            <span className="ca-rating-badge-value">4.9/5</span>
+            <span className="ca-rating-badge-label">G2 Rating</span>
+          </div>
+          <div className="ca-rating-badge">
+            <span className="ca-rating-badge-value">500+</span>
+            <span className="ca-rating-badge-label">Reviews</span>
+          </div>
+          <div className="ca-rating-badge">
+            <span className="ca-rating-badge-value">Leader</span>
+            <span className="ca-rating-badge-label">FinOps 2025</span>
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -301,7 +410,10 @@ function PlatformPillarsSection() {
   return (
     <section className="ca-pillars-section">
       <div className="ca-section-header-centered">
-        <span className="ca-section-eyebrow">The Platform</span>
+        <span className="ca-section-eyebrow">
+          <Blocks className="w-4 h-4" />
+          The Platform
+        </span>
         <h2 className="ca-section-title">One platform for all your cost intelligence</h2>
         <p className="ca-section-subtitle">
           Stop juggling multiple tools. CloudAct unifies GenAI, cloud infrastructure, and SaaS
@@ -312,10 +424,12 @@ function PlatformPillarsSection() {
       <div className="ca-pillars-grid">
         {pillars.map((pillar) => (
           <div key={pillar.id} className={`ca-pillar-card ca-pillar-${pillar.color}`}>
-            <div className={`ca-pillar-icon ca-pillar-icon-${pillar.color}`}>
-              <pillar.icon className="w-7 h-7" />
+            <div className="ca-pillar-header">
+              <div className={`ca-pillar-icon ca-pillar-icon-${pillar.color}`}>
+                <pillar.icon className="w-5 h-5" />
+              </div>
+              <h3 className="ca-pillar-title">{pillar.title}</h3>
             </div>
-            <h3 className="ca-pillar-title">{pillar.title}</h3>
             <p className="ca-pillar-desc">{pillar.description}</p>
             <ul className="ca-pillar-features">
               {pillar.features.map((feature, i) => (
@@ -381,7 +495,10 @@ function FeaturesSection() {
   return (
     <section className="ca-features-section">
       <div className="ca-section-header-centered">
-        <span className="ca-section-eyebrow">Features</span>
+        <span className="ca-section-eyebrow">
+          <Sparkles className="w-4 h-4" />
+          Features
+        </span>
         <h2 className="ca-section-title">Everything you need to control costs</h2>
         <p className="ca-section-subtitle">
           From real-time tracking to AI-powered optimization, get complete visibility and control.
@@ -391,10 +508,12 @@ function FeaturesSection() {
       <div className="ca-features-grid-premium">
         {features.map((feature, i) => (
           <div key={i} className={`ca-feature-card-premium ca-feature-${feature.color}`}>
-            <div className={`ca-feature-icon-premium ca-feature-icon-${feature.color}`}>
-              <feature.icon className="w-6 h-6" />
+            <div className="ca-feature-header-premium">
+              <div className={`ca-feature-icon-premium ca-feature-icon-${feature.color}`}>
+                <feature.icon className="w-5 h-5" />
+              </div>
+              <h3 className="ca-feature-title-premium">{feature.title}</h3>
             </div>
-            <h3 className="ca-feature-title-premium">{feature.title}</h3>
             <p className="ca-feature-desc-premium">{feature.description}</p>
           </div>
         ))}
@@ -428,7 +547,10 @@ function HowItWorksSection() {
   return (
     <section className="ca-how-section">
       <div className="ca-section-header-centered">
-        <span className="ca-section-eyebrow">How It Works</span>
+        <span className="ca-section-eyebrow">
+          <Settings className="w-4 h-4" />
+          How It Works
+        </span>
         <h2 className="ca-section-title">Get started in 3 simple steps</h2>
       </div>
 
@@ -452,30 +574,43 @@ function IntegrationsSection() {
   return (
     <section className="ca-integrations-section">
       <div className="ca-section-header-centered">
-        <span className="ca-section-eyebrow">Integrations</span>
+        <span className="ca-section-eyebrow">
+          <Plug className="w-4 h-4" />
+          Integrations
+        </span>
         <h2 className="ca-section-title">Connect your entire stack</h2>
         <p className="ca-section-subtitle">
-          50+ integrations with the tools you already use. Set up in minutes, not days.
+          50+ integrations with the tools you already use. Set up in minutes.
         </p>
       </div>
 
-      <div className="ca-integrations-grid">
-        {INTEGRATION_LOGOS.map((integration) => (
-          <div key={integration.name} className="ca-integration-logo">
-            <Image
-              src={integration.logo}
-              alt={integration.name}
-              width={100}
-              height={40}
-              className="ca-integration-img"
-            />
+      <div className="ca-integrations-categories">
+        {INTEGRATION_CATEGORIES.map((category) => (
+          <div key={category.title} className="ca-integration-category">
+            <div className="ca-integration-category-header">
+              <category.icon className="w-5 h-5" />
+              <h3>{category.title}</h3>
+            </div>
+            <div className="ca-integration-logos-row">
+              {category.providers.map((provider) => (
+                <div key={provider.name} className="ca-integration-logo-compact">
+                  <Image
+                    src={provider.logo}
+                    alt={provider.name}
+                    width={80}
+                    height={32}
+                    className="ca-integration-img"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
 
       <div className="ca-integrations-cta">
         <Link href="/integrations" className="ca-btn-outline-dark">
-          View all integrations
+          View all 50+ integrations
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -526,13 +661,16 @@ function TestimonialsSection() {
   return (
     <section className="ca-testimonials-section">
       <div className="ca-section-header-centered">
-        <span className="ca-section-eyebrow">Customer Stories</span>
+        <span className="ca-section-eyebrow">
+          <MessageSquare className="w-4 h-4" />
+          Customer Stories
+        </span>
         <h2 className="ca-section-title">Trusted by FinOps leaders</h2>
       </div>
 
       <div className="ca-testimonial-container">
-        <div className="ca-testimonial-card-premium">
-          <Quote className="ca-testimonial-quote-icon" />
+        <div className="ca-testimonial-card-premium" role="region" aria-live="polite" aria-atomic="true">
+          <Quote className="ca-testimonial-quote-icon" aria-hidden="true" />
           <p className="ca-testimonial-text">{TESTIMONIALS[active].quote}</p>
           <div className="ca-testimonial-footer">
             <div className="ca-testimonial-avatar">{TESTIMONIALS[active].avatar}</div>
@@ -544,71 +682,36 @@ function TestimonialsSection() {
           </div>
         </div>
 
-        <div className="ca-testimonial-nav">
+        <div className="ca-testimonial-nav" role="group" aria-label="Testimonial navigation">
           <button
+            type="button"
             onClick={() => setActive((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)}
             className="ca-testimonial-nav-btn"
-            aria-label="Previous"
+            aria-label="Previous testimonial"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="ca-testimonial-dots">
+          <div className="ca-testimonial-dots" role="tablist" aria-label="Testimonials">
             {TESTIMONIALS.map((_, i) => (
               <button
+                type="button"
                 key={i}
                 onClick={() => setActive(i)}
                 className={`ca-testimonial-dot ${i === active ? "active" : ""}`}
-                aria-label={`Testimonial ${i + 1}`}
+                role="tab"
+                aria-selected={i === active}
+                aria-label={`View testimonial ${i + 1}`}
               />
             ))}
           </div>
           <button
+            type="button"
             onClick={() => setActive((prev) => (prev + 1) % TESTIMONIALS.length)}
             className="ca-testimonial-nav-btn"
-            aria-label="Next"
+            aria-label="Next testimonial"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ============================================
-// SECURITY SECTION
-// ============================================
-function SecuritySection() {
-  const badges = [
-    { icon: Shield, label: "SOC 2 Type II", description: "Certified" },
-    { icon: Lock, label: "GDPR", description: "Compliant" },
-    { icon: Award, label: "ISO 27001", description: "Certified" },
-    { icon: CheckCircle2, label: "CCPA", description: "Compliant" },
-  ]
-
-  return (
-    <section className="ca-security-section">
-      <div className="ca-security-container">
-        <div className="ca-security-content">
-          <span className="ca-section-eyebrow">Enterprise Security</span>
-          <h2 className="ca-security-title">Built for enterprise-grade security</h2>
-          <p className="ca-security-desc">
-            Your data security is our top priority. CloudAct is built with bank-grade encryption,
-            role-based access controls, and comprehensive audit logging.
-          </p>
-          <Link href="/security" className="ca-btn-outline-dark">
-            Learn about our security
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        <div className="ca-security-badges">
-          {badges.map((badge, i) => (
-            <div key={i} className="ca-security-badge">
-              <badge.icon className="w-8 h-8" />
-              <div className="ca-badge-label">{badge.label}</div>
-              <div className="ca-badge-desc">{badge.description}</div>
-            </div>
-          ))}
         </div>
       </div>
     </section>
@@ -638,7 +741,10 @@ function PricingPreviewSection() {
   return (
     <section className="ca-pricing-preview-section">
       <div className="ca-section-header-centered">
-        <span className="ca-section-eyebrow">Pricing</span>
+        <span className="ca-section-eyebrow">
+          <DollarSign className="w-4 h-4" />
+          Pricing
+        </span>
         <h2 className="ca-section-title">Simple, transparent pricing</h2>
         <p className="ca-section-subtitle">
           Start free, scale as you grow. No hidden fees, no surprise charges.
@@ -647,8 +753,8 @@ function PricingPreviewSection() {
 
       <div className="ca-pricing-grid-premium">
         {loading ? (
-          <div className="ca-pricing-loading">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          <div className="ca-pricing-loading" role="status" aria-label="Loading pricing plans">
+            <Loader2 className="w-8 h-8 animate-spin ca-icon-mint" />
           </div>
         ) : plans.length > 0 ? (
           <>
@@ -665,7 +771,7 @@ function PricingPreviewSection() {
                 <ul className="ca-pricing-features">
                   {plan.features.map((feature, j) => (
                     <li key={j}>
-                      <Check className="w-4 h-4 text-emerald-500" />
+                      <Check className="w-4 h-4 ca-icon-mint" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -686,11 +792,11 @@ function PricingPreviewSection() {
                 </div>
               </div>
               <ul className="ca-pricing-features">
-                <li><Check className="w-4 h-4 text-emerald-500" /><span>Unlimited team members</span></li>
-                <li><Check className="w-4 h-4 text-emerald-500" /><span>Unlimited integrations</span></li>
-                <li><Check className="w-4 h-4 text-emerald-500" /><span>SSO & SCIM</span></li>
-                <li><Check className="w-4 h-4 text-emerald-500" /><span>Dedicated success manager</span></li>
-                <li><Check className="w-4 h-4 text-emerald-500" /><span>Custom SLAs</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Unlimited team members</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Unlimited integrations</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" /><span>SSO & SCIM</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Dedicated success manager</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Custom SLAs</span></li>
               </ul>
               <Link href="/contact" className="ca-btn-pricing-secondary">
                 Contact sales
@@ -751,14 +857,14 @@ export default function PremiumLandingPage() {
   return (
     <div className="ca-landing-page">
       <HeroSection />
-      <CustomerLogosSection />
-      <StatsSection />
+      <TrustedBySection />
+      <IntegrationsSection />
+      <CollaborationSection />
+      <RatingSection />
       <PlatformPillarsSection />
       <FeaturesSection />
       <HowItWorksSection />
-      <IntegrationsSection />
       <TestimonialsSection />
-      <SecuritySection />
       <PricingPreviewSection />
       <FinalCTASection />
     </div>
