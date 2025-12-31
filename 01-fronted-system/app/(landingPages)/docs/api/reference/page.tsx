@@ -94,7 +94,7 @@ response = requests.get(
 )
 
 data = response.json()
-print(f"Total cost: ${data['total_cost']}")`,
+print(f"Total cost: $" + "{data['total_cost']}")`,
   javascript: `const API_KEY = 'your_api_key';
 const BASE_URL = 'https://api.cloudact.ai/api/v1';
 
@@ -111,7 +111,7 @@ async function getCostSummary() {
   );
 
   const data = await response.json();
-  console.log(\`Total cost: $\${data.total_cost}\`);
+  console.log('Total cost: $' + data.total_cost);
 }`,
 }
 

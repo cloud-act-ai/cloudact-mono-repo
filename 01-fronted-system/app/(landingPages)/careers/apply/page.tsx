@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent, type ChangeEvent } from "react"
+import { useState, type FormEvent, type ChangeEvent, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import {
@@ -48,7 +48,7 @@ const POSITIONS = [
   "General Application",
 ]
 
-export default function CareerApplyPage() {
+function CareerApplyForm() {
   const searchParams = useSearchParams()
   const positionParam = searchParams.get("position") || ""
 
@@ -500,5 +500,13 @@ Note: Please reply to this email to receive the attached files, or the applicant
         </div>
       </section>
     </div>
+  )
+}
+
+export default function CareerApplyPage() {
+  return (
+    <Suspense fallback={<div className="ca-landing-page"><div className="ca-apply-hero"><div className="ca-apply-hero-content"><p>Loading...</p></div></div></div>}>
+      <CareerApplyForm />
+    </Suspense>
   )
 }
