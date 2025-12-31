@@ -33,7 +33,7 @@ async def test_root_endpoint():
         assert "openapi" in data
 
         # Verify expected values
-        assert "CloudAct API Service" in data["message"]
+        assert "CloudAct" in data["message"]
         assert isinstance(data["environment"], str)
 
 
@@ -132,7 +132,7 @@ async def test_openapi_json():
         assert "paths" in data
 
         # Verify API info
-        assert data["info"]["title"] == "CloudAct API Service"
+        assert data["info"]["title"] == "CloudAct.ai API Service"
 
 
 @pytest.mark.asyncio

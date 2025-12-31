@@ -27,7 +27,7 @@ from httpx import AsyncClient, ASGITransport
 
 from src.app.main import app
 from src.app.dependencies.auth import verify_api_key, OrgContext
-from src.app.routers.costs import get_cost_service
+from src.core.services.cost_read.service import get_cost_read_service
 
 # Test constants
 TEST_ORG_SLUG = "test_org"
@@ -58,7 +58,7 @@ async def test_client_with_mock():
 
     # Override both auth and cost service dependencies
     app.dependency_overrides[verify_api_key] = get_mock_auth
-    app.dependency_overrides[get_cost_service] = lambda: mock_service
+    app.dependency_overrides[get_cost_read_service] = lambda: mock_service
 
     try:
         transport = ASGITransport(app=app)
@@ -81,7 +81,7 @@ async def test_client(mock_cost_service):
     """Test client with proper FastAPI dependency overrides."""
     # Override both auth and cost service dependencies
     app.dependency_overrides[verify_api_key] = get_mock_auth
-    app.dependency_overrides[get_cost_service] = lambda: mock_cost_service
+    app.dependency_overrides[get_cost_read_service] = lambda: mock_cost_service
 
     try:
         transport = ASGITransport(app=app)
