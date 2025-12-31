@@ -4,17 +4,135 @@ import type React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useState, useEffect } from "react"
-import { ArrowRight, Menu, X, Shield, Lock, CreditCard, Globe, Mail, Phone } from "lucide-react"
+import {
+  ArrowRight,
+  Menu,
+  X,
+  Shield,
+  Lock,
+  CreditCard,
+  Globe,
+  ChevronDown,
+  Cpu,
+  Cloud,
+  Layers,
+  LineChart,
+  Sparkles,
+  Users,
+  Building2,
+  Briefcase,
+  BookOpen,
+  FileText,
+  Headphones,
+  Mail,
+  Phone,
+  MapPin,
+} from "lucide-react"
 import "./landing.css"
 import "./premium.css"
 
-// Static data moved outside component to prevent re-creation on each render
-const NAV_LINKS = [
-  { href: "/features", label: "Features" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/solutions", label: "Solutions" },
-  { href: "/about", label: "About" },
-] as const
+// Mega Menu Data Structure
+const PLATFORM_MENU = {
+  title: "Platform",
+  items: [
+    {
+      href: "/features#genai",
+      icon: Cpu,
+      color: "coral",
+      title: "GenAI Costs",
+      desc: "Track OpenAI, Anthropic, Google AI spending",
+    },
+    {
+      href: "/features#cloud",
+      icon: Cloud,
+      color: "mint",
+      title: "Cloud Infrastructure",
+      desc: "AWS, Azure, GCP cost management",
+    },
+    {
+      href: "/features#saas",
+      icon: Layers,
+      color: "purple",
+      title: "SaaS Subscriptions",
+      desc: "Monitor all your SaaS spending",
+    },
+    {
+      href: "/features#analytics",
+      icon: LineChart,
+      color: "blue",
+      title: "Analytics & Forecasting",
+      desc: "AI-powered cost predictions",
+    },
+  ],
+}
+
+const SOLUTIONS_MENU = {
+  title: "Solutions",
+  items: [
+    {
+      href: "/solutions#engineering",
+      icon: Users,
+      color: "mint",
+      title: "For Engineering",
+      desc: "Developer-friendly cost visibility",
+    },
+    {
+      href: "/solutions#finops",
+      icon: Sparkles,
+      color: "coral",
+      title: "For FinOps",
+      desc: "Enterprise cost intelligence",
+    },
+    {
+      href: "/solutions#startups",
+      icon: Building2,
+      color: "purple",
+      title: "For Startups",
+      desc: "Scale with cost control",
+    },
+    {
+      href: "/solutions#enterprise",
+      icon: Briefcase,
+      color: "blue",
+      title: "For Enterprise",
+      desc: "Advanced security & compliance",
+    },
+  ],
+}
+
+const RESOURCES_MENU = {
+  title: "Resources",
+  items: [
+    {
+      href: "/resources#blog",
+      icon: BookOpen,
+      color: "mint",
+      title: "Blog",
+      desc: "Insights on FinOps and cost optimization",
+    },
+    {
+      href: "/resources#docs",
+      icon: FileText,
+      color: "blue",
+      title: "Documentation",
+      desc: "Guides and API reference",
+    },
+    {
+      href: "/contact",
+      icon: Headphones,
+      color: "purple",
+      title: "Support",
+      desc: "Get help from our team",
+    },
+    {
+      href: "/about",
+      icon: Building2,
+      color: "coral",
+      title: "About Us",
+      desc: "Our mission and story",
+    },
+  ],
+}
 
 // Comprehensive structured data for AI agents and search engines
 const ORGANIZATION_JSON_LD = {
@@ -104,9 +222,97 @@ const WEBSITE_JSON_LD = {
 
 const JSON_LD_STRING = JSON.stringify([ORGANIZATION_JSON_LD, SOFTWARE_JSON_LD, WEBSITE_JSON_LD])
 
+// Mega Menu Item Component
+function MegaMenuItem({
+  href,
+  icon: Icon,
+  color,
+  title,
+  desc
+}: {
+  href: string
+  icon: React.ElementType
+  color: string
+  title: string
+  desc: string
+}) {
+  return (
+    <Link href={href} className="ca-mega-menu-item">
+      <div className={`ca-mega-menu-icon ca-mega-menu-icon-${color}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="ca-mega-menu-content">
+        <div className="ca-mega-menu-title">{title}</div>
+        <div className="ca-mega-menu-desc">{desc}</div>
+      </div>
+    </Link>
+  )
+}
+
+// Desktop Mega Menu Dropdown
+function MegaMenuDropdown({ menu }: { menu: typeof PLATFORM_MENU }) {
+  return (
+    <div className="ca-nav-item">
+      <button className="ca-nav-item-trigger" aria-expanded="false">
+        {menu.title}
+        <ChevronDown />
+      </button>
+      <div className="ca-mega-menu">
+        <div className="ca-mega-menu-grid">
+          {menu.items.map((item) => (
+            <MegaMenuItem key={item.href} {...item} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Mobile Accordion Menu
+function MobileAccordion({
+  menu,
+  isOpen,
+  onToggle,
+  onLinkClick,
+}: {
+  menu: typeof PLATFORM_MENU
+  isOpen: boolean
+  onToggle: () => void
+  onLinkClick: () => void
+}) {
+  return (
+    <div className="ca-mobile-accordion">
+      <button
+        className="ca-mobile-accordion-trigger"
+        onClick={onToggle}
+        data-open={isOpen}
+      >
+        {menu.title}
+        <ChevronDown />
+      </button>
+      <div className="ca-mobile-accordion-content" data-open={isOpen}>
+        {menu.items.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="ca-mobile-accordion-item"
+            onClick={onLinkClick}
+          >
+            <div className={`ca-mobile-accordion-icon ca-mega-menu-icon-${item.color}`}>
+              <item.icon className="w-4 h-4" />
+            </div>
+            <span>{item.title}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -119,6 +325,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  // Close mobile menu on route change
+  const handleMobileLinkClick = () => {
+    setMobileMenuOpen(false)
+    setOpenAccordion(null)
+  }
+
   return (
     <div className="ca-page-wrapper">
       {/* Skip to main content link for accessibility */}
@@ -130,7 +342,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       </a>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON_LD_STRING }} />
 
-      {/* Premium Header */}
+      {/* Premium Header with Mega Menu */}
       <header className={`ca-header ${scrolled ? 'ca-header-scrolled' : ''}`}>
         <div className="ca-header-inner">
           <Link href="/" className="ca-header-logo">
@@ -144,13 +356,14 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             />
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation with Mega Menus */}
           <nav className="ca-nav-desktop" aria-label="Main navigation">
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="ca-nav-link">
-                {link.label}
-              </Link>
-            ))}
+            <MegaMenuDropdown menu={PLATFORM_MENU} />
+            <MegaMenuDropdown menu={SOLUTIONS_MENU} />
+            <Link href="/pricing" className="ca-nav-link">
+              Pricing
+            </Link>
+            <MegaMenuDropdown menu={RESOURCES_MENU} />
           </nav>
 
           {/* Desktop Auth Buttons */}
@@ -179,32 +392,49 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu with Accordions */}
         {mobileMenuOpen && (
           <div className="ca-mobile-menu" role="navigation" aria-label="Mobile navigation">
             <nav className="ca-mobile-menu-nav">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="ca-mobile-nav-link"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              <MobileAccordion
+                menu={PLATFORM_MENU}
+                isOpen={openAccordion === "platform"}
+                onToggle={() => setOpenAccordion(openAccordion === "platform" ? null : "platform")}
+                onLinkClick={handleMobileLinkClick}
+              />
+              <MobileAccordion
+                menu={SOLUTIONS_MENU}
+                isOpen={openAccordion === "solutions"}
+                onToggle={() => setOpenAccordion(openAccordion === "solutions" ? null : "solutions")}
+                onLinkClick={handleMobileLinkClick}
+              />
+              <Link
+                href="/pricing"
+                className="ca-mobile-nav-link"
+                onClick={handleMobileLinkClick}
+              >
+                Pricing
+              </Link>
+              <MobileAccordion
+                menu={RESOURCES_MENU}
+                isOpen={openAccordion === "resources"}
+                onToggle={() => setOpenAccordion(openAccordion === "resources" ? null : "resources")}
+                onLinkClick={handleMobileLinkClick}
+              />
+
               <div className="ca-mobile-menu-divider" />
+
               <Link
                 href="/login"
                 className="ca-mobile-nav-link"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={handleMobileLinkClick}
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
                 className="ca-btn ca-btn-primary ca-btn-lg ca-mobile-cta"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={handleMobileLinkClick}
               >
                 Get Started
                 <ArrowRight className="w-4 h-4" />
@@ -235,7 +465,24 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               <p className="ca-footer-tagline">
                 The enterprise standard for GenAI and cloud cost intelligence. Track, analyze, and optimize your spending in one unified platform.
               </p>
-              <div className="ca-footer-social">
+
+              {/* Contact Info */}
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <MapPin className="w-4 h-4" />
+                  <span>100 S Murphy Ave, STE 200 PMB4013, Sunnyvale, CA 94086</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Phone className="w-4 h-4" />
+                  <a href="tel:+18509887471" className="hover:text-gray-900">(850) 988-7471</a>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Mail className="w-4 h-4" />
+                  <a href="mailto:hello@cloudact.ai" className="hover:text-gray-900">hello@cloudact.ai</a>
+                </div>
+              </div>
+
+              <div className="ca-footer-social mt-4">
                 <a href="https://twitter.com/cloudact_ai" target="_blank" rel="noopener noreferrer" className="ca-social-link" aria-label="X (Twitter)">
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 </a>
@@ -256,7 +503,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                   <li><Link href="/features">Features</Link></li>
                   <li><Link href="/pricing">Pricing</Link></li>
                   <li><Link href="/solutions">Solutions</Link></li>
-                  <li><Link href="/demo">Demo</Link></li>
+                  <li><Link href="/demo">Request Demo</Link></li>
                 </ul>
               </div>
               <div className="ca-footer-col">

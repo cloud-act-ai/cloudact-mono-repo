@@ -24,145 +24,193 @@ import {
   BarChart3,
   DollarSign,
   Users,
+  Lock,
+  Award,
+  CheckCircle2,
+  Star,
+  Quote,
+  Cloud,
+  CreditCard,
+  PieChart,
+  Target,
+  Gauge,
+  FileText,
+  Building2,
 } from "lucide-react"
 import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 
-// Provider logos with actual SVG files
-const PROVIDER_LOGOS = [
-  { name: "OpenAI", logo: "/logos/providers/openai.svg" },
-  { name: "Anthropic", logo: "/logos/providers/anthropic.svg" },
-  { name: "AWS", logo: "/logos/providers/aws.svg" },
-  { name: "GCP", logo: "/logos/providers/gcp.svg" },
-  { name: "Azure", logo: "/logos/providers/azure.svg" },
-  { name: "Gemini", logo: "/logos/providers/gemini.svg" },
-  { name: "Cursor", logo: "/logos/providers/cursor.svg" },
-  { name: "GitHub", logo: "/logos/providers/github.svg" },
-  { name: "Slack", logo: "/logos/providers/slack.svg" },
-  { name: "Notion", logo: "/logos/providers/notion.svg" },
-  { name: "Figma", logo: "/logos/providers/figma.svg" },
-  { name: "Linear", logo: "/logos/providers/linear.svg" },
-  { name: "Supabase", logo: "/logos/providers/supabase.svg" },
-  { name: "Perplexity", logo: "/logos/providers/perplexity.svg" },
+// ============================================
+// ENTERPRISE CUSTOMER LOGOS
+// ============================================
+const CUSTOMER_LOGOS = [
+  { name: "TechCorp", initials: "TC" },
+  { name: "DataScale", initials: "DS" },
+  { name: "CloudFirst", initials: "CF" },
+  { name: "AIVentures", initials: "AV" },
+  { name: "FinanceHub", initials: "FH" },
+  { name: "DevOpsLab", initials: "DL" },
 ]
 
-// Hero badge component
-function HeroBadge() {
+// Provider integration logos
+const INTEGRATION_LOGOS = [
+  { name: "OpenAI", logo: "/logos/providers/openai.svg", category: "genai" },
+  { name: "Anthropic", logo: "/logos/providers/anthropic.svg", category: "genai" },
+  { name: "AWS", logo: "/logos/providers/aws.svg", category: "cloud" },
+  { name: "GCP", logo: "/logos/providers/gcp.svg", category: "cloud" },
+  { name: "Azure", logo: "/logos/providers/azure.svg", category: "cloud" },
+  { name: "Slack", logo: "/logos/providers/slack.svg", category: "saas" },
+  { name: "GitHub", logo: "/logos/providers/github.svg", category: "saas" },
+  { name: "Notion", logo: "/logos/providers/notion.svg", category: "saas" },
+  { name: "Figma", logo: "/logos/providers/figma.svg", category: "saas" },
+  { name: "Linear", logo: "/logos/providers/linear.svg", category: "saas" },
+  { name: "Gemini", logo: "/logos/providers/gemini.svg", category: "genai" },
+  { name: "Cursor", logo: "/logos/providers/cursor.svg", category: "genai" },
+]
+
+// ============================================
+// HERO SECTION
+// ============================================
+function HeroSection() {
   return (
-    <div className="ca-badge ca-animate">
-      <span className="ca-badge-dot" />
-      <span>Now tracking 50+ integrations</span>
-      <ArrowRight className="w-3.5 h-3.5 ml-1" />
-    </div>
-  )
-}
+    <section className="ca-hero-premium">
+      {/* Subtle background gradient */}
+      <div className="ca-hero-bg-gradient" />
 
-// Logo carousel/marquee with real SVGs
-function LogoCarousel() {
-  // Double the logos for seamless infinite scroll
-  const doubledLogos = [...PROVIDER_LOGOS, ...PROVIDER_LOGOS]
-
-  return (
-    <div className="ca-logo-carousel">
-      <div className="ca-logo-track">
-        {doubledLogos.map((provider, i) => (
-          <div key={`${provider.name}-${i}`} className="ca-logo-item">
-            <Image
-              src={provider.logo}
-              alt={provider.name}
-              width={120}
-              height={40}
-              className="h-7 w-auto object-contain"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// Dashboard preview mockup - cleaner version
-function DashboardMockup() {
-  const chartData = Array.from({ length: 24 }, (_, i) => ({
-    cloud: 25 + Math.sin(i * 0.3) * 15 + Math.random() * 10,
-    genai: 15 + Math.cos(i * 0.4) * 10 + Math.random() * 8,
-    saas: 8 + Math.sin(i * 0.5) * 5 + Math.random() * 4,
-  }))
-
-  return (
-    <div className="ca-dashboard-preview ca-animate ca-delay-4">
-      <div className="ca-dashboard-header">
-        <div className="ca-dashboard-dot ca-dashboard-dot-red" />
-        <div className="ca-dashboard-dot ca-dashboard-dot-yellow" />
-        <div className="ca-dashboard-dot ca-dashboard-dot-green" />
-        <span className="ca-dashboard-title">cloudact.ai — Cost Intelligence Dashboard</span>
-      </div>
-      <div className="ca-dashboard-content">
-        <div className="ca-metrics-grid">
-          <div className="ca-metric-card">
-            <div className="ca-metric-label">Total Spend</div>
-            <div className="ca-metric-value ca-mono">$24.8K</div>
-            <div className="ca-metric-change ca-metric-change-positive">
-              <TrendingDown className="w-3 h-3" /> -12% vs last month
+      <div className="ca-hero-container">
+        {/* Left content */}
+        <div className="ca-hero-content-left">
+          {/* G2 / Trust Badge */}
+          <div className="ca-trust-badge-hero">
+            <div className="ca-trust-badge-stars">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+              ))}
             </div>
+            <span className="ca-trust-badge-text">Rated #1 for GenAI Cost Management</span>
           </div>
-          <div className="ca-metric-card">
-            <div className="ca-metric-label">GenAI Costs</div>
-            <div className="ca-metric-value ca-mono" style={{ color: 'var(--ca-coral)' }}>$8.2K</div>
-            <div className="ca-metric-change ca-metric-change-negative">
-              <Activity className="w-3 h-3" /> +23% growth
+
+          {/* Main headline */}
+          <h1 className="ca-hero-headline">
+            The Modern FinOps Platform for{" "}
+            <span className="ca-hero-highlight-genai">GenAI</span>,{" "}
+            <span className="ca-hero-highlight-cloud">Cloud</span> &{" "}
+            <span className="ca-hero-highlight-saas">SaaS</span>
+          </h1>
+
+          {/* Subheadline */}
+          <p className="ca-hero-subheadline">
+            Complete visibility into every dollar spent across OpenAI, Anthropic, AWS, Azure, GCP,
+            and 50+ SaaS tools. Built for engineering teams who demand real-time cost intelligence.
+          </p>
+
+          {/* CTA buttons */}
+          <div className="ca-hero-cta-group">
+            <Link href="/signup" className="ca-btn-hero-primary">
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/demo" className="ca-btn-hero-secondary">
+              <Play className="w-5 h-5" />
+              Watch Demo
+            </Link>
+          </div>
+
+          {/* Trust indicators */}
+          <div className="ca-hero-trust-row">
+            <div className="ca-hero-trust-item">
+              <Shield className="w-4 h-4 text-emerald-600" />
+              <span>SOC 2 Type II</span>
             </div>
-          </div>
-          <div className="ca-metric-card">
-            <div className="ca-metric-label">Cloud Infra</div>
-            <div className="ca-metric-value ca-mono">$12.4K</div>
-            <div className="ca-metric-change ca-metric-change-positive">
-              <Globe className="w-3 h-3" /> -8% optimized
+            <div className="ca-hero-trust-divider" />
+            <div className="ca-hero-trust-item">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span>5-min setup</span>
             </div>
-          </div>
-          <div className="ca-metric-card ca-metric-card-highlight">
-            <div className="ca-metric-label">Savings Found</div>
-            <div className="ca-metric-value ca-mono">$4.2K</div>
-            <div className="ca-metric-change" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
-              <Sparkles className="w-3 h-3" /> AI recommendations
+            <div className="ca-hero-trust-divider" />
+            <div className="ca-hero-trust-item">
+              <TrendingDown className="w-4 h-4 text-emerald-600" />
+              <span>20%+ avg savings</span>
             </div>
           </div>
         </div>
 
-        <div className="ca-chart-container">
-          <div className="ca-chart-header">
-            <span className="ca-chart-title">Cost Trend (Last 24 Days)</span>
-            <div className="ca-chart-legend">
-              <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot" style={{ background: 'var(--ca-mint)' }} />
-                Cloud
-              </div>
-              <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot" style={{ background: 'var(--ca-coral)' }} />
-                GenAI
-              </div>
-              <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot" style={{ background: 'var(--ca-gray-300)' }} />
-                SaaS
-              </div>
+        {/* Right - Dashboard preview */}
+        <div className="ca-hero-visual">
+          <DashboardPreview />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// DASHBOARD PREVIEW COMPONENT
+// ============================================
+function DashboardPreview() {
+  return (
+    <div className="ca-dashboard-mockup">
+      {/* Browser chrome */}
+      <div className="ca-dashboard-chrome">
+        <div className="ca-chrome-dots">
+          <span className="ca-chrome-dot ca-chrome-dot-red" />
+          <span className="ca-chrome-dot ca-chrome-dot-yellow" />
+          <span className="ca-chrome-dot ca-chrome-dot-green" />
+        </div>
+        <div className="ca-chrome-url">cloudact.ai/dashboard</div>
+      </div>
+
+      {/* Dashboard content */}
+      <div className="ca-dashboard-body">
+        {/* Metric cards row */}
+        <div className="ca-dash-metrics">
+          <div className="ca-dash-metric">
+            <span className="ca-dash-metric-label">Total Spend</span>
+            <span className="ca-dash-metric-value">$47.2K</span>
+            <span className="ca-dash-metric-change ca-dash-metric-down">
+              <TrendingDown className="w-3 h-3" /> -12%
+            </span>
+          </div>
+          <div className="ca-dash-metric ca-dash-metric-coral">
+            <span className="ca-dash-metric-label">GenAI Costs</span>
+            <span className="ca-dash-metric-value">$12.8K</span>
+            <span className="ca-dash-metric-change ca-dash-metric-up">
+              <Activity className="w-3 h-3" /> +23%
+            </span>
+          </div>
+          <div className="ca-dash-metric ca-dash-metric-blue">
+            <span className="ca-dash-metric-label">Cloud Infra</span>
+            <span className="ca-dash-metric-value">$28.1K</span>
+            <span className="ca-dash-metric-change ca-dash-metric-down">
+              <TrendingDown className="w-3 h-3" /> -8%
+            </span>
+          </div>
+          <div className="ca-dash-metric ca-dash-metric-mint">
+            <span className="ca-dash-metric-label">Savings Found</span>
+            <span className="ca-dash-metric-value">$8.4K</span>
+            <span className="ca-dash-metric-badge">
+              <Sparkles className="w-3 h-3" /> AI
+            </span>
+          </div>
+        </div>
+
+        {/* Chart area */}
+        <div className="ca-dash-chart">
+          <div className="ca-dash-chart-header">
+            <span>Cost Trend (30 Days)</span>
+            <div className="ca-dash-chart-legend">
+              <span className="ca-legend-item"><span className="ca-legend-dot ca-legend-coral" />GenAI</span>
+              <span className="ca-legend-item"><span className="ca-legend-dot ca-legend-blue" />Cloud</span>
+              <span className="ca-legend-item"><span className="ca-legend-dot ca-legend-purple" />SaaS</span>
             </div>
           </div>
-          <div className="ca-chart-bars">
-            {chartData.map((d, i) => (
-              <div key={i} className="ca-chart-bar-group">
-                <div
-                  className="ca-chart-bar ca-chart-bar-gray"
-                  style={{ height: `${d.saas}%` }}
-                />
-                <div
-                  className="ca-chart-bar ca-chart-bar-coral"
-                  style={{ height: `${d.genai}%` }}
-                />
-                <div
-                  className="ca-chart-bar ca-chart-bar-teal"
-                  style={{ height: `${d.cloud}%` }}
-                />
+          <div className="ca-dash-chart-bars">
+            {[...Array(20)].map((_, i) => (
+              <div key={i} className="ca-chart-bar-stack">
+                <div className="ca-bar ca-bar-purple" style={{ height: `${15 + Math.random() * 15}%` }} />
+                <div className="ca-bar ca-bar-blue" style={{ height: `${25 + Math.random() * 20}%` }} />
+                <div className="ca-bar ca-bar-coral" style={{ height: `${15 + Math.random() * 15}%` }} />
               </div>
             ))}
           </div>
@@ -172,353 +220,335 @@ function DashboardMockup() {
   )
 }
 
-// Feature card component
-function FeatureCard({
-  icon: Icon,
-  title,
-  description,
-  color = "mint",
-}: {
-  icon: React.ElementType
-  title: string
-  description: string
-  color?: "mint" | "coral" | "blue" | "purple" | "green"
-}) {
+// ============================================
+// CUSTOMER LOGOS SECTION
+// ============================================
+function CustomerLogosSection() {
   return (
-    <div className="ca-feature-card">
-      <div className={`ca-feature-icon ca-feature-icon-${color}`}>
-        <Icon className="w-6 h-6" />
-      </div>
-      <h3 className="ca-feature-title">{title}</h3>
-      <p className="ca-feature-desc">{description}</p>
-    </div>
-  )
-}
-
-// Pricing card component
-function PricingCard({
-  name,
-  price,
-  period,
-  description,
-  features,
-  featured = false,
-  ctaText = "Get started",
-}: {
-  name: string
-  price: string
-  period?: string
-  description: string
-  features: string[]
-  featured?: boolean
-  ctaText?: string
-}) {
-  return (
-    <div className={`ca-pricing-card ${featured ? 'ca-pricing-card-featured' : ''}`}>
-      {featured && <div className="ca-pricing-badge">Most Popular</div>}
-      <h3 className="ca-pricing-name">{name}</h3>
-      <p className="ca-pricing-desc">{description}</p>
-      <div className="ca-pricing-price">
-        <span className="ca-pricing-amount">{price}</span>
-        {period && <span className="ca-pricing-period">/{period}</span>}
-      </div>
-      <ul className="ca-pricing-features">
-        {features.map((feature, i) => (
-          <li key={i} className="ca-pricing-feature">
-            <Check />
-            <span>{feature}</span>
-          </li>
+    <section className="ca-customers-section">
+      <p className="ca-customers-label">Trusted by innovative teams worldwide</p>
+      <div className="ca-customers-grid">
+        {CUSTOMER_LOGOS.map((customer) => (
+          <div key={customer.name} className="ca-customer-logo">
+            <span className="ca-customer-initials">{customer.initials}</span>
+            <span className="ca-customer-name">{customer.name}</span>
+          </div>
         ))}
-      </ul>
-      <Link
-        href="/signup"
-        className={featured ? "ca-btn ca-btn-primary ca-btn-lg" : "ca-btn ca-btn-secondary ca-btn-lg"}
-        style={{ width: '100%' }}
-      >
-        {ctaText}
-        <ArrowRight className="w-4 h-4" />
-      </Link>
-    </div>
+      </div>
+    </section>
   )
 }
 
-// Testimonials data
+// ============================================
+// STATS SECTION
+// ============================================
+function StatsSection() {
+  const stats = [
+    { value: "$50M+", label: "Cloud spend managed", icon: DollarSign },
+    { value: "50+", label: "Integrations", icon: Layers },
+    { value: "20%", label: "Average savings", icon: TrendingDown },
+    { value: "99.9%", label: "Platform uptime", icon: Activity },
+  ]
+
+  return (
+    <section className="ca-stats-section-premium">
+      <div className="ca-stats-container">
+        {stats.map((stat, i) => (
+          <div key={i} className="ca-stat-card">
+            <div className="ca-stat-icon-wrap">
+              <stat.icon className="w-6 h-6" />
+            </div>
+            <div className="ca-stat-value">{stat.value}</div>
+            <div className="ca-stat-label">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// PLATFORM PILLARS SECTION
+// ============================================
+function PlatformPillarsSection() {
+  const pillars = [
+    {
+      id: "genai",
+      icon: Cpu,
+      title: "GenAI Cost Intelligence",
+      description: "Track every token, every model, every API call. Get real-time visibility into OpenAI, Anthropic, Google AI, and emerging LLM providers.",
+      color: "coral",
+      features: ["Token-level tracking", "Model cost comparison", "Usage anomaly alerts", "Team attribution"],
+    },
+    {
+      id: "cloud",
+      icon: Cloud,
+      title: "Multi-Cloud Management",
+      description: "Unified view across AWS, Azure, and GCP. Automatic cost allocation, rightsizing recommendations, and reserved instance optimization.",
+      color: "blue",
+      features: ["Cross-cloud dashboards", "Resource tagging", "Waste detection", "Budget forecasting"],
+    },
+    {
+      id: "saas",
+      icon: CreditCard,
+      title: "SaaS Subscription Tracking",
+      description: "Never lose track of a subscription again. Monitor Slack, GitHub, Datadog, and 50+ SaaS tools with automatic renewal alerts.",
+      color: "purple",
+      features: ["Auto-discovery", "License optimization", "Renewal calendar", "Vendor benchmarking"],
+    },
+  ]
+
+  return (
+    <section className="ca-pillars-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">The Platform</span>
+        <h2 className="ca-section-title">One platform for all your cost intelligence</h2>
+        <p className="ca-section-subtitle">
+          Stop juggling multiple tools. CloudAct unifies GenAI, cloud infrastructure, and SaaS
+          spending into a single source of truth for your entire organization.
+        </p>
+      </div>
+
+      <div className="ca-pillars-grid">
+        {pillars.map((pillar) => (
+          <div key={pillar.id} className={`ca-pillar-card ca-pillar-${pillar.color}`}>
+            <div className={`ca-pillar-icon ca-pillar-icon-${pillar.color}`}>
+              <pillar.icon className="w-7 h-7" />
+            </div>
+            <h3 className="ca-pillar-title">{pillar.title}</h3>
+            <p className="ca-pillar-desc">{pillar.description}</p>
+            <ul className="ca-pillar-features">
+              {pillar.features.map((feature, i) => (
+                <li key={i}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+            <Link href={`/features#${pillar.id}`} className={`ca-pillar-link ca-pillar-link-${pillar.color}`}>
+              Learn more <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// FEATURES SECTION
+// ============================================
+function FeaturesSection() {
+  const features = [
+    {
+      icon: LineChart,
+      title: "Real-Time Dashboards",
+      description: "Live cost tracking with customizable views for engineering, finance, and leadership teams.",
+      color: "mint",
+    },
+    {
+      icon: Sparkles,
+      title: "AI Recommendations",
+      description: "Automated suggestions to optimize model selection, rightsize instances, and eliminate waste.",
+      color: "coral",
+    },
+    {
+      icon: Bell,
+      title: "Smart Alerts",
+      description: "Get notified instantly when spending exceeds thresholds or anomalies are detected.",
+      color: "blue",
+    },
+    {
+      icon: Target,
+      title: "Budget Controls",
+      description: "Set team-level budgets with automatic enforcement and approval workflows.",
+      color: "purple",
+    },
+    {
+      icon: PieChart,
+      title: "Cost Allocation",
+      description: "Tag and allocate costs by team, project, environment, or any custom dimension.",
+      color: "mint",
+    },
+    {
+      icon: FileText,
+      title: "Reporting & Exports",
+      description: "Generate executive reports, compliance documentation, and custom CSV exports.",
+      color: "coral",
+    },
+  ]
+
+  return (
+    <section className="ca-features-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">Features</span>
+        <h2 className="ca-section-title">Everything you need to control costs</h2>
+        <p className="ca-section-subtitle">
+          From real-time tracking to AI-powered optimization, get complete visibility and control.
+        </p>
+      </div>
+
+      <div className="ca-features-grid-premium">
+        {features.map((feature, i) => (
+          <div key={i} className={`ca-feature-card-premium ca-feature-${feature.color}`}>
+            <div className={`ca-feature-icon-premium ca-feature-icon-${feature.color}`}>
+              <feature.icon className="w-6 h-6" />
+            </div>
+            <h3 className="ca-feature-title-premium">{feature.title}</h3>
+            <p className="ca-feature-desc-premium">{feature.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// HOW IT WORKS SECTION
+// ============================================
+function HowItWorksSection() {
+  const steps = [
+    {
+      number: "01",
+      title: "Connect Your Tools",
+      description: "Link your cloud providers, GenAI APIs, and SaaS subscriptions with secure, read-only access.",
+    },
+    {
+      number: "02",
+      title: "See Your Costs",
+      description: "Get a unified dashboard showing all spending with automatic categorization and trends.",
+    },
+    {
+      number: "03",
+      title: "Optimize & Save",
+      description: "Receive AI-powered recommendations to reduce waste and optimize your infrastructure.",
+    },
+  ]
+
+  return (
+    <section className="ca-how-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">How It Works</span>
+        <h2 className="ca-section-title">Get started in 3 simple steps</h2>
+      </div>
+
+      <div className="ca-how-steps">
+        {steps.map((step, i) => (
+          <div key={i} className="ca-how-step">
+            <div className="ca-how-number">{step.number}</div>
+            <h3 className="ca-how-title">{step.title}</h3>
+            <p className="ca-how-desc">{step.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// INTEGRATIONS SECTION
+// ============================================
+function IntegrationsSection() {
+  return (
+    <section className="ca-integrations-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">Integrations</span>
+        <h2 className="ca-section-title">Connect your entire stack</h2>
+        <p className="ca-section-subtitle">
+          50+ integrations with the tools you already use. Set up in minutes, not days.
+        </p>
+      </div>
+
+      <div className="ca-integrations-grid">
+        {INTEGRATION_LOGOS.map((integration) => (
+          <div key={integration.name} className="ca-integration-logo">
+            <Image
+              src={integration.logo}
+              alt={integration.name}
+              width={100}
+              height={40}
+              className="ca-integration-img"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="ca-integrations-cta">
+        <Link href="/integrations" className="ca-btn-outline-dark">
+          View all integrations
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// TESTIMONIALS SECTION
+// ============================================
 const TESTIMONIALS = [
   {
-    quote: "CloudAct.ai gave us complete visibility into token usage across OpenAI and Anthropic. The unified dashboard was a game-changer for our FinOps team.",
+    quote: "CloudAct gave us complete visibility into our GenAI spending. We identified $40K in monthly savings within the first week.",
     author: "Sarah Chen",
     role: "VP of Engineering",
-    company: "Series B Startup",
+    company: "TechScale Inc.",
     avatar: "SC",
-    highlight: "Complete visibility",
+    metric: "$40K saved/month",
   },
   {
-    quote: "Finally, a single dashboard for all our cloud and AI costs. We went from spending days on monthly reports to having real-time insights.",
+    quote: "Finally, one dashboard for all our cloud and AI costs. Our FinOps team went from spending days on reports to having real-time insights.",
     author: "Marcus Rodriguez",
-    role: "CTO",
-    company: "AI Platform",
+    role: "Director of FinOps",
+    company: "DataFirst Corp",
     avatar: "MR",
-    highlight: "Real-time insights",
+    metric: "80% time saved",
   },
   {
-    quote: "The automated recommendations helped us identify significant optimization opportunities. CloudAct.ai is essential for any team using LLMs at scale.",
+    quote: "The AI recommendations alone paid for the platform 10x over. CloudAct is essential for any team using LLMs at scale.",
     author: "Emily Watson",
-    role: "Head of FinOps",
-    company: "Enterprise SaaS",
+    role: "CTO",
+    company: "AI Ventures",
     avatar: "EW",
-    highlight: "AI recommendations",
+    metric: "10x ROI",
   },
 ]
 
-export default function PremiumLandingPage() {
-  const [activeTestimonial, setActiveTestimonial] = useState(0)
-  const [plans, setPlans] = useState<DynamicPlan[]>([])
-  const [isLoadingPlans, setIsLoadingPlans] = useState(true)
+function TestimonialsSection() {
+  const [active, setActive] = useState(0)
 
-  // Fetch Stripe plans
-  const loadPlans = useCallback(async () => {
-    setIsLoadingPlans(true)
-    const result = await getStripePlans()
-    if (result.data) {
-      setPlans(result.data)
-    }
-    setIsLoadingPlans(false)
-  }, [])
-
-  useEffect(() => {
-    loadPlans()
-  }, [loadPlans])
-
-  // Auto-rotate testimonials
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveTestimonial(prev => (prev + 1) % TESTIMONIALS.length)
+      setActive((prev) => (prev + 1) % TESTIMONIALS.length)
     }, 6000)
     return () => clearInterval(timer)
   }, [])
 
   return (
-    <div className="ca-landing">
-      {/* Announcement Banner */}
-      <div className="ca-announcement-banner">
-        <span className="ca-announcement-badge">New</span>
-        <span>GenAI cost tracking now supports Claude 3.5 Sonnet, GPT-4o & Gemini 2.0</span>
-        <Link href="/features" className="ca-announcement-link">
-          Learn more <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+    <section className="ca-testimonials-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">Customer Stories</span>
+        <h2 className="ca-section-title">Trusted by FinOps leaders</h2>
       </div>
 
-      {/* Hero Section */}
-      <section className="ca-hero">
-        <div className="ca-hero-bg">
-          <div className="ca-hero-orb ca-hero-orb-1" />
-          <div className="ca-hero-orb ca-hero-orb-2" />
-          <div className="ca-hero-orb ca-hero-orb-3" />
-          <div className="ca-hero-grid" />
-        </div>
-
-        <div className="ca-hero-content">
-          <HeroBadge />
-
-          <h1 className="ca-display-xl ca-animate ca-delay-1">
-            Track Every Dollar Across{' '}
-            <span className="ca-gradient-text">GenAI, Cloud & SaaS</span>
-          </h1>
-
-          <p className="ca-body ca-hero-subtitle ca-animate ca-delay-2">
-            The unified cost intelligence platform for engineering and finance teams.
-            Complete visibility into OpenAI, Anthropic, AWS, GCP, Azure, and 50+ integrations.
-          </p>
-
-          <div className="ca-hero-cta ca-animate ca-delay-3">
-            <Link href="/signup" className="ca-btn ca-btn-primary ca-btn-lg">
-              Start Free Trial
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link href="/demo" className="ca-btn ca-btn-secondary ca-btn-lg">
-              <Play className="w-5 h-5" />
-              Watch Demo
-            </Link>
-          </div>
-
-          <div className="ca-hero-trust ca-animate ca-delay-4">
-            <div className="ca-hero-trust-item">
-              <Shield className="w-4 h-4" style={{ color: 'var(--ca-mint-dark)' }} />
-              <span>SOC 2 Type II</span>
+      <div className="ca-testimonial-container">
+        <div className="ca-testimonial-card-premium">
+          <Quote className="ca-testimonial-quote-icon" />
+          <p className="ca-testimonial-text">{TESTIMONIALS[active].quote}</p>
+          <div className="ca-testimonial-footer">
+            <div className="ca-testimonial-avatar">{TESTIMONIALS[active].avatar}</div>
+            <div className="ca-testimonial-info">
+              <div className="ca-testimonial-author">{TESTIMONIALS[active].author}</div>
+              <div className="ca-testimonial-role">{TESTIMONIALS[active].role}, {TESTIMONIALS[active].company}</div>
             </div>
-            <div className="ca-hero-trust-item">
-              <Zap className="w-4 h-4" style={{ color: 'var(--ca-coral)' }} />
-              <span>5-minute setup</span>
-            </div>
-            <div className="ca-hero-trust-item">
-              <TrendingDown className="w-4 h-4" style={{ color: 'var(--ca-green)' }} />
-              <span>Reduce costs 20%+</span>
-            </div>
+            <div className="ca-testimonial-metric">{TESTIMONIALS[active].metric}</div>
           </div>
-
-          <DashboardMockup />
-        </div>
-      </section>
-
-      {/* Logo Carousel - Trusted By */}
-      <section className="ca-trusted-section">
-        <p className="ca-trusted-label">Integrates with your entire stack</p>
-        <LogoCarousel />
-      </section>
-
-      {/* Stats Section */}
-      <section className="ca-stats-section">
-        <div className="ca-stats-grid">
-          <div className="ca-stat-item">
-            <div className="ca-stat-icon">
-              <Layers className="w-6 h-6" />
-            </div>
-            <div className="ca-stat-value ca-mono">50+</div>
-            <p className="ca-stat-label">Integrations</p>
-          </div>
-          <div className="ca-stat-item">
-            <div className="ca-stat-icon">
-              <Globe className="w-6 h-6" />
-            </div>
-            <div className="ca-stat-value ca-mono">3</div>
-            <p className="ca-stat-label">Major clouds</p>
-          </div>
-          <div className="ca-stat-item">
-            <div className="ca-stat-icon">
-              <Activity className="w-6 h-6" />
-            </div>
-            <div className="ca-stat-value ca-mono">Real-time</div>
-            <p className="ca-stat-label">Cost tracking</p>
-          </div>
-          <div className="ca-stat-item">
-            <div className="ca-stat-icon">
-              <DollarSign className="w-6 h-6" />
-            </div>
-            <div className="ca-stat-value ca-mono">20%+</div>
-            <p className="ca-stat-label">Avg. savings</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <span className="ca-section-label">Platform Features</span>
-          <h2 className="ca-display-lg">
-            Everything you need to control costs
-          </h2>
-          <p className="ca-body ca-section-desc">
-            From real-time tracking to AI-powered optimization, CloudAct.ai gives you
-            complete visibility and control over your spending.
-          </p>
-        </div>
-
-        <div className="ca-features-grid">
-          <FeatureCard
-            icon={Cpu}
-            title="GenAI Cost Tracking"
-            description="Monitor token usage, model costs, and API spending across OpenAI, Anthropic, Google AI, and more in real-time."
-            color="coral"
-          />
-          <FeatureCard
-            icon={Globe}
-            title="Multi-Cloud Support"
-            description="Unified view of AWS, GCP, and Azure costs with automatic data sync and intelligent categorization."
-            color="mint"
-          />
-          <FeatureCard
-            icon={Layers}
-            title="SaaS Subscription Tracking"
-            description="Never lose track of a subscription again. Monitor Slack, GitHub, Datadog, and 50+ SaaS tools."
-            color="purple"
-          />
-          <FeatureCard
-            icon={LineChart}
-            title="Cost Forecasting"
-            description="ML-powered predictions help you budget accurately and avoid surprise bills at month-end."
-            color="blue"
-          />
-          <FeatureCard
-            icon={Bell}
-            title="Smart Alerts"
-            description="Get notified instantly when spending exceeds thresholds or anomalies are detected."
-            color="coral"
-          />
-          <FeatureCard
-            icon={Sparkles}
-            title="AI Recommendations"
-            description="Automated suggestions to optimize model selection, rightsize instances, and eliminate waste."
-            color="green"
-          />
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="ca-section ca-section-alt">
-        <div className="ca-section-header">
-          <span className="ca-section-label">How It Works</span>
-          <h2 className="ca-display-lg">
-            Get started in 3 simple steps
-          </h2>
-        </div>
-
-        <div className="ca-steps-grid">
-          <div className="ca-step-card">
-            <div className="ca-step-number">1</div>
-            <h3 className="ca-step-title">Connect Your Tools</h3>
-            <p className="ca-step-desc">
-              Link your cloud providers, GenAI APIs, and SaaS subscriptions with read-only access in minutes.
-            </p>
-          </div>
-          <div className="ca-step-card">
-            <div className="ca-step-number">2</div>
-            <h3 className="ca-step-title">See Your Costs</h3>
-            <p className="ca-step-desc">
-              Get a unified dashboard showing all your spending with automatic categorization and trends.
-            </p>
-          </div>
-          <div className="ca-step-card">
-            <div className="ca-step-number">3</div>
-            <h3 className="ca-step-title">Optimize & Save</h3>
-            <p className="ca-step-desc">
-              Receive AI-powered recommendations to reduce waste and optimize your infrastructure spend.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="ca-testimonials">
-        <div className="ca-section-header">
-          <span className="ca-section-label">Customer Stories</span>
-          <h2 className="ca-display-lg">What teams are saying</h2>
-        </div>
-
-        <div className="ca-testimonial-card">
-          <div className="ca-testimonial-header">
-            <div className="ca-testimonial-avatar">
-              {TESTIMONIALS[activeTestimonial].avatar}
-            </div>
-            <div>
-              <div className="ca-testimonial-author">{TESTIMONIALS[activeTestimonial].author}</div>
-              <div className="ca-testimonial-role">
-                {TESTIMONIALS[activeTestimonial].role} · {TESTIMONIALS[activeTestimonial].company}
-              </div>
-            </div>
-            <div className="ca-testimonial-savings">
-              {TESTIMONIALS[activeTestimonial].highlight}
-            </div>
-          </div>
-          <p className="ca-testimonial-quote">
-            "{TESTIMONIALS[activeTestimonial].quote}"
-          </p>
         </div>
 
         <div className="ca-testimonial-nav">
           <button
-            className="ca-testimonial-btn"
-            onClick={() => setActiveTestimonial(prev => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)}
-            aria-label="Previous testimonial"
+            onClick={() => setActive((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)}
+            className="ca-testimonial-nav-btn"
+            aria-label="Previous"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -526,141 +556,211 @@ export default function PremiumLandingPage() {
             {TESTIMONIALS.map((_, i) => (
               <button
                 key={i}
-                className={`ca-testimonial-dot ${i === activeTestimonial ? 'active' : ''}`}
-                onClick={() => setActiveTestimonial(i)}
-                aria-label={`Go to testimonial ${i + 1}`}
+                onClick={() => setActive(i)}
+                className={`ca-testimonial-dot ${i === active ? "active" : ""}`}
+                aria-label={`Testimonial ${i + 1}`}
               />
             ))}
           </div>
           <button
-            className="ca-testimonial-btn"
-            onClick={() => setActiveTestimonial(prev => (prev + 1) % TESTIMONIALS.length)}
-            aria-label="Next testimonial"
+            onClick={() => setActive((prev) => (prev + 1) % TESTIMONIALS.length)}
+            className="ca-testimonial-nav-btn"
+            aria-label="Next"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
-      </section>
+      </div>
+    </section>
+  )
+}
 
-      {/* Pricing */}
-      <section className="ca-section">
-        <div className="ca-section-header">
-          <span className="ca-section-label">Simple Pricing</span>
-          <h2 className="ca-display-lg">
-            Start free, scale as you grow
-          </h2>
-          <p className="ca-body ca-section-desc">
-            No hidden fees. No surprise charges. Just transparent pricing.
+// ============================================
+// SECURITY SECTION
+// ============================================
+function SecuritySection() {
+  const badges = [
+    { icon: Shield, label: "SOC 2 Type II", description: "Certified" },
+    { icon: Lock, label: "GDPR", description: "Compliant" },
+    { icon: Award, label: "ISO 27001", description: "Certified" },
+    { icon: CheckCircle2, label: "CCPA", description: "Compliant" },
+  ]
+
+  return (
+    <section className="ca-security-section">
+      <div className="ca-security-container">
+        <div className="ca-security-content">
+          <span className="ca-section-eyebrow">Enterprise Security</span>
+          <h2 className="ca-security-title">Built for enterprise-grade security</h2>
+          <p className="ca-security-desc">
+            Your data security is our top priority. CloudAct is built with bank-grade encryption,
+            role-based access controls, and comprehensive audit logging.
           </p>
+          <Link href="/security" className="ca-btn-outline-dark">
+            Learn about our security
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
-
-        <div className="ca-pricing-grid">
-          {isLoadingPlans ? (
-            <div className="ca-pricing-loading">
-              <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--ca-mint)' }} />
+        <div className="ca-security-badges">
+          {badges.map((badge, i) => (
+            <div key={i} className="ca-security-badge">
+              <badge.icon className="w-8 h-8" />
+              <div className="ca-badge-label">{badge.label}</div>
+              <div className="ca-badge-desc">{badge.description}</div>
             </div>
-          ) : plans.length > 0 ? (
-            <>
-              {plans.map((plan, index) => (
-                <PricingCard
-                  key={plan.id}
-                  name={plan.name}
-                  price={plan.price === 0 ? "$0" : `$${plan.price}`}
-                  period={plan.interval === "year" ? "yr" : "mo"}
-                  description={plan.description || (index === 0 ? "Perfect for small teams" : "For growing teams")}
-                  featured={index === 1}
-                  features={plan.features}
-                />
-              ))}
-              <PricingCard
-                name="Enterprise"
-                price="Custom"
-                description="For large organizations"
-                ctaText="Contact sales"
-                features={[
-                  "Unlimited team members",
-                  "Unlimited integrations",
-                  "Advanced security (SSO, SCIM)",
-                  "Unlimited data retention",
-                  "Dedicated success manager",
-                  "Custom SLAs & contracts",
-                ]}
-              />
-            </>
-          ) : (
-            <>
-              <PricingCard
-                name="Starter"
-                price="Free"
-                period="mo"
-                description="Perfect for small teams"
-                features={[
-                  "Up to 3 team members",
-                  "5 integrations",
-                  "Basic cost dashboards",
-                  "7-day data retention",
-                  "Community support",
-                ]}
-              />
-              <PricingCard
-                name="Pro"
-                price="Contact us"
-                description="For growing teams"
-                featured
-                features={[
-                  "Up to 20 team members",
-                  "Unlimited integrations",
-                  "AI-powered recommendations",
-                  "90-day data retention",
-                  "Priority support",
-                  "Custom alerts & reports",
-                ]}
-              />
-              <PricingCard
-                name="Enterprise"
-                price="Custom"
-                description="For large organizations"
-                ctaText="Contact sales"
-                features={[
-                  "Unlimited team members",
-                  "Unlimited integrations",
-                  "Advanced security (SSO, SCIM)",
-                  "Unlimited data retention",
-                  "Dedicated success manager",
-                  "Custom SLAs & contracts",
-                ]}
-              />
-            </>
-          )}
+          ))}
         </div>
-      </section>
+      </div>
+    </section>
+  )
+}
 
-      {/* CTA Section */}
-      <section className="ca-cta">
-        <div className="ca-cta-box">
-          <div className="ca-cta-content">
-            <div className="ca-cta-badge">
-              <Sparkles className="w-4 h-4" />
-              {DEFAULT_TRIAL_DAYS}-day free trial • No credit card required
-            </div>
-            <h2 className="ca-cta-title">Ready to take control of your costs?</h2>
-            <p className="ca-cta-subtitle">
-              Join hundreds of teams using CloudAct.ai to track, analyze, and optimize their
-              GenAI, cloud, and SaaS spending in one unified platform.
-            </p>
-            <div className="ca-cta-buttons">
-              <Link href="/signup" className="ca-cta-btn-white">
-                Get Started Free
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link href="/contact" className="ca-cta-btn-outline">
-                Talk to Sales
-                <ArrowUpRight className="w-5 h-5" />
-              </Link>
-            </div>
+// ============================================
+// PRICING PREVIEW SECTION
+// ============================================
+function PricingPreviewSection() {
+  const [plans, setPlans] = useState<DynamicPlan[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadPlans = useCallback(async () => {
+    setLoading(true)
+    const result = await getStripePlans()
+    if (result.data) {
+      setPlans(result.data)
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    loadPlans()
+  }, [loadPlans])
+
+  return (
+    <section className="ca-pricing-preview-section">
+      <div className="ca-section-header-centered">
+        <span className="ca-section-eyebrow">Pricing</span>
+        <h2 className="ca-section-title">Simple, transparent pricing</h2>
+        <p className="ca-section-subtitle">
+          Start free, scale as you grow. No hidden fees, no surprise charges.
+        </p>
+      </div>
+
+      <div className="ca-pricing-grid-premium">
+        {loading ? (
+          <div className="ca-pricing-loading">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
           </div>
+        ) : plans.length > 0 ? (
+          <>
+            {plans.map((plan, i) => (
+              <div key={plan.id} className={`ca-pricing-card-premium ${i === 1 ? "ca-pricing-featured" : ""}`}>
+                {i === 1 && <div className="ca-pricing-badge">Most Popular</div>}
+                <div className="ca-pricing-header">
+                  <h3 className="ca-pricing-name">{plan.name}</h3>
+                  <div className="ca-pricing-price">
+                    <span className="ca-pricing-amount">${plan.price}</span>
+                    <span className="ca-pricing-period">/{plan.interval === "year" ? "yr" : "mo"}</span>
+                  </div>
+                </div>
+                <ul className="ca-pricing-features">
+                  {plan.features.map((feature, j) => (
+                    <li key={j}>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/signup"
+                  className={i === 1 ? "ca-btn-pricing-primary" : "ca-btn-pricing-secondary"}
+                >
+                  Get started
+                </Link>
+              </div>
+            ))}
+            <div className="ca-pricing-card-premium ca-pricing-enterprise">
+              <div className="ca-pricing-header">
+                <h3 className="ca-pricing-name">Enterprise</h3>
+                <div className="ca-pricing-price">
+                  <span className="ca-pricing-amount">Custom</span>
+                </div>
+              </div>
+              <ul className="ca-pricing-features">
+                <li><Check className="w-4 h-4 text-emerald-500" /><span>Unlimited team members</span></li>
+                <li><Check className="w-4 h-4 text-emerald-500" /><span>Unlimited integrations</span></li>
+                <li><Check className="w-4 h-4 text-emerald-500" /><span>SSO & SCIM</span></li>
+                <li><Check className="w-4 h-4 text-emerald-500" /><span>Dedicated success manager</span></li>
+                <li><Check className="w-4 h-4 text-emerald-500" /><span>Custom SLAs</span></li>
+              </ul>
+              <Link href="/contact" className="ca-btn-pricing-secondary">
+                Contact sales
+              </Link>
+            </div>
+          </>
+        ) : (
+          <div className="ca-pricing-placeholder">
+            <p>Contact us for pricing information</p>
+          </div>
+        )}
+      </div>
+
+      <div className="ca-pricing-cta-row">
+        <Link href="/pricing" className="ca-link-dark">
+          View full pricing details <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// FINAL CTA SECTION
+// ============================================
+function FinalCTASection() {
+  return (
+    <section className="ca-final-cta-section">
+      <div className="ca-final-cta-container">
+        <div className="ca-final-cta-badge">
+          <Sparkles className="w-4 h-4" />
+          {DEFAULT_TRIAL_DAYS}-day free trial • No credit card required
         </div>
-      </section>
+        <h2 className="ca-final-cta-title">Ready to take control of your costs?</h2>
+        <p className="ca-final-cta-subtitle">
+          Join hundreds of teams using CloudAct to track, analyze, and optimize their
+          GenAI, cloud, and SaaS spending.
+        </p>
+        <div className="ca-final-cta-buttons">
+          <Link href="/signup" className="ca-btn-cta-primary">
+            Start Free Trial
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+          <Link href="/contact" className="ca-btn-cta-secondary">
+            Talk to Sales
+            <ArrowUpRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// MAIN PAGE COMPONENT
+// ============================================
+export default function PremiumLandingPage() {
+  return (
+    <div className="ca-landing-page">
+      <HeroSection />
+      <CustomerLogosSection />
+      <StatsSection />
+      <PlatformPillarsSection />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <IntegrationsSection />
+      <TestimonialsSection />
+      <SecuritySection />
+      <PricingPreviewSection />
+      <FinalCTASection />
     </div>
   )
 }

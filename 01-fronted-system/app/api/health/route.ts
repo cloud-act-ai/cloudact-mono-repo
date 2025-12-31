@@ -5,6 +5,10 @@ import Stripe from "stripe"
 export const runtime = "nodejs" // Need nodejs for Stripe SDK
 export const dynamic = "force-dynamic"
 
+// Release info - matches backend services format
+const RELEASE_VERSION = "v1.0.5"
+const RELEASE_TIMESTAMP = "2025-12-30T16:15:00-08:00" // PST timezone
+
 interface ServiceHealth {
   status: "healthy" | "unhealthy" | "degraded"
   latency_ms?: number
@@ -14,8 +18,9 @@ interface ServiceHealth {
 interface HealthResponse {
   status: "healthy" | "unhealthy" | "degraded"
   service: string
-  timestamp: string
   version: string
+  release: string
+  release_timestamp: string
   environment: string
   checks: {
     supabase: ServiceHealth
@@ -150,10 +155,11 @@ export async function GET() {
 
   const response: HealthResponse = {
     status: overallStatus,
-    service: "cloudact-frontend",
-    timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || "1.0.0",
-    environment: process.env.NODE_ENV || "development",
+    service: "frontend",
+    version: "1.0.0",
+    release: RELEASE_VERSION,
+    release_timestamp: RELEASE_TIMESTAMP,
+    environment: process.env.NODE_ENV === "production" ? "production" : "development",
     checks,
   }
 
