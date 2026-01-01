@@ -449,7 +449,7 @@ function SignupForm() {
                   onChange={setTimezone}
                   options={SUPPORTED_TIMEZONES.map((tz) => ({
                     value: tz.value,
-                    label: tz.label.split(' ').slice(-1)[0],
+                    label: tz.label,
                   }))}
                   disabled={isLoading}
                   icon={Globe}

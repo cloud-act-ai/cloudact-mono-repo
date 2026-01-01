@@ -75,7 +75,7 @@ export default function SecurityPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Lock className="w-4 h-4" />
+            <Lock className="w-4 h-4" aria-hidden="true" />
             Enterprise Security
           </div>
           <h1 className="ca-page-hero-title">
@@ -89,19 +89,19 @@ export default function SecurityPage() {
           {/* Legal Navigation */}
           <div className="ca-legal-nav">
             <Link href="/privacy" className="ca-legal-nav-link">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4" aria-hidden="true" />
               Privacy
             </Link>
             <Link href="/terms" className="ca-legal-nav-link">
-              <FileText className="w-4 h-4" />
+              <FileText className="w-4 h-4" aria-hidden="true" />
               Terms
             </Link>
             <Link href="/security" className="ca-legal-nav-link active">
-              <Lock className="w-4 h-4" />
+              <Lock className="w-4 h-4" aria-hidden="true" />
               Security
             </Link>
             <Link href="/compliance" className="ca-legal-nav-link">
-              <Scale className="w-4 h-4" />
+              <Scale className="w-4 h-4" aria-hidden="true" />
               Compliance
             </Link>
           </div>
@@ -131,13 +131,13 @@ export default function SecurityPage() {
               return (
                 <div key={feature.title} className="ca-legal-feature-card">
                   <div className="ca-legal-feature-icon">
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <h3 className="ca-legal-feature-title">{feature.title}</h3>
                   <ul className="ca-legal-feature-list">
                     {feature.features.map((item) => (
                       <li key={item}>
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -189,7 +189,7 @@ export default function SecurityPage() {
           <div className="ca-legal-contact">
             <h3 className="ca-legal-contact-title">Security Contact</h3>
             <a href="mailto:security@cloudact.ai" className="ca-legal-contact-email">
-              <Mail className="w-5 h-5" />
+              <Mail className="w-5 h-5" aria-hidden="true" />
               security@cloudact.ai
             </a>
             <p className="ca-legal-contact-address">
@@ -217,7 +217,7 @@ export default function SecurityPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/contact" className="ca-btn-cta-primary">
               Contact Security Team
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/compliance" className="ca-btn-cta-secondary">
               View Compliance

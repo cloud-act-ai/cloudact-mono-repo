@@ -232,7 +232,7 @@ export default function PricingPage() {
               <div className="ca-pricing-card-premium">
                 <div className="ca-pricing-header">
                   <div className="ca-pricing-icon-premium ca-pricing-icon-enterprise">
-                    <Users className="w-6 h-6" />
+                    <Users className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <h3 className="ca-pricing-name-premium">Enterprise</h3>
                   <p className="ca-pricing-desc-premium">Custom solutions for large organizations</p>

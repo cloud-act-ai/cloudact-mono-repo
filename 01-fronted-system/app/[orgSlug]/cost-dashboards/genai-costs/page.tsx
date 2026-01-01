@@ -87,26 +87,67 @@ export default function GenAICostsPage() {
         categories: filters.categories.length > 0 ? filters.categories : undefined,
       }
 
+      // Check if filters are active
+      const hasActiveFilters = filters.providers.length > 0 ||
+        filters.department || filters.project || filters.team
+
       const [costsResult, providersResult] = await Promise.all([
         getGenAICosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
       ])
 
-      if (costsResult.success) {
-        setSummary(costsResult.summary)
-        if (costsResult.currency) {
-          setOrgCurrency(costsResult.currency)
-        }
-      } else {
-        setError(costsResult.error || "Failed to load GenAI costs")
+      // Get currency from result
+      if (costsResult.currency) {
+        setOrgCurrency(costsResult.currency)
       }
 
+      // Filter to only LLM providers using centralized helper
+      let filteredProviders: ProviderBreakdown[] = []
       if (providersResult.success && providersResult.data) {
-        // Filter to only LLM providers using centralized helper
-        const filtered = filterGenAIProviders(providersResult.data)
-        setProviders(filtered)
-        // Set available providers for filter dropdown
-        setAvailableProviders(filtered.map(p => p.provider))
+        filteredProviders = filterGenAIProviders(providersResult.data)
+        setProviders(filteredProviders)
+        // Set available providers for filter dropdown (unfiltered list for dropdown options)
+        const allGenAIProviders = filterGenAIProviders(providersResult.data)
+        setAvailableProviders(allGenAIProviders.map(p => p.provider))
+      }
+
+      // When filters are active, compute summary from filtered provider data
+      // This ensures MTD, YTD, charts all reflect the filtered selection
+      if (hasActiveFilters && filteredProviders.length > 0) {
+        const filteredTotalCost = filteredProviders.reduce((sum, p) => sum + p.total_cost, 0)
+        const filteredRecordCount = filteredProviders.reduce((sum, p) => sum + p.record_count, 0)
+
+        // Calculate date-based metrics for filtered data
+        const today = new Date()
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+        const currentDay = today.getDate()
+        const daysRemaining = daysInMonth - currentDay
+        const dailyRate = currentDay > 0 ? filteredTotalCost / currentDay : 0
+        const forecastMonthly = filteredTotalCost + (dailyRate * daysRemaining)
+        const currentMonth = today.getMonth() + 1
+        const ytdEstimate = filteredTotalCost // Use MTD as YTD estimate when filtered
+
+        // Create filtered summary
+        const filteredSummary: CostSummary = {
+          total_daily_cost: dailyRate,
+          total_monthly_cost: forecastMonthly,
+          total_annual_cost: filteredTotalCost * 12,
+          total_billed_cost: filteredTotalCost,
+          mtd_cost: filteredTotalCost,
+          ytd_cost: ytdEstimate,
+          forecast_monthly_cost: forecastMonthly,
+          forecast_annual_cost: filteredTotalCost * 12,
+          providers: filteredProviders.map(p => p.provider),
+          service_categories: ["LLM"],
+          record_count: filteredRecordCount,
+          date_range: costsResult.summary?.date_range || { start: "", end: "" },
+        }
+        setSummary(filteredSummary)
+      } else if (costsResult.success) {
+        // No filters - use backend data
+        setSummary(costsResult.summary)
+      } else {
+        setError(costsResult.error || "Failed to load GenAI costs")
       }
     } catch (err) {
       console.error("GenAI costs error:", err)

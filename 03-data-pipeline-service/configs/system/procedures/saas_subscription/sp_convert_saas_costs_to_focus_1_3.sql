@@ -29,12 +29,11 @@ BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_slug STRING;
   DECLARE v_org_exists INT64 DEFAULT 0;
-  DECLARE v_transaction_committed BOOL DEFAULT FALSE;
 
   -- Extract org_slug from dataset_id using safe extraction
   -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
   -- Handles edge cases like org_slug = "acme_prod_team" → extracts "acme_prod_team" not "acme"
-  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+?)_(prod|stage|dev|local|test)$', 1);
+  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+?)_(?:prod|stage|dev|local|test)$');
 
   -- Fallback: if no match, assume entire dataset_id is org_slug (for backward compatibility)
   IF v_org_slug IS NULL THEN
@@ -345,7 +344,6 @@ BEGIN
   INTO v_rows_inserted USING TIMESTAMP(p_start_date) AS p_start, TIMESTAMP(p_end_date) AS p_end;
 
   COMMIT TRANSACTION;
-  SET v_transaction_committed = TRUE;
 
   SELECT 'FOCUS 1.3 Conversion Complete' AS status,
          v_rows_inserted AS rows_inserted,
@@ -353,9 +351,6 @@ BEGIN
          v_org_slug AS org_slug;
 
 EXCEPTION WHEN ERROR THEN
-  -- Only rollback if transaction hasn't been committed yet
-  IF NOT v_transaction_committed THEN
-    ROLLBACK TRANSACTION;
-  END IF;
+  -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
   RAISE USING MESSAGE = CONCAT('sp_convert_saas_costs_to_focus_1_3 Failed: ', @@error.message);
 END;

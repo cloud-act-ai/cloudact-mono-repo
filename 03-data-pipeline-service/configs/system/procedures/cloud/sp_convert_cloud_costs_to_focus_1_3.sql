@@ -32,7 +32,7 @@ BEGIN
   -- Extract org_slug from dataset_id using safe extraction
   -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
   -- Handles edge cases like org_slug = "acme_prod_team" → extracts "acme_prod_team" not "acme"
-  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+?)_(prod|stage|dev|local|test)$', 1);
+  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+?)_(?:prod|stage|dev|local|test)$');
 
   -- Fallback: if no match, assume entire dataset_id is org_slug (for backward compatibility)
   IF v_org_slug IS NULL THEN
@@ -464,6 +464,6 @@ BEGIN
     CURRENT_TIMESTAMP() as executed_at;
 
 EXCEPTION WHEN ERROR THEN
-  ROLLBACK TRANSACTION;
+  -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
   RAISE USING MESSAGE = CONCAT('sp_convert_cloud_costs_to_focus_1_3 Failed: ', @@error.message);
 END;

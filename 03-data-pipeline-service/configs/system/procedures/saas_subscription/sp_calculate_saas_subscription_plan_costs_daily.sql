@@ -458,6 +458,6 @@ BEGIN
          p_end_date AS end_date;
 
 EXCEPTION WHEN ERROR THEN
-  ROLLBACK TRANSACTION;
+  -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
   RAISE USING MESSAGE = CONCAT('sp_calculate_saas_subscription_plan_costs_daily Failed: ', @@error.message);
 END;

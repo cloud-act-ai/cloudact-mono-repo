@@ -34,7 +34,7 @@ export default function PrivacyPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Shield className="w-4 h-4" />
+            <Shield className="w-4 h-4" aria-hidden="true" />
             Legal
           </div>
           <h1 className="ca-page-hero-title">
@@ -45,26 +45,26 @@ export default function PrivacyPage() {
             and protect your information when you use CloudAct.ai.
           </p>
           <div className="ca-legal-date">
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-4 h-4" aria-hidden="true" />
             Last updated: January 2025
           </div>
 
           {/* Legal Navigation */}
           <div className="ca-legal-nav">
             <Link href="/privacy" className="ca-legal-nav-link active">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4" aria-hidden="true" />
               Privacy
             </Link>
             <Link href="/terms" className="ca-legal-nav-link">
-              <FileText className="w-4 h-4" />
+              <FileText className="w-4 h-4" aria-hidden="true" />
               Terms
             </Link>
             <Link href="/security" className="ca-legal-nav-link">
-              <Lock className="w-4 h-4" />
+              <Lock className="w-4 h-4" aria-hidden="true" />
               Security
             </Link>
             <Link href="/compliance" className="ca-legal-nav-link">
-              <Scale className="w-4 h-4" />
+              <Scale className="w-4 h-4" aria-hidden="true" />
               Compliance
             </Link>
           </div>
@@ -232,7 +232,7 @@ export default function PrivacyPage() {
               If you have questions about this Privacy Policy, please contact us:
             </p>
             <a href="mailto:privacy@cloudact.ai" className="ca-legal-contact-email">
-              <Mail className="w-5 h-5" />
+              <Mail className="w-5 h-5" aria-hidden="true" />
               privacy@cloudact.ai
             </a>
             <p className="ca-legal-contact-address">
@@ -261,7 +261,7 @@ export default function PrivacyPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/contact" className="ca-btn-cta-primary">
               Contact Us
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/security" className="ca-btn-cta-secondary">
               View Security

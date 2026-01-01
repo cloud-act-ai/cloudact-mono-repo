@@ -68,21 +68,21 @@ export interface TimezoneInfo {
 }
 
 export const SUPPORTED_TIMEZONES: readonly TimezoneInfo[] = [
-  { value: "UTC", label: "UTC", offset: "+00:00" },
-  { value: "America/New_York", label: "Eastern Time (ET)", offset: "-05:00" },
-  { value: "America/Chicago", label: "Central Time (CT)", offset: "-06:00" },
-  { value: "America/Denver", label: "Mountain Time (MT)", offset: "-07:00" },
-  { value: "America/Los_Angeles", label: "Pacific Time (PT)", offset: "-08:00" },
-  { value: "Europe/London", label: "London (GMT/BST)", offset: "+00:00" },
-  { value: "Europe/Paris", label: "Paris (CET)", offset: "+01:00" },
-  { value: "Europe/Berlin", label: "Berlin (CET)", offset: "+01:00" },
-  { value: "Asia/Dubai", label: "Dubai (GST)", offset: "+04:00" },
-  { value: "Asia/Riyadh", label: "Riyadh (AST)", offset: "+03:00" },
-  { value: "Asia/Kolkata", label: "India (IST)", offset: "+05:30" },
-  { value: "Asia/Singapore", label: "Singapore (SGT)", offset: "+08:00" },
-  { value: "Asia/Tokyo", label: "Tokyo (JST)", offset: "+09:00" },
-  { value: "Asia/Shanghai", label: "Shanghai (CST)", offset: "+08:00" },
-  { value: "Australia/Sydney", label: "Sydney (AEST)", offset: "+10:00" },
+  { value: "UTC", label: "UTC (Coordinated Universal Time)", offset: "+00:00" },
+  { value: "America/New_York", label: "EST/EDT - New York, USA", offset: "-05:00" },
+  { value: "America/Chicago", label: "CST/CDT - Chicago, USA", offset: "-06:00" },
+  { value: "America/Denver", label: "MST/MDT - Denver, USA", offset: "-07:00" },
+  { value: "America/Los_Angeles", label: "PST/PDT - Los Angeles, USA", offset: "-08:00" },
+  { value: "Europe/London", label: "GMT/BST - London, UK", offset: "+00:00" },
+  { value: "Europe/Paris", label: "CET/CEST - Paris, France", offset: "+01:00" },
+  { value: "Europe/Berlin", label: "CET/CEST - Berlin, Germany", offset: "+01:00" },
+  { value: "Asia/Dubai", label: "GST - Dubai, UAE", offset: "+04:00" },
+  { value: "Asia/Riyadh", label: "AST - Riyadh, Saudi Arabia", offset: "+03:00" },
+  { value: "Asia/Kolkata", label: "IST - Mumbai/Delhi, India", offset: "+05:30" },
+  { value: "Asia/Singapore", label: "SGT - Singapore", offset: "+08:00" },
+  { value: "Asia/Tokyo", label: "JST - Tokyo, Japan", offset: "+09:00" },
+  { value: "Asia/Shanghai", label: "CST - Shanghai, China", offset: "+08:00" },
+  { value: "Australia/Sydney", label: "AEST/AEDT - Sydney, Australia", offset: "+10:00" },
 ] as const
 
 export const TIMEZONE_VALUES = SUPPORTED_TIMEZONES.map(tz => tz.value)

@@ -47,9 +47,9 @@ function CopyButton({ code, label }: { code: string; label: string }) {
       onClick={handleCopy}
     >
       {copied ? (
-        <Check className="w-4 h-4 text-green-500" />
+        <Check className="w-4 h-4 text-green-500" aria-hidden="true" />
       ) : (
-        <Copy className="w-4 h-4" />
+        <Copy className="w-4 h-4" aria-hidden="true" />
       )}
     </button>
   )

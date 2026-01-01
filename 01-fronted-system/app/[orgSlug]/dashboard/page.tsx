@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -32,6 +32,13 @@ import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/i18n"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import type { PipelineRunSummary } from "@/lib/api/backend"
+import {
+  CostSummaryGrid,
+  CostBreakdownChart,
+  type CostSummaryData,
+  type BreakdownItem,
+} from "@/components/costs"
+import { getDateInfo, calculatePercentage, OVERVIEW_CATEGORY_CONFIG } from "@/lib/costs"
 
 interface QuickAction {
   title: string
@@ -62,8 +69,15 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     try {
       const supabase = createClient()
+
+      // Use fiscal YTD as default date range (Jan 1 to today)
+      const today = new Date()
+      const fiscalYearStart = new Date(today.getFullYear(), 0, 1) // January 1st
+      const startDate = fiscalYearStart.toISOString().split("T")[0]
+      const endDate = today.toISOString().split("T")[0]
+
       const [costsResult, pipelinesResult, integrationsResult, orgResult] = await Promise.all([
-        getTotalCosts(orgSlug),
+        getTotalCosts(orgSlug, startDate, endDate),
         getPipelineRuns(orgSlug, { limit: 5 }),
         getIntegrations(orgSlug),
         supabase
@@ -98,11 +112,17 @@ export default function DashboardPage() {
         }
 
         for (const [key, value] of Object.entries(intData)) {
+          // Fix: Only include integrations that are actually configured
+          // Status values: VALID, PENDING, INVALID, NOT_CONFIGURED
+          if (value.status === "NOT_CONFIGURED") {
+            continue // Skip unconfigured integrations
+          }
+
           const status = value.status === "VALID"
             ? "connected"
-            : value.status === "PENDING"
+            : value.status === "PENDING" || value.status === "VALIDATING"
             ? "pending"
-            : "not_connected"
+            : "not_connected" // INVALID or ERROR states
 
           integrationList.push({
             name: providerNames[key] || key,
@@ -144,6 +164,59 @@ export default function DashboardPage() {
     await loadData()
     setIsRefreshing(false)
   }
+
+  // Prepare summary data using shared pattern from cost dashboards
+  const summaryData: CostSummaryData = useMemo(() => {
+    const dateInfo = getDateInfo()
+    const totalMtd = costSummary?.total?.total_monthly_cost ?? 0
+    const dailyRate = costSummary?.total?.total_daily_cost ?? 0
+    const forecast = totalMtd + (dailyRate * dateInfo.daysRemaining)
+
+    return {
+      mtd: totalMtd,
+      dailyRate: dailyRate,
+      forecast: forecast,
+      ytd: costSummary?.total?.total_annual_cost ?? totalMtd, // Use annual as YTD fallback
+      currency: orgCurrency,
+    }
+  }, [costSummary, orgCurrency])
+
+  // Prepare category breakdown using shared utilities
+  const categoryBreakdown: BreakdownItem[] = useMemo(() => {
+    const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
+    const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
+    const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
+    const totalCost = genaiCost + cloudCost + saasCost
+
+    if (totalCost === 0) return []
+
+    return [
+      {
+        key: "genai",
+        name: OVERVIEW_CATEGORY_CONFIG.names.genai,
+        value: genaiCost,
+        percentage: calculatePercentage(genaiCost, totalCost),
+        count: costSummary?.llm?.providers?.length ?? 0,
+        color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
+      },
+      {
+        key: "cloud",
+        name: OVERVIEW_CATEGORY_CONFIG.names.cloud,
+        value: cloudCost,
+        percentage: calculatePercentage(cloudCost, totalCost),
+        count: costSummary?.cloud?.providers?.length ?? 0,
+        color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
+      },
+      {
+        key: "saas",
+        name: OVERVIEW_CATEGORY_CONFIG.names.saas,
+        value: saasCost,
+        percentage: calculatePercentage(saasCost, totalCost),
+        count: costSummary?.saas?.providers?.length ?? 0,
+        color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
+      },
+    ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
+  }, [costSummary])
 
   const quickActions: QuickAction[] = [
     {
@@ -246,66 +319,12 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Metric Cards Grid - Mobile optimized Apple Health Style */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        {/* Total Spend */}
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-            <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
-            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Total</span>
-          </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-            {formatCurrency(costSummary?.total?.total_monthly_cost || 0, orgCurrency)}
-          </div>
-          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">all services</div>
-        </div>
-
-        {/* GenAI Costs */}
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-            <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#10A37F]" />
-            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">GenAI</span>
-          </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-            {formatCurrency(costSummary?.llm?.total_monthly_cost || 0, orgCurrency)}
-          </div>
-          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
-            {costSummary?.llm?.providers?.length || 0} providers
-          </div>
-        </div>
-
-        {/* Cloud Costs */}
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-            <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#4285F4]" />
-            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Cloud</span>
-          </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-            {formatCurrency(costSummary?.cloud?.total_monthly_cost || 0, orgCurrency)}
-          </div>
-          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
-            {costSummary?.cloud?.providers?.length || 0} providers
-          </div>
-        </div>
-
-        {/* SaaS Costs */}
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-            <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#FF6C5E]" />
-            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">SaaS</span>
-          </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-            {formatCurrency(costSummary?.saas?.total_monthly_cost || 0, orgCurrency)}
-          </div>
-          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
-            {costSummary?.saas?.providers?.length || 0} subs
-          </div>
-        </div>
-      </div>
+      {/* Summary Metrics - Using shared CostSummaryGrid component */}
+      <CostSummaryGrid data={summaryData} />
 
       {/* Two Column Layout */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Cost Overview Link - Larger column */}
+        {/* Cost Breakdown - Using shared CostBreakdownChart component */}
         <div className="lg:col-span-2">
           <Card className="h-full">
             <CardHeader className="border-b border-border">
@@ -320,38 +339,21 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              {/* Horizontal bar breakdown */}
-              <div className="space-y-4">
-                {[
-                  { name: "GenAI", cost: costSummary?.llm?.total_monthly_cost || 0, color: "bg-[#10A37F]", icon: Brain },
-                  { name: "Cloud", cost: costSummary?.cloud?.total_monthly_cost || 0, color: "bg-[#4285F4]", icon: Cloud },
-                  { name: "SaaS", cost: costSummary?.saas?.total_monthly_cost || 0, color: "bg-[#FF6C5E]", icon: Wallet },
-                ].map((item) => {
-                  const totalCost = (costSummary?.total?.total_monthly_cost || 1)
-                  const percentage = totalCost > 0 ? (item.cost / totalCost) * 100 : 0
-                  const Icon = item.icon
-
-                  return (
-                    <div key={item.name} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-slate-500" />
-                          <span className="text-sm font-medium text-slate-700">{item.name}</span>
-                        </div>
-                        <span className="text-sm font-bold text-slate-900">
-                          {formatCurrency(item.cost, orgCurrency)}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${item.color} rounded-full transition-all duration-500`}
-                          style={{ width: `${Math.max(percentage, 0)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              {categoryBreakdown.length > 0 ? (
+                <CostBreakdownChart
+                  title=""
+                  items={categoryBreakdown}
+                  currency={orgCurrency}
+                  countLabel="providers"
+                  maxItems={3}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-900">No cost data yet</p>
+                  <p className="text-xs text-slate-500 mt-1">Run pipelines to see your costs</p>
+                </div>
+              )}
 
               <Link href={`/${orgSlug}/cost-dashboards/overview`} className="block mt-6">
                 <button className="w-full inline-flex items-center justify-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">

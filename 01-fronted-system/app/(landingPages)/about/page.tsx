@@ -17,7 +17,6 @@ import {
   BookOpen,
   Award,
   MessageCircle,
-  Rocket,
 } from "lucide-react"
 import "../premium.css"
 
@@ -84,7 +83,7 @@ export default function AboutPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Info className="w-4 h-4" />
+            <Info className="w-4 h-4" aria-hidden="true" />
             About Us
           </div>
           <h1 className="ca-page-hero-title">
@@ -102,7 +101,7 @@ export default function AboutPage() {
       <section className="ca-story-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <BookOpen className="w-4 h-4" />
+            <BookOpen className="w-4 h-4" aria-hidden="true" />
             The Beginning
           </span>
           <h2 className="ca-section-title">How CloudAct.ai Started</h2>
@@ -155,7 +154,7 @@ export default function AboutPage() {
       <section className="ca-team-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4" aria-hidden="true" />
             Our Team
           </span>
           <h2 className="ca-section-title">Building CloudAct.ai</h2>
@@ -167,7 +166,7 @@ export default function AboutPage() {
 
         <div className="ca-team-expertise-card">
           <div className="ca-team-expertise-icon">
-            <Users className="w-8 h-8" />
+            <Users className="w-8 h-8" aria-hidden="true" />
           </div>
           <h3 className="ca-team-expertise-title">Our Expertise</h3>
           <p className="ca-team-expertise-desc">
@@ -190,7 +189,7 @@ export default function AboutPage() {
       <section className="ca-values-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" />
+            <Award className="w-4 h-4" aria-hidden="true" />
             Core Values
           </span>
           <h2 className="ca-section-title">What Drives Us Every Day</h2>
@@ -206,7 +205,7 @@ export default function AboutPage() {
             return (
               <div key={value.title} className={`ca-value-card ca-value-${value.color}`}>
                 <div className={`ca-value-icon ca-value-icon-${value.color}`}>
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <h3 className="ca-value-title">{value.title}</h3>
                 <p className="ca-value-desc">{value.description}</p>
@@ -220,7 +219,7 @@ export default function AboutPage() {
       <section className="ca-company-info-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-4 h-4" aria-hidden="true" />
             Get in Touch
           </span>
           <h2 className="ca-section-title">Our Office</h2>
@@ -229,7 +228,7 @@ export default function AboutPage() {
         <div className="ca-company-info-grid">
           <div className="ca-company-info-card">
             <div className="ca-company-info-icon">
-              <MapPin className="w-6 h-6" />
+              <MapPin className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-company-info-label">Address</h3>
             <p className="ca-company-info-value">
@@ -239,7 +238,7 @@ export default function AboutPage() {
           </div>
           <div className="ca-company-info-card">
             <div className="ca-company-info-icon">
-              <Phone className="w-6 h-6" />
+              <Phone className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-company-info-label">Phone</h3>
             <p className="ca-company-info-value">
@@ -248,7 +247,7 @@ export default function AboutPage() {
           </div>
           <div className="ca-company-info-card">
             <div className="ca-company-info-icon">
-              <Building2 className="w-6 h-6" />
+              <Building2 className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-company-info-label">Headquarters</h3>
             <p className="ca-company-info-value">
@@ -262,7 +261,7 @@ export default function AboutPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             We're Hiring
           </div>
           <h2 className="ca-final-cta-title">Join Us in Building the Future</h2>
@@ -273,7 +272,7 @@ export default function AboutPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/careers" className="ca-btn-cta-primary">
               View Open Positions
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/contact" className="ca-btn-cta-secondary">
               Get in Touch

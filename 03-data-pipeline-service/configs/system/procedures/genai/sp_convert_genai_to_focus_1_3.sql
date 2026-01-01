@@ -204,8 +204,8 @@ BEGIN
     'cost_data_standard_1_3' as target_table,
     CURRENT_TIMESTAMP() as executed_at;
 
--- Issue #16-18 FIX: Add error handling with rollback
+-- Issue #16-18 FIX: Add error handling
 EXCEPTION WHEN ERROR THEN
-  ROLLBACK TRANSACTION;
+  -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
   RAISE USING MESSAGE = CONCAT('sp_convert_genai_to_focus_1_3 Failed: ', @@error.message);
 END;

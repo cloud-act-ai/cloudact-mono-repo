@@ -115,29 +115,25 @@ export default function CostOverviewPage() {
         getSaaSSubscriptionCosts(orgSlug, startDate, endDate, saasFilters),
       ])
 
-      if (costsResult.success && costsResult.data) {
-        setTotalSummary(costsResult.data)
-        if (costsResult.data.currency) {
-          setOrgCurrency(costsResult.data.currency)
-        }
-      }
-
-      // Use backend-calculated provider breakdown
-      // When filters are active, always use the filtered providersResult
+      // Check if filters are active
       const hasActiveFilters = filters.providers.length > 0 ||
-        filters.department || filters.project || filters.team
+        filters.department || filters.project || filters.team ||
+        filters.categories.length > 0
+
+      // Store filtered providers for use in summary calculation
+      let filteredProviders: ProviderBreakdown[] = []
 
       if (hasActiveFilters && providersResult.success) {
         // Use filtered provider breakdown when filters are active
-        const validProviders = providersResult.data
+        filteredProviders = providersResult.data
           .filter(p => p.provider && p.provider.trim() !== "" && p.provider !== "Unknown" && p.total_cost > 0)
           .slice(0, 10)
-        setProviders(validProviders)
+        setProviders(filteredProviders)
         // Keep available providers from unfiltered source for filter dropdown
         if (saasResult.success && saasResult.summary?.by_provider && saasResult.summary.by_provider.length > 0) {
           setAvailableProviders(saasResult.summary.by_provider.map(p => p.provider))
         } else {
-          setAvailableProviders(validProviders.map(p => p.provider))
+          setAvailableProviders(filteredProviders.map(p => p.provider))
         }
       } else if (saasResult.success && saasResult.summary?.by_provider && saasResult.summary.by_provider.length > 0) {
         // No filters active - use SaaS summary which includes all provider data
@@ -151,6 +147,7 @@ export default function CostOverviewPage() {
           }))
 
         setProviders(validProviders)
+        filteredProviders = validProviders
         // Extract unique provider names for filter
         setAvailableProviders(validProviders.map(p => p.provider))
       } else if (providersResult.success) {
@@ -159,6 +156,7 @@ export default function CostOverviewPage() {
           .filter(p => p.provider && p.provider.trim() !== "" && p.provider !== "Unknown" && p.total_cost > 0)
           .slice(0, 10)
         setProviders(validProviders)
+        filteredProviders = validProviders
         // Extract unique provider names for filter
         setAvailableProviders(validProviders.map(p => p.provider))
       }
@@ -167,47 +165,113 @@ export default function CostOverviewPage() {
         setSaasSummary(saasResult.summary)
       }
 
-      // Build category breakdown from total costs data using centralized helpers
-      const genaiCost = costsResult.data?.llm?.total_monthly_cost ?? 0
-      const cloudCost = costsResult.data?.cloud?.total_monthly_cost ?? 0
-      const saasCost = costsResult.data?.saas?.total_monthly_cost ?? 0
-      const totalCost = genaiCost + cloudCost + saasCost
+      // When filters are active, compute summary from filtered provider data
+      // This ensures MTD, YTD, charts all reflect the filtered selection
+      if (hasActiveFilters && filteredProviders.length > 0) {
+        // Calculate totals from filtered providers
+        const filteredTotalCost = filteredProviders.reduce((sum, p) => sum + p.total_cost, 0)
+        const filteredRecordCount = filteredProviders.reduce((sum, p) => sum + p.record_count, 0)
 
-      // Calculate unique subscription count from SaaS data
-      let saasSubscriptionCount = 0
-      if (saasResult.success && saasResult.data && saasResult.data.length > 0) {
-        const uniqueResourceIds = new Set(
-          saasResult.data.map(r => r.ResourceId || r.ServiceName || 'unknown')
-        )
-        saasSubscriptionCount = uniqueResourceIds.size
-      }
+        // Calculate date-based metrics for filtered data
+        const today = new Date()
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+        const currentDay = today.getDate()
+        const daysRemaining = daysInMonth - currentDay
+        const dailyRate = currentDay > 0 ? filteredTotalCost / currentDay : 0
+        const forecastMonthly = filteredTotalCost + (dailyRate * daysRemaining)
 
-      if (totalCost > 0) {
-        const categoryList: BreakdownItem[] = [
-          {
-            key: "genai",
-            name: OVERVIEW_CATEGORY_CONFIG.names.genai,
-            value: genaiCost,
-            percentage: calculatePercentage(genaiCost, totalCost),
-            color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
+        // Calculate YTD estimate (filtered total * 12 / 12 months elapsed ratio)
+        const currentMonth = today.getMonth() + 1 // 1-12
+        const ytdEstimate = (filteredTotalCost / currentMonth) * currentMonth // Simplified: just use MTD for YTD when filtered
+
+        // Create filtered total summary for use in metrics
+        // Include mtd_cost and ytd_cost fields for getSafeValue helper compatibility
+        const filteredSummary = {
+          saas: {
+            total_daily_cost: dailyRate,
+            total_monthly_cost: filteredTotalCost,
+            total_annual_cost: filteredTotalCost * 12,
+            mtd_cost: filteredTotalCost,
+            ytd_cost: ytdEstimate,
+            record_count: filteredRecordCount,
+            providers: filteredProviders.map(p => p.provider),
           },
-          {
-            key: "cloud",
-            name: OVERVIEW_CATEGORY_CONFIG.names.cloud,
-            value: cloudCost,
-            percentage: calculatePercentage(cloudCost, totalCost),
-            color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
-          },
-          {
-            key: "saas",
-            name: OVERVIEW_CATEGORY_CONFIG.names.saas,
-            value: saasCost,
-            percentage: calculatePercentage(saasCost, totalCost),
-            count: saasSubscriptionCount,
-            color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
-          },
-        ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
+          cloud: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, mtd_cost: 0, ytd_cost: 0, record_count: 0, providers: [] },
+          llm: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, mtd_cost: 0, ytd_cost: 0, record_count: 0, providers: [] },
+          total: { total_daily_cost: dailyRate, total_monthly_cost: forecastMonthly, total_annual_cost: filteredTotalCost * 12 },
+          date_range: costsResult.data?.date_range || { start: "", end: "" },
+          currency: costsResult.data?.currency || "USD",
+          query_time_ms: 0,
+        } as TotalCostSummary
+        setTotalSummary(filteredSummary)
+        if (filteredSummary.currency) {
+          setOrgCurrency(filteredSummary.currency)
+        }
+
+        // Build category breakdown from filtered providers
+        // Since we're filtering by specific providers, show them as a single category
+        const categoryList: BreakdownItem[] = [{
+          key: "filtered",
+          name: filters.providers.length === 1 ? filters.providers[0] : "Selected Providers",
+          value: filteredTotalCost,
+          percentage: 100,
+          count: filteredRecordCount,
+          color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
+        }]
         setCategories(categoryList)
+      } else {
+        // No filters - use backend data as before
+        if (costsResult.success && costsResult.data) {
+          setTotalSummary(costsResult.data)
+          if (costsResult.data.currency) {
+            setOrgCurrency(costsResult.data.currency)
+          }
+        }
+
+        // Build category breakdown from total costs data using centralized helpers
+        const genaiCost = costsResult.data?.llm?.total_monthly_cost ?? 0
+        const cloudCost = costsResult.data?.cloud?.total_monthly_cost ?? 0
+        const saasCost = costsResult.data?.saas?.total_monthly_cost ?? 0
+        const totalCost = genaiCost + cloudCost + saasCost
+
+        // Calculate unique subscription count from SaaS data
+        let saasSubscriptionCount = 0
+        if (saasResult.success && saasResult.data && saasResult.data.length > 0) {
+          const uniqueResourceIds = new Set(
+            saasResult.data.map(r => r.ResourceId || r.ServiceName || 'unknown')
+          )
+          saasSubscriptionCount = uniqueResourceIds.size
+        }
+
+        if (totalCost > 0) {
+          const categoryList: BreakdownItem[] = [
+            {
+              key: "genai",
+              name: OVERVIEW_CATEGORY_CONFIG.names.genai,
+              value: genaiCost,
+              percentage: calculatePercentage(genaiCost, totalCost),
+              color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
+            },
+            {
+              key: "cloud",
+              name: OVERVIEW_CATEGORY_CONFIG.names.cloud,
+              value: cloudCost,
+              percentage: calculatePercentage(cloudCost, totalCost),
+              color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
+            },
+            {
+              key: "saas",
+              name: OVERVIEW_CATEGORY_CONFIG.names.saas,
+              value: saasCost,
+              percentage: calculatePercentage(saasCost, totalCost),
+              count: saasSubscriptionCount,
+              color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
+            },
+          ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
+          setCategories(categoryList)
+        } else {
+          setCategories([])
+        }
       }
     } catch (err) {
       console.error("Cost overview error:", err)

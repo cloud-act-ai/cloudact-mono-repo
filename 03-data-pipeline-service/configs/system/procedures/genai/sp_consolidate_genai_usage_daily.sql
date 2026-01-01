@@ -224,8 +224,8 @@ BEGIN
     v_rows_inserted as rows_inserted,
     CURRENT_TIMESTAMP() as executed_at;
 
--- Issue #16-18 FIX: Add error handling with rollback
+-- Issue #16-18 FIX: Add error handling
 EXCEPTION WHEN ERROR THEN
-  ROLLBACK TRANSACTION;
+  -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
   RAISE USING MESSAGE = CONCAT('sp_consolidate_genai_usage_daily Failed: ', @@error.message);
 END;

@@ -406,7 +406,7 @@ export default function ContactPage() {
           </div>
           <Link href="/help" className="ca-contact-help-cta">
             Visit Help Center
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
         </div>
       </section>
@@ -421,7 +421,7 @@ export default function ContactPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/pricing" className="ca-btn-cta-secondary">
               View Pricing
