@@ -49,6 +49,13 @@
   --ca-purple-50: #F5F3FF;
   --ca-purple-glow: rgba(139, 92, 246, 0.12);
 
+  /* Indigo - Premium secondary (Ultra-premium accent) */
+  --ca-indigo: #4F46E5;
+  --ca-indigo-light: #6366F1;
+  --ca-indigo-dark: #4338CA;
+  --ca-indigo-50: #EEF2FF;
+  --ca-indigo-glow: rgba(79, 70, 229, 0.15);
+
   /* Neutrals - Refined Gray Scale */
   --ca-white: #FFFFFF;
   --ca-gray-25: #FCFCFD;
@@ -102,6 +109,7 @@
   --shadow-glow-mint: 0 0 50px -15px rgba(52, 211, 153, 0.25);
   --shadow-glow-coral: 0 0 50px -15px rgba(249, 115, 22, 0.25);
   --shadow-glow-blue: 0 0 50px -15px rgba(59, 130, 246, 0.25);
+  --shadow-glow-indigo: 0 0 50px -15px rgba(79, 70, 229, 0.3);
 
   /* Border Radius */
   --radius-sm: 6px;
@@ -237,11 +245,12 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  padding: 12px var(--space-4);
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
   background: var(--ca-mint);
   color: #000000;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
   text-align: center;
   flex-wrap: wrap;
 }
@@ -275,8 +284,9 @@ a:focus-visible {
 @media (max-width: 640px) {
   .ca-announcement-banner {
     flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
+    gap: 6px;
+    padding: 8px var(--space-3);
+    font-size: 0.75rem;
   }
 }
 
@@ -446,6 +456,18 @@ a:focus-visible {
   transform: translateY(-1px);
 }
 
+.ca-btn-indigo {
+  background: var(--ca-indigo);
+  color: var(--ca-white);
+  box-shadow: var(--shadow-sm), var(--shadow-glow-indigo);
+}
+
+.ca-btn-indigo:hover {
+  background: var(--ca-indigo-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md), var(--shadow-glow-indigo);
+}
+
 .ca-btn-lg {
   padding: 16px 32px;
   font-size: 1rem;
@@ -491,10 +513,10 @@ a:focus-visible {
    ============================================ */
 .ca-hero {
   position: relative;
-  min-height: 100vh;
+  min-height: 92vh;
   display: flex;
   flex-direction: column;
-  padding: var(--space-24) var(--space-4) var(--space-16);
+  padding: var(--space-16) var(--space-4) var(--space-12);
   overflow: hidden;
 }
 
@@ -592,8 +614,8 @@ a:focus-visible {
 
 .ca-hero-subtitle {
   max-width: 650px;
-  margin: 0 auto var(--space-10);
-  font-size: 1.25rem;
+  margin: 0 auto var(--space-6);
+  font-size: 1.125rem;
 }
 
 .ca-hero-cta {
@@ -605,9 +627,9 @@ a:focus-visible {
 
 .ca-hero-trust {
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-4);
   justify-content: center;
-  margin-top: var(--space-8);
+  margin-top: var(--space-6);
   flex-wrap: wrap;
 }
 
@@ -623,7 +645,7 @@ a:focus-visible {
    TRUSTED SECTION (Logo Carousel)
    ============================================ */
 .ca-trusted-section {
-  padding: var(--space-16) 0;
+  padding: var(--space-10) 0;
   background: var(--ca-white);
   border-top: 1px solid var(--ca-gray-100);
   border-bottom: 1px solid var(--ca-gray-100);
@@ -634,7 +656,7 @@ a:focus-visible {
    Premium social proof with real metrics
    ============================================ */
 .ca-credibility-section {
-  padding: var(--space-12) 0;
+  padding: var(--space-8) 0;
   background: var(--ca-gray-50);
   border-bottom: 1px solid var(--ca-gray-100);
 }
@@ -2910,10 +2932,10 @@ a:focus-visible {
    ============================================ */
 .ca-hero-premium {
   position: relative;
-  min-height: 90vh;
+  min-height: 88vh;
   display: flex;
   align-items: center;
-  padding: 120px var(--space-6) 80px;
+  padding: 96px var(--space-6) 64px;
   background: var(--ca-white);
   overflow: hidden;
 }
@@ -2921,13 +2943,13 @@ a:focus-visible {
 @media (max-width: 768px) {
   .ca-hero-premium {
     min-height: auto;
-    padding: 100px var(--space-4) 60px;
+    padding: 80px var(--space-4) 48px;
   }
 }
 
 @media (max-width: 640px) {
   .ca-hero-premium {
-    padding: 88px var(--space-4) 48px;
+    padding: 72px var(--space-4) 40px;
   }
 }
 
@@ -2948,7 +2970,7 @@ a:focus-visible {
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-16);
+  gap: var(--space-12);
   align-items: center;
 }
 
@@ -2962,7 +2984,7 @@ a:focus-visible {
 .ca-hero-content-left {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-5);
 }
 
 @media (max-width: 1024px) {
@@ -3015,6 +3037,14 @@ a:focus-visible {
 
 .ca-hero-highlight-saas {
   color: var(--ca-purple);
+}
+
+.ca-hero-highlight-indigo {
+  color: var(--cloudact-indigo, #4F46E5);
+}
+
+.ca-hero-highlight-mint {
+  color: var(--cloudact-mint-text, #0F5132);
 }
 
 /* Subheadline */
@@ -5172,7 +5202,7 @@ a:focus-visible {
    Used on Features, Pricing, Solutions, etc.
    ============================================ */
 .ca-page-hero {
-  padding: var(--space-24) var(--space-6) var(--space-16);
+  padding: var(--space-16) var(--space-6) var(--space-12);
   background: var(--ca-white);
   text-align: center;
   position: relative;
@@ -5181,13 +5211,13 @@ a:focus-visible {
 
 @media (max-width: 768px) {
   .ca-page-hero {
-    padding: var(--space-16) var(--space-4) var(--space-12);
+    padding: var(--space-12) var(--space-4) var(--space-10);
   }
 }
 
 @media (max-width: 640px) {
   .ca-page-hero {
-    padding: var(--space-12) var(--space-4) var(--space-10);
+    padding: var(--space-10) var(--space-4) var(--space-8);
   }
 }
 
@@ -5214,34 +5244,34 @@ a:focus-visible {
 
 .ca-page-hero-title {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(2rem, 5vw, 2.75rem);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
   color: var(--ca-gray-900);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
 
 @media (max-width: 640px) {
   .ca-page-hero-title {
     font-size: clamp(1.75rem, 7vw, 2.25rem);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
   }
 }
 
 .ca-page-hero-subtitle {
-  font-size: 1.125rem;
-  line-height: 1.7;
+  font-size: 1.0625rem;
+  line-height: 1.65;
   color: var(--ca-gray-600);
   max-width: 600px;
-  margin: 0 auto var(--space-8);
+  margin: 0 auto var(--space-6);
 }
 
 @media (max-width: 640px) {
   .ca-page-hero-subtitle {
-    font-size: 1rem;
-    line-height: 1.65;
-    margin-bottom: var(--space-6);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    margin-bottom: var(--space-5);
   }
 }
 
@@ -5310,7 +5340,7 @@ a:focus-visible {
    PILLARS SECTION - Three-column feature cards
    ============================================ */
 .ca-pillars-section {
-  padding: var(--space-20) var(--space-6);
+  padding: var(--space-16) var(--space-6);
   background: var(--ca-gray-50);
 }
 
