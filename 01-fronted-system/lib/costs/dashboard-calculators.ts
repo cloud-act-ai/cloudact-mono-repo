@@ -487,3 +487,272 @@ export function calculatePercentage(value: number, total: number): number {
   }
   return (value / total) * 100
 }
+
+// ============================================
+// Extended Period Date Calculations
+// ============================================
+
+export interface PeriodDateRange {
+  /** Start date (YYYY-MM-DD format for API) */
+  startDate: string
+  /** End date (YYYY-MM-DD format for API) */
+  endDate: string
+  /** Display label */
+  label: string
+  /** Number of days in period */
+  days: number
+}
+
+/**
+ * Format date as YYYY-MM-DD for API calls
+ */
+function formatDateForApi(date: Date): string {
+  return date.toISOString().split("T")[0]
+}
+
+/**
+ * Get yesterday's date range (data is always up to yesterday due to pipeline processing)
+ */
+export function getYesterdayRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  yesterday.setHours(0, 0, 0, 0)
+
+  return {
+    startDate: formatDateForApi(yesterday),
+    endDate: formatDateForApi(yesterday),
+    label: "Yesterday",
+    days: 1,
+  }
+}
+
+/**
+ * Get week to date range (Monday to yesterday)
+ */
+export function getWTDRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  // Find Monday of current week
+  const dayOfWeek = yesterday.getDay()
+  const monday = new Date(yesterday)
+  monday.setDate(yesterday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+  monday.setHours(0, 0, 0, 0)
+
+  const days = Math.ceil((yesterday.getTime() - monday.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  return {
+    startDate: formatDateForApi(monday),
+    endDate: formatDateForApi(yesterday),
+    label: "WTD",
+    days: Math.max(1, days),
+  }
+}
+
+/**
+ * Get last week's full date range (previous Monday to Sunday)
+ */
+export function getLastWeekRange(): PeriodDateRange {
+  const now = new Date()
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  // Find Monday of current week
+  const dayOfWeek = today.getDay()
+  const currentMonday = new Date(today)
+  currentMonday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+
+  // Last week's Monday and Sunday
+  const lastMonday = new Date(currentMonday)
+  lastMonday.setDate(currentMonday.getDate() - 7)
+  const lastSunday = new Date(lastMonday)
+  lastSunday.setDate(lastMonday.getDate() + 6)
+
+  return {
+    startDate: formatDateForApi(lastMonday),
+    endDate: formatDateForApi(lastSunday),
+    label: "Last Week",
+    days: 7,
+  }
+}
+
+/**
+ * Get month to date range (1st of month to yesterday)
+ */
+export function getMTDRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const monthStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1)
+  const days = Math.ceil((yesterday.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  return {
+    startDate: formatDateForApi(monthStart),
+    endDate: formatDateForApi(yesterday),
+    label: "MTD",
+    days: Math.max(1, days),
+  }
+}
+
+/**
+ * Get previous month's full date range
+ */
+export function getPreviousMonthRange(): PeriodDateRange {
+  const now = new Date()
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0) // Last day of prev month
+  const prevMonthStart = new Date(prevMonthEnd.getFullYear(), prevMonthEnd.getMonth(), 1)
+
+  const monthName = prevMonthStart.toLocaleDateString("en-US", { month: "short" })
+
+  return {
+    startDate: formatDateForApi(prevMonthStart),
+    endDate: formatDateForApi(prevMonthEnd),
+    label: monthName,
+    days: prevMonthEnd.getDate(),
+  }
+}
+
+/**
+ * Get last 2 months date range
+ */
+export function getLast2MonthsRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const twoMonthsAgo = new Date(yesterday)
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+  twoMonthsAgo.setDate(1) // Start of that month
+
+  const days = Math.ceil((yesterday.getTime() - twoMonthsAgo.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  return {
+    startDate: formatDateForApi(twoMonthsAgo),
+    endDate: formatDateForApi(yesterday),
+    label: "Last 2 Months",
+    days,
+  }
+}
+
+/**
+ * Get year to date range (Jan 1 to yesterday)
+ */
+export function getYTDRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const yearStart = new Date(yesterday.getFullYear(), 0, 1) // Jan 1
+  const days = Math.ceil((yesterday.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  return {
+    startDate: formatDateForApi(yearStart),
+    endDate: formatDateForApi(yesterday),
+    label: "YTD",
+    days,
+  }
+}
+
+/**
+ * Get fiscal year date range (Apr 1 to Mar 31 by default)
+ * For forecasting, we use the current fiscal year boundaries
+ */
+export function getFiscalYearRange(fiscalStartMonth: number = 4): PeriodDateRange {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1 // 1-12
+
+  // Determine fiscal year start
+  let fyStartYear = currentYear
+  if (currentMonth < fiscalStartMonth) {
+    fyStartYear = currentYear - 1
+  }
+
+  const fyStart = new Date(fyStartYear, fiscalStartMonth - 1, 1)
+  const fyEnd = new Date(fyStartYear + 1, fiscalStartMonth - 1, 0) // Last day before next FY
+
+  const days = Math.ceil((fyEnd.getTime() - fyStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  return {
+    startDate: formatDateForApi(fyStart),
+    endDate: formatDateForApi(fyEnd),
+    label: `FY${fyStartYear + 1}`,
+    days,
+  }
+}
+
+/**
+ * Get fiscal year to date range (FY start to yesterday)
+ */
+export function getFYTDRange(fiscalStartMonth: number = 4): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const currentYear = yesterday.getFullYear()
+  const currentMonth = yesterday.getMonth() + 1 // 1-12
+
+  // Determine fiscal year start
+  let fyStartYear = currentYear
+  if (currentMonth < fiscalStartMonth) {
+    fyStartYear = currentYear - 1
+  }
+
+  const fyStart = new Date(fyStartYear, fiscalStartMonth - 1, 1)
+  const days = Math.ceil((yesterday.getTime() - fyStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  return {
+    startDate: formatDateForApi(fyStart),
+    endDate: formatDateForApi(yesterday),
+    label: "FYTD",
+    days: Math.max(1, days),
+  }
+}
+
+/**
+ * Calculate fiscal year forecast based on FYTD spend and days remaining
+ */
+export function calculateFiscalYearForecast(
+  fytdCost: number,
+  fytdDays: number,
+  fyTotalDays: number
+): number {
+  if (!Number.isFinite(fytdCost) || fytdDays <= 0 || fyTotalDays <= 0) {
+    return 0
+  }
+  const dailyRate = fytdCost / fytdDays
+  return dailyRate * fyTotalDays
+}
+
+/**
+ * Extended period metrics for comprehensive dashboard display
+ */
+export interface ExtendedPeriodMetrics {
+  /** Yesterday's cost */
+  yesterday: number
+  /** Week to date */
+  wtd: number
+  /** Last full week */
+  lastWeek: number
+  /** Month to date */
+  mtd: number
+  /** Previous full month */
+  previousMonth: number
+  /** Last 2 months */
+  last2Months: number
+  /** Year to date */
+  ytd: number
+  /** Fiscal year to date */
+  fytd: number
+  /** Forecast for full fiscal year */
+  fyForecast: number
+  /** Daily average rate */
+  dailyRate: number
+  /** Monthly forecast */
+  monthlyForecast: number
+  /** Data last updated date */
+  dataAsOf: string
+}

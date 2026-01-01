@@ -70,7 +70,7 @@ steps:
         LIMIT 100
     destination:
       dataset_type: "gcp"
-      table: "gcp_billing_daily_raw"
+      table: "cloud_gcp_billing_raw_daily"
       write_mode: "append"
       schema_template: "billing_cost"
 

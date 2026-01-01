@@ -354,7 +354,7 @@ Write to: acme_prod.*           Write to: guru_prod.*
 │                                                                         │
 │  6. DATA WRITE                                                         │
 │     Backend: Write to org's dataset                                    │
-│     INSERT INTO acme_prod.gcp_billing_daily_raw (...)                  │
+│     INSERT INTO acme_prod.cloud_gcp_billing_raw_daily (...)            │
 │     ↓                                                                   │
 │                                                                         │
 │  7. LOGGING                                                            │

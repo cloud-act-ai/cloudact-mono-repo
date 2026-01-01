@@ -8,11 +8,14 @@ Reuses existing cost read service for data aggregation.
 import json
 import uuid
 import logging
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+import base64
+from typing import Optional, List, Dict, Any, Set
+from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
+from croniter import croniter
 
+from src.core.security.kms_encryption import encrypt_value, decrypt_value
 from .models import (
     ChannelType,
     RuleCategory,
@@ -65,6 +68,92 @@ class NotificationSettingsService:
         self.rules_table = f"{project_id}.{dataset_id}.org_notification_rules"
         self.summaries_table = f"{project_id}.{dataset_id}.org_notification_summaries"
         self.history_table = f"{project_id}.{dataset_id}.org_notification_history"
+
+    # ==========================================================================
+    # Encryption Helpers
+    # ==========================================================================
+
+    def _encrypt_credential(self, value: Optional[str]) -> Optional[str]:
+        """
+        Encrypt a credential value using KMS.
+
+        ERR-001 FIX: Never return plaintext on encryption failure.
+        Raises exception to prevent storing unencrypted credentials.
+        """
+        if not value:
+            return None
+        try:
+            encrypted_bytes = encrypt_value(value)
+            return base64.b64encode(encrypted_bytes).decode('utf-8')
+        except Exception as e:
+            logger.error(f"KMS encryption failed - credential NOT stored: {e}")
+            raise ValueError(f"Failed to encrypt credential: {str(e)}") from e
+
+    def _decrypt_credential(self, value: Optional[str]) -> Optional[str]:
+        """
+        Decrypt a credential value using KMS.
+
+        SEC-004 FIX: Return None on failure instead of encrypted blob.
+        Caller must handle None gracefully.
+        """
+        if not value:
+            return None
+        try:
+            encrypted_bytes = base64.b64decode(value.encode('utf-8'))
+            return decrypt_value(encrypted_bytes)
+        except Exception as e:
+            logger.error(f"KMS decryption failed - credential unavailable: {e}")
+            return None  # Return None, not the encrypted value
+
+    # ==========================================================================
+    # Cron Helpers
+    # ==========================================================================
+
+    def _calculate_next_scheduled(
+        self, cron_expression: str, schedule_timezone: str = "UTC"
+    ) -> Optional[datetime]:
+        """Calculate the next scheduled time from a cron expression."""
+        try:
+            import pytz
+            tz = pytz.timezone(schedule_timezone)
+            now = datetime.now(tz)
+            cron = croniter(cron_expression, now)
+            next_time = cron.get_next(datetime)
+            return next_time.astimezone(timezone.utc).replace(tzinfo=None)
+        except Exception as e:
+            logger.warning(f"Failed to calculate next scheduled time: {e}")
+            return None
+
+    # ==========================================================================
+    # Validation Helpers
+    # ==========================================================================
+
+    async def _get_channel_ids(self, org_slug: str) -> Set[str]:
+        """Get all channel IDs for an organization."""
+        channels = await self.list_channels(org_slug)
+        return {c.channel_id for c in channels}
+
+    async def _validate_channel_ids(
+        self, org_slug: str, channel_ids: List[str]
+    ) -> List[str]:
+        """Validate that all channel IDs exist. Returns list of missing IDs."""
+        if not channel_ids:
+            return []
+        existing_ids = await self._get_channel_ids(org_slug)
+        return [cid for cid in channel_ids if cid not in existing_ids]
+
+    async def _get_rules_using_channel(
+        self, org_slug: str, channel_id: str
+    ) -> List[str]:
+        """Get rule IDs that reference a channel."""
+        rules = await self.list_rules(org_slug)
+        using_channel = []
+        for rule in rules:
+            if channel_id in (rule.notify_channel_ids or []):
+                using_channel.append(rule.rule_id)
+            elif channel_id in (rule.escalate_to_channel_ids or []):
+                using_channel.append(rule.rule_id)
+        return using_channel
 
     # ==========================================================================
     # Channel Operations
@@ -134,13 +223,42 @@ class NotificationSettingsService:
             logger.error(f"Failed to get channel {channel_id}: {e}")
             raise
 
+    async def _check_channel_exists(self, org_slug: str, name: str, channel_type: ChannelType) -> bool:
+        """
+        IDEM-001 FIX: Check if channel with same name and type already exists.
+        """
+        query = f"""
+            SELECT COUNT(*) as cnt
+            FROM `{self.channels_table}`
+            WHERE org_slug = @org_slug AND name = @name AND channel_type = @channel_type
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("name", "STRING", name),
+            bigquery.ScalarQueryParameter("channel_type", "STRING", channel_type.value),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        results = list(self.client.query(query, job_config=job_config).result())
+        return results[0].cnt > 0 if results else False
+
     async def create_channel(
         self,
         org_slug: str,
         channel: NotificationChannelCreate,
         created_by: Optional[str] = None,
     ) -> NotificationChannel:
-        """Create a new notification channel."""
+        """
+        Create a new notification channel.
+
+        IDEM-001 FIX: Check for duplicate before insert.
+        """
+        # Check for existing channel with same name and type
+        if await self._check_channel_exists(org_slug, channel.name, channel.channel_type):
+            raise ValueError(
+                f"Channel with name '{channel.name}' and type '{channel.channel_type.value}' "
+                f"already exists for organization '{org_slug}'"
+            )
+
         channel_id = str(uuid.uuid4())
         now = datetime.utcnow()
 
@@ -158,12 +276,14 @@ class NotificationSettingsService:
             "email_recipients": channel.email_recipients or [],
             "email_cc_recipients": channel.email_cc_recipients or [],
             "email_subject_prefix": channel.email_subject_prefix,
-            "slack_webhook_url_encrypted": channel.slack_webhook_url,  # TODO: Encrypt
+            "slack_webhook_url_encrypted": self._encrypt_credential(channel.slack_webhook_url),
             "slack_channel": channel.slack_channel,
             "slack_mention_users": channel.slack_mention_users or [],
             "slack_mention_channel": channel.slack_mention_channel,
-            "webhook_url_encrypted": channel.webhook_url,  # TODO: Encrypt
-            "webhook_headers_encrypted": json.dumps(channel.webhook_headers) if channel.webhook_headers else None,
+            "webhook_url_encrypted": self._encrypt_credential(channel.webhook_url),
+            "webhook_headers_encrypted": self._encrypt_credential(
+                json.dumps(channel.webhook_headers) if channel.webhook_headers else None
+            ),
             "webhook_method": channel.webhook_method,
             "created_at": now.isoformat(),
             "updated_at": None,
@@ -202,14 +322,17 @@ class NotificationSettingsService:
         for field, value in update_data.items():
             if value is not None:
                 if field == "slack_webhook_url":
+                    encrypted = self._encrypt_credential(value)
                     updates.append("slack_webhook_url_encrypted = @slack_webhook_url")
-                    params.append(bigquery.ScalarQueryParameter("slack_webhook_url", "STRING", value))
+                    params.append(bigquery.ScalarQueryParameter("slack_webhook_url", "STRING", encrypted))
                 elif field == "webhook_url":
+                    encrypted = self._encrypt_credential(value)
                     updates.append("webhook_url_encrypted = @webhook_url")
-                    params.append(bigquery.ScalarQueryParameter("webhook_url", "STRING", value))
+                    params.append(bigquery.ScalarQueryParameter("webhook_url", "STRING", encrypted))
                 elif field == "webhook_headers":
+                    encrypted = self._encrypt_credential(json.dumps(value))
                     updates.append("webhook_headers_encrypted = @webhook_headers")
-                    params.append(bigquery.ScalarQueryParameter("webhook_headers", "STRING", json.dumps(value)))
+                    params.append(bigquery.ScalarQueryParameter("webhook_headers", "STRING", encrypted))
                 elif isinstance(value, list):
                     updates.append(f"{field} = @{field}")
                     params.append(bigquery.ArrayQueryParameter(field, "STRING", value))
@@ -240,8 +363,44 @@ class NotificationSettingsService:
             logger.error(f"Failed to update channel {channel_id}: {e}")
             raise
 
-    async def delete_channel(self, org_slug: str, channel_id: str) -> bool:
-        """Delete a notification channel."""
+    async def delete_channel(
+        self, org_slug: str, channel_id: str, force: bool = False
+    ) -> bool:
+        """
+        Delete a notification channel.
+
+        Args:
+            org_slug: Organization slug
+            channel_id: Channel ID to delete
+            force: If True, remove channel from rules instead of blocking
+
+        Raises:
+            ValueError: If channel is referenced by rules and force is False
+        """
+        # Check for rules using this channel
+        rules_using = await self._get_rules_using_channel(org_slug, channel_id)
+        if rules_using and not force:
+            raise ValueError(
+                f"Cannot delete channel: referenced by {len(rules_using)} rule(s). "
+                f"Rule IDs: {', '.join(rules_using[:5])}{'...' if len(rules_using) > 5 else ''}"
+            )
+
+        # If force, remove channel from rules first
+        if rules_using and force:
+            for rule_id in rules_using:
+                rule = await self.get_rule(org_slug, rule_id)
+                if rule:
+                    new_notify = [cid for cid in (rule.notify_channel_ids or []) if cid != channel_id]
+                    new_escalate = [cid for cid in (rule.escalate_to_channel_ids or []) if cid != channel_id]
+                    await self.update_rule(
+                        org_slug,
+                        rule_id,
+                        NotificationRuleUpdate(
+                            notify_channel_ids=new_notify,
+                            escalate_to_channel_ids=new_escalate,
+                        ),
+                    )
+
         query = f"""
             DELETE FROM `{self.channels_table}`
             WHERE org_slug = @org_slug AND channel_id = @channel_id
@@ -346,13 +505,54 @@ class NotificationSettingsService:
             logger.error(f"Failed to get rule {rule_id}: {e}")
             raise
 
+    async def _check_rule_exists(self, org_slug: str, name: str) -> bool:
+        """IDEM-002 FIX: Check if rule with same name already exists."""
+        query = f"""
+            SELECT COUNT(*) as cnt
+            FROM `{self.rules_table}`
+            WHERE org_slug = @org_slug AND name = @name
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("name", "STRING", name),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        results = list(self.client.query(query, job_config=job_config).result())
+        return results[0].cnt > 0 if results else False
+
     async def create_rule(
         self,
         org_slug: str,
         rule: NotificationRuleCreate,
         created_by: Optional[str] = None,
     ) -> NotificationRule:
-        """Create a new notification rule."""
+        """
+        Create a new notification rule.
+
+        IDEM-002 FIX: Check for duplicate before insert.
+
+        Raises:
+            ValueError: If any channel IDs don't exist or rule name is duplicate
+        """
+        # Check for existing rule with same name
+        if await self._check_rule_exists(org_slug, rule.name):
+            raise ValueError(
+                f"Rule with name '{rule.name}' already exists for organization '{org_slug}'"
+            )
+
+        # Validate channel IDs exist
+        all_channel_ids = list(rule.notify_channel_ids or [])
+        if rule.escalate_to_channel_ids:
+            all_channel_ids.extend(rule.escalate_to_channel_ids)
+
+        if all_channel_ids:
+            missing = await self._validate_channel_ids(org_slug, all_channel_ids)
+            if missing:
+                raise ValueError(
+                    f"Invalid channel IDs: {', '.join(missing)}. "
+                    "Channels must exist before being assigned to rules."
+                )
+
         rule_id = str(uuid.uuid4())
         now = datetime.utcnow()
 
@@ -552,13 +752,38 @@ class NotificationSettingsService:
             logger.error(f"Failed to get summary {summary_id}: {e}")
             raise
 
+    async def _check_summary_exists(self, org_slug: str, name: str) -> bool:
+        """IDEM-003 FIX: Check if summary with same name already exists."""
+        query = f"""
+            SELECT COUNT(*) as cnt
+            FROM `{self.summaries_table}`
+            WHERE org_slug = @org_slug AND name = @name
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("name", "STRING", name),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        results = list(self.client.query(query, job_config=job_config).result())
+        return results[0].cnt > 0 if results else False
+
     async def create_summary(
         self,
         org_slug: str,
         summary: NotificationSummaryCreate,
         created_by: Optional[str] = None,
     ) -> NotificationSummary:
-        """Create a new notification summary."""
+        """
+        Create a new notification summary.
+
+        IDEM-003 FIX: Check for duplicate before insert.
+        """
+        # Check for existing summary with same name
+        if await self._check_summary_exists(org_slug, summary.name):
+            raise ValueError(
+                f"Summary with name '{summary.name}' already exists for organization '{org_slug}'"
+            )
+
         summary_id = str(uuid.uuid4())
         now = datetime.utcnow()
 
@@ -577,7 +802,9 @@ class NotificationSettingsService:
             "provider_filter": summary.provider_filter or [],
             "hierarchy_filter": json.dumps(summary.hierarchy_filter) if summary.hierarchy_filter else None,
             "last_sent_at": None,
-            "next_scheduled_at": None,  # TODO: Calculate from cron
+            "next_scheduled_at": self._calculate_next_scheduled(
+                summary.schedule_cron, summary.schedule_timezone
+            ).isoformat() if summary.schedule_cron and summary.is_active else None,
             "created_at": now.isoformat(),
             "updated_at": None,
             "created_by": created_by,

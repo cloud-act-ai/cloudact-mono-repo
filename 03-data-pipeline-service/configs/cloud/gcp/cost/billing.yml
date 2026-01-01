@@ -2,7 +2,7 @@
 # Extracts billing data from GCP billing export, stores in BigQuery
 #
 # Schedule: Daily at 04:00 UTC
-# Tables: gcp_billing_daily_raw
+# Tables: cloud_gcp_billing_raw_daily
 #
 # Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/cost/billing
 #
@@ -82,13 +82,12 @@ steps:
           TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(system_labels))) AS system_labels_json
         FROM `{source_billing_table}`
         WHERE DATE(usage_start_time) = '{date}'
-        LIMIT 1000
 
     # Destination: Always CloudAct project + org dataset ({org_slug}_{env})
     # Processor enforces standard destination via settings.get_org_dataset_name()
     destination:
       dataset_type: "gcp"
-      table: "gcp_billing_daily_raw"
+      table: "cloud_gcp_billing_raw_daily"
       write_mode: "append"
       schema_template: "billing_cost"
       table_config:

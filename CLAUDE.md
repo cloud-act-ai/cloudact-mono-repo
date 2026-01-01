@@ -121,7 +121,7 @@ See `01-fronted-system/CLAUDE.md` → "Layout System" section for complete desig
 CA_ROOT_API_KEY (system admin)
     │
     ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (14 meta tables)
+    │   └── One-time system initialization (20 meta tables)
     │
     └── Creates → Org API Keys (per-organization)
                     ├── Integrations: POST /api/v1/integrations/{org}/{provider}/setup
@@ -137,7 +137,7 @@ CA_ROOT_API_KEY (system admin)
 ## Key Endpoints
 
 ### api-service (8000)
-- `POST /api/v1/admin/bootstrap` - Initialize system (15 meta tables)
+- `POST /api/v1/admin/bootstrap` - Initialize system (20 meta tables)
 - `POST /api/v1/organizations/onboard` - Create org + API key + 6 tables
 - `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration
 - `GET/POST /api/v1/subscriptions/{org}/providers/*/plans` - SaaS CRUD
@@ -285,11 +285,17 @@ pkill -f "uvicorn.*8001"
 
 **Structure:** Org → Department → Project → Team (strict parent-child for cost allocation)
 
-**Tables per org:**
-- `org_hierarchy` - All hierarchy entities with version history
+**Data Architecture:**
+```
+WRITES → organizations.org_hierarchy (central table in bootstrap dataset)
+READS  → {org_slug}_prod.x_org_hierarchy (per-org materialized view)
+```
+
+- Central table in `organizations` dataset for single source of truth
+- Per-org view `x_org_hierarchy` for fast reads (auto-refreshed every 15 min)
 - Subscription plans include `hierarchy_dept_id/name`, `hierarchy_project_id/name`, `hierarchy_team_id/name`
 
 **Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with hierarchy extension fields)
 
 ---
-**Last Updated:** 2025-12-29
+**Last Updated:** 2026-01-01

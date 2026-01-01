@@ -1,34 +1,99 @@
 # Azure Cost Management Pipeline
 # Extracts billing data from Azure Cost Management exports
-pipeline_name: "{pipeline_id}"
+#
+# Schedule: Daily at 05:30 UTC
+# Tables: cloud_azure_billing_raw_daily
+#
+# Usage: POST /api/v1/pipelines/run/{org_slug}/azure/cost/billing
+#
+# PREREQUISITES:
+# 1. Organization must have a valid AZURE integration configured
+# 2. Azure Service Principal must have Cost Management Reader access
+
+pipeline_id: "{org_slug}-azure-billing"
+name: "Azure Billing Sync"
 description: "Extract Azure Cost Management data for {org_slug}"
+version: "1.0.0"
+
+# Schedule configuration (cron expression: daily at 05:30 UTC)
+schedule: "30 5 * * *"
 
 variables:
   org_slug: "{org_slug}"
   provider: "azure"
   domain: "cost"
-  template_name: "{template_name}"
 
 steps:
-  - id: authenticate
-    name: "Authenticate with Azure"
-    ps_type: cloud.azure.authenticator
+  # Step 1: Authenticate with Azure
+  - step_id: "authenticate"
+    ps_type: "cloud.azure.authenticator"
+    description: "Authenticate with Azure using Service Principal"
     config:
       provider: "AZURE"
+      require_valid: true
+      context_key: "azure_credentials"
+    on_failure: "abort"
 
-  - id: extract_costs
-    name: "Extract Cost Data"
-    ps_type: cloud.azure.cost_extractor
-    depends_on: [authenticate]
+  # Step 2: Extract Cost Data from Azure Cost Management API
+  - step_id: "extract_costs"
+    ps_type: "cloud.azure.cost_extractor"
+    description: "Extract Azure Cost Management data for date range"
+    depends_on:
+      - "authenticate"
+    timeout_minutes: 30
     config:
       date_filter: "{date}"
       granularity: "Daily"
+      # Azure Cost Management API options
+      export_type: "ActualCost"
+      time_period: "Custom"
 
-  - id: load_to_bq
-    name: "Load to BigQuery"
-    ps_type: generic.bq_loader
-    depends_on: [extract_costs]
+  # Step 3: Transform and Load to BigQuery
+  - step_id: "load_to_bq"
+    ps_type: "generic.bq_loader"
+    description: "Load Azure cost data to BigQuery"
+    depends_on:
+      - "extract_costs"
+    timeout_minutes: 20
     config:
-      destination_table: "{org_slug}_prod.azure_billing_cost_daily"
+      destination_table: "{org_slug}_prod.cloud_azure_billing_raw_daily"
       write_disposition: "WRITE_APPEND"
       partition_field: "usage_date"
+      schema_template: "azure_billing_cost"
+      table_config:
+        time_partitioning:
+          field: "usage_date"
+          type: "DAY"
+          expiration_days: 730
+        clustering_fields:
+          - "subscription_id"
+          - "service_name"
+          - "resource_group"
+          - "resource_location"
+
+  # Step 4: Notification on failure
+  - step_id: "notify_on_failure"
+    ps_type: "notify_systems.email_notification"
+    description: "Send failure notification"
+    trigger: "on_failure"
+    config:
+      to_emails:
+        - "{admin_email}"
+        - "data-ops@example.com"
+      subject: "[ALERT] Azure Billing Pipeline Failed - {org_slug}"
+      message: |
+        ALERT: The Azure billing pipeline has failed!
+
+        Organization: {org_slug}
+        Pipeline: {pipeline_id}
+        Run Date: {date}
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - billing
+  - azure
+  - cost
+  - daily
+category: "cloud_cost"

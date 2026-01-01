@@ -122,15 +122,127 @@ curl -X POST "http://localhost:8001/api/v1/migrations/{name}/execute?dry_run=tru
 
 **Files:** `configs/system/procedures/{domain}/*.sql`
 
-## Pipeline Notifications
+## Notification System (src/core/notifications/)
 
-Auto-sends email/Slack on failure. Config: `configs/notifications/config.json`
+Multi-provider notification system for pipeline alerts, cost warnings, and scheduled summaries.
+
+### Architecture
+
+```
+Pipeline Event → NotificationService → Provider Selection → Email/Slack
+                        ↓
+                 Config Hierarchy:
+                 1. Org-specific: configs/{org_slug}/notifications.json
+                 2. Root fallback: configs/notifications/config.json
+```
+
+### Providers
+
+| Provider | Class | Config Key | Features |
+|----------|-------|------------|----------|
+| Email | `EmailNotificationProvider` | `email_config` | SMTP, HTML templates |
+| Slack | `SlackNotificationProvider` | `slack_config` | Webhook, rich formatting |
+
+### Notification Events
+
+| Event | When Triggered | Default Severity |
+|-------|----------------|------------------|
+| `PIPELINE_STARTED` | Pipeline begins | INFO |
+| `PIPELINE_SUCCESS` | Pipeline completes | INFO |
+| `PIPELINE_FAILURE` | Pipeline fails | ERROR |
+| `STEP_FAILURE` | Individual step fails | WARNING |
+| `COST_THRESHOLD` | Cost exceeds threshold | WARNING/CRITICAL |
+| `ANOMALY_DETECTED` | Unusual pattern found | WARNING |
+| `SUMMARY_SCHEDULED` | Digest time reached | INFO |
+
+### Configuration
+
+Root config: `configs/notifications/config.json`
+
+```json
+{
+  "enabled": true,
+  "timeout_seconds": 30,
+  "email_config": {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "use_tls": true
+  },
+  "slack_config": {
+    "default_channel": "#alerts"
+  },
+  "event_triggers": {
+    "pipeline_failure": {
+      "enabled": true,
+      "providers": ["email", "slack"],
+      "cooldown_seconds": 300
+    }
+  },
+  "retry_config": {
+    "max_attempts": 3,
+    "initial_delay_seconds": 1,
+    "max_delay_seconds": 30,
+    "exponential_backoff": true
+  }
+}
+```
+
+### Environment Variables
 
 ```bash
+# Email (SMTP)
 export SMTP_USERNAME=your-email@gmail.com
 export SMTP_PASSWORD=your-gmail-app-password
 export DEFAULT_ADMIN_EMAIL=admin@cloudact.io
+
+# Slack
+export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ```
+
+### Usage
+
+```python
+from src.core.notifications import (
+    get_notification_service,
+    NotificationEvent,
+    NotificationSeverity
+)
+
+service = get_notification_service()
+
+# Send notification
+await service.notify(
+    org_slug="acme_corp",
+    event=NotificationEvent.PIPELINE_FAILURE,
+    severity=NotificationSeverity.ERROR,
+    title="Pipeline Failed",
+    message="Pipeline execution failed with error",
+    pipeline_id="daily_ingestion",
+    pipeline_logging_id="abc123"
+)
+
+# Convenience method
+await service.notify_pipeline_failure(
+    org_slug="acme_corp",
+    pipeline_id="daily_ingestion",
+    error_message="Connection timeout"
+)
+```
+
+### Service Pattern (Read/Write Split)
+
+| Operation | Location | Service |
+|-----------|----------|---------|
+| **Settings CRUD** | API Service (8000) | `notification_crud/` |
+| **Dashboard Reads** | API Service (8000) | `notification_read/` |
+| **Delivery/Sending** | Pipeline Service (8001) | `notifications/` |
+| **History Writes** | Pipeline Service (8001) | Writes to `org_notification_history` |
+
+**Flow:**
+1. API Service stores channel/rule/summary settings
+2. Pipeline Service reads settings, sends notifications
+3. Pipeline Service writes delivery history
+4. API Service reads history via Polars for dashboard
 
 ## Project Structure
 
@@ -144,9 +256,14 @@ export DEFAULT_ADMIN_EMAIL=admin@cloudact.io
 │   ├── pipeline/            # AsyncPipelineExecutor
 │   ├── engine/              # BigQuery, API clients
 │   ├── security/            # KMS encryption
-│   └── scheduler/           # Queue, retry, state
-├── configs/                 # SINGLE SOURCE OF TRUTH
+│   ├── scheduler/           # Queue, retry, state
+│   └── notifications/       # Email/Slack providers
+│       ├── providers/       # EmailNotificationProvider, SlackNotificationProvider
+│       ├── service.py       # NotificationService
+│       └── config.py        # Config models
+├── configs/
 │   ├── {provider}/{domain}/*.yml
+│   ├── notifications/       # Root notification config
 │   └── system/procedures/*.sql
 └── tests/
 ```
@@ -162,4 +279,4 @@ export DEFAULT_ADMIN_EMAIL=admin@cloudact.io
 | BQ Table | snake_case | `openai_usage_daily_raw` |
 
 ---
-**Last Updated:** 2025-12-22
+**Last Updated:** 2026-01-01

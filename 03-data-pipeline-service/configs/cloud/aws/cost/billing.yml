@@ -2,7 +2,7 @@
 # Extracts billing data from AWS CUR exports
 #
 # Schedule: Daily at 05:00 UTC
-# Tables: aws_billing_cost_daily
+# Tables: cloud_aws_billing_raw_daily
 #
 # Usage: POST /api/v1/pipelines/run/{org_slug}/cloud/aws/cost/billing
 #
@@ -61,7 +61,7 @@ steps:
       - "extract_cur"
     timeout_minutes: 20
     config:
-      destination_table: "{org_slug}_prod.aws_billing_cost_daily"
+      destination_table: "{org_slug}_prod.cloud_aws_billing_raw_daily"
       write_disposition: "WRITE_APPEND"
       partition_field: "usage_date"
       schema_template: "aws_billing_cost"

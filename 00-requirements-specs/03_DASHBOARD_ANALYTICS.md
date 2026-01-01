@@ -34,8 +34,8 @@
 
 | Storage | Source | What |
 |---------|--------|------|
-| BigQuery | `gcp_billing_costs` | GCP cost data |
-| BigQuery | `gcp_billing_summary` | Aggregated GCP costs |
+| BigQuery | `cloud_gcp_billing_raw_daily` | GCP cost data |
+| BigQuery | `cost_data_standard_1_3` | FOCUS 1.3 unified costs |
 | BigQuery | `saas_subscription_plans` | SaaS subscription costs |
 | BigQuery | `llm_usage_daily` | LLM usage (future) |
 | API Service | Aggregation queries | Real-time calculations |
@@ -48,7 +48,7 @@
 |-------|---------|-------------|
 | `/{org}/dashboard` | Main overview | All sources |
 | `/{org}/analytics` | Detailed analytics | All sources |
-| `/{org}/analytics/gcp` | GCP cost breakdown | gcp_billing_costs |
+| `/{org}/analytics/gcp` | GCP cost breakdown | cloud_gcp_billing_raw_daily |
 | `/{org}/analytics/llm` | LLM usage analytics | llm_usage_daily |
 | `/{org}/subscriptions` | SaaS cost overview | saas_subscription_plans |
 
@@ -155,8 +155,8 @@ Frontend (3000)              Pipeline Service (8001)              BigQuery
      |<-----------------------------|                              |
 
 Data Sources:
-- gcp_billing_costs: GCP cost line items
-- gcp_billing_summary: Pre-aggregated costs
+- cloud_gcp_billing_raw_daily: GCP cost line items
+- cost_data_standard_1_3: FOCUS 1.3 unified costs
 - saas_subscription_plans: SaaS subscription data
 - pipeline_runs: Recent pipeline executions
 ```

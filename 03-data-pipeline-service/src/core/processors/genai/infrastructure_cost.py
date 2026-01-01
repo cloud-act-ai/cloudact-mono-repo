@@ -430,15 +430,15 @@ class InfrastructureCostProcessor:
             self.logger.warning(f"Missing pricing check failed: {e}")
 
         # Issue #5: Check for orphan hierarchy allocations (warning only)
+        # Use x_org_hierarchy view (pre-filtered by org_slug) for faster queries
         hierarchy_check_query = f"""
             SELECT DISTINCT
                 u.hierarchy_dept_id,
                 u.hierarchy_project_id,
                 u.hierarchy_team_id
             FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw` u
-            LEFT JOIN `{project_id}.organizations.org_hierarchy` h
-                ON h.org_slug = u.org_slug
-                AND (
+            LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
+                ON (
                     (h.entity_type = 'department' AND h.entity_id = u.hierarchy_dept_id) OR
                     (h.entity_type = 'project' AND h.entity_id = u.hierarchy_project_id) OR
                     (h.entity_type = 'team' AND h.entity_id = u.hierarchy_team_id)
@@ -459,7 +459,7 @@ class InfrastructureCostProcessor:
                 self.logger.warning(
                     f"Issue #5: Orphan hierarchy allocation detected - "
                     f"dept_id={dept_id}, project_id={project_id_val}, team_id={team_id}. "
-                    f"These IDs may not exist in org_hierarchy table."
+                    f"These IDs may not exist in x_org_hierarchy view."
                 )
         except Exception as e:
             # Don't fail on hierarchy check errors - just warn

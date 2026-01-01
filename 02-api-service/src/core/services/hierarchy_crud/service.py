@@ -69,7 +69,9 @@ def validate_entity_id(entity_id: str) -> str:
 # ==============================================================================
 
 ORG_HIERARCHY_TABLE = "org_hierarchy"
+ORG_HIERARCHY_VIEW = "x_org_hierarchy"  # Materialized view in org dataset for fast reads
 SAAS_SUBSCRIPTION_PLANS_TABLE = "saas_subscription_plans"
+CENTRAL_DATASET = "organizations"  # org_hierarchy is in central dataset for consistency
 
 
 # ==============================================================================
@@ -89,9 +91,64 @@ class HierarchyService:
         return settings.get_org_dataset_name(org_slug)
 
     def _get_table_ref(self, org_slug: str, table_name: str) -> str:
-        """Get fully qualified table reference."""
+        """Get fully qualified table reference for org-specific tables."""
         dataset_id = self._get_dataset_id(org_slug)
         return f"{self.project_id}.{dataset_id}.{table_name}"
+
+    def _get_central_table_ref(self, table_name: str) -> str:
+        """Get fully qualified table reference for central dataset tables."""
+        return f"{self.project_id}.{CENTRAL_DATASET}.{table_name}"
+
+    def _get_org_view_ref(self, org_slug: str, view_name: str) -> str:
+        """Get fully qualified view reference in org-specific dataset."""
+        dataset_id = self._get_dataset_id(org_slug)
+        return f"{self.project_id}.{dataset_id}.{view_name}"
+
+    def _get_hierarchy_read_ref(self, org_slug: str) -> Tuple[str, bool]:
+        """
+        Get the best table/view reference for reading hierarchy data.
+
+        Returns:
+            Tuple of (table_ref, uses_view) - table_ref is the fully qualified reference,
+            uses_view indicates if it's the org-specific view (no org_slug filter needed)
+            or the central table (requires org_slug filter).
+
+        The org-specific view x_org_hierarchy is preferred as it's:
+        - Pre-filtered by org_slug for faster queries
+        - Materialized for better performance
+        - Provides multi-tenancy isolation at view level
+
+        Falls back to central table if view doesn't exist (e.g., during onboarding).
+        Raises BigQueryResourceNotFoundError if neither view nor central table exist.
+        """
+        view_ref = self._get_org_view_ref(org_slug, ORG_HIERARCHY_VIEW)
+
+        # Check if view exists
+        try:
+            self.bq_client.client.get_table(view_ref)
+            return (view_ref, True)
+        except google.api_core.exceptions.NotFound:
+            # View doesn't exist, fall back to central table
+            logger.debug(f"View {view_ref} not found, falling back to central table")
+            central_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+
+            # Verify central table exists - throw error if it doesn't
+            try:
+                self.bq_client.client.get_table(central_ref)
+                return (central_ref, False)
+            except google.api_core.exceptions.NotFound:
+                raise BigQueryResourceNotFoundError(
+                    f"Neither x_org_hierarchy view nor org_hierarchy central table found. "
+                    f"Ensure bootstrap has been run and org dataset is onboarded."
+                )
+
+    def _insert_to_central_table(self, table_name: str, rows: List[Dict[str, Any]]) -> None:
+        """Insert rows into a central dataset table using streaming insert."""
+        table_id = self._get_central_table_ref(table_name)
+        # Use direct BigQuery client for central dataset inserts
+        errors = self.bq_client.client.insert_rows_json(table_id, rows)
+        if errors:
+            raise ValueError(f"Failed to insert rows into {table_id}: {errors}")
 
     # ==========================================================================
     # Read Operations
@@ -103,15 +160,29 @@ class HierarchyService:
         entity_type: Optional[HierarchyEntityType] = None,
         include_inactive: bool = False
     ) -> HierarchyListResponse:
-        """Get all hierarchy entities for an organization."""
-        org_slug = validate_org_slug(org_slug)
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
+        """Get all hierarchy entities for an organization.
 
-        query = f"""
-        SELECT *
-        FROM `{table_ref}`
-        WHERE end_date IS NULL
+        Reads from x_org_hierarchy view (preferred) or falls back to central table.
+        The view is pre-filtered by org_slug and end_date IS NULL.
         """
+        org_slug = validate_org_slug(org_slug)
+        table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
+
+        # Build query - view is already filtered by org_slug and end_date
+        if uses_view:
+            query = f"""
+            SELECT *
+            FROM `{table_ref}`
+            WHERE 1=1
+            """
+        else:
+            # Fallback to central table - needs explicit filters
+            query = f"""
+            SELECT *
+            FROM `{table_ref}`
+            WHERE org_slug = '{org_slug}'
+              AND end_date IS NULL
+            """
 
         if not include_inactive:
             query += " AND is_active = TRUE"
@@ -168,19 +239,34 @@ class HierarchyService:
         entity_type: HierarchyEntityType,
         entity_id: str
     ) -> Optional[HierarchyEntityResponse]:
-        """Get a specific hierarchy entity."""
+        """Get a specific hierarchy entity.
+
+        Reads from x_org_hierarchy view (preferred) or falls back to central table.
+        """
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
+        table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
-        query = f"""
-        SELECT *
-        FROM `{table_ref}`
-        WHERE entity_type = '{entity_type.value}'
-          AND entity_id = '{entity_id}'
-          AND end_date IS NULL
-        LIMIT 1
-        """
+        # Build query - view is already filtered by org_slug and end_date
+        if uses_view:
+            query = f"""
+            SELECT *
+            FROM `{table_ref}`
+            WHERE entity_type = '{entity_type.value}'
+              AND entity_id = '{entity_id}'
+            LIMIT 1
+            """
+        else:
+            # Fallback to central table - needs explicit filters
+            query = f"""
+            SELECT *
+            FROM `{table_ref}`
+            WHERE org_slug = '{org_slug}'
+              AND entity_type = '{entity_type.value}'
+              AND entity_id = '{entity_id}'
+              AND end_date IS NULL
+            LIMIT 1
+            """
 
         try:
             results = list(self.bq_client.query(query))
@@ -323,7 +409,7 @@ class HierarchyService:
         }
 
         try:
-            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+            self._insert_to_central_table(ORG_HIERARCHY_TABLE, [row])
         except Exception as e:
             logger.error(f"Failed to create department: {e}")
             raise RuntimeError(f"Failed to create department: {e}")
@@ -383,7 +469,7 @@ class HierarchyService:
         }
 
         try:
-            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+            self._insert_to_central_table(ORG_HIERARCHY_TABLE, [row])
         except Exception as e:
             logger.error(f"Failed to create project: {e}")
             raise RuntimeError(f"Failed to create project: {e}")
@@ -443,7 +529,7 @@ class HierarchyService:
         }
 
         try:
-            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+            self._insert_to_central_table(ORG_HIERARCHY_TABLE, [row])
         except Exception as e:
             logger.error(f"Failed to create team: {e}")
             raise RuntimeError(f"Failed to create team: {e}")
@@ -472,7 +558,7 @@ class HierarchyService:
             raise ValueError(f"{entity_type.value.title()} {entity_id} does not exist")
 
         now = datetime.utcnow().isoformat()
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
+        table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
         # Mark old version as ended
         end_query = f"""
@@ -480,7 +566,8 @@ class HierarchyService:
         SET end_date = TIMESTAMP('{now}'),
             updated_at = TIMESTAMP('{now}'),
             updated_by = '{updated_by}'
-        WHERE id = '{existing.id}'
+        WHERE org_slug = '{org_slug}'
+          AND id = '{existing.id}'
         """
         list(self.bq_client.query(end_query))  # Execute UPDATE
 
@@ -524,7 +611,7 @@ class HierarchyService:
                 row["team_name"] = request.entity_name
 
         try:
-            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+            self._insert_to_central_table(ORG_HIERARCHY_TABLE, [row])
         except Exception as e:
             logger.error(f"Failed to update entity: {e}")
             raise RuntimeError(f"Failed to update entity: {e}")
@@ -541,24 +628,38 @@ class HierarchyService:
         entity_type: HierarchyEntityType,
         entity_id: str
     ) -> HierarchyDeletionBlockedResponse:
-        """Check if entity deletion is blocked by children or references."""
+        """Check if entity deletion is blocked by children or references.
+
+        Reads from x_org_hierarchy view (preferred) or falls back to central table.
+        """
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
 
         blocking_entities = []
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
+        table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
         # Check for child entities
         if entity_type == HierarchyEntityType.DEPARTMENT:
             # Check for projects under this department
-            query = f"""
-            SELECT entity_type, entity_id, entity_name
-            FROM `{table_ref}`
-            WHERE parent_id = '{entity_id}'
-              AND parent_type = 'department'
-              AND end_date IS NULL
-              AND is_active = TRUE
-            """
+            # View is already filtered by org_slug and end_date IS NULL
+            if uses_view:
+                query = f"""
+                SELECT entity_type, entity_id, entity_name
+                FROM `{table_ref}`
+                WHERE parent_id = '{entity_id}'
+                  AND parent_type = 'department'
+                  AND is_active = TRUE
+                """
+            else:
+                query = f"""
+                SELECT entity_type, entity_id, entity_name
+                FROM `{table_ref}`
+                WHERE org_slug = '{org_slug}'
+                  AND parent_id = '{entity_id}'
+                  AND parent_type = 'department'
+                  AND end_date IS NULL
+                  AND is_active = TRUE
+                """
             results = list(self.bq_client.query(query))
             for row in results:
                 blocking_entities.append({
@@ -569,14 +670,25 @@ class HierarchyService:
 
         elif entity_type == HierarchyEntityType.PROJECT:
             # Check for teams under this project
-            query = f"""
-            SELECT entity_type, entity_id, entity_name
-            FROM `{table_ref}`
-            WHERE parent_id = '{entity_id}'
-              AND parent_type = 'project'
-              AND end_date IS NULL
-              AND is_active = TRUE
-            """
+            # View is already filtered by org_slug and end_date IS NULL
+            if uses_view:
+                query = f"""
+                SELECT entity_type, entity_id, entity_name
+                FROM `{table_ref}`
+                WHERE parent_id = '{entity_id}'
+                  AND parent_type = 'project'
+                  AND is_active = TRUE
+                """
+            else:
+                query = f"""
+                SELECT entity_type, entity_id, entity_name
+                FROM `{table_ref}`
+                WHERE org_slug = '{org_slug}'
+                  AND parent_id = '{entity_id}'
+                  AND parent_type = 'project'
+                  AND end_date IS NULL
+                  AND is_active = TRUE
+                """
             results = list(self.bq_client.query(query))
             for row in results:
                 blocking_entities.append({
@@ -669,7 +781,7 @@ class HierarchyService:
             raise ValueError(f"{entity_type.value.title()} {entity_id} does not exist")
 
         now = datetime.utcnow().isoformat()
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
+        table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
         # Soft delete by setting end_date and is_active = false
         delete_query = f"""
@@ -678,7 +790,8 @@ class HierarchyService:
             is_active = FALSE,
             updated_at = TIMESTAMP('{now}'),
             updated_by = '{deleted_by}'
-        WHERE id = '{existing.id}'
+        WHERE org_slug = '{org_slug}'
+          AND id = '{existing.id}'
         """
 
         list(self.bq_client.query(delete_query))  # Execute UPDATE
@@ -711,15 +824,16 @@ class HierarchyService:
         sorted_rows = sorted(rows, key=lambda r: type_order[r.entity_type])
 
         if mode == "replace":
-            # Delete all existing entities
-            table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
+            # Delete all existing entities for this org
+            table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
             now = datetime.utcnow().isoformat()
             delete_query = f"""
             UPDATE `{table_ref}`
             SET end_date = TIMESTAMP('{now}'),
                 is_active = FALSE,
                 updated_by = '{imported_by}'
-            WHERE end_date IS NULL
+            WHERE org_slug = '{org_slug}'
+              AND end_date IS NULL
             """
             try:
                 list(self.bq_client.query(delete_query))  # Execute UPDATE

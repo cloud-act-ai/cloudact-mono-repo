@@ -35,8 +35,11 @@ import type { PipelineRunSummary } from "@/lib/api/backend"
 import {
   CostSummaryGrid,
   CostBreakdownChart,
+  CostScoreRing,
+  CostInsightsCard,
   type CostSummaryData,
   type BreakdownItem,
+  type ScoreRingSegment,
 } from "@/components/costs"
 import { getDateInfo, calculatePercentage, OVERVIEW_CATEGORY_CONFIG } from "@/lib/costs"
 
@@ -53,6 +56,19 @@ interface IntegrationItem {
   provider: string
   status: "connected" | "pending" | "not_connected"
 }
+
+// Move color classes outside component to prevent recreation on every render
+const QUICK_ACTION_COLOR_CLASSES = {
+  teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[#90FCA6]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
+  coral: "from-[#FF6C5E]/10 to-[#FF6C5E]/5 border-[#FF6C5E]/20 hover:shadow-[0_8px_24px_rgba(255,108,94,0.15)]",
+  purple: "from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]",
+} as const
+
+const QUICK_ACTION_ICON_CLASSES = {
+  teal: "bg-[#90FCA6] text-[#1a7a3a]",
+  coral: "bg-[#FF6C5E] text-white",
+  purple: "bg-purple-500 text-white",
+} as const
 
 export default function DashboardPage() {
   const params = useParams()
@@ -120,9 +136,9 @@ export default function DashboardPage() {
 
           const status = value.status === "VALID"
             ? "connected"
-            : value.status === "PENDING" || value.status === "VALIDATING"
+            : value.status === "PENDING"
             ? "pending"
-            : "not_connected" // INVALID or ERROR states
+            : "not_connected" // INVALID, EXPIRED, or ERROR states
 
           integrationList.push({
             name: providerNames[key] || key,
@@ -170,7 +186,8 @@ export default function DashboardPage() {
     const dateInfo = getDateInfo()
     const totalMtd = costSummary?.total?.total_monthly_cost ?? 0
     const dailyRate = costSummary?.total?.total_daily_cost ?? 0
-    const forecast = totalMtd + (dailyRate * dateInfo.daysRemaining)
+    const daysRemaining = dateInfo.daysInMonth - dateInfo.daysElapsed
+    const forecast = totalMtd + (dailyRate * daysRemaining)
 
     return {
       mtd: totalMtd,
@@ -218,7 +235,34 @@ export default function DashboardPage() {
     ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
   }, [costSummary])
 
-  const quickActions: QuickAction[] = [
+  // Score ring segments for Apple Health style visualization
+  const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
+    const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
+    const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
+    const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
+
+    return [
+      { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
+      { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
+      { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
+    ].filter(s => s.value > 0)
+  }, [costSummary])
+
+  // Insights data
+  const insightsData = useMemo(() => {
+    const dailyRate = summaryData.dailyRate
+    const forecast = summaryData.forecast
+    const mtd = summaryData.mtd
+
+    return {
+      todaySpend: dailyRate,
+      averageDaily: mtd > 0 ? mtd / new Date().getDate() : 0,
+      forecast,
+    }
+  }, [summaryData])
+
+  // Memoize quickActions to prevent recreation on every render
+  const quickActions: QuickAction[] = useMemo(() => [
     {
       title: "Run Pipeline",
       description: "Execute data pipelines to sync costs",
@@ -240,7 +284,7 @@ export default function DashboardPage() {
       icon: <Settings className="h-5 w-5" />,
       color: "coral",
     },
-  ]
+  ], [orgSlug])
 
   const getPipelineIcon = (pipelineId: string) => {
     if (pipelineId.includes("openai") || pipelineId.includes("anthropic") || pipelineId.includes("gemini")) {
@@ -321,6 +365,54 @@ export default function DashboardPage() {
 
       {/* Summary Metrics - Using shared CostSummaryGrid component */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Apple Health Style - Score Ring and Insights Row */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        {/* Score Ring - Total Spend Breakdown */}
+        {scoreRingSegments.length > 0 ? (
+          <CostScoreRing
+            title="Total Spend"
+            segments={scoreRingSegments}
+            currency={orgCurrency}
+            insight={`Spending across ${scoreRingSegments.length} cost categories this month.`}
+            showChevron
+            onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
+            compact
+            ringSize={88}
+            strokeWidth={10}
+            titleColor="#1a7a3a"
+          />
+        ) : (
+          <Card className="p-6">
+            <div className="text-center py-4">
+              <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-medium text-slate-900">No cost data yet</p>
+              <p className="text-xs text-slate-500 mt-1">Run pipelines to see your costs</p>
+            </div>
+          </Card>
+        )}
+
+        {/* Spend Insights Card */}
+        <CostInsightsCard
+          title="Daily Spend"
+          currentValue={insightsData.todaySpend}
+          currentLabel="Today"
+          averageValue={insightsData.averageDaily}
+          averageLabel="Daily Avg"
+          insight={
+            insightsData.todaySpend > insightsData.averageDaily * 1.2
+              ? "Spending is higher than your daily average today."
+              : insightsData.todaySpend < insightsData.averageDaily * 0.8
+                ? "Great! Spending is below your daily average."
+                : "Spending is in line with your daily average."
+          }
+          currency={orgCurrency}
+          primaryColor="#FF6C5E"
+          showChevron
+          onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
+          compact
+        />
+      </div>
 
       {/* Two Column Layout */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -431,41 +523,27 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Quick Actions</h2>
         <div className="grid gap-4 sm:grid-cols-3">
-          {quickActions.map((action) => {
-            const colorClasses = {
-              teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[#90FCA6]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
-              coral: "from-[#FF6C5E]/10 to-[#FF6C5E]/5 border-[#FF6C5E]/20 hover:shadow-[0_8px_24px_rgba(255,108,94,0.15)]",
-              purple: "from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]",
-            }
-
-            const iconColorClasses = {
-              teal: "bg-[#90FCA6] text-[#1a7a3a]",
-              coral: "bg-[#FF6C5E] text-white",
-              purple: "bg-purple-500 text-white",
-            }
-
-            return (
-              <Link key={action.title} href={action.href}>
-                <Card
-                  className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${colorClasses[action.color]} hover:-translate-y-1`}
-                >
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconColorClasses[action.color]} shadow-lg transition-transform duration-200 group-hover:scale-110`}
-                      >
-                        {action.icon}
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="text-[16px] font-bold text-slate-900">{action.title}</h3>
-                        <p className="text-sm text-muted-foreground">{action.description}</p>
-                      </div>
+          {quickActions.map((action) => (
+            <Link key={action.title} href={action.href}>
+              <Card
+                className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${QUICK_ACTION_COLOR_CLASSES[action.color]} hover:-translate-y-1`}
+              >
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-lg transition-transform duration-200 group-hover:scale-110`}
+                    >
+                      {action.icon}
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })}
+                    <div className="space-y-1">
+                      <h3 className="text-[16px] font-bold text-slate-900">{action.title}</h3>
+                      <p className="text-sm text-muted-foreground">{action.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
       </div>
 

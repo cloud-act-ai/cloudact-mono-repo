@@ -1031,3 +1031,141 @@ export async function getCostByService(
     }
   }
 }
+
+// ============================================
+// Extended Period Costs
+// ============================================
+
+import {
+  getYesterdayRange,
+  getWTDRange,
+  getLastWeekRange,
+  getMTDRange,
+  getPreviousMonthRange,
+  getLast2MonthsRange,
+  getYTDRange,
+  getFYTDRange,
+  getFiscalYearRange,
+  calculateFiscalYearForecast,
+} from "@/lib/costs"
+
+export interface PeriodCostsData {
+  yesterday: number
+  wtd: number
+  lastWeek: number
+  mtd: number
+  previousMonth: number
+  last2Months: number
+  ytd: number
+  fytd: number
+  fyForecast: number
+  dataAsOf: string
+}
+
+export interface PeriodCostsResponse {
+  success: boolean
+  data: PeriodCostsData | null
+  currency: string
+  error?: string
+}
+
+/**
+ * Get costs for all extended periods in parallel
+ * Returns costs for: Yesterday, WTD, Last Week, MTD, Previous Month, Last 2 Months, YTD, FYTD, FY Forecast
+ */
+export async function getExtendedPeriodCosts(
+  orgSlug: string,
+  costType: "total" | "cloud" | "llm" = "total",
+  filters?: CostFilterParams,
+  fiscalStartMonth: number = 4
+): Promise<PeriodCostsResponse> {
+  try {
+    await requireOrgMembership(orgSlug)
+
+    // Get all period date ranges
+    const periods = {
+      yesterday: getYesterdayRange(),
+      wtd: getWTDRange(),
+      lastWeek: getLastWeekRange(),
+      mtd: getMTDRange(),
+      previousMonth: getPreviousMonthRange(),
+      last2Months: getLast2MonthsRange(),
+      ytd: getYTDRange(),
+      fytd: getFYTDRange(fiscalStartMonth),
+      fy: getFiscalYearRange(fiscalStartMonth),
+    }
+
+    // Fetch all periods in parallel
+    const [
+      yesterdayResult,
+      wtdResult,
+      lastWeekResult,
+      mtdResult,
+      previousMonthResult,
+      last2MonthsResult,
+      ytdResult,
+      fytdResult,
+    ] = await Promise.all([
+      getTotalCosts(orgSlug, periods.yesterday.startDate, periods.yesterday.endDate, filters),
+      getTotalCosts(orgSlug, periods.wtd.startDate, periods.wtd.endDate, filters),
+      getTotalCosts(orgSlug, periods.lastWeek.startDate, periods.lastWeek.endDate, filters),
+      getTotalCosts(orgSlug, periods.mtd.startDate, periods.mtd.endDate, filters),
+      getTotalCosts(orgSlug, periods.previousMonth.startDate, periods.previousMonth.endDate, filters),
+      getTotalCosts(orgSlug, periods.last2Months.startDate, periods.last2Months.endDate, filters),
+      getTotalCosts(orgSlug, periods.ytd.startDate, periods.ytd.endDate, filters),
+      getTotalCosts(orgSlug, periods.fytd.startDate, periods.fytd.endDate, filters),
+    ])
+
+    // Extract total costs based on cost type
+    const extractCost = (result: { success: boolean; data: TotalCostSummary | null }): number => {
+      if (!result.success || !result.data) return 0
+
+      switch (costType) {
+        case "cloud":
+          return result.data.cloud?.total_monthly_cost ?? 0
+        case "llm":
+          return result.data.llm?.total_monthly_cost ?? 0
+        case "total":
+        default:
+          // Sum all cost types for total
+          const saas = result.data.saas?.total_monthly_cost ?? 0
+          const cloud = result.data.cloud?.total_monthly_cost ?? 0
+          const llm = result.data.llm?.total_monthly_cost ?? 0
+          return saas + cloud + llm || (result.data.total?.total_monthly_cost ?? 0)
+      }
+    }
+
+    const fytdCost = extractCost(fytdResult)
+    const fyForecast = calculateFiscalYearForecast(
+      fytdCost,
+      periods.fytd.days,
+      periods.fy.days
+    )
+
+    const data: PeriodCostsData = {
+      yesterday: extractCost(yesterdayResult),
+      wtd: extractCost(wtdResult),
+      lastWeek: extractCost(lastWeekResult),
+      mtd: extractCost(mtdResult),
+      previousMonth: extractCost(previousMonthResult),
+      last2Months: extractCost(last2MonthsResult),
+      ytd: extractCost(ytdResult),
+      fytd: fytdCost,
+      fyForecast,
+      dataAsOf: periods.yesterday.endDate,
+    }
+
+    return {
+      success: true,
+      data,
+      currency: mtdResult.data?.currency ?? "USD",
+    }
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      currency: "USD",
+      error: logError("getExtendedPeriodCosts", error),
+    }
+  }
+}

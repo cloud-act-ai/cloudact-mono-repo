@@ -179,9 +179,11 @@ class OrgOnboardingProcessor:
         - 3 projects: Operations, Platform, Product
         - 4 teams: Finance, HR, Backend, Frontend
 
+        Note: org_hierarchy is in the central 'organizations' dataset, not per-org dataset.
+
         Args:
             bq_client: BigQuery client
-            dataset_id: Organization dataset ID
+            dataset_id: Organization dataset ID (not used for hierarchy - kept for signature)
             org_slug: Organization slug
 
         Returns:
@@ -195,7 +197,8 @@ class OrgOnboardingProcessor:
         }
 
         now = datetime.utcnow().isoformat() + "Z"
-        table_id = f"{self.settings.gcp_project_id}.{dataset_id}.org_hierarchy"
+        # org_hierarchy is in central dataset for consistency with other org_* tables
+        table_id = f"{self.settings.gcp_project_id}.organizations.org_hierarchy"
 
         # Default hierarchy structure
         default_hierarchy = [
@@ -856,9 +859,12 @@ class OrgOnboardingProcessor:
         """
         client = bigquery.Client(project=self.settings.gcp_project_id)
 
-        # Single materialized view querying central tables
+        # Materialized views querying central tables
         mv_files = [
             ("x_pipeline_exec_logs_mv.sql", "x_pipeline_exec_logs"),
+            ("x_all_notifications_mv.sql", "x_all_notifications"),
+            ("x_notification_stats_mv.sql", "x_notification_stats"),
+            ("x_org_hierarchy_mv.sql", "x_org_hierarchy"),
         ]
 
         views_created = []

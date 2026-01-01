@@ -55,15 +55,15 @@ BEGIN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE DATE(ChargePeriodStart) = @p_date
-          AND x_source_system IN ('gcp_billing_cost_daily', 'aws_billing_cost_daily',
-                                  'azure_billing_cost_daily', 'oci_billing_cost_daily')
+          AND x_SourceSystem IN ('cloud_gcp_billing_raw_daily', 'cloud_aws_billing_raw_daily',
+                                  'cloud_azure_billing_raw_daily', 'cloud_oci_billing_raw_daily')
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date;
     ELSE
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE DATE(ChargePeriodStart) = @p_date
-          AND x_source_system = CONCAT(@p_provider, '_billing_cost_daily')
+          AND x_SourceSystem = CONCAT('cloud_', @p_provider, '_billing_raw_daily')
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_provider AS p_provider;
     END IF;
@@ -84,7 +84,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_source_system, x_source_record_id, x_updated_at,
+         x_SourceSystem, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
@@ -140,7 +140,7 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(labels_json), JSON_OBJECT()) as Tags,
 
-          'gcp_billing_cost_daily' as x_source_system,
+          'cloud_gcp_billing_raw_daily' as x_SourceSystem,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
@@ -153,7 +153,7 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.gcp_billing_cost_daily`
+        FROM `%s.%s.cloud_gcp_billing_raw_daily`
         WHERE DATE(usage_start_time) = @p_date
           AND cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
@@ -178,7 +178,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_source_system, x_source_record_id, x_updated_at,
+         x_SourceSystem, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountType,
@@ -239,7 +239,7 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(resource_tags_json), JSON_OBJECT()) as Tags,
 
-          'aws_billing_cost_daily' as x_source_system,
+          'cloud_aws_billing_raw_daily' as x_SourceSystem,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
@@ -259,7 +259,7 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.aws_billing_cost_daily`
+        FROM `%s.%s.cloud_aws_billing_raw_daily`
         WHERE usage_date = @p_date
           AND unblended_cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
@@ -284,7 +284,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_source_system, x_source_record_id, x_updated_at,
+         x_SourceSystem, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountName,
@@ -310,9 +310,9 @@ BEGIN
           COALESCE(resource_location, 'Global') as RegionName,
 
           CAST(usage_quantity AS NUMERIC) as UsageAmount,
-          usage_unit as UsageUnit,
+          unit_of_measure as UsageUnit,
           COALESCE(pricing_model, 'On-Demand') as PricingCategory,
-          usage_unit as PricingUnit,
+          unit_of_measure as PricingUnit,
 
           CAST(cost_in_billing_currency AS NUMERIC) as EffectiveCost,
           CAST(cost_in_billing_currency AS NUMERIC) as BilledCost,
@@ -333,9 +333,9 @@ BEGIN
           meter_id as SkuId,
           JSON_OBJECT('meter_name', meter_name, 'meter_category', meter_category, 'service_tier', service_tier) as SkuPriceDetails,
 
-          COALESCE(SAFE.PARSE_JSON(tags_json), JSON_OBJECT()) as Tags,
+          COALESCE(SAFE.PARSE_JSON(resource_tags_json), JSON_OBJECT()) as Tags,
 
-          'azure_billing_cost_daily' as x_source_system,
+          'cloud_azure_billing_raw_daily' as x_SourceSystem,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
@@ -351,7 +351,7 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.azure_billing_cost_daily`
+        FROM `%s.%s.cloud_azure_billing_raw_daily`
         WHERE usage_date = @p_date
           AND cost_in_billing_currency > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
@@ -376,7 +376,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_source_system, x_source_record_id, x_updated_at,
+         x_SourceSystem, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
@@ -391,13 +391,13 @@ BEGIN
           'Oracle' as HostProviderName,
 
           CASE
-            WHEN service LIKE '%%COMPUTE%%' THEN 'Compute'
-            WHEN service LIKE '%%STORAGE%%' THEN 'Storage'
-            WHEN service LIKE '%%DATABASE%%' THEN 'Database'
-            WHEN service LIKE '%%NETWORK%%' THEN 'Networking'
+            WHEN service_name LIKE '%%COMPUTE%%' THEN 'Compute'
+            WHEN service_name LIKE '%%STORAGE%%' THEN 'Storage'
+            WHEN service_name LIKE '%%DATABASE%%' THEN 'Database'
+            WHEN service_name LIKE '%%NETWORK%%' THEN 'Networking'
             ELSE 'Other'
           END as ServiceCategory,
-          service as ServiceName,
+          service_name as ServiceName,
           COALESCE(sku_name, 'Default') as ServiceSubcategory,
 
           resource_id as ResourceId,
@@ -406,17 +406,17 @@ BEGIN
           COALESCE(region, 'global') as RegionId,
           COALESCE(region, 'Global') as RegionName,
 
-          CAST(usage_amount AS NUMERIC) as UsageAmount,
-          usage_unit as UsageUnit,
+          CAST(usage_quantity AS NUMERIC) as UsageAmount,
+          unit as UsageUnit,
           CASE
-            WHEN overages_flag = TRUE THEN 'Overage'
+            WHEN overage_flag = 'Y' THEN 'Overage'
             ELSE 'On-Demand'
           END as PricingCategory,
-          usage_unit as PricingUnit,
+          unit as PricingUnit,
 
-          CAST(computed_amount AS NUMERIC) as EffectiveCost,
-          CAST(computed_amount AS NUMERIC) as BilledCost,
-          CAST(COALESCE(usage_amount * unit_price, computed_amount) AS NUMERIC) as ListCost,
+          CAST(cost AS NUMERIC) as EffectiveCost,
+          CAST(cost AS NUMERIC) as BilledCost,
+          CAST(COALESCE(usage_quantity * unit_price, cost) AS NUMERIC) as ListCost,
           COALESCE(currency, 'USD') as BillingCurrency,
 
           'Usage' as ChargeCategory,
@@ -427,16 +427,16 @@ BEGIN
           COALESCE(compartment_name, compartment_id) as SubAccountName,
 
           sku_part_number as SkuId,
-          JSON_OBJECT('sku_name', sku_name, 'service', service, 'compartment_path', compartment_path) as SkuPriceDetails,
+          JSON_OBJECT('sku_name', sku_name, 'service_name', service_name, 'compartment_path', compartment_path) as SkuPriceDetails,
 
-          COALESCE(SAFE.PARSE_JSON(tags_json), JSON_OBJECT()) as Tags,
+          COALESCE(SAFE.PARSE_JSON(freeform_tags_json), JSON_OBJECT()) as Tags,
 
-          'oci_billing_cost_daily' as x_source_system,
+          'cloud_oci_billing_raw_daily' as x_SourceSystem,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
           'oci' as x_cloud_provider,
-          tenancy_ocid as x_cloud_account_id,
+          tenancy_id as x_cloud_account_id,
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
@@ -444,9 +444,9 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.oci_billing_cost_daily`
+        FROM `%s.%s.cloud_oci_billing_raw_daily`
         WHERE usage_date = @p_date
-          AND computed_amount > 0
+          AND cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
 

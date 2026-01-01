@@ -384,7 +384,7 @@
     "description": "Key-value tags associated with the resource for cost allocation and grouping. Includes user-defined and provider-defined tags (JSON object)."
   },
   {
-    "name": "x_source_system",
+    "name": "x_SourceSystem",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "[Extension] System that generated the record. Examples: 'gcp_billing', 'saas_subscription_pipeline', 'openai_usage', 'manual_import'."

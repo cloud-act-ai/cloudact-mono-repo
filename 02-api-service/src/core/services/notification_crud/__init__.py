@@ -1,8 +1,12 @@
 """
-Notification Service Module
+Notification CRUD Service
 
-Manages notification channels, rules, summaries, and history.
-Uses existing cost read service for data aggregation.
+Direct BigQuery operations for notification settings:
+- Channels: create, update, delete
+- Rules: create, update, delete
+- Summaries: create, update, delete
+
+For read operations (list, stats), use notification_read/ instead.
 """
 
 from .models import (

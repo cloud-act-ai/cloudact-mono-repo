@@ -35,6 +35,9 @@ steps:
         p_dataset_id: "{org_slug}_prod"
         p_cost_date: "{date}"
         p_provider: "all"  # Convert all providers
+        p_pipeline_id: "focus_convert_cloud_unified"
+        p_credential_id: "{credential_id}"
+        p_run_id: "{run_id}"
     timeout_seconds: 600
     retry:
       max_attempts: 3

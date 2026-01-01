@@ -747,6 +747,9 @@ async def validate_hierarchy_ids(
     """
     Validate that hierarchy IDs exist in the org_hierarchy table.
 
+    Reads from x_org_hierarchy view (preferred) or falls back to central table.
+    The view is pre-filtered by org_slug and end_date IS NULL.
+
     Raises HTTPException 400 if any provided hierarchy ID is not found.
     Only validates IDs that are provided (non-None).
     """
@@ -761,19 +764,58 @@ async def validate_hierarchy_ids(
     if not ids_to_validate:
         return  # No hierarchy IDs provided, nothing to validate
 
-    dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.org_hierarchy"
+    # Prefer x_org_hierarchy view in org dataset (pre-filtered by org_slug)
+    # Fall back to central table if view doesn't exist
+    # Throw error if neither view nor central table exist
+    org_dataset = settings.get_org_dataset_name(org_slug)
+    view_ref = f"{settings.gcp_project_id}.{org_dataset}.x_org_hierarchy"
+    central_ref = f"{settings.gcp_project_id}.organizations.org_hierarchy"
+
+    # Check if view exists
+    uses_view = True
+    try:
+        bq_client.client.get_table(view_ref)
+    except google.api_core.exceptions.NotFound:
+        uses_view = False
+        logger.debug(f"View {view_ref} not found, falling back to central table")
+        # Verify central table exists - throw error if it doesn't
+        try:
+            bq_client.client.get_table(central_ref)
+        except google.api_core.exceptions.NotFound:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Hierarchy table not found. Ensure bootstrap has been run."
+            )
+
+    table_ref = view_ref if uses_view else central_ref
 
     for entity_type, entity_id in ids_to_validate:
-        query = f"""
-        SELECT entity_id FROM `{table_ref}`
-        WHERE org_slug = @org_slug
-          AND entity_id = @entity_id
-          AND entity_type = @entity_type
-          AND is_active = TRUE
-        LIMIT 1
-        """
-        try:
+        # View is already filtered by org_slug and end_date IS NULL
+        if uses_view:
+            query = f"""
+            SELECT entity_id FROM `{table_ref}`
+            WHERE entity_id = @entity_id
+              AND entity_type = @entity_type
+              AND is_active = TRUE
+            LIMIT 1
+            """
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
+                    bigquery.ScalarQueryParameter("entity_type", "STRING", entity_type),
+                ],
+                job_timeout_ms=30000
+            )
+        else:
+            query = f"""
+            SELECT entity_id FROM `{table_ref}`
+            WHERE org_slug = @org_slug
+              AND entity_id = @entity_id
+              AND entity_type = @entity_type
+              AND end_date IS NULL
+              AND is_active = TRUE
+            LIMIT 1
+            """
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
@@ -782,6 +824,8 @@ async def validate_hierarchy_ids(
                 ],
                 job_timeout_ms=30000
             )
+
+        try:
             result = bq_client.client.query(query, job_config=job_config).result()
             found = False
             for _ in result:
@@ -791,13 +835,13 @@ async def validate_hierarchy_ids(
             if not found:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid hierarchy_{entity_type}_id: '{entity_id}' not found in org_hierarchy table"
+                    detail=f"Invalid hierarchy_{entity_type}_id: '{entity_id}' not found in org_hierarchy"
                 )
         except HTTPException:
             raise
         except Exception as e:
             logger.warning(f"Failed to validate hierarchy {entity_type} ID {entity_id}: {e}")
-            # Don't block on validation failures - the org_hierarchy table may not exist yet
+            # Don't block on validation failures - the view/table may not exist yet
             # for new organizations. The ID will just be stored as-is.
 
 

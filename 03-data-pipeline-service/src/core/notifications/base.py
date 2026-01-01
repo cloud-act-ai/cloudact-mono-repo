@@ -10,9 +10,11 @@ Defines abstract base classes for notification providers with:
 
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
+from collections import OrderedDict
 import logging
 from datetime import datetime
 import asyncio
+import threading
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -64,7 +66,10 @@ class BaseNotificationProvider(ABC):
         self.config = config
         self.retry_config = config.retry_config
         self.timeout_seconds = config.timeout_seconds
-        self._last_notification_time: Dict[str, datetime] = {}
+        # SCALE-003 FIX: Use bounded OrderedDict with max 1000 entries
+        self._last_notification_time: OrderedDict[str, datetime] = OrderedDict()
+        self._cooldown_max_size = 1000
+        self._cooldown_lock = threading.RLock()
 
     @property
     @abstractmethod
@@ -119,7 +124,9 @@ class BaseNotificationProvider(ABC):
             return True
 
         cooldown_key = f"{message.org_slug}:{message.event.value}"
-        last_time = self._last_notification_time.get(cooldown_key)
+        # SCALE-003 FIX: Thread-safe lookup
+        with self._cooldown_lock:
+            last_time = self._last_notification_time.get(cooldown_key)
 
         if last_time:
             elapsed = (datetime.utcnow() - last_time).total_seconds()
@@ -133,9 +140,20 @@ class BaseNotificationProvider(ABC):
         return True
 
     def _update_cooldown(self, message: NotificationMessage):
-        """Update last notification time for cooldown tracking"""
+        """
+        Update last notification time for cooldown tracking.
+
+        SCALE-003 FIX: Bounded LRU with thread safety.
+        """
         cooldown_key = f"{message.org_slug}:{message.event.value}"
-        self._last_notification_time[cooldown_key] = datetime.utcnow()
+        with self._cooldown_lock:
+            # Move to end if exists (LRU behavior)
+            if cooldown_key in self._last_notification_time:
+                self._last_notification_time.move_to_end(cooldown_key)
+            self._last_notification_time[cooldown_key] = datetime.utcnow()
+            # Evict oldest entries if over limit
+            while len(self._last_notification_time) > self._cooldown_max_size:
+                self._last_notification_time.popitem(last=False)
 
     async def send(self, message: NotificationMessage) -> bool:
         """

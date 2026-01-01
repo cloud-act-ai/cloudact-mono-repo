@@ -9,6 +9,19 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 import json
+import re
+
+# VAL-002 FIX: Email validation regex
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+# VAL-004 FIX: URL validation regex
+URL_REGEX = re.compile(r'^https?://[^\s/$.?#].[^\s]*$', re.IGNORECASE)
+
+# VAL-005 FIX: Time format validation regex (HH:MM)
+TIME_REGEX = re.compile(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
+
+# VAL-003 FIX: Slack channel validation regex
+SLACK_CHANNEL_REGEX = re.compile(r'^[#@]?[a-zA-Z0-9_-]+$')
 
 
 # ==============================================================================
@@ -103,6 +116,45 @@ class NotificationChannelBase(BaseModel):
     webhook_url: Optional[str] = Field(default=None, description="Webhook URL")
     webhook_headers: Optional[Dict[str, str]] = Field(default=None, description="Webhook headers")
     webhook_method: Optional[str] = Field(default="POST", description="HTTP method")
+
+    # VAL-002 FIX: Validate email addresses
+    @field_validator("email_recipients", "email_cc_recipients", mode="before")
+    @classmethod
+    def validate_emails(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate email addresses in recipient lists."""
+        if v is None:
+            return None
+        validated = []
+        for email in v:
+            if email and EMAIL_REGEX.match(email.strip()):
+                validated.append(email.strip().lower())
+            elif email:
+                raise ValueError(f"Invalid email address: {email}")
+        return validated if validated else None
+
+    # VAL-003 FIX: Validate Slack channel name
+    @field_validator("slack_channel", mode="before")
+    @classmethod
+    def validate_slack_channel(cls, v: Optional[str]) -> Optional[str]:
+        """Validate Slack channel name format."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not SLACK_CHANNEL_REGEX.match(v):
+            raise ValueError(f"Invalid Slack channel format: {v}. Must start with # or be a valid channel ID")
+        return v
+
+    # VAL-004 FIX: Validate webhook URLs
+    @field_validator("slack_webhook_url", "webhook_url", mode="before")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        """Validate URL format for webhooks."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not URL_REGEX.match(v):
+            raise ValueError(f"Invalid URL format: {v}. Must be a valid HTTP/HTTPS URL")
+        return v
 
 
 class NotificationChannelCreate(NotificationChannelBase):
@@ -233,6 +285,18 @@ class NotificationRuleBase(BaseModel):
     quiet_hours_end: Optional[str] = Field(default=None, description="Quiet hours end (HH:MM)")
     quiet_hours_timezone: Optional[str] = Field(default=None, description="Quiet hours timezone")
 
+    # VAL-005 FIX: Validate quiet hours time format
+    @field_validator("quiet_hours_start", "quiet_hours_end", mode="before")
+    @classmethod
+    def validate_quiet_hours(cls, v: Optional[str]) -> Optional[str]:
+        """Validate HH:MM time format for quiet hours."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not TIME_REGEX.match(v):
+            raise ValueError(f"Invalid time format: {v}. Must be HH:MM (e.g., '22:00')")
+        return v
+
 
 class NotificationRuleCreate(NotificationRuleBase):
     """Create notification rule request"""
@@ -305,10 +369,64 @@ class NotificationSummaryBase(BaseModel):
     @field_validator("schedule_cron")
     @classmethod
     def validate_cron(cls, v: str) -> str:
-        """Basic cron validation"""
+        """
+        VAL-001 FIX: Comprehensive cron validation with range checks.
+        Format: minute(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-6)
+        """
         parts = v.split()
         if len(parts) != 5:
             raise ValueError("Cron expression must have 5 parts: minute hour day month weekday")
+
+        # Define valid ranges for each field
+        ranges = [
+            (0, 59, "minute"),   # minute
+            (0, 23, "hour"),     # hour
+            (1, 31, "day"),      # day of month
+            (1, 12, "month"),    # month
+            (0, 6, "weekday"),   # day of week (0=Sunday)
+        ]
+
+        for i, part in enumerate(parts):
+            min_val, max_val, field_name = ranges[i]
+            # Handle wildcards and special characters
+            if part == "*":
+                continue
+            # Handle step values like */5
+            if part.startswith("*/"):
+                try:
+                    step = int(part[2:])
+                    if step < 1 or step > max_val:
+                        raise ValueError(f"Invalid step value for {field_name}: {step}")
+                except ValueError:
+                    raise ValueError(f"Invalid step format for {field_name}: {part}")
+                continue
+            # Handle ranges like 1-5
+            if "-" in part:
+                try:
+                    start, end = map(int, part.split("-"))
+                    if start < min_val or end > max_val or start > end:
+                        raise ValueError(f"Invalid range for {field_name}: {part}")
+                except ValueError:
+                    raise ValueError(f"Invalid range format for {field_name}: {part}")
+                continue
+            # Handle lists like 1,3,5
+            if "," in part:
+                try:
+                    values = [int(x) for x in part.split(",")]
+                    for val in values:
+                        if val < min_val or val > max_val:
+                            raise ValueError(f"Value {val} out of range for {field_name}")
+                except ValueError:
+                    raise ValueError(f"Invalid list format for {field_name}: {part}")
+                continue
+            # Handle single values
+            try:
+                val = int(part)
+                if val < min_val or val > max_val:
+                    raise ValueError(f"Value {val} out of range for {field_name} (must be {min_val}-{max_val})")
+            except ValueError:
+                raise ValueError(f"Invalid value for {field_name}: {part}")
+
         return v
 
 

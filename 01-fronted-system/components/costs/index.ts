@@ -123,3 +123,73 @@ export {
   type CostFiltersProps,
   type HierarchyEntity,
 } from "./cost-filters"
+
+// ============================================
+// Score Ring (Apple Health style)
+// ============================================
+
+export {
+  CostScoreRing,
+  CostCategoryRing,
+  type ScoreRingSegment,
+  type CostScoreRingProps,
+  type CostCategoryRingProps,
+} from "./cost-score-ring"
+
+// ============================================
+// Daily Bar Chart (Apple Health Activity style)
+// ============================================
+
+export {
+  CostDailyBarChart,
+  WeeklyCostChart,
+  MonthlyTrendChart,
+  type DailyBarData,
+  type CostDailyBarChartProps,
+  type WeeklyCostChartProps,
+  type MonthlyTrendChartProps,
+} from "./cost-daily-bar-chart"
+
+// ============================================
+// Insights Card (Apple Health Highlights style)
+// ============================================
+
+export {
+  CostInsightsCard,
+  SpendComparisonCard,
+  PeriodComparisonCard,
+  type TrendDataPoint,
+  type CostInsightsCardProps,
+  type SpendComparisonCardProps,
+  type PeriodComparisonCardProps,
+} from "./cost-insights-card"
+
+// ============================================
+// Period Selector (D/W/M/6M/Y)
+// ============================================
+
+export {
+  CostPeriodSelector,
+  CostPeriodSelectorWithDate,
+  usePeriodSelector,
+  getPeriodDates,
+  formatPeriodLabel,
+  type PeriodType,
+  type PeriodOption,
+  type DatePeriod,
+  type CostPeriodSelectorProps,
+  type CostPeriodSelectorWithDateProps,
+  type UsePeriodSelectorResult,
+} from "./cost-period-selector"
+
+// ============================================
+// Extended Period Metrics Grid
+// ============================================
+
+export {
+  CostPeriodMetricsGrid,
+  CostPeriodMetricsBar,
+  type PeriodCostData,
+  type CostPeriodMetricsGridProps,
+  type CostPeriodMetricsBarProps,
+} from "./cost-period-metrics-grid"

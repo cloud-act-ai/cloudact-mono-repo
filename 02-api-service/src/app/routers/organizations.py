@@ -207,6 +207,47 @@ class DryRunResponse(BaseModel):
     ready_for_onboarding: bool
 
 
+class OrgDatasetStatusResponse(BaseModel):
+    """Response for org dataset status check."""
+    org_slug: str
+    status: str  # SYNCED, OUT_OF_SYNC, NOT_FOUND, PROFILE_ONLY
+    dataset_exists: bool
+    profile_exists: bool
+    tables_expected: int
+    tables_existing: List[str]
+    tables_missing: List[str]
+    schema_diffs: Dict[str, Any] = Field(default_factory=dict)
+    message: str
+
+
+class OrgDatasetSyncRequest(BaseModel):
+    """Request to sync org dataset (create missing tables/columns)."""
+    sync_missing_tables: bool = Field(
+        default=True,
+        description="Create tables that are missing from BigQuery"
+    )
+    sync_missing_columns: bool = Field(
+        default=False,
+        description="Add missing columns to existing tables (non-destructive)"
+    )
+    recreate_views: bool = Field(
+        default=False,
+        description="Recreate materialized views if they're missing or outdated"
+    )
+
+
+class OrgDatasetSyncResponse(BaseModel):
+    """Response from org dataset sync operation."""
+    org_slug: str
+    status: str
+    dataset_created: bool
+    tables_created: List[str]
+    columns_added: Dict[str, List[str]] = Field(default_factory=dict)
+    views_created: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+    message: str
+
+
 # ============================================
 # Organization Dry-Run Validation Endpoint
 # ============================================
@@ -291,6 +332,350 @@ async def dryrun_org_onboarding(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Dry-run validation failed. Please check server logs for details."
+        )
+
+
+# ============================================
+# Organization Dataset Status & Sync Endpoints
+# ============================================
+
+@router.get(
+    "/organizations/{org_slug}/status",
+    response_model=OrgDatasetStatusResponse,
+    summary="Check org dataset sync status",
+    description="Check if org dataset and tables are in sync with configuration"
+)
+async def get_org_dataset_status(
+    org_slug: str,
+    _: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Check organization dataset status and identify any missing tables or schema differences.
+
+    Use this to verify if org needs re-syncing (e.g., after dataset deletion).
+
+    Returns:
+    - **status**: SYNCED, OUT_OF_SYNC, NOT_FOUND, PROFILE_ONLY
+    - **tables_missing**: Tables in config but not in BigQuery
+    - **schema_diffs**: Columns that differ between config and BigQuery
+    """
+    try:
+        import json
+
+        # Check if org profile exists in central dataset
+        check_profile_query = f"""
+        SELECT org_slug, status, org_dataset_id
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        profile_result = list(bq_client.client.query(
+            check_profile_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        profile_exists = len(profile_result) > 0
+
+        if not profile_exists:
+            return OrgDatasetStatusResponse(
+                org_slug=org_slug,
+                status="NOT_FOUND",
+                dataset_exists=False,
+                profile_exists=False,
+                tables_expected=0,
+                tables_existing=[],
+                tables_missing=[],
+                schema_diffs={},
+                message=f"Organization '{org_slug}' not found. Run onboard first."
+            )
+
+        # Get expected dataset ID
+        dataset_id = settings.get_org_dataset_name(org_slug)
+        full_dataset_id = f"{settings.gcp_project_id}.{dataset_id}"
+
+        # Check if dataset exists
+        try:
+            bq_client.client.get_dataset(full_dataset_id)
+            dataset_exists = True
+        except Exception:
+            return OrgDatasetStatusResponse(
+                org_slug=org_slug,
+                status="PROFILE_ONLY",
+                dataset_exists=False,
+                profile_exists=True,
+                tables_expected=0,
+                tables_existing=[],
+                tables_missing=["(entire dataset)"],
+                schema_diffs={},
+                message=f"Org profile exists but dataset '{dataset_id}' not found. Run sync to recreate."
+            )
+
+        # Get expected tables from onboarding config
+        schemas_dir = Path(__file__).parent.parent.parent.parent / "configs" / "setup" / "organizations" / "onboarding" / "schemas"
+
+        expected_tables = set()
+        if schemas_dir.exists():
+            for schema_file in schemas_dir.glob("*.json"):
+                expected_tables.add(schema_file.stem)
+
+        # Get existing tables
+        existing_tables = set()
+        for table in bq_client.client.list_tables(full_dataset_id):
+            existing_tables.add(table.table_id)
+
+        tables_missing = list(expected_tables - existing_tables)
+
+        # Check schema differences
+        schema_diffs = {}
+        for table_name in expected_tables & existing_tables:
+            schema_file = schemas_dir / f"{table_name}.json"
+            if not schema_file.exists():
+                continue
+
+            with open(schema_file, 'r') as f:
+                expected_schema = json.load(f)
+
+            expected_columns = {field['name'] for field in expected_schema}
+
+            table_ref = f"{full_dataset_id}.{table_name}"
+            try:
+                table = bq_client.client.get_table(table_ref)
+                actual_columns = {field.name for field in table.schema}
+
+                missing_columns = list(expected_columns - actual_columns)
+                extra_columns = list(actual_columns - expected_columns)
+
+                if missing_columns or extra_columns:
+                    schema_diffs[table_name] = {
+                        "missing_columns": missing_columns,
+                        "extra_columns": extra_columns
+                    }
+            except Exception as e:
+                logger.warning(f"Could not check schema for {table_name}: {e}")
+
+        # Determine status
+        if tables_missing or schema_diffs:
+            status_val = "OUT_OF_SYNC"
+            message = f"Org dataset out of sync: {len(tables_missing)} tables missing, {len(schema_diffs)} tables with schema differences"
+        else:
+            status_val = "SYNCED"
+            message = f"Org dataset in sync: {len(existing_tables)} tables present"
+
+        return OrgDatasetStatusResponse(
+            org_slug=org_slug,
+            status=status_val,
+            dataset_exists=dataset_exists,
+            profile_exists=profile_exists,
+            tables_expected=len(expected_tables),
+            tables_existing=list(existing_tables),
+            tables_missing=tables_missing,
+            schema_diffs=schema_diffs,
+            message=message
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to check org dataset status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check org dataset status. Please check server logs."
+        )
+
+
+@router.post(
+    "/organizations/{org_slug}/sync",
+    response_model=OrgDatasetSyncResponse,
+    summary="Sync org dataset",
+    description="Non-destructive sync: create missing dataset/tables and optionally add missing columns"
+)
+async def sync_org_dataset(
+    org_slug: str,
+    request: OrgDatasetSyncRequest,
+    _: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Sync organization dataset without deleting existing data.
+
+    Use case: When org dataset is deleted in BigQuery but profile still exists,
+    this recreates the dataset and all tables.
+
+    - Creates missing dataset if it doesn't exist
+    - Creates missing tables from config
+    - Optionally adds missing columns to existing tables
+    - Optionally recreates materialized views
+
+    NEVER deletes existing data.
+    """
+    try:
+        import json
+
+        # Verify org profile exists
+        check_profile_query = f"""
+        SELECT org_slug, status
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        profile_result = list(bq_client.client.query(
+            check_profile_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not profile_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{org_slug}' not found. Use /organizations/onboard first."
+            )
+
+        if profile_result[0]["status"] != "ACTIVE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Organization '{org_slug}' is not active. Contact support."
+            )
+
+        dataset_id = settings.get_org_dataset_name(org_slug)
+        full_dataset_id = f"{settings.gcp_project_id}.{dataset_id}"
+
+        tables_created = []
+        columns_added = {}
+        views_created = []
+        errors = []
+        dataset_created = False
+
+        # Ensure dataset exists
+        try:
+            bq_client.client.get_dataset(full_dataset_id)
+        except Exception:
+            # Create dataset
+            dataset = bigquery.Dataset(full_dataset_id)
+            dataset.location = settings.bigquery_location
+            dataset.description = f"Dataset for organization {org_slug}"
+            bq_client.client.create_dataset(dataset)
+            dataset_created = True
+            logger.info(f"Created dataset: {full_dataset_id}")
+
+        # Get schema files
+        schemas_dir = Path(__file__).parent.parent.parent.parent / "configs" / "setup" / "organizations" / "onboarding" / "schemas"
+
+        if not schemas_dir.exists():
+            return OrgDatasetSyncResponse(
+                org_slug=org_slug,
+                status="PARTIAL",
+                dataset_created=dataset_created,
+                tables_created=[],
+                columns_added={},
+                views_created=[],
+                errors=["Schema directory not found"],
+                message="Dataset created but no schema files found"
+            )
+
+        # Get existing tables
+        existing_tables = set()
+        for table in bq_client.client.list_tables(full_dataset_id):
+            existing_tables.add(table.table_id)
+
+        # Process each schema file
+        for schema_file in schemas_dir.glob("*.json"):
+            table_name = schema_file.stem
+
+            with open(schema_file, 'r') as f:
+                schema_json = json.load(f)
+
+            schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+            table_id = f"{full_dataset_id}.{table_name}"
+
+            if table_name not in existing_tables:
+                # Create missing table
+                if request.sync_missing_tables:
+                    try:
+                        table = bigquery.Table(table_id, schema=schema)
+                        table.description = f"Table: {table_name}"
+                        bq_client.client.create_table(table)
+                        tables_created.append(table_name)
+                        logger.info(f"Created table: {table_id}")
+                    except Exception as e:
+                        errors.append(f"Failed to create {table_name}: {str(e)}")
+            else:
+                # Check for missing columns
+                if request.sync_missing_columns:
+                    try:
+                        existing_table = bq_client.client.get_table(table_id)
+                        existing_columns = {field.name for field in existing_table.schema}
+                        expected_columns = {field['name'] for field in schema_json}
+
+                        missing_columns = expected_columns - existing_columns
+
+                        if missing_columns:
+                            for col_name in missing_columns:
+                                col_def = next((f for f in schema_json if f['name'] == col_name), None)
+                                if col_def:
+                                    col_type = col_def['type']
+
+                                    alter_sql = f"""
+                                    ALTER TABLE `{table_id}`
+                                    ADD COLUMN IF NOT EXISTS {col_name} {col_type}
+                                    """
+
+                                    try:
+                                        bq_client.client.query(alter_sql).result()
+                                        if table_name not in columns_added:
+                                            columns_added[table_name] = []
+                                        columns_added[table_name].append(col_name)
+                                        logger.info(f"Added column {col_name} to {table_name}")
+                                    except Exception as col_error:
+                                        errors.append(f"Failed to add column {col_name} to {table_name}: {str(col_error)}")
+                    except Exception as e:
+                        errors.append(f"Failed to check schema for {table_name}: {str(e)}")
+
+        # Recreate materialized views if requested
+        if request.recreate_views:
+            from src.core.processors.setup.organizations.onboarding import OrgOnboardingProcessor
+            processor = OrgOnboardingProcessor()
+            mv_created, mv_failed = processor._create_org_materialized_views(org_slug, dataset_id)
+            views_created.extend(mv_created)
+            if mv_failed:
+                errors.extend([f"Failed to create view: {v}" for v in mv_failed])
+
+        # Determine status
+        if errors:
+            status_val = "PARTIAL"
+            message = f"Sync completed with errors: {len(tables_created)} tables, {len(errors)} errors"
+        elif tables_created or columns_added or views_created or dataset_created:
+            status_val = "SUCCESS"
+            message = f"Sync completed: dataset={'created' if dataset_created else 'existed'}, {len(tables_created)} tables created, {sum(len(v) for v in columns_added.values())} columns added, {len(views_created)} views created"
+        else:
+            status_val = "SUCCESS"
+            message = "Already in sync - no changes needed"
+
+        return OrgDatasetSyncResponse(
+            org_slug=org_slug,
+            status=status_val,
+            dataset_created=dataset_created,
+            tables_created=tables_created,
+            columns_added=columns_added,
+            views_created=views_created,
+            errors=errors,
+            message=message
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Org dataset sync failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Org dataset sync failed. Please check server logs."
         )
 
 
@@ -957,20 +1342,7 @@ async def onboard_org(
                             "partition_field": "ContractPeriodStart",
                             "clustering_fields": ["ContractId", "x_SubAccountId"]
                         },
-                        # LLM Model Pricing table (unified for all providers)
-                        {
-                            "table_name": "llm_model_pricing",
-                            "schema_file": "llm_model_pricing.json",
-                            "description": "Unified LLM model pricing (OpenAI, Anthropic, Gemini)",
-                            "clustering_fields": ["provider", "model_id"]
-                        },
-                        # Organizational Hierarchy table (departments, projects, teams)
-                        {
-                            "table_name": "org_hierarchy",
-                            "schema_file": "org_hierarchy.json",
-                            "description": "Organizational hierarchy for cost allocation. Stores departments, projects, and teams with version history.",
-                            "clustering_fields": ["entity_type", "entity_id"]
-                        },
+                        # NOTE: org_hierarchy moved to central organizations dataset (bootstrap)
                         # ========================================
                         # GenAI Cost Tracking Tables (3 flows)
                         # ========================================
@@ -1051,6 +1423,37 @@ async def onboard_org(
                             "description": "Consolidated GenAI costs (PAYG + Commitment + Infrastructure) for dashboards and billing.",
                             "partition_field": "cost_date",
                             "clustering_fields": ["cost_type", "provider"]
+                        },
+                        # ========================================
+                        # Cloud Billing Tables (GCP, AWS, Azure, OCI)
+                        # ========================================
+                        {
+                            "table_name": "cloud_gcp_billing_raw_daily",
+                            "schema_file": "cloud_gcp_billing_raw_daily.json",
+                            "description": "Raw GCP billing data from BigQuery billing export.",
+                            "partition_field": "usage_start_time",
+                            "clustering_fields": ["billing_account_id", "service_id", "project_id"]
+                        },
+                        {
+                            "table_name": "cloud_aws_billing_raw_daily",
+                            "schema_file": "cloud_aws_billing_raw_daily.json",
+                            "description": "Raw AWS billing data from Cost & Usage Report (CUR).",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["linked_account_id", "service_code", "product_code"]
+                        },
+                        {
+                            "table_name": "cloud_azure_billing_raw_daily",
+                            "schema_file": "cloud_azure_billing_raw_daily.json",
+                            "description": "Raw Azure billing data from Cost Management export.",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["subscription_id", "service_name", "resource_group"]
+                        },
+                        {
+                            "table_name": "cloud_oci_billing_raw_daily",
+                            "schema_file": "cloud_oci_billing_raw_daily.json",
+                            "description": "Raw OCI billing data from Cost Analysis API.",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["tenancy_id", "service_name", "compartment_id"]
                         }
                     ],
                     # LLM tables created empty - customers add custom plans via UI
@@ -2636,16 +3039,7 @@ async def repair_org_tables(
             "partition_field": "ContractPeriodStart",
             "clustering_fields": ["ContractId", "x_SubAccountId"]
         },
-        {
-            "table_name": "llm_model_pricing",
-            "schema_file": "llm_model_pricing.json",
-            "clustering_fields": ["provider", "model_id"]
-        },
-        {
-            "table_name": "org_hierarchy",
-            "schema_file": "org_hierarchy.json",
-            "clustering_fields": ["entity_type", "entity_id"]
-        },
+        # NOTE: org_hierarchy moved to central organizations dataset (bootstrap)
         # GenAI PAYG Tables
         {
             "table_name": "genai_payg_pricing",

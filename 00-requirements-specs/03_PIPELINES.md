@@ -235,7 +235,7 @@ source:
 target:
   type: bigquery
   dataset: "{{org_slug}}_{{env}}"
-  table: gcp_billing_costs
+  table: cloud_gcp_billing_raw_daily
 
 parameters:
   date:

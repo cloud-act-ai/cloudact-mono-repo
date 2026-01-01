@@ -46,7 +46,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ -v --run-integration
 ```
 
-## Bootstrap (14 Meta Tables)
+## Bootstrap (20 Meta Tables)
 
 | Table | Purpose | Partitioned |
 |-------|---------|-------------|
@@ -57,6 +57,7 @@ python -m pytest tests/ -v --run-integration
 | org_integration_credentials | Encrypted creds | - |
 | org_meta_pipeline_runs | Execution logs | start_time |
 | org_meta_step_logs | Step logs | start_time |
+| org_meta_state_transitions | State history | transition_time |
 | org_meta_dq_results | DQ results | ingestion_date |
 | org_pipeline_configs | Pipeline config | - |
 | org_scheduled_pipeline_runs | Scheduled jobs | scheduled_time |
@@ -64,8 +65,59 @@ python -m pytest tests/ -v --run-integration
 | org_cost_tracking | Cost data | usage_date |
 | org_audit_logs | Audit trail | created_at |
 | org_idempotency_keys | Deduplication | - |
+| org_notification_channels | Email/Slack/Webhook | - |
+| org_notification_rules | Alert rules | - |
+| org_notification_summaries | Digest config | - |
+| org_notification_history | Delivery log | created_at |
+| org_hierarchy | Dept/Project/Team structure | - |
 
 **Schemas:** `configs/setup/bootstrap/schemas/*.json`
+
+## Incremental Schema Evolution (CRITICAL)
+
+**Philosophy: Only ADD, never DELETE. No data loss, ever.**
+
+### Schema Change Workflow
+
+```bash
+# 1. Check current status
+curl GET /api/v1/admin/bootstrap/status -H "X-CA-Root-Key: $KEY"
+curl GET /api/v1/organizations/{org}/status -H "X-CA-Root-Key: $KEY"
+
+# 2. Add new column to schema JSON file
+# Edit: configs/setup/bootstrap/schemas/{table}.json
+# Or:   configs/setup/organizations/onboarding/schemas/{table}.json
+
+# 3. Sync to apply changes (non-destructive)
+curl POST /api/v1/admin/bootstrap/sync \
+  -H "X-CA-Root-Key: $KEY" \
+  -d '{"sync_missing_tables": true, "sync_missing_columns": true}'
+
+curl POST /api/v1/organizations/{org}/sync \
+  -H "X-CA-Root-Key: $KEY" \
+  -d '{"sync_missing_tables": true, "sync_missing_columns": true}'
+```
+
+### Status Values
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `SYNCED` | All tables/columns match config | None needed |
+| `OUT_OF_SYNC` + `missing_columns` | New columns in config | Run `/sync` |
+| `OUT_OF_SYNC` + `extra_columns` | Old columns in BigQuery | **Ignore** - harmless |
+| `NOT_BOOTSTRAPPED` | Dataset missing | Run `/bootstrap` |
+| `PROFILE_ONLY` | Org dataset deleted | Run `/organizations/{org}/sync` |
+
+### Rules
+
+| Action | How | Data Impact |
+|--------|-----|-------------|
+| Add column | Edit JSON → `/sync` | ✅ Safe |
+| Add table | Add JSON + config.yml → `/sync` | ✅ Safe |
+| Remove column | Remove from JSON | ✅ Safe (stays in BQ as "extra") |
+| Drop column | **NOT SUPPORTED** | BigQuery limitation |
+
+**NEVER use `force_recreate_*` flags** - they delete all data.
 
 ## Key Endpoints
 
@@ -156,25 +208,41 @@ services/
 │   ├── cache.py               # LRU cache with TTL
 │   ├── validation.py          # org_slug validation
 │   └── date_utils.py          # Fiscal year, periods, comparisons
-├── cost_read/                  # GET /costs/* (Polars + cache)
+│
+│ # READ SERVICES (Polars + Cache) - Dashboard queries
+├── cost_read/                  # GET /costs/*
 │   ├── models.py              # CostQuery, CostResponse
 │   └── service.py             # CostReadService
-├── usage_read/                 # GET /usage/* (Polars + cache)
+├── usage_read/                 # GET /usage/*
 │   ├── models.py              # UsageQuery, UsageResponse
 │   └── service.py             # UsageReadService
-├── integration_read/           # GET /integrations/* (Polars + cache)
+├── integration_read/           # GET /integrations/*
 │   ├── models.py              # IntegrationQuery, IntegrationResponse
 │   └── service.py             # IntegrationReadService
-├── pipeline_read/              # GET /pipelines/* (Polars + cache)
+├── pipeline_read/              # GET /pipelines/*
 │   ├── models.py              # PipelineQuery, PipelineResponse
 │   └── service.py             # PipelineReadService
-└── hierarchy_crud/             # Hierarchy CRUD (direct BigQuery)
-    └── service.py             # HierarchyService
+├── notification_read/          # GET /notifications/* (stats, history)
+│   ├── models.py              # NotificationQuery, HistoryQueryParams
+│   └── service.py             # NotificationReadService
+│
+│ # CRUD SERVICES (Direct BigQuery) - Settings writes
+├── hierarchy_crud/             # Dept/Project/Team CRUD
+│   ├── models.py              # HierarchyEntity, CreateRequest
+│   └── service.py             # HierarchyService
+└── notification_crud/          # Channels/Rules/Summaries CRUD
+    ├── models.py              # NotificationChannel, NotificationRule, etc.
+    └── service.py             # NotificationSettingsService
 ```
 
 **Naming Convention:**
-- `*_read/` = Polars + Cache for dashboard reads
-- `*_crud/` = Direct BigQuery for settings writes
+- `*_read/` = Polars + Cache for dashboard reads (data written by Pipeline or shared)
+- `*_crud/` = Direct BigQuery for settings writes (API-owned tables)
+
+**IMPORTANT: When Adding New Services**
+1. Dashboard queries → Create `{domain}_read/` with Polars
+2. Settings CRUD → Create `{domain}_crud/` with direct BigQuery
+3. Never mix read and write in same service
 
 ## Calculation Libraries (src/lib/)
 
@@ -413,6 +481,7 @@ Direct BigQuery operations for settings and hierarchy management.
 | Service | Endpoint Pattern | Purpose |
 |---------|------------------|---------|
 | `hierarchy_crud/` | `/hierarchy/*` | Dept/Project/Team CRUD |
+| `notification_crud/` | `/notifications/channels/*`, `/notifications/rules/*`, `/notifications/summaries/*` | Notification settings CRUD |
 
 ```python
 from src.core.services.hierarchy_crud import get_hierarchy_crud_service
@@ -421,5 +490,103 @@ service = get_hierarchy_crud_service()
 result = await service.create_department(org_slug, request)
 ```
 
+### Hierarchy Data Architecture
+
+```
+WRITES → organizations.org_hierarchy (central table in bootstrap dataset)
+READS  → {org_slug}_prod.x_org_hierarchy (per-org materialized view)
+```
+
+**Pattern:** All hierarchy reads use the `x_org_hierarchy` view for better performance:
+- View is pre-filtered by `org_slug` and `end_date IS NULL`
+- Auto-refreshed every 15 minutes
+- Fallback to central table if view doesn't exist
+- **Throws error if both view and central table fail** (no silent failures)
+
+```python
+from src.core.services.notification_crud import get_notification_settings_service
+
+service = get_notification_settings_service()
+result = await service.create_channel(org_slug, channel_data)
+```
+
+## Notification System
+
+The notification system uses a split architecture:
+
+| Component | Service | Purpose |
+|-----------|---------|---------|
+| **Settings CRUD** | `notification_crud/` (API 8000) | Channels, Rules, Summaries configuration |
+| **Dashboard Reads** | `notification_read/` (API 8000) | Stats, history queries via Polars |
+| **Sending** | Pipeline Service (8001) | Email/Slack delivery via providers |
+
+### Notification Tables (org-specific)
+
+| Table | Owner | Purpose |
+|-------|-------|---------|
+| `org_notification_channels` | API (CRUD) | Email/Slack/Webhook channel config |
+| `org_notification_rules` | API (CRUD) | Alert rules with conditions |
+| `org_notification_summaries` | API (CRUD) | Scheduled digest config |
+| `org_notification_history` | Pipeline (write) / API (read) | Notification delivery log |
+
+### Materialized Views (created during org onboarding)
+
+| View | Source | Purpose | Refresh |
+|------|--------|---------|---------|
+| `x_all_notifications` | `org_notification_history` | Consolidated history with channel/rule/summary joins | 15 min |
+| `x_notification_stats` | `org_notification_history` | Pre-computed stats for dashboard | 5 min |
+| `x_pipeline_exec_logs` | `org_meta_pipeline_runs` | Pre-filtered pipeline execution logs | 15 min |
+| `x_org_hierarchy` | `organizations.org_hierarchy` | **Org-filtered hierarchy for fast reads** | 15 min |
+
+### CRUD Endpoints
+
+```bash
+# Channels
+POST   /api/v1/notifications/{org}/channels
+GET    /api/v1/notifications/{org}/channels
+PUT    /api/v1/notifications/{org}/channels/{id}
+DELETE /api/v1/notifications/{org}/channels/{id}
+
+# Rules
+POST   /api/v1/notifications/{org}/rules
+GET    /api/v1/notifications/{org}/rules
+PUT    /api/v1/notifications/{org}/rules/{id}
+DELETE /api/v1/notifications/{org}/rules/{id}
+
+# Summaries
+POST   /api/v1/notifications/{org}/summaries
+GET    /api/v1/notifications/{org}/summaries
+PUT    /api/v1/notifications/{org}/summaries/{id}
+DELETE /api/v1/notifications/{org}/summaries/{id}
+
+# Read (Polars-powered)
+GET    /api/v1/notifications/{org}/stats
+GET    /api/v1/notifications/{org}/history
+```
+
+### Models
+
+```python
+# CRUD models (notification_crud/)
+from src.core.services.notification_crud import (
+    ChannelType,          # email, slack, webhook
+    RuleCategory,         # cost, pipeline, system, security
+    RuleType,             # threshold, anomaly, budget
+    RulePriority,         # critical, high, medium, low, info
+    SummaryType,          # daily, weekly, monthly
+    NotificationChannel,
+    NotificationRule,
+    NotificationSummary,
+)
+
+# Read models (notification_read/)
+from src.core.services.notification_read import (
+    HistoryDatePeriod,    # today, yesterday, last_7_days, etc.
+    HistoryQueryParams,
+    NotificationStatsResponse,
+    HistoryListResponse,
+)
+```
+
 ---
-**Last Updated:** 2025-12-30
+**Last Updated:** 2026-01-01

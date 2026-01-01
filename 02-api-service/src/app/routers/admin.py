@@ -5,7 +5,7 @@ Endpoints for organization and API key management.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from datetime import datetime, date
 import hashlib
 import secrets
@@ -89,6 +89,39 @@ class BootstrapResponse(BaseModel):
     tables_created: list = Field(..., description="List of created tables")
     tables_existed: list = Field(..., description="List of existing tables")
     total_tables: int
+    message: str
+
+
+class BootstrapStatusResponse(BaseModel):
+    """Response for bootstrap status check."""
+    status: str = Field(..., description="SYNCED, OUT_OF_SYNC, NOT_BOOTSTRAPPED")
+    dataset_exists: bool
+    tables_expected: int
+    tables_existing: List[str]
+    tables_missing: List[str]
+    tables_extra: List[str]
+    schema_diffs: Dict[str, Any] = Field(default_factory=dict, description="Schema differences per table")
+    message: str
+
+
+class BootstrapSyncRequest(BaseModel):
+    """Request to sync bootstrap (create missing tables/columns)."""
+    sync_missing_tables: bool = Field(
+        default=True,
+        description="Create tables that are missing from BigQuery"
+    )
+    sync_missing_columns: bool = Field(
+        default=False,
+        description="Add missing columns to existing tables (non-destructive)"
+    )
+
+
+class BootstrapSyncResponse(BaseModel):
+    """Response from bootstrap sync operation."""
+    status: str
+    tables_created: List[str]
+    columns_added: Dict[str, List[str]] = Field(default_factory=dict)
+    errors: List[str] = Field(default_factory=list)
     message: str
 
 
@@ -208,6 +241,298 @@ async def bootstrap_system(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
+        )
+
+
+# ============================================
+# Bootstrap Status & Sync Endpoints
+# ============================================
+
+@router.get(
+    "/admin/bootstrap/status",
+    response_model=BootstrapStatusResponse,
+    summary="Check bootstrap sync status",
+    description="Check if system bootstrap tables are in sync with configuration"
+)
+async def get_bootstrap_status(
+    _admin: None = Depends(verify_admin_key)
+):
+    """
+    Check bootstrap status and identify any missing tables or schema differences.
+
+    Returns:
+    - **status**: SYNCED (all good), OUT_OF_SYNC (missing tables/columns), NOT_BOOTSTRAPPED (no dataset)
+    - **tables_missing**: Tables that exist in config but not in BigQuery
+    - **tables_extra**: Tables in BigQuery not in config (usually fine, could be custom)
+    - **schema_diffs**: Columns that differ between config and BigQuery
+    """
+    try:
+        from src.core.engine.bq_client import get_bigquery_client
+        from pathlib import Path
+        import yaml
+        import json
+
+        bq_client = get_bigquery_client()
+
+        # Load config
+        config_dir = Path(__file__).parent.parent.parent.parent / "configs" / "setup" / "bootstrap"
+        config_file = config_dir / "config.yml"
+
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+
+        dataset_name = config.get('dataset', {}).get('name', 'organizations')
+        expected_tables = set(config.get('tables', {}).keys())
+
+        # Check if dataset exists
+        dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
+        try:
+            bq_client.client.get_dataset(dataset_id)
+            dataset_exists = True
+        except Exception:
+            return BootstrapStatusResponse(
+                status="NOT_BOOTSTRAPPED",
+                dataset_exists=False,
+                tables_expected=len(expected_tables),
+                tables_existing=[],
+                tables_missing=list(expected_tables),
+                tables_extra=[],
+                schema_diffs={},
+                message="Organizations dataset does not exist. Run bootstrap first."
+            )
+
+        # Get existing tables
+        existing_tables = set()
+        tables = bq_client.client.list_tables(dataset_id)
+        for table in tables:
+            existing_tables.add(table.table_id)
+
+        tables_missing = list(expected_tables - existing_tables)
+        tables_extra = list(existing_tables - expected_tables)
+
+        # Check schema differences for existing tables
+        schema_diffs = {}
+        schemas_dir = config_dir / "schemas"
+
+        for table_name in expected_tables & existing_tables:
+            schema_file = schemas_dir / f"{table_name}.json"
+            if not schema_file.exists():
+                continue
+
+            with open(schema_file, 'r') as f:
+                expected_schema = json.load(f)
+
+            expected_columns = {field['name'] for field in expected_schema}
+
+            # Get actual table schema
+            table_ref = f"{dataset_id}.{table_name}"
+            try:
+                table = bq_client.client.get_table(table_ref)
+                actual_columns = {field.name for field in table.schema}
+
+                missing_columns = list(expected_columns - actual_columns)
+                extra_columns = list(actual_columns - expected_columns)
+
+                if missing_columns or extra_columns:
+                    schema_diffs[table_name] = {
+                        "missing_columns": missing_columns,
+                        "extra_columns": extra_columns
+                    }
+            except Exception as e:
+                logger.warning(f"Could not check schema for {table_name}: {e}")
+
+        # Determine overall status
+        if tables_missing or schema_diffs:
+            status_val = "OUT_OF_SYNC"
+            message = f"Bootstrap out of sync: {len(tables_missing)} tables missing, {len(schema_diffs)} tables with schema differences"
+        else:
+            status_val = "SYNCED"
+            message = f"Bootstrap in sync: {len(existing_tables)} tables present"
+
+        return BootstrapStatusResponse(
+            status=status_val,
+            dataset_exists=dataset_exists,
+            tables_expected=len(expected_tables),
+            tables_existing=list(existing_tables),
+            tables_missing=tables_missing,
+            tables_extra=tables_extra,
+            schema_diffs=schema_diffs,
+            message=message
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to check bootstrap status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check bootstrap status. Please check server logs."
+        )
+
+
+@router.post(
+    "/admin/bootstrap/sync",
+    response_model=BootstrapSyncResponse,
+    summary="Sync bootstrap tables",
+    description="Non-destructive sync: create missing tables and optionally add missing columns"
+)
+async def sync_bootstrap(
+    request: BootstrapSyncRequest,
+    http_request: Request,
+    _admin: None = Depends(verify_admin_key)
+):
+    """
+    Sync bootstrap tables without deleting existing data.
+
+    - Creates missing tables from config
+    - Optionally adds missing columns to existing tables (ALTER TABLE ADD COLUMN)
+    - NEVER deletes tables or columns
+
+    Parameters:
+    - **sync_missing_tables**: Create tables that are missing (default: True)
+    - **sync_missing_columns**: Add missing columns to existing tables (default: False)
+    """
+    await rate_limit_global(
+        http_request,
+        endpoint_name="admin_bootstrap_sync",
+        limit_per_minute=5
+    )
+
+    try:
+        from src.core.engine.bq_client import get_bigquery_client
+        from pathlib import Path
+        import yaml
+        import json
+
+        bq_client = get_bigquery_client()
+
+        # Load config
+        config_dir = Path(__file__).parent.parent.parent.parent / "configs" / "setup" / "bootstrap"
+        config_file = config_dir / "config.yml"
+        schemas_dir = config_dir / "schemas"
+
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+
+        dataset_name = config.get('dataset', {}).get('name', 'organizations')
+        dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
+
+        tables_created = []
+        columns_added = {}
+        errors = []
+
+        # Ensure dataset exists
+        try:
+            bq_client.client.get_dataset(dataset_id)
+        except Exception:
+            # Create dataset if it doesn't exist
+            dataset = bigquery.Dataset(dataset_id)
+            dataset.location = config.get('dataset', {}).get('location', settings.bigquery_location)
+            bq_client.client.create_dataset(dataset)
+            logger.info(f"Created dataset: {dataset_id}")
+
+        # Get existing tables
+        existing_tables = set()
+        for table in bq_client.client.list_tables(dataset_id):
+            existing_tables.add(table.table_id)
+
+        # Process each table in config
+        for table_name, table_config in config.get('tables', {}).items():
+            schema_file = schemas_dir / f"{table_name}.json"
+
+            if not schema_file.exists():
+                errors.append(f"Schema file not found: {table_name}.json")
+                continue
+
+            with open(schema_file, 'r') as f:
+                schema_json = json.load(f)
+
+            schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+            table_id = f"{dataset_id}.{table_name}"
+
+            if table_name not in existing_tables:
+                # Create missing table
+                if request.sync_missing_tables:
+                    try:
+                        table = bigquery.Table(table_id, schema=schema)
+                        table.description = (table_config or {}).get('description', f"Table: {table_name}")
+
+                        # Apply partitioning
+                        partition_cfg = (table_config or {}).get('partition')
+                        if partition_cfg:
+                            table.time_partitioning = bigquery.TimePartitioning(
+                                type_=bigquery.TimePartitioningType.DAY,
+                                field=partition_cfg.get('field')
+                            )
+
+                        # Apply clustering
+                        clustering = (table_config or {}).get('clustering')
+                        if clustering:
+                            table.clustering_fields = clustering
+
+                        bq_client.client.create_table(table)
+                        tables_created.append(table_name)
+                        logger.info(f"Created table: {table_id}")
+                    except Exception as e:
+                        errors.append(f"Failed to create {table_name}: {str(e)}")
+            else:
+                # Check for missing columns and add them
+                if request.sync_missing_columns:
+                    try:
+                        existing_table = bq_client.client.get_table(table_id)
+                        existing_columns = {field.name for field in existing_table.schema}
+                        expected_columns = {field['name'] for field in schema_json}
+
+                        missing_columns = expected_columns - existing_columns
+
+                        if missing_columns:
+                            # Add missing columns via ALTER TABLE
+                            for col_name in missing_columns:
+                                # Find column definition
+                                col_def = next((f for f in schema_json if f['name'] == col_name), None)
+                                if col_def:
+                                    col_type = col_def['type']
+                                    mode = col_def.get('mode', 'NULLABLE')
+
+                                    # BigQuery ALTER TABLE ADD COLUMN
+                                    alter_sql = f"""
+                                    ALTER TABLE `{table_id}`
+                                    ADD COLUMN IF NOT EXISTS {col_name} {col_type}
+                                    """
+
+                                    try:
+                                        bq_client.client.query(alter_sql).result()
+                                        if table_name not in columns_added:
+                                            columns_added[table_name] = []
+                                        columns_added[table_name].append(col_name)
+                                        logger.info(f"Added column {col_name} to {table_name}")
+                                    except Exception as col_error:
+                                        errors.append(f"Failed to add column {col_name} to {table_name}: {str(col_error)}")
+                    except Exception as e:
+                        errors.append(f"Failed to check schema for {table_name}: {str(e)}")
+
+        # Determine status
+        if errors:
+            status_val = "PARTIAL"
+            message = f"Sync completed with errors: {len(tables_created)} tables created, {len(errors)} errors"
+        elif tables_created or columns_added:
+            status_val = "SUCCESS"
+            message = f"Sync completed: {len(tables_created)} tables created, {sum(len(v) for v in columns_added.values())} columns added"
+        else:
+            status_val = "SUCCESS"
+            message = "Already in sync - no changes needed"
+
+        return BootstrapSyncResponse(
+            status=status_val,
+            tables_created=tables_created,
+            columns_added=columns_added,
+            errors=errors,
+            message=message
+        )
+
+    except Exception as e:
+        logger.error(f"Bootstrap sync failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Bootstrap sync failed. Please check server logs."
         )
 
 

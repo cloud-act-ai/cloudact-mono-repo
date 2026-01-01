@@ -108,3 +108,36 @@ tables:
   org_idempotency_keys:
     description: "Idempotency key tracking for duplicate request prevention (24-hour TTL)"
     clustering: ["idempotency_key", "org_slug"]
+
+  # ============================================
+  # Notification System Tables
+  # Supports email, Slack, and webhook notifications
+  # ============================================
+
+  org_notification_channels:
+    description: "Notification channels (email, Slack, webhook) for cost alerts"
+    clustering: ["org_slug", "channel_type", "is_active"]
+
+  org_notification_rules:
+    description: "Cost alert rules and thresholds"
+    clustering: ["org_slug", "rule_type", "is_active"]
+
+  org_notification_summaries:
+    description: "Scheduled cost summary configurations"
+    clustering: ["org_slug", "is_active"]
+
+  org_notification_history:
+    description: "Notification delivery history"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "notification_type", "status"]
+
+  # ============================================
+  # Organizational Hierarchy
+  # Central management for Dept → Project → Team structure
+  # ============================================
+
+  org_hierarchy:
+    description: "Organizational hierarchy (Dept → Project → Team) for cost allocation"
+    clustering: ["org_slug", "entity_type", "is_active"]

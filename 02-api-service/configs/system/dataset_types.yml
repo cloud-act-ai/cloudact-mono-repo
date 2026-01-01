@@ -45,10 +45,19 @@ dataset_types:
       anthropic_subscriptions:
         partition_field: null
         cluster_fields: [plan_name]
-      # GCP Billing (high volume - partitioned)
-      gcp_billing_daily_raw:
-        partition_field: usage_start_time
-        cluster_fields: [project_id, service_id]
+      # Cloud Billing (high volume - partitioned)
+      cloud_gcp_billing_raw_daily:
+        partition_field: ingestion_date
+        cluster_fields: [billing_account_id, service_id, project_id]
+      cloud_aws_billing_raw_daily:
+        partition_field: usage_date
+        cluster_fields: [linked_account_id, service_code]
+      cloud_azure_billing_raw_daily:
+        partition_field: usage_date
+        cluster_fields: [subscription_id, service_name]
+      cloud_oci_billing_raw_daily:
+        partition_field: usage_date
+        cluster_fields: [tenancy_id, service_name]
 
 # Scalability notes:
 # - High-volume tables (usage, cost, billing) are partitioned by date

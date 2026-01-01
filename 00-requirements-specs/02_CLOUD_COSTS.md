@@ -1,8 +1,8 @@
-# Cloud Costs (GCP Billing)
+# Cloud Costs (Multi-Cloud Billing)
 
-**Status**: IMPLEMENTED (v1.5) | **Updated**: 2025-12-04 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v2.0) | **Updated**: 2026-01-01 | **Single Source of Truth**
 
-> GCP billing data extraction, cost tracking, and cloud spend analytics
+> Multi-cloud billing data extraction (GCP, AWS, Azure, OCI), cost tracking, and cloud spend analytics
 > NOT SaaS subscriptions (see 02_SAAS_SUBSCRIPTION_COSTS.md)
 > NOT LLM API usage (see 02_LLM_API_USAGE_COSTS.md)
 
@@ -14,9 +14,9 @@
 |-------------|---------|---------|
 | `{org_slug}` | Organization identifier | `acme_corp` |
 | `{env}` | Environment suffix | `prod`, `stage`, `local` |
+| `{provider}` | Cloud provider | `gcp`, `aws`, `azure`, `oci` |
 | `{project_id}` | GCP project ID | `your-gcp-project-id` |
-| `{billing_account_id}` | GCP billing account | `01ABCD-EFGHIJ-KLMNOP` |
-| `{service_account}` | GCP service account email | `sa@project.iam.gserviceaccount.com` |
+| `{billing_account_id}` | Cloud billing account | `01ABCD-EFGHIJ-KLMNOP` |
 
 ---
 
@@ -24,11 +24,22 @@
 
 | Term | Definition | Example | Storage |
 |------|------------|---------|---------|
-| **Billing Export** | GCP billing data exported to BigQuery | Daily exports | External BigQuery dataset |
-| **Cost Entry** | Single line item from billing export | Compute Engine usage | `gcp_billing_costs` table |
-| **Service Account** | GCP credential for API access | KMS-encrypted JSON | `org_credentials` |
-| **Integration** | Configured GCP provider connection | Active GCP setup | `org_integrations` |
+| **Billing Export** | Cloud billing data exported to storage | Daily exports | External BigQuery/S3 |
+| **Cost Entry** | Single line item from billing export | Compute usage | `cloud_{provider}_billing_raw_daily` |
+| **FOCUS 1.3** | FinOps Open Cost & Usage Specification | Unified format | `cost_data_standard_1_3` |
+| **Integration** | Configured cloud provider connection | Active GCP setup | `org_integration_credentials` |
 | **Pipeline** | ETL job to extract billing data | `gcp/cost/billing` | Pipeline engine |
+
+---
+
+## Supported Cloud Providers
+
+| Provider | Table Name | Partition Field | Status |
+|----------|------------|-----------------|--------|
+| **GCP** | `cloud_gcp_billing_raw_daily` | `usage_start_time` | Implemented |
+| **AWS** | `cloud_aws_billing_raw_daily` | `usage_date` | Implemented |
+| **Azure** | `cloud_azure_billing_raw_daily` | `usage_date` | Implemented |
+| **OCI** | `cloud_oci_billing_raw_daily` | `usage_date` | Implemented |
 
 ---
 
@@ -36,12 +47,32 @@
 
 | Storage | Table/Location | What |
 |---------|----------------|------|
-| BigQuery (External) | `{billing_dataset}.gcp_billing_export` | Raw GCP billing export |
-| BigQuery (Org) | `{org_slug}_{env}.gcp_billing_costs` | Extracted cost data |
-| BigQuery (Org) | `{org_slug}_{env}.gcp_billing_summary` | Aggregated summaries |
-| BigQuery (Meta) | `organizations.org_integrations` | Integration status |
-| BigQuery (Meta) | `organizations.org_credentials` | Encrypted SA key |
-| Supabase | `organizations` | Org metadata |
+| BigQuery (Org) | `{org_slug}_{env}.cloud_gcp_billing_raw_daily` | Raw GCP billing data |
+| BigQuery (Org) | `{org_slug}_{env}.cloud_aws_billing_raw_daily` | Raw AWS CUR data |
+| BigQuery (Org) | `{org_slug}_{env}.cloud_azure_billing_raw_daily` | Raw Azure billing data |
+| BigQuery (Org) | `{org_slug}_{env}.cloud_oci_billing_raw_daily` | Raw OCI billing data |
+| BigQuery (Org) | `{org_slug}_{env}.cost_data_standard_1_3` | FOCUS 1.3 unified costs |
+| BigQuery (Meta) | `organizations.org_integration_credentials` | Encrypted credentials |
+| BigQuery (Meta) | `organizations.org_profiles` | Org metadata |
+
+---
+
+## Table Naming Convention
+
+All cloud billing tables follow the pattern: **`cloud_{provider}_billing_raw_daily`**
+
+```
+cloud_gcp_billing_raw_daily     # Google Cloud Platform
+cloud_aws_billing_raw_daily     # Amazon Web Services
+cloud_azure_billing_raw_daily   # Microsoft Azure
+cloud_oci_billing_raw_daily     # Oracle Cloud Infrastructure
+```
+
+This naming convention:
+- Starts with `cloud_` prefix for domain identification
+- Includes provider name for clarity
+- Ends with `_raw_daily` to indicate raw data at daily granularity
+- Matches other domain patterns: `genai_*`, `saas_*`
 
 ---
 
@@ -50,8 +81,8 @@
 | Stage | What Happens | Integration Status |
 |-------|--------------|-------------------|
 | **Onboarding** | Org created, empty tables | N/A |
-| **Setup** | User uploads GCP service account | `pending` |
-| **Validation** | Test connection to billing export | `validating` |
+| **Setup** | User uploads cloud credentials | `pending` |
+| **Validation** | Test connection to billing source | `validating` |
 | **Active** | Ready to run pipelines | `active` |
 | **Error** | Validation or pipeline failed | `error` |
 | **Disabled** | User disabled integration | `disabled` |
@@ -60,27 +91,28 @@
 
 ## Architecture Flow
 
-### GCP Integration Setup
+### Cloud Integration Setup
 
 ```
 +-----------------------------------------------------------------------------+
-|                        GCP INTEGRATION SETUP                                 |
+|                      CLOUD INTEGRATION SETUP                                 |
 +-----------------------------------------------------------------------------+
 |                                                                             |
-|  1. USER UPLOADS SERVICE ACCOUNT                                            |
+|  1. USER UPLOADS CREDENTIALS                                                |
 |     +-- Frontend: Settings > Integrations > Cloud Providers                 |
-|     +-- POST /api/v1/integrations/{org}/gcp/setup                          |
+|     +-- POST /api/v1/integrations/{org}/{provider}/setup                   |
+|     +-- Providers: gcp, aws, azure, oci                                    |
 |                                                                             |
 |  2. CREDENTIAL ENCRYPTION                                                   |
-|     +-- Service account JSON encrypted via GCP KMS                         |
-|     +-- Stored in org_credentials table                                    |
+|     +-- Credentials encrypted via GCP KMS                                  |
+|     +-- Stored in org_integration_credentials table                        |
 |     +-- Only encrypted blob stored (never plaintext)                       |
 |                                                                             |
 |  3. VALIDATION                                                              |
-|     +-- POST /api/v1/integrations/{org}/gcp/validate                       |
-|     +-- Test: Can access billing export dataset?                           |
+|     +-- POST /api/v1/integrations/{org}/{provider}/validate                |
+|     +-- Test: Can access billing export/CUR?                               |
 |     +-- Test: Can query billing tables?                                    |
-|     +-- Updates org_integrations.status                                    |
+|     +-- Updates integration status                                         |
 |                                                                             |
 |  4. READY FOR PIPELINES                                                     |
 |     +-- Integration status = 'active'                                      |
@@ -96,7 +128,7 @@
 |                      BILLING PIPELINE EXECUTION                              |
 +-----------------------------------------------------------------------------+
 |                                                                             |
-|  Pipeline: POST /api/v1/pipelines/run/{org}/gcp/cost/billing               |
+|  Pipeline: POST /api/v1/pipelines/run/{org}/{provider}/cost/billing        |
 |                                                                             |
 |  1. AUTHENTICATION                                                          |
 |     +-- Validate X-API-Key header (org API key)                            |
@@ -104,24 +136,52 @@
 |     +-- Check pipeline quota (pipelines_per_day_limit)                     |
 |                                                                             |
 |  2. CREDENTIAL RETRIEVAL                                                    |
-|     +-- Fetch encrypted SA from org_credentials                            |
+|     +-- Fetch encrypted credentials from org_integration_credentials       |
 |     +-- Decrypt via KMS                                                    |
 |     +-- Create temporary credentials                                       |
 |                                                                             |
 |  3. DATA EXTRACTION                                                         |
-|     +-- Query external billing export dataset                              |
-|     +-- Filter by date range (default: last 30 days)                       |
-|     +-- Apply service/project filters if specified                         |
+|     +-- GCP: Query BigQuery billing export                                 |
+|     +-- AWS: Read S3 CUR files                                             |
+|     +-- Azure: Query Cost Management API                                   |
+|     +-- OCI: Query Cost Analysis API                                       |
 |                                                                             |
 |  4. TRANSFORMATION                                                          |
 |     +-- Normalize cost fields                                              |
-|     +-- Calculate daily/monthly aggregations                               |
-|     +-- Add org metadata                                                   |
+|     +-- Add x_* pipeline lineage fields                                    |
+|     +-- Add org metadata (org_slug, provider)                              |
 |                                                                             |
 |  5. LOAD                                                                    |
-|     +-- INSERT into gcp_billing_costs                                      |
-|     +-- UPDATE gcp_billing_summary                                         |
-|     +-- Log execution to pipeline_runs                                     |
+|     +-- INSERT into cloud_{provider}_billing_raw_daily                     |
+|     +-- CALL sp_convert_cloud_costs_to_focus_1_3 (stored procedure)        |
+|     +-- Log execution to org_meta_pipeline_runs                            |
+|                                                                             |
++-----------------------------------------------------------------------------+
+```
+
+### FOCUS 1.3 Conversion
+
+```
++-----------------------------------------------------------------------------+
+|                      FOCUS 1.3 CONVERSION                                    |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|  Stored Procedure: sp_convert_cloud_costs_to_focus_1_3                     |
+|                                                                             |
+|  INPUT:                                                                     |
+|     +-- p_project_id: GCP Project ID                                       |
+|     +-- p_dataset_id: Customer dataset (e.g., 'acme_corp_prod')            |
+|     +-- p_cost_date: Date to convert costs for                             |
+|     +-- p_provider: 'gcp', 'aws', 'azure', 'oci', or 'all'                |
+|                                                                             |
+|  PROCESS:                                                                   |
+|     +-- Read from cloud_{provider}_billing_raw_daily                       |
+|     +-- Map provider-specific fields to FOCUS 1.3 columns                  |
+|     +-- Set x_SourceSystem = 'cloud_{provider}_billing_raw_daily'          |
+|     +-- Add pipeline lineage (x_pipeline_id, x_run_id, etc.)              |
+|                                                                             |
+|  OUTPUT:                                                                    |
+|     +-- INSERT into cost_data_standard_1_3                                 |
 |                                                                             |
 +-----------------------------------------------------------------------------+
 ```
@@ -136,16 +196,16 @@ Frontend (3000)              API Service (8000)          Pipeline Engine (8001)
      |                              |                              |         BigQuery
      |                              |                              |            |
      |  1. Setup Integration        |                              |            |
-     |  (upload SA JSON)            |                              |            |
+     |  (upload credentials)        |                              |            |
      |----------------------------->|                              |            |
-     |                              |  Encrypt SA via KMS          |            |
+     |                              |  Encrypt via KMS             |            |
      |                              |----------------------------------------------->|
-     |                              |  Store in org_credentials    |            |
+     |                              |  Store in org_integration_credentials    |
      |                              |                              |            |
      |  2. Validate Integration     |                              |            |
      |----------------------------->|                              |            |
      |                              |---------------------------->|            |
-     |                              |  Decrypt SA, test connection |            |
+     |                              |  Decrypt, test connection   |            |
      |                              |                              |----------->|
      |                              |                              |  Query test|
      |<-----------------------------|<-----------------------------|            |
@@ -157,244 +217,297 @@ Frontend (3000)              API Service (8000)          Pipeline Engine (8001)
      |                              |                              | Extract    |
      |                              |                              | Transform  |
      |                              |                              | Load       |
+     |                              |                              |----------->|
+     |                              |                              | CALL sp_convert_cloud_costs_to_focus_1_3
      |<---------------------------------------------------------------|         |
      |                              |  Pipeline result             |            |
 
 Tables:
-- org_credentials (BigQuery): Encrypted service account keys
-- org_integrations (BigQuery): Integration status per provider
-- gcp_billing_costs (BigQuery): Extracted billing line items
-- gcp_billing_summary (BigQuery): Aggregated cost summaries
+- org_integration_credentials (BigQuery): Encrypted cloud credentials
+- cloud_gcp_billing_raw_daily (BigQuery): GCP billing line items
+- cloud_aws_billing_raw_daily (BigQuery): AWS CUR line items
+- cloud_azure_billing_raw_daily (BigQuery): Azure billing line items
+- cloud_oci_billing_raw_daily (BigQuery): OCI billing line items
+- cost_data_standard_1_3 (BigQuery): FOCUS 1.3 unified costs
 
 Authentication:
 - X-API-Key: Org API key for pipeline execution
 - GCP KMS: Credential encryption/decryption
-- Service Account: GCP BigQuery access
+- Provider credentials: Cloud billing access
 ```
 
 ---
 
 ## Schema Definitions
 
-### BigQuery: gcp_billing_costs
+### BigQuery: cloud_gcp_billing_raw_daily
 
-**File:** `03-data-pipeline-service/configs/gcp/cost/billing.yml`
+**Schema File:** `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_gcp_billing_raw_daily.json`
+
+| Column | Type | Mode | Description |
+|--------|------|------|-------------|
+| billing_account_id | STRING | REQUIRED | GCP billing account identifier |
+| service_id | STRING | NULLABLE | GCP service identifier |
+| service_description | STRING | NULLABLE | Human-readable service name |
+| sku_id | STRING | NULLABLE | SKU identifier |
+| sku_description | STRING | NULLABLE | SKU description |
+| usage_start_time | TIMESTAMP | REQUIRED | Usage period start |
+| usage_end_time | TIMESTAMP | REQUIRED | Usage period end |
+| project_id | STRING | NULLABLE | GCP project ID |
+| project_name | STRING | NULLABLE | Project display name |
+| location_location | STRING | NULLABLE | Resource location |
+| location_region | STRING | NULLABLE | Geographic region |
+| cost | FLOAT64 | REQUIRED | Total cost in billing currency |
+| currency | STRING | NULLABLE | Billing currency code |
+| usage_amount | FLOAT64 | NULLABLE | Usage quantity |
+| usage_unit | STRING | NULLABLE | Unit of measurement |
+| credits_total | FLOAT64 | NULLABLE | Total credits applied |
+| org_slug | STRING | REQUIRED | Organization identifier |
+| x_pipeline_id | STRING | REQUIRED | Pipeline template name |
+| x_credential_id | STRING | REQUIRED | Credential ID used |
+| x_pipeline_run_date | DATE | REQUIRED | Date being processed |
+| x_run_id | STRING | REQUIRED | Pipeline run UUID |
+| x_ingested_at | TIMESTAMP | REQUIRED | Ingestion timestamp |
+
+### BigQuery: cloud_aws_billing_raw_daily
+
+**Schema File:** `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_aws_billing_raw_daily.json`
+
+| Column | Type | Mode | Description |
+|--------|------|------|-------------|
+| usage_date | DATE | REQUIRED | Date of usage (partition key) |
+| org_slug | STRING | REQUIRED | Organization identifier |
+| linked_account_id | STRING | REQUIRED | AWS Account ID |
+| linked_account_name | STRING | NULLABLE | AWS Account name |
+| service_code | STRING | NULLABLE | AWS service code |
+| product_name | STRING | NULLABLE | Human-readable product name |
+| usage_type | STRING | NULLABLE | Usage type |
+| region | STRING | NULLABLE | AWS region |
+| resource_id | STRING | NULLABLE | AWS resource ARN/ID |
+| unblended_cost | FLOAT64 | REQUIRED | Unblended cost |
+| blended_cost | FLOAT64 | NULLABLE | Blended cost |
+| amortized_cost | FLOAT64 | NULLABLE | Amortized cost |
+| reservation_arn | STRING | NULLABLE | Reserved Instance ARN |
+| savings_plan_arn | STRING | NULLABLE | Savings Plan ARN |
+| x_pipeline_id | STRING | REQUIRED | Pipeline template name |
+| x_credential_id | STRING | REQUIRED | Credential ID used |
+| x_pipeline_run_date | DATE | REQUIRED | Date being processed |
+| x_run_id | STRING | REQUIRED | Pipeline run UUID |
+| x_ingested_at | TIMESTAMP | REQUIRED | Ingestion timestamp |
+
+### BigQuery: cloud_azure_billing_raw_daily
+
+**Schema File:** `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_azure_billing_raw_daily.json`
+
+| Column | Type | Mode | Description |
+|--------|------|------|-------------|
+| usage_date | DATE | REQUIRED | Date of usage (partition key) |
+| org_slug | STRING | REQUIRED | Organization identifier |
+| subscription_id | STRING | REQUIRED | Azure subscription ID |
+| subscription_name | STRING | NULLABLE | Subscription display name |
+| resource_group | STRING | NULLABLE | Resource group name |
+| service_name | STRING | NULLABLE | Azure service name |
+| meter_category | STRING | NULLABLE | Meter category |
+| resource_location | STRING | NULLABLE | Azure region |
+| cost_in_billing_currency | FLOAT64 | REQUIRED | Cost in billing currency |
+| billing_currency | STRING | NULLABLE | Currency code |
+| pricing_model | STRING | NULLABLE | OnDemand, Reservation, etc. |
+| reservation_id | STRING | NULLABLE | Reserved Instance ID |
+| x_pipeline_id | STRING | REQUIRED | Pipeline template name |
+| x_credential_id | STRING | REQUIRED | Credential ID used |
+| x_pipeline_run_date | DATE | REQUIRED | Date being processed |
+| x_run_id | STRING | REQUIRED | Pipeline run UUID |
+| x_ingested_at | TIMESTAMP | REQUIRED | Ingestion timestamp |
+
+### BigQuery: cloud_oci_billing_raw_daily
+
+**Schema File:** `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_oci_billing_raw_daily.json`
+
+| Column | Type | Mode | Description |
+|--------|------|------|-------------|
+| usage_date | DATE | REQUIRED | Date of usage (partition key) |
+| org_slug | STRING | REQUIRED | Organization identifier |
+| tenancy_id | STRING | REQUIRED | OCI tenancy OCID |
+| compartment_id | STRING | NULLABLE | Compartment OCID |
+| service_name | STRING | NULLABLE | OCI service name |
+| region | STRING | NULLABLE | OCI region |
+| cost | FLOAT64 | REQUIRED | Cost amount |
+| currency | STRING | NULLABLE | Currency code |
+| usage_quantity | FLOAT64 | NULLABLE | Usage quantity |
+| x_pipeline_id | STRING | REQUIRED | Pipeline template name |
+| x_credential_id | STRING | REQUIRED | Credential ID used |
+| x_pipeline_run_date | DATE | REQUIRED | Date being processed |
+| x_run_id | STRING | REQUIRED | Pipeline run UUID |
+| x_ingested_at | TIMESTAMP | REQUIRED | Ingestion timestamp |
+
+### BigQuery: cost_data_standard_1_3 (FOCUS 1.3)
+
+**Schema File:** `02-api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_3.json`
+
+Unified cost format following FinOps FOCUS 1.3 specification:
 
 | Column | Type | Description |
 |--------|------|-------------|
-| cost_id | STRING | Unique identifier |
-| org_slug | STRING | Organization |
-| billing_account_id | STRING | GCP billing account |
-| project_id | STRING | GCP project |
-| project_name | STRING | Project display name |
-| service_id | STRING | GCP service ID |
-| service_description | STRING | Service name |
-| sku_id | STRING | SKU identifier |
-| sku_description | STRING | SKU name |
-| usage_start_time | TIMESTAMP | Usage period start |
-| usage_end_time | TIMESTAMP | Usage period end |
-| cost | FLOAT | Cost in USD |
-| currency | STRING | Currency code |
-| credits | FLOAT | Applied credits |
-| usage_amount | FLOAT | Usage quantity |
-| usage_unit | STRING | Usage unit |
-| labels | JSON | Resource labels |
-| extracted_at | TIMESTAMP | Pipeline run time |
-| invoice_month | STRING | Billing month |
-
-### BigQuery: gcp_billing_summary
-
-| Column | Type | Description |
-|--------|------|-------------|
-| summary_id | STRING | Unique identifier |
-| org_slug | STRING | Organization |
-| summary_date | DATE | Summary date |
-| project_id | STRING | GCP project |
-| service_description | STRING | Service name |
-| daily_cost | FLOAT | Daily total cost |
-| daily_credits | FLOAT | Daily credits |
-| net_cost | FLOAT | Cost after credits |
-| month_to_date | FLOAT | MTD cost |
-| projected_monthly | FLOAT | Projected month cost |
-| updated_at | TIMESTAMP | Last update |
-
-### BigQuery: org_credentials
-
-**File:** `02-api-service/configs/setup/bootstrap/schemas/org_credentials.json`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| credential_id | STRING | Unique identifier |
-| org_slug | STRING | Organization |
-| provider | STRING | Provider (gcp, openai, etc.) |
-| credential_type | STRING | Type (service_account, api_key) |
-| encrypted_value | BYTES | KMS-encrypted credential |
-| key_version | STRING | KMS key version used |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update |
-| created_by | STRING | User who created |
-
-### BigQuery: org_integrations
-
-**File:** `02-api-service/configs/setup/bootstrap/schemas/org_integrations.json`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| integration_id | STRING | Unique identifier |
-| org_slug | STRING | Organization |
-| provider | STRING | Provider name |
-| status | STRING | pending, active, error, disabled |
-| config | JSON | Provider-specific config |
-| validated_at | TIMESTAMP | Last validation |
-| error_message | STRING | Last error (if any) |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update |
+| ChargePeriodStart | TIMESTAMP | Charge period start |
+| ChargePeriodEnd | TIMESTAMP | Charge period end |
+| BillingPeriodStart | TIMESTAMP | Billing period start |
+| BillingPeriodEnd | TIMESTAMP | Billing period end |
+| InvoiceIssuerName | STRING | Invoice issuer (e.g., 'Google Cloud Platform') |
+| ServiceProviderName | STRING | Service provider name |
+| ServiceCategory | STRING | Compute, Storage, Database, etc. |
+| ServiceName | STRING | Service name |
+| ResourceId | STRING | Resource identifier |
+| ResourceName | STRING | Resource display name |
+| RegionId | STRING | Region identifier |
+| EffectiveCost | NUMERIC | Effective cost |
+| BilledCost | NUMERIC | Billed cost |
+| ListCost | NUMERIC | List price cost |
+| BillingCurrency | STRING | Currency code |
+| SubAccountId | STRING | Sub-account/project ID |
+| SubAccountName | STRING | Sub-account/project name |
+| x_SourceSystem | STRING | Source: 'cloud_gcp_billing_raw_daily', etc. |
+| x_cloud_provider | STRING | Provider: 'gcp', 'aws', 'azure', 'oci' |
+| x_pipeline_id | STRING | Pipeline template name |
+| x_run_id | STRING | Pipeline run UUID |
 
 ---
 
-## Frontend Implementation
+## Pipeline Configuration
 
-### Server Actions
+### GCP Billing Pipeline
 
-**File:** `01-fronted-system/actions/integrations.ts`
+**Config:** `03-data-pipeline-service/configs/cloud/gcp/cost/billing.yml`
 
-#### setupGCPIntegration()
+```yaml
+pipeline_id: "{org_slug}-gcp-billing"
+name: "GCP Billing Sync"
+schedule: "0 4 * * *"  # Daily at 04:00 UTC
 
-```typescript
-async function setupGCPIntegration(
-  orgSlug: string,
-  serviceAccountJson: string,
-  billingDatasetId: string
-): Promise<{
-  success: boolean,
-  integration?: IntegrationInfo,
-  error?: string
-}>
+steps:
+  - step_id: "extract_billing"
+    ps_type: "gcp.external_bq_extractor"
+    destination:
+      table: "cloud_gcp_billing_raw_daily"
+      partition_field: "usage_start_time"
+      clustering_fields: [billing_account_id, service_id, project_id]
 ```
 
-**Features:**
-- Validates service account JSON structure
-- Calls pipeline service to encrypt and store
-- Initiates validation process
-- Returns integration status
+### AWS Billing Pipeline
 
-#### validateGCPIntegration()
+**Config:** `03-data-pipeline-service/configs/cloud/aws/cost/billing.yml`
 
-```typescript
-async function validateGCPIntegration(
-  orgSlug: string
-): Promise<{
-  success: boolean,
-  status?: string,
-  error?: string
-}>
+```yaml
+pipeline_id: "{org_slug}-aws-billing"
+name: "AWS Billing Sync"
+schedule: "0 5 * * *"  # Daily at 05:00 UTC
+
+steps:
+  - step_id: "extract_cur"
+    ps_type: "cloud.aws.cur_extractor"
+    destination:
+      table: "cloud_aws_billing_raw_daily"
+      partition_field: "usage_date"
+      clustering_fields: [linked_account_id, service_code]
 ```
 
-#### getIntegrationStatus()
+### Azure Billing Pipeline
 
-```typescript
-async function getIntegrationStatus(
-  orgSlug: string,
-  provider: string
-): Promise<{
-  success: boolean,
-  integration?: IntegrationInfo,
-  error?: string
-}>
+**Config:** `03-data-pipeline-service/configs/cloud/azure/cost/billing.yml`
+
+```yaml
+pipeline_id: "{org_slug}-azure-billing"
+name: "Azure Billing Sync"
+
+steps:
+  - step_id: "extract_costs"
+    ps_type: "cloud.azure.cost_extractor"
+    destination:
+      table: "cloud_azure_billing_raw_daily"
+      partition_field: "usage_date"
+      clustering_fields: [subscription_id, service_name]
 ```
 
-### TypeScript Interfaces
+### OCI Billing Pipeline
 
-```typescript
-export interface IntegrationInfo {
-  integration_id: string
-  org_slug: string
-  provider: string
-  status: 'pending' | 'active' | 'error' | 'disabled'
-  config: Record<string, unknown>
-  validated_at?: string
-  error_message?: string
-  created_at: string
-  updated_at: string
-}
+**Config:** `03-data-pipeline-service/configs/cloud/oci/cost/billing.yml`
 
-export interface GCPConfig {
-  billing_dataset_id: string
-  project_id: string
-  billing_account_id?: string
-}
+```yaml
+pipeline_id: "{org_slug}-oci-billing"
+name: "OCI Billing Sync"
 
-export interface GCPBillingCost {
-  cost_id: string
-  project_id: string
-  project_name: string
-  service_description: string
-  sku_description: string
-  cost: number
-  credits: number
-  net_cost: number
-  usage_start_time: string
-  usage_end_time: string
-  invoice_month: string
-}
-
-export interface BillingSummary {
-  total_cost: number
-  total_credits: number
-  net_cost: number
-  project_breakdown: ProjectCost[]
-  service_breakdown: ServiceCost[]
-  daily_trend: DailyCost[]
-}
+steps:
+  - step_id: "extract_costs"
+    ps_type: "cloud.oci.cost_extractor"
+    destination:
+      table: "cloud_oci_billing_raw_daily"
+      partition_field: "usage_date"
+      clustering_fields: [tenancy_id, service_name]
 ```
-
-### Pages
-
-| Route | Purpose | Data Source |
-|-------|---------|-------------|
-| `/{org}/settings/integrations/cloud` | GCP setup page | Pipeline Service |
-| `/{org}/analytics` | Cost analytics dashboard | Pipeline Service |
-| `/{org}/analytics/gcp` | GCP-specific analytics | Pipeline Service |
 
 ---
 
-## Pipeline Engine Endpoints
+## Stored Procedure: sp_convert_cloud_costs_to_focus_1_3
 
-**File:** `03-data-pipeline-service/src/app/routers/integrations.py`
+**Location:** `03-data-pipeline-service/configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql`
+
+Converts raw cloud billing data to FOCUS 1.3 format.
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| p_project_id | STRING | GCP Project ID |
+| p_dataset_id | STRING | Customer dataset (e.g., 'acme_corp_prod') |
+| p_cost_date | DATE | Date to convert costs for |
+| p_provider | STRING | 'gcp', 'aws', 'azure', 'oci', or 'all' |
+| p_pipeline_id | STRING | Pipeline ID for lineage |
+| p_credential_id | STRING | Credential ID for lineage |
+| p_run_id | STRING | Run UUID for lineage |
+
+### Source Tables Mapping
+
+| Provider | Source Table | x_SourceSystem Value |
+|----------|--------------|---------------------|
+| GCP | `cloud_gcp_billing_raw_daily` | `cloud_gcp_billing_raw_daily` |
+| AWS | `cloud_aws_billing_raw_daily` | `cloud_aws_billing_raw_daily` |
+| Azure | `cloud_azure_billing_raw_daily` | `cloud_azure_billing_raw_daily` |
+| OCI | `cloud_oci_billing_raw_daily` | `cloud_oci_billing_raw_daily` |
+
+---
+
+## API Endpoints
 
 ### Integration Setup
 
 ```
-POST   /api/v1/integrations/{org}/gcp/setup
-       -> Upload and encrypt service account
-       -> Body: { service_account_json, billing_dataset_id }
-       -> Returns: { success, integration_id }
+POST   /api/v1/integrations/{org}/{provider}/setup
+       -> Upload and encrypt cloud credentials
+       -> Providers: gcp, aws, azure, oci
+       -> Body: { credentials, config }
+       -> Returns: { success, credential_id }
 
-POST   /api/v1/integrations/{org}/gcp/validate
-       -> Test GCP connection and billing access
+POST   /api/v1/integrations/{org}/{provider}/validate
+       -> Test cloud connection and billing access
        -> Returns: { success, status, error? }
 
 GET    /api/v1/integrations/{org}
        -> List all integrations for org
-       -> Returns: { integrations: IntegrationInfo[] }
+       -> Returns: { integrations: [] }
 
-GET    /api/v1/integrations/{org}/gcp
-       -> Get GCP integration status
-       -> Returns: IntegrationInfo
-
-DELETE /api/v1/integrations/{org}/gcp
-       -> Remove GCP integration
+DELETE /api/v1/integrations/{org}/{provider}
+       -> Remove cloud integration
        -> Deletes credentials and integration record
 ```
 
 ### Pipeline Execution
 
-**File:** `03-data-pipeline-service/src/app/routers/pipelines.py`
-
 ```
 POST   /api/v1/pipelines/run/{org}/gcp/cost/billing
-       -> Extract GCP billing data
-       -> Body: { date?, start_date?, end_date?, project_filter? }
+POST   /api/v1/pipelines/run/{org}/aws/cost/billing
+POST   /api/v1/pipelines/run/{org}/azure/cost/billing
+POST   /api/v1/pipelines/run/{org}/oci/cost/billing
+       -> Extract cloud billing data
+       -> Body: { date?, start_date?, end_date? }
        -> Returns: { run_id, status, records_processed }
 
 GET    /api/v1/pipelines/status/{org}/{run_id}
@@ -402,7 +515,17 @@ GET    /api/v1/pipelines/status/{org}/{run_id}
        -> Returns: { status, progress, records, errors? }
 ```
 
-**Pipeline Config:** `03-data-pipeline-service/configs/gcp/cost/billing.yml`
+### Cost Analytics (API Service)
+
+```
+GET    /api/v1/costs/{org}/cloud
+       -> Get cloud costs summary
+       -> Query params: period, provider, start_date, end_date
+
+GET    /api/v1/costs/{org}/summary
+       -> Get unified cost summary (all sources)
+       -> Query params: period, comparison_type
+```
 
 ---
 
@@ -410,27 +533,21 @@ GET    /api/v1/pipelines/status/{org}/{run_id}
 
 ### Completed
 
-| Component | Service | File |
-|-----------|---------|------|
-| GCP integration setup | Pipeline | routers/integrations.py |
-| Credential encryption | Pipeline | services/kms_service.py |
-| Integration validation | Pipeline | routers/integrations.py |
-| Billing extraction processor | Pipeline | processors/gcp/external_bq_extractor.py |
-| Pipeline config | Pipeline | configs/gcp/cost/billing.yml |
-| Cloud integrations page | Frontend | app/[orgSlug]/settings/integrations/cloud/page.tsx |
-| Integration actions | Frontend | actions/integrations.ts |
-| Analytics dashboard | Frontend | app/[orgSlug]/analytics/page.tsx |
-
-### NOT IMPLEMENTED
-
-| Component | Notes |
-|-----------|-------|
-| AWS Cost Explorer | Future cloud provider |
-| Azure Cost Management | Future cloud provider |
-| Multi-project aggregation | Single project support only |
-| Cost anomaly detection | Planned for v2.0 |
-| Budget alerts | Future enhancement |
-| Cost allocation tags | Future enhancement |
+| Component | Service | Status |
+|-----------|---------|--------|
+| GCP integration setup | API/Pipeline | ✅ |
+| AWS integration setup | API/Pipeline | ✅ |
+| Azure integration setup | API/Pipeline | ✅ |
+| OCI integration setup | API/Pipeline | ✅ |
+| Credential encryption (KMS) | Pipeline | ✅ |
+| GCP billing extraction | Pipeline | ✅ |
+| AWS CUR extraction | Pipeline | ✅ |
+| Azure Cost Management extraction | Pipeline | ✅ |
+| OCI Cost Analysis extraction | Pipeline | ✅ |
+| FOCUS 1.3 conversion (stored procedure) | Pipeline | ✅ |
+| Cloud cost read service (Polars) | API | ✅ |
+| Cloud integrations page | Frontend | ✅ |
+| Cost analytics dashboard | Frontend | ✅ |
 
 ---
 
@@ -440,9 +557,9 @@ GET    /api/v1/pipelines/status/{org}/{run_id}
 
 **Daily Rate Normalization:**
 ```python
-# Billing data is hourly, normalize to daily
-daily_cost = sum(hourly_costs for date)
-net_cost = daily_cost - daily_credits
+# Billing data normalized to daily
+daily_cost = sum(costs for date)
+net_cost = daily_cost - credits
 ```
 
 **Month-to-Date:**
@@ -473,22 +590,12 @@ Pipeline execution is rate-limited by subscription plan:
 
 | Scenario | Error Message |
 |----------|---------------|
-| Invalid SA JSON | "Invalid service account JSON format" |
-| SA missing permissions | "Service account lacks BigQuery permissions" |
-| Billing dataset not found | "Billing export dataset not accessible" |
+| Invalid credentials | "Invalid credential format" |
+| Missing permissions | "Credential lacks required permissions" |
+| Billing source not found | "Billing export/CUR not accessible" |
 | Pipeline quota exceeded | "Daily pipeline limit reached" |
 | KMS decryption failed | "Failed to decrypt credentials" |
-| Integration not active | "GCP integration not active" |
-
----
-
-## Test Files
-
-| File | Purpose |
-|------|---------|
-| `03-data-pipeline-service/tests/test_02_gcp_integration.py` | GCP integration tests |
-| `03-data-pipeline-service/tests/test_03_billing_pipeline.py` | Billing pipeline tests |
-| `01-fronted-system/tests/06-cloud-integrations.test.ts` | Frontend integration tests |
+| Integration not active | "Cloud integration not active" |
 
 ---
 
@@ -498,18 +605,21 @@ Pipeline execution is rate-limited by subscription plan:
 
 | File | Purpose |
 |------|---------|
-| `03-data-pipeline-service/src/app/routers/integrations.py` | Integration CRUD endpoints |
-| `03-data-pipeline-service/src/app/routers/pipelines.py` | Pipeline execution endpoints |
-| `03-data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` | Billing extraction processor |
-| `03-data-pipeline-service/src/services/kms_service.py` | GCP KMS encryption |
-| `03-data-pipeline-service/configs/gcp/cost/billing.yml` | Pipeline configuration |
+| `03-data-pipeline-service/configs/cloud/gcp/cost/billing.yml` | GCP pipeline config |
+| `03-data-pipeline-service/configs/cloud/aws/cost/billing.yml` | AWS pipeline config |
+| `03-data-pipeline-service/configs/cloud/azure/cost/billing.yml` | Azure pipeline config |
+| `03-data-pipeline-service/configs/cloud/oci/cost/billing.yml` | OCI pipeline config |
+| `03-data-pipeline-service/configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql` | FOCUS conversion |
 
 ### API Service Files
 
 | File | Purpose |
 |------|---------|
-| `02-api-service/configs/setup/bootstrap/schemas/org_credentials.json` | Credentials schema |
-| `02-api-service/configs/setup/bootstrap/schemas/org_integrations.json` | Integrations schema |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_gcp_billing_raw_daily.json` | GCP schema |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_aws_billing_raw_daily.json` | AWS schema |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_azure_billing_raw_daily.json` | Azure schema |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_oci_billing_raw_daily.json` | OCI schema |
+| `02-api-service/src/core/services/cost_read/service.py` | Cost read service |
 
 ### Frontend Files
 
@@ -522,4 +632,4 @@ Pipeline execution is rate-limited by subscription plan:
 
 ---
 
-**Version**: 1.5 | **Updated**: 2025-12-04 | **Policy**: Single source of truth - no duplicate docs
+**Version**: 2.0 | **Updated**: 2026-01-01 | **Policy**: Single source of truth - no duplicate docs

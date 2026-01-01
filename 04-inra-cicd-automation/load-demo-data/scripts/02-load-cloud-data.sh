@@ -59,10 +59,10 @@ load_provider() {
 }
 
 # Load each provider
-load_provider "gcp" "gcp_billing_daily_raw" "gcp_billing_cost.json"
-load_provider "aws" "aws_billing_cost_daily" "aws_billing_cost.json"
-load_provider "azure" "azure_billing_cost_daily" "azure_billing_cost.json"
-load_provider "oci" "oci_billing_cost_daily" "oci_billing_cost.json"
+load_provider "gcp" "cloud_gcp_billing_raw_daily" "gcp_billing_cost.json"
+load_provider "aws" "cloud_aws_billing_raw_daily" "aws_billing_cost.json"
+load_provider "azure" "cloud_azure_billing_raw_daily" "azure_billing_cost.json"
+load_provider "oci" "cloud_oci_billing_raw_daily" "oci_billing_cost.json"
 
 echo ""
 log_info "Cloud billing data loading complete!"
@@ -70,7 +70,7 @@ log_info "Cloud billing data loading complete!"
 # Show summary
 echo ""
 log_info "Loaded tables:"
-echo "  - ${PROJECT_ID}:${DATASET}.gcp_billing_daily_raw"
-echo "  - ${PROJECT_ID}:${DATASET}.aws_billing_cost_daily"
-echo "  - ${PROJECT_ID}:${DATASET}.azure_billing_cost_daily"
-echo "  - ${PROJECT_ID}:${DATASET}.oci_billing_cost_daily"
+echo "  - ${PROJECT_ID}:${DATASET}.cloud_gcp_billing_raw_daily"
+echo "  - ${PROJECT_ID}:${DATASET}.cloud_aws_billing_raw_daily"
+echo "  - ${PROJECT_ID}:${DATASET}.cloud_azure_billing_raw_daily"
+echo "  - ${PROJECT_ID}:${DATASET}.cloud_oci_billing_raw_daily"

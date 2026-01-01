@@ -23,64 +23,58 @@
           "description": "Cloud provider (oci)"
         },
         {
-          "name": "tenancy_ocid",
+          "name": "tenancy_id",
           "type": "STRING",
           "mode": "REQUIRED",
-          "description": "OCI Tenancy OCID"
+          "description": "OCI tenancy OCID"
+        },
+        {
+          "name": "tenancy_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "OCI tenancy display name"
         },
         {
           "name": "compartment_id",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Compartment OCID"
+          "description": "OCI compartment OCID"
         },
         {
           "name": "compartment_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Compartment name"
+          "description": "OCI compartment display name"
         },
         {
           "name": "compartment_path",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Full compartment path"
-        },
-        {
-          "name": "service",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "OCI service name (e.g., COMPUTE)"
-        },
-        {
-          "name": "resource_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Resource OCID"
-        },
-        {
-          "name": "resource_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Resource name"
+          "description": "Full compartment path hierarchy"
         },
         {
           "name": "region",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "OCI region (e.g., us-ashburn-1)"
+          "description": "OCI region (e.g., us-phoenix-1, eu-frankfurt-1)"
         },
         {
           "name": "availability_domain",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Availability domain"
+          "description": "OCI availability domain"
+        },
+        {
+          "name": "service_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "OCI service name (e.g., COMPUTE, STORAGE)"
         },
         {
           "name": "sku_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "SKU name"
+          "description": "SKU name for the resource"
         },
         {
           "name": "sku_part_number",
@@ -89,34 +83,58 @@
           "description": "SKU part number"
         },
         {
-          "name": "usage_amount",
+          "name": "resource_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "OCI resource OCID"
+        },
+        {
+          "name": "resource_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Resource display name"
+        },
+        {
+          "name": "usage_type",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Type of usage"
+        },
+        {
+          "name": "unit",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Unit of measurement"
+        },
+        {
+          "name": "usage_start_time",
+          "type": "TIMESTAMP",
+          "mode": "NULLABLE",
+          "description": "Start time of usage period"
+        },
+        {
+          "name": "usage_end_time",
+          "type": "TIMESTAMP",
+          "mode": "NULLABLE",
+          "description": "End time of usage period"
+        },
+        {
+          "name": "usage_quantity",
           "type": "FLOAT64",
           "mode": "NULLABLE",
           "description": "Usage quantity"
         },
         {
-          "name": "usage_unit",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Unit of usage"
-        },
-        {
-          "name": "computed_amount",
-          "type": "FLOAT64",
-          "mode": "REQUIRED",
-          "description": "Computed cost - primary cost metric"
-        },
-        {
           "name": "computed_quantity",
           "type": "FLOAT64",
           "mode": "NULLABLE",
-          "description": "Computed quantity"
+          "description": "Computed/normalized quantity"
         },
         {
-          "name": "currency",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing currency"
+          "name": "cost",
+          "type": "FLOAT64",
+          "mode": "REQUIRED",
+          "description": "Cost amount - primary cost metric"
         },
         {
           "name": "unit_price",
@@ -125,16 +143,22 @@
           "description": "Unit price"
         },
         {
-          "name": "overages_flag",
-          "type": "BOOLEAN",
+          "name": "currency",
+          "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Whether this is overage usage"
+          "description": "Currency code (e.g., USD)"
         },
         {
-          "name": "is_forecast",
+          "name": "overage_flag",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Whether this is overage usage (Y/N)"
+        },
+        {
+          "name": "is_correction",
           "type": "BOOLEAN",
           "mode": "NULLABLE",
-          "description": "Whether this is forecast data"
+          "description": "Whether this is a correction entry"
         },
         {
           "name": "subscription_id",
@@ -143,10 +167,28 @@
           "description": "OCI subscription ID"
         },
         {
-          "name": "tags_json",
+          "name": "platform_type",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Resource tags as JSON"
+          "description": "Platform type (IAAS, PAAS)"
+        },
+        {
+          "name": "billing_period",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing period identifier"
+        },
+        {
+          "name": "freeform_tags_json",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Freeform tags as JSON string"
+        },
+        {
+          "name": "defined_tags_json",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Defined tags as JSON string"
         },
         {
           "name": "ingestion_timestamp",

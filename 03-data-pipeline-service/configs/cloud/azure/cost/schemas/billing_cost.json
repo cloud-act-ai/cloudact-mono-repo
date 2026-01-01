@@ -32,37 +32,67 @@
           "name": "subscription_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Azure subscription name"
+          "description": "Azure subscription display name"
         },
         {
           "name": "resource_group",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Resource group name"
+          "description": "Azure resource group name"
         },
         {
           "name": "resource_id",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Azure resource ID"
+          "description": "Full Azure resource ID"
         },
         {
           "name": "resource_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Resource name"
+          "description": "Resource display name"
         },
         {
           "name": "resource_type",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Resource type (e.g., Microsoft.Compute/virtualMachines)"
+          "description": "Azure resource type (e.g., Microsoft.Compute/virtualMachines)"
         },
         {
           "name": "resource_location",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Azure region (e.g., eastus)"
+          "description": "Azure region (e.g., eastus, westeurope)"
+        },
+        {
+          "name": "service_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Azure service name (e.g., Virtual Machines, Storage)"
+        },
+        {
+          "name": "service_tier",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Service tier (e.g., Standard, Premium)"
+        },
+        {
+          "name": "service_family",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Service family grouping"
+        },
+        {
+          "name": "meter_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Azure meter GUID"
+        },
+        {
+          "name": "meter_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Meter display name"
         },
         {
           "name": "meter_category",
@@ -77,28 +107,64 @@
           "description": "Meter subcategory"
         },
         {
-          "name": "meter_name",
+          "name": "meter_region",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Meter name"
+          "description": "Meter region"
         },
         {
-          "name": "meter_id",
+          "name": "product_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Meter ID (GUID)"
+          "description": "Product name"
         },
         {
-          "name": "service_name",
+          "name": "product_order_id",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Service name"
+          "description": "Product order identifier"
         },
         {
-          "name": "service_tier",
+          "name": "product_order_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Service tier"
+          "description": "Product order name"
+        },
+        {
+          "name": "consumed_service",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Consumed Azure service"
+        },
+        {
+          "name": "charge_type",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Type of charge (Usage, Purchase, Refund, etc.)"
+        },
+        {
+          "name": "billing_period_start",
+          "type": "DATE",
+          "mode": "NULLABLE",
+          "description": "Billing period start date"
+        },
+        {
+          "name": "billing_period_end",
+          "type": "DATE",
+          "mode": "NULLABLE",
+          "description": "Billing period end date"
+        },
+        {
+          "name": "usage_start_time",
+          "type": "TIMESTAMP",
+          "mode": "NULLABLE",
+          "description": "Start time of usage period"
+        },
+        {
+          "name": "usage_end_time",
+          "type": "TIMESTAMP",
+          "mode": "NULLABLE",
+          "description": "End time of usage period"
         },
         {
           "name": "usage_quantity",
@@ -107,10 +173,10 @@
           "description": "Usage quantity"
         },
         {
-          "name": "usage_unit",
+          "name": "unit_of_measure",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Unit of usage"
+          "description": "Unit of measurement"
         },
         {
           "name": "cost_in_billing_currency",
@@ -122,13 +188,19 @@
           "name": "cost_in_usd",
           "type": "FLOAT64",
           "mode": "NULLABLE",
-          "description": "Cost in USD"
+          "description": "Cost converted to USD"
         },
         {
           "name": "billing_currency",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Billing currency code"
+          "description": "Billing currency code (e.g., USD, EUR)"
+        },
+        {
+          "name": "exchange_rate",
+          "type": "FLOAT64",
+          "mode": "NULLABLE",
+          "description": "Exchange rate to USD"
         },
         {
           "name": "effective_price",
@@ -146,25 +218,37 @@
           "name": "pricing_model",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Pricing model (OnDemand, Reservation, Spot)"
-        },
-        {
-          "name": "charge_type",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Charge type (Usage, Purchase, Refund)"
+          "description": "Pricing model (OnDemand, Reservation, Spot, SavingsPlan)"
         },
         {
           "name": "reservation_id",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Reservation ID if applicable"
+          "description": "Reserved Instance ID if applicable"
         },
         {
           "name": "reservation_name",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Reservation name if applicable"
+          "description": "Reserved Instance name"
+        },
+        {
+          "name": "frequency",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing frequency"
+        },
+        {
+          "name": "publisher_type",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Publisher type (Azure, Marketplace)"
+        },
+        {
+          "name": "publisher_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Publisher name for marketplace items"
         },
         {
           "name": "invoice_id",
@@ -173,22 +257,70 @@
           "description": "Invoice ID"
         },
         {
-          "name": "billing_period_start",
-          "type": "DATE",
-          "mode": "NULLABLE",
-          "description": "Billing period start"
-        },
-        {
-          "name": "billing_period_end",
-          "type": "DATE",
-          "mode": "NULLABLE",
-          "description": "Billing period end"
-        },
-        {
-          "name": "tags_json",
+          "name": "invoice_section_id",
           "type": "STRING",
           "mode": "NULLABLE",
-          "description": "Resource tags as JSON"
+          "description": "Invoice section ID"
+        },
+        {
+          "name": "invoice_section_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Invoice section name"
+        },
+        {
+          "name": "billing_account_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing account ID"
+        },
+        {
+          "name": "billing_account_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing account name"
+        },
+        {
+          "name": "billing_profile_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing profile ID"
+        },
+        {
+          "name": "billing_profile_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing profile name"
+        },
+        {
+          "name": "cost_center",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Cost center from subscription"
+        },
+        {
+          "name": "benefit_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Benefit ID (reservation or savings plan)"
+        },
+        {
+          "name": "benefit_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Benefit name"
+        },
+        {
+          "name": "is_azure_credit_eligible",
+          "type": "BOOLEAN",
+          "mode": "NULLABLE",
+          "description": "Whether charge is eligible for Azure credits"
+        },
+        {
+          "name": "resource_tags_json",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Resource tags as JSON string"
         },
         {
           "name": "ingestion_timestamp",

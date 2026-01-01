@@ -148,6 +148,8 @@ export {
   type ProviderData,
   type CategoryData,
   type EntityConfig,
+  type PeriodDateRange,
+  type ExtendedPeriodMetrics,
   // Date utilities
   getDateInfo,
   isInCurrentMonth,
@@ -183,4 +185,15 @@ export {
   CLOUD_PROVIDER_CONFIG,
   CATEGORY_CONFIG,
   OVERVIEW_CATEGORY_CONFIG,
+  // Extended period date calculations
+  getYesterdayRange,
+  getWTDRange,
+  getLastWeekRange,
+  getMTDRange,
+  getPreviousMonthRange,
+  getLast2MonthsRange,
+  getYTDRange,
+  getFiscalYearRange,
+  getFYTDRange,
+  calculateFiscalYearForecast,
 } from "./dashboard-calculators"

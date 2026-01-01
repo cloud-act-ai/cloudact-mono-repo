@@ -90,10 +90,13 @@ import {
   getNotificationStats,
   NotificationChannel,
   NotificationChannelCreate,
+  NotificationChannelUpdate,
   NotificationRule,
   NotificationRuleCreate,
+  NotificationRuleUpdate,
   NotificationSummary,
   NotificationSummaryCreate,
+  NotificationSummaryUpdate,
   NotificationHistoryEntry,
   NotificationStats,
   ChannelType,
@@ -114,6 +117,102 @@ interface QuickStats {
   summaries: number
   alerts24h: number
   deliveryRate: number
+}
+
+// ============================================================================
+// Validation Functions (VAL-001 to VAL-005)
+// ============================================================================
+
+// VAL-001: Email validation
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email.trim())
+}
+
+const validateEmailList = (emails: string): { valid: boolean; errors: string[] } => {
+  if (!emails.trim()) {
+    return { valid: false, errors: ["At least one email is required"] }
+  }
+  const emailList = emails.split(",").map((e) => e.trim()).filter(Boolean)
+  const invalidEmails = emailList.filter((e) => !isValidEmail(e))
+  if (invalidEmails.length > 0) {
+    return { valid: false, errors: [`Invalid email(s): ${invalidEmails.join(", ")}`] }
+  }
+  return { valid: true, errors: [] }
+}
+
+// VAL-002: URL validation
+const isValidUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+  } catch {
+    return false
+  }
+}
+
+const isValidSlackWebhook = (url: string): boolean => {
+  if (!isValidUrl(url)) return false
+  // Slack webhooks must start with https://hooks.slack.com/
+  return url.startsWith("https://hooks.slack.com/services/")
+}
+
+// VAL-003: Cron expression validation (basic)
+const isValidCron = (cron: string): { valid: boolean; error?: string } => {
+  const parts = cron.trim().split(/\s+/)
+  if (parts.length !== 5) {
+    return { valid: false, error: "Cron must have exactly 5 fields (minute hour day month weekday)" }
+  }
+
+  // Basic validation for each field
+  const fieldRanges = [
+    { name: "minute", min: 0, max: 59 },
+    { name: "hour", min: 0, max: 23 },
+    { name: "day", min: 1, max: 31 },
+    { name: "month", min: 1, max: 12 },
+    { name: "weekday", min: 0, max: 7 },
+  ]
+
+  for (let i = 0; i < 5; i++) {
+    const part = parts[i]
+    const range = fieldRanges[i]
+
+    // Allow * and */n patterns
+    if (part === "*" || /^\*\/\d+$/.test(part)) continue
+
+    // Allow single numbers
+    if (/^\d+$/.test(part)) {
+      const num = parseInt(part, 10)
+      if (num < range.min || num > range.max) {
+        return { valid: false, error: `${range.name} must be between ${range.min} and ${range.max}` }
+      }
+      continue
+    }
+
+    // Allow ranges (e.g., 1-5)
+    if (/^\d+-\d+$/.test(part)) {
+      const [start, end] = part.split("-").map(Number)
+      if (start < range.min || end > range.max || start > end) {
+        return { valid: false, error: `Invalid range in ${range.name} field` }
+      }
+      continue
+    }
+
+    // Allow lists (e.g., 1,3,5)
+    if (/^[\d,]+$/.test(part)) {
+      const nums = part.split(",").map(Number)
+      for (const num of nums) {
+        if (num < range.min || num > range.max) {
+          return { valid: false, error: `${range.name} values must be between ${range.min} and ${range.max}` }
+        }
+      }
+      continue
+    }
+
+    return { valid: false, error: `Invalid ${range.name} field: ${part}` }
+  }
+
+  return { valid: true }
 }
 
 // ============================================================================
@@ -563,7 +662,43 @@ function CreateChannelDialog({
   const [webhookUrl, setWebhookUrl] = useState("")
   const [isDefault, setIsDefault] = useState(false)
 
+  // VAL-001/VAL-002 FIX: Validation error state
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Validate inputs before submit
+  const validateInputs = (): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required"
+    }
+
+    if (channelType === "email") {
+      const emailValidation = validateEmailList(emailRecipients)
+      if (!emailValidation.valid) {
+        newErrors.emailRecipients = emailValidation.errors[0]
+      }
+    } else if (channelType === "slack") {
+      if (!slackWebhook.trim()) {
+        newErrors.slackWebhook = "Webhook URL is required"
+      } else if (!isValidSlackWebhook(slackWebhook)) {
+        newErrors.slackWebhook = "Invalid Slack webhook URL (must start with https://hooks.slack.com/services/)"
+      }
+    } else if (channelType === "webhook") {
+      if (!webhookUrl.trim()) {
+        newErrors.webhookUrl = "Webhook URL is required"
+      } else if (!isValidUrl(webhookUrl)) {
+        newErrors.webhookUrl = "Invalid URL format (must be http:// or https://)"
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = () => {
+    if (!validateInputs()) return
+
     const channel: NotificationChannelCreate = {
       name,
       channel_type: channelType,
@@ -583,6 +718,12 @@ function CreateChannelDialog({
     onSubmit(channel)
   }
 
+  // Clear errors when channel type changes
+  const handleChannelTypeChange = (type: ChannelType) => {
+    setChannelType(type)
+    setErrors({})
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -596,7 +737,7 @@ function CreateChannelDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Channel Type</Label>
-            <Select value={channelType} onValueChange={(v) => setChannelType(v as ChannelType)}>
+            <Select value={channelType} onValueChange={(v) => handleChannelTypeChange(v as ChannelType)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -628,8 +769,10 @@ function CreateChannelDialog({
             <Input
               placeholder="e.g., Engineering Team"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setErrors((prev) => ({ ...prev, name: "" })) }}
+              className={errors.name ? "border-red-500" : ""}
             />
+            {errors.name && <p className="text-[11px] text-red-500">{errors.name}</p>}
           </div>
 
           {channelType === "email" && (
@@ -638,8 +781,10 @@ function CreateChannelDialog({
               <Input
                 placeholder="team@company.com, alerts@company.com"
                 value={emailRecipients}
-                onChange={(e) => setEmailRecipients(e.target.value)}
+                onChange={(e) => { setEmailRecipients(e.target.value); setErrors((prev) => ({ ...prev, emailRecipients: "" })) }}
+                className={errors.emailRecipients ? "border-red-500" : ""}
               />
+              {errors.emailRecipients && <p className="text-[11px] text-red-500">{errors.emailRecipients}</p>}
             </div>
           )}
 
@@ -650,8 +795,10 @@ function CreateChannelDialog({
                 <Input
                   placeholder="https://hooks.slack.com/services/..."
                   value={slackWebhook}
-                  onChange={(e) => setSlackWebhook(e.target.value)}
+                  onChange={(e) => { setSlackWebhook(e.target.value); setErrors((prev) => ({ ...prev, slackWebhook: "" })) }}
+                  className={errors.slackWebhook ? "border-red-500" : ""}
                 />
+                {errors.slackWebhook && <p className="text-[11px] text-red-500">{errors.slackWebhook}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Channel (optional)</Label>
@@ -670,8 +817,10 @@ function CreateChannelDialog({
               <Input
                 placeholder="https://api.example.com/webhook"
                 value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
+                onChange={(e) => { setWebhookUrl(e.target.value); setErrors((prev) => ({ ...prev, webhookUrl: "" })) }}
+                className={errors.webhookUrl ? "border-red-500" : ""}
               />
+              {errors.webhookUrl && <p className="text-[11px] text-red-500">{errors.webhookUrl}</p>}
             </div>
           )}
 
@@ -989,13 +1138,40 @@ function CreateSummaryDialog({
   const [selectedChannels, setSelectedChannels] = useState<string[]>([])
   const [includeSections, setIncludeSections] = useState<string[]>(["cost_summary", "top_services", "anomalies"])
 
+  // VAL-003 FIX: Validation error state
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
   const cronPresets = {
     daily: "0 9 * * *",
     weekly: "0 9 * * 1",
     monthly: "0 9 1 * *",
   }
 
+  // Validate inputs before submit
+  const validateInputs = (): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required"
+    }
+
+    // VAL-003: Validate cron expression
+    const cronValidation = isValidCron(scheduleCron)
+    if (!cronValidation.valid) {
+      newErrors.scheduleCron = cronValidation.error || "Invalid cron expression"
+    }
+
+    if (selectedChannels.length === 0) {
+      newErrors.channels = "Select at least one notification channel"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = () => {
+    if (!validateInputs()) return
+
     const summary: NotificationSummaryCreate = {
       name,
       summary_type: summaryType,
@@ -1025,8 +1201,10 @@ function CreateSummaryDialog({
             <Input
               placeholder="e.g., Weekly Cost Report"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setErrors((prev) => ({ ...prev, name: "" })) }}
+              className={errors.name ? "border-red-500" : ""}
             />
+            {errors.name && <p className="text-[11px] text-red-500">{errors.name}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1034,7 +1212,9 @@ function CreateSummaryDialog({
               <Label>Frequency</Label>
               <Select value={summaryType} onValueChange={(v) => {
                 setSummaryType(v as SummaryType)
-                setScheduleCron(cronPresets[v as SummaryType])
+                const newCron = cronPresets[v as SummaryType]
+                setScheduleCron(newCron)
+                setErrors((prev) => ({ ...prev, scheduleCron: "" }))
               }}>
                 <SelectTrigger>
                   <SelectValue />
@@ -1067,12 +1247,17 @@ function CreateSummaryDialog({
             <Label>Schedule (Cron)</Label>
             <Input
               value={scheduleCron}
-              onChange={(e) => setScheduleCron(e.target.value)}
+              onChange={(e) => { setScheduleCron(e.target.value); setErrors((prev) => ({ ...prev, scheduleCron: "" })) }}
               placeholder="0 9 * * *"
+              className={errors.scheduleCron ? "border-red-500" : ""}
             />
-            <p className="text-[11px] text-slate-500">
-              Default: 9:00 AM {summaryType}
-            </p>
+            {errors.scheduleCron ? (
+              <p className="text-[11px] text-red-500">{errors.scheduleCron}</p>
+            ) : (
+              <p className="text-[11px] text-slate-500">
+                Default: 9:00 AM {summaryType}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -1180,6 +1365,19 @@ export default function NotificationsPage() {
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
+  // UX-003 FIX: Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: "channel" | "rule" | "summary"
+    id: string
+    name: string
+  } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // UX-001/002 FIX: Edit state for channels, rules, summaries
+  const [editingChannel, setEditingChannel] = useState<NotificationChannel | null>(null)
+  const [editingRule, setEditingRule] = useState<NotificationRule | null>(null)
+  const [editingSummary, setEditingSummary] = useState<NotificationSummary | null>(null)
+
   // Load data
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -1235,17 +1433,33 @@ export default function NotificationsPage() {
   }
 
   const handleToggleChannel = async (channel: NotificationChannel) => {
+    // STATE-001 FIX: Optimistic update with rollback on failure
+    const previousState = channel.is_active
+    // Optimistic update
+    setChannels(channels.map((c) =>
+      c.channel_id === channel.channel_id ? { ...c, is_active: !c.is_active } : c
+    ))
+
     const result = await updateNotificationChannel(orgSlug, channel.channel_id, {
-      is_active: !channel.is_active,
+      is_active: !previousState,
     })
-    if (result.success) {
+
+    if (!result.success) {
+      // Rollback on failure
       setChannels(channels.map((c) =>
-        c.channel_id === channel.channel_id ? { ...c, is_active: !c.is_active } : c
+        c.channel_id === channel.channel_id ? { ...c, is_active: previousState } : c
       ))
+      setMessage({ type: "error", text: result.error || "Failed to update channel" })
     }
   }
 
+  // UX-003 FIX: Show confirmation dialog before delete
+  const handleRequestDeleteChannel = (channel: NotificationChannel) => {
+    setDeleteConfirm({ type: "channel", id: channel.channel_id, name: channel.name })
+  }
+
   const handleDeleteChannel = async (channelId: string) => {
+    setDeleting(true)
     const result = await deleteNotificationChannel(orgSlug, channelId)
     if (result.success) {
       setChannels(channels.filter((c) => c.channel_id !== channelId))
@@ -1253,6 +1467,8 @@ export default function NotificationsPage() {
     } else {
       setMessage({ type: "error", text: result.error || "Failed to delete channel" })
     }
+    setDeleting(false)
+    setDeleteConfirm(null)
   }
 
   const handleCreateChannel = async (channel: NotificationChannelCreate) => {
@@ -1269,17 +1485,33 @@ export default function NotificationsPage() {
   }
 
   const handleToggleRule = async (rule: NotificationRule) => {
-    const result = rule.is_active
+    // STATE-002 FIX: Optimistic update with rollback on failure
+    const previousState = rule.is_active
+    // Optimistic update
+    setRules(rules.map((r) =>
+      r.rule_id === rule.rule_id ? { ...r, is_active: !r.is_active } : r
+    ))
+
+    const result = previousState
       ? await pauseNotificationRule(orgSlug, rule.rule_id)
       : await resumeNotificationRule(orgSlug, rule.rule_id)
-    if (result.success) {
+
+    if (!result.success) {
+      // Rollback on failure
       setRules(rules.map((r) =>
-        r.rule_id === rule.rule_id ? { ...r, is_active: !r.is_active } : r
+        r.rule_id === rule.rule_id ? { ...r, is_active: previousState } : r
       ))
+      setMessage({ type: "error", text: result.error || "Failed to update rule" })
     }
   }
 
+  // UX-003 FIX: Show confirmation dialog before delete
+  const handleRequestDeleteRule = (rule: NotificationRule) => {
+    setDeleteConfirm({ type: "rule", id: rule.rule_id, name: rule.name })
+  }
+
   const handleDeleteRule = async (ruleId: string) => {
+    setDeleting(true)
     const result = await deleteNotificationRule(orgSlug, ruleId)
     if (result.success) {
       setRules(rules.filter((r) => r.rule_id !== ruleId))
@@ -1287,6 +1519,8 @@ export default function NotificationsPage() {
     } else {
       setMessage({ type: "error", text: result.error || "Failed to delete rule" })
     }
+    setDeleting(false)
+    setDeleteConfirm(null)
   }
 
   const handleCreateRule = async (rule: NotificationRuleCreate) => {
@@ -1303,17 +1537,33 @@ export default function NotificationsPage() {
   }
 
   const handleToggleSummary = async (summary: NotificationSummary) => {
+    // STATE-003 FIX: Optimistic update with rollback on failure
+    const previousState = summary.is_active
+    // Optimistic update
+    setSummaries(summaries.map((s) =>
+      s.summary_id === summary.summary_id ? { ...s, is_active: !s.is_active } : s
+    ))
+
     const result = await updateNotificationSummary(orgSlug, summary.summary_id, {
-      is_active: !summary.is_active,
+      is_active: !previousState,
     })
-    if (result.success) {
+
+    if (!result.success) {
+      // Rollback on failure
       setSummaries(summaries.map((s) =>
-        s.summary_id === summary.summary_id ? { ...s, is_active: !s.is_active } : s
+        s.summary_id === summary.summary_id ? { ...s, is_active: previousState } : s
       ))
+      setMessage({ type: "error", text: result.error || "Failed to update summary" })
     }
   }
 
+  // UX-003 FIX: Show confirmation dialog before delete
+  const handleRequestDeleteSummary = (summary: NotificationSummary) => {
+    setDeleteConfirm({ type: "summary", id: summary.summary_id, name: summary.name })
+  }
+
   const handleDeleteSummary = async (summaryId: string) => {
+    setDeleting(true)
     const result = await deleteNotificationSummary(orgSlug, summaryId)
     if (result.success) {
       setSummaries(summaries.filter((s) => s.summary_id !== summaryId))
@@ -1321,6 +1571,64 @@ export default function NotificationsPage() {
     } else {
       setMessage({ type: "error", text: result.error || "Failed to delete summary" })
     }
+    setDeleting(false)
+    setDeleteConfirm(null)
+  }
+
+  // UX-003 FIX: Unified confirmation handler
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return
+    switch (deleteConfirm.type) {
+      case "channel":
+        await handleDeleteChannel(deleteConfirm.id)
+        break
+      case "rule":
+        await handleDeleteRule(deleteConfirm.id)
+        break
+      case "summary":
+        await handleDeleteSummary(deleteConfirm.id)
+        break
+    }
+  }
+
+  // UX-001/002 FIX: Edit handlers
+  const handleEditChannel = async (channelId: string, update: NotificationChannelUpdate) => {
+    setCreating(true)
+    const result = await updateNotificationChannel(orgSlug, channelId, update)
+    if (result.success && result.data) {
+      setChannels(channels.map((c) => c.channel_id === channelId ? result.data! : c))
+      setEditingChannel(null)
+      setMessage({ type: "success", text: "Channel updated successfully!" })
+    } else {
+      setMessage({ type: "error", text: result.error || "Failed to update channel" })
+    }
+    setCreating(false)
+  }
+
+  const handleEditRule = async (ruleId: string, update: NotificationRuleUpdate) => {
+    setCreating(true)
+    const result = await updateNotificationRule(orgSlug, ruleId, update)
+    if (result.success && result.data) {
+      setRules(rules.map((r) => r.rule_id === ruleId ? result.data! : r))
+      setEditingRule(null)
+      setMessage({ type: "success", text: "Rule updated successfully!" })
+    } else {
+      setMessage({ type: "error", text: result.error || "Failed to update rule" })
+    }
+    setCreating(false)
+  }
+
+  const handleEditSummary = async (summaryId: string, update: NotificationSummaryUpdate) => {
+    setCreating(true)
+    const result = await updateNotificationSummary(orgSlug, summaryId, update)
+    if (result.success && result.data) {
+      setSummaries(summaries.map((s) => s.summary_id === summaryId ? result.data! : s))
+      setEditingSummary(null)
+      setMessage({ type: "success", text: "Summary updated successfully!" })
+    } else {
+      setMessage({ type: "error", text: result.error || "Failed to update summary" })
+    }
+    setCreating(false)
   }
 
   const handleSendSummaryNow = async (summaryId: string) => {
@@ -1553,8 +1861,8 @@ export default function NotificationsPage() {
                     key={channel.channel_id}
                     channel={channel}
                     onTest={() => handleTestChannel(channel.channel_id)}
-                    onEdit={() => {}}
-                    onDelete={() => handleDeleteChannel(channel.channel_id)}
+                    onEdit={() => setEditingChannel(channel)}
+                    onDelete={() => handleRequestDeleteChannel(channel)}
                     onToggle={() => handleToggleChannel(channel)}
                     testing={testingChannel === channel.channel_id}
                   />
@@ -1596,8 +1904,8 @@ export default function NotificationsPage() {
                   <RuleCard
                     key={rule.rule_id}
                     rule={rule}
-                    onEdit={() => {}}
-                    onDelete={() => handleDeleteRule(rule.rule_id)}
+                    onEdit={() => setEditingRule(rule)}
+                    onDelete={() => handleRequestDeleteRule(rule)}
                     onToggle={() => handleToggleRule(rule)}
                   />
                 ))}
@@ -1638,8 +1946,8 @@ export default function NotificationsPage() {
                   <SummaryCard
                     key={summary.summary_id}
                     summary={summary}
-                    onEdit={() => {}}
-                    onDelete={() => handleDeleteSummary(summary.summary_id)}
+                    onEdit={() => setEditingSummary(summary)}
+                    onDelete={() => handleRequestDeleteSummary(summary)}
                     onSendNow={() => handleSendSummaryNow(summary.summary_id)}
                     onToggle={() => handleToggleSummary(summary)}
                     sending={sendingSummary === summary.summary_id}
@@ -1710,6 +2018,32 @@ export default function NotificationsPage() {
         loading={creating}
         channels={channels}
       />
+
+      {/* UX-003 FIX: Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete {deleteConfirm?.type === "channel" ? "Channel" : deleteConfirm?.type === "rule" ? "Rule" : "Summary"}?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{deleteConfirm?.name}&rdquo;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)]/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

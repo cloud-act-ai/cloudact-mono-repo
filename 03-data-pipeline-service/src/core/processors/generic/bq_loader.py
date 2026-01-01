@@ -40,10 +40,10 @@ class BQLoader:
     Reads data from context["extracted_data"] and writes to destination table.
 
     Configuration:
-        destination_table: "{org_slug}_prod.aws_billing_cost_daily"
+        destination_table: "{org_slug}_prod.cloud_aws_billing_raw_daily"
         write_disposition: "WRITE_APPEND" | "WRITE_TRUNCATE"
         partition_field: "usage_date"
-        schema_template: "aws_billing_cost"  # References schema JSON file
+        schema_template: "cloud_aws_billing_cost"  # References schema JSON file
         table_config:
           time_partitioning:
             field: "usage_date"

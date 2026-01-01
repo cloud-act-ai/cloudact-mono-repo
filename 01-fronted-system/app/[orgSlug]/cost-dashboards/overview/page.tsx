@@ -18,16 +18,24 @@ import {
   CostDataTable,
   DateRangeFilter,
   CostFilters,
+  CostScoreRing,
+  CostInsightsCard,
+  CostPeriodSelector,
+  CostPeriodMetricsGrid,
   getDefaultDateRange,
   getDefaultFilters,
   dateRangeToApiParams,
+  getPeriodDates,
   type BreakdownItem,
   type CostSummaryData,
   type DateRange,
   type CostFiltersState,
   type HierarchyEntity,
+  type ScoreRingSegment,
+  type PeriodType,
+  type PeriodCostData,
 } from "@/components/costs"
-import { getTotalCosts, getCostByProvider, type TotalCostSummary, type ProviderBreakdown } from "@/actions/costs"
+import { getTotalCosts, getCostByProvider, getExtendedPeriodCosts, type TotalCostSummary, type ProviderBreakdown, type PeriodCostsData } from "@/actions/costs"
 import { getSaaSSubscriptionCosts, type SaaSCostSummary, type SaaSCostFilterParams } from "@/actions/subscription-providers"
 import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
@@ -58,29 +66,10 @@ export default function CostOverviewPage() {
   const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
   const [hierarchy, setHierarchy] = useState<HierarchyEntity[]>([])
   const [availableProviders, setAvailableProviders] = useState<string[]>([])
+  const [period, setPeriod] = useState<PeriodType>("M")
 
-  // Load hierarchy data once on mount
-  useEffect(() => {
-    async function loadHierarchy() {
-      try {
-        const result = await getHierarchy(orgSlug)
-        if (result.success && result.data?.entities) {
-          const entities: HierarchyEntity[] = result.data.entities.map((h) => ({
-            entity_id: h.entity_id,
-            entity_name: h.entity_name,
-            entity_type: h.entity_type as "department" | "project" | "team",
-            parent_id: h.parent_id,
-          }))
-          setHierarchy(entities)
-        }
-      } catch (err) {
-        console.error("Failed to load hierarchy:", err)
-      }
-    }
-    if (orgSlug) {
-      loadHierarchy()
-    }
-  }, [orgSlug])
+  // Track if hierarchy has been loaded to avoid re-fetching on filter/date changes
+  const [hierarchyLoaded, setHierarchyLoaded] = useState(false)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -108,12 +97,30 @@ export default function CostOverviewPage() {
         categories: filters.categories.length > 0 ? filters.categories : undefined,
       }
 
-      // Pass filters to backend API
-      const [costsResult, providersResult, saasResult] = await Promise.all([
+      // Load hierarchy in parallel with cost data (only on first load)
+      const hierarchyPromise = hierarchyLoaded
+        ? Promise.resolve(null)
+        : getHierarchy(orgSlug)
+
+      // Pass filters to backend API - load ALL data in parallel
+      const [costsResult, providersResult, saasResult, hierarchyResult] = await Promise.all([
         getTotalCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
         getSaaSSubscriptionCosts(orgSlug, startDate, endDate, saasFilters),
+        hierarchyPromise,
       ])
+
+      // Process hierarchy data if loaded
+      if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
+        const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
+          entity_id: h.entity_id,
+          entity_name: h.entity_name,
+          entity_type: h.entity_type as "department" | "project" | "team",
+          parent_id: h.parent_id,
+        }))
+        setHierarchy(entities)
+        setHierarchyLoaded(true)
+      }
 
       // Check if filters are active
       const hasActiveFilters = filters.providers.length > 0 ||
@@ -279,7 +286,7 @@ export default function CostOverviewPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [orgSlug, dateRange, filters])
+  }, [orgSlug, dateRange, filters, hierarchyLoaded])
 
   useEffect(() => {
     loadData()
@@ -293,6 +300,18 @@ export default function CostOverviewPage() {
   // Handle filter changes - triggers data reload via loadData dependency
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
+  }, [])
+
+  // Handle period change - updates dateRange which triggers data reload
+  const handlePeriodChange = useCallback((newPeriod: PeriodType) => {
+    setPeriod(newPeriod)
+    const { startDate, endDate, label } = getPeriodDates(newPeriod)
+    setDateRange({
+      preset: "custom",
+      start: startDate,
+      end: endDate,
+      label,
+    })
   }, [])
 
   const handleRefresh = async () => {
@@ -345,6 +364,38 @@ export default function CostOverviewPage() {
     })
   }, [providers])
 
+  // Score ring segments for Apple Health style visualization
+  const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
+    const genaiCost = totalSummary?.llm?.total_monthly_cost ?? 0
+    const cloudCost = totalSummary?.cloud?.total_monthly_cost ?? 0
+    const saasCost = totalSummary?.saas?.total_monthly_cost ?? 0
+
+    return [
+      { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
+      { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
+      { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
+    ].filter(s => s.value > 0)
+  }, [totalSummary])
+
+  // Insights data - MTD vs previous month
+  const insightsData = useMemo(() => {
+    const mtd = summaryData.mtd
+    const forecast = summaryData.forecast
+    const ytd = summaryData.ytd
+
+    // Calculate average daily spend
+    const today = new Date()
+    const daysElapsed = today.getDate()
+    const avgDaily = daysElapsed > 0 ? mtd / daysElapsed : 0
+
+    return {
+      currentSpend: mtd,
+      averageDaily: avgDaily,
+      forecast,
+      ytd,
+    }
+  }, [summaryData])
+
   const isEmpty = !totalSummary && !saasSummary && providers.length === 0
 
   return (
@@ -367,6 +418,11 @@ export default function CostOverviewPage() {
       isRefreshing={isRefreshing}
       headerActions={
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <CostPeriodSelector
+            value={period}
+            onChange={handlePeriodChange}
+            size="sm"
+          />
           <CostFilters
             value={filters}
             onChange={handleFiltersChange}
@@ -385,6 +441,42 @@ export default function CostOverviewPage() {
     >
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Apple Health Style - Score Ring and Insights Row */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        {/* Score Ring - Total Spend Breakdown */}
+        {scoreRingSegments.length > 0 && (
+          <CostScoreRing
+            title="Total Spend"
+            segments={scoreRingSegments}
+            currency={orgCurrency}
+            insight={`Your spending is distributed across ${scoreRingSegments.length} categories this period.`}
+            compact
+            ringSize={88}
+            strokeWidth={10}
+            titleColor="#1a7a3a"
+          />
+        )}
+
+        {/* Spend Insights Card */}
+        <CostInsightsCard
+          title="Spending Trend"
+          currentValue={insightsData.currentSpend}
+          currentLabel="MTD Spend"
+          averageValue={insightsData.averageDaily * 30}
+          averageLabel="Projected"
+          insight={
+            insightsData.forecast > insightsData.currentSpend * 1.1
+              ? "Your spending is on track to exceed projections this month."
+              : insightsData.forecast < insightsData.currentSpend * 0.9
+                ? "Great job! You're spending less than projected."
+                : "Your spending is in line with projections."
+          }
+          currency={orgCurrency}
+          primaryColor="#10A37F"
+          compact
+        />
+      </div>
 
       {/* Category Breakdown */}
       {categories.length > 0 && (

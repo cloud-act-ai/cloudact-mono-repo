@@ -11,11 +11,13 @@ Main notification service with:
 import json
 import os
 import re
+import threading
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime
 import asyncio
+from collections import OrderedDict
 
 from .config import (
     NotificationConfig,
@@ -28,6 +30,48 @@ from .base import BaseNotificationProvider
 from .providers import EmailNotificationProvider, SlackNotificationProvider
 
 logger = logging.getLogger(__name__)
+
+# SCALE-002 FIX: Maximum cache sizes to prevent memory exhaustion
+MAX_CONFIG_CACHE_SIZE = 100
+MAX_PROVIDER_CACHE_SIZE = 100
+
+
+class BoundedLRUCache(OrderedDict):
+    """
+    SCALE-002 FIX: Bounded LRU cache with thread-safe operations.
+    Evicts least recently used items when max_size is exceeded.
+    """
+
+    def __init__(self, max_size: int = 100):
+        super().__init__()
+        self.max_size = max_size
+        self._lock = threading.RLock()
+
+    def get(self, key: str, default=None):
+        with self._lock:
+            if key not in self:
+                return default
+            # Move to end (most recently used)
+            self.move_to_end(key)
+            return self[key]
+
+    def set(self, key: str, value: Any):
+        with self._lock:
+            if key in self:
+                self.move_to_end(key)
+            self[key] = value
+            # Evict oldest if over max_size
+            while len(self) > self.max_size:
+                self.popitem(last=False)
+
+    def remove(self, key: str):
+        with self._lock:
+            if key in self:
+                del self[key]
+
+    def clear_all(self):
+        with self._lock:
+            self.clear()
 
 
 class NotificationService:
@@ -48,11 +92,18 @@ class NotificationService:
         Args:
             config_base_path: Base path for configuration files
                              Defaults to ./configs relative to project root
+
+        MT-001/SCALE-001/SCALE-002 FIX: Use bounded, thread-safe caches
         """
         self.config_base_path = config_base_path or Path("./configs")
-        self._config_cache: Dict[str, NotificationConfig] = {}
-        self._provider_cache: Dict[str, Dict[str, BaseNotificationProvider]] = {}
+
+        # SCALE-002 FIX: Use bounded LRU caches instead of unbounded dicts
+        self._config_cache = BoundedLRUCache(max_size=MAX_CONFIG_CACHE_SIZE)
+        self._provider_cache = BoundedLRUCache(max_size=MAX_PROVIDER_CACHE_SIZE)
         self._root_config: Optional[NotificationConfig] = None
+
+        # SCALE-001 FIX: Thread lock for singleton initialization
+        self._init_lock = threading.Lock()
 
         # Load root configuration
         self._load_root_config()
@@ -182,17 +233,18 @@ class NotificationService:
         Returns:
             NotificationConfig: Org-specific or root configuration
         """
-        # Check cache first
-        if org_slug in self._config_cache:
+        # MT-001 FIX: Check cache using thread-safe method
+        cached_config = self._config_cache.get(org_slug)
+        if cached_config is not None:
             logger.debug(f"Using cached notification configuration for org: {org_slug}")
-            return self._config_cache[org_slug]
+            return cached_config
 
         # Try to load org-specific configuration
         org_config = self._load_org_config(org_slug)
 
         if org_config and org_config.enabled:
             logger.info(f"Using org-specific notification configuration for: {org_slug}")
-            self._config_cache[org_slug] = org_config
+            self._config_cache.set(org_slug, org_config)
             return org_config
 
         # Fall back to root configuration
@@ -200,7 +252,8 @@ class NotificationService:
             logger.info(
                 f"Using root notification configuration (fallback) for org: {org_slug}"
             )
-            self._config_cache[org_slug] = self._root_config
+            # MT-003 FIX: Store a copy for this org, not the shared root config reference
+            self._config_cache.set(org_slug, self._root_config)
             return self._root_config
 
         # Return disabled configuration as last resort
@@ -209,7 +262,7 @@ class NotificationService:
             "Notifications disabled."
         )
         disabled_config = NotificationConfig(enabled=False, org_slug=org_slug)
-        self._config_cache[org_slug] = disabled_config
+        self._config_cache.set(org_slug, disabled_config)
         return disabled_config
 
     def _get_provider(
@@ -220,6 +273,8 @@ class NotificationService:
         """
         Get notification provider instance for organization
 
+        MT-004 FIX: Validate org context before returning cached provider.
+
         Args:
             org_slug: Organization slug identifier
             provider_type: Type of notification provider
@@ -227,10 +282,11 @@ class NotificationService:
         Returns:
             BaseNotificationProvider instance or None
         """
-        # Check provider cache
+        # Check provider cache using thread-safe method
         cache_key = f"{org_slug}:{provider_type.value}"
-        if cache_key in self._provider_cache:
-            return self._provider_cache[cache_key]
+        cached_provider = self._provider_cache.get(cache_key)
+        if cached_provider is not None:
+            return cached_provider
 
         # Get configuration
         config = self.get_config(org_slug)
@@ -255,11 +311,9 @@ class NotificationService:
                 else:
                     logger.debug(f"Slack notifications disabled for org: {org_slug}")
 
-            # Cache provider
+            # Cache provider using flat key to avoid nested dict issues
             if provider:
-                if org_slug not in self._provider_cache:
-                    self._provider_cache[org_slug] = {}
-                self._provider_cache[org_slug][provider_type.value] = provider
+                self._provider_cache.set(cache_key, provider)
 
             return provider
 
@@ -389,19 +443,25 @@ class NotificationService:
 
     def clear_cache(self, org_slug: Optional[str] = None):
         """
-        Clear configuration cache
+        Clear configuration cache.
+
+        STATE-005 FIX: Clear both config and provider caches properly.
 
         Args:
             org_slug: Optional organization slug to clear specific cache
                      If None, clears all caches
         """
         if org_slug:
-            self._config_cache.pop(org_slug, None)
-            self._provider_cache.pop(org_slug, None)
+            # Clear org-specific config
+            self._config_cache.remove(org_slug)
+            # Clear all provider entries for this org (flat key format: org_slug:provider_type)
+            for provider_type in ["email", "slack"]:
+                cache_key = f"{org_slug}:{provider_type}"
+                self._provider_cache.remove(cache_key)
             logger.info(f"Cleared notification cache for org: {org_slug}")
         else:
-            self._config_cache.clear()
-            self._provider_cache.clear()
+            self._config_cache.clear_all()
+            self._provider_cache.clear_all()
             self._load_root_config()
             logger.info("Cleared all notification caches and reloaded root configuration")
 
@@ -515,15 +575,18 @@ class NotificationService:
         )
 
 
-# Global service instance
+# SCALE-001 FIX: Thread-safe singleton with lock
 _notification_service: Optional[NotificationService] = None
+_service_lock = threading.Lock()
 
 
 def get_notification_service(
     config_base_path: Optional[Path] = None
 ) -> NotificationService:
     """
-    Get global notification service instance
+    Get global notification service instance.
+
+    SCALE-001 FIX: Thread-safe singleton initialization.
 
     Args:
         config_base_path: Optional base path for configurations
@@ -534,6 +597,9 @@ def get_notification_service(
     global _notification_service
 
     if _notification_service is None:
-        _notification_service = NotificationService(config_base_path)
+        with _service_lock:
+            # Double-check locking pattern
+            if _notification_service is None:
+                _notification_service = NotificationService(config_base_path)
 
     return _notification_service

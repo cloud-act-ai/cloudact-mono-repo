@@ -11,13 +11,19 @@ import {
   CostDataTable,
   DateRangeFilter,
   CostFilters,
+  CostScoreRing,
+  CostInsightsCard,
+  CostPeriodSelector,
   getDefaultDateRange,
   getDefaultFilters,
   dateRangeToApiParams,
+  getPeriodDates,
   type CostSummaryData,
   type DateRange,
   type CostFiltersState,
   type HierarchyEntity,
+  type ScoreRingSegment,
+  type PeriodType,
 } from "@/components/costs"
 import { getCloudCosts, getCostByProvider, type CostSummary, type ProviderBreakdown, type CostFilterParams } from "@/actions/costs"
 import { getHierarchy } from "@/actions/hierarchy"
@@ -46,29 +52,10 @@ export default function CloudCostsPage() {
   const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
   const [hierarchy, setHierarchy] = useState<HierarchyEntity[]>([])
   const [availableProviders, setAvailableProviders] = useState<string[]>([])
+  const [period, setPeriod] = useState<PeriodType>("M")
 
-  // Load hierarchy data once on mount
-  useEffect(() => {
-    async function loadHierarchy() {
-      try {
-        const result = await getHierarchy(orgSlug)
-        if (result.success && result.data?.entities) {
-          const entities: HierarchyEntity[] = result.data.entities.map((h) => ({
-            entity_id: h.entity_id,
-            entity_name: h.entity_name,
-            entity_type: h.entity_type as "department" | "project" | "team",
-            parent_id: h.parent_id,
-          }))
-          setHierarchy(entities)
-        }
-      } catch (err) {
-        console.error("Failed to load hierarchy:", err)
-      }
-    }
-    if (orgSlug) {
-      loadHierarchy()
-    }
-  }, [orgSlug])
+  // Track if hierarchy has been loaded to avoid re-fetching on filter/date changes
+  const [hierarchyLoaded, setHierarchyLoaded] = useState(false)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -91,24 +78,41 @@ export default function CloudCostsPage() {
       const hasActiveFilters = filters.providers.length > 0 ||
         filters.department || filters.project || filters.team
 
-      const [costsResult, providersResult] = await Promise.all([
+      // Load hierarchy in parallel with cost data (only on first load)
+      const hierarchyPromise = hierarchyLoaded
+        ? Promise.resolve(null)
+        : getHierarchy(orgSlug)
+
+      const [costsResult, providersResult, hierarchyResult] = await Promise.all([
         getCloudCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
+        hierarchyPromise,
       ])
+
+      // Process hierarchy data if loaded
+      if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
+        const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
+          entity_id: h.entity_id,
+          entity_name: h.entity_name,
+          entity_type: h.entity_type as "department" | "project" | "team",
+          parent_id: h.parent_id,
+        }))
+        setHierarchy(entities)
+        setHierarchyLoaded(true)
+      }
 
       // Get currency from result
       if (costsResult.currency) {
         setOrgCurrency(costsResult.currency)
       }
 
-      // Filter to only cloud providers using centralized helper
+      // Filter to only cloud providers using centralized helper (single filter call)
       let filteredProviders: ProviderBreakdown[] = []
       if (providersResult.success && providersResult.data) {
         filteredProviders = filterCloudProviders(providersResult.data)
         setProviders(filteredProviders)
-        // Set available providers for filter dropdown (unfiltered list for dropdown options)
-        const allCloudProviders = filterCloudProviders(providersResult.data)
-        setAvailableProviders(allCloudProviders.map(p => p.provider))
+        // Use same filtered result for dropdown options (avoids duplicate filter call)
+        setAvailableProviders(filteredProviders.map(p => p.provider))
       }
 
       // When filters are active, compute summary from filtered provider data
@@ -154,7 +158,7 @@ export default function CloudCostsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [orgSlug, dateRange, filters])
+  }, [orgSlug, dateRange, filters, hierarchyLoaded])
 
   useEffect(() => {
     loadData()
@@ -168,6 +172,18 @@ export default function CloudCostsPage() {
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
+  }, [])
+
+  // Handle period change - updates dateRange which triggers data reload
+  const handlePeriodChange = useCallback((newPeriod: PeriodType) => {
+    setPeriod(newPeriod)
+    const { startDate, endDate, label } = getPeriodDates(newPeriod)
+    setDateRange({
+      preset: "custom",
+      start: startDate,
+      end: endDate,
+      label,
+    })
   }, [])
 
   const handleRefresh = async () => {
@@ -207,6 +223,29 @@ export default function CloudCostsPage() {
     )
   }, [providers])
 
+  // Score ring segments for provider breakdown
+  const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
+    return providers.slice(0, 4).map((p, index) => ({
+      key: p.provider,
+      name: CLOUD_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
+      value: p.total_cost,
+      color: ["#4285F4", "#FF9900", "#00A4EF", "#F80000"][index] || "#94a3b8",
+    })).filter(s => s.value > 0)
+  }, [providers])
+
+  // Insights data for cloud costs
+  const insightsData = useMemo(() => {
+    const mtd = summary?.mtd_cost ?? 0
+    const forecast = summary?.forecast_monthly_cost ?? 0
+    const daily = summary?.total_daily_cost ?? 0
+
+    return {
+      currentSpend: mtd,
+      forecast,
+      dailyRate: daily,
+    }
+  }, [summary])
+
   const isEmpty = !summary && providers.length === 0
 
   return (
@@ -233,6 +272,11 @@ export default function CloudCostsPage() {
       isRefreshing={isRefreshing}
       headerActions={
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <CostPeriodSelector
+            value={period}
+            onChange={handlePeriodChange}
+            size="sm"
+          />
           <CostFilters
             value={filters}
             onChange={handleFiltersChange}
@@ -251,6 +295,42 @@ export default function CloudCostsPage() {
     >
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Apple Health Style - Score Ring and Insights Row */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        {/* Score Ring - Provider Breakdown */}
+        {scoreRingSegments.length > 0 && (
+          <CostScoreRing
+            title="Cloud Spend"
+            segments={scoreRingSegments}
+            currency={orgCurrency}
+            insight={`Infrastructure costs across ${scoreRingSegments.length} cloud provider${scoreRingSegments.length > 1 ? "s" : ""}.`}
+            compact
+            ringSize={88}
+            strokeWidth={10}
+            titleColor="#4285F4"
+          />
+        )}
+
+        {/* Cloud Insights Card */}
+        <CostInsightsCard
+          title="Infrastructure Trend"
+          currentValue={insightsData.currentSpend}
+          currentLabel="MTD Spend"
+          averageValue={insightsData.forecast}
+          averageLabel="Forecast"
+          insight={
+            insightsData.forecast > insightsData.currentSpend * 1.15
+              ? "Cloud spending is trending higher than usual this month."
+              : insightsData.forecast < insightsData.currentSpend * 0.85
+                ? "Great progress on cloud cost optimization!"
+                : "Cloud costs are stable and within expected range."
+          }
+          currency={orgCurrency}
+          primaryColor="#4285F4"
+          compact
+        />
+      </div>
 
       {/* Provider Breakdown Chart */}
       {providerBreakdownItems.length > 0 && (

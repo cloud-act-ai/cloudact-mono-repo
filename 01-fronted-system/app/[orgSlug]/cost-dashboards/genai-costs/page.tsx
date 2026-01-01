@@ -11,13 +11,19 @@ import {
   CostDataTable,
   DateRangeFilter,
   CostFilters,
+  CostScoreRing,
+  CostInsightsCard,
+  CostPeriodSelector,
   getDefaultDateRange,
   getDefaultFilters,
   dateRangeToApiParams,
+  getPeriodDates,
   type CostSummaryData,
   type DateRange,
   type CostFiltersState,
   type HierarchyEntity,
+  type ScoreRingSegment,
+  type PeriodType,
 } from "@/components/costs"
 import { getGenAICosts, getCostByProvider, type CostSummary, type ProviderBreakdown, type CostFilterParams } from "@/actions/costs"
 import { getHierarchy } from "@/actions/hierarchy"
@@ -46,29 +52,10 @@ export default function GenAICostsPage() {
   const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
   const [hierarchy, setHierarchy] = useState<HierarchyEntity[]>([])
   const [availableProviders, setAvailableProviders] = useState<string[]>([])
+  const [period, setPeriod] = useState<PeriodType>("M")
 
-  // Load hierarchy data once on mount
-  useEffect(() => {
-    async function loadHierarchy() {
-      try {
-        const result = await getHierarchy(orgSlug)
-        if (result.success && result.data?.entities) {
-          const entities: HierarchyEntity[] = result.data.entities.map((h) => ({
-            entity_id: h.entity_id,
-            entity_name: h.entity_name,
-            entity_type: h.entity_type as "department" | "project" | "team",
-            parent_id: h.parent_id,
-          }))
-          setHierarchy(entities)
-        }
-      } catch (err) {
-        console.error("Failed to load hierarchy:", err)
-      }
-    }
-    if (orgSlug) {
-      loadHierarchy()
-    }
-  }, [orgSlug])
+  // Track if hierarchy has been loaded to avoid re-fetching on filter/date changes
+  const [hierarchyLoaded, setHierarchyLoaded] = useState(false)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -91,24 +78,41 @@ export default function GenAICostsPage() {
       const hasActiveFilters = filters.providers.length > 0 ||
         filters.department || filters.project || filters.team
 
-      const [costsResult, providersResult] = await Promise.all([
+      // Load hierarchy in parallel with cost data (only on first load)
+      const hierarchyPromise = hierarchyLoaded
+        ? Promise.resolve(null)
+        : getHierarchy(orgSlug)
+
+      const [costsResult, providersResult, hierarchyResult] = await Promise.all([
         getGenAICosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
+        hierarchyPromise,
       ])
+
+      // Process hierarchy data if loaded
+      if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
+        const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
+          entity_id: h.entity_id,
+          entity_name: h.entity_name,
+          entity_type: h.entity_type as "department" | "project" | "team",
+          parent_id: h.parent_id,
+        }))
+        setHierarchy(entities)
+        setHierarchyLoaded(true)
+      }
 
       // Get currency from result
       if (costsResult.currency) {
         setOrgCurrency(costsResult.currency)
       }
 
-      // Filter to only LLM providers using centralized helper
+      // Filter to only LLM providers using centralized helper (single filter call)
       let filteredProviders: ProviderBreakdown[] = []
       if (providersResult.success && providersResult.data) {
         filteredProviders = filterGenAIProviders(providersResult.data)
         setProviders(filteredProviders)
-        // Set available providers for filter dropdown (unfiltered list for dropdown options)
-        const allGenAIProviders = filterGenAIProviders(providersResult.data)
-        setAvailableProviders(allGenAIProviders.map(p => p.provider))
+        // Use same filtered result for dropdown options (avoids duplicate filter call)
+        setAvailableProviders(filteredProviders.map(p => p.provider))
       }
 
       // When filters are active, compute summary from filtered provider data
@@ -155,7 +159,7 @@ export default function GenAICostsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [orgSlug, dateRange, filters])
+  }, [orgSlug, dateRange, filters, hierarchyLoaded])
 
   useEffect(() => {
     loadData()
@@ -169,6 +173,18 @@ export default function GenAICostsPage() {
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
+  }, [])
+
+  // Handle period change - updates dateRange which triggers data reload
+  const handlePeriodChange = useCallback((newPeriod: PeriodType) => {
+    setPeriod(newPeriod)
+    const { startDate, endDate, label } = getPeriodDates(newPeriod)
+    setDateRange({
+      preset: "custom",
+      start: startDate,
+      end: endDate,
+      label,
+    })
   }, [])
 
   const handleRefresh = async () => {
@@ -208,6 +224,29 @@ export default function GenAICostsPage() {
     )
   }, [providers])
 
+  // Score ring segments for LLM provider breakdown
+  const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
+    return providers.slice(0, 4).map((p, index) => ({
+      key: p.provider,
+      name: GENAI_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
+      value: p.total_cost,
+      color: ["#10A37F", "#D4A574", "#4285F4", "#7C3AED"][index] || "#94a3b8",
+    })).filter(s => s.value > 0)
+  }, [providers])
+
+  // Insights data for GenAI costs
+  const insightsData = useMemo(() => {
+    const mtd = summary?.mtd_cost ?? 0
+    const forecast = summary?.forecast_monthly_cost ?? 0
+    const daily = summary?.total_daily_cost ?? 0
+
+    return {
+      currentSpend: mtd,
+      forecast,
+      dailyRate: daily,
+    }
+  }, [summary])
+
   const isEmpty = !summary && providers.length === 0
 
   return (
@@ -234,6 +273,11 @@ export default function GenAICostsPage() {
       isRefreshing={isRefreshing}
       headerActions={
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <CostPeriodSelector
+            value={period}
+            onChange={handlePeriodChange}
+            size="sm"
+          />
           <CostFilters
             value={filters}
             onChange={handleFiltersChange}
@@ -252,6 +296,42 @@ export default function GenAICostsPage() {
     >
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Apple Health Style - Score Ring and Insights Row */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        {/* Score Ring - LLM Provider Breakdown */}
+        {scoreRingSegments.length > 0 && (
+          <CostScoreRing
+            title="LLM Spend"
+            segments={scoreRingSegments}
+            currency={orgCurrency}
+            insight={`API usage costs across ${scoreRingSegments.length} LLM provider${scoreRingSegments.length > 1 ? "s" : ""}.`}
+            compact
+            ringSize={88}
+            strokeWidth={10}
+            titleColor="#10A37F"
+          />
+        )}
+
+        {/* GenAI Insights Card */}
+        <CostInsightsCard
+          title="AI Usage Trend"
+          currentValue={insightsData.currentSpend}
+          currentLabel="MTD Spend"
+          averageValue={insightsData.forecast}
+          averageLabel="Forecast"
+          insight={
+            insightsData.forecast > insightsData.currentSpend * 1.2
+              ? "LLM API usage is growing. Consider reviewing token efficiency."
+              : insightsData.forecast < insightsData.currentSpend * 0.8
+                ? "AI costs are well-optimized this period!"
+                : "LLM usage is tracking within expected patterns."
+          }
+          currency={orgCurrency}
+          primaryColor="#10A37F"
+          compact
+        />
+      </div>
 
       {/* Provider Breakdown Chart */}
       {providerBreakdownItems.length > 0 && (
