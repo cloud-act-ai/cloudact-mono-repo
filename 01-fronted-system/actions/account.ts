@@ -614,7 +614,13 @@ export async function requestAccountDeletion(): Promise<{
     }
 
     // Send verification email
-    const deleteLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/account/delete?token=${token}`
+    // Require valid app URL - only fallback to localhost in development
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3000" : null)
+    if (!appUrl) {
+      console.error("[requestAccountDeletion] CRITICAL: NEXT_PUBLIC_APP_URL not configured in production")
+      return { success: false, error: "Application URL not configured. Please contact support." }
+    }
+    const deleteLink = `${appUrl}/api/account/delete?token=${token}`
 
     // Try to send email
     try {

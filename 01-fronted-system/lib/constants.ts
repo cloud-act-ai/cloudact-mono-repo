@@ -22,9 +22,20 @@ export const PIPELINE_SERVICE_URL =
   process.env.NEXT_PUBLIC_PIPELINE_SERVICE_URL ||
   (isDevelopment ? "http://localhost:8001" : "")
 
+// APP_URL should always be set in production. Empty string in production indicates misconfiguration.
+// Usage: Always check if APP_URL is truthy before using for redirects.
 export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   (isDevelopment ? "http://localhost:3000" : "")
+
+// Helper to get APP_URL with validation - throws in production if not configured
+export function getAppUrl(): string {
+  const url = APP_URL
+  if (!url && !isDevelopment) {
+    throw new Error("CRITICAL: NEXT_PUBLIC_APP_URL not configured in production")
+  }
+  return url || "http://localhost:3000"
+}
 
 // ============================================
 // GenAI Validation Constants

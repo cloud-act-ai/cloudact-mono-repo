@@ -74,7 +74,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    // Require valid app URL - only fallback to localhost in development
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3000" : null)
+    if (!appUrl) {
+      console.error("[reset-password] CRITICAL: NEXT_PUBLIC_APP_URL not configured in production")
+      return NextResponse.json({ error: "Application URL not configured. Please contact support." }, { status: 500 })
+    }
 
     // Generate password reset link using admin API
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
