@@ -1,0 +1,116 @@
+[
+  {
+    "name": "channel_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the notification channel (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug identifier"
+  },
+  {
+    "name": "channel_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Channel type: email, slack, webhook"
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "User-friendly channel name (e.g., 'Finance Team Email')"
+  },
+  {
+    "name": "is_default",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether this is the default channel for the org"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether the channel is active"
+  },
+  {
+    "name": "email_recipients",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Email recipient addresses (for email channel)"
+  },
+  {
+    "name": "email_cc_recipients",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Email CC recipient addresses (for email channel)"
+  },
+  {
+    "name": "email_subject_prefix",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Subject line prefix for emails"
+  },
+  {
+    "name": "slack_webhook_url_encrypted",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Encrypted Slack webhook URL"
+  },
+  {
+    "name": "slack_channel",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Slack channel name (e.g., '#cost-alerts')"
+  },
+  {
+    "name": "slack_mention_users",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Slack user IDs to mention on alerts"
+  },
+  {
+    "name": "slack_mention_channel",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether to @channel on critical alerts"
+  },
+  {
+    "name": "webhook_url_encrypted",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Encrypted webhook URL for custom integrations"
+  },
+  {
+    "name": "webhook_headers_encrypted",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Encrypted JSON headers for webhook"
+  },
+  {
+    "name": "webhook_method",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "HTTP method for webhook (POST, PUT)"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when channel was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who created the channel"
+  }
+]

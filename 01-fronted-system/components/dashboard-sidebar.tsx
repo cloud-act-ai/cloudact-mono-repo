@@ -53,6 +53,10 @@ import {
   PanelLeft,
   Settings,
   TrendingUp,
+  Bell,
+  AlertTriangle,
+  Calendar,
+  History,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -62,7 +66,7 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "settings" | null
+type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "notifications" | "settings" | null
 
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
@@ -156,6 +160,8 @@ export function DashboardSidebar({
       setActiveSection("pipelines")
     } else if (pathname.includes("/integrations")) {
       setActiveSection("integrations")
+    } else if (pathname.includes("/notifications")) {
+      setActiveSection("notifications")
     } else if (pathname.includes("/settings") || pathname.includes("/billing")) {
       setActiveSection("settings")
     }
@@ -231,6 +237,7 @@ export function DashboardSidebar({
     "cost-analytics": <TrendingUp className="h-4 w-4" />,
     pipelines: <Workflow className="h-4 w-4" />,
     integrations: <Server className="h-4 w-4" />,
+    notifications: <Bell className="h-4 w-4" />,
     settings: <Settings className="h-4 w-4" />,
   }
 
@@ -568,6 +575,93 @@ export function DashboardSidebar({
                   <Link href={`/${orgSlug}/integrations/subscriptions`}>
                     <SubscriptionIcon className="h-4 w-4 flex-shrink-0" />
                     <span>Subscriptions</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </div>
+          )}
+
+          {/* Notifications Section */}
+          {!isCollapsed && (
+            <SectionHeader
+              title="Notifications"
+              section="notifications"
+              isExpanded={activeSection === "notifications"}
+            />
+          )}
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
+                <Link href={`/${orgSlug}/notifications`}>
+                  <Bell className="h-4 w-4 text-slate-500" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && activeSection === "notifications" && (
+            <div className="pb-2 space-y-0.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/notifications`, true) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/notifications`}>
+                    <Bell className="h-4 w-4 flex-shrink-0" />
+                    <span>Overview</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/notifications?tab=channels`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/notifications?tab=channels`}>
+                    <Settings className="h-4 w-4 flex-shrink-0" />
+                    <span>Channels</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/notifications?tab=alerts`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/notifications?tab=alerts`}>
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                    <span>Alert Rules</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/notifications?tab=summaries`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/notifications?tab=summaries`}>
+                    <Calendar className="h-4 w-4 flex-shrink-0" />
+                    <span>Summaries</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/notifications?tab=history`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/notifications?tab=history`}>
+                    <History className="h-4 w-4 flex-shrink-0" />
+                    <span>History</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
