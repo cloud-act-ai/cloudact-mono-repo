@@ -1,5 +1,7 @@
-import type { Metadata } from "next"
+"use client"
+
 import Link from "next/link"
+import { useState } from "react"
 import {
   Rocket,
   ArrowRight,
@@ -11,22 +13,46 @@ import {
   Clock,
   Terminal,
   Copy,
-  ExternalLink,
+  Check,
 } from "lucide-react"
 import "../../premium.css"
 
-export const metadata: Metadata = {
-  title: "Quick Start | CloudAct.ai Documentation",
-  description: "Get started with CloudAct.ai in 5 minutes. Connect your cloud providers, GenAI services, and SaaS subscriptions.",
-  openGraph: {
-    title: "Quick Start | CloudAct.ai",
-    description: "Get started with CloudAct.ai in 5 minutes.",
-    type: "website",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+// Copy button component with feedback
+function CopyButton({ code, label }: { code: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement("textarea")
+      textarea.value = code
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="ca-docs-code-copy"
+      aria-label={copied ? "Copied!" : `Copy ${label} code`}
+      onClick={handleCopy}
+    >
+      {copied ? (
+        <Check className="w-4 h-4 text-green-500" />
+      ) : (
+        <Copy className="w-4 h-4" />
+      )}
+    </button>
+  )
 }
 
 const QUICK_START_STEPS = [
@@ -107,11 +133,11 @@ export default function QuickStartPage() {
       <section className="ca-docs-hero">
         <div className="ca-docs-hero-content">
           <Link href="/docs" className="ca-docs-back-link">
-            <ArrowRight className="w-4 h-4 rotate-180" />
+            <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
             Back to Documentation
           </Link>
           <div className="ca-section-eyebrow">
-            <Rocket className="w-4 h-4" />
+            <Rocket className="w-4 h-4" aria-hidden="true" />
             Quick Start
           </div>
           <h1 className="ca-docs-hero-title">
@@ -122,11 +148,11 @@ export default function QuickStartPage() {
           </p>
           <div className="ca-docs-hero-meta">
             <span className="ca-docs-hero-time">
-              <Clock className="w-4 h-4" />
+              <Clock className="w-4 h-4" aria-hidden="true" />
               5 minutes
             </span>
             <span className="ca-docs-hero-prereq">
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
               No prerequisites
             </span>
           </div>
@@ -136,30 +162,30 @@ export default function QuickStartPage() {
       {/* Steps Section */}
       <section className="ca-docs-steps-section">
         <div className="ca-docs-steps-container">
-          {QUICK_START_STEPS.map((step, i) => {
+          {QUICK_START_STEPS.map((step) => {
             const Icon = step.icon
             return (
-              <div key={i} className="ca-docs-step">
+              <div key={step.step} className="ca-docs-step">
                 <div className="ca-docs-step-header">
                   <div className="ca-docs-step-number">
                     <span>{step.step}</span>
                   </div>
                   <div className="ca-docs-step-icon">
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <div className="ca-docs-step-title-group">
                     <h2 className="ca-docs-step-title">{step.title}</h2>
                     <span className="ca-docs-step-time">
-                      <Clock className="w-3 h-3" />
+                      <Clock className="w-3 h-3" aria-hidden="true" />
                       {step.time}
                     </span>
                   </div>
                 </div>
                 <p className="ca-docs-step-desc">{step.description}</p>
                 <ul className="ca-docs-step-details">
-                  {step.details.map((detail, j) => (
-                    <li key={j}>
-                      <CheckCircle2 className="w-4 h-4" />
+                  {step.details.map((detail) => (
+                    <li key={detail}>
+                      <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                       {detail}
                     </li>
                   ))}
@@ -175,7 +201,7 @@ export default function QuickStartPage() {
         <div className="ca-docs-code-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <Terminal className="w-4 h-4" />
+              <Terminal className="w-4 h-4" aria-hidden="true" />
               Code Examples
             </span>
             <h2 className="ca-section-title">CLI Setup Commands</h2>
@@ -188,9 +214,7 @@ export default function QuickStartPage() {
             <div className="ca-docs-code-block">
               <div className="ca-docs-code-header">
                 <span>AWS IAM Setup</span>
-                <button type="button" className="ca-docs-code-copy" aria-label="Copy code">
-                  <Copy className="w-4 h-4" />
-                </button>
+                <CopyButton code={CODE_EXAMPLES.aws} label="AWS" />
               </div>
               <pre className="ca-docs-code-content">
                 <code>{CODE_EXAMPLES.aws}</code>
@@ -200,9 +224,7 @@ export default function QuickStartPage() {
             <div className="ca-docs-code-block">
               <div className="ca-docs-code-header">
                 <span>GCP IAM Setup</span>
-                <button type="button" className="ca-docs-code-copy" aria-label="Copy code">
-                  <Copy className="w-4 h-4" />
-                </button>
+                <CopyButton code={CODE_EXAMPLES.gcp} label="GCP" />
               </div>
               <pre className="ca-docs-code-content">
                 <code>{CODE_EXAMPLES.gcp}</code>
@@ -218,30 +240,30 @@ export default function QuickStartPage() {
           <h2 className="ca-docs-next-title">What's Next?</h2>
           <div className="ca-docs-next-grid">
             <Link href="/docs/api/reference" className="ca-docs-next-card">
-              <Terminal className="w-6 h-6" />
+              <Terminal className="w-6 h-6" aria-hidden="true" />
               <h3>API Reference</h3>
               <p>Explore our REST API for programmatic access.</p>
               <span className="ca-docs-next-link">
                 View API Docs
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </span>
             </Link>
             <Link href="/help" className="ca-docs-next-card">
-              <CheckCircle2 className="w-6 h-6" />
+              <CheckCircle2 className="w-6 h-6" aria-hidden="true" />
               <h3>Help Center</h3>
               <p>Find answers to common questions.</p>
               <span className="ca-docs-next-link">
                 Get Help
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </span>
             </Link>
             <Link href="/integrations" className="ca-docs-next-card">
-              <Cloud className="w-6 h-6" />
+              <Cloud className="w-6 h-6" aria-hidden="true" />
               <h3>Integrations</h3>
               <p>See all supported integrations.</p>
               <span className="ca-docs-next-link">
                 View Integrations
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </span>
             </Link>
           </div>
@@ -258,7 +280,7 @@ export default function QuickStartPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/demo" className="ca-btn-cta-secondary">
               Request Demo

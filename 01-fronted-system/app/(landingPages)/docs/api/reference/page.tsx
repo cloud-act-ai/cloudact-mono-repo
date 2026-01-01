@@ -1,5 +1,7 @@
-import type { Metadata } from "next"
+"use client"
+
 import Link from "next/link"
+import { useState } from "react"
 import {
   Code,
   ArrowRight,
@@ -9,24 +11,47 @@ import {
   Shield,
   Clock,
   Copy,
-  ExternalLink,
+  Check,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react"
 import "../../../premium.css"
 
-export const metadata: Metadata = {
-  title: "API Reference | CloudAct.ai Documentation",
-  description: "CloudAct.ai REST API documentation. Authentication, endpoints, rate limits, and code examples.",
-  openGraph: {
-    title: "API Reference | CloudAct.ai",
-    description: "CloudAct.ai REST API documentation.",
-    type: "website",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+// Copy button component with feedback
+function CopyButton({ code, label }: { code: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      const textarea = document.createElement("textarea")
+      textarea.value = code
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="ca-docs-code-copy"
+      aria-label={copied ? "Copied!" : `Copy ${label} code`}
+      onClick={handleCopy}
+    >
+      {copied ? (
+        <Check className="w-4 h-4 text-green-500" />
+      ) : (
+        <Copy className="w-4 h-4" />
+      )}
+    </button>
+  )
 }
 
 const API_ENDPOINTS = [
@@ -122,11 +147,11 @@ export default function APIReferencePage() {
       <section className="ca-docs-hero">
         <div className="ca-docs-hero-content">
           <Link href="/docs" className="ca-docs-back-link">
-            <ArrowRight className="w-4 h-4 rotate-180" />
+            <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
             Back to Documentation
           </Link>
           <div className="ca-section-eyebrow">
-            <Code className="w-4 h-4" />
+            <Code className="w-4 h-4" aria-hidden="true" />
             API Reference
           </div>
           <h1 className="ca-docs-hero-title">
@@ -137,15 +162,15 @@ export default function APIReferencePage() {
           </p>
           <div className="ca-docs-api-badges">
             <span className="ca-docs-api-badge">
-              <Server className="w-4 h-4" />
+              <Server className="w-4 h-4" aria-hidden="true" />
               REST API
             </span>
             <span className="ca-docs-api-badge">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4" aria-hidden="true" />
               TLS 1.3
             </span>
             <span className="ca-docs-api-badge">
-              <Clock className="w-4 h-4" />
+              <Clock className="w-4 h-4" aria-hidden="true" />
               99.9% Uptime
             </span>
           </div>
@@ -156,7 +181,7 @@ export default function APIReferencePage() {
       <section className="ca-docs-section">
         <div className="ca-docs-section-container">
           <div className="ca-docs-section-header">
-            <Key className="w-6 h-6" />
+            <Key className="w-6 h-6" aria-hidden="true" />
             <h2>Authentication</h2>
           </div>
           <div className="ca-docs-section-content">
@@ -165,7 +190,7 @@ export default function APIReferencePage() {
               API keys from your organization settings in the CloudAct.ai dashboard.
             </p>
             <div className="ca-docs-alert ca-docs-alert-info">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="w-5 h-5" aria-hidden="true" />
               <div>
                 <strong>Security Note:</strong> Keep your API keys secure. Do not expose
                 them in client-side code or public repositories.
@@ -174,9 +199,7 @@ export default function APIReferencePage() {
             <div className="ca-docs-code-block">
               <div className="ca-docs-code-header">
                 <span>Authentication Header</span>
-                <button type="button" className="ca-docs-code-copy" aria-label="Copy code">
-                  <Copy className="w-4 h-4" />
-                </button>
+                <CopyButton code={CODE_EXAMPLES.auth} label="Authentication" />
               </div>
               <pre className="ca-docs-code-content">
                 <code>{CODE_EXAMPLES.auth}</code>
@@ -190,7 +213,7 @@ export default function APIReferencePage() {
       <section className="ca-docs-section ca-docs-section-alt">
         <div className="ca-docs-section-container">
           <div className="ca-docs-section-header">
-            <Server className="w-6 h-6" />
+            <Server className="w-6 h-6" aria-hidden="true" />
             <h2>Base URL</h2>
           </div>
           <div className="ca-docs-section-content">
@@ -209,12 +232,12 @@ export default function APIReferencePage() {
       <section className="ca-docs-section">
         <div className="ca-docs-section-container">
           <div className="ca-docs-section-header">
-            <Terminal className="w-6 h-6" />
+            <Terminal className="w-6 h-6" aria-hidden="true" />
             <h2>Endpoints</h2>
           </div>
           <div className="ca-docs-endpoints-list">
-            {API_ENDPOINTS.map((endpoint, i) => (
-              <div key={i} className="ca-docs-endpoint">
+            {API_ENDPOINTS.map((endpoint) => (
+              <div key={endpoint.path} className="ca-docs-endpoint">
                 <div className="ca-docs-endpoint-header">
                   <span className={`ca-docs-endpoint-method ca-docs-method-${endpoint.method.toLowerCase()}`}>
                     {endpoint.method}
@@ -224,8 +247,8 @@ export default function APIReferencePage() {
                 <p className="ca-docs-endpoint-desc">{endpoint.description}</p>
                 <div className="ca-docs-endpoint-params">
                   <span className="ca-docs-endpoint-params-label">Parameters:</span>
-                  {endpoint.params.map((param, j) => (
-                    <code key={j} className="ca-docs-endpoint-param">{param}</code>
+                  {endpoint.params.map((param) => (
+                    <code key={param} className="ca-docs-endpoint-param">{param}</code>
                   ))}
                 </div>
               </div>
@@ -238,16 +261,14 @@ export default function APIReferencePage() {
       <section className="ca-docs-section ca-docs-section-alt">
         <div className="ca-docs-section-container">
           <div className="ca-docs-section-header">
-            <Code className="w-6 h-6" />
+            <Code className="w-6 h-6" aria-hidden="true" />
             <h2>Code Examples</h2>
           </div>
           <div className="ca-docs-code-examples">
             <div className="ca-docs-code-block">
               <div className="ca-docs-code-header">
                 <span>Python</span>
-                <button type="button" className="ca-docs-code-copy" aria-label="Copy code">
-                  <Copy className="w-4 h-4" />
-                </button>
+                <CopyButton code={CODE_EXAMPLES.python} label="Python" />
               </div>
               <pre className="ca-docs-code-content">
                 <code>{CODE_EXAMPLES.python}</code>
@@ -257,9 +278,7 @@ export default function APIReferencePage() {
             <div className="ca-docs-code-block">
               <div className="ca-docs-code-header">
                 <span>JavaScript</span>
-                <button type="button" className="ca-docs-code-copy" aria-label="Copy code">
-                  <Copy className="w-4 h-4" />
-                </button>
+                <CopyButton code={CODE_EXAMPLES.javascript} label="JavaScript" />
               </div>
               <pre className="ca-docs-code-content">
                 <code>{CODE_EXAMPLES.javascript}</code>
@@ -273,7 +292,7 @@ export default function APIReferencePage() {
       <section className="ca-docs-section">
         <div className="ca-docs-section-container">
           <div className="ca-docs-section-header">
-            <Clock className="w-6 h-6" />
+            <Clock className="w-6 h-6" aria-hidden="true" />
             <h2>Rate Limits</h2>
           </div>
           <div className="ca-docs-section-content">
@@ -309,11 +328,11 @@ export default function APIReferencePage() {
             </p>
             <div className="ca-docs-support-links">
               <Link href="/help" className="ca-docs-support-link">
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
                 Help Center
               </Link>
               <Link href="/contact" className="ca-docs-support-link">
-                <Terminal className="w-5 h-5" />
+                <Terminal className="w-5 h-5" aria-hidden="true" />
                 Developer Support
               </Link>
             </div>
@@ -331,7 +350,7 @@ export default function APIReferencePage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Get API Key
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/docs/quick-start" className="ca-btn-cta-secondary">
               Quick Start Guide

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Check, ArrowRight, Zap, Shield, Users, Sparkles, Loader2, Clock, DollarSign, HelpCircle, Rocket } from "lucide-react"
+import { Check, ArrowRight, Zap, Shield, Users, Loader2, Clock, DollarSign, HelpCircle, Rocket } from "lucide-react"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 import "../premium.css"
 
@@ -95,7 +95,7 @@ export default function PricingPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <DollarSign className="w-4 h-4" />
+            <DollarSign className="w-4 h-4" aria-hidden="true" />
             Pricing
           </div>
           <h1 className="ca-page-hero-title">
@@ -174,7 +174,7 @@ export default function PricingPage() {
 
                     <div className="ca-pricing-header">
                       <div className="ca-pricing-icon-premium">
-                        <Icon className="w-6 h-6" />
+                        <Icon className="w-6 h-6" aria-hidden="true" />
                       </div>
                       <h3 className="ca-pricing-name-premium">{plan.name}</h3>
                       <p className="ca-pricing-desc-premium">{plan.description}</p>
@@ -197,20 +197,20 @@ export default function PricingPage() {
                     )}
 
                     <ul className="ca-pricing-features-premium">
-                      {plan.features.map((feature, i) => (
-                        <li key={i}>
-                          <Check className="w-4 h-4" />
+                      {plan.features.map((feature) => (
+                        <li key={feature}>
+                          <Check className="w-4 h-4" aria-hidden="true" />
                           <span>{feature}</span>
                         </li>
                       ))}
                       <li>
-                        <Check className="w-4 h-4" />
+                        <Check className="w-4 h-4" aria-hidden="true" />
                         <span>
                           {plan.limits.teamMembers === -1 ? "Unlimited" : `Up to ${plan.limits.teamMembers}`} team members
                         </span>
                       </li>
                       <li>
-                        <Check className="w-4 h-4" />
+                        <Check className="w-4 h-4" aria-hidden="true" />
                         <span>
                           {plan.limits.providers === -1 ? "Unlimited" : `Up to ${plan.limits.providers}`} integrations
                         </span>
@@ -222,7 +222,7 @@ export default function PricingPage() {
                       className={`ca-pricing-cta-btn ${isHighlighted ? "ca-btn-hero-primary" : "ca-btn-hero-secondary"}`}
                     >
                       {plan.price === 0 ? "Get Started Free" : plan.trialDays > 0 ? `Start ${plan.trialDays}-Day Trial` : "Subscribe Now"}
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="w-4 h-4" aria-hidden="true" />
                     </Link>
                   </div>
                 )
@@ -244,17 +244,17 @@ export default function PricingPage() {
                 <p className="ca-pricing-annual-note">Tailored to your specific needs</p>
 
                 <ul className="ca-pricing-features-premium">
-                  <li><Check className="w-4 h-4" /><span>Unlimited cloud integrations</span></li>
-                  <li><Check className="w-4 h-4" /><span>Enterprise analytics suite</span></li>
-                  <li><Check className="w-4 h-4" /><span>Unlimited data retention</span></li>
-                  <li><Check className="w-4 h-4" /><span>24/7 dedicated support</span></li>
-                  <li><Check className="w-4 h-4" /><span>Custom integrations</span></li>
-                  <li><Check className="w-4 h-4" /><span>SLA guarantees</span></li>
+                  <li><Check className="w-4 h-4" aria-hidden="true" /><span>Unlimited cloud integrations</span></li>
+                  <li><Check className="w-4 h-4" aria-hidden="true" /><span>Enterprise analytics suite</span></li>
+                  <li><Check className="w-4 h-4" aria-hidden="true" /><span>Unlimited data retention</span></li>
+                  <li><Check className="w-4 h-4" aria-hidden="true" /><span>24/7 dedicated support</span></li>
+                  <li><Check className="w-4 h-4" aria-hidden="true" /><span>Custom integrations</span></li>
+                  <li><Check className="w-4 h-4" aria-hidden="true" /><span>SLA guarantees</span></li>
                 </ul>
 
                 <Link href="/contact" className="ca-pricing-cta-btn ca-btn-hero-secondary">
                   Contact Sales
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </Link>
               </div>
             </div>
@@ -263,15 +263,15 @@ export default function PricingPage() {
           {/* Trust Badges */}
           <div className="ca-pricing-trust">
             <div className="ca-pricing-trust-item">
-              <Shield className="w-5 h-5" />
+              <Shield className="w-5 h-5" aria-hidden="true" />
               <span>256-bit SSL encryption</span>
             </div>
             <div className="ca-pricing-trust-item">
-              <Clock className="w-5 h-5" />
+              <Clock className="w-5 h-5" aria-hidden="true" />
               <span>30-day money-back guarantee</span>
             </div>
             <div className="ca-pricing-trust-item">
-              <Check className="w-5 h-5" />
+              <Check className="w-5 h-5" aria-hidden="true" />
               <span>GDPR & SOC 2 compliant</span>
             </div>
           </div>
@@ -282,7 +282,7 @@ export default function PricingPage() {
       <section className="ca-faq-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-4 h-4" aria-hidden="true" />
             FAQ
           </span>
           <h2 className="ca-section-title">Frequently Asked Questions</h2>
@@ -294,7 +294,7 @@ export default function PricingPage() {
         <div className="ca-faq-container" role="region" aria-label="Frequently Asked Questions">
           {FAQS.map((faq, index) => (
             <div
-              key={index}
+              key={faq.question}
               className={`ca-faq-item ${openFaqIndex === index ? "ca-faq-item-open" : ""}`}
             >
               <button
@@ -330,7 +330,7 @@ export default function PricingPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Rocket className="w-4 h-4" />
+            <Rocket className="w-4 h-4" aria-hidden="true" />
             Start Optimizing Today
           </div>
           <h2 className="ca-final-cta-title">Ready to Optimize Your Cloud Costs?</h2>
@@ -340,7 +340,7 @@ export default function PricingPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/contact" className="ca-btn-cta-secondary">
               Schedule a Demo

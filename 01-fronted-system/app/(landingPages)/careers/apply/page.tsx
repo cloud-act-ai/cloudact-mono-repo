@@ -191,11 +191,11 @@ function CareerApplyForm() {
       <section className="ca-apply-hero">
         <div className="ca-apply-hero-content">
           <Link href="/careers" className="ca-apply-back-link">
-            <ArrowRight className="w-4 h-4 rotate-180" />
+            <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
             Back to Careers
           </Link>
           <div className="ca-section-eyebrow">
-            <Briefcase className="w-4 h-4" />
+            <Briefcase className="w-4 h-4" aria-hidden="true" />
             Apply Now
           </div>
           <h1 className="ca-apply-hero-title">
@@ -403,7 +403,7 @@ function CareerApplyForm() {
                   className="ca-apply-file-input"
                 />
                 <label htmlFor="fileUpload" className="ca-apply-file-label">
-                  <Upload className="w-6 h-6" />
+                  <Upload className="w-6 h-6" aria-hidden="true" />
                   <span className="ca-apply-file-label-text">
                     Click to upload or drag and drop
                   </span>
@@ -418,8 +418,8 @@ function CareerApplyForm() {
               {attachments.length > 0 && (
                 <div className="ca-apply-attachments-list">
                   {attachments.map((file, index) => (
-                    <div key={index} className="ca-apply-attachment">
-                      <FileText className="w-4 h-4" />
+                    <div key={file.name} className="ca-apply-attachment">
+                      <FileText className="w-4 h-4" aria-hidden="true" />
                       <span className="ca-apply-attachment-name">{file.name}</span>
                       <span className="ca-apply-attachment-size">{formatFileSize(file.size)}</span>
                       <button
@@ -428,7 +428,7 @@ function CareerApplyForm() {
                         className="ca-apply-attachment-remove"
                         aria-label="Remove file"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   ))}
@@ -437,7 +437,7 @@ function CareerApplyForm() {
 
               {/* Cover Letter */}
               <div className="ca-apply-form-section-title">
-                <FileText className="w-5 h-5" />
+                <FileText className="w-5 h-5" aria-hidden="true" />
                 Cover Letter (Optional)
               </div>
 
@@ -473,7 +473,7 @@ function CareerApplyForm() {
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" />
+                    <Send className="w-5 h-5" aria-hidden="true" />
                     Submit Application
                   </>
                 )}

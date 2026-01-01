@@ -983,10 +983,11 @@ async def _setup_integration(
             current_integration_count = count_result[0]["provider_count"]
 
             # Get org's provider limit from subscription
+            # Allow both ACTIVE and TRIAL statuses (matches auth.py:617)
             limit_query = f"""
             SELECT providers_limit
             FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-            WHERE org_slug = @org_slug AND status = 'ACTIVE'
+            WHERE org_slug = @org_slug AND status IN ('ACTIVE', 'TRIAL')
             ORDER BY created_at DESC
             LIMIT 1
             """
@@ -1003,7 +1004,7 @@ async def _setup_integration(
             if not limit_result:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="No active subscription found for organization"
+                    detail="No active or trial subscription found for organization. Please complete billing setup."
                 )
 
             providers_limit = limit_result[0]["providers_limit"]
@@ -1014,7 +1015,7 @@ async def _setup_integration(
                 # Get plan name to look up default limits
                 plan_query = f"""
                 SELECT plan_name FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-                WHERE org_slug = @org_slug AND status = 'ACTIVE'
+                WHERE org_slug = @org_slug AND status IN ('ACTIVE', 'TRIAL')
                 ORDER BY created_at DESC LIMIT 1
                 """
                 plan_result = list(bq_client.client.query(

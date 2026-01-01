@@ -368,6 +368,7 @@ class Settings(BaseSettings):
         default=[
             "api.openai.com",
             "api.anthropic.com",
+            "api.deepseek.com",  # DeepSeek API
             "generativelanguage.googleapis.com",
             "bigquery.googleapis.com",
             "cloudresourcemanager.googleapis.com",

@@ -122,7 +122,7 @@ export default function CareersPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Briefcase className="w-4 h-4" />
+            <Briefcase className="w-4 h-4" aria-hidden="true" />
             Careers
           </div>
           <h1 className="ca-page-hero-title">
@@ -135,7 +135,7 @@ export default function CareersPage() {
           <div className="ca-hero-cta-group">
             <a href="#positions" className="ca-btn-hero-primary">
               View Open Positions
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function CareersPage() {
       <section className="ca-careers-values-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Target className="w-4 h-4" />
+            <Target className="w-4 h-4" aria-hidden="true" />
             Our Values
           </span>
           <h2 className="ca-section-title">What drives us</h2>
@@ -177,9 +177,9 @@ export default function CareersPage() {
         </div>
 
         <div className="ca-careers-values-grid">
-          {VALUES.map((value, i) => (
-            <div key={i} className="ca-careers-value-card">
-              <div className="ca-careers-value-number">{String(i + 1).padStart(2, '0')}</div>
+          {VALUES.map((value, index) => (
+            <div key={value.title} className="ca-careers-value-card">
+              <div className="ca-careers-value-number">{String(index + 1).padStart(2, '0')}</div>
               <h3 className="ca-careers-value-title">{value.title}</h3>
               <p className="ca-careers-value-desc">{value.description}</p>
             </div>
@@ -191,7 +191,7 @@ export default function CareersPage() {
       <section className="ca-careers-benefits-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Heart className="w-4 h-4" />
+            <Heart className="w-4 h-4" aria-hidden="true" />
             Benefits
           </span>
           <h2 className="ca-section-title">Taking care of our team</h2>
@@ -201,12 +201,12 @@ export default function CareersPage() {
         </div>
 
         <div className="ca-careers-benefits-grid">
-          {BENEFITS.map((benefit, i) => {
+          {BENEFITS.map((benefit) => {
             const Icon = benefit.icon
             return (
-              <div key={i} className="ca-careers-benefit-card">
+              <div key={benefit.title} className="ca-careers-benefit-card">
                 <div className="ca-careers-benefit-icon">
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <h3 className="ca-careers-benefit-title">{benefit.title}</h3>
                 <p className="ca-careers-benefit-desc">{benefit.description}</p>
@@ -220,7 +220,7 @@ export default function CareersPage() {
       <section id="positions" className="ca-careers-positions-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4" aria-hidden="true" />
             Open Positions
           </span>
           <h2 className="ca-section-title">Join our team</h2>
@@ -230,29 +230,29 @@ export default function CareersPage() {
         </div>
 
         <div className="ca-careers-positions-list">
-          {OPEN_POSITIONS.map((position, i) => (
-            <div key={i} className="ca-careers-position-card">
+          {OPEN_POSITIONS.map((position) => (
+            <div key={position.title} className="ca-careers-position-card">
               <div className="ca-careers-position-content">
                 <h3 className="ca-careers-position-title">{position.title}</h3>
                 <p className="ca-careers-position-desc">{position.description}</p>
                 <div className="ca-careers-position-meta">
                   <span className="ca-careers-position-tag">
-                    <Briefcase className="w-4 h-4" />
+                    <Briefcase className="w-4 h-4" aria-hidden="true" />
                     {position.department}
                   </span>
                   <span className="ca-careers-position-tag">
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="w-4 h-4" aria-hidden="true" />
                     {position.location}
                   </span>
                   <span className="ca-careers-position-tag">
-                    <Clock className="w-4 h-4" />
+                    <Clock className="w-4 h-4" aria-hidden="true" />
                     {position.type}
                   </span>
                 </div>
               </div>
               <Link href={`/careers/apply?position=${encodeURIComponent(position.title)}`} className="ca-careers-apply-btn">
                 Apply
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
             </div>
           ))}
@@ -262,7 +262,7 @@ export default function CareersPage() {
         <div className="ca-careers-general-apply">
           <p>Don't see a role that fits? We're always interested in hearing from talented people.</p>
           <Link href="/careers/apply?position=General%20Application" className="ca-btn-outline-dark">
-            <Mail className="w-4 h-4" />
+            <Mail className="w-4 h-4" aria-hidden="true" />
             Submit General Application
           </Link>
         </div>
@@ -278,7 +278,7 @@ export default function CareersPage() {
           <div className="ca-final-cta-buttons">
             <a href="#positions" className="ca-btn-cta-primary">
               View Open Positions
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/about" className="ca-btn-cta-secondary">
               Learn About Us

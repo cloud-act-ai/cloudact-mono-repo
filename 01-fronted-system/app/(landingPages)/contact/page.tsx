@@ -187,7 +187,7 @@ export default function ContactPage() {
               <div key={card.title} className="ca-contact-card-c3">
                 <div className="ca-contact-card-header-c3">
                   <div className="ca-contact-card-icon-c3">
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <h3 className="ca-contact-card-title-c3">{card.title}</h3>
                 </div>
@@ -199,7 +199,7 @@ export default function ContactPage() {
                 )}
                 <Link href={card.href} className="ca-contact-card-cta-c3">
                   {card.cta}
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </Link>
               </div>
             )
@@ -237,7 +237,7 @@ export default function ContactPage() {
 
           {isSuccess ? (
             <div className="ca-contact-form-success">
-              <CheckCircle2 className="w-12 h-12" />
+              <CheckCircle2 className="w-12 h-12" aria-hidden="true" />
               <h3>Thank you for reaching out!</h3>
               <p>We've received your message and will get back to you within 24 hours.</p>
               <button
@@ -250,6 +250,11 @@ export default function ContactPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="ca-contact-form">
+              {errors.form && (
+                <div className="ca-contact-form-error-banner" role="alert">
+                  {errors.form}
+                </div>
+              )}
               <div className="ca-contact-form-row">
                 <div className="ca-contact-form-field">
                   <label htmlFor="firstName">First Name *</label>
@@ -345,7 +350,7 @@ export default function ContactPage() {
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
+                    <Send className="w-4 h-4" aria-hidden="true" />
                     Send Message
                   </>
                 )}
@@ -362,7 +367,7 @@ export default function ContactPage() {
             <h2 className="ca-contact-office-title-c3">Headquarters</h2>
             <div className="ca-contact-office-details-c3">
               <div className="ca-contact-office-address-block">
-                <MapPin className="w-5 h-5" />
+                <MapPin className="w-5 h-5" aria-hidden="true" />
                 <div>
                   <strong>CloudAct Inc.</strong><br />
                   100 S Murphy Ave, STE 200 PMB4013<br />
@@ -371,14 +376,14 @@ export default function ContactPage() {
                 </div>
               </div>
               <div className="ca-contact-office-phone-block">
-                <Phone className="w-5 h-5" />
+                <Phone className="w-5 h-5" aria-hidden="true" />
                 <div>
                   <a href="tel:+18509887471">(850) 988-7471</a>
                   <span className="ca-contact-office-hours">Mon-Fri, 9am-6pm PT</span>
                 </div>
               </div>
               <div className="ca-contact-office-email-block">
-                <Mail className="w-5 h-5" />
+                <Mail className="w-5 h-5" aria-hidden="true" />
                 <div>
                   <a href="mailto:info@cloudact.ai">info@cloudact.ai</a>
                   <span className="ca-contact-office-hours">General inquiries</span>
@@ -392,7 +397,7 @@ export default function ContactPage() {
       {/* Help Center CTA */}
       <section className="ca-contact-help-section">
         <div className="ca-contact-help-container">
-          <HelpCircle className="w-8 h-8" />
+          <HelpCircle className="w-8 h-8" aria-hidden="true" />
           <div className="ca-contact-help-content">
             <h3 className="ca-contact-help-title">Looking for self-service help?</h3>
             <p className="ca-contact-help-desc">

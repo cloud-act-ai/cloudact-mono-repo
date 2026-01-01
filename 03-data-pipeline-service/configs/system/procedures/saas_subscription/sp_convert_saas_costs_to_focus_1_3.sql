@@ -29,6 +29,7 @@ BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_slug STRING;
   DECLARE v_org_exists INT64 DEFAULT 0;
+  DECLARE v_transaction_committed BOOL DEFAULT FALSE;
 
   -- Extract org_slug from dataset_id using safe extraction
   -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
@@ -335,9 +336,7 @@ BEGIN
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_project_id)
     USING p_start_date AS p_start, p_end_date AS p_end;
 
-  COMMIT TRANSACTION;
-
-  -- 4. Get row count
+  -- 4. Get row count (inside transaction for atomicity)
   EXECUTE IMMEDIATE FORMAT("""
     SELECT COUNT(*) FROM `%s.%s.cost_data_standard_1_3`
     WHERE ChargePeriodStart BETWEEN @p_start AND @p_end
@@ -345,12 +344,18 @@ BEGIN
   """, p_project_id, p_dataset_id)
   INTO v_rows_inserted USING TIMESTAMP(p_start_date) AS p_start, TIMESTAMP(p_end_date) AS p_end;
 
+  COMMIT TRANSACTION;
+  SET v_transaction_committed = TRUE;
+
   SELECT 'FOCUS 1.3 Conversion Complete' AS status,
          v_rows_inserted AS rows_inserted,
          p_dataset_id AS dataset,
          v_org_slug AS org_slug;
 
 EXCEPTION WHEN ERROR THEN
-  ROLLBACK TRANSACTION;
+  -- Only rollback if transaction hasn't been committed yet
+  IF NOT v_transaction_committed THEN
+    ROLLBACK TRANSACTION;
+  END IF;
   RAISE USING MESSAGE = CONCAT('sp_convert_saas_costs_to_focus_1_3 Failed: ', @@error.message);
 END;

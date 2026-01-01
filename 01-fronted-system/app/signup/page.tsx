@@ -267,7 +267,7 @@ function SignupForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -293,7 +293,7 @@ function SignupForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="new-password"
                 />
@@ -306,12 +306,12 @@ function SignupForm() {
                 Phone number
               </label>
               <div className="flex gap-2">
-                <div className="relative w-[100px]">
+                <div className="relative w-[100px] sm:w-[110px]">
                   <select
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
                     disabled={isLoading}
-                    className="w-full h-[48px] pl-3 pr-8 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer"
+                    className="w-full h-[48px] sm:h-[52px] pl-3 pr-8 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer"
                   >
                     {COUNTRY_CODES.map((c) => (
                       <option key={`${c.code}-${c.country}`} value={c.code}>
@@ -334,7 +334,7 @@ function SignupForm() {
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     onFocus={() => setFocusedField('phone')}
                     onBlur={() => setFocusedField(null)}
-                    className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
                     disabled={isLoading}
                     autoComplete="tel-national"
                   />
@@ -353,7 +353,7 @@ function SignupForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full h-[48px] rounded-xl bg-[#90FCA6] text-[#0a0a0b] font-semibold text-[14px] transition-all duration-300 hover:bg-[#6EE890] hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+              className="group relative w-full h-[48px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#90FCA6] text-[#0a0a0b] font-semibold text-[14px] sm:text-[15px] transition-all duration-300 hover:bg-[#6EE890] hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
                 {isLoading ? (
@@ -392,7 +392,7 @@ function SignupForm() {
                   onChange={(e) => setCompanyName(e.target.value)}
                   onFocus={() => setFocusedField('company')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="organization"
                 />
@@ -473,14 +473,14 @@ function SignupForm() {
                 type="button"
                 onClick={() => setStep(1)}
                 disabled={isLoading}
-                className="w-1/3 h-[48px] rounded-xl border-2 border-gray-100 bg-white text-[14px] font-semibold text-gray-600 transition-all duration-200 hover:border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+                className="w-1/3 h-[48px] sm:h-[52px] rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-white text-[14px] sm:text-[15px] font-semibold text-gray-600 transition-all duration-200 hover:border-gray-200 hover:bg-gray-50 disabled:opacity-50"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative flex-1 h-[48px] rounded-xl bg-[#90FCA6] text-[#0a0a0b] font-semibold text-[14px] transition-all duration-300 hover:bg-[#6EE890] hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+                className="group relative flex-1 h-[48px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#90FCA6] text-[#0a0a0b] font-semibold text-[14px] sm:text-[15px] transition-all duration-300 hover:bg-[#6EE890] hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   {isLoading ? (

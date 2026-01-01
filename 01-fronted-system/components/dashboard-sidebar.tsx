@@ -3,11 +3,17 @@
 /**
  * Editorial Dashboard Sidebar
  *
- * Clean, compact navigation with:
- * - Accordion behavior (one section expanded at a time)
+ * Two-zone layout with accordion behavior:
+ *
+ * Main Content (scrollable):
+ * - Account Summary, Cost Analytics, Pipelines, Integrations, Org Settings
+ * - Accordion: only one section expanded at a time
  * - Auto-expand based on current route
- * - Subscription page styling (smaller fonts, slate colors)
- * - Teal left accent for active items
+ * - Mint left accent for active items
+ *
+ * Footer:
+ * - User Profile (clickable → /settings/personal)
+ * - Get Help, Sign Out
  */
 
 import type * as React from "react"
@@ -507,41 +513,6 @@ export function DashboardSidebar({
             </div>
           )}
 
-        </SidebarMenu>
-      </SidebarContent>
-
-      {/* Footer */}
-      <SidebarFooter className="px-0 py-2 mt-auto border-t border-slate-100">
-        <SidebarMenu className="gap-0">
-
-          {/* User Profile - First */}
-          {!isCollapsed && (
-            <div className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors cursor-pointer group rounded-md mx-2 mb-1">
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm group-hover:from-[var(--cloudact-mint)] group-hover:to-[var(--cloudact-mint-light)] transition-all">
-                <span className="text-slate-600 group-hover:text-[var(--cloudact-mint-text)] text-xs font-bold">
-                  {getUserInitials(userName)}
-                </span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
-                  {formatUserName(userName)}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate group-hover:text-slate-500">
-                  {userEmail}
-                </p>
-              </div>
-            </div>
-          )}
-          {isCollapsed && (
-            <div className="flex justify-center py-2">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center">
-                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
-                  {getUserInitials(userName)}
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Integrations Section */}
           {!isCollapsed && (
             <SectionHeader
@@ -603,10 +574,10 @@ export function DashboardSidebar({
             </div>
           )}
 
-          {/* Settings Section */}
+          {/* Org Settings Section */}
           {!isCollapsed && (
             <SectionHeader
-              title="Settings"
+              title="Org Settings"
               section="settings"
               isExpanded={activeSection === "settings"}
             />
@@ -614,7 +585,7 @@ export function DashboardSidebar({
           {isCollapsed && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
-                <Link href={`/${orgSlug}/settings/personal`}>
+                <Link href={`/${orgSlug}/settings/organization`}>
                   <Settings className="h-4 w-4 text-slate-500" />
                 </Link>
               </SidebarMenuButton>
@@ -622,20 +593,6 @@ export function DashboardSidebar({
           )}
           {!isCollapsed && activeSection === "settings" && (
             <div className="pb-2 space-y-0.5">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className={cn(
-                    isActive(`/${orgSlug}/settings/personal`) ? activeItemClass : itemClass
-                  )}
-                >
-                  <Link href={`/${orgSlug}/settings/personal`}>
-                    <User className="h-4 w-4 flex-shrink-0" />
-                    <span>Profile</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
               {userRole === "owner" && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -712,6 +669,66 @@ export function DashboardSidebar({
                 </SidebarMenuItem>
               )}
             </div>
+          )}
+
+        </SidebarMenu>
+      </SidebarContent>
+
+      {/* Footer */}
+      <SidebarFooter className="px-0 py-2 mt-auto border-t border-slate-100">
+        <SidebarMenu className="gap-0">
+
+          {/* User Profile - Clickable to navigate to profile page */}
+          {!isCollapsed && (
+            <Link
+              href={`/${orgSlug}/settings/personal`}
+              className={cn(
+                "px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors cursor-pointer group rounded-md mx-2 mb-1",
+                isActive(`/${orgSlug}/settings/personal`) && "bg-[var(--cloudact-mint)]/10"
+              )}
+            >
+              <div className={cn(
+                "h-9 w-9 rounded-lg border flex items-center justify-center flex-shrink-0 shadow-sm transition-all",
+                isActive(`/${orgSlug}/settings/personal`)
+                  ? "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] border-[var(--cloudact-mint)]"
+                  : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-200 group-hover:from-[var(--cloudact-mint)] group-hover:to-[var(--cloudact-mint-light)]"
+              )}>
+                <span className={cn(
+                  "text-xs font-bold transition-colors",
+                  isActive(`/${orgSlug}/settings/personal`)
+                    ? "text-[var(--cloudact-mint-text)]"
+                    : "text-slate-600 group-hover:text-[var(--cloudact-mint-text)]"
+                )}>
+                  {getUserInitials(userName)}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
+                  {formatUserName(userName)}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate group-hover:text-slate-500">
+                  {userEmail}
+                </p>
+              </div>
+            </Link>
+          )}
+          {isCollapsed && (
+            <Link
+              href={`/${orgSlug}/settings/personal`}
+              className="flex justify-center py-2"
+              title="Profile"
+            >
+              <div className={cn(
+                "h-8 w-8 rounded-full flex items-center justify-center transition-all",
+                isActive(`/${orgSlug}/settings/personal`)
+                  ? "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] ring-2 ring-[var(--cloudact-mint)]/30"
+                  : "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] hover:ring-2 hover:ring-[var(--cloudact-mint)]/30"
+              )}>
+                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
+                  {getUserInitials(userName)}
+                </span>
+              </div>
+            </Link>
           )}
 
           {/* Get Help */}

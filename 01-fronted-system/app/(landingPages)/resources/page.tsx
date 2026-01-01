@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useMemo, type FormEvent } from "react"
 import Link from "next/link"
 import {
   ArrowRight,
@@ -27,7 +28,6 @@ import {
   Library,
   Folders,
   Star,
-  Rocket,
 } from "lucide-react"
 import { NewsletterForm } from "@/components/landing/newsletter-form"
 import "../premium.css"
@@ -87,43 +87,48 @@ const CATEGORIES = [
 // Featured resources
 const FEATURED_RESOURCES = [
   {
+    id: "guide-cloud-cost",
     category: "Guide",
     title: "Complete Guide to Cloud Cost Optimization",
     description: "Learn proven strategies to optimize your cloud spending while maintaining performance and reliability.",
     readTime: "15 min read",
-    date: "Dec 18, 2025",
+    date: "Dec 18, 2024",
     tags: ["Cost Optimization", "Best Practices", "Strategy"],
     href: "/resources/guides",
     featured: true,
   },
   {
+    id: "case-study-enterprise",
     category: "Case Study",
     title: "Enterprise Cloud Cost Optimization",
     description: "Discover how enterprise teams use CloudAct.ai's advanced analytics to gain visibility and reduce cloud costs.",
     readTime: "8 min read",
-    date: "Dec 15, 2025",
+    date: "Dec 15, 2024",
     tags: ["Success Story", "Enterprise", "ROI"],
     href: "/resources/case-studies",
   },
   {
+    id: "blog-genai-cost",
     category: "Blog",
     title: "GenAI Cost Management Best Practices",
     description: "Essential strategies for controlling and optimizing costs in your GenAI and LLM applications.",
     readTime: "10 min read",
-    date: "Dec 12, 2025",
+    date: "Dec 12, 2024",
     tags: ["GenAI", "LLM", "Cost Control"],
     href: "/resources/blog",
   },
   {
+    id: "video-getting-started",
     category: "Video Tutorial",
     title: "Getting Started with CloudAct.ai",
     description: "A comprehensive walkthrough of setting up your first organization and running cost analysis pipelines.",
     readTime: "12 min watch",
-    date: "Dec 10, 2025",
+    date: "Dec 10, 2024",
     tags: ["Tutorial", "Setup", "Beginner"],
     href: "/docs/quick-start",
   },
   {
+    id: "docs-api-reference",
     category: "Documentation",
     title: "API Reference & Integration Guide",
     description: "Complete documentation for integrating CloudAct.ai with your cloud providers and existing workflows.",
@@ -133,12 +138,13 @@ const FEATURED_RESOURCES = [
     href: "/docs/api/reference",
   },
   {
+    id: "webinar-2025-trends",
     category: "Webinar",
-    title: "Cloud Cost Optimization in 2025",
-    description: "Join our experts for a live session on the latest trends and techniques in cloud cost management.",
+    title: "Cloud Cost Optimization Trends",
+    description: "Join our experts for a session on the latest trends and techniques in cloud cost management.",
     readTime: "45 min session",
-    date: "Jan 5, 2026",
-    tags: ["Webinar", "Live", "Expert Panel"],
+    date: "Dec 5, 2024",
+    tags: ["Webinar", "Expert Panel", "Trends"],
     href: "/resources/webinars",
   },
 ]
@@ -207,13 +213,41 @@ const QUICK_LINKS = [
 ]
 
 export default function ResourcesPage() {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null)
+
+  // Filter featured resources based on search and topic
+  const filteredResources = useMemo(() => {
+    return FEATURED_RESOURCES.filter((resource) => {
+      const matchesSearch = searchQuery === "" ||
+        resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        resource.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        resource.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+
+      const matchesTopic = selectedTopic === null ||
+        resource.tags.some((tag) => tag.toLowerCase().includes(selectedTopic.toLowerCase())) ||
+        resource.title.toLowerCase().includes(selectedTopic.toLowerCase())
+
+      return matchesSearch && matchesTopic
+    })
+  }, [searchQuery, selectedTopic])
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault()
+    // Search is already reactive via state
+  }
+
+  const handleTopicClick = (topicName: string) => {
+    setSelectedTopic((prev) => prev === topicName ? null : topicName)
+  }
+
   return (
     <div className="ca-landing-page">
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Library className="w-4 h-4" />
+            <Library className="w-4 h-4" aria-hidden="true" />
             Knowledge Hub
           </div>
           <h1 className="ca-page-hero-title">
@@ -226,7 +260,7 @@ export default function ResourcesPage() {
           </p>
 
           {/* Search Bar */}
-          <form className="ca-resources-search" role="search" aria-label="Search resources">
+          <form className="ca-resources-search" role="search" aria-label="Search resources" onSubmit={handleSearch}>
             <div className="ca-resources-search-inner">
               <Search className="w-5 h-5" aria-hidden="true" />
               <input
@@ -234,6 +268,8 @@ export default function ResourcesPage() {
                 placeholder="Search resources, guides, tutorials..."
                 className="ca-resources-search-input"
                 aria-label="Search resources"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
               <button type="submit" className="ca-btn-hero-primary ca-resources-search-btn">
                 Search
@@ -247,8 +283,14 @@ export default function ResourcesPage() {
             {POPULAR_TOPICS.map((topic) => {
               const Icon = topic.icon
               return (
-                <button type="button" key={topic.name} className="ca-resources-topic-btn">
-                  <Icon className="w-4 h-4" />
+                <button
+                  type="button"
+                  key={topic.name}
+                  className={`ca-resources-topic-btn ${selectedTopic === topic.name ? "ca-resources-topic-btn-active" : ""}`}
+                  onClick={() => handleTopicClick(topic.name)}
+                  aria-pressed={selectedTopic === topic.name}
+                >
+                  <Icon className="w-4 h-4" aria-hidden="true" />
                   {topic.name}
                 </button>
               )
@@ -261,7 +303,7 @@ export default function ResourcesPage() {
       <section className="ca-resources-categories-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Folders className="w-4 h-4" />
+            <Folders className="w-4 h-4" aria-hidden="true" />
             Browse by Category
           </span>
           <h2 className="ca-section-title">Explore Our Resources</h2>
@@ -281,13 +323,13 @@ export default function ResourcesPage() {
                 className={`ca-resources-category-card ca-resources-category-${category.color}`}
               >
                 <div className={`ca-resources-category-icon ca-resources-category-icon-${category.color}`}>
-                  <Icon className="w-7 h-7" />
+                  <Icon className="w-7 h-7" aria-hidden="true" />
                 </div>
                 <h3 className="ca-resources-category-title">{category.title}</h3>
                 <p className="ca-resources-category-desc">{category.description}</p>
                 <div className="ca-resources-category-footer">
                   <span className="ca-resources-category-count">{category.count}</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-5 h-5" aria-hidden="true" />
                 </div>
               </Link>
             )
@@ -299,46 +341,60 @@ export default function ResourcesPage() {
       <section className="ca-resources-featured-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Star className="w-4 h-4" />
+            <Star className="w-4 h-4" aria-hidden="true" />
             Featured Content
           </span>
-          <h2 className="ca-section-title">Latest Resources</h2>
+          <h2 className="ca-section-title">
+            {searchQuery || selectedTopic ? "Search Results" : "Latest Resources"}
+          </h2>
+          {(searchQuery || selectedTopic) && (
+            <p className="ca-section-subtitle">
+              {filteredResources.length} resource{filteredResources.length !== 1 ? "s" : ""} found
+              {selectedTopic && <button type="button" onClick={() => setSelectedTopic(null)} className="ca-resources-clear-filter">Clear filter</button>}
+            </p>
+          )}
         </div>
 
         <div className="ca-resources-featured-grid">
-          {FEATURED_RESOURCES.map((resource, index) => (
-            <Link
-              key={index}
-              href={resource.href}
-              className={`ca-resources-featured-card ${resource.featured ? "ca-resources-featured-card-highlight" : ""}`}
-            >
-              {resource.featured && (
-                <div className="ca-resources-featured-badge">Featured</div>
-              )}
-              <div className="ca-resources-featured-category">{resource.category}</div>
-              <h3 className="ca-resources-featured-title">{resource.title}</h3>
-              <p className="ca-resources-featured-desc">{resource.description}</p>
-              <div className="ca-resources-featured-tags">
-                {resource.tags.map((tag) => (
-                  <span key={tag} className="ca-resources-featured-tag">{tag}</span>
-                ))}
-              </div>
-              <div className="ca-resources-featured-meta">
-                <div className="ca-resources-featured-meta-left">
-                  <Clock className="w-4 h-4" />
-                  <span>{resource.readTime}</span>
-                  <span>{resource.date}</span>
+          {filteredResources.length > 0 ? (
+            filteredResources.map((resource) => (
+              <Link
+                key={resource.id}
+                href={resource.href}
+                className={`ca-resources-featured-card ${resource.featured ? "ca-resources-featured-card-highlight" : ""}`}
+              >
+                {resource.featured && (
+                  <div className="ca-resources-featured-badge">Featured</div>
+                )}
+                <div className="ca-resources-featured-category">{resource.category}</div>
+                <h3 className="ca-resources-featured-title">{resource.title}</h3>
+                <p className="ca-resources-featured-desc">{resource.description}</p>
+                <div className="ca-resources-featured-tags">
+                  {resource.tags.map((tag) => (
+                    <span key={tag} className="ca-resources-featured-tag">{tag}</span>
+                  ))}
                 </div>
-                <ArrowRight className="w-5 h-5" />
-              </div>
-            </Link>
-          ))}
+                <div className="ca-resources-featured-meta">
+                  <div className="ca-resources-featured-meta-left">
+                    <Clock className="w-4 h-4" aria-hidden="true" />
+                    <span>{resource.readTime}</span>
+                    <span>{resource.date}</span>
+                  </div>
+                  <ArrowRight className="w-5 h-5" aria-hidden="true" />
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="ca-resources-no-results">
+              <p>No resources found matching your search. Try different keywords or clear filters.</p>
+            </div>
+          )}
         </div>
 
         <div className="ca-resources-view-all">
           <Link href="/resources/all" className="ca-btn-hero-primary">
             View All Resources
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-5 h-5" aria-hidden="true" />
           </Link>
         </div>
       </section>
@@ -347,7 +403,7 @@ export default function ResourcesPage() {
       <section className="ca-resources-downloads-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4" aria-hidden="true" />
             Free Downloads
           </span>
           <h2 className="ca-section-title">Popular Resources</h2>
@@ -357,14 +413,14 @@ export default function ResourcesPage() {
         </div>
 
         <div className="ca-resources-downloads-list">
-          {POPULAR_DOWNLOADS.map((download, index) => (
+          {POPULAR_DOWNLOADS.map((download) => (
             <Link
-              key={index}
+              key={download.title}
               href={download.href}
               className="ca-resources-download-card"
             >
               <div className="ca-resources-download-icon">
-                <Download className="w-6 h-6" />
+                <Download className="w-6 h-6" aria-hidden="true" />
               </div>
               <div className="ca-resources-download-content">
                 <h3 className="ca-resources-download-title">{download.title}</h3>
@@ -374,7 +430,7 @@ export default function ResourcesPage() {
                   <span className="ca-resources-download-label">{download.label}</span>
                 </div>
               </div>
-              <ExternalLink className="w-5 h-5" />
+              <ExternalLink className="w-5 h-5" aria-hidden="true" />
             </Link>
           ))}
         </div>
@@ -388,7 +444,7 @@ export default function ResourcesPage() {
             return (
               <div key={link.title} className="ca-resources-quicklink-card">
                 <div className={`ca-resources-quicklink-icon ca-resources-quicklink-icon-${link.color}`}>
-                  <Icon className="w-8 h-8" />
+                  <Icon className="w-8 h-8" aria-hidden="true" />
                 </div>
                 <h3 className="ca-resources-quicklink-title">{link.title}</h3>
                 <p className="ca-resources-quicklink-desc">{link.description}</p>
@@ -405,7 +461,7 @@ export default function ResourcesPage() {
       <section className="ca-resources-newsletter-section">
         <div className="ca-resources-newsletter-card">
           <div className="ca-resources-newsletter-icon">
-            <Mail className="w-10 h-10" />
+            <Mail className="w-10 h-10" aria-hidden="true" />
           </div>
           <h2 className="ca-resources-newsletter-title">Stay Updated</h2>
           <p className="ca-resources-newsletter-desc">
@@ -423,7 +479,7 @@ export default function ResourcesPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             Start Learning Today
           </div>
           <h2 className="ca-final-cta-title">Ready to Master Cloud Costs?</h2>
@@ -433,7 +489,7 @@ export default function ResourcesPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/docs" className="ca-btn-cta-secondary">
               View Documentation

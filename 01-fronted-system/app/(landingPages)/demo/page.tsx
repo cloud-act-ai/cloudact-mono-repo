@@ -152,7 +152,7 @@ export default function DemoPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Play className="w-4 h-4" />
+            <Play className="w-4 h-4" aria-hidden="true" />
             Request Demo
           </div>
           <h1 className="ca-page-hero-title">
@@ -165,15 +165,15 @@ export default function DemoPage() {
           </p>
           <div className="ca-demo-stats">
             <div className="ca-demo-stat">
-              <Clock className="w-5 h-5" />
+              <Clock className="w-5 h-5" aria-hidden="true" />
               <span>30 min session</span>
             </div>
             <div className="ca-demo-stat">
-              <Users className="w-5 h-5" />
+              <Users className="w-5 h-5" aria-hidden="true" />
               <span>1-on-1 with expert</span>
             </div>
             <div className="ca-demo-stat">
-              <Calendar className="w-5 h-5" />
+              <Calendar className="w-5 h-5" aria-hidden="true" />
               <span>Flexible scheduling</span>
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function DemoPage() {
                 return (
                   <div key={benefit.title} className="ca-demo-benefit-card">
                     <div className="ca-demo-benefit-icon">
-                      <Icon className="w-6 h-6" />
+                      <Icon className="w-6 h-6" aria-hidden="true" />
                     </div>
                     <div className="ca-demo-benefit-content">
                       <h3 className="ca-demo-benefit-title">{benefit.title}</h3>
@@ -206,9 +206,9 @@ export default function DemoPage() {
             <div className="ca-demo-expect">
               <h3 className="ca-demo-expect-title">What to Expect</h3>
               <ul className="ca-demo-expect-list">
-                {WHAT_TO_EXPECT.map((item, i) => (
-                  <li key={i}>
-                    <CheckCircle2 className="w-5 h-5 ca-icon-mint" />
+                {WHAT_TO_EXPECT.map((item) => (
+                  <li key={item}>
+                    <CheckCircle2 className="w-5 h-5 ca-icon-mint" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -221,7 +221,7 @@ export default function DemoPage() {
             <div className="ca-demo-form-card">
               {isSuccess ? (
                 <div className="ca-demo-form-success">
-                  <CheckCircle2 className="w-16 h-16 ca-icon-mint" />
+                  <CheckCircle2 className="w-16 h-16 ca-icon-mint" aria-hidden="true" />
                   <h3>Demo Request Received!</h3>
                   <p>
                     Thank you for your interest in CloudAct.ai. We&apos;ll contact you within 24 hours
@@ -238,7 +238,7 @@ export default function DemoPage() {
               ) : (
                 <>
                   <div className="ca-demo-form-header">
-                    <Play className="w-8 h-8 ca-icon-mint" />
+                    <Play className="w-8 h-8 ca-icon-mint" aria-hidden="true" />
                     <h3 className="ca-demo-form-title">Schedule Your Demo</h3>
                     <p className="ca-demo-form-desc">
                       Fill out the form below and we&apos;ll reach out to schedule your personalized demo.
@@ -361,7 +361,7 @@ export default function DemoPage() {
                         </>
                       ) : (
                         <>
-                          <Send className="w-5 h-5" />
+                          <Send className="w-5 h-5" aria-hidden="true" />
                           Request Demo
                         </>
                       )}
@@ -384,15 +384,15 @@ export default function DemoPage() {
       <section className="ca-demo-trust-section">
         <div className="ca-demo-trust-badges">
           <div className="ca-demo-trust-badge">
-            <Shield className="w-5 h-5" />
+            <Shield className="w-5 h-5" aria-hidden="true" />
             <span>SOC 2 Type II Certified</span>
           </div>
           <div className="ca-demo-trust-badge">
-            <CheckCircle2 className="w-5 h-5" />
+            <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
             <span>GDPR Compliant</span>
           </div>
           <div className="ca-demo-trust-badge">
-            <Users className="w-5 h-5" />
+            <Users className="w-5 h-5" aria-hidden="true" />
             <span>500+ Teams Trust Us</span>
           </div>
         </div>
@@ -402,7 +402,7 @@ export default function DemoPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             Prefer to try it yourself?
           </div>
           <h2 className="ca-final-cta-title">Start Your Free Trial</h2>
@@ -412,7 +412,7 @@ export default function DemoPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/pricing" className="ca-btn-cta-secondary">
               View Pricing

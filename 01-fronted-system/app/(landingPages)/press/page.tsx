@@ -9,7 +9,6 @@ import {
   FileText,
   Quote,
   Calendar,
-  ExternalLink,
 } from "lucide-react"
 import "../premium.css"
 
@@ -85,7 +84,7 @@ export default function PressPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Newspaper className="w-4 h-4" />
+            <Newspaper className="w-4 h-4" aria-hidden="true" />
             Press & Media
           </div>
           <h1 className="ca-page-hero-title">
@@ -97,10 +96,10 @@ export default function PressPage() {
           <div className="ca-hero-cta-group">
             <a href="mailto:press@cloudact.ai?subject=Media Inquiry" className="ca-btn-hero-primary">
               Contact Press Team
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <a href="mailto:press@cloudact.ai?subject=Brand Assets Request" className="ca-btn-hero-secondary">
-              <Download className="w-5 h-5" />
+              <Download className="w-5 h-5" aria-hidden="true" />
               Download Brand Kit
             </a>
           </div>
@@ -112,17 +111,17 @@ export default function PressPage() {
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <FileText className="w-4 h-4" />
+              <FileText className="w-4 h-4" aria-hidden="true" />
               Press Releases
             </span>
             <h2 className="ca-section-title">Latest announcements</h2>
           </div>
 
           <div className="ca-press-releases-list">
-            {PRESS_RELEASES.map((release, i) => (
-              <div key={i} className="ca-press-release-card">
+            {PRESS_RELEASES.map((release) => (
+              <div key={release.title} className="ca-press-release-card">
                 <div className="ca-press-release-date">
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-4 h-4" aria-hidden="true" />
                   {release.date}
                 </div>
                 <h3 className="ca-press-release-title">{release.title}</h3>
@@ -132,7 +131,7 @@ export default function PressPage() {
                   className="ca-press-release-link"
                 >
                   Read Full Release
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </a>
               </div>
             ))}
@@ -145,25 +144,25 @@ export default function PressPage() {
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4" aria-hidden="true" />
               Media Resources
             </span>
             <h2 className="ca-section-title">Press kit and assets</h2>
           </div>
 
           <div className="ca-press-resources-grid">
-            {MEDIA_RESOURCES.map((resource, i) => {
+            {MEDIA_RESOURCES.map((resource) => {
               const Icon = resource.icon
               return (
-                <div key={i} className="ca-press-resource-card">
+                <div key={resource.title} className="ca-press-resource-card">
                   <div className="ca-press-resource-icon">
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <h3 className="ca-press-resource-title">{resource.title}</h3>
                   <p className="ca-press-resource-desc">{resource.description}</p>
                   <a href={resource.href} className="ca-press-resource-link">
                     {resource.action}
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </a>
                 </div>
               )
@@ -180,8 +179,8 @@ export default function PressPage() {
           </div>
 
           <div className="ca-press-facts-grid">
-            {COMPANY_FACTS.map((fact, i) => (
-              <div key={i} className="ca-press-fact">
+            {COMPANY_FACTS.map((fact) => (
+              <div key={fact.label} className="ca-press-fact">
                 <span className="ca-press-fact-label">{fact.label}</span>
                 <span className="ca-press-fact-value">{fact.value}</span>
               </div>
@@ -211,7 +210,7 @@ export default function PressPage() {
               For press inquiries, interview requests, or media resources, please contact our communications team.
             </p>
             <a href="mailto:press@cloudact.ai" className="ca-press-contact-email">
-              <Mail className="w-5 h-5" />
+              <Mail className="w-5 h-5" aria-hidden="true" />
               press@cloudact.ai
             </a>
             <p className="ca-press-contact-note">
@@ -231,7 +230,7 @@ export default function PressPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/demo" className="ca-btn-cta-primary">
               Request Demo
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/about" className="ca-btn-cta-secondary">
               About Us

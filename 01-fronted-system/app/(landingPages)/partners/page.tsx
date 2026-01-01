@@ -74,7 +74,7 @@ export default function PartnersPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Handshake className="w-4 h-4" />
+            <Handshake className="w-4 h-4" aria-hidden="true" />
             Partner Program
           </div>
           <h1 className="ca-page-hero-title">
@@ -87,7 +87,7 @@ export default function PartnersPage() {
           <div className="ca-hero-cta-group">
             <a href="mailto:partners@cloudact.ai?subject=Partnership Inquiry" className="ca-btn-hero-primary">
               Become a Partner
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/contact" className="ca-btn-hero-secondary">
               Contact Us
@@ -101,7 +101,7 @@ export default function PartnersPage() {
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-4 h-4" aria-hidden="true" />
               Partnership Types
             </span>
             <h2 className="ca-section-title">Choose your partnership path</h2>
@@ -111,19 +111,19 @@ export default function PartnersPage() {
           </div>
 
           <div className="ca-partner-types-grid">
-            {PARTNER_TYPES.map((type, i) => {
+            {PARTNER_TYPES.map((type) => {
               const Icon = type.icon
               return (
-                <div key={i} className="ca-partner-type-card">
+                <div key={type.title} className="ca-partner-type-card">
                   <div className="ca-partner-type-icon">
-                    <Icon className="w-8 h-8" />
+                    <Icon className="w-8 h-8" aria-hidden="true" />
                   </div>
                   <h3 className="ca-partner-type-title">{type.title}</h3>
                   <p className="ca-partner-type-desc">{type.description}</p>
                   <ul className="ca-partner-benefits-list">
-                    {type.benefits.map((benefit, j) => (
-                      <li key={j}>
-                        <CheckCircle2 className="w-4 h-4" />
+                    {type.benefits.map((benefit) => (
+                      <li key={benefit}>
+                        <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                         {benefit}
                       </li>
                     ))}
@@ -133,7 +133,7 @@ export default function PartnersPage() {
                     className="ca-partner-apply-btn"
                   >
                     Apply Now
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </a>
                 </div>
               )
@@ -147,19 +147,19 @@ export default function PartnersPage() {
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <Award className="w-4 h-4" />
+              <Award className="w-4 h-4" aria-hidden="true" />
               Partner Benefits
             </span>
             <h2 className="ca-section-title">Why partner with CloudAct.ai?</h2>
           </div>
 
           <div className="ca-partner-benefits-grid">
-            {PARTNER_BENEFITS.map((benefit, i) => {
+            {PARTNER_BENEFITS.map((benefit) => {
               const Icon = benefit.icon
               return (
-                <div key={i} className="ca-partner-benefit-card">
+                <div key={benefit.title} className="ca-partner-benefit-card">
                   <div className="ca-partner-benefit-icon">
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <h3 className="ca-partner-benefit-title">{benefit.title}</h3>
                   <p className="ca-partner-benefit-desc">{benefit.description}</p>
@@ -179,7 +179,7 @@ export default function PartnersPage() {
               Get in touch with our partnerships team to discuss how we can work together.
             </p>
             <a href="mailto:partners@cloudact.ai" className="ca-partner-contact-email">
-              <Mail className="w-5 h-5" />
+              <Mail className="w-5 h-5" aria-hidden="true" />
               partners@cloudact.ai
             </a>
           </div>
@@ -196,7 +196,7 @@ export default function PartnersPage() {
           <div className="ca-final-cta-buttons">
             <a href="mailto:partners@cloudact.ai?subject=Partnership Inquiry" className="ca-btn-cta-primary">
               Become a Partner
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/about" className="ca-btn-cta-secondary">
               Learn About Us

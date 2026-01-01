@@ -97,7 +97,7 @@ export default function CommunityPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4" aria-hidden="true" />
             Community
           </div>
           <h1 className="ca-page-hero-title">
@@ -110,7 +110,7 @@ export default function CommunityPage() {
           <div className="ca-hero-buttons">
             <a href="https://discord.gg/cloudact" target="_blank" rel="noopener noreferrer" className="ca-btn-hero-primary">
               Join Discord
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/resources" className="ca-btn-hero-secondary">
               Browse Resources
@@ -123,7 +123,7 @@ export default function CommunityPage() {
       <section className="ca-community-channels-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-4 h-4" aria-hidden="true" />
             Connect With Us
           </span>
           <h2 className="ca-section-title">Community Channels</h2>
@@ -144,7 +144,7 @@ export default function CommunityPage() {
                 className={`ca-community-channel-card ca-community-channel-${channel.color}`}
               >
                 <div className={`ca-community-channel-icon ca-community-channel-icon-${channel.color}`}>
-                  <Icon className="w-7 h-7" />
+                  <Icon className="w-7 h-7" aria-hidden="true" />
                 </div>
                 <h3 className="ca-community-channel-title">{channel.title}</h3>
                 <p className="ca-community-channel-desc">{channel.description}</p>
@@ -153,7 +153,7 @@ export default function CommunityPage() {
                 </div>
                 <span className="ca-community-channel-cta">
                   {channel.cta}
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </span>
               </a>
             )
@@ -165,7 +165,7 @@ export default function CommunityPage() {
       <section className="ca-community-benefits-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" />
+            <Award className="w-4 h-4" aria-hidden="true" />
             Why Join
           </span>
           <h2 className="ca-section-title">Community Benefits</h2>
@@ -177,7 +177,7 @@ export default function CommunityPage() {
             return (
               <div key={benefit.title} className="ca-community-benefit-card">
                 <div className="ca-community-benefit-icon">
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <h3 className="ca-community-benefit-title">{benefit.title}</h3>
                 <p className="ca-community-benefit-desc">{benefit.description}</p>
@@ -191,7 +191,7 @@ export default function CommunityPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             Ready to Connect?
           </div>
           <h2 className="ca-final-cta-title">Join the CloudAct.ai Community Today</h2>
@@ -201,7 +201,7 @@ export default function CommunityPage() {
           <div className="ca-final-cta-buttons">
             <a href="https://discord.gg/cloudact" target="_blank" rel="noopener noreferrer" className="ca-btn-cta-primary">
               Join Discord
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/contact" className="ca-btn-cta-secondary">
               Contact Us

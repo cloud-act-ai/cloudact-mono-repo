@@ -4,10 +4,16 @@
  * Mobile Navigation Overlay
  *
  * Full-screen navigation for mobile devices with:
- * - Clean editorial design matching sidebar
- * - Accordion sections
- * - Proper close handling (doesn't close prematurely)
- * - Smooth animations
+ * - Clean editorial design matching desktop sidebar
+ * - Accordion sections (one open at a time)
+ * - Coral hover/active highlights
+ *
+ * Main Content:
+ * - Dashboard, Cost Analytics, Pipelines, Integrations, Org Settings
+ *
+ * Footer:
+ * - User Profile (clickable → /settings/personal)
+ * - Get Help, Sign Out
  */
 
 import { useState, useEffect } from "react"
@@ -390,20 +396,14 @@ export function MobileNav({
             </div>
           )}
 
-          {/* Settings - Moved to main nav for better accessibility */}
+          {/* Org Settings - Moved to main nav for better accessibility */}
           <SectionHeader
-            title="Settings"
+            title="Org Settings"
             section="settings"
             isExpanded={activeSection === "settings"}
           />
           {activeSection === "settings" && (
             <div className="px-2 pb-2 space-y-0.5">
-              <NavItem
-                href={`/${orgSlug}/settings/personal`}
-                icon={User}
-                label="Personal"
-                isItemActive={isActive(`/${orgSlug}/settings/personal`)}
-              />
               {userRole === "owner" && (
                 <NavItem
                   href={`/${orgSlug}/settings/organization`}
@@ -447,14 +447,28 @@ export function MobileNav({
 
         {/* Compact Footer - User Info & Actions */}
         <div className="border-t border-slate-100 p-4 space-y-3">
-          {/* User Info */}
-          <div className="flex items-center gap-3 px-2">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0">
+          {/* User Info - Clickable to navigate to profile */}
+          <button
+            type="button"
+            onClick={() => handleNavigation(`/${orgSlug}/settings/personal`)}
+            className={cn(
+              "w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-colors min-h-[44px]",
+              isActive(`/${orgSlug}/settings/personal`)
+                ? "bg-[var(--cloudact-mint)]/10"
+                : "hover:bg-slate-50"
+            )}
+          >
+            <div className={cn(
+              "h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
+              isActive(`/${orgSlug}/settings/personal`)
+                ? "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] ring-2 ring-[var(--cloudact-mint)]/30"
+                : "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]"
+            )}>
               <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
                 {getUserInitials(userName)}
               </span>
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 text-left">
               <p className="text-[12px] font-semibold text-slate-900 truncate">
                 {userName}
               </p>
@@ -462,7 +476,7 @@ export function MobileNav({
                 {userEmail}
               </p>
             </div>
-          </div>
+          </button>
 
           {/* Actions */}
           <div className="flex gap-2">

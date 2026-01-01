@@ -442,14 +442,14 @@ BEGIN
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
     USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency, v_fiscal_year_start_month AS fy_start_month;
 
-  COMMIT TRANSACTION;
-
-  -- 4. Get row count
+  -- 4. Get row count (inside transaction for atomicity)
   EXECUTE IMMEDIATE FORMAT("""
     SELECT COUNT(*) FROM `%s.%s.saas_subscription_plan_costs_daily`
     WHERE cost_date BETWEEN @p_start AND @p_end
   """, p_project_id, p_dataset_id)
   INTO v_rows_inserted USING p_start_date AS p_start, p_end_date AS p_end;
+
+  COMMIT TRANSACTION;
 
   SELECT 'Daily Costs Calculated' AS status,
          v_rows_inserted AS rows_inserted,

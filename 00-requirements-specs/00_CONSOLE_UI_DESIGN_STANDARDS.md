@@ -337,27 +337,43 @@ The sidebar uses a **two-zone layout** with accordion behavior:
 
 ```
 ┌─────────────────────┐
-│ [Logo] Org Name     │  ← Header
+│ [Logo] Org Name  ◀  │  ← Header (with collapse toggle)
 ├─────────────────────┤
-│ DASHBOARDS       ▼  │  ← Main Content (scrollable)
+│ ACCOUNT SUMMARY  ▼  │  ← Main Content (scrollable)
+│   • Dashboard       │
+├─────────────────────┤
+│ COST ANALYTICS   ▶  │
 │   • Overview        │
-│   • Subscriptions   │
 │   • GenAI           │
 │   • Cloud           │
+│   • Subscription    │
 ├─────────────────────┤
 │ PIPELINES        ▶  │
+│   • Subscription    │
+│   • Cloud Runs      │
+│   • GenAI Runs      │
+├─────────────────────┤
+│ INTEGRATIONS     ▶  │
+│   • Cloud Providers │
+│   • GenAI Providers │
+│   • Subscriptions   │
+├─────────────────────┤
+│ ORG SETTINGS     ▶  │
+│   • Organization*   │
+│   • Hierarchy*      │
+│   • Usage & Quotas  │
+│   • Team Members    │
+│   • Billing*        │
 ├═════════════════════┤  ← Footer Border
-│ [Avatar] User Name  │  ← Footer: User Profile FIRST
+│ [Avatar] User Name  │  ← Clickable → /settings/personal
 │ user@email.com      │
 ├─────────────────────┤
-│ INTEGRATIONS     ▶  │  ← Footer: Then Integrations
-├─────────────────────┤
-│ SETTINGS         ▶  │  ← Footer: Then Settings
-├─────────────────────┤
-│ 🔗 Get Help         │  ← Footer: Actions
+│ 🔗 Get Help         │  ← Footer Actions
 │ 🚪 Sign Out         │
 └─────────────────────┘
 ```
+
+*Owner-only items
 
 ### Accordion Behavior
 
@@ -385,9 +401,21 @@ The sidebar uses a **two-zone layout** with accordion behavior:
 | Color | `slate-500` |
 | Hover | `bg-slate-50` |
 
-### Menu Items - Coral Hover/Active
+### Menu Items - Desktop (Mint Active)
 
-All menu items use **coral highlight** for hover and active states:
+Desktop sidebar uses **mint highlight** for active states:
+
+```tsx
+// Normal state
+"text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+
+// Active state (with left accent bar)
+"text-[var(--cloudact-mint-text)] bg-[var(--cloudact-mint)]/10 font-semibold"
+```
+
+### Menu Items - Mobile (Coral Hover/Active)
+
+Mobile navigation uses **coral highlight** for hover and active states:
 
 ```tsx
 // Normal state
@@ -399,60 +427,62 @@ All menu items use **coral highlight** for hover and active states:
 
 | Property | Value |
 |----------|-------|
-| Height | 26px |
-| Font size | 12px |
+| Height | 36px (desktop), 44px (mobile) |
+| Font size | 14px |
 | Font weight | 500 (normal), 600 (active) |
 | Padding | px-3 |
 | Margin | mx-2 |
 | Border radius | rounded-md |
-| Hover background | `#FF6E50` @ 10% |
-| Active background | `#FF6E50` @ 10% |
-| Active text | `#FF6E50` (coral) |
 
 ### Icon Colors by Domain
 
-**Features (Teal)**
+**Features (Slate with Mint active)**
 
 ```tsx
-<LayoutDashboard className="text-[#007A78]" />  // Dashboard
-<Workflow className="text-[#005F5D]" />         // Pipelines
-<Server className="text-[#14B8A6]" />           // Cloud Providers
-<Brain className="text-[#005F5D]" />            // LLM Providers
+<LayoutDashboard className="text-slate-500" />  // Dashboard
+<TrendingUp className="text-slate-500" />       // Cost Analytics
+<Workflow className="text-slate-500" />         // Pipelines
+<Server className="text-slate-500" />           // Integrations
+<Settings className="text-slate-500" />         // Org Settings
 ```
 
 **Footer Items**
 
 ```tsx
-<User className="text-slate-500" />             // Personal Settings
-<Building className="text-slate-500" />         // Organization
-<BarChart3 className="text-slate-500" />        // Usage & Quotas
-<UserPlus className="text-slate-500" />         // Invite
-<CreditCard className="text-slate-500" />       // Billing
-<HelpCircle className="text-[#007A78]" />       // Get Help (teal)
+<HelpCircle className="text-slate-600" />       // Get Help
 <LogOut className="text-slate-500" />           // Sign Out
 ```
 
 ### Navigation Sections
 
-**Main Content Area:**
-- Dashboards (Overview, Subscriptions, GenAI, Cloud)
-- Pipelines (Subscription Runs, Cost Runs, GenAI Runs)
+**Main Content Area (scrollable):**
+1. Account Summary (Dashboard)
+2. Cost Analytics (Overview, GenAI, Cloud, Subscription)
+3. Pipelines (Subscription Runs, Cloud Runs, GenAI Runs)
+4. Integrations (Cloud Providers, GenAI Providers, Subscriptions)
+5. Org Settings (Organization*, Hierarchy*, Usage & Quotas, Team Members, Billing*)
 
 **Footer Area:**
-1. User Profile (avatar, name, email)
-2. Integrations (Cloud Providers, LLM Providers, Subscriptions)
-3. Settings (Personal, Organization*, Usage & Quotas, Invite, Billing*)
-4. Get Help
-5. Sign Out
+1. User Profile (clickable avatar → navigates to `/settings/personal`)
+2. Get Help (external link)
+3. Sign Out
 
 *Owner-only items
+
+### User Profile Navigation
+
+The User Profile in footer is **clickable** and navigates to the profile page:
+- Route: `/{orgSlug}/settings/personal`
+- Shows active state (mint highlight) when on profile page
+- Displays user initials, name, and email
 
 ### Collapsed State (Icon Mode)
 
 When sidebar is collapsed:
 - Shows only icons centered
 - Section headers hidden
-- User avatar shown without name/email
+- User avatar shown (clickable to profile)
+- Tooltip on hover for icon labels
 
 ---
 
@@ -983,12 +1013,21 @@ const DOMAIN_COLORS = {
 
 ## Changelog
 
+### Version 2.8 (2025-12-31)
+- **Sidebar Navigation Restructure:**
+  - Integrations & Org Settings moved to main content area (not footer)
+  - Settings renamed to "Org Settings" for clarity
+  - Profile removed from Org Settings (accessed via User Profile click)
+  - User Profile in footer now clickable → navigates to `/settings/personal`
+  - Footer simplified: User Profile → Get Help → Sign Out
+  - Desktop uses mint active states, mobile uses coral
+- Updated documentation to reflect new navigation structure
+
 ### Version 2.7 (2025-12-24)
 - **Sidebar Layout Redesign:**
   - Two-zone layout: Main Content + Footer
   - Accordion behavior (one section open at a time)
   - User Profile moved to footer (first item)
-  - Integrations & Settings moved to footer
   - Coral hover/active highlight (removed left border)
   - Auto-expand based on current route
 - Updated navigation sections structure
@@ -1013,4 +1052,4 @@ const DOMAIN_COLORS = {
 
 ---
 
-**Version 2.7** | Sidebar redesign with two-zone layout and coral highlights
+**Version 2.8** | Sidebar navigation restructure with clickable User Profile

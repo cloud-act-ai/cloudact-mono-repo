@@ -99,8 +99,8 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
           />
         </div>
 
-        {/* Content Container - Flexible with reduced spacing */}
-        <div className="relative z-10 flex flex-col h-full w-full px-6 xl:px-8 py-5">
+        {/* Content Container - Flexible with proper spacing for all screen sizes */}
+        <div className="relative z-10 flex flex-col h-full w-full max-w-[640px] mx-auto px-6 xl:px-10 2xl:px-12 py-5">
           {/* Logo - Top */}
           <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
             <Link href="/" className="inline-flex items-center group">
@@ -163,59 +163,53 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
               </div>
             </div>
 
-            {/* Provider Logos - Single Row */}
+            {/* Provider Logos - Responsive Grid */}
             <div className={`mt-8 transition-all duration-700 delay-400 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               <div className="text-center mb-4">
                 <p className="text-[12px] font-semibold text-[#0a0a0b] tracking-wide">Track Every Dollar</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">Unified cost visibility across all your tools</p>
               </div>
 
-              {/* All Providers in Single Row */}
+              {/* All Providers - 3 Column Grid for Better Layout */}
               <div className="p-4 rounded-xl bg-white/70 backdrop-blur-sm border border-gray-100/80">
-                <div className="flex items-center justify-between gap-6">
+                <div className="grid grid-cols-3 gap-4">
                   {/* GenAI */}
-                  <div className="flex-1 text-center">
+                  <div className="text-center">
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#90FCA6]/15 mb-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#16a34a]" />
                       <span className="text-[9px] font-semibold text-[#16a34a] uppercase tracking-wider">GenAI</span>
                     </div>
-                    <div className="flex items-center gap-2 justify-center">
-                      {providerGroups.genai.map((provider) => (
+                    <div className="flex items-center gap-1.5 justify-center flex-wrap">
+                      {providerGroups.genai.slice(0, 4).map((provider) => (
                         <div
                           key={provider.name}
-                          className="flex items-center justify-center w-9 h-9 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
                           title={provider.name}
                         >
-                          <Image src={provider.logo} alt={provider.name} width={20} height={20} className="opacity-90" />
+                          <Image src={provider.logo} alt={provider.name} width={18} height={18} className="opacity-90" />
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Divider */}
-                  <div className="w-px h-12 bg-gray-200" />
-
                   {/* Cloud */}
-                  <div className="text-center">
+                  <div className="text-center border-x border-gray-100 px-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#3b82f6]/10 mb-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]" />
                       <span className="text-[9px] font-semibold text-[#3b82f6] uppercase tracking-wider">Cloud</span>
                     </div>
-                    <div className="flex items-center gap-2 justify-center">
+                    <div className="flex items-center gap-1.5 justify-center flex-wrap">
                       {providerGroups.cloud.map((provider) => (
                         <div
                           key={provider.name}
-                          className="flex items-center justify-center w-9 h-9 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
                           title={provider.name}
                         >
-                          <Image src={provider.logo} alt={provider.name} width={20} height={20} className="opacity-90" />
+                          <Image src={provider.logo} alt={provider.name} width={18} height={18} className="opacity-90" />
                         </div>
                       ))}
                     </div>
                   </div>
-
-                  {/* Divider */}
-                  <div className="w-px h-12 bg-gray-200" />
 
                   {/* SaaS */}
                   <div className="text-center">
@@ -223,14 +217,14 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                       <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
                       <span className="text-[9px] font-semibold text-[#f59e0b] uppercase tracking-wider">SaaS</span>
                     </div>
-                    <div className="flex items-center gap-2 justify-center">
+                    <div className="flex items-center gap-1.5 justify-center flex-wrap">
                       {providerGroups.saas.slice(0, 4).map((provider) => (
                         <div
                           key={provider.name}
-                          className="flex items-center justify-center w-9 h-9 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
                           title={provider.name}
                         >
-                          <Image src={provider.logo} alt={provider.name} width={20} height={20} className="opacity-90" />
+                          <Image src={provider.logo} alt={provider.name} width={18} height={18} className="opacity-90" />
                         </div>
                       ))}
                     </div>
@@ -240,15 +234,15 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
             </div>
           </div>
 
-          {/* Footer */}
-          <div className={`flex items-center justify-between pt-3 transition-all duration-700 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          {/* Footer - Responsive with Wrap */}
+          <div className={`flex flex-wrap items-center justify-center gap-3 pt-3 transition-all duration-700 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
             {/* Social Proof */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
                 {teamAvatars.map((avatar, index) => (
                   <div
                     key={avatar.name}
-                    className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold shadow-md"
+                    className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-bold shadow-md"
                     style={{
                       backgroundColor: avatar.color,
                       color: '#fff',
@@ -260,31 +254,25 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                 ))}
               </div>
               <div>
-                <div className="text-[10px] font-semibold text-[#0a0a0b]">Built for modern teams</div>
-                <div className="text-[8px] text-gray-400">from startups to enterprise</div>
+                <div className="text-[9px] font-semibold text-[#0a0a0b]">Built for teams</div>
+                <div className="text-[7px] text-gray-400">startups to enterprise</div>
               </div>
             </div>
 
-            {/* Google Cloud Badge - Center */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-gray-100 shadow-sm">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+            {/* Google Cloud Badge */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-gray-100 shadow-sm">
+              <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
                 <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="#4285F4"/>
               </svg>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-semibold text-[#0a0a0b]">Powered by Google</span>
-                <span className="text-[8px] text-gray-400">Data, AI & ML</span>
-              </div>
+              <span className="text-[8px] font-semibold text-[#0a0a0b] whitespace-nowrap">Google Cloud</span>
             </div>
 
             {/* Stripe Badge */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-gray-100 shadow-sm">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-gray-100 shadow-sm">
+              <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none">
                 <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" fill="#635BFF"/>
               </svg>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-semibold text-[#0a0a0b]">Secure payments</span>
-                <span className="text-[8px] text-gray-400">powered by Stripe</span>
-              </div>
+              <span className="text-[8px] font-semibold text-[#0a0a0b] whitespace-nowrap">Stripe Secure</span>
             </div>
           </div>
         </div>

@@ -25,7 +25,6 @@ import {
   Zap,
   Lock,
   Plug,
-  Rocket,
 } from "lucide-react"
 import "../premium.css"
 
@@ -46,7 +45,7 @@ export default function FeaturesPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Layers className="w-4 h-4" />
+            <Layers className="w-4 h-4" aria-hidden="true" />
             Platform Features
           </div>
           <h1 className="ca-page-hero-title">
@@ -60,7 +59,7 @@ export default function FeaturesPage() {
           <div className="ca-page-hero-actions">
             <Link href="/signup" className="ca-btn-hero-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/demo" className="ca-btn-hero-secondary">
               Book a Demo
@@ -73,7 +72,7 @@ export default function FeaturesPage() {
       <section className="ca-pillars-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Blocks className="w-4 h-4" />
+            <Blocks className="w-4 h-4" aria-hidden="true" />
             Core Capabilities
           </span>
           <h2 className="ca-section-title">Three Pillars of Cost Intelligence</h2>
@@ -86,7 +85,7 @@ export default function FeaturesPage() {
           {/* GenAI Pillar */}
           <div id="genai" className="ca-pillar-card ca-pillar-coral">
             <div className="ca-pillar-icon ca-pillar-icon-coral">
-              <Cpu className="w-7 h-7" />
+              <Cpu className="w-7 h-7" aria-hidden="true" />
             </div>
             <h3 className="ca-pillar-title">GenAI Cost Intelligence</h3>
             <p className="ca-pillar-desc">
@@ -94,20 +93,20 @@ export default function FeaturesPage() {
               OpenAI, Anthropic, Google AI, and emerging LLM providers.
             </p>
             <ul className="ca-pillar-features">
-              <li><CheckCircle2 className="w-4 h-4" /><span>Token-level tracking</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Multi-provider support</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Model cost comparison</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Usage anomaly alerts</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Token-level tracking</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Multi-provider support</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Model cost comparison</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Usage anomaly alerts</span></li>
             </ul>
             <Link href="#genai" className="ca-pillar-link ca-pillar-link-coral">
-              Learn more <ArrowRight className="w-4 h-4" />
+              Learn more <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
 
           {/* Cloud Pillar */}
           <div id="cloud" className="ca-pillar-card ca-pillar-blue">
             <div className="ca-pillar-icon ca-pillar-icon-blue">
-              <Cloud className="w-7 h-7" />
+              <Cloud className="w-7 h-7" aria-hidden="true" />
             </div>
             <h3 className="ca-pillar-title">Multi-Cloud Management</h3>
             <p className="ca-pillar-desc">
@@ -115,20 +114,20 @@ export default function FeaturesPage() {
               rightsizing recommendations, and reserved instance optimization.
             </p>
             <ul className="ca-pillar-features">
-              <li><CheckCircle2 className="w-4 h-4" /><span>Cross-cloud dashboards</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Resource tagging</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Waste detection</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Budget forecasting</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Cross-cloud dashboards</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Resource tagging</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Waste detection</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Budget forecasting</span></li>
             </ul>
             <Link href="#cloud" className="ca-pillar-link ca-pillar-link-blue">
-              Learn more <ArrowRight className="w-4 h-4" />
+              Learn more <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
 
           {/* SaaS Pillar */}
           <div id="saas" className="ca-pillar-card ca-pillar-purple">
             <div className="ca-pillar-icon ca-pillar-icon-purple">
-              <CreditCard className="w-7 h-7" />
+              <CreditCard className="w-7 h-7" aria-hidden="true" />
             </div>
             <h3 className="ca-pillar-title">SaaS Subscription Tracking</h3>
             <p className="ca-pillar-desc">
@@ -136,13 +135,13 @@ export default function FeaturesPage() {
               and 50+ SaaS tools with automatic renewal alerts.
             </p>
             <ul className="ca-pillar-features">
-              <li><CheckCircle2 className="w-4 h-4" /><span>Auto-discovery</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>License optimization</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Renewal calendar</span></li>
-              <li><CheckCircle2 className="w-4 h-4" /><span>Vendor benchmarking</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Auto-discovery</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>License optimization</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Renewal calendar</span></li>
+              <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Vendor benchmarking</span></li>
             </ul>
             <Link href="#saas" className="ca-pillar-link ca-pillar-link-purple">
-              Learn more <ArrowRight className="w-4 h-4" />
+              Learn more <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -152,7 +151,7 @@ export default function FeaturesPage() {
       <section className="ca-features-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             All Features
           </span>
           <h2 className="ca-section-title">Everything you need to control costs</h2>
@@ -164,7 +163,7 @@ export default function FeaturesPage() {
         <div className="ca-features-grid-premium">
           <div id="analytics" className="ca-feature-card-premium ca-feature-mint">
             <div className="ca-feature-icon-premium ca-feature-icon-mint">
-              <LineChart className="w-6 h-6" />
+              <LineChart className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-feature-title-premium">Real-Time Dashboards</h3>
             <p className="ca-feature-desc-premium">
@@ -174,7 +173,7 @@ export default function FeaturesPage() {
 
           <div id="optimization" className="ca-feature-card-premium ca-feature-coral">
             <div className="ca-feature-icon-premium ca-feature-icon-coral">
-              <Brain className="w-6 h-6" />
+              <Brain className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-feature-title-premium">AI Recommendations</h3>
             <p className="ca-feature-desc-premium">
@@ -184,7 +183,7 @@ export default function FeaturesPage() {
 
           <div id="alerts" className="ca-feature-card-premium ca-feature-blue">
             <div className="ca-feature-icon-premium ca-feature-icon-blue">
-              <Bell className="w-6 h-6" />
+              <Bell className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-feature-title-premium">Smart Alerts</h3>
             <p className="ca-feature-desc-premium">
@@ -194,7 +193,7 @@ export default function FeaturesPage() {
 
           <div className="ca-feature-card-premium ca-feature-purple">
             <div className="ca-feature-icon-premium ca-feature-icon-purple">
-              <Target className="w-6 h-6" />
+              <Target className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-feature-title-premium">Budget Controls</h3>
             <p className="ca-feature-desc-premium">
@@ -204,7 +203,7 @@ export default function FeaturesPage() {
 
           <div className="ca-feature-card-premium ca-feature-mint">
             <div className="ca-feature-icon-premium ca-feature-icon-mint">
-              <PieChart className="w-6 h-6" />
+              <PieChart className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-feature-title-premium">Cost Allocation</h3>
             <p className="ca-feature-desc-premium">
@@ -214,7 +213,7 @@ export default function FeaturesPage() {
 
           <div className="ca-feature-card-premium ca-feature-coral">
             <div className="ca-feature-icon-premium ca-feature-icon-coral">
-              <TrendingUp className="w-6 h-6" />
+              <TrendingUp className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-feature-title-premium">Forecasting</h3>
             <p className="ca-feature-desc-premium">
@@ -228,7 +227,7 @@ export default function FeaturesPage() {
       <section className="ca-how-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4" aria-hidden="true" />
             How It Works
           </span>
           <h2 className="ca-section-title">Up and running in minutes</h2>
@@ -266,7 +265,7 @@ export default function FeaturesPage() {
       <section className="ca-collab-section ca-section-gray">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Lock className="w-4 h-4" />
+            <Lock className="w-4 h-4" aria-hidden="true" />
             Enterprise Ready
           </span>
           <h2 className="ca-section-title">Security & Scale You Can Trust</h2>
@@ -282,7 +281,7 @@ export default function FeaturesPage() {
               SOC 2 Type II certified with GDPR compliance. SSO/SAML, audit logs, and encryption.
             </p>
             <span className="ca-collab-link ca-collab-link-mint">
-              <Shield className="w-4 h-4" /> SOC 2 Type II
+              <Shield className="w-4 h-4" aria-hidden="true" /> SOC 2 Type II
             </span>
           </div>
 
@@ -292,7 +291,7 @@ export default function FeaturesPage() {
               Mission-critical reliability with dedicated support. Multi-region deployment.
             </p>
             <span className="ca-collab-link ca-collab-link-coral">
-              <Gauge className="w-4 h-4" /> Enterprise SLA
+              <Gauge className="w-4 h-4" aria-hidden="true" /> Enterprise SLA
             </span>
           </div>
 
@@ -302,7 +301,7 @@ export default function FeaturesPage() {
               Role-based access control, shared dashboards, and team budgets.
             </p>
             <span className="ca-collab-link ca-collab-link-blue">
-              <Users className="w-4 h-4" /> RBAC included
+              <Users className="w-4 h-4" aria-hidden="true" /> RBAC included
             </span>
           </div>
 
@@ -312,7 +311,7 @@ export default function FeaturesPage() {
               RESTful API with comprehensive SDKs. Integrate with your CI/CD workflows.
             </p>
             <span className="ca-collab-link ca-collab-link-purple">
-              <GitBranch className="w-4 h-4" /> Full API access
+              <GitBranch className="w-4 h-4" aria-hidden="true" /> Full API access
             </span>
           </div>
         </div>
@@ -322,7 +321,7 @@ export default function FeaturesPage() {
       <section className="ca-integrations-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Plug className="w-4 h-4" />
+            <Plug className="w-4 h-4" aria-hidden="true" />
             Integrations
           </span>
           <h2 className="ca-section-title">Connect your entire stack</h2>
@@ -348,7 +347,7 @@ export default function FeaturesPage() {
         <div className="ca-integrations-cta">
           <Link href="/integrations" className="ca-btn-outline-dark">
             View all integrations
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
         </div>
       </section>
@@ -357,7 +356,7 @@ export default function FeaturesPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             14-day free trial • No credit card required
           </div>
           <h2 className="ca-final-cta-title">Ready to Master Your Costs?</h2>
@@ -368,7 +367,7 @@ export default function FeaturesPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/pricing" className="ca-btn-cta-secondary">
               View Pricing

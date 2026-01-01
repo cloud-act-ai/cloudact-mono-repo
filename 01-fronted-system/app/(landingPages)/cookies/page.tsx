@@ -49,7 +49,7 @@ const THIRD_PARTY_SERVICES = [
 ]
 
 export default function CookiesPage() {
-  const lastUpdated = "December 20, 2025"
+  const lastUpdated = "December 30, 2024"
 
   return (
     <div className="ca-landing-page">
@@ -57,7 +57,7 @@ export default function CookiesPage() {
       <section className="ca-page-hero ca-page-hero-compact">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Cookie className="w-4 h-4" />
+            <Cookie className="w-4 h-4" aria-hidden="true" />
             Legal
           </div>
           <h1 className="ca-page-hero-title">
@@ -74,7 +74,7 @@ export default function CookiesPage() {
       <section className="ca-legal-section">
         <div className="ca-legal-container">
           <div className="ca-legal-intro">
-            <Cookie className="w-12 h-12 ca-icon-mint" />
+            <Cookie className="w-12 h-12 ca-icon-mint" aria-hidden="true" />
             <h2>What Are Cookies?</h2>
             <p>
               Cookies are small text files that are stored on your device when you visit a website.
@@ -94,7 +94,7 @@ export default function CookiesPage() {
                   <div key={type.title} className="ca-cookie-type-card">
                     <div className="ca-cookie-type-header">
                       <div className="ca-cookie-type-icon">
-                        <Icon className="w-6 h-6" />
+                        <Icon className="w-6 h-6" aria-hidden="true" />
                       </div>
                       <div className="ca-cookie-type-meta">
                         <h3 className="ca-cookie-type-title">{type.title}</h3>
@@ -107,8 +107,8 @@ export default function CookiesPage() {
                     <div className="ca-cookie-type-examples">
                       <span className="ca-cookie-examples-label">Examples:</span>
                       <ul>
-                        {type.examples.map((example, i) => (
-                          <li key={i}>{example}</li>
+                        {type.examples.map((example) => (
+                          <li key={example}>{example}</li>
                         ))}
                       </ul>
                     </div>
@@ -216,15 +216,15 @@ export default function CookiesPage() {
             <div className="ca-legal-related-links">
               <Link href="/privacy" className="ca-legal-related-link">
                 Privacy Policy
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
               <Link href="/terms" className="ca-legal-related-link">
                 Terms of Service
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
               <Link href="/security" className="ca-legal-related-link">
                 Security
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
             </div>
           </div>

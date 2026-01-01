@@ -193,7 +193,7 @@ export default function SolutionsPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <Puzzle className="w-4 h-4" />
+            <Puzzle className="w-4 h-4" aria-hidden="true" />
             Solutions
           </div>
           <h1 className="ca-page-hero-title">
@@ -207,7 +207,7 @@ export default function SolutionsPage() {
           <div className="ca-page-hero-actions">
             <Link href="/signup" className="ca-btn-hero-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/contact" className="ca-btn-hero-secondary">
               Talk to Sales
@@ -220,7 +220,7 @@ export default function SolutionsPage() {
       <section className="ca-solutions-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <UserCog className="w-4 h-4" />
+            <UserCog className="w-4 h-4" aria-hidden="true" />
             By Role
           </span>
           <h2 className="ca-section-title">Every Role, Perfectly Supported</h2>
@@ -239,14 +239,14 @@ export default function SolutionsPage() {
                 className={`ca-solution-role-card ca-solution-role-${solution.color}`}
               >
                 <div className={`ca-solution-role-icon ca-solution-role-icon-${solution.color}`}>
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <h3 className="ca-solution-role-title">{solution.title}</h3>
                 <p className="ca-solution-role-desc">{solution.description}</p>
                 <ul className="ca-solution-role-features">
-                  {solution.features.map((feature, i) => (
-                    <li key={i}>
-                      <CheckCircle2 className="w-4 h-4" />
+                  {solution.features.map((feature) => (
+                    <li key={feature}>
+                      <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -261,7 +261,7 @@ export default function SolutionsPage() {
       <section className="ca-challenges-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <AlertTriangle className="w-4 h-4" />
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
             By Challenge
           </span>
           <h2 className="ca-section-title">Solve Your Biggest Cost Challenges</h2>
@@ -280,7 +280,7 @@ export default function SolutionsPage() {
               >
                 <div className="ca-challenge-header">
                   <div className={`ca-challenge-icon ca-challenge-icon-${challenge.color}`}>
-                    <Icon className="w-7 h-7" />
+                    <Icon className="w-7 h-7" aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="ca-challenge-title">{challenge.title}</h3>
@@ -288,12 +288,12 @@ export default function SolutionsPage() {
                   </div>
                 </div>
                 <ul className="ca-challenge-features">
-                  {challenge.features.map((feature, i) => (
-                    <li key={i}>{feature}</li>
+                  {challenge.features.map((feature) => (
+                    <li key={feature}>{feature}</li>
                   ))}
                 </ul>
                 <div className={`ca-challenge-benefit ca-challenge-benefit-${challenge.color}`}>
-                  <TrendingDown className="w-5 h-5" />
+                  <TrendingDown className="w-5 h-5" aria-hidden="true" />
                   <div>
                     <span className="ca-challenge-benefit-label">Key Benefit</span>
                     <span className="ca-challenge-benefit-value">{challenge.benefit}</span>
@@ -309,7 +309,7 @@ export default function SolutionsPage() {
       <section className="ca-usecases-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Briefcase className="w-4 h-4" />
+            <Briefcase className="w-4 h-4" aria-hidden="true" />
             Use Cases
           </span>
           <h2 className="ca-section-title">How Teams Use CloudAct.ai</h2>
@@ -335,7 +335,7 @@ export default function SolutionsPage() {
       <section className="ca-industry-section">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Building2 className="w-4 h-4" />
+            <Building2 className="w-4 h-4" aria-hidden="true" />
             By Industry
           </span>
           <h2 className="ca-section-title">Trusted Across Industries</h2>
@@ -347,7 +347,7 @@ export default function SolutionsPage() {
         <div className="ca-industry-grid">
           <div id="enterprise" className="ca-industry-card">
             <div className="ca-industry-icon">
-              <Building2 className="w-6 h-6" />
+              <Building2 className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-industry-title">Enterprise</h3>
             <p className="ca-industry-desc">
@@ -356,7 +356,7 @@ export default function SolutionsPage() {
           </div>
           <div className="ca-industry-card">
             <div className="ca-industry-icon">
-              <Zap className="w-6 h-6" />
+              <Zap className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-industry-title">SaaS & Tech</h3>
             <p className="ca-industry-desc">
@@ -365,7 +365,7 @@ export default function SolutionsPage() {
           </div>
           <div id="partners" className="ca-industry-card">
             <div className="ca-industry-icon">
-              <PieChart className="w-6 h-6" />
+              <PieChart className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-industry-title">Partners & MSPs</h3>
             <p className="ca-industry-desc">
@@ -374,7 +374,7 @@ export default function SolutionsPage() {
           </div>
           <div id="startups" className="ca-industry-card">
             <div className="ca-industry-icon">
-              <Users className="w-6 h-6" />
+              <Users className="w-6 h-6" aria-hidden="true" />
             </div>
             <h3 className="ca-industry-title">Startups</h3>
             <p className="ca-industry-desc">
@@ -388,7 +388,7 @@ export default function SolutionsPage() {
       <section className="ca-why-section ca-section-gray">
         <div className="ca-section-header-centered">
           <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" />
+            <Award className="w-4 h-4" aria-hidden="true" />
             Why CloudAct.ai
           </span>
           <h2 className="ca-section-title">The Platform Advantage</h2>
@@ -422,7 +422,7 @@ export default function SolutionsPage() {
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
           <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             Find Your Solution
           </div>
           <h2 className="ca-final-cta-title">Ready to Solve Your Cost Challenge?</h2>
@@ -432,7 +432,7 @@ export default function SolutionsPage() {
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/contact" className="ca-btn-cta-secondary">
               Talk to Sales

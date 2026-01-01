@@ -261,7 +261,7 @@ class KMSStoreIntegrationProcessor:
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("provider", "STRING", provider),
                     ],
-                    job_timeout_ms=60000  # 60 seconds for integration ops
+                    job_timeout_ms=120000  # 120 seconds for integration ops (increased from 60s)
                 )
             ).result()
         except Exception as e:
@@ -303,7 +303,7 @@ class KMSStoreIntegrationProcessor:
                     bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
                     bigquery.ScalarQueryParameter("expires_at", "TIMESTAMP", expires_at),
                 ],
-                job_timeout_ms=60000  # 60 seconds for integration ops
+                job_timeout_ms=120000  # 120 seconds for integration ops (increased from 60s)
             )
 
             bq_client.client.query(insert_query, job_config=job_config).result()

@@ -36,7 +36,6 @@ import {
   Settings,
   Plug,
   MessageSquare,
-  Rocket,
   X,
 } from "lucide-react"
 import "./premium.css"
@@ -64,7 +63,7 @@ function HomeAnnouncementBanner({
             Introducing AI-Powered Cost Anomaly Detection — Catch overspend before it happens
           </span>
           <Link href="/features#alerts" className="ca-home-announcement-link">
-            Learn more <ArrowRight className="w-3 h-3" />
+            Learn more <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </div>
         <button
@@ -73,7 +72,7 @@ function HomeAnnouncementBanner({
           className="ca-home-announcement-close"
           aria-label="Close announcement"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -154,10 +153,10 @@ function HeroSection() {
           <div className="ca-hero-cta-group">
             <Link href="/signup" className="ca-btn-hero-primary">
               Start Free Trial
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
             <Link href="/demo" className="ca-btn-hero-secondary">
-              <Play className="w-5 h-5" />
+              <Play className="w-5 h-5" aria-hidden="true" />
               Book a Demo
             </Link>
           </div>
@@ -165,12 +164,12 @@ function HeroSection() {
           {/* Trust indicators */}
           <div className="ca-hero-trust-row">
             <div className="ca-hero-trust-item">
-              <Zap className="w-4 h-4 ca-icon-coral" />
+              <Zap className="w-4 h-4 ca-icon-coral" aria-hidden="true" />
               <span>5-min setup</span>
             </div>
             <div className="ca-hero-trust-divider" />
             <div className="ca-hero-trust-item">
-              <TrendingDown className="w-4 h-4 ca-icon-mint" />
+              <TrendingDown className="w-4 h-4 ca-icon-mint" aria-hidden="true" />
               <span>20%+ avg savings</span>
             </div>
           </div>
@@ -233,28 +232,28 @@ function DashboardPreview() {
             <span className="ca-dash-metric-label">Total Spend</span>
             <span className="ca-dash-metric-value">$47.2K</span>
             <span className="ca-dash-metric-change ca-dash-metric-down">
-              <TrendingDown className="w-3 h-3" /> -12%
+              <TrendingDown className="w-3 h-3" aria-hidden="true" /> -12%
             </span>
           </div>
           <div className="ca-dash-metric ca-dash-metric-coral">
             <span className="ca-dash-metric-label">GenAI Costs</span>
             <span className="ca-dash-metric-value">$12.8K</span>
             <span className="ca-dash-metric-change ca-dash-metric-up">
-              <Activity className="w-3 h-3" /> +23%
+              <Activity className="w-3 h-3" aria-hidden="true" /> +23%
             </span>
           </div>
           <div className="ca-dash-metric ca-dash-metric-blue">
             <span className="ca-dash-metric-label">Cloud Infra</span>
             <span className="ca-dash-metric-value">$28.1K</span>
             <span className="ca-dash-metric-change ca-dash-metric-down">
-              <TrendingDown className="w-3 h-3" /> -8%
+              <TrendingDown className="w-3 h-3" aria-hidden="true" /> -8%
             </span>
           </div>
           <div className="ca-dash-metric ca-dash-metric-mint">
             <span className="ca-dash-metric-label">Savings Found</span>
             <span className="ca-dash-metric-value">$8.4K</span>
             <span className="ca-dash-metric-badge">
-              <Sparkles className="w-3 h-3" /> AI
+              <Sparkles className="w-3 h-3" aria-hidden="true" /> AI
             </span>
           </div>
         </div>
@@ -271,7 +270,7 @@ function DashboardPreview() {
           </div>
           <div className="ca-dash-chart-bars">
             {CHART_BAR_DATA.map((bar, i) => (
-              <div key={i} className="ca-chart-bar-stack">
+              <div key={`chart-bar-${i}`} className="ca-chart-bar-stack">
                 <div className="ca-bar ca-bar-purple" style={{ height: `${bar.purple}%` }} />
                 <div className="ca-bar ca-bar-blue" style={{ height: `${bar.blue}%` }} />
                 <div className="ca-bar ca-bar-coral" style={{ height: `${bar.coral}%` }} />
@@ -293,8 +292,8 @@ function TrustedBySection() {
       <div className="ca-credibility-container">
         {/* Stats row */}
         <div className="ca-credibility-stats">
-          {INDUSTRY_BADGES.map((badge, i) => (
-            <div key={i} className="ca-credibility-stat">
+          {INDUSTRY_BADGES.map((badge) => (
+            <div key={badge.label} className="ca-credibility-stat">
               <span className="ca-credibility-value">{badge.label}</span>
               <span className="ca-credibility-label">{badge.sublabel}</span>
             </div>
@@ -304,11 +303,11 @@ function TrustedBySection() {
         {/* Partner badges */}
         <div className="ca-partner-badges">
           <div className="ca-partner-badge">
-            <Award className="w-4 h-4" />
+            <Award className="w-4 h-4" aria-hidden="true" />
             <span>FinOps Certified</span>
           </div>
           <div className="ca-partner-badge">
-            <Cloud className="w-4 h-4" />
+            <Cloud className="w-4 h-4" aria-hidden="true" />
             <span>Multi-Cloud Ready</span>
           </div>
         </div>
@@ -331,10 +330,10 @@ function StatsSection() {
   return (
     <section className="ca-stats-section-premium">
       <div className="ca-stats-container">
-        {stats.map((stat, i) => (
-          <div key={i} className="ca-stat-card">
+        {stats.map((stat) => (
+          <div key={stat.label} className="ca-stat-card">
             <div className="ca-stat-icon-wrap">
-              <stat.icon className="w-6 h-6" />
+              <stat.icon className="w-6 h-6" aria-hidden="true" />
             </div>
             <div className="ca-stat-value">{stat.value}</div>
             <div className="ca-stat-label">{stat.label}</div>
@@ -380,18 +379,18 @@ function CollaborationSection() {
     <section className="ca-collab-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <Users className="w-4 h-4" />
+          <Users className="w-4 h-4" aria-hidden="true" />
           Teams
         </span>
         <h2 className="ca-collab-title">Collaboration that delivers results</h2>
       </div>
       <div className="ca-collab-grid">
-        {personas.map((persona, i) => (
-          <Link key={i} href={persona.link} className={`ca-collab-card ca-collab-${persona.color}`}>
+        {personas.map((persona) => (
+          <Link key={persona.title} href={persona.link} className={`ca-collab-card ca-collab-${persona.color}`}>
             <h3 className="ca-collab-card-title">{persona.title}</h3>
             <p className="ca-collab-card-desc">{persona.description}</p>
             <span className={`ca-collab-link ca-collab-link-${persona.color}`}>
-              Learn more <ArrowRight className="w-4 h-4" />
+              Learn more <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </span>
           </Link>
         ))}
@@ -409,12 +408,12 @@ function RatingSection() {
       <div className="ca-rating-container">
         <div className="ca-rating-content">
           <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" />
+            <Award className="w-4 h-4" aria-hidden="true" />
             Recognition
           </span>
           <div className="ca-rating-stars">
             {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-5 h-5 ca-star-filled" />
+              <Star key={`star-${i}`} className="w-5 h-5 ca-star-filled" aria-hidden="true" />
             ))}
           </div>
           <span className="ca-rating-text">Rated #1 for GenAI Cost Management on G2</span>
@@ -473,7 +472,7 @@ function PlatformPillarsSection() {
     <section className="ca-pillars-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <Blocks className="w-4 h-4" />
+          <Blocks className="w-4 h-4" aria-hidden="true" />
           The Platform
         </span>
         <h2 className="ca-section-title">One platform for all your cost intelligence</h2>
@@ -488,21 +487,21 @@ function PlatformPillarsSection() {
           <div key={pillar.id} className={`ca-pillar-card ca-pillar-${pillar.color}`}>
             <div className="ca-pillar-header">
               <div className={`ca-pillar-icon ca-pillar-icon-${pillar.color}`}>
-                <pillar.icon className="w-5 h-5" />
+                <pillar.icon className="w-5 h-5" aria-hidden="true" />
               </div>
               <h3 className="ca-pillar-title">{pillar.title}</h3>
             </div>
             <p className="ca-pillar-desc">{pillar.description}</p>
             <ul className="ca-pillar-features">
-              {pillar.features.map((feature, i) => (
-                <li key={i}>
-                  <CheckCircle2 className="w-4 h-4" />
+              {pillar.features.map((feature) => (
+                <li key={feature}>
+                  <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
             <Link href={`/features#${pillar.id}`} className={`ca-pillar-link ca-pillar-link-${pillar.color}`}>
-              Learn more <ArrowRight className="w-4 h-4" />
+              Learn more <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
         ))}
@@ -558,7 +557,7 @@ function FeaturesSection() {
     <section className="ca-features-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
           Features
         </span>
         <h2 className="ca-section-title">Everything you need to control costs</h2>
@@ -568,11 +567,11 @@ function FeaturesSection() {
       </div>
 
       <div className="ca-features-grid-premium">
-        {features.map((feature, i) => (
-          <div key={i} className={`ca-feature-card-premium ca-feature-${feature.color}`}>
+        {features.map((feature) => (
+          <div key={feature.title} className={`ca-feature-card-premium ca-feature-${feature.color}`}>
             <div className="ca-feature-header-premium">
               <div className={`ca-feature-icon-premium ca-feature-icon-${feature.color}`}>
-                <feature.icon className="w-5 h-5" />
+                <feature.icon className="w-5 h-5" aria-hidden="true" />
               </div>
               <h3 className="ca-feature-title-premium">{feature.title}</h3>
             </div>
@@ -610,15 +609,15 @@ function HowItWorksSection() {
     <section className="ca-how-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <Settings className="w-4 h-4" />
+          <Settings className="w-4 h-4" aria-hidden="true" />
           How It Works
         </span>
         <h2 className="ca-section-title">Get started in 3 simple steps</h2>
       </div>
 
       <div className="ca-how-steps">
-        {steps.map((step, i) => (
-          <div key={i} className="ca-how-step">
+        {steps.map((step) => (
+          <div key={step.number} className="ca-how-step">
             <div className="ca-how-number">{step.number}</div>
             <h3 className="ca-how-title">{step.title}</h3>
             <p className="ca-how-desc">{step.description}</p>
@@ -637,7 +636,7 @@ function IntegrationsSection() {
     <section className="ca-integrations-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <Plug className="w-4 h-4" />
+          <Plug className="w-4 h-4" aria-hidden="true" />
           Integrations
         </span>
         <h2 className="ca-section-title">Connect your entire stack</h2>
@@ -650,7 +649,7 @@ function IntegrationsSection() {
         {INTEGRATION_CATEGORIES.map((category) => (
           <div key={category.title} className="ca-integration-category">
             <div className="ca-integration-category-header">
-              <category.icon className="w-5 h-5" />
+              <category.icon className="w-5 h-5" aria-hidden="true" />
               <h3>{category.title}</h3>
             </div>
             <div className="ca-integration-logos-row">
@@ -673,7 +672,7 @@ function IntegrationsSection() {
       <div className="ca-integrations-cta">
         <Link href="/integrations" className="ca-btn-outline-dark">
           View all 50+ integrations
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
       </div>
     </section>
@@ -724,7 +723,7 @@ function TestimonialsSection() {
     <section className="ca-testimonials-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <MessageSquare className="w-4 h-4" />
+          <MessageSquare className="w-4 h-4" aria-hidden="true" />
           Customer Stories
         </span>
         <h2 className="ca-section-title">Trusted by FinOps leaders</h2>
@@ -751,13 +750,13 @@ function TestimonialsSection() {
             className="ca-testimonial-nav-btn"
             aria-label="Previous testimonial"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </button>
           <div className="ca-testimonial-dots" role="tablist" aria-label="Testimonials">
             {TESTIMONIALS.map((_, i) => (
               <button
                 type="button"
-                key={i}
+                key={`testimonial-dot-${i}`}
                 onClick={() => setActive(i)}
                 className={`ca-testimonial-dot ${i === active ? "active" : ""}`}
                 role="tab"
@@ -772,7 +771,7 @@ function TestimonialsSection() {
             className="ca-testimonial-nav-btn"
             aria-label="Next testimonial"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -804,7 +803,7 @@ function PricingPreviewSection() {
     <section className="ca-pricing-preview-section">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
-          <DollarSign className="w-4 h-4" />
+          <DollarSign className="w-4 h-4" aria-hidden="true" />
           Pricing
         </span>
         <h2 className="ca-section-title">Simple, transparent pricing</h2>
@@ -816,7 +815,7 @@ function PricingPreviewSection() {
       <div className="ca-pricing-grid-premium">
         {loading ? (
           <div className="ca-pricing-loading" role="status" aria-label="Loading pricing plans">
-            <Loader2 className="w-8 h-8 animate-spin ca-icon-mint" />
+            <Loader2 className="w-8 h-8 animate-spin ca-icon-mint" aria-hidden="true" />
           </div>
         ) : plans.length > 0 ? (
           <>
@@ -831,9 +830,9 @@ function PricingPreviewSection() {
                   </div>
                 </div>
                 <ul className="ca-pricing-features">
-                  {plan.features.map((feature, j) => (
-                    <li key={j}>
-                      <Check className="w-4 h-4 ca-icon-mint" />
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -854,11 +853,11 @@ function PricingPreviewSection() {
                 </div>
               </div>
               <ul className="ca-pricing-features">
-                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Unlimited team members</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Unlimited integrations</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" /><span>SSO & SCIM</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Dedicated success manager</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" /><span>Custom SLAs</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Unlimited team members</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Unlimited integrations</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>SSO & SCIM</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Dedicated success manager</span></li>
+                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Custom SLAs</span></li>
               </ul>
               <Link href="/contact" className="ca-btn-pricing-secondary">
                 Contact sales
@@ -874,7 +873,7 @@ function PricingPreviewSection() {
 
       <div className="ca-pricing-cta-row">
         <Link href="/pricing" className="ca-link-dark">
-          View full pricing details <ArrowRight className="w-4 h-4" />
+          View full pricing details <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
       </div>
     </section>
@@ -889,7 +888,7 @@ function FinalCTASection() {
     <section className="ca-final-cta-section">
       <div className="ca-final-cta-container">
         <div className="ca-final-cta-badge">
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
           {DEFAULT_TRIAL_DAYS}-day free trial • No credit card required
         </div>
         <h2 className="ca-final-cta-title">Ready to take control of your costs?</h2>
@@ -900,11 +899,11 @@ function FinalCTASection() {
         <div className="ca-final-cta-buttons">
           <Link href="/signup" className="ca-btn-cta-primary">
             Start Free Trial
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-5 h-5" aria-hidden="true" />
           </Link>
           <Link href="/contact" className="ca-btn-cta-secondary">
             Talk to Sales
-            <ArrowUpRight className="w-5 h-5" />
+            <ArrowUpRight className="w-5 h-5" aria-hidden="true" />
           </Link>
         </div>
       </div>

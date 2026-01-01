@@ -76,7 +76,7 @@ export default function InvestorsPage() {
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
           <div className="ca-section-eyebrow">
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4" aria-hidden="true" />
             Investor Relations
           </div>
           <h1 className="ca-page-hero-title">
@@ -89,7 +89,7 @@ export default function InvestorsPage() {
           <div className="ca-hero-cta-group">
             <a href="mailto:investors@cloudact.ai?subject=Investment Inquiry" className="ca-btn-hero-primary">
               Contact IR Team
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/about" className="ca-btn-hero-secondary">
               About Us
@@ -103,15 +103,15 @@ export default function InvestorsPage() {
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4" aria-hidden="true" />
               Key Metrics
             </span>
             <h2 className="ca-section-title">Our growth at a glance</h2>
           </div>
 
           <div className="ca-investors-metrics-grid">
-            {KEY_METRICS.map((metric, i) => (
-              <div key={i} className="ca-investors-metric-card">
+            {KEY_METRICS.map((metric) => (
+              <div key={metric.label} className="ca-investors-metric-card">
                 <span className="ca-investors-metric-value">{metric.value}</span>
                 <span className="ca-investors-metric-label">{metric.label}</span>
                 <span className="ca-investors-metric-desc">{metric.description}</span>
@@ -126,7 +126,7 @@ export default function InvestorsPage() {
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
             <span className="ca-section-eyebrow">
-              <Target className="w-4 h-4" />
+              <Target className="w-4 h-4" aria-hidden="true" />
               Market Opportunity
             </span>
             <h2 className="ca-section-title">A massive and growing market</h2>
@@ -136,12 +136,12 @@ export default function InvestorsPage() {
           </div>
 
           <div className="ca-investors-market-grid">
-            {MARKET_HIGHLIGHTS.map((item, i) => {
+            {MARKET_HIGHLIGHTS.map((item) => {
               const Icon = item.icon
               return (
-                <div key={i} className="ca-investors-market-card">
+                <div key={item.title} className="ca-investors-market-card">
                   <div className="ca-investors-market-icon">
-                    <Icon className="w-8 h-8" />
+                    <Icon className="w-8 h-8" aria-hidden="true" />
                   </div>
                   <h3 className="ca-investors-market-title">{item.title}</h3>
                   <p className="ca-investors-market-desc">{item.description}</p>
@@ -177,14 +177,14 @@ export default function InvestorsPage() {
             <div className="ca-investors-overview-cta">
               <h3>Investor Resources</h3>
               <a href="mailto:investors@cloudact.ai?subject=Investor Deck Request" className="ca-investors-resource-link">
-                <FileText className="w-5 h-5" />
+                <FileText className="w-5 h-5" aria-hidden="true" />
                 Request Investor Deck
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
               <a href="mailto:investors@cloudact.ai?subject=Financial Information Request" className="ca-investors-resource-link">
-                <BarChart3 className="w-5 h-5" />
+                <BarChart3 className="w-5 h-5" aria-hidden="true" />
                 Financial Information
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
             </div>
           </div>
@@ -200,7 +200,7 @@ export default function InvestorsPage() {
               For investor inquiries, please contact our investor relations team.
             </p>
             <a href="mailto:investors@cloudact.ai" className="ca-investors-contact-email">
-              <Mail className="w-5 h-5" />
+              <Mail className="w-5 h-5" aria-hidden="true" />
               investors@cloudact.ai
             </a>
             <p className="ca-investors-contact-address">
@@ -223,7 +223,7 @@ export default function InvestorsPage() {
           <div className="ca-final-cta-buttons">
             <a href="mailto:investors@cloudact.ai?subject=Investment Inquiry" className="ca-btn-cta-primary">
               Contact IR Team
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
             <Link href="/about" className="ca-btn-cta-secondary">
               About Us

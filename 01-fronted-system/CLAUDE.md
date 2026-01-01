@@ -519,12 +519,19 @@ className="rounded-lg sm:rounded-xl"   // Buttons
 ### Sidebar Navigation
 
 **Two-zone layout with accordion behavior:**
-- Main Content: Dashboards, Pipelines (scrollable)
-- Footer: User Profile → Integrations → Settings → Get Help → Sign Out
+- **Main Content (scrollable):**
+  - Account Summary (Dashboard)
+  - Cost Analytics (Overview, GenAI, Cloud, Subscription)
+  - Pipelines (Subscription Runs, Cloud Runs, GenAI Runs)
+  - Integrations (Cloud Providers, GenAI Providers, Subscriptions)
+  - Org Settings (Organization, Hierarchy, Usage & Quotas, Team Members, Billing)
+- **Footer:** User Profile (clickable → /settings/personal) → Get Help → Sign Out
 
 **Accordion:** Only ONE section open at a time. Auto-expands based on route.
 
-**Coral highlights:** `hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E]` for menu items.
+**User Profile:** Clicking the user avatar in footer navigates to `/settings/personal` (Profile page).
+
+**Coral highlights (mobile):** `hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E]` for menu items.
 
 **Key Components:**
 - `components/dashboard-sidebar.tsx` - Desktop sidebar
