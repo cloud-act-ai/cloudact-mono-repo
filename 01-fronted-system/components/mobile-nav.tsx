@@ -43,12 +43,17 @@ import {
   ChevronRight,
   Network,
   TrendingUp,
+  Bell,
+  AlertTriangle,
+  Calendar,
+  History,
+  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "cost-analytics" | "pipelines" | "integrations" | "settings" | null
+type SectionId = "cost-analytics" | "pipelines" | "integrations" | "notifications" | "settings" | null
 
 interface MobileNavProps {
   isOpen: boolean
@@ -128,6 +133,8 @@ export function MobileNav({
       setActiveSection("pipelines")
     } else if (pathname.includes("/integrations")) {
       setActiveSection("integrations")
+    } else if (pathname.includes("/notifications")) {
+      setActiveSection("notifications")
     } else if (pathname.includes("/settings") || pathname.includes("/billing")) {
       setActiveSection("settings")
     }
@@ -392,6 +399,47 @@ export function MobileNav({
                 icon={CreditCard}
                 label="Subscriptions"
                 isItemActive={isActive(`/${orgSlug}/integrations/subscriptions`)}
+              />
+            </div>
+          )}
+
+          {/* Notifications */}
+          <SectionHeader
+            title="Notifications"
+            section="notifications"
+            isExpanded={activeSection === "notifications"}
+          />
+          {activeSection === "notifications" && (
+            <div className="px-2 pb-2 space-y-0.5">
+              <NavItem
+                href={`/${orgSlug}/notifications`}
+                icon={Bell}
+                label="Overview"
+                isItemActive={isActive(`/${orgSlug}/notifications`, true)}
+              />
+              <NavItem
+                href={`/${orgSlug}/notifications?tab=channels`}
+                icon={Settings}
+                label="Channels"
+                isItemActive={false}
+              />
+              <NavItem
+                href={`/${orgSlug}/notifications?tab=alerts`}
+                icon={AlertTriangle}
+                label="Alert Rules"
+                isItemActive={false}
+              />
+              <NavItem
+                href={`/${orgSlug}/notifications?tab=summaries`}
+                icon={Calendar}
+                label="Summaries"
+                isItemActive={false}
+              />
+              <NavItem
+                href={`/${orgSlug}/notifications?tab=history`}
+                icon={History}
+                label="History"
+                isItemActive={false}
               />
             </div>
           )}

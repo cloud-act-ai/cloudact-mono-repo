@@ -1,0 +1,110 @@
+[
+  {
+    "name": "summary_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the summary configuration (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug identifier"
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "User-friendly summary name (e.g., 'Daily Cost Summary')"
+  },
+  {
+    "name": "summary_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Summary type: daily, weekly, monthly"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether the summary is active"
+  },
+  {
+    "name": "schedule_cron",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cron expression for schedule (e.g., '0 8 * * *' for 8 AM daily)"
+  },
+  {
+    "name": "schedule_timezone",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Timezone for schedule (e.g., 'America/New_York')"
+  },
+  {
+    "name": "notify_channel_ids",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Channel IDs to send summary to"
+  },
+  {
+    "name": "include_sections",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Sections to include: total_cost, wow_comparison, mom_comparison, top_providers, top_services, by_department, budget_status, forecast, anomalies"
+  },
+  {
+    "name": "top_n_items",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Number of top items to show (e.g., top 5 services)"
+  },
+  {
+    "name": "currency_display",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Currency override for display (null = org default)"
+  },
+  {
+    "name": "provider_filter",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Filter by specific providers (null = all)"
+  },
+  {
+    "name": "hierarchy_filter",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON filter for hierarchy (dept/project/team)"
+  },
+  {
+    "name": "last_sent_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Last time summary was sent"
+  },
+  {
+    "name": "next_scheduled_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Next scheduled send time"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when summary was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who created the summary"
+  }
+]

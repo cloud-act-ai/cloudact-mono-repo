@@ -303,6 +303,10 @@ tags_metadata = [
     {
         "name": "Pipeline Proxy",
         "description": "Centralized pipeline trigger endpoints. Frontend calls these endpoints instead of pipeline service directly. Handles status checks and proxies triggers to pipeline-service (8001)."
+    },
+    {
+        "name": "Notifications",
+        "description": "Notification management endpoints. Configure notification channels (email, Slack, webhook), alert rules (cost thresholds, anomaly detection), scheduled summaries (daily/weekly digests), and view notification history."
     }
 ]
 
@@ -904,7 +908,7 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota, costs, pipelines_proxy, hierarchy, genai
+from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota, costs, pipelines_proxy, hierarchy, genai, notifications
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
@@ -918,6 +922,7 @@ app.include_router(costs.router, prefix="/api/v1", tags=["Costs"])
 app.include_router(pipelines_proxy.router, prefix="/api/v1", tags=["Pipeline Proxy"])
 app.include_router(hierarchy.router, prefix="/api/v1/hierarchy", tags=["Hierarchy"])
 app.include_router(genai.router, prefix="/api/v1", tags=["GenAI"])
+app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"])
 
 
 if __name__ == "__main__":

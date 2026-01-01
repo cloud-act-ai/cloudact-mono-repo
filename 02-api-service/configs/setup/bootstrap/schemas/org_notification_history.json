@@ -1,0 +1,128 @@
+[
+  {
+    "name": "notification_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the notification (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug identifier"
+  },
+  {
+    "name": "rule_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Rule ID that triggered this notification (null for summaries)"
+  },
+  {
+    "name": "summary_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Summary ID that triggered this notification (null for alerts)"
+  },
+  {
+    "name": "channel_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Channel ID used for delivery"
+  },
+  {
+    "name": "notification_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type: alert, summary, system"
+  },
+  {
+    "name": "priority",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Priority level: critical, high, medium, low, info"
+  },
+  {
+    "name": "subject",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Notification subject/title"
+  },
+  {
+    "name": "body_preview",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "First 500 characters of notification body"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Delivery status: queued, sent, delivered, failed, skipped"
+  },
+  {
+    "name": "sent_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When notification was sent"
+  },
+  {
+    "name": "delivered_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When notification was confirmed delivered"
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message if delivery failed"
+  },
+  {
+    "name": "retry_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Number of delivery retries attempted"
+  },
+  {
+    "name": "trigger_data",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON snapshot of data that triggered the notification"
+  },
+  {
+    "name": "recipients",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "List of recipients (emails, slack channels, etc.)"
+  },
+  {
+    "name": "acknowledged_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When notification was acknowledged"
+  },
+  {
+    "name": "acknowledged_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who acknowledged the notification"
+  },
+  {
+    "name": "escalated",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether notification was escalated"
+  },
+  {
+    "name": "escalated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When notification was escalated"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when notification was created"
+  }
+]

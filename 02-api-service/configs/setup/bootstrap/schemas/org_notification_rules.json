@@ -1,0 +1,176 @@
+[
+  {
+    "name": "rule_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the rule (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug identifier"
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "User-friendly rule name"
+  },
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Rule description"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether the rule is active"
+  },
+  {
+    "name": "priority",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Priority level: critical, high, medium, low, info"
+  },
+  {
+    "name": "rule_category",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Category: cost, pipeline, integration, subscription, system"
+  },
+  {
+    "name": "rule_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Rule type: budget_percent, budget_forecast, absolute_threshold, anomaly_percent_change, anomaly_std_deviation, hierarchy_budget, pipeline_failure, data_freshness, integration_health, subscription_renewal, license_utilization"
+  },
+  {
+    "name": "conditions",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "JSON object with rule conditions (threshold values, comparison types, etc.)"
+  },
+  {
+    "name": "provider_filter",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Filter by specific providers (null = all)"
+  },
+  {
+    "name": "service_filter",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Filter by specific services (null = all)"
+  },
+  {
+    "name": "hierarchy_dept_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Filter by department ID"
+  },
+  {
+    "name": "hierarchy_project_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Filter by project ID"
+  },
+  {
+    "name": "hierarchy_team_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Filter by team ID"
+  },
+  {
+    "name": "notify_channel_ids",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Channel IDs to notify when rule triggers"
+  },
+  {
+    "name": "escalate_after_mins",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Minutes after which to escalate if not acknowledged"
+  },
+  {
+    "name": "escalate_to_channel_ids",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Channel IDs for escalation"
+  },
+  {
+    "name": "cooldown_minutes",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Cooldown period between notifications (prevent spam)"
+  },
+  {
+    "name": "batch_window_minutes",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Window to batch alerts (null = immediate)"
+  },
+  {
+    "name": "quiet_hours_start",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Quiet hours start time (e.g., '22:00')"
+  },
+  {
+    "name": "quiet_hours_end",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Quiet hours end time (e.g., '08:00')"
+  },
+  {
+    "name": "quiet_hours_timezone",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Timezone for quiet hours"
+  },
+  {
+    "name": "last_triggered_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Last time the rule was triggered"
+  },
+  {
+    "name": "trigger_count_today",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Number of times triggered today"
+  },
+  {
+    "name": "acknowledged_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When alert was acknowledged"
+  },
+  {
+    "name": "acknowledged_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who acknowledged the alert"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when rule was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who created the rule"
+  }
+]
