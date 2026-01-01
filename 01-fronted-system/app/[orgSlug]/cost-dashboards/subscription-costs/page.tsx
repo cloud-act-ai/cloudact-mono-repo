@@ -14,6 +14,7 @@ import {
   CostScoreRing,
   CostInsightsCard,
   CostPeriodSelector,
+  CostPeriodMetricsGrid,
   getDefaultDateRange,
   getDefaultFilters,
   dateRangeToApiParams,
@@ -24,12 +25,14 @@ import {
   type HierarchyEntity,
   type ScoreRingSegment,
   type PeriodType,
+  type PeriodCostData,
 } from "@/components/costs"
 import {
   getSaaSSubscriptionCosts,
   type SaaSCostSummary,
   type SaaSCostFilterParams,
 } from "@/actions/subscription-providers"
+import { getExtendedPeriodCosts, type PeriodCostsData, type CostFilterParams } from "@/actions/costs"
 import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
@@ -47,6 +50,7 @@ export default function SubscriptionCostsPage() {
 
   const [summary, setSummary] = useState<SaaSCostSummary | null>(null)
   const [categories, setCategories] = useState<CategoryData[]>([])
+  const [periodCosts, setPeriodCosts] = useState<PeriodCostsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -96,7 +100,26 @@ export default function SubscriptionCostsPage() {
         providers: filters.providers.length > 0 ? filters.providers : undefined,
         categories: filters.categories.length > 0 ? filters.categories : undefined,
       }
-      const costsResult = await getSaaSSubscriptionCosts(orgSlug, startDate, endDate, apiFilters)
+
+      // Convert to CostFilterParams for extended period costs
+      const costApiFilters: CostFilterParams = {
+        departmentId: filters.department,
+        projectId: filters.project,
+        teamId: filters.team,
+        providers: filters.providers.length > 0 ? filters.providers : undefined,
+        categories: filters.categories.length > 0 ? filters.categories : undefined,
+      }
+
+      // Fetch costs and period costs in parallel
+      const [costsResult, periodCostsResult] = await Promise.all([
+        getSaaSSubscriptionCosts(orgSlug, startDate, endDate, apiFilters),
+        getExtendedPeriodCosts(orgSlug, "total", costApiFilters), // Use total to get SaaS costs
+      ])
+
+      // Set period costs data
+      if (periodCostsResult.success && periodCostsResult.data) {
+        setPeriodCosts(periodCostsResult.data)
+      }
 
       if (costsResult.success && costsResult.summary) {
         setSummary(costsResult.summary)
@@ -267,6 +290,27 @@ export default function SubscriptionCostsPage() {
     >
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Extended Period Metrics */}
+      {periodCosts && (
+        <CostPeriodMetricsGrid
+          data={{
+            yesterday: periodCosts.yesterday,
+            wtd: periodCosts.wtd,
+            lastWeek: periodCosts.lastWeek,
+            mtd: periodCosts.mtd,
+            previousMonth: periodCosts.previousMonth,
+            last2Months: periodCosts.last2Months,
+            ytd: periodCosts.ytd,
+            fytd: periodCosts.fytd,
+            fyForecast: periodCosts.fyForecast,
+          }}
+          currency={orgCurrency}
+          loading={isLoading}
+          variant="full"
+          compact
+        />
+      )}
 
       {/* Apple Health Style - Score Ring and Insights Row */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">

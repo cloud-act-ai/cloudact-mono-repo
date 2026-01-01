@@ -126,7 +126,7 @@ class AzureCostExtractor:
         end_date: str,
         granularity: str
     ) -> List[Dict[str, Any]]:
-        """Query Azure Cost Management API."""
+        """Query Azure Cost Management API and map to schema columns."""
         subscription_id = client_config["subscription_id"]
         api_version = client_config["api_version"]
 
@@ -135,7 +135,7 @@ class AzureCostExtractor:
             f"/providers/Microsoft.CostManagement/query"
         )
 
-        # Cost Management Query payload
+        # Cost Management Query payload - request all needed dimensions
         query_body = {
             "type": "Usage",
             "timeframe": "Custom",
@@ -147,14 +147,24 @@ class AzureCostExtractor:
                 "granularity": granularity,
                 "aggregation": {
                     "totalCost": {"name": "Cost", "function": "Sum"},
-                    "totalCostUSD": {"name": "CostUSD", "function": "Sum"}
+                    "totalCostUSD": {"name": "CostUSD", "function": "Sum"},
+                    "UsageQuantity": {"name": "UsageQuantity", "function": "Sum"}
                 },
                 "grouping": [
                     {"type": "Dimension", "name": "ServiceName"},
                     {"type": "Dimension", "name": "ResourceGroup"},
                     {"type": "Dimension", "name": "ResourceLocation"},
                     {"type": "Dimension", "name": "MeterCategory"},
-                    {"type": "Dimension", "name": "MeterSubCategory"}
+                    {"type": "Dimension", "name": "MeterSubCategory"},
+                    {"type": "Dimension", "name": "MeterName"},
+                    {"type": "Dimension", "name": "Meter"},
+                    {"type": "Dimension", "name": "ResourceId"},
+                    {"type": "Dimension", "name": "ResourceType"},
+                    {"type": "Dimension", "name": "ChargeType"},
+                    {"type": "Dimension", "name": "PricingModel"},
+                    {"type": "Dimension", "name": "BillingCurrency"},
+                    {"type": "Dimension", "name": "ServiceTier"},
+                    {"type": "Dimension", "name": "ServiceFamily"}
                 ]
             }
         }
@@ -170,20 +180,88 @@ class AzureCostExtractor:
             response.raise_for_status()
             data = response.json()
 
-        # Transform response to rows
-        rows = []
+        # Get column names from response
         columns = [col["name"] for col in data.get("properties", {}).get("columns", [])]
+        ingestion_ts = datetime.utcnow().isoformat()
 
+        # Transform response to rows with proper schema mapping
+        rows = []
         for row_data in data.get("properties", {}).get("rows", []):
-            row = dict(zip(columns, row_data))
-            # Add metadata
-            row["usage_date"] = start_date
-            row["org_slug"] = self.org_slug
-            row["provider"] = "azure"
-            row["subscription_id"] = subscription_id
+            api_row = dict(zip(columns, row_data))
+
+            # Map Azure API columns to schema columns (snake_case)
+            row = {
+                # Required fields
+                "usage_date": start_date,
+                "org_slug": self.org_slug,
+                "provider": "azure",
+                "subscription_id": subscription_id,
+                "cost_in_billing_currency": float(api_row.get("Cost", 0) or 0),
+                "ingestion_timestamp": ingestion_ts,
+
+                # Map Azure API response to schema fields
+                "subscription_name": None,  # Not available in query API
+                "resource_group": api_row.get("ResourceGroup"),
+                "resource_id": api_row.get("ResourceId"),
+                "resource_name": self._extract_resource_name(api_row.get("ResourceId")),
+                "resource_type": api_row.get("ResourceType"),
+                "resource_location": api_row.get("ResourceLocation"),
+                "service_name": api_row.get("ServiceName"),
+                "service_tier": api_row.get("ServiceTier"),
+                "service_family": api_row.get("ServiceFamily"),
+                "meter_id": api_row.get("Meter"),
+                "meter_name": api_row.get("MeterName"),
+                "meter_category": api_row.get("MeterCategory"),
+                "meter_subcategory": api_row.get("MeterSubCategory"),
+                "meter_region": api_row.get("ResourceLocation"),
+                "charge_type": api_row.get("ChargeType", "Usage"),
+                "usage_quantity": float(api_row.get("UsageQuantity", 0) or 0),
+                "unit_of_measure": "Units",  # Default, API doesn't always provide
+                "cost_in_usd": float(api_row.get("CostUSD", 0) or 0),
+                "billing_currency": api_row.get("BillingCurrency", "USD"),
+                "pricing_model": api_row.get("PricingModel", "OnDemand"),
+
+                # Optional fields - set to None if not available
+                "product_name": api_row.get("ServiceName"),
+                "product_order_id": None,
+                "product_order_name": None,
+                "consumed_service": api_row.get("ServiceName"),
+                "billing_period_start": None,
+                "billing_period_end": None,
+                "usage_start_time": None,
+                "usage_end_time": None,
+                "exchange_rate": None,
+                "effective_price": None,
+                "unit_price": None,
+                "reservation_id": None,
+                "reservation_name": None,
+                "frequency": None,
+                "publisher_type": "Azure",
+                "publisher_name": None,
+                "invoice_id": None,
+                "invoice_section_id": None,
+                "invoice_section_name": None,
+                "billing_account_id": None,
+                "billing_account_name": None,
+                "billing_profile_id": None,
+                "billing_profile_name": None,
+                "cost_center": None,
+                "benefit_id": None,
+                "benefit_name": None,
+                "is_azure_credit_eligible": None,
+                "resource_tags_json": None,
+            }
             rows.append(row)
 
         return rows
+
+    def _extract_resource_name(self, resource_id: str) -> str:
+        """Extract resource name from Azure resource ID."""
+        if not resource_id:
+            return None
+        # Azure resource IDs: /subscriptions/.../resourceGroups/.../providers/.../resourceName
+        parts = resource_id.split("/")
+        return parts[-1] if parts else None
 
 
 async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:

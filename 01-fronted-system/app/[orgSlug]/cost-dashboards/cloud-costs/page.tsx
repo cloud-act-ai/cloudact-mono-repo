@@ -14,6 +14,7 @@ import {
   CostScoreRing,
   CostInsightsCard,
   CostPeriodSelector,
+  CostPeriodMetricsGrid,
   getDefaultDateRange,
   getDefaultFilters,
   dateRangeToApiParams,
@@ -24,8 +25,9 @@ import {
   type HierarchyEntity,
   type ScoreRingSegment,
   type PeriodType,
+  type PeriodCostData,
 } from "@/components/costs"
-import { getCloudCosts, getCostByProvider, type CostSummary, type ProviderBreakdown, type CostFilterParams } from "@/actions/costs"
+import { getCloudCosts, getCostByProvider, getExtendedPeriodCosts, type CostSummary, type ProviderBreakdown, type CostFilterParams, type PeriodCostsData } from "@/actions/costs"
 import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
@@ -44,6 +46,7 @@ export default function CloudCostsPage() {
 
   const [summary, setSummary] = useState<CostSummary | null>(null)
   const [providers, setProviders] = useState<ProviderBreakdown[]>([])
+  const [periodCosts, setPeriodCosts] = useState<PeriodCostsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -83,11 +86,17 @@ export default function CloudCostsPage() {
         ? Promise.resolve(null)
         : getHierarchy(orgSlug)
 
-      const [costsResult, providersResult, hierarchyResult] = await Promise.all([
+      const [costsResult, providersResult, hierarchyResult, periodCostsResult] = await Promise.all([
         getCloudCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
         hierarchyPromise,
+        getExtendedPeriodCosts(orgSlug, "cloud", apiFilters),
       ])
+
+      // Set period costs data
+      if (periodCostsResult.success && periodCostsResult.data) {
+        setPeriodCosts(periodCostsResult.data)
+      }
 
       // Process hierarchy data if loaded
       if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
@@ -295,6 +304,27 @@ export default function CloudCostsPage() {
     >
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Extended Period Metrics */}
+      {periodCosts && (
+        <CostPeriodMetricsGrid
+          data={{
+            yesterday: periodCosts.yesterday,
+            wtd: periodCosts.wtd,
+            lastWeek: periodCosts.lastWeek,
+            mtd: periodCosts.mtd,
+            previousMonth: periodCosts.previousMonth,
+            last2Months: periodCosts.last2Months,
+            ytd: periodCosts.ytd,
+            fytd: periodCosts.fytd,
+            fyForecast: periodCosts.fyForecast,
+          }}
+          currency={orgCurrency}
+          loading={isLoading}
+          variant="full"
+          compact
+        />
+      )}
 
       {/* Apple Health Style - Score Ring and Insights Row */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">

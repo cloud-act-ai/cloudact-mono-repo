@@ -145,24 +145,61 @@ class OCICostExtractor:
                 request_summarized_usages_details
             )
 
-            # Transform to rows
+            # Transform to rows with full schema mapping
             rows = []
+            ingestion_ts = datetime.utcnow().isoformat()
+
             for item in response.data.items:
                 row = {
+                    # Required fields
                     "usage_date": start_time[:10],
                     "org_slug": self.org_slug,
                     "provider": "oci",
                     "tenancy_id": self._auth.tenancy_ocid,
-                    "service_name": item.service,
-                    "compartment_name": item.compartment_name,
-                    "region": item.region,
-                    "resource_id": item.resource_id,
                     "cost": float(item.computed_amount) if item.computed_amount else 0.0,
-                    "computed_quantity": float(item.computed_quantity) if item.computed_quantity else 0.0,
-                    "usage_quantity": float(item.computed_quantity) if item.computed_quantity else 0.0,
-                    "currency": item.currency,
+                    "ingestion_timestamp": ingestion_ts,
+
+                    # Tenancy/Compartment info
+                    "tenancy_name": getattr(item, 'tenant_name', None),
+                    "compartment_id": getattr(item, 'compartment_id', None),
+                    "compartment_name": item.compartment_name,
+                    "compartment_path": getattr(item, 'compartment_path', None),
+
+                    # Location
+                    "region": item.region,
+                    "availability_domain": getattr(item, 'availability_domain', None),
+
+                    # Service/SKU info
+                    "service_name": item.service,
+                    "sku_name": getattr(item, 'sku_name', None),
+                    "sku_part_number": getattr(item, 'sku_part_number', None),
+
+                    # Resource info
+                    "resource_id": item.resource_id,
+                    "resource_name": getattr(item, 'resource_name', None),
+
+                    # Usage details
+                    "usage_type": getattr(item, 'usage_type', None),
                     "unit": item.unit,
-                    "unit_price": float(item.unit_price) if item.unit_price else 0.0
+                    "usage_start_time": getattr(item, 'time_usage_started', None),
+                    "usage_end_time": getattr(item, 'time_usage_ended', None),
+                    "usage_quantity": float(item.computed_quantity) if item.computed_quantity else 0.0,
+                    "computed_quantity": float(item.computed_quantity) if item.computed_quantity else 0.0,
+                    "unit_price": float(item.unit_price) if item.unit_price else 0.0,
+                    "currency": item.currency or "USD",
+
+                    # Overage/Correction flags
+                    "overage_flag": getattr(item, 'is_forecast', 'N'),  # Map forecast to overage
+                    "is_correction": getattr(item, 'is_correction', False),
+
+                    # Subscription/Platform
+                    "subscription_id": getattr(item, 'subscription_id', None),
+                    "platform_type": getattr(item, 'platform_type', None),
+                    "billing_period": getattr(item, 'time_usage_started', start_time)[:7] if hasattr(item, 'time_usage_started') else start_time[:7],
+
+                    # Tags (as JSON strings)
+                    "freeform_tags_json": self._tags_to_json(getattr(item, 'freeform_tags', None)),
+                    "defined_tags_json": self._tags_to_json(getattr(item, 'defined_tags', None)),
                 }
                 rows.append(row)
 
@@ -171,6 +208,15 @@ class OCICostExtractor:
         except ImportError:
             logger.warning("OCI SDK not installed, using REST API fallback")
             return await self._query_costs_rest(start_time, end_time, granularity)
+
+    def _tags_to_json(self, tags) -> str:
+        """Convert OCI tags dict to JSON string."""
+        import json
+        if tags is None:
+            return None
+        if isinstance(tags, dict):
+            return json.dumps(tags) if tags else None
+        return None
 
     async def _query_costs_rest(
         self,

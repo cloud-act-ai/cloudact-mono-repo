@@ -58,6 +58,7 @@ export default function CostOverviewPage() {
   const [saasSummary, setSaasSummary] = useState<SaaSCostSummary | null>(null)
   const [providers, setProviders] = useState<ProviderBreakdown[]>([])
   const [categories, setCategories] = useState<BreakdownItem[]>([])
+  const [periodCosts, setPeriodCosts] = useState<PeriodCostsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -102,13 +103,19 @@ export default function CostOverviewPage() {
         ? Promise.resolve(null)
         : getHierarchy(orgSlug)
 
-      // Pass filters to backend API - load ALL data in parallel
-      const [costsResult, providersResult, saasResult, hierarchyResult] = await Promise.all([
+      // Pass filters to backend API - load ALL data in parallel including extended period costs
+      const [costsResult, providersResult, saasResult, hierarchyResult, periodCostsResult] = await Promise.all([
         getTotalCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
         getSaaSSubscriptionCosts(orgSlug, startDate, endDate, saasFilters),
         hierarchyPromise,
+        getExtendedPeriodCosts(orgSlug, "total", apiFilters),
       ])
+
+      // Set period costs data
+      if (periodCostsResult.success && periodCostsResult.data) {
+        setPeriodCosts(periodCostsResult.data)
+      }
 
       // Process hierarchy data if loaded
       if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
@@ -441,6 +448,27 @@ export default function CostOverviewPage() {
     >
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
+
+      {/* Extended Period Metrics */}
+      {periodCosts && (
+        <CostPeriodMetricsGrid
+          data={{
+            yesterday: periodCosts.yesterday,
+            wtd: periodCosts.wtd,
+            lastWeek: periodCosts.lastWeek,
+            mtd: periodCosts.mtd,
+            previousMonth: periodCosts.previousMonth,
+            last2Months: periodCosts.last2Months,
+            ytd: periodCosts.ytd,
+            fytd: periodCosts.fytd,
+            fyForecast: periodCosts.fyForecast,
+          }}
+          currency={orgCurrency}
+          loading={isLoading}
+          variant="full"
+          compact
+        />
+      )}
 
       {/* Apple Health Style - Score Ring and Insights Row */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">

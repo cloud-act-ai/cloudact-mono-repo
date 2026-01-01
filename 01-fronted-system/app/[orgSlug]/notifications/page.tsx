@@ -1291,7 +1291,7 @@ function CreateSummaryDialog({
 
           <div className="space-y-2">
             <Label>Notification Channels</Label>
-            <div className="space-y-2">
+            <div className={`space-y-2 ${errors.channels ? "border border-red-500 rounded-lg p-2" : ""}`}>
               {channels.filter((c) => c.is_active).map((channel) => (
                 <label key={channel.channel_id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
                   <input
@@ -1300,6 +1300,7 @@ function CreateSummaryDialog({
                     onChange={(e) => {
                       if (e.target.checked) {
                         setSelectedChannels([...selectedChannels, channel.channel_id])
+                        setErrors((prev) => ({ ...prev, channels: "" }))
                       } else {
                         setSelectedChannels(selectedChannels.filter((id) => id !== channel.channel_id))
                       }
@@ -1311,6 +1312,7 @@ function CreateSummaryDialog({
                 </label>
               ))}
             </div>
+            {errors.channels && <p className="text-[11px] text-red-500">{errors.channels}</p>}
           </div>
         </div>
 
@@ -1320,7 +1322,7 @@ function CreateSummaryDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={loading || !name || selectedChannels.length === 0}
+            disabled={loading}
             className="bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)]"
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
