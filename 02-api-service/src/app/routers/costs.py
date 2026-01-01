@@ -878,12 +878,22 @@ async def get_total_costs(
                 )
 
     # Extract summaries (default to zeros if failed)
+    # Include both actual billed costs AND projections for flexibility
     def safe_summary(result) -> Dict[str, Any]:
         if result.success and result.summary:
+            # Get actual billed cost (may be under different keys depending on service)
+            total_billed = (
+                result.summary.get("total_billed_cost") or
+                result.summary.get("total_cost") or
+                result.summary.get("mtd_cost") or
+                0
+            )
             return {
-                "total_daily_cost": result.summary.get("total_daily_cost", 0),
-                "total_monthly_cost": result.summary.get("total_monthly_cost", 0),
-                "total_annual_cost": result.summary.get("total_annual_cost", 0),
+                "total_daily_cost": result.summary.get("total_daily_cost", result.summary.get("daily_rate", 0)),
+                "total_monthly_cost": result.summary.get("total_monthly_cost", result.summary.get("monthly_forecast", 0)),
+                "total_annual_cost": result.summary.get("total_annual_cost", result.summary.get("annual_forecast", 0)),
+                "total_billed_cost": round(total_billed, 2),  # Actual sum of BilledCost
+                "mtd_cost": result.summary.get("mtd_cost", 0),  # Month-to-date actual
                 "record_count": result.summary.get("record_count", 0),
                 "providers": result.summary.get("providers", []),
             }
@@ -891,6 +901,8 @@ async def get_total_costs(
             "total_daily_cost": 0,
             "total_monthly_cost": 0,
             "total_annual_cost": 0,
+            "total_billed_cost": 0,
+            "mtd_cost": 0,
             "record_count": 0,
             "providers": [],
         }
@@ -899,10 +911,11 @@ async def get_total_costs(
     cloud_summary = safe_summary(cloud_result)
     llm_summary = safe_summary(llm_result)
 
-    # Calculate totals
+    # Calculate totals (both projections and actual billed)
     total_daily = saas_summary["total_daily_cost"] + cloud_summary["total_daily_cost"] + llm_summary["total_daily_cost"]
     total_monthly = saas_summary["total_monthly_cost"] + cloud_summary["total_monthly_cost"] + llm_summary["total_monthly_cost"]
     total_annual = saas_summary["total_annual_cost"] + cloud_summary["total_annual_cost"] + llm_summary["total_annual_cost"]
+    total_billed = saas_summary["total_billed_cost"] + cloud_summary["total_billed_cost"] + llm_summary["total_billed_cost"]
 
     query_time = (time.time() - start_time) * 1000
 
@@ -924,6 +937,7 @@ async def get_total_costs(
             "total_daily_cost": round(total_daily, 2),
             "total_monthly_cost": round(total_monthly, 2),
             "total_annual_cost": round(total_annual, 2),
+            "total_billed_cost": round(total_billed, 2),  # Actual sum for the period
         },
         date_range=date_range,
         query_time_ms=round(query_time, 2),

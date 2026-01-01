@@ -101,6 +101,8 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
+    total_billed_cost?: number  // Actual billed cost for the period
+    mtd_cost?: number           // Month-to-date actual cost
     record_count: number
     providers: string[]
   }
@@ -108,6 +110,8 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
+    total_billed_cost?: number  // Actual billed cost for the period
+    mtd_cost?: number           // Month-to-date actual cost
     record_count: number
     providers: string[]
   }
@@ -115,6 +119,8 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
+    total_billed_cost?: number  // Actual billed cost for the period
+    mtd_cost?: number           // Month-to-date actual cost
     record_count: number
     providers: string[]
   }
@@ -122,6 +128,7 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
+    total_billed_cost?: number  // Total actual billed cost for the period
   }
   date_range: {
     start: string
@@ -1139,21 +1146,31 @@ export async function getExtendedPeriodCosts(
     ])
 
     // Extract total costs based on cost type
+    // Priority: total_billed_cost (actual) > mtd_cost > total_monthly_cost (projection)
     const extractCost = (result: { success: boolean; data: TotalCostSummary | null }): number => {
       if (!result.success || !result.data) return 0
 
+      // Helper to get best available cost value from a category
+      const getCategoryCost = (cat: { total_billed_cost?: number; mtd_cost?: number; total_monthly_cost?: number } | undefined): number => {
+        if (!cat) return 0
+        // Prefer actual billed cost, then mtd_cost, then monthly projection
+        return cat.total_billed_cost ?? cat.mtd_cost ?? cat.total_monthly_cost ?? 0
+      }
+
       switch (costType) {
         case "cloud":
-          return result.data.cloud?.total_monthly_cost ?? 0
+          return getCategoryCost(result.data.cloud)
         case "llm":
-          return result.data.llm?.total_monthly_cost ?? 0
+          return getCategoryCost(result.data.llm)
         case "total":
         default:
           // Sum all cost types for total
-          const saas = result.data.saas?.total_monthly_cost ?? 0
-          const cloud = result.data.cloud?.total_monthly_cost ?? 0
-          const llm = result.data.llm?.total_monthly_cost ?? 0
-          return saas + cloud + llm || (result.data.total?.total_monthly_cost ?? 0)
+          const saas = getCategoryCost(result.data.saas)
+          const cloud = getCategoryCost(result.data.cloud)
+          const llm = getCategoryCost(result.data.llm)
+          const total = saas + cloud + llm
+          // Fallback to total.total_billed_cost or total_monthly_cost
+          return total || (result.data.total?.total_billed_cost ?? result.data.total?.total_monthly_cost ?? 0)
       }
     }
 
