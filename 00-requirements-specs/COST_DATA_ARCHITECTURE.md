@@ -143,9 +143,9 @@ const response = await fetch(`${API_URL}/api/v1/costs/${orgSlug}/cloud`, {
 | BillingCurrency | STRING | Currency code |
 | ChargePeriodStart | DATE | Period start |
 | ChargePeriodEnd | DATE | Period end |
-| x_SourceSystem | STRING | Pipeline source identifier |
-| x_PipelineId | STRING | Pipeline that wrote data |
-| x_IngestedAt | TIMESTAMP | When data was ingested |
+| x_source_system | STRING | Pipeline source identifier |
+| x_pipeline_id | STRING | Pipeline that wrote data |
+| x_ingested_at | TIMESTAMP | When data was ingested |
 
 ---
 
@@ -271,7 +271,7 @@ const handleRangeChange = (key) => {
 |-----------|-----------|---------|
 | `cost_data_standard_1_3` | All cost queries | Single unified table |
 | `PolarsCostService._calculate_cost_summary()` | All summary endpoints | Shared calculation |
-| `x_SourceSystem` filter | SaaS/Cloud/LLM queries | Source tagging |
+| `x_source_system` filter | SaaS/Cloud/LLM queries | Source tagging |
 | `SubAccountId = org_slug` | Every query | Multi-tenant isolation |
 | LRU Cache | All cost endpoints | 1-15 min TTL |
 | `lib/costs/*` helpers | All dashboard pages | Client-side filtering |

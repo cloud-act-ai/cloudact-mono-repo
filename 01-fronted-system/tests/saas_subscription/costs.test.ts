@@ -87,28 +87,28 @@ function createMockCostRecord(overrides: Partial<SaaSCostRecord> = {}): SaaSCost
     ChargePeriodEnd: today,
 
     // Metadata (FOCUS 1.3 x_ prefix extension fields)
-    x_SourceSystem: 'saas_subscription_costs_daily',
-    x_SourceRecordId: `record_${Date.now()}`,
-    x_UpdatedAt: now,
-    x_AmortizationClass: 'Amortized',
-    x_ServiceModel: 'SaaS',
-    x_ExchangeRateUsed: 1.0,
-    x_OriginalCurrency: 'USD',
-    x_OriginalCost: 12.99,
-    x_CreatedAt: now,
+    x_source_system: 'saas_subscription_costs_daily',
+    x_source_record_id: `record_${Date.now()}`,
+    x_updated_at: now,
+    x_amortization_class: 'Amortized',
+    x_service_model: 'SaaS',
+    x_exchange_rate_used: 1.0,
+    x_original_currency: 'USD',
+    x_original_cost: 12.99,
+    x_created_at: now,
 
     // Org-specific extension fields (FOCUS 1.3)
-    x_OrgSlug: 'test_org',
-    x_OrgName: 'Test Organization',
-    x_OrgOwnerEmail: 'admin@test.com',
-    x_OrgDefaultCurrency: 'USD',
-    x_OrgDefaultTimezone: 'America/New_York',
-    x_OrgDefaultCountry: 'US',
-    x_OrgSubscriptionPlan: 'PRO',
-    x_OrgSubscriptionStatus: 'ACTIVE',
-    x_PipelineId: 'saas_subscription_costs_pipeline',
-    x_PipelineRunId: `run_${Date.now()}`,
-    x_DataQualityScore: 1.0,
+    x_org_slug: 'test_org',
+    x_org_name: 'Test Organization',
+    x_org_owner_email: 'admin@test.com',
+    x_org_default_currency: 'USD',
+    x_org_default_timezone: 'America/New_York',
+    x_org_default_country: 'US',
+    x_org_subscription_plan: 'PRO',
+    x_org_subscription_status: 'ACTIVE',
+    x_pipeline_id: 'saas_subscription_costs_pipeline',
+    x_pipeline_run_id: `run_${Date.now()}`,
+    x_data_quality_score: 1.0,
 
     // Calculated Run Rates
     MonthlyRunRate: 12.99 * 30,
@@ -819,12 +819,12 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
       expect(record).toHaveProperty('ChargeFrequency')
 
       // Org-specific extension fields (FOCUS 1.3)
-      expect(record).toHaveProperty('x_OrgSlug')
-      expect(record).toHaveProperty('x_OrgName')
-      expect(record).toHaveProperty('x_OrgOwnerEmail')
-      expect(record).toHaveProperty('x_OrgDefaultCurrency')
-      expect(record).toHaveProperty('x_SourceSystem')
-      expect(record).toHaveProperty('x_UpdatedAt')
+      expect(record).toHaveProperty('x_org_slug')
+      expect(record).toHaveProperty('x_org_name')
+      expect(record).toHaveProperty('x_org_owner_email')
+      expect(record).toHaveProperty('x_org_default_currency')
+      expect(record).toHaveProperty('x_source_system')
+      expect(record).toHaveProperty('x_updated_at')
 
       // Time fields
       expect(record).toHaveProperty('BillingPeriodStart')

@@ -181,8 +181,43 @@ export default function DashboardPage() {
     setIsRefreshing(false)
   }
 
+  // Demo data for when no real cost data is available
+  const DEMO_DATA = useMemo(() => ({
+    summaryData: {
+      mtd: 4250.00,
+      dailyRate: 142.50,
+      forecast: 4500.00,
+      ytd: 38750.00,
+      currency: orgCurrency,
+    } as CostSummaryData,
+    categoryBreakdown: [
+      { key: "genai", name: "GenAI", value: 1850.00, percentage: 43.5, count: 3, color: "#10A37F" },
+      { key: "cloud", name: "Cloud", value: 1450.00, percentage: 34.1, count: 2, color: "#4285F4" },
+      { key: "saas", name: "SaaS", value: 950.00, percentage: 22.4, count: 8, color: "#FF6C5E" },
+    ] as BreakdownItem[],
+    scoreRingSegments: [
+      { key: "genai", name: "GenAI", value: 1850.00, color: "#10A37F" },
+      { key: "cloud", name: "Cloud", value: 1450.00, color: "#4285F4" },
+      { key: "saas", name: "SaaS", value: 950.00, color: "#FF6C5E" },
+    ] as ScoreRingSegment[],
+    insightsData: {
+      todaySpend: 142.50,
+      averageDaily: 137.50,
+      forecast: 4500.00,
+    },
+  }), [orgCurrency])
+
+  // Check if we have real data
+  const hasRealData = costSummary && (
+    (costSummary.llm?.total_monthly_cost ?? 0) > 0 ||
+    (costSummary.cloud?.total_monthly_cost ?? 0) > 0 ||
+    (costSummary.saas?.total_monthly_cost ?? 0) > 0
+  )
+
   // Prepare summary data using shared pattern from cost dashboards
   const summaryData: CostSummaryData = useMemo(() => {
+    if (!hasRealData) return DEMO_DATA.summaryData
+
     const dateInfo = getDateInfo()
     const totalMtd = costSummary?.total?.total_monthly_cost ?? 0
     const dailyRate = costSummary?.total?.total_daily_cost ?? 0
@@ -196,16 +231,18 @@ export default function DashboardPage() {
       ytd: costSummary?.total?.total_annual_cost ?? totalMtd, // Use annual as YTD fallback
       currency: orgCurrency,
     }
-  }, [costSummary, orgCurrency])
+  }, [costSummary, orgCurrency, hasRealData, DEMO_DATA])
 
   // Prepare category breakdown using shared utilities
   const categoryBreakdown: BreakdownItem[] = useMemo(() => {
+    if (!hasRealData) return DEMO_DATA.categoryBreakdown
+
     const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
     const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
     const totalCost = genaiCost + cloudCost + saasCost
 
-    if (totalCost === 0) return []
+    if (totalCost === 0) return DEMO_DATA.categoryBreakdown
 
     return [
       {
@@ -233,23 +270,29 @@ export default function DashboardPage() {
         color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
       },
     ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
-  }, [costSummary])
+  }, [costSummary, hasRealData, DEMO_DATA])
 
   // Score ring segments for Apple Health style visualization
   const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
+    if (!hasRealData) return DEMO_DATA.scoreRingSegments
+
     const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
     const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
 
-    return [
+    const segments = [
       { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
       { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
       { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
     ].filter(s => s.value > 0)
-  }, [costSummary])
+
+    return segments.length > 0 ? segments : DEMO_DATA.scoreRingSegments
+  }, [costSummary, hasRealData, DEMO_DATA])
 
   // Insights data
   const insightsData = useMemo(() => {
+    if (!hasRealData) return DEMO_DATA.insightsData
+
     const dailyRate = summaryData.dailyRate
     const forecast = summaryData.forecast
     const mtd = summaryData.mtd
@@ -259,7 +302,7 @@ export default function DashboardPage() {
       averageDaily: mtd > 0 ? mtd / new Date().getDate() : 0,
       forecast,
     }
-  }, [summaryData])
+  }, [summaryData, hasRealData, DEMO_DATA])
 
   // Memoize quickActions to prevent recreation on every render
   const quickActions: QuickAction[] = useMemo(() => [
@@ -369,28 +412,21 @@ export default function DashboardPage() {
       {/* Apple Health Style - Score Ring and Insights Row */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Score Ring - Total Spend Breakdown */}
-        {scoreRingSegments.length > 0 ? (
-          <CostScoreRing
-            title="Total Spend"
-            segments={scoreRingSegments}
-            currency={orgCurrency}
-            insight={`Spending across ${scoreRingSegments.length} cost categories this month.`}
-            showChevron
-            onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
-            compact
-            ringSize={88}
-            strokeWidth={10}
-            titleColor="#1a7a3a"
-          />
-        ) : (
-          <Card className="p-6">
-            <div className="text-center py-4">
-              <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-900">No cost data yet</p>
-              <p className="text-xs text-slate-500 mt-1">Run pipelines to see your costs</p>
-            </div>
-          </Card>
-        )}
+        <CostScoreRing
+          title="Total Spend"
+          segments={scoreRingSegments}
+          currency={orgCurrency}
+          insight={!hasRealData
+            ? "Sample data shown. Connect providers to see real costs."
+            : `Spending across ${scoreRingSegments.length} cost categories this month.`
+          }
+          showChevron
+          onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
+          compact
+          ringSize={96}
+          strokeWidth={12}
+          titleColor="#1a7a3a"
+        />
 
         {/* Spend Insights Card */}
         <CostInsightsCard
@@ -400,11 +436,13 @@ export default function DashboardPage() {
           averageValue={insightsData.averageDaily}
           averageLabel="Daily Avg"
           insight={
-            insightsData.todaySpend > insightsData.averageDaily * 1.2
-              ? "Spending is higher than your daily average today."
-              : insightsData.todaySpend < insightsData.averageDaily * 0.8
-                ? "Great! Spending is below your daily average."
-                : "Spending is in line with your daily average."
+            !hasRealData
+              ? "Sample trend data. Run pipelines to see real spending patterns."
+              : insightsData.todaySpend > insightsData.averageDaily * 1.2
+                ? "Spending is higher than your daily average today."
+                : insightsData.todaySpend < insightsData.averageDaily * 0.8
+                  ? "Great! Spending is below your daily average."
+                  : "Spending is in line with your daily average."
           }
           currency={orgCurrency}
           primaryColor="#FF6C5E"
@@ -430,24 +468,22 @@ export default function DashboardPage() {
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              {categoryBreakdown.length > 0 ? (
-                <CostBreakdownChart
-                  title=""
-                  items={categoryBreakdown}
-                  currency={orgCurrency}
-                  countLabel="providers"
-                  maxItems={3}
-                />
-              ) : (
-                <div className="text-center py-8">
-                  <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-slate-900">No cost data yet</p>
-                  <p className="text-xs text-slate-500 mt-1">Run pipelines to see your costs</p>
-                </div>
+            <CardContent className="p-4 sm:p-6">
+              <CostBreakdownChart
+                title=""
+                items={categoryBreakdown}
+                currency={orgCurrency}
+                countLabel="providers"
+                maxItems={3}
+              />
+
+              {!hasRealData && (
+                <p className="text-xs text-slate-500 text-center mt-3 italic">
+                  Sample data shown. Connect providers for real costs.
+                </p>
               )}
 
-              <Link href={`/${orgSlug}/cost-dashboards/overview`} className="block mt-6">
+              <Link href={`/${orgSlug}/cost-dashboards/overview`} className="block mt-4">
                 <button className="w-full inline-flex items-center justify-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
                   <BarChart3 className="h-4 w-4" />
                   Open Cost Analytics

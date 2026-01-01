@@ -109,14 +109,37 @@ function RingChart({ segments, total, size, strokeWidth, score }: RingChartProps
   const circumference = 2 * Math.PI * radius
   const center = size / 2
 
-  // Calculate segment angles
+  // Gap between segments in degrees (Apple Health style)
+  const gapDegrees = segments.length > 1 ? 3 : 0
+  const totalGap = gapDegrees * segments.length
+
+  // Calculate segment angles with gaps
   let currentAngle = -90 // Start from top
 
-  const segmentPaths = segments.map((segment) => {
+  interface SegmentPath extends ScoreRingSegment {
+    d: string
+    percentage: number
+    useCircle: boolean
+  }
+
+  const segmentPaths: SegmentPath[] = segments.map((segment, index) => {
     const percentage = total > 0 ? (segment.value / total) * 100 : 0
-    const segmentAngle = (percentage / 100) * 360
-    const startAngle = currentAngle
-    currentAngle += segmentAngle
+    // Reduce angle by gap proportion
+    const rawAngle = (percentage / 100) * 360
+    const segmentAngle = rawAngle - (rawAngle / 360) * totalGap
+    const startAngle = currentAngle + (index > 0 ? gapDegrees : 0)
+    currentAngle = startAngle + segmentAngle
+
+    // Handle full circle case (single segment at ~100%)
+    if (segments.length === 1 && percentage >= 99) {
+      // Draw full circle using stroke-dasharray
+      return {
+        ...segment,
+        d: "",
+        useCircle: true,
+        percentage,
+      }
+    }
 
     // Calculate arc
     const startRad = (startAngle * Math.PI) / 180
@@ -132,16 +155,17 @@ function RingChart({ segments, total, size, strokeWidth, score }: RingChartProps
     return {
       ...segment,
       d:
-        segmentAngle > 0
+        segmentAngle > 0.5 // Minimum angle threshold for visibility
           ? `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`
           : "",
       percentage,
+      useCircle: false,
     }
   })
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-0">
+      <svg width={size} height={size} className="transform -rotate-90">
         {/* Background circle */}
         <circle
           cx={center}
@@ -153,8 +177,31 @@ function RingChart({ segments, total, size, strokeWidth, score }: RingChartProps
         />
 
         {/* Segment arcs */}
-        {segmentPaths.map((segment, index) =>
-          segment.d ? (
+        {segmentPaths.map((segment, index) => {
+          // Handle full circle (single segment)
+          if (segment.useCircle) {
+            return (
+              <circle
+                key={segment.key}
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={0}
+                className="transition-all duration-700 ease-out animate-ring-fill"
+                style={{
+                  transformOrigin: 'center',
+                }}
+              />
+            )
+          }
+
+          // Handle arc segments
+          return segment.d ? (
             <path
               key={segment.key}
               d={segment.d}
@@ -168,13 +215,13 @@ function RingChart({ segments, total, size, strokeWidth, score }: RingChartProps
               }}
             />
           ) : null
-        )}
+        })}
       </svg>
 
       {/* Center score */}
       {score !== undefined && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
+          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
             {typeof score === "number" ? score.toFixed(0) : score}
           </span>
         </div>

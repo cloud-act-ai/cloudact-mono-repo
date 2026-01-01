@@ -7,46 +7,104 @@ Welcome to CloudAct! This guide will walk you through setting up your account an
 
 ## Step 1: Create Your Account
 
-1. Go to [cloudact.ai/signup](/signup)
-2. Enter your **email address** and create a **password**
-3. Fill in your **company name** and select your **industry**
-4. Click **Create Account**
+Creating your CloudAct account is a simple 2-step process.
 
-You'll receive a confirmation email. Click the link to verify your account.
+### Step 1a: Personal Information
+
+Visit [cloudact.ai/signup](/signup) and enter your personal details:
+
+![Signup Step 1 - Account Information](/docs/images/signup-step1.png)
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **First Name** | Your first/given name | John |
+| **Last Name** | Your last/family name | Smith |
+| **Email Address** | Your work email (used for login) | john.smith@acme.com |
+| **Password** | Minimum 8 characters | SecurePass123! |
+| **Phone Number** | Your contact number with country code | +1 555-123-4567 |
+
+<Callout type="info">
+  **Phone Number Formatting**: Your phone number is automatically formatted based on your selected country code. For US (+1), the format is XXX-XXX-XXXX. Different countries have different formats.
+</Callout>
+
+Click **Continue** to proceed to organization setup.
+
+### Step 1b: Organization Setup
+
+Configure your workspace settings:
+
+| Field | Description | Options |
+|-------|-------------|---------|
+| **Company Name** | Your organization name | Acme Inc. |
+| **Company Type** | Type of organization | Personal, Startup, Agency, Company, Educational |
+| **Currency** | Default currency for cost display | USD, EUR, GBP, INR, and 12 more |
+| **Timezone** | Your local timezone | 15 major timezones supported |
+
+Click **Create Account** to complete registration.
+
+<Callout type="tip">
+  Your organization settings can be changed later from **Settings** → **Organization**.
+</Callout>
 
 ## Step 2: Choose Your Plan
 
-After verifying your email, you'll be asked to select a plan:
+After creating your account, you'll be directed to select a subscription plan:
 
-| Plan | Best For | Team Size |
-|------|----------|-----------|
-| **Starter** | Small teams getting started | Up to 2 members |
-| **Professional** | Growing teams with multiple providers | Up to 10 members |
-| **Enterprise** | Large organizations | Unlimited |
+| Plan | Best For | Team Size | Monthly Price |
+|------|----------|-----------|---------------|
+| **Starter** | Small teams getting started | Up to 2 members | $19/month |
+| **Professional** | Growing teams with multiple providers | Up to 10 members | $69/month |
+| **Scale** | Large organizations | Up to 50 members | $199/month |
 
-Select your plan and complete the payment process.
+<Callout type="info">
+  All plans include a **14-day free trial**. No credit card required to start.
+</Callout>
+
+Select your plan and complete the payment process through our secure Stripe checkout.
 
 ## Step 3: Connect Your First Integration
 
 Once your account is active:
 
-1. Go to **Settings** → **Integrations**
-2. Click on the provider you want to connect (e.g., OpenAI)
-3. Enter your API key
+1. Go to **Integrations** in the sidebar
+2. Click on the provider you want to connect:
+   - **GenAI**: OpenAI, Anthropic, Google Gemini, Cursor
+   - **Cloud**: Google Cloud, AWS, Azure
+   - **SaaS**: Slack, GitHub, Figma, Notion
+3. Enter your API key or connect via OAuth
 4. Click **Save**
 
-That's it! Your costs will start appearing on your dashboard within a few minutes.
+<Callout type="success">
+  Your costs will start appearing on your dashboard within a few minutes!
+</Callout>
 
 ## Step 4: Explore Your Dashboard
 
 Your dashboard shows:
 
-- **Total Spend** - Your current billing period costs
-- **Cost Trends** - How your spending changes over time
+- **Total Spend** - Your current billing period costs across all providers
+- **Cost Trends** - How your spending changes over time with interactive charts
 - **Top Providers** - Which services cost the most
+- **Usage Breakdown** - Detailed breakdown by model, service, or team
+
+## Supported Phone Number Formats
+
+CloudAct supports country-specific phone number formatting:
+
+| Country | Code | Format | Example |
+|---------|------|--------|---------|
+| US/Canada | +1 | XXX-XXX-XXXX | 555-123-4567 |
+| India | +91 | XXXXX-XXXXX | 98765-43210 |
+| UK | +44 | XXXX-XXX-XXXX | 7911-123-4567 |
+| Australia | +61 | XXX-XXX-XXX | 412-345-678 |
+| Germany | +49 | XXX-XXXX-XXXX | 151-1234-5678 |
+| France | +33 | X-XX-XX-XX-XX | 6-12-34-56-78 |
+| Japan | +81 | XXX-XXXX-XXXX | 090-1234-5678 |
+| Singapore | +65 | XXXX-XXXX | 9123-4567 |
 
 ## Next Steps
 
 - [Set up your profile](/user-docs/account/profile)
 - [Invite team members](/user-docs/account/team)
 - [Connect more integrations](/user-docs/integrations)
+- [Manage billing & invoices](/user-docs/billing)

@@ -801,7 +801,7 @@ bq query --use_legacy_sql=false \
 bq query --use_legacy_sql=false \
   "SELECT DATE(ChargePeriodStart) as day, ServiceProviderName, BilledCost, BillingCurrency
    FROM \`your-project.acme_corp_prod.cost_data_standard_1_3\`
-   WHERE x_SourceSystem = 'saas_subscription_costs_daily'
+   WHERE x_source_system = 'saas_subscription_costs_daily'
      AND DATE(ChargePeriodStart) >= '2025-12-01'
    ORDER BY ChargePeriodStart DESC
    LIMIT 20"
@@ -1554,7 +1554,7 @@ When running multiple instances of the pipeline service (e.g., Cloud Run with mi
 | `subscription_id` | `ResourceId` | Unique resource identifier |
 | `org_slug` | `SubAccountId` | Organization identifier |
 | `cost_date` | `ChargePeriodStart` | Converted to TIMESTAMP |
-| - | `x_SourceSystem` | Always `saas_subscription_costs_daily` |
+| - | `x_source_system` | Always `saas_subscription_costs_daily` |
 
 ### Procedure 3: sp_run_saas_subscription_costs_pipeline (Orchestrator)
 
@@ -1628,7 +1628,7 @@ FOCUS 1.3 compliant with 78 columns. Key fields:
 - `BilledCost`, `EffectiveCost`, `ListCost`
 - `ServiceProviderName`, `ServiceCategory`, `ServiceName`
 - `ChargePeriodStart`, `ChargePeriodEnd`
-- `x_SourceSystem = 'saas_subscription_costs_daily'`
+- `x_source_system = 'saas_subscription_costs_daily'`
 
 ### Scheduling (Daily)
 

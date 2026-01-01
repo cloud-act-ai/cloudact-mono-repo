@@ -4,13 +4,13 @@ import type React from "react"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, Mail, Lock, Phone, Building2, Briefcase, DollarSign, Globe, ArrowRight, ChevronDown, CheckCircle2, Shield } from "lucide-react"
+import { Loader2, Mail, Lock, Phone, Building2, Briefcase, DollarSign, Globe, ArrowRight, ChevronDown, CheckCircle2, Shield, User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
 import { COUNTRY_CODES } from "@/lib/constants/countries"
-import { isValidPhone, getPhoneHint } from "@/lib/utils/phone"
+import { isValidPhone, getPhoneHint, formatPhoneNumber, getPhonePlaceholder } from "@/lib/utils/phone"
 import { sanitizeOrgName, isValidOrgName } from "@/lib/utils/validation"
 
 const ORG_TYPES = [
@@ -99,6 +99,8 @@ function SignupForm() {
   const prefillEmail = searchParams.get("email")
   const isInviteFlow = redirectTo?.startsWith("/invite/")
 
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [countryCode, setCountryCode] = useState("+1")
@@ -111,6 +113,22 @@ function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [focusedField, setFocusedField] = useState<string | null>(null)
   const [step, setStep] = useState<1 | 2>(1)
+
+  // Format phone number as user types (country-aware formatting)
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value, countryCode)
+    setPhoneNumber(formatted)
+  }
+
+  // Reset phone formatting when country changes
+  const handleCountryChange = (newCountryCode: string) => {
+    setCountryCode(newCountryCode)
+    // Re-format existing phone number for new country
+    if (phoneNumber) {
+      const formatted = formatPhoneNumber(phoneNumber, newCountryCode)
+      setPhoneNumber(formatted)
+    }
+  }
 
   useEffect(() => {
     if (prefillEmail) {
@@ -131,6 +149,16 @@ function SignupForm() {
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
+    // Validate first name
+    if (!firstName.trim() || firstName.trim().length < 1) {
+      setServerError("Please enter your first name")
+      return
+    }
+    // Validate last name
+    if (!lastName.trim() || lastName.trim().length < 1) {
+      setServerError("Please enter your last name")
+      return
+    }
     if (!isValidPhone(phoneNumber, countryCode)) {
       const hint = getPhoneHint(countryCode)
       const country = COUNTRY_CODES.find(c => c.code === countryCode)?.country || "your country"
@@ -161,6 +189,8 @@ function SignupForm() {
       const normalizedEmail = email.trim().toLowerCase()
 
       const userData: Record<string, string> = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         phone: fullPhone,
         signup_completed_at: new Date().toISOString(),
       }
@@ -249,6 +279,63 @@ function SignupForm() {
         {/* Form */}
         {step === 1 ? (
           <form onSubmit={isInviteFlow ? onSubmit : handleNextStep} className="space-y-4" suppressHydrationWarning>
+            {/* First Name and Last Name Row */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* First Name Field */}
+              <div className="space-y-1.5">
+                <label htmlFor="firstName" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                  First name
+                </label>
+                <div className="relative">
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'firstName' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                    <User className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </div>
+                  <input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    required
+                    minLength={1}
+                    maxLength={50}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    onFocus={() => setFocusedField('firstName')}
+                    onBlur={() => setFocusedField(null)}
+                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    disabled={isLoading}
+                    autoComplete="given-name"
+                  />
+                </div>
+              </div>
+
+              {/* Last Name Field */}
+              <div className="space-y-1.5">
+                <label htmlFor="lastName" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                  Last name
+                </label>
+                <div className="relative">
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'lastName' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                    <User className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </div>
+                  <input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    required
+                    minLength={1}
+                    maxLength={50}
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    onFocus={() => setFocusedField('lastName')}
+                    onBlur={() => setFocusedField(null)}
+                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    disabled={isLoading}
+                    autoComplete="family-name"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Email Field */}
             <div className="space-y-1.5" suppressHydrationWarning>
               <label htmlFor="email" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
@@ -309,7 +396,7 @@ function SignupForm() {
                 <div className="relative w-[100px] sm:w-[110px]">
                   <select
                     value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
+                    onChange={(e) => handleCountryChange(e.target.value)}
                     disabled={isLoading}
                     className="w-full h-[48px] sm:h-[52px] pl-3 pr-8 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer"
                   >
@@ -328,10 +415,10 @@ function SignupForm() {
                   <input
                     id="phone"
                     type="tel"
-                    placeholder="555 123 4567"
+                    placeholder={getPhonePlaceholder(countryCode)}
                     required
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={handlePhoneChange}
                     onFocus={() => setFocusedField('phone')}
                     onBlur={() => setFocusedField(null)}
                     className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
@@ -532,6 +619,11 @@ function SignupFormFallback() {
           <div className="h-4 w-72 bg-gray-100 rounded-lg animate-pulse" />
         </div>
         <div className="space-y-4">
+          {/* First Name and Last Name row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+            <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+          </div>
           <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
           <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
           <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />

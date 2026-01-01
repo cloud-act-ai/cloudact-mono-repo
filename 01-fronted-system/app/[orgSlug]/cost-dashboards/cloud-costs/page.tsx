@@ -318,6 +318,11 @@ export default function CloudCostsPage() {
             ytd: periodCosts.ytd,
             fytd: periodCosts.fytd,
             fyForecast: periodCosts.fyForecast,
+            // 30-day period data
+            last30Days: periodCosts.last30Days,
+            previous30Days: periodCosts.previous30Days,
+            november: periodCosts.november,
+            december: periodCosts.december,
           }}
           currency={orgCurrency}
           loading={isLoading}

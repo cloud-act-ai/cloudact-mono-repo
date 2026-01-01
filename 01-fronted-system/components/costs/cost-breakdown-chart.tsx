@@ -141,8 +141,8 @@ function BarItem({ item, currency, countLabel, compact, onClick, index }: BarIte
 
   // Handle hex colors vs Tailwind classes
   const isHexColor = barColor.startsWith("#") || barColor.startsWith("rgb")
-  const barStyle = isHexColor ? { backgroundColor: barColor } : undefined
-  const barClass = isHexColor ? "" : barColor
+  const hexColor = isHexColor ? barColor : undefined
+  const bgClass = isHexColor ? "" : barColor
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -159,11 +159,13 @@ function BarItem({ item, currency, countLabel, compact, onClick, index }: BarIte
     return `${item.count} ${item.count === 1 ? singularLabel : countLabel}`
   }
 
+  // Apple Health style - larger, more prominent bars
   return (
     <div
       className={cn(
-        "space-y-2",
-        onClick && "cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded-lg"
+        "space-y-2.5 p-3 rounded-xl transition-all duration-200",
+        "hover:bg-slate-50/50",
+        onClick && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2"
       )}
       onClick={onClick}
       onKeyDown={handleKeyDown}
@@ -171,40 +173,51 @@ function BarItem({ item, currency, countLabel, compact, onClick, index }: BarIte
       tabIndex={onClick ? 0 : undefined}
       aria-label={`${item.name}: ${formattedValue}, ${item.percentage.toFixed(1)}% of total`}
     >
-      {/* Header: Name + Value */}
+      {/* Header: Color dot + Name + Value */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          {/* Color indicator dot */}
+          <div
+            className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm"
+            style={{ backgroundColor: hexColor }}
+          />
           {item.icon && (
             <span className="flex-shrink-0">{item.icon}</span>
           )}
-          <span className="text-sm font-medium text-slate-700 truncate">
+          <span className="text-[15px] font-semibold text-slate-800 truncate">
             {item.name}
           </span>
         </div>
-        <span className="text-sm font-bold text-slate-900 font-mono">
+        <span className="text-[15px] font-bold text-slate-900 tabular-nums">
           {formattedValue}
         </span>
       </div>
 
-      {/* Progress Bar */}
-      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+      {/* Progress Bar - Apple Health style with rounded ends and gradient */}
+      <div className="h-4 bg-slate-100/80 rounded-full overflow-hidden shadow-inner">
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-500 ease-out",
-            barClass
+            "h-full rounded-full transition-all duration-700 ease-out",
+            "shadow-sm",
+            bgClass
           )}
           style={{
-            width: `${Math.max(item.percentage, 1)}%`,
-            ...barStyle,
+            width: `${Math.max(item.percentage, 2)}%`,
+            backgroundColor: hexColor,
+            backgroundImage: hexColor
+              ? `linear-gradient(90deg, ${hexColor} 0%, ${hexColor}dd 100%)`
+              : undefined,
           }}
         />
       </div>
 
       {/* Footer: Count + Percentage */}
-      <div className="flex justify-between text-xs text-slate-500">
+      <div className="flex justify-between text-xs text-slate-500 font-medium">
         {getCountText() && <span>{getCountText()}</span>}
         {!getCountText() && <span />}
-        <span>{Number.isFinite(item.percentage) ? item.percentage.toFixed(1) : "0.0"}% of total</span>
+        <span className="tabular-nums">
+          {Number.isFinite(item.percentage) ? item.percentage.toFixed(1) : "0.0"}%
+        </span>
       </div>
     </div>
   )
@@ -250,7 +263,7 @@ export function CostBreakdownChart({
       value: othersValue,
       count: othersCount,
       percentage: othersPercentage,
-      color: "bg-slate-400",
+      color: "#94a3b8",
     }
 
     displayItems = [...visibleItems, othersItem]
@@ -258,39 +271,56 @@ export function CostBreakdownChart({
     displayItems = displayItems.slice(0, maxItems)
   }
 
+  // Calculate total for header
+  const totalValue = items.reduce((sum, item) => sum + item.value, 0)
+
   return (
     <div className={cn(
-      "bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6",
+      "bg-white rounded-xl sm:rounded-2xl border border-slate-200",
+      "shadow-sm hover:shadow-md transition-shadow duration-200",
       className
     )}>
       {/* Header */}
-      <div className="mb-4 sm:mb-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-          {title}
-        </h3>
-        {subtitle && (
-          <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
-        )}
-      </div>
-
-      {/* Content */}
-      {displayItems.length === 0 ? (
-        <BreakdownEmpty message={emptyMessage} />
-      ) : (
-        <div className="space-y-4" role="list" aria-label={title}>
-          {displayItems.map((item, index) => (
-            <BarItem
-              key={item.key}
-              item={item}
-              currency={currency}
-              countLabel={countLabel}
-              compact={compact}
-              index={index}
-              onClick={onItemClick ? () => onItemClick(item) : undefined}
-            />
-          ))}
+      {title && (
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[13px] font-semibold uppercase tracking-wider text-slate-500">
+              {title}
+            </h3>
+            {totalValue > 0 && (
+              <span className="text-sm font-bold text-slate-900 tabular-nums">
+                {compact ? formatCostCompact(totalValue, currency) : formatCost(totalValue, currency)}
+              </span>
+            )}
+          </div>
+          {subtitle && (
+            <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+          )}
         </div>
       )}
+
+      {/* Content */}
+      <div className="px-1 sm:px-2 pb-4 sm:pb-5">
+        {displayItems.length === 0 ? (
+          <div className="px-3 sm:px-4">
+            <BreakdownEmpty message={emptyMessage} />
+          </div>
+        ) : (
+          <div className="space-y-1" role="list" aria-label={title}>
+            {displayItems.map((item, index) => (
+              <BarItem
+                key={item.key}
+                item={item}
+                currency={currency}
+                countLabel={countLabel}
+                compact={compact}
+                index={index}
+                onClick={onItemClick ? () => onItemClick(item) : undefined}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

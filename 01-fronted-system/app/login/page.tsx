@@ -37,37 +37,13 @@ function LoginForm() {
   const [focusedField, setFocusedField] = useState<string | null>(null)
 
   useEffect(() => {
-    let isMounted = true
-
-    const clearStaleSession = async () => {
-      try {
-        const supabase = createClient()
-        await supabase.auth.signOut({ scope: 'local' })
-        if (isMounted) {
-          setSessionCleared(true)
-
-          if (reason === 'session_expired') {
-            setError("Your session has expired. Please sign in again.")
-          } else if (reason === 'auth_error') {
-            setError("Authentication error. Please sign in again.")
-          }
-        }
-      } catch (signOutError) {
-        // Sign out may fail if no session exists - log but continue
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[Login] Failed to clear stale session:", signOutError)
-        }
-        if (isMounted) {
-          setSessionCleared(true)
-        }
-      }
+    // Just show error message if redirected with a reason - don't clear any session
+    if (reason === 'session_expired') {
+      setError("Your session has expired. Please sign in again.")
+    } else if (reason === 'auth_error') {
+      setError("Authentication error. Please try again or contact support.")
     }
-
-    clearStaleSession()
-
-    return () => {
-      isMounted = false
-    }
+    setSessionCleared(true)
   }, [reason])
 
   const handlePasswordLogin = async (e: React.FormEvent) => {

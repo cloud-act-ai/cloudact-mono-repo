@@ -252,8 +252,8 @@ cost_data_standard_1_3
 ├── BilledCost / EffectiveCost / ListCost
 ├── BillingCurrency
 ├── ChargePeriodStart / ChargePeriodEnd
-├── x_SourceSystem (saas_subscription, gcp_billing, openai_api)
-├── x_PipelineId / x_RunId / x_IngestedAt
+├── x_source_system (saas_subscription, gcp_billing, openai_api)
+├── x_pipeline_id / x_run_id / x_ingested_at
 └── Hierarchy Extensions (hierarchy_dept_id, etc.)
 ```
 

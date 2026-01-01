@@ -55,7 +55,7 @@ BEGIN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE DATE(ChargePeriodStart) = @p_date
-          AND x_SourceSystem IN ('cloud_gcp_billing_raw_daily', 'cloud_aws_billing_raw_daily',
+          AND x_source_system IN ('cloud_gcp_billing_raw_daily', 'cloud_aws_billing_raw_daily',
                                   'cloud_azure_billing_raw_daily', 'cloud_oci_billing_raw_daily')
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date;
@@ -63,7 +63,7 @@ BEGIN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
         WHERE DATE(ChargePeriodStart) = @p_date
-          AND x_SourceSystem = CONCAT('cloud_', @p_provider, '_billing_raw_daily')
+          AND x_source_system = CONCAT('cloud_', @p_provider, '_billing_raw_daily')
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_provider AS p_provider;
     END IF;
@@ -84,7 +84,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_source_record_id, x_updated_at,
+         x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
@@ -140,7 +140,7 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(labels_json), JSON_OBJECT()) as Tags,
 
-          'cloud_gcp_billing_raw_daily' as x_SourceSystem,
+          'cloud_gcp_billing_raw_daily' as x_source_system,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
@@ -178,7 +178,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_source_record_id, x_updated_at,
+         x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountType,
@@ -239,7 +239,7 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(resource_tags_json), JSON_OBJECT()) as Tags,
 
-          'cloud_aws_billing_raw_daily' as x_SourceSystem,
+          'cloud_aws_billing_raw_daily' as x_source_system,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
@@ -284,7 +284,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_source_record_id, x_updated_at,
+         x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountName,
@@ -335,7 +335,7 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(resource_tags_json), JSON_OBJECT()) as Tags,
 
-          'cloud_azure_billing_raw_daily' as x_SourceSystem,
+          'cloud_azure_billing_raw_daily' as x_source_system,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
@@ -376,7 +376,7 @@ BEGIN
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
-         x_SourceSystem, x_source_record_id, x_updated_at,
+         x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
@@ -431,7 +431,7 @@ BEGIN
 
           COALESCE(SAFE.PARSE_JSON(freeform_tags_json), JSON_OBJECT()) as Tags,
 
-          'cloud_oci_billing_raw_daily' as x_SourceSystem,
+          'cloud_oci_billing_raw_daily' as x_source_system,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields

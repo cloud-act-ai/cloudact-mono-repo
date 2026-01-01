@@ -177,7 +177,7 @@ This naming convention:
 |  PROCESS:                                                                   |
 |     +-- Read from cloud_{provider}_billing_raw_daily                       |
 |     +-- Map provider-specific fields to FOCUS 1.3 columns                  |
-|     +-- Set x_SourceSystem = 'cloud_{provider}_billing_raw_daily'          |
+|     +-- Set x_source_system = 'cloud_{provider}_billing_raw_daily'          |
 |     +-- Add pipeline lineage (x_pipeline_id, x_run_id, etc.)              |
 |                                                                             |
 |  OUTPUT:                                                                    |
@@ -365,7 +365,7 @@ Unified cost format following FinOps FOCUS 1.3 specification:
 | BillingCurrency | STRING | Currency code |
 | SubAccountId | STRING | Sub-account/project ID |
 | SubAccountName | STRING | Sub-account/project name |
-| x_SourceSystem | STRING | Source: 'cloud_gcp_billing_raw_daily', etc. |
+| x_source_system | STRING | Source: 'cloud_gcp_billing_raw_daily', etc. |
 | x_cloud_provider | STRING | Provider: 'gcp', 'aws', 'azure', 'oci' |
 | x_pipeline_id | STRING | Pipeline template name |
 | x_run_id | STRING | Pipeline run UUID |
@@ -466,7 +466,7 @@ Converts raw cloud billing data to FOCUS 1.3 format.
 
 ### Source Tables Mapping
 
-| Provider | Source Table | x_SourceSystem Value |
+| Provider | Source Table | x_source_system Value |
 |----------|--------------|---------------------|
 | GCP | `cloud_gcp_billing_raw_daily` | `cloud_gcp_billing_raw_daily` |
 | AWS | `cloud_aws_billing_raw_daily` | `cloud_aws_billing_raw_daily` |

@@ -1340,7 +1340,7 @@ async def onboard_org(
                             "schema_file": "contract_commitment_1_3.json",
                             "description": "Contract commitment tracking for reserved capacity, savings plans, and committed use discounts. Links to cost_data_standard_1_3 via ContractApplied field.",
                             "partition_field": "ContractPeriodStart",
-                            "clustering_fields": ["ContractId", "x_SubAccountId"]
+                            "clustering_fields": ["ContractId", "x_sub_account_id"]
                         },
                         # NOTE: org_hierarchy moved to central organizations dataset (bootstrap)
                         # ========================================
@@ -3037,7 +3037,7 @@ async def repair_org_tables(
             "table_name": "contract_commitment_1_3",
             "schema_file": "contract_commitment_1_3.json",
             "partition_field": "ContractPeriodStart",
-            "clustering_fields": ["ContractId", "x_SubAccountId"]
+            "clustering_fields": ["ContractId", "x_sub_account_id"]
         },
         # NOTE: org_hierarchy moved to central organizations dataset (bootstrap)
         # GenAI PAYG Tables

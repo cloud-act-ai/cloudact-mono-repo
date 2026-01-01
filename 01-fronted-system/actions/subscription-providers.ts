@@ -1286,28 +1286,28 @@ export interface SaaSCostRecord {
   ChargePeriodEnd: string
 
   // Metadata (FOCUS 1.3 x_ prefix extension fields)
-  x_SourceSystem: string
-  x_SourceRecordId: string
-  x_UpdatedAt: string
-  x_AmortizationClass: string
-  x_ServiceModel: string
-  x_ExchangeRateUsed: number | null
-  x_OriginalCurrency: string | null
-  x_OriginalCost: number | null
-  x_CreatedAt: string
+  x_source_system: string
+  x_source_record_id: string
+  x_updated_at: string
+  x_amortization_class: string
+  x_service_model: string
+  x_exchange_rate_used: number | null
+  x_original_currency: string | null
+  x_original_cost: number | null
+  x_created_at: string
 
   // Org-specific extension fields (FOCUS 1.3)
-  x_OrgSlug: string
-  x_OrgName: string | null
-  x_OrgOwnerEmail: string | null
-  x_OrgDefaultCurrency: string | null
-  x_OrgDefaultTimezone: string | null
-  x_OrgDefaultCountry: string | null
-  x_OrgSubscriptionPlan: string | null
-  x_OrgSubscriptionStatus: string | null
-  x_PipelineId: string | null
-  x_PipelineRunId: string | null
-  x_DataQualityScore: number | null
+  x_org_slug: string
+  x_org_name: string | null
+  x_org_owner_email: string | null
+  x_org_default_currency: string | null
+  x_org_default_timezone: string | null
+  x_org_default_country: string | null
+  x_org_subscription_plan: string | null
+  x_org_subscription_status: string | null
+  x_pipeline_id: string | null
+  x_pipeline_run_id: string | null
+  x_data_quality_score: number | null
 
   // Calculated Run Rates
   MonthlyRunRate: number

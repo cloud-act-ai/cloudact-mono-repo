@@ -36,6 +36,10 @@ import {
   getFiscalYearRange,
   getFYTDRange,
   calculateFiscalYearForecast,
+  getLast30DaysRange,
+  getPrevious30DaysRange,
+  getNovemberRange,
+  getDecemberRange,
 } from "@/lib/costs"
 
 // ============================================
@@ -61,6 +65,14 @@ export interface PeriodCostData {
   fytd?: number
   /** Fiscal year forecast */
   fyForecast?: number
+  /** Last 30 days cost */
+  last30Days?: number
+  /** Previous 30 days cost (30 days before last 30) */
+  previous30Days?: number
+  /** November cost */
+  november?: number
+  /** December cost */
+  december?: number
 }
 
 export interface CostPeriodMetricsGridProps {
@@ -148,6 +160,10 @@ export function CostPeriodMetricsGrid({
     last2Months: getFormattedPeriodLabel(getLast2MonthsRange),
     ytd: getFormattedPeriodLabel(getYTDRange),
     fyLabel: getFormattedPeriodLabel(() => getFiscalYearRange(fiscalStartMonth)),
+    last30Days: getFormattedPeriodLabel(getLast30DaysRange),
+    previous30Days: getFormattedPeriodLabel(getPrevious30DaysRange),
+    november: getFormattedPeriodLabel(getNovemberRange),
+    december: getFormattedPeriodLabel(getDecemberRange),
   }), [fiscalStartMonth])
 
   // Calculate FY forecast if not provided
@@ -212,58 +228,58 @@ export function CostPeriodMetricsGrid({
   // Full variant shows all 8 metrics in 2 rows
   return (
     <div className={cn("space-y-3 sm:space-y-4", className)}>
-      {/* Row 1: Short-term periods */}
+      {/* Row 1: Monthly comparisons (Nov, Dec, Last 30 Days, Previous 30 Days) */}
       <CostMetricGrid columns={4}>
         <CostMetricCard
-          icon={Clock}
-          label="Yesterday"
-          value={data.yesterday ?? 0}
+          icon={Calendar}
+          label="November"
+          value={data.november ?? data.previousMonth ?? 0}
           currency={currency}
-          subtitle="Previous day"
+          subtitle="Nov 2025"
           variant="compact"
-          iconColor="text-slate-600"
+          iconColor="text-orange-500"
           compact={compact}
         />
         <CostMetricCard
-          icon={CalendarClock}
-          label="WTD"
-          value={data.wtd ?? 0}
+          icon={Calendar}
+          label="December"
+          value={data.december ?? data.mtd ?? 0}
           currency={currency}
-          subtitle="Week to date"
+          subtitle="Dec 2025"
           variant="compact"
-          iconColor="text-blue-500"
-          compact={compact}
-        />
-        <CostMetricCard
-          icon={CalendarRange}
-          label="Last Week"
-          value={data.lastWeek ?? 0}
-          currency={currency}
-          subtitle={periodLabels.lastWeek}
-          variant="compact"
-          iconColor="text-indigo-500"
+          iconColor="text-red-500"
           compact={compact}
         />
         <CostMetricCard
           icon={CalendarDays}
-          label="MTD"
-          value={data.mtd ?? 0}
+          label="Last 30 Days"
+          value={data.last30Days ?? data.mtd ?? 0}
           currency={currency}
-          subtitle="Month to date"
+          subtitle={periodLabels.last30Days || "Recent"}
           variant="compact"
           iconColor="text-emerald-600"
           compact={compact}
         />
+        <CostMetricCard
+          icon={CalendarRange}
+          label="Prev 30 Days"
+          value={data.previous30Days ?? data.previousMonth ?? 0}
+          currency={currency}
+          subtitle={periodLabels.previous30Days || "Prior period"}
+          variant="compact"
+          iconColor="text-blue-500"
+          compact={compact}
+        />
       </CostMetricGrid>
 
-      {/* Row 2: Longer-term periods */}
+      {/* Row 2: Year metrics (MTD, YTD, FYTD, FY Forecast) */}
       <CostMetricGrid columns={4}>
         <CostMetricCard
-          icon={Calendar}
-          label={periodLabels.previousMonth}
-          value={data.previousMonth ?? 0}
+          icon={CalendarClock}
+          label="MTD"
+          value={data.mtd ?? 0}
           currency={currency}
-          subtitle="Previous month"
+          subtitle="Month to date"
           variant="compact"
           iconColor="text-teal-600"
           compact={compact}

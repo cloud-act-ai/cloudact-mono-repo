@@ -359,7 +359,7 @@ saas_subscription_plans (with hierarchy IDs)
     ↓ sp_calculate_saas_subscription_plan_costs_daily
 saas_subscription_plan_costs_daily (hierarchy propagated)
     ↓ sp_convert_saas_costs_to_focus_1_3
-cost_data_standard_1_3 (x_HierarchyDeptId, x_HierarchyProjectId, x_HierarchyTeamId)
+cost_data_standard_1_3 (x_hierarchy_dept_id, x_hierarchy_project_id, x_hierarchy_team_id)
 ```
 
 **Stored Procedures Location:** `03-data-pipeline-service/configs/system/procedures/saas_subscription/`

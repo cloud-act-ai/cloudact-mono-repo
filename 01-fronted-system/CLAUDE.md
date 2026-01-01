@@ -2,6 +2,27 @@
 
 Next.js frontend with Supabase auth and Stripe payments. Port 3000. Connects to api-service (8000) for onboarding and pipeline-service (8001) for execution.
 
+## CRITICAL: Next.js 16 Uses proxy.ts NOT middleware.ts
+
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  !!! AI AGENTS: DO NOT CREATE middleware.ts !!!                              ║
+║                                                                              ║
+║  Next.js 16+ uses proxy.ts for route protection                             ║
+║  middleware.ts is DEPRECATED and will break the app                         ║
+║                                                                              ║
+║  - DO NOT rename proxy.ts to middleware.ts                                   ║
+║  - DO NOT create a middleware.ts file                                        ║
+║  - DO NOT rename the `proxy` function to `middleware`                        ║
+║                                                                              ║
+║  Route protection: ./proxy.ts (exports `proxy` function)                     ║
+║  Session refresh:  ./lib/supabase/middleware.ts (utility module, NOT route)  ║
+║                                                                              ║
+║  @see https://nextjs.org/docs/messages/middleware-to-proxy                   ║
+║  @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
 ## PRODUCTION-READY REQUIREMENTS (CRITICAL)
 
 **MANDATORY for all code generation and modifications:**
@@ -590,7 +611,7 @@ saas_subscription_plans (hierarchy IDs)
     ↓ sp_calculate_saas_subscription_plan_costs_daily
 saas_subscription_plan_costs_daily (with hierarchy)
     ↓ sp_convert_saas_costs_to_focus_1_3
-cost_data_standard_1_3 (x_Hierarchy* extension fields)
+cost_data_standard_1_3 (x_hierarchy_* extension fields)
 ```
 
 ## Supabase Configuration

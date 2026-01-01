@@ -728,6 +728,104 @@ export function calculateFiscalYearForecast(
 }
 
 /**
+ * Get last 30 days range
+ */
+export function getLast30DaysRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const thirtyDaysAgo = new Date(yesterday)
+  thirtyDaysAgo.setDate(yesterday.getDate() - 29) // 30 days including yesterday
+
+  return {
+    startDate: formatDateForApi(thirtyDaysAgo),
+    endDate: formatDateForApi(yesterday),
+    label: "Last 30 Days",
+    days: 30,
+  }
+}
+
+/**
+ * Get previous 30 days range (30 days before last 30 days)
+ */
+export function getPrevious30DaysRange(): PeriodDateRange {
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  // End of previous period = 30 days ago
+  const periodEnd = new Date(yesterday)
+  periodEnd.setDate(yesterday.getDate() - 30)
+
+  // Start of previous period = 59 days ago
+  const periodStart = new Date(periodEnd)
+  periodStart.setDate(periodEnd.getDate() - 29)
+
+  return {
+    startDate: formatDateForApi(periodStart),
+    endDate: formatDateForApi(periodEnd),
+    label: "Previous 30 Days",
+    days: 30,
+  }
+}
+
+/**
+ * Get specific month range by name
+ */
+export function getSpecificMonthRange(monthsAgo: number = 0): PeriodDateRange {
+  const now = new Date()
+  const targetMonth = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1)
+  const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+
+  const monthName = targetMonth.toLocaleDateString("en-US", { month: "short" })
+  const days = monthEnd.getDate()
+
+  return {
+    startDate: formatDateForApi(targetMonth),
+    endDate: formatDateForApi(monthEnd),
+    label: monthName,
+    days,
+  }
+}
+
+/**
+ * Get November range (2 months ago from Jan 2026)
+ */
+export function getNovemberRange(): PeriodDateRange {
+  const now = new Date()
+  // Calculate November based on current date
+  const novYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+  const novStart = new Date(novYear, 10, 1) // November is month 10 (0-indexed)
+  const novEnd = new Date(novYear, 11, 0) // Last day of November
+
+  return {
+    startDate: formatDateForApi(novStart),
+    endDate: formatDateForApi(novEnd),
+    label: "Nov",
+    days: 30,
+  }
+}
+
+/**
+ * Get December range (1 month ago from Jan 2026)
+ */
+export function getDecemberRange(): PeriodDateRange {
+  const now = new Date()
+  // Calculate December based on current date
+  const decYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+  const decStart = new Date(decYear, 11, 1) // December is month 11 (0-indexed)
+  const decEnd = new Date(decYear, 12, 0) // Last day of December
+
+  return {
+    startDate: formatDateForApi(decStart),
+    endDate: formatDateForApi(decEnd),
+    label: "Dec",
+    days: 31,
+  }
+}
+
+/**
  * Extended period metrics for comprehensive dashboard display
  */
 export interface ExtendedPeriodMetrics {

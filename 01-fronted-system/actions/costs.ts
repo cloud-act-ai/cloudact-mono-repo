@@ -1047,6 +1047,10 @@ import {
   getFYTDRange,
   getFiscalYearRange,
   calculateFiscalYearForecast,
+  getLast30DaysRange,
+  getPrevious30DaysRange,
+  getNovemberRange,
+  getDecemberRange,
 } from "@/lib/costs"
 
 export interface PeriodCostsData {
@@ -1060,6 +1064,11 @@ export interface PeriodCostsData {
   fytd: number
   fyForecast: number
   dataAsOf: string
+  // 30-day period data
+  last30Days: number
+  previous30Days: number
+  november: number
+  december: number
 }
 
 export interface PeriodCostsResponse {
@@ -1093,6 +1102,11 @@ export async function getExtendedPeriodCosts(
       ytd: getYTDRange(),
       fytd: getFYTDRange(fiscalStartMonth),
       fy: getFiscalYearRange(fiscalStartMonth),
+      // New 30-day periods
+      last30Days: getLast30DaysRange(),
+      previous30Days: getPrevious30DaysRange(),
+      november: getNovemberRange(),
+      december: getDecemberRange(),
     }
 
     // Fetch all periods in parallel
@@ -1105,6 +1119,10 @@ export async function getExtendedPeriodCosts(
       last2MonthsResult,
       ytdResult,
       fytdResult,
+      last30DaysResult,
+      previous30DaysResult,
+      novemberResult,
+      decemberResult,
     ] = await Promise.all([
       getTotalCosts(orgSlug, periods.yesterday.startDate, periods.yesterday.endDate, filters),
       getTotalCosts(orgSlug, periods.wtd.startDate, periods.wtd.endDate, filters),
@@ -1114,6 +1132,10 @@ export async function getExtendedPeriodCosts(
       getTotalCosts(orgSlug, periods.last2Months.startDate, periods.last2Months.endDate, filters),
       getTotalCosts(orgSlug, periods.ytd.startDate, periods.ytd.endDate, filters),
       getTotalCosts(orgSlug, periods.fytd.startDate, periods.fytd.endDate, filters),
+      getTotalCosts(orgSlug, periods.last30Days.startDate, periods.last30Days.endDate, filters),
+      getTotalCosts(orgSlug, periods.previous30Days.startDate, periods.previous30Days.endDate, filters),
+      getTotalCosts(orgSlug, periods.november.startDate, periods.november.endDate, filters),
+      getTotalCosts(orgSlug, periods.december.startDate, periods.december.endDate, filters),
     ])
 
     // Extract total costs based on cost type
@@ -1153,6 +1175,11 @@ export async function getExtendedPeriodCosts(
       fytd: fytdCost,
       fyForecast,
       dataAsOf: periods.yesterday.endDate,
+      // 30-day period data
+      last30Days: extractCost(last30DaysResult),
+      previous30Days: extractCost(previous30DaysResult),
+      november: extractCost(novemberResult),
+      december: extractCost(decemberResult),
     }
 
     return {

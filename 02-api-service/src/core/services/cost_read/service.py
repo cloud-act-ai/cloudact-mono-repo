@@ -158,15 +158,15 @@ class CostReadService:
 
         # Hierarchy filters
         if query.department_id:
-            where_conditions.append("x_HierarchyDeptId = @department_id")
+            where_conditions.append("x_hierarchy_dept_id = @department_id")
             query_params.append(bigquery.ScalarQueryParameter("department_id", "STRING", query.department_id))
 
         if query.project_id:
-            where_conditions.append("x_HierarchyProjectId = @project_id")
+            where_conditions.append("x_hierarchy_project_id = @project_id")
             query_params.append(bigquery.ScalarQueryParameter("project_id", "STRING", query.project_id))
 
         if query.team_id:
-            where_conditions.append("x_HierarchyTeamId = @team_id")
+            where_conditions.append("x_hierarchy_team_id = @team_id")
             query_params.append(bigquery.ScalarQueryParameter("team_id", "STRING", query.team_id))
 
         where_clause = " AND ".join(where_conditions)
@@ -190,13 +190,13 @@ class CostReadService:
             BillingPeriodEnd,
             DATE(ChargePeriodStart) as ChargePeriodStart,
             DATE(ChargePeriodEnd) as ChargePeriodEnd,
-            x_SourceSystem,
-            x_HierarchyDeptId,
-            x_HierarchyDeptName,
-            x_HierarchyProjectId,
-            x_HierarchyProjectName,
-            x_HierarchyTeamId,
-            x_HierarchyTeamName
+            x_source_system,
+            x_hierarchy_dept_id,
+            x_hierarchy_dept_name,
+            x_hierarchy_project_id,
+            x_hierarchy_project_name,
+            x_hierarchy_team_id,
+            x_hierarchy_team_name
         FROM {table_ref}
         WHERE {where_clause}
         ORDER BY ChargePeriodStart DESC
@@ -774,9 +774,9 @@ class CostReadService:
             df = await self._fetch_cost_data(query)
 
             # Filter to SaaS source system (handle nulls safely)
-            if "x_SourceSystem" in df.columns and not df.is_empty():
+            if "x_source_system" in df.columns and not df.is_empty():
                 df = df.filter(
-                    pl.col("x_SourceSystem").fill_null("").eq("saas_subscription_costs_daily")
+                    pl.col("x_source_system").fill_null("").eq("saas_subscription_costs_daily")
                 )
 
             if df.is_empty():
@@ -876,7 +876,7 @@ class CostReadService:
             if "ServiceProviderName" in df.columns and not df.is_empty():
                 # Use fill_null to safely handle null values before string operations
                 provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(cloud_providers)
-                source_match = pl.col("x_SourceSystem").fill_null("").str.to_lowercase().str.contains("cloud|gcp|aws|azure")
+                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("cloud|gcp|aws|azure")
                 df = df.filter(provider_match | source_match)
 
             if df.is_empty():
@@ -966,8 +966,8 @@ class CostReadService:
                 # Use fill_null to safely handle null values before string operations
                 provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(llm_providers)
                 category_match = pl.col("ServiceCategory").fill_null("").str.to_lowercase().eq("llm")
-                source_match = pl.col("x_SourceSystem").fill_null("").str.to_lowercase().str.contains("llm|openai|anthropic|gemini")
-                not_saas = pl.col("x_SourceSystem").fill_null("").ne("saas_subscription_costs_daily")
+                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("llm|openai|anthropic|gemini")
+                not_saas = pl.col("x_source_system").fill_null("").ne("saas_subscription_costs_daily")
 
                 df = df.filter(
                     (provider_match | category_match | source_match) & not_saas

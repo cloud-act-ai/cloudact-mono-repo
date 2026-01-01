@@ -112,7 +112,8 @@ function LineChart({
   if (currentData.length === 0) return null
 
   const width = 280
-  const padding = 4
+  const padding = 8
+  const chartHeight = height - 16 // Leave room for labels
 
   // Get all values for scaling
   const allValues = [
@@ -123,49 +124,103 @@ function LineChart({
   const minValue = Math.min(...allValues, 0)
   const range = maxValue - minValue || 1
 
-  // Generate path
-  const generatePath = (data: TrendDataPoint[]) => {
-    const xStep = (width - padding * 2) / Math.max(data.length - 1, 1)
+  // Generate smooth curve path using bezier curves
+  const generateSmoothPath = (data: TrendDataPoint[]) => {
+    if (data.length < 2) return ""
 
-    return data
-      .map((point, index) => {
-        const x = padding + index * xStep
-        const y = height - padding - ((point.value - minValue) / range) * (height - padding * 2)
-        return `${index === 0 ? "M" : "L"} ${x} ${y}`
-      })
-      .join(" ")
+    const xStep = (width - padding * 2) / Math.max(data.length - 1, 1)
+    const points = data.map((point, index) => ({
+      x: padding + index * xStep,
+      y: chartHeight - padding - ((point.value - minValue) / range) * (chartHeight - padding * 2),
+    }))
+
+    // Create smooth curve using quadratic bezier
+    let path = `M ${points[0].x} ${points[0].y}`
+    for (let i = 0; i < points.length - 1; i++) {
+      const current = points[i]
+      const next = points[i + 1]
+      const midX = (current.x + next.x) / 2
+      const midY = (current.y + next.y) / 2
+
+      if (i === 0) {
+        path += ` Q ${current.x} ${current.y} ${midX} ${midY}`
+      } else {
+        path += ` T ${midX} ${midY}`
+      }
+    }
+    // Connect to last point
+    const last = points[points.length - 1]
+    path += ` L ${last.x} ${last.y}`
+
+    return path
   }
 
-  const currentPath = generatePath(currentData)
-  const averagePath = averageData ? generatePath(averageData) : null
+  // Generate area fill path
+  const generateAreaPath = (data: TrendDataPoint[], color: string) => {
+    if (data.length < 2) return ""
+
+    const xStep = (width - padding * 2) / Math.max(data.length - 1, 1)
+    const points = data.map((point, index) => ({
+      x: padding + index * xStep,
+      y: chartHeight - padding - ((point.value - minValue) / range) * (chartHeight - padding * 2),
+    }))
+
+    let path = `M ${points[0].x} ${chartHeight - padding}`
+    points.forEach(p => {
+      path += ` L ${p.x} ${p.y}`
+    })
+    path += ` L ${points[points.length - 1].x} ${chartHeight - padding} Z`
+
+    return path
+  }
+
+  const currentPath = generateSmoothPath(currentData)
+  const averagePath = averageData ? generateSmoothPath(averageData) : null
+  const areaPath = generateAreaPath(currentData, primaryColor)
 
   // Calculate endpoint positions for dots
   const lastCurrent = currentData[currentData.length - 1]
   const lastAverage = averageData?.[averageData.length - 1]
+  const xStep = (width - padding * 2) / Math.max(currentData.length - 1, 1)
 
-  const currentEndX = width - padding
+  const currentEndX = padding + (currentData.length - 1) * xStep
   const currentEndY =
-    height - padding - ((lastCurrent.value - minValue) / range) * (height - padding * 2)
+    chartHeight - padding - ((lastCurrent.value - minValue) / range) * (chartHeight - padding * 2)
 
-  const averageEndX = averagePath ? width - padding : 0
+  const averageEndX = averagePath ? padding + ((averageData?.length || 1) - 1) * xStep : 0
   const averageEndY = lastAverage
-    ? height - padding - ((lastAverage.value - minValue) / range) * (height - padding * 2)
+    ? chartHeight - padding - ((lastAverage.value - minValue) / range) * (chartHeight - padding * 2)
     : 0
 
   return (
-    <svg width={width} height={height} className="w-full h-auto">
+    <svg width={width} height={height} className="w-full h-auto" viewBox={`0 0 ${width} ${height}`}>
+      {/* Gradient definitions */}
+      <defs>
+        <linearGradient id={`gradient-${primaryColor.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={primaryColor} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={primaryColor} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
       {/* Grid lines */}
       <line
         x1={padding}
-        y1={height / 2}
+        y1={chartHeight / 2}
         x2={width - padding}
-        y2={height / 2}
-        stroke="#f1f5f9"
+        y2={chartHeight / 2}
+        stroke="#e2e8f0"
         strokeWidth={1}
         strokeDasharray="4 4"
       />
 
-      {/* Average line */}
+      {/* Area fill under current line */}
+      <path
+        d={areaPath}
+        fill={`url(#gradient-${primaryColor.replace('#', '')})`}
+        className="transition-all duration-700"
+      />
+
+      {/* Average line (dashed) */}
       {averagePath && (
         <>
           <path
@@ -175,13 +230,16 @@ function LineChart({
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
+            strokeDasharray="6 4"
             className="transition-all duration-500"
           />
           <circle
             cx={averageEndX}
             cy={averageEndY}
             r={4}
-            fill={secondaryColor}
+            fill="white"
+            stroke={secondaryColor}
+            strokeWidth={2}
             className="transition-all duration-500"
           />
         </>
@@ -192,24 +250,36 @@ function LineChart({
         d={currentPath}
         fill="none"
         stroke={primaryColor}
-        strokeWidth={2.5}
+        strokeWidth={3}
         strokeLinecap="round"
         strokeLinejoin="round"
+        className="transition-all duration-500"
+      />
+
+      {/* End point with glow effect */}
+      <circle
+        cx={currentEndX}
+        cy={currentEndY}
+        r={8}
+        fill={primaryColor}
+        opacity={0.2}
         className="transition-all duration-500"
       />
       <circle
         cx={currentEndX}
         cy={currentEndY}
         r={5}
-        fill={primaryColor}
+        fill="white"
+        stroke={primaryColor}
+        strokeWidth={3}
         className="transition-all duration-500"
       />
 
       {/* X-axis labels */}
-      <text x={padding} y={height - 1} fontSize={9} fill="#94a3b8">
+      <text x={padding} y={height - 2} fontSize={10} fill="#94a3b8" fontWeight="500">
         Start
       </text>
-      <text x={width - padding} y={height - 1} fontSize={9} fill="#94a3b8" textAnchor="end">
+      <text x={width - padding} y={height - 2} fontSize={10} fill="#94a3b8" textAnchor="end" fontWeight="500">
         Now
       </text>
     </svg>
@@ -280,10 +350,15 @@ export function CostInsightsCard({
       tabIndex={onClick ? 0 : undefined}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5" style={{ color: primaryColor }} />
-          <h3 className="text-sm font-semibold" style={{ color: primaryColor }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="p-1.5 rounded-lg"
+            style={{ backgroundColor: `${primaryColor}15` }}
+          >
+            <Icon className="h-4 w-4" style={{ color: primaryColor }} />
+          </div>
+          <h3 className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: primaryColor }}>
             {title}
           </h3>
         </div>
@@ -291,38 +366,51 @@ export function CostInsightsCard({
       </div>
 
       {/* Insight text */}
-      <p className="text-sm text-slate-700 mb-4 leading-relaxed">{insight}</p>
+      <p className="text-sm text-slate-600 mb-4 leading-relaxed">{insight}</p>
 
-      {/* Value comparison */}
-      <div className="flex items-baseline gap-6 mb-4">
-        <div>
-          <div className="flex items-center gap-1.5">
+      {/* Value comparison - Apple Health style */}
+      <div className="flex items-end gap-5 mb-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 mb-1">
             <div
-              className="w-2 h-2 rounded-full"
+              className="w-2.5 h-2.5 rounded-full shadow-sm"
               style={{ backgroundColor: primaryColor }}
             />
-            <span className="text-xs text-slate-500">{currentLabel}</span>
+            <span className="text-xs font-medium text-slate-500">{currentLabel}</span>
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900" style={{ color: primaryColor }}>
+          <div
+            className="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums"
+            style={{ color: primaryColor }}
+          >
             {formattedCurrent}
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center gap-1.5">
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 mb-1">
             <div
-              className="w-2 h-2 rounded-full"
+              className="w-2.5 h-2.5 rounded-full opacity-60"
               style={{ backgroundColor: secondaryColor }}
             />
-            <span className="text-xs text-slate-500">{averageLabel}</span>
+            <span className="text-xs font-medium text-slate-500">{averageLabel}</span>
           </div>
-          <div className="text-xl sm:text-2xl font-bold" style={{ color: secondaryColor }}>
+          <div
+            className="text-xl sm:text-2xl font-bold tracking-tight tabular-nums"
+            style={{ color: secondaryColor }}
+          >
             {formattedAverage}
           </div>
         </div>
 
-        {/* Trend indicator */}
-        <div className="ml-auto flex items-center gap-1">
+        {/* Trend indicator - more prominent */}
+        <div
+          className={cn(
+            "flex items-center gap-1 px-2.5 py-1.5 rounded-full",
+            trend === "up" && "bg-red-50",
+            trend === "down" && "bg-green-50",
+            trend === "flat" && "bg-slate-50"
+          )}
+        >
           <TrendIcon
             className={cn(
               "h-4 w-4",
@@ -333,7 +421,7 @@ export function CostInsightsCard({
           />
           <span
             className={cn(
-              "text-sm font-semibold",
+              "text-sm font-bold tabular-nums",
               trend === "up" && "text-red-500",
               trend === "down" && "text-green-500",
               trend === "flat" && "text-slate-400"
@@ -344,14 +432,15 @@ export function CostInsightsCard({
         </div>
       </div>
 
-      {/* Chart */}
+      {/* Chart - with more height for visibility */}
       {trendData && trendData.length > 1 && (
-        <div className="mt-3">
+        <div className="mt-4 pt-3 border-t border-slate-100">
           <LineChart
             currentData={trendData}
             averageData={averageTrendData}
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
+            height={90}
           />
         </div>
       )}

@@ -11,11 +11,11 @@
 --   - ProviderName/PublisherName → Deprecated, use ServiceProviderName/HostProviderName
 --   - InvoiceIssuer → InvoiceIssuerName
 --   - Added: HostProviderName, ServiceProviderName, InvoiceIssuerName
---   - x_* fields use camelCase for legacy tables: x_SourceSystem, etc.
+--   - x_* extension fields use snake_case: x_source_system, x_pipeline_id, etc.
 --   - Tags stored as JSON instead of REPEATED RECORD
 --   - ContractApplied field for linking to contract_commitment_1_3
 --
--- UPDATED: 2026-01-01 - Fixed x_SourceSystem column name to match table (camelCase)
+-- UPDATED: 2026-01-01 - All x_* fields standardized to snake_case convention
 -- ================================================================================
 
 CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_3(
@@ -54,7 +54,7 @@ BEGIN
     EXECUTE IMMEDIATE FORMAT("""
       DELETE FROM `%s.%s.cost_data_standard_1_3`
       WHERE DATE(ChargePeriodStart) BETWEEN @p_start AND @p_end
-        AND x_SourceSystem = 'saas_subscription_costs_daily'
+        AND x_source_system = 'saas_subscription_costs_daily'
     """, p_project_id, p_dataset_id)
     USING p_start_date AS p_start, p_end_date AS p_end;
 
@@ -104,7 +104,7 @@ BEGIN
         -- Tags (JSON in FOCUS 1.3)
         Tags,
         -- Extension fields (x_ prefix per FOCUS convention)
-        x_SourceSystem, x_source_record_id, x_amortization_class, x_service_model,
+        x_source_system, x_source_record_id, x_amortization_class, x_service_model,
         x_cost_allocation_key, x_exchange_rate_used, x_original_currency, x_original_cost, x_updated_at,
         -- Org-specific extension fields (from org_profiles)
         x_org_slug, x_org_name, x_org_owner_email, x_org_default_currency, x_org_default_timezone,
@@ -273,7 +273,7 @@ BEGIN
         ) AS Tags,
 
         -- Extension fields (x_ prefix per FOCUS convention)
-        'saas_subscription_costs_daily' AS x_SourceSystem,
+        'saas_subscription_costs_daily' AS x_source_system,
         spc.subscription_id AS x_source_record_id,
         'Amortized' AS x_amortization_class,
         'SaaS' AS x_service_model,
@@ -339,7 +339,7 @@ BEGIN
   EXECUTE IMMEDIATE FORMAT("""
     SELECT COUNT(*) FROM `%s.%s.cost_data_standard_1_3`
     WHERE ChargePeriodStart BETWEEN @p_start AND @p_end
-      AND x_SourceSystem = 'saas_subscription_costs_daily'
+      AND x_source_system = 'saas_subscription_costs_daily'
   """, p_project_id, p_dataset_id)
   INTO v_rows_inserted USING TIMESTAMP(p_start_date) AS p_start, TIMESTAMP(p_end_date) AS p_end;
 

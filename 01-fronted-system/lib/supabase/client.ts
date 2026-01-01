@@ -5,7 +5,7 @@ import { createBrowserClient } from "@supabase/ssr"
  *
  * Token refresh strategy:
  * - autoRefreshToken: true - Browser client refreshes tokens during SPA navigation
- * - Middleware (proxy.ts -> updateSession) also refreshes on server requests
+ * - Proxy (proxy.ts -> updateSession) also refreshes on server requests (Next.js 16+)
  *
  * Both are needed because:
  * 1. Client-side navigation (Link, router.push) doesn't trigger middleware

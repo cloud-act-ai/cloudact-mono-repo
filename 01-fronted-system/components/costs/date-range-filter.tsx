@@ -150,10 +150,11 @@ export function getPresetRange(preset: DateRangePreset): DateRange {
 }
 
 /**
- * Get default date range (MTD)
+ * Get default date range (Last 30 Days for better demo experience)
+ * Shows data from the previous month when MTD might be empty
  */
 export function getDefaultDateRange(): DateRange {
-  return getPresetRange("mtd")
+  return getPresetRange("last_30_days")
 }
 
 /**

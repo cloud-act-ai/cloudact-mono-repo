@@ -26,9 +26,9 @@ class CostQuery:
     4. Default → current fiscal YTD
 
     Hierarchy filtering:
-    - department_id: Filter by x_HierarchyDeptId
-    - project_id: Filter by x_HierarchyProjectId
-    - team_id: Filter by x_HierarchyTeamId
+    - department_id: Filter by x_hierarchy_dept_id
+    - project_id: Filter by x_hierarchy_project_id
+    - team_id: Filter by x_hierarchy_team_id
     """
     org_slug: str
     start_date: Optional[date] = None

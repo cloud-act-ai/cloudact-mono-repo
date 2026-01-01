@@ -170,11 +170,11 @@ class FOCUSConverterProcessor:
                         hierarchy_team_id as x_hierarchy_team_id,
                         hierarchy_team_name as x_hierarchy_team_name,
                         -- Lineage columns (REQUIRED)
-                        'focus_convert_genai' as x_PipelineId,
-                        @credential_id as x_CredentialId,
-                        @process_date as x_PipelineRunDate,
-                        @run_id as x_PipelineRunId,
-                        CURRENT_TIMESTAMP() as x_IngestedAt
+                        'focus_convert_genai' as x_pipeline_id,
+                        @credential_id as x_credential_id,
+                        @process_date as x_pipeline_run_date,
+                        @run_id as x_pipeline_run_id,
+                        CURRENT_TIMESTAMP() as x_ingested_at
                     FROM `{project_id}.{dataset_id}.genai_costs_daily_unified`
                     WHERE cost_date = @process_date
                       AND org_slug = @org_slug
@@ -186,9 +186,9 @@ class FOCUSConverterProcessor:
                     AND T.x_genai_provider = S.x_genai_provider
                     AND COALESCE(T.ResourceId, '') = COALESCE(S.ResourceId, '')
                     AND COALESCE(T.RegionId, 'global') = COALESCE(S.RegionId, 'global')
-                    AND T.x_PipelineId = S.x_PipelineId
-                    AND T.x_CredentialId = S.x_CredentialId
-                    AND T.x_PipelineRunDate = S.x_PipelineRunDate
+                    AND T.x_pipeline_id = S.x_pipeline_id
+                    AND T.x_credential_id = S.x_credential_id
+                    AND T.x_pipeline_run_date = S.x_pipeline_run_date
                 WHEN MATCHED THEN
                     UPDATE SET
                         ChargePeriodEnd = S.ChargePeriodEnd,
@@ -220,8 +220,8 @@ class FOCUSConverterProcessor:
                         x_hierarchy_project_name = S.x_hierarchy_project_name,
                         x_hierarchy_team_id = S.x_hierarchy_team_id,
                         x_hierarchy_team_name = S.x_hierarchy_team_name,
-                        x_PipelineRunId = S.x_PipelineRunId,
-                        x_IngestedAt = S.x_IngestedAt
+                        x_pipeline_run_id = S.x_pipeline_run_id,
+                        x_ingested_at = S.x_ingested_at
                 WHEN NOT MATCHED THEN
                     INSERT (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
                             InvoiceIssuerName, ServiceProviderName, ServiceCategory, ServiceName,
@@ -235,7 +235,7 @@ class FOCUSConverterProcessor:
                             x_hierarchy_dept_id, x_hierarchy_dept_name,
                             x_hierarchy_project_id, x_hierarchy_project_name,
                             x_hierarchy_team_id, x_hierarchy_team_name,
-                            x_PipelineId, x_CredentialId, x_PipelineRunDate, x_PipelineRunId, x_IngestedAt)
+                            x_pipeline_id, x_credential_id, x_pipeline_run_date, x_pipeline_run_id, x_ingested_at)
                     VALUES (S.ChargePeriodStart, S.ChargePeriodEnd, S.BillingPeriodStart, S.BillingPeriodEnd,
                             S.InvoiceIssuerName, S.ServiceProviderName, S.ServiceCategory, S.ServiceName,
                             S.ResourceId, S.ResourceName, S.ResourceType, S.RegionId, S.RegionName,
@@ -248,7 +248,7 @@ class FOCUSConverterProcessor:
                             S.x_hierarchy_dept_id, S.x_hierarchy_dept_name,
                             S.x_hierarchy_project_id, S.x_hierarchy_project_name,
                             S.x_hierarchy_team_id, S.x_hierarchy_team_name,
-                            S.x_PipelineId, S.x_CredentialId, S.x_PipelineRunDate, S.x_PipelineRunId, S.x_IngestedAt)
+                            S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_pipeline_run_id, S.x_ingested_at)
             """
 
             # Get lineage context from pipeline execution

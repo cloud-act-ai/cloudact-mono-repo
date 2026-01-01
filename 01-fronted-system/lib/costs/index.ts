@@ -196,4 +196,10 @@ export {
   getFiscalYearRange,
   getFYTDRange,
   calculateFiscalYearForecast,
+  // 30-day period calculations
+  getLast30DaysRange,
+  getPrevious30DaysRange,
+  getSpecificMonthRange,
+  getNovemberRange,
+  getDecemberRange,
 } from "./dashboard-calculators"

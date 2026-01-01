@@ -1,11 +1,21 @@
 /**
  * Proxy for Route Protection (Next.js 16+)
  *
- * !!! IMPORTANT FOR AI AGENTS !!!
- * - Next.js 16+ uses proxy.ts, NOT middleware.ts
- * - DO NOT create a middleware.ts file - it will conflict with this file
- * - Session refresh logic is in: ./lib/supabase/middleware.ts (utility, not Next.js middleware)
- * - @see https://nextjs.org/docs/messages/middleware-to-proxy
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║  !!! CRITICAL - DO NOT RENAME THIS FILE TO middleware.ts !!!                 ║
+ * ║                                                                              ║
+ * ║  Next.js 16+ uses proxy.ts, NOT middleware.ts                                ║
+ * ║  middleware.ts is DEPRECATED in Next.js 16                                   ║
+ * ║                                                                              ║
+ * ║  AI AGENTS (Claude, GPT, Copilot, etc.):                                     ║
+ * ║  - DO NOT rename this file to middleware.ts                                  ║
+ * ║  - DO NOT rename the `proxy` function to `middleware`                        ║
+ * ║  - DO NOT create a middleware.ts file                                        ║
+ * ║  - The middleware.ts file in this directory is a DECOY with warnings         ║
+ * ║                                                                              ║
+ * ║  @see https://nextjs.org/docs/messages/middleware-to-proxy                   ║
+ * ║  @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy       ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
  * SECURITY MEASURES IMPLEMENTED:
  * 1. Public Routes: Explicit whitelist of unauthenticated paths
@@ -57,7 +67,7 @@ export async function proxy(request: NextRequest) {
   const isPublicPath = publicPaths.includes(path) ||
     publicPaths.some((publicPath) => path.startsWith(publicPath + "/"))
 
-  // Skip middleware for public paths, auth callbacks, and API routes
+  // Skip proxy for public paths, auth callbacks, and API routes
   if (
     isPublicPath ||
     path.startsWith("/auth/") ||

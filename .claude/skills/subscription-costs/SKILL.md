@@ -31,7 +31,7 @@ POST /api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost
             │   └─► Outputs: saas_subscription_plan_costs_daily
             │
             └─► Stage 2: sp_convert_saas_costs_to_focus_1_3
-                └─► Outputs: cost_data_standard_1_3 (x_SourceSystem = 'saas_subscription_costs_daily')
+                └─► Outputs: cost_data_standard_1_3 (x_source_system = 'saas_subscription_costs_daily')
 ```
 
 ## Stored Procedures
@@ -75,7 +75,7 @@ hierarchy_*         STRING    -- Allocation fields
 ```
 
 ### FOCUS Output: `cost_data_standard_1_3`
-Filtered by: `x_SourceSystem = 'saas_subscription_costs_daily'`
+Filtered by: `x_source_system = 'saas_subscription_costs_daily'`
 
 ## Instructions
 
@@ -154,9 +154,9 @@ ORDER BY cost_date DESC
 LIMIT 10;
 
 -- Check FOCUS output
-SELECT BillingPeriodStart, ServiceName, EffectiveCost, x_SourceSystem
+SELECT BillingPeriodStart, ServiceName, EffectiveCost, x_source_system
 FROM `{project}.{org_slug}_dev.cost_data_standard_1_3`
-WHERE x_SourceSystem = 'saas_subscription_costs_daily'
+WHERE x_source_system = 'saas_subscription_costs_daily'
 ORDER BY BillingPeriodStart DESC
 LIMIT 10;
 ```
@@ -190,7 +190,7 @@ daily_cost_usd = daily_cost_local * exchange_rate_to_usd
 - [ ] Stored procedures are synced to BigQuery
 - [ ] Pipeline completes without errors
 - [ ] Daily costs appear in output tables
-- [ ] FOCUS data has `x_SourceSystem = 'saas_subscription_costs_daily'`
+- [ ] FOCUS data has `x_source_system = 'saas_subscription_costs_daily'`
 
 ## Common Issues
 
