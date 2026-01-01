@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import {
   Bell,
   Mail,
@@ -1153,7 +1153,11 @@ function CreateSummaryDialog({
 
 export default function NotificationsPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const orgSlug = params.orgSlug as string
+
+  // Get initial tab from URL or default to overview
+  const initialTab = searchParams.get("tab") || "overview"
 
   // State
   const [isLoading, setIsLoading] = useState(true)
@@ -1422,7 +1426,7 @@ export default function NotificationsPage() {
       {stats && <StatRow stats={statRowData} />}
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="w-full sm:w-auto overflow-x-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
