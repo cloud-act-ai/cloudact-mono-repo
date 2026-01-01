@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         description="Application version"
     )
     release_version: str = Field(
-        default="v1.0.13",
+        default="v2.0.0",
         description="Git release tag version (e.g., v1.0.0)"
     )
     release_timestamp: str = Field(
