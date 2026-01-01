@@ -58,7 +58,13 @@
   --cloudact-mint-light: #B8FDCA;
   --cloudact-mint-dark: #6EE890;
   --cloudact-mint-darker: #4DD979;
-  --cloudact-mint-text: #1a7a3a;  /* Dark text on mint backgrounds */
+  --cloudact-mint-text: #0F5132;  /* Rich forest green for mint backgrounds */
+
+  /* Indigo - Premium secondary accent for professional look */
+  --cloudact-indigo: #4F46E5;
+  --cloudact-indigo-light: #6366F1;
+  --cloudact-indigo-dark: #4338CA;
+  --cloudact-indigo-darker: #3730A3;
 
   /* Coral - Costs, warnings, destructive actions */
   --cloudact-coral: #FF6C5E;
@@ -86,6 +92,7 @@
   --cloudact-bg-mint: #E8FFF0;
   --cloudact-bg-coral: #FFF5F3;
   --cloudact-bg-blue: #EBF5FF;
+  --cloudact-bg-indigo: #EEF2FF;
   --cloudact-bg-teal: var(--cloudact-bg-mint);
 
   /* ========== NEUTRAL PALETTE ========== */
@@ -144,6 +151,7 @@
   --border-mint: rgba(144, 252, 166, 0.3);
   --border-coral: rgba(255, 108, 94, 0.3);
   --border-blue: rgba(0, 122, 255, 0.3);
+  --border-indigo: rgba(79, 70, 229, 0.3);
 
   /* ========== SHADOWS - Premium Apple-Style ========== */
   /* Basic shadows */
@@ -169,10 +177,12 @@
   --shadow-glow-mint: 0 0 40px rgba(144, 252, 166, 0.25);
   --shadow-glow-coral: 0 0 40px rgba(255, 108, 94, 0.15);
   --shadow-glow-blue: 0 0 40px rgba(0, 122, 255, 0.15);
+  --shadow-glow-indigo: 0 0 40px rgba(79, 70, 229, 0.2);
   --shadow-premium-glow-mint: var(--shadow-glow-mint);
   --shadow-premium-glow-teal: var(--shadow-glow-mint);
   --shadow-premium-glow-coral: var(--shadow-glow-coral);
   --shadow-premium-glow-blue: var(--shadow-glow-blue);
+  --shadow-premium-glow-indigo: var(--shadow-glow-indigo);
 
   /* Button shadows */
   --shadow-button-mint: 0 2px 8px rgba(144, 252, 166, 0.35);
@@ -183,6 +193,8 @@
   --shadow-button-coral-hover: 0 4px 16px rgba(255, 108, 94, 0.35);
   --shadow-button-blue: 0 2px 8px rgba(0, 122, 255, 0.25);
   --shadow-button-blue-hover: 0 4px 16px rgba(0, 122, 255, 0.35);
+  --shadow-button-indigo: 0 2px 8px rgba(79, 70, 229, 0.3);
+  --shadow-button-indigo-hover: 0 4px 16px rgba(79, 70, 229, 0.4);
 
   /* Console Scrollbars - Premium */
   --scrollbar-track: #ffffff;
@@ -1499,20 +1511,26 @@ a.disabled {
 .bg-ca-blue { background-color: var(--cloudact-blue); }
 .bg-ca-blue-light { background-color: var(--cloudact-blue-light); }
 .bg-ca-blue-dark { background-color: var(--cloudact-blue-dark); }
+.bg-indigo { background-color: var(--cloudact-indigo); }
+.bg-indigo-light { background-color: var(--cloudact-indigo-light); }
+.bg-indigo-dark { background-color: var(--cloudact-indigo-dark); }
 
 /* Text colors with brand colors */
 .text-mint { color: var(--cloudact-mint); }
 .text-mint-dark { color: var(--cloudact-mint-dark); }
-.text-mint-text { color: var(--cloudact-mint-text, #1a7a3a); }
+.text-mint-text { color: var(--cloudact-mint-text, #0F5132); }
 .text-coral { color: var(--cloudact-coral); }
 .text-coral-dark { color: var(--cloudact-coral-dark); }
 .text-ca-blue { color: var(--cloudact-blue); }
 .text-ca-blue-dark { color: var(--cloudact-blue-dark); }
+.text-indigo { color: var(--cloudact-indigo); }
+.text-indigo-dark { color: var(--cloudact-indigo-dark); }
 
 /* Border colors */
 .border-mint { border-color: var(--cloudact-mint); }
 .border-coral { border-color: var(--cloudact-coral); }
 .border-ca-blue { border-color: var(--cloudact-blue); }
+.border-indigo { border-color: var(--cloudact-indigo); }
 
 /* Gradient backgrounds for cards */
 .bg-gradient-mint {
@@ -1530,6 +1548,11 @@ a.disabled {
   border-color: rgba(0, 122, 255, 0.2);
 }
 
+.bg-gradient-indigo {
+  background: linear-gradient(to bottom right, rgba(79, 70, 229, 0.1), rgba(79, 70, 229, 0.05));
+  border-color: rgba(79, 70, 229, 0.2);
+}
+
 /* Icon containers */
 .icon-container-mint {
   background: var(--cloudact-mint);
@@ -1543,6 +1566,11 @@ a.disabled {
 
 .icon-container-blue {
   background: var(--cloudact-blue);
+  color: #ffffff;
+}
+
+.icon-container-indigo {
+  background: var(--cloudact-indigo);
   color: #ffffff;
 }
 
@@ -1685,9 +1713,10 @@ a.disabled {
   margin-bottom: var(--space-2, 8px);
 }
 
-.card-label-mint { color: var(--cloudact-mint-text, #1a7a3a); }
+.card-label-mint { color: var(--cloudact-mint-text, #0F5132); }
 .card-label-coral { color: var(--cloudact-coral); }
 .card-label-blue { color: var(--cloudact-blue); }
+.card-label-indigo { color: var(--cloudact-indigo); }
 
 /* Card value - for metric values */
 .card-value {
@@ -1774,6 +1803,11 @@ a.disabled {
   background: rgba(144, 252, 166, 0.08);
   color: var(--text-tertiary, #8E8E93);
   border: 1px solid rgba(144, 252, 166, 0.15);
+}
+
+.status-badge-indigo {
+  background: rgba(79, 70, 229, 0.12);
+  color: var(--cloudact-indigo);
 }
 
 /* Empty state */
