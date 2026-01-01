@@ -872,7 +872,7 @@ async def get_total_costs(
                     extra={
                         "org_slug": org_slug,
                         "base_range": first_range,
-                        "mismatched_type": cost_type,
+                        "mismatched_tyaspe": cost_type,
                         "mismatched_range": dr
                     }
                 )
