@@ -91,7 +91,7 @@ export default function DashboardPage() {
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
-  const [timeRange, setTimeRange] = useState<TimeRange>("30")
+  const [timeRange, setTimeRange] = useState<TimeRange>("365")
 
   // Get daily trend data from context (real data from backend)
   const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
@@ -372,57 +372,51 @@ export default function DashboardPage() {
             Here&#39;s what&#39;s happening with your cloud costs today.
           </p>
         </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          variant="outline"
-          size="sm"
-          className="h-10 sm:h-9 w-full sm:w-auto flex-shrink-0"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Summary Metrics - Using shared CostSummaryGrid component */}
-      <CostSummaryGrid data={summaryData} />
-
-      {/* Daily Cost Trend Chart with Time Range Filter */}
-      <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div>
-            <CardTitle className="text-base font-semibold">Daily Cost Trend</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Last {timeRange} days with {rollingAvgLabel.toLowerCase()}
-            </p>
-          </div>
+        <div className="flex items-center gap-2 sm:gap-3">
           <TimeRangeFilter
             value={timeRange}
             onChange={setTimeRange}
             size="sm"
           />
+          <Button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            variant="outline"
+            size="sm"
+            className="h-8 sm:h-9 px-3 flex-shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Metrics - Using shared CostSummaryGrid component */}
+      <CostSummaryGrid data={summaryData} />
+
+      {/* Daily Cost Trend Chart */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Daily Cost Trend</CardTitle>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {rollingAvgLabel} overlay on daily spend
+          </p>
         </CardHeader>
         <CardContent className="pt-0">
-          {dailyTrendData.length > 0 ? (
-            <CostComboChart
-              title=""
-              data={dailyTrendData}
-              currency={displayCurrency}
-              barColor="#90FCA6"
-              lineColor="#FF6C5E"
-              barLabel="Daily Cost"
-              lineLabel={rollingAvgLabel}
-              height={260}
-              showAreaFill
-              loading={isLoading}
-              showLegend={true}
-              className="border-0 shadow-none p-0"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-[260px] text-slate-400 text-sm">
-              No cost data available for this period
-            </div>
-          )}
+          <CostComboChart
+            title=""
+            data={dailyTrendData}
+            currency={displayCurrency}
+            barColor="#90FCA6"
+            lineColor="#FF6C5E"
+            barLabel="Daily Cost"
+            lineLabel={rollingAvgLabel}
+            height={260}
+            showAreaFill
+            loading={isLoading || dailyTrendData.length === 0}
+            showLegend={true}
+            className="border-0 shadow-none p-0"
+          />
         </CardContent>
       </Card>
 

@@ -720,9 +720,16 @@ export async function getCostTrend(
       }
     }
 
+    // API returns different field names than our frontend expects
+    interface ApiTrendPoint {
+      date: string
+      total_cost: number
+      record_count: number
+      providers?: string[]
+    }
     interface TrendResponse {
       success: boolean
-      data: CostTrendPoint[]
+      data: ApiTrendPoint[]
       currency: string
     }
     const result = await safeJsonParse<TrendResponse>(response, {
@@ -731,9 +738,18 @@ export async function getCostTrend(
       currency: "USD",
     })
 
+    // Transform API response to frontend format
+    const transformedData: CostTrendPoint[] = (result.data || []).map((point) => ({
+      period: point.date,
+      total_billed_cost: point.total_cost || 0,
+      total_effective_cost: point.total_cost || 0,
+      record_count: point.record_count || 0,
+      providers: point.providers || [],
+    }))
+
     return {
       success: result.success,
-      data: result.data || [],
+      data: transformedData,
       currency: result.currency || "USD",
     }
   } catch (error) {

@@ -52,7 +52,16 @@ import {
 // ============================================
 
 /** Time range options for filtering dashboard data */
-export type TimeRange = "365" | "90" | "30" | "14" | "7"
+export type TimeRange =
+  | "mtd"        // Month to Date
+  | "ytd"        // Year to Date
+  | "qtd"        // Quarter to Date
+  | "last_month" // Last full month
+  | "365"        // Last 365 days
+  | "90"         // Last 90 days
+  | "30"         // Last 30 days
+  | "14"         // Last 14 days
+  | "7"          // Last 7 days
 
 /** Daily trend data point with rolling average */
 export interface DailyTrendDataPoint {
@@ -331,20 +340,63 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       const trendData = state.dailyTrendData
       if (!trendData || trendData.length === 0) return []
 
-      // Determine number of days to include
-      const days = parseInt(timeRange, 10)
+      // Filter out any items with missing period and sort by date (ascending)
+      const validData = trendData.filter((d) => d && d.period)
+      if (validData.length === 0) return []
 
-      // Sort data by date (ascending) and take last N days
-      const sortedData = [...trendData].sort((a, b) =>
-        a.period.localeCompare(b.period)
+      const sortedData = [...validData].sort((a, b) =>
+        (a.period || "").localeCompare(b.period || "")
       )
-      const filteredData = sortedData.slice(-days)
 
-      // Calculate rolling average window based on time range
-      // 365 days → 30-day rolling avg
-      // 90 days → 14-day rolling avg
-      // 30 days → 7-day rolling avg
-      // 14/7 days → 3-day rolling avg
+      // Calculate date range based on time range type
+      const today = new Date()
+      let startDate: Date
+      let days: number
+
+      switch (timeRange) {
+        case "mtd":
+          // Month to date - from 1st of current month
+          startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+          days = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case "ytd":
+          // Year to date - from Jan 1st
+          startDate = new Date(today.getFullYear(), 0, 1)
+          days = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case "qtd":
+          // Quarter to date - from start of current quarter
+          const quarterMonth = Math.floor(today.getMonth() / 3) * 3
+          startDate = new Date(today.getFullYear(), quarterMonth, 1)
+          days = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          break
+        case "last_month":
+          // Last full month
+          const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+          const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
+          startDate = lastMonthStart
+          days = lastMonthEnd.getDate()
+          break
+        default:
+          // Numeric days (365, 90, 30, 14, 7)
+          days = parseInt(timeRange, 10) || 30
+          startDate = new Date(today)
+          startDate.setDate(startDate.getDate() - days + 1)
+      }
+
+      // Format startDate as YYYY-MM-DD for comparison
+      const startDateStr = startDate.toISOString().split("T")[0]
+
+      // Filter data by date range
+      const filteredData = sortedData.filter((d) => d.period >= startDateStr)
+
+      if (filteredData.length === 0) return []
+
+      // Calculate rolling average window based on number of days
+      // 365+ days → 30-day rolling avg
+      // 90+ days → 14-day rolling avg
+      // 30+ days → 7-day rolling avg
+      // <30 days → 3-day rolling avg
       const avgWindow = days >= 365 ? 30 : days >= 90 ? 14 : days >= 30 ? 7 : 3
 
       // Transform and calculate rolling averages
@@ -361,18 +413,18 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
             0
           ) / windowData.length
 
-        // Format label based on time range
+        // Format label based on number of days in range
         let label: string
-        if (days >= 365) {
-          // For 365 days, show month abbreviation
+        if (days >= 180) {
+          // For long ranges, show month abbreviation
           label = date.toLocaleDateString("en-US", { month: "short" })
           // Only show month label on first day of each month or first data point
           const prevDate = index > 0 ? new Date(arr[index - 1].period) : null
           if (prevDate && prevDate.getMonth() === date.getMonth()) {
             label = date.getDate().toString()
           }
-        } else if (days >= 90) {
-          // For 90 days, show "Mon D" on week starts
+        } else if (days >= 60) {
+          // For medium ranges, show "Mon D" on week starts
           const dayOfWeek = date.getDay()
           if (dayOfWeek === 0 || index === 0) {
             label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" })

@@ -533,9 +533,13 @@ export interface TimeRangeFilterProps {
 }
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; shortLabel: string }[] = [
-  { value: "365", label: "Last 365 Days", shortLabel: "365D" },
+  { value: "365", label: "Last 365 Days", shortLabel: "1Y" },
+  { value: "ytd", label: "Year to Date", shortLabel: "YTD" },
+  { value: "qtd", label: "This Quarter", shortLabel: "QTD" },
   { value: "90", label: "Last 90 Days", shortLabel: "90D" },
+  { value: "mtd", label: "Month to Date", shortLabel: "MTD" },
   { value: "30", label: "Last 30 Days", shortLabel: "30D" },
+  { value: "last_month", label: "Last Month", shortLabel: "LM" },
   { value: "14", label: "Last 14 Days", shortLabel: "14D" },
   { value: "7", label: "Last 7 Days", shortLabel: "7D" },
 ]
@@ -573,7 +577,7 @@ export function TimeRangeFilter({
           <ChevronDown className={cn("text-slate-400", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-44 p-1.5" align="end">
+      <PopoverContent className="w-48 p-1.5" align="end">
         <div className="space-y-0.5">
           {TIME_RANGE_OPTIONS.map((option) => {
             const isSelected = option.value === value
@@ -609,12 +613,21 @@ export function TimeRangeFilter({
  */
 export function getRollingAverageWindow(timeRange: TimeRange): number {
   switch (timeRange) {
-    case "365": return 30  // 30-day rolling avg
-    case "90": return 14   // 14-day rolling avg
-    case "30": return 7    // 7-day rolling avg
-    case "14": return 3    // 3-day rolling avg
-    case "7": return 3     // 3-day rolling avg
-    default: return 7
+    case "365":
+    case "ytd":
+      return 30  // 30-day rolling avg
+    case "qtd":
+    case "90":
+      return 14  // 14-day rolling avg
+    case "mtd":
+    case "30":
+    case "last_month":
+      return 7   // 7-day rolling avg
+    case "14":
+    case "7":
+      return 3   // 3-day rolling avg
+    default:
+      return 7
   }
 }
 
@@ -623,11 +636,20 @@ export function getRollingAverageWindow(timeRange: TimeRange): number {
  */
 export function getRollingAverageLabel(timeRange: TimeRange): string {
   switch (timeRange) {
-    case "365": return "30-Day Avg"
-    case "90": return "14-Day Avg"
-    case "30": return "7-Day Avg"
-    case "14": return "3-Day Avg"
-    case "7": return "3-Day Avg"
-    default: return "7-Day Avg"
+    case "365":
+    case "ytd":
+      return "30-Day Avg"
+    case "qtd":
+    case "90":
+      return "14-Day Avg"
+    case "mtd":
+    case "30":
+    case "last_month":
+      return "7-Day Avg"
+    case "14":
+    case "7":
+      return "3-Day Avg"
+    default:
+      return "7-Day Avg"
   }
 }

@@ -14,23 +14,16 @@ check_requirements
 check_auth
 check_dataset
 
-# Load GCP data
+# Load cloud data using autodetect (table schema is authoritative from onboarding)
 load_provider() {
     local provider=$1
     local table=$2
-    local schema=$3
 
     local DATA_FILE="${DATA_DIR}/cloud/${provider}_billing_raw.json"
-    local SCHEMA_FILE="${SCHEMA_DIR}/${schema}"
     local TARGET_TABLE="${PROJECT_ID}:${DATASET}.${table}"
 
     if [[ ! -f "$DATA_FILE" ]]; then
         log_warn "Skipping ${provider}: ${DATA_FILE} not found"
-        return 0
-    fi
-
-    if [[ ! -f "$SCHEMA_FILE" ]]; then
-        log_warn "Skipping ${provider}: ${SCHEMA_FILE} not found"
         return 0
     fi
 
@@ -42,11 +35,11 @@ load_provider() {
     record_count=$(wc -l < "$DATA_FILE" | tr -d ' ')
     log_info "  Records to load: ${record_count}"
 
-    # Load data (replace mode for each provider table)
+    # Load data (replace mode, autodetect schema to match existing table)
     bq load \
         --source_format=NEWLINE_DELIMITED_JSON \
         --replace \
-        --schema="${SCHEMA_FILE}" \
+        --autodetect \
         "${TARGET_TABLE}" \
         "${DATA_FILE}"
 
@@ -59,10 +52,10 @@ load_provider() {
 }
 
 # Load each provider
-load_provider "gcp" "cloud_gcp_billing_raw_daily" "gcp_billing_cost.json"
-load_provider "aws" "cloud_aws_billing_raw_daily" "aws_billing_cost.json"
-load_provider "azure" "cloud_azure_billing_raw_daily" "azure_billing_cost.json"
-load_provider "oci" "cloud_oci_billing_raw_daily" "oci_billing_cost.json"
+load_provider "gcp" "cloud_gcp_billing_raw_daily"
+load_provider "aws" "cloud_aws_billing_raw_daily"
+load_provider "azure" "cloud_azure_billing_raw_daily"
+load_provider "oci" "cloud_oci_billing_raw_daily"
 
 echo ""
 log_info "Cloud billing data loading complete!"
