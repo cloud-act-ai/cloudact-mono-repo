@@ -653,3 +653,11 @@ export function getRollingAverageLabel(timeRange: TimeRange): string {
       return "7-Day Avg"
   }
 }
+
+/**
+ * Get display label for a time range
+ */
+export function getTimeRangeLabel(timeRange: TimeRange): string {
+  const option = TIME_RANGE_OPTIONS.find((opt) => opt.value === timeRange)
+  return option?.label || "Last 30 Days"
+}

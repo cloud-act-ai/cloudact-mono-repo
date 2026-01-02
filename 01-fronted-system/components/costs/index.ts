@@ -122,6 +122,7 @@ export {
   TimeRangeFilter,
   getRollingAverageWindow,
   getRollingAverageLabel,
+  getTimeRangeLabel,
   type CostFiltersState,
   type CostFiltersProps,
   type HierarchyEntity,
