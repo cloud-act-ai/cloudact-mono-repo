@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
-  DollarSign,
   Cloud,
   Play,
   Settings,
@@ -25,23 +24,25 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getTotalCosts, type TotalCostSummary } from "@/actions/costs"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { createClient } from "@/lib/supabase/client"
-import { formatCurrency } from "@/lib/i18n"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import type { PipelineRunSummary } from "@/lib/api/backend"
 import {
   CostSummaryGrid,
   CostBreakdownChart,
   CostScoreRing,
-  CostInsightsCard,
+  CostComboChart,
+  TimeRangeFilter,
+  getRollingAverageLabel,
   type CostSummaryData,
   type BreakdownItem,
   type ScoreRingSegment,
+  type ComboDataPoint,
 } from "@/components/costs"
 import { getDateInfo, calculatePercentage, OVERVIEW_CATEGORY_CONFIG } from "@/lib/costs"
+import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
 
 interface QuickAction {
   title: string
@@ -74,26 +75,46 @@ export default function DashboardPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
+  // Use cached cost data from context
+  const {
+    totalCosts: costSummary,
+    periodCosts,
+    currency: contextCurrency,
+    isLoading: isCostLoading,
+    refresh: refreshCostData,
+    getDailyTrendForRange,
+  } = useCostData()
+
   const [greeting, setGreeting] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLocalLoading, setIsLocalLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [costSummary, setCostSummary] = useState<TotalCostSummary | null>(null)
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
+  const [timeRange, setTimeRange] = useState<TimeRange>("30")
 
-  const loadData = useCallback(async () => {
+  // Get daily trend data from context (real data from backend)
+  const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
+    const trendData = getDailyTrendForRange(timeRange)
+
+    // Transform to ComboDataPoint format with lineValue for rolling average
+    return trendData.map((point) => ({
+      label: point.label,
+      value: point.value,
+      lineValue: point.rollingAvg,
+      date: point.date,
+    }))
+  }, [getDailyTrendForRange, timeRange])
+
+  // Get rolling average label based on selected time range
+  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange), [timeRange])
+
+  // Load non-cost data (pipelines, integrations)
+  const loadNonCostData = useCallback(async () => {
     try {
       const supabase = createClient()
 
-      // Use fiscal YTD as default date range (Jan 1 to today)
-      const today = new Date()
-      const fiscalYearStart = new Date(today.getFullYear(), 0, 1) // January 1st
-      const startDate = fiscalYearStart.toISOString().split("T")[0]
-      const endDate = today.toISOString().split("T")[0]
-
-      const [costsResult, pipelinesResult, integrationsResult, orgResult] = await Promise.all([
-        getTotalCosts(orgSlug, startDate, endDate),
+      const [pipelinesResult, integrationsResult, orgResult] = await Promise.all([
         getPipelineRuns(orgSlug, { limit: 5 }),
         getIntegrations(orgSlug),
         supabase
@@ -102,10 +123,6 @@ export default function DashboardPage() {
           .eq("org_slug", orgSlug)
           .single(),
       ])
-
-      if (costsResult.success && costsResult.data) {
-        setCostSummary(costsResult.data)
-      }
 
       if (pipelinesResult.success && pipelinesResult.data?.runs) {
         setRecentPipelines(pipelinesResult.data.runs.slice(0, 5))
@@ -128,17 +145,15 @@ export default function DashboardPage() {
         }
 
         for (const [key, value] of Object.entries(intData)) {
-          // Fix: Only include integrations that are actually configured
-          // Status values: VALID, PENDING, INVALID, NOT_CONFIGURED
           if (value.status === "NOT_CONFIGURED") {
-            continue // Skip unconfigured integrations
+            continue
           }
 
           const status = value.status === "VALID"
             ? "connected"
             : value.status === "PENDING"
             ? "pending"
-            : "not_connected" // INVALID, EXPIRED, or ERROR states
+            : "not_connected"
 
           integrationList.push({
             name: providerNames[key] || key,
@@ -147,7 +162,6 @@ export default function DashboardPage() {
           })
         }
 
-        // Sort: connected first, then pending, then not_connected
         integrationList.sort((a, b) => {
           const order = { connected: 0, pending: 1, not_connected: 2 }
           return order[a.status] - order[b.status]
@@ -160,10 +174,9 @@ export default function DashboardPage() {
         setOrgCurrency(orgResult.data.default_currency)
       }
     } catch (err) {
-      // Log error but show empty state to user
       console.error("[Dashboard] Failed to load data:", err instanceof Error ? err.message : "Unknown error")
     } finally {
-      setIsLoading(false)
+      setIsLocalLoading(false)
     }
   }, [orgSlug])
 
@@ -173,14 +186,19 @@ export default function DashboardPage() {
     else if (hour < 18) setGreeting("Good afternoon")
     else setGreeting("Good evening")
 
-    loadData()
-  }, [loadData])
+    loadNonCostData()
+  }, [loadNonCostData])
+
+  // Use context currency if available
+  const displayCurrency = contextCurrency || orgCurrency
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    await loadData()
+    await Promise.all([refreshCostData(), loadNonCostData()])
     setIsRefreshing(false)
   }
+
+  const isLoading = isCostLoading || isLocalLoading
 
   // Check if we have any cost data
   const hasData = costSummary && (
@@ -192,7 +210,8 @@ export default function DashboardPage() {
   // Prepare summary data - always show real data (zeros if no data)
   const summaryData: CostSummaryData = useMemo(() => {
     const dateInfo = getDateInfo()
-    const totalMtd = costSummary?.total?.total_monthly_cost ?? 0
+    // Use periodCosts for accurate MTD if available
+    const totalMtd = periodCosts?.mtd ?? costSummary?.total?.total_monthly_cost ?? 0
     const dailyRate = costSummary?.total?.total_daily_cost ?? 0
     const daysRemaining = dateInfo.daysInMonth - dateInfo.daysElapsed
     const forecast = totalMtd + (dailyRate * daysRemaining)
@@ -201,10 +220,10 @@ export default function DashboardPage() {
       mtd: totalMtd,
       dailyRate: dailyRate,
       forecast: forecast,
-      ytd: costSummary?.total?.total_annual_cost ?? totalMtd,
-      currency: orgCurrency,
+      ytd: periodCosts?.ytd ?? costSummary?.total?.total_annual_cost ?? totalMtd,
+      currency: displayCurrency,
     }
-  }, [costSummary, orgCurrency])
+  }, [costSummary, periodCosts, displayCurrency])
 
   // Prepare category breakdown - always show real data
   const categoryBreakdown: BreakdownItem[] = useMemo(() => {
@@ -255,19 +274,6 @@ export default function DashboardPage() {
       { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
     ]
   }, [costSummary])
-
-  // Insights data - always show real data
-  const insightsData = useMemo(() => {
-    const dailyRate = summaryData.dailyRate
-    const forecast = summaryData.forecast
-    const mtd = summaryData.mtd
-
-    return {
-      todaySpend: dailyRate,
-      averageDaily: mtd > 0 ? mtd / new Date().getDate() : 0,
-      forecast,
-    }
-  }, [summaryData])
 
   // Memoize quickActions to prevent recreation on every render
   const quickActions: QuickAction[] = useMemo(() => [
@@ -381,16 +387,55 @@ export default function DashboardPage() {
       {/* Summary Metrics - Using shared CostSummaryGrid component */}
       <CostSummaryGrid data={summaryData} />
 
-      {/* Apple Health Style - Score Ring and Insights Row */}
+      {/* Daily Cost Trend Chart with Time Range Filter */}
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-semibold">Daily Cost Trend</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Last {timeRange} days with {rollingAvgLabel.toLowerCase()}
+            </p>
+          </div>
+          <TimeRangeFilter
+            value={timeRange}
+            onChange={setTimeRange}
+            size="sm"
+          />
+        </CardHeader>
+        <CardContent className="pt-0">
+          {dailyTrendData.length > 0 ? (
+            <CostComboChart
+              title=""
+              data={dailyTrendData}
+              currency={displayCurrency}
+              barColor="#90FCA6"
+              lineColor="#FF6C5E"
+              barLabel="Daily Cost"
+              lineLabel={rollingAvgLabel}
+              height={260}
+              showAreaFill
+              loading={isLoading}
+              showLegend={true}
+              className="border-0 shadow-none p-0"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[260px] text-slate-400 text-sm">
+              No cost data available for this period
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Score Ring with Category Breakdown */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Score Ring - Total Spend Breakdown */}
         <CostScoreRing
           title="Total Spend"
           segments={scoreRingSegments}
-          currency={orgCurrency}
+          currency={displayCurrency}
           insight={!hasData
-            ? "No cost data yet. Connect providers and run pipelines to see costs."
-            : `Spending across ${scoreRingSegments.filter(s => s.value > 0).length} cost categories this month.`
+            ? "No cost data yet. Connect providers and run pipelines."
+            : `Spending across ${scoreRingSegments.filter(s => s.value > 0).length} cost categories.`
           }
           showChevron
           onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
@@ -400,132 +445,81 @@ export default function DashboardPage() {
           titleColor="#1a7a3a"
         />
 
-        {/* Spend Insights Card */}
-        <CostInsightsCard
-          title="Daily Spend"
-          currentValue={insightsData.todaySpend}
-          currentLabel="Today"
-          averageValue={insightsData.averageDaily}
-          averageLabel="Daily Avg"
-          insight={
-            !hasData
-              ? "No spending data yet. Run pipelines to see daily patterns."
-              : insightsData.todaySpend > insightsData.averageDaily * 1.2
-                ? "Spending is higher than your daily average today."
-                : insightsData.todaySpend < insightsData.averageDaily * 0.8
-                  ? "Great! Spending is below your daily average."
-                  : "Spending is in line with your daily average."
-          }
-          currency={orgCurrency}
-          primaryColor="#FF6C5E"
-          showChevron
-          onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
-          compact
+        {/* Category Breakdown */}
+        <CostBreakdownChart
+          title="Spend by Category"
+          items={categoryBreakdown}
+          currency={displayCurrency}
+          countLabel="providers"
+          maxItems={3}
         />
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Cost Breakdown - Using shared CostBreakdownChart component */}
-        <div className="lg:col-span-2">
-          <Card className="h-full">
-            <CardHeader className="border-b border-border">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-[17px] font-bold text-slate-900">Cost Breakdown</CardTitle>
-                <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
-                    View Details
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              <CostBreakdownChart
-                title=""
-                items={categoryBreakdown}
-                currency={orgCurrency}
-                countLabel="providers"
-                maxItems={3}
-              />
-
-              {!hasData && (
-                <p className="text-xs text-slate-500 text-center mt-3 italic">
-                  No cost data yet. Connect providers and run pipelines.
-                </p>
-              )}
-
-              <Link href={`/${orgSlug}/cost-dashboards/overview`} className="block mt-4">
-                <button className="w-full inline-flex items-center justify-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
-                  <BarChart3 className="h-4 w-4" />
-                  Open Cost Analytics
-                </button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Integration Status - Smaller column */}
-        <div className="lg:col-span-1">
-          <Card className="h-full">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-[17px] font-bold text-slate-900">Integrations</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                {integrations.length > 0 ? (
-                  integrations.map((integration) => (
-                    <div
-                      key={integration.provider}
-                      className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#90FCA6]/10">
-                          {integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") ? (
-                            <Cloud className="h-4 w-4 text-[#1a7a3a]" />
-                          ) : (
-                            <Zap className="h-4 w-4 text-[#1a7a3a]" />
-                          )}
-                        </div>
-                        <span className="text-sm font-semibold text-slate-900">
-                          {integration.name}
-                        </span>
-                      </div>
-                      <Badge
-                        variant={
-                          integration.status === "connected"
-                            ? "success"
-                            : integration.status === "pending"
-                            ? "warning"
-                            : "outline"
-                        }
-                        className="text-[11px]"
-                      >
-                        {integration.status === "connected"
-                          ? "Connected"
-                          : integration.status === "pending"
-                          ? "Pending"
-                          : "Not Connected"}
-                      </Badge>
+      {/* Integration Status */}
+      <Card>
+        <CardHeader className="border-b border-border">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-[17px] font-bold text-slate-900">Connected Integrations</CardTitle>
+            <Link href={`/${orgSlug}/integrations`}>
+              <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
+                Manage
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {integrations.length > 0 ? (
+              integrations.map((integration) => (
+                <div
+                  key={integration.provider}
+                  className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#90FCA6]/10">
+                      {integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") ? (
+                        <Cloud className="h-4 w-4 text-[#1a7a3a]" />
+                      ) : (
+                        <Zap className="h-4 w-4 text-[#1a7a3a]" />
+                      )}
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-6">
-                    <Zap className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">No integrations configured</p>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {integration.name}
+                    </span>
                   </div>
-                )}
-                <Link href={`/${orgSlug}/integrations`}>
-                  <button className="w-full mt-2 inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#90FCA6]/5 text-[#1a7a3a] text-[15px] font-semibold rounded-xl hover:bg-[#90FCA6]/10 transition-colors border border-[#90FCA6]/20">
-                    Manage Integrations
-                    <ArrowRight className="h-4 w-4" />
+                  <Badge
+                    variant={
+                      integration.status === "connected"
+                        ? "success"
+                        : integration.status === "pending"
+                        ? "warning"
+                        : "outline"
+                    }
+                    className="text-[11px]"
+                  >
+                    {integration.status === "connected"
+                      ? "Connected"
+                      : integration.status === "pending"
+                      ? "Pending"
+                      : "Error"}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-6">
+                <Zap className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-500">No integrations configured</p>
+                <Link href={`/${orgSlug}/integrations`} className="inline-block mt-2">
+                  <button className="inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors">
+                    Add Integration
                   </button>
                 </Link>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <div>

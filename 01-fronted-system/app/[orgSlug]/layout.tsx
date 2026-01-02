@@ -9,6 +9,7 @@ import { PipelineAutoTrigger } from "@/components/pipeline-auto-trigger"
 import "./console.css"
 import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { getOrgLayoutData } from "@/lib/data/org-data"
+import { OrgProviders } from "@/components/org-providers"
 
 export default async function OrgLayout({
   children,
@@ -141,7 +142,9 @@ export default async function OrgLayout({
             />
           </ErrorBoundary>
           <main id="main-content" className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8" tabIndex={-1}>
-            {children}
+            <OrgProviders orgSlug={orgSlug}>
+              {children}
+            </OrgProviders>
           </main>
         </div>
       </div>

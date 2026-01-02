@@ -185,13 +185,15 @@ export function CostDashboardShell({
   }
 
   return (
-    <div
+    <main
       className={cn(
         "min-h-screen",
         // Mint gradient background accent (Apple Health pattern)
         "bg-gradient-to-b from-[#90FCA6]/5 via-white to-white",
         className
       )}
+      role="main"
+      aria-label={`${title} dashboard`}
     >
       <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6">
         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
@@ -242,7 +244,7 @@ export function CostDashboardShell({
           {children}
         </div>
       </div>
-    </div>
+    </main>
   )
 }
 

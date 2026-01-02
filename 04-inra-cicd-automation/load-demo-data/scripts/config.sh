@@ -3,13 +3,13 @@
 # Usage: source this file before running other scripts
 
 # GCP Project ID - override with environment variable
-export PROJECT_ID="${GCP_PROJECT_ID:-cloudact-testing-1}"
+export PROJECT_ID="${GCP_PROJECT_ID:-cloudact-prod}"
 
 # Target dataset for demo data
-export DATASET="${DATASET:-genai_community_12282025_local}"
+export DATASET="${DATASET:-india_inc_01022026_prod}"
 
 # Organization slug
-export ORG_SLUG="genai_community_12282025"
+export ORG_SLUG="india_inc_01022026"
 
 # Resolve paths relative to this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

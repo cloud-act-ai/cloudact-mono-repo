@@ -175,7 +175,6 @@ function SortableHeader({
 interface MobileCardProps {
   row: CostTableRow
   currency: string
-  typeLabel?: string
   countLabel?: string
   showCount: boolean
   onClick?: () => void
@@ -184,7 +183,6 @@ interface MobileCardProps {
 function MobileCard({
   row,
   currency,
-  typeLabel: _typeLabel,
   countLabel,
   showCount,
   onClick,
@@ -427,7 +425,6 @@ export function CostDataTable({
                 key={row.id}
                 row={row}
                 currency={currency}
-                typeLabel={typeLabel}
                 countLabel={countLabel}
                 showCount={showCount}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}

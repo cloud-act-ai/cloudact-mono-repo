@@ -290,6 +290,11 @@ export function CostScoreRing({
     return <ScoreRingSkeleton ringSize={ringSize} />
   }
 
+  // Guard against empty segments
+  if (!segments || segments.length === 0) {
+    return null
+  }
+
   // Calculate total if not provided
   const calculatedTotal = total ?? segments.reduce((sum, s) => sum + s.value, 0)
 
@@ -317,12 +322,12 @@ export function CostScoreRing({
       <div className="flex items-center justify-between mb-4">
         <h3
           className="text-sm font-semibold"
-          style={{ color: titleColor || segments[0]?.color || "#64748b" }}
+          style={{ color: titleColor || (segments.length > 0 ? segments[0].color : "#64748b") }}
         >
           {title}
         </h3>
         {showChevron && (
-          <ChevronRight className="h-4 w-4 text-slate-400" />
+          <ChevronRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
         )}
       </div>
 

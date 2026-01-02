@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
 Demo Data Generator for CloudAct
-Generates realistic usage, billing, and subscription data for genai_community_12282025 org.
+Generates realistic usage, billing, and subscription data for india_inc_01022026 org.
+
+Features:
+- Full year 2025 coverage (Jan 1 - Dec 31)
+- Holiday spikes (Black Friday, Cyber Monday, Christmas, etc.)
+- Anomaly patterns (random spikes, incident weeks, summer dips)
+- Seasonal variations (Q4 higher, summer lower)
+- Weekday/weekend patterns
+- Month-end budget flush patterns
+- All 3 cost types: Cloud, GenAI, Subscription
 
 Usage:
-    python generate-demo-data.py [--start-date 2025-01-01] [--end-date 2025-12-28]
+    python generate-demo-data.py [--start-date 2025-01-01] [--end-date 2025-12-31]
 """
 
 import json
@@ -14,10 +23,11 @@ import uuid
 import argparse
 from datetime import datetime, date, timedelta
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+from calendar import monthrange
 
 # Configuration
-ORG_SLUG = "genai_community_12282025"
+ORG_SLUG = "india_inc_01022026"
 RANDOM_SEED = 42  # For reproducibility
 
 # Output directories
@@ -26,6 +36,65 @@ DATA_DIR = SCRIPT_DIR.parent / "data"
 GENAI_DIR = DATA_DIR / "genai"
 CLOUD_DIR = DATA_DIR / "cloud"
 SUBSCRIPTIONS_DIR = DATA_DIR / "subscriptions"
+
+
+# =============================================================================
+# US Holidays 2025 - For realistic cost spikes
+# =============================================================================
+
+HOLIDAYS_2025 = {
+    # Holiday: (multiplier, description)
+    date(2025, 1, 1): (1.8, "New Year's Day"),
+    date(2025, 1, 20): (1.3, "Martin Luther King Jr. Day"),
+    date(2025, 2, 17): (1.2, "Presidents Day"),
+    date(2025, 4, 18): (1.15, "Good Friday"),
+    date(2025, 5, 26): (1.25, "Memorial Day"),
+    date(2025, 7, 4): (1.5, "Independence Day"),
+    date(2025, 9, 1): (1.3, "Labor Day"),
+    date(2025, 10, 13): (1.15, "Columbus Day"),
+    date(2025, 11, 11): (1.2, "Veterans Day"),
+    date(2025, 11, 27): (1.6, "Thanksgiving"),
+    date(2025, 11, 28): (2.5, "Black Friday"),  # HUGE spike
+    date(2025, 12, 1): (2.2, "Cyber Monday"),  # HUGE spike
+    date(2025, 12, 24): (1.8, "Christmas Eve"),
+    date(2025, 12, 25): (2.0, "Christmas Day"),
+    date(2025, 12, 26): (1.7, "Boxing Day"),
+    date(2025, 12, 31): (1.9, "New Year's Eve"),
+}
+
+# Days around holidays also get minor bumps
+HOLIDAY_ADJACENT_MULTIPLIER = 1.15
+
+
+# =============================================================================
+# Anomaly Patterns - Random spikes, incidents, outages
+# =============================================================================
+
+# Random spike days throughout the year (simulates marketing campaigns, launches, etc.)
+RANDOM_SPIKE_DAYS = [
+    date(2025, 1, 15),   # Q1 campaign launch
+    date(2025, 2, 14),   # Valentine's Day promo
+    date(2025, 3, 1),    # Q1 end push
+    date(2025, 3, 15),   # Product launch
+    date(2025, 4, 1),    # Q2 start
+    date(2025, 5, 5),    # Cinco de Mayo campaign
+    date(2025, 6, 15),   # Mid-year review
+    date(2025, 7, 15),   # Summer campaign
+    date(2025, 9, 15),   # Back to school
+    date(2025, 10, 31),  # Halloween
+    date(2025, 11, 1),   # Q4 start
+    date(2025, 11, 15),  # Pre-holiday prep
+]
+
+# Incident week - high costs due to debugging/issues (March 10-16, 2025)
+INCIDENT_WEEK_START = date(2025, 3, 10)
+INCIDENT_WEEK_END = date(2025, 3, 16)
+INCIDENT_MULTIPLIER = 1.8  # Higher resource usage during incidents
+
+# Summer slowdown week (August 11-17, 2025)
+SUMMER_DIP_START = date(2025, 8, 11)
+SUMMER_DIP_END = date(2025, 8, 17)
+SUMMER_DIP_MULTIPLIER = 0.6  # Lower usage during vacation week
 
 
 # =============================================================================
@@ -139,16 +208,18 @@ SUBSCRIPTIONS = [
 
 
 # =============================================================================
-# Helper Functions
+# Helper Functions - Realistic Pattern Generators
 # =============================================================================
 
 def get_weekday_multiplier(d: date) -> float:
     """Return multiplier based on day of week (Mon=0, Sun=6)."""
     weekday = d.weekday()
     if weekday < 5:  # Weekday
-        return random.uniform(1.3, 1.7)
-    else:  # Weekend
-        return random.uniform(0.4, 0.7)
+        return random.uniform(1.2, 1.6)
+    elif weekday == 5:  # Saturday
+        return random.uniform(0.5, 0.7)
+    else:  # Sunday
+        return random.uniform(0.4, 0.6)
 
 
 def get_monthly_growth_factor(d: date, start_date: date) -> float:
@@ -158,14 +229,82 @@ def get_monthly_growth_factor(d: date, start_date: date) -> float:
 
 
 def get_seasonal_factor(d: date) -> float:
-    """Return seasonal factor (Q4 is higher)."""
+    """Return seasonal factor with more pronounced Q4 boost."""
     month = d.month
-    if month in [10, 11, 12]:  # Q4
-        return random.uniform(1.1, 1.3)
+    if month in [11, 12]:  # November-December (holiday season)
+        return random.uniform(1.2, 1.5)
+    elif month == 10:  # October (pre-holiday prep)
+        return random.uniform(1.1, 1.25)
     elif month in [7, 8]:  # Summer (lower)
+        return random.uniform(0.8, 0.9)
+    elif month in [1]:  # January (post-holiday recovery)
         return random.uniform(0.85, 0.95)
-    else:
+    elif month in [2, 3]:  # Q1 ramp up
         return random.uniform(0.95, 1.05)
+    elif month in [4, 5, 6]:  # Q2 stable growth
+        return random.uniform(1.0, 1.1)
+    else:  # September
+        return random.uniform(1.05, 1.15)  # Back to school/work
+
+
+def get_holiday_multiplier(d: date) -> float:
+    """Return multiplier for holiday dates."""
+    if d in HOLIDAYS_2025:
+        return HOLIDAYS_2025[d][0]
+
+    # Check if adjacent to a major holiday (+/- 1 day)
+    for holiday_date, (mult, _) in HOLIDAYS_2025.items():
+        if mult >= 1.5:  # Only major holidays
+            if abs((d - holiday_date).days) == 1:
+                return HOLIDAY_ADJACENT_MULTIPLIER
+
+    return 1.0
+
+
+def get_anomaly_multiplier(d: date) -> float:
+    """Return multiplier for anomaly periods."""
+    # Incident week (high costs)
+    if INCIDENT_WEEK_START <= d <= INCIDENT_WEEK_END:
+        return INCIDENT_MULTIPLIER
+
+    # Summer dip week (low costs)
+    if SUMMER_DIP_START <= d <= SUMMER_DIP_END:
+        return SUMMER_DIP_MULTIPLIER
+
+    # Random spike days
+    if d in RANDOM_SPIKE_DAYS:
+        return random.uniform(1.4, 1.8)
+
+    return 1.0
+
+
+def get_month_end_multiplier(d: date) -> float:
+    """Return multiplier for month-end budget flush."""
+    _, days_in_month = monthrange(d.year, d.month)
+    days_remaining = days_in_month - d.day
+
+    if days_remaining <= 2:  # Last 3 days of month
+        return random.uniform(1.1, 1.2)
+
+    return 1.0
+
+
+def get_combined_multiplier(d: date, start_date: date) -> float:
+    """Get the combined multiplier for a given date."""
+    base = 1.0
+
+    # Apply all factors
+    base *= get_weekday_multiplier(d)
+    base *= get_monthly_growth_factor(d, start_date)
+    base *= get_seasonal_factor(d)
+    base *= get_holiday_multiplier(d)
+    base *= get_anomaly_multiplier(d)
+    base *= get_month_end_multiplier(d)
+
+    # Add some random noise (+/- 10%)
+    base *= random.uniform(0.9, 1.1)
+
+    return base
 
 
 def generate_run_id(provider: str, d: date) -> str:
@@ -173,16 +312,27 @@ def generate_run_id(provider: str, d: date) -> str:
     return f"run_demo_{provider}_{d.strftime('%Y%m%d')}_{uuid.uuid4().hex[:8]}"
 
 
+def get_days_in_billing_cycle(billing_cycle: str) -> int:
+    """Get average days in a billing cycle."""
+    cycles = {
+        "monthly": 30,
+        "quarterly": 91,
+        "semi-annual": 182,
+        "annual": 365,
+        "weekly": 7,
+    }
+    return cycles.get(billing_cycle, 30)
+
+
 # =============================================================================
 # Data Generators
 # =============================================================================
 
 def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict]]:
-    """Generate GenAI usage data for all providers."""
+    """Generate GenAI usage data for all providers with realistic patterns."""
     print("Generating GenAI usage data...")
 
     all_data = {}
-    current_date = start_date
 
     for provider_name, config in GENAI_PROVIDERS.items():
         print(f"  - {provider_name}...")
@@ -191,21 +341,19 @@ def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict
 
         while current_date <= end_date:
             run_id = generate_run_id(provider_name, current_date)
+            combined_mult = get_combined_multiplier(current_date, start_date)
 
             for model_config in config["models"]:
-                # Calculate token counts with variations
-                weekday_mult = get_weekday_multiplier(current_date)
-                growth_factor = get_monthly_growth_factor(current_date, start_date)
-                seasonal_factor = get_seasonal_factor(current_date)
-
                 base_input = model_config["input_base"]
                 base_output = model_config["output_base"]
 
-                input_tokens = int(base_input * weekday_mult * growth_factor * seasonal_factor * random.uniform(0.8, 1.2))
-                output_tokens = int(base_output * weekday_mult * growth_factor * seasonal_factor * random.uniform(0.8, 1.2))
+                input_tokens = int(base_input * combined_mult * random.uniform(0.85, 1.15))
+                output_tokens = int(base_output * combined_mult * random.uniform(0.85, 1.15))
                 cached_input = int(input_tokens * model_config["cached_ratio"] * random.uniform(0.8, 1.2))
                 total_tokens = input_tokens + output_tokens
                 request_count = max(100, int(total_tokens / random.randint(500, 2000)))
+                successful = int(request_count * random.uniform(0.97, 0.995))
+                failed = request_count - successful
 
                 record = {
                     "usage_date": current_date.isoformat(),
@@ -219,9 +367,9 @@ def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict
                     "cached_input_tokens": cached_input,
                     "total_tokens": total_tokens,
                     "request_count": request_count,
-                    "is_batch": random.random() < 0.1,  # 10% batch
-                    "successful_requests": int(request_count * random.uniform(0.98, 1.0)),
-                    "failed_requests": int(request_count * random.uniform(0, 0.02)),
+                    "is_batch": random.random() < 0.1,
+                    "successful_requests": successful,
+                    "failed_requests": failed,
                     "avg_latency_ms": round(random.uniform(200, 2000), 2),
                     "hierarchy_dept_id": None,
                     "hierarchy_dept_name": None,
@@ -246,20 +394,17 @@ def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict
 
 
 def generate_gcp_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate GCP billing data."""
+    """Generate GCP billing data with realistic patterns."""
     print("Generating GCP billing data...")
     records = []
     current_date = start_date
 
     while current_date <= end_date:
         run_id = generate_run_id("gcp", current_date)
+        combined_mult = get_combined_multiplier(current_date, start_date)
 
         for service in GCP_SERVICES:
-            weekday_mult = get_weekday_multiplier(current_date)
-            growth_factor = get_monthly_growth_factor(current_date, start_date)
-            seasonal_factor = get_seasonal_factor(current_date)
-
-            cost = round(service["base_cost"] * weekday_mult * growth_factor * seasonal_factor * random.uniform(0.7, 1.3), 2)
+            cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
             usage_amount = round(cost * random.uniform(5, 20), 2)
 
             record = {
@@ -308,21 +453,24 @@ def generate_gcp_billing_data(start_date: date, end_date: date) -> List[Dict]:
 
 
 def generate_aws_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate AWS billing data."""
+    """Generate AWS billing data with realistic patterns."""
     print("Generating AWS billing data...")
     records = []
     current_date = start_date
 
     while current_date <= end_date:
         run_id = generate_run_id("aws", current_date)
+        combined_mult = get_combined_multiplier(current_date, start_date)
 
         for service in AWS_SERVICES:
-            weekday_mult = get_weekday_multiplier(current_date)
-            growth_factor = get_monthly_growth_factor(current_date, start_date)
-            seasonal_factor = get_seasonal_factor(current_date)
-
-            unblended_cost = round(service["base_cost"] * weekday_mult * growth_factor * seasonal_factor * random.uniform(0.7, 1.3), 2)
+            unblended_cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
             usage_amount = round(random.uniform(10, 100), 2)
+
+            # Calculate billing period end
+            if current_date.month < 12:
+                billing_end = date(current_date.year, current_date.month + 1, 1).isoformat()
+            else:
+                billing_end = date(current_date.year + 1, 1, 1).isoformat()
 
             record = {
                 "usage_date": current_date.isoformat(),
@@ -356,7 +504,7 @@ def generate_aws_billing_data(start_date: date, end_date: date) -> List[Dict]:
                 "discount_amount": 0.0,
                 "invoice_id": f"INV-{current_date.strftime('%Y%m')}-{random.randint(1000, 9999)}",
                 "billing_period_start": current_date.replace(day=1).isoformat(),
-                "billing_period_end": (current_date.replace(day=28) + timedelta(days=4)).replace(day=1).isoformat() if current_date.month < 12 else f"{current_date.year + 1}-01-01",
+                "billing_period_end": billing_end,
                 "resource_tags_json": json.dumps({"Environment": "Production", "Team": "GenAI"}),
                 "cost_category_json": None,
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
@@ -375,54 +523,79 @@ def generate_aws_billing_data(start_date: date, end_date: date) -> List[Dict]:
 
 
 def generate_azure_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate Azure billing data."""
+    """Generate Azure billing data with realistic patterns."""
     print("Generating Azure billing data...")
     records = []
     current_date = start_date
 
     while current_date <= end_date:
         run_id = generate_run_id("azure", current_date)
+        combined_mult = get_combined_multiplier(current_date, start_date)
 
         for service in AZURE_SERVICES:
-            weekday_mult = get_weekday_multiplier(current_date)
-            growth_factor = get_monthly_growth_factor(current_date, start_date)
-            seasonal_factor = get_seasonal_factor(current_date)
-
-            cost = round(service["base_cost"] * weekday_mult * growth_factor * seasonal_factor * random.uniform(0.7, 1.3), 2)
+            cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
             usage_quantity = round(random.uniform(10, 200), 2)
+
+            # Calculate billing period end
+            if current_date.month < 12:
+                billing_end = date(current_date.year, current_date.month + 1, 1).isoformat()
+            else:
+                billing_end = date(current_date.year + 1, 1, 1).isoformat()
 
             record = {
                 "usage_date": current_date.isoformat(),
                 "org_slug": ORG_SLUG,
                 "provider": "azure",
                 "subscription_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                "subscription_name": "GenAI Community Production",
-                "resource_group": "genai-prod-rg",
-                "resource_id": f"/subscriptions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/resourceGroups/genai-prod-rg/providers/{service['resource_type']}/resource-{random.randint(1000, 9999)}",
+                "subscription_name": "India Inc Production",
+                "resource_group": "india-inc-prod-rg",
+                "resource_id": f"/subscriptions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/resourceGroups/india-inc-prod-rg/providers/{service['resource_type']}/resource-{random.randint(1000, 9999)}",
                 "resource_name": f"{service['service_name'].lower().replace(' ', '-')}-{random.randint(1, 5)}",
                 "resource_type": service["resource_type"],
                 "resource_location": "eastus",
-                "meter_category": service["meter_category"],
-                "meter_subcategory": "General Purpose",
-                "meter_name": f"{service['service_name']} Usage",
-                "meter_id": str(uuid.uuid4()),
                 "service_name": service["service_name"],
                 "service_tier": "Standard",
+                "service_family": "Compute",
+                "meter_id": str(uuid.uuid4()),
+                "meter_name": f"{service['service_name']} Usage",
+                "meter_category": service["meter_category"],
+                "meter_subcategory": "General Purpose",
+                "meter_region": "US East",
+                "product_name": service["service_name"],
+                "product_order_id": None,
+                "product_order_name": None,
+                "consumed_service": service["resource_type"].split("/")[0],
+                "charge_type": "Usage",
+                "billing_period_start": current_date.replace(day=1).isoformat(),
+                "billing_period_end": billing_end,
+                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
+                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
                 "usage_quantity": usage_quantity,
-                "usage_unit": "Hours",
+                "unit_of_measure": "Hours",
                 "cost_in_billing_currency": cost,
                 "cost_in_usd": cost,
                 "billing_currency": "USD",
+                "exchange_rate": 1.0,
                 "effective_price": round(cost / max(usage_quantity, 1), 4),
                 "unit_price": round(cost / max(usage_quantity, 1) * 1.1, 4),
                 "pricing_model": "OnDemand",
-                "charge_type": "Usage",
                 "reservation_id": None,
                 "reservation_name": None,
+                "frequency": "UsageBased",
+                "publisher_type": "Azure",
+                "publisher_name": "Microsoft",
                 "invoice_id": f"INV-{current_date.strftime('%Y%m')}-AZURE",
-                "billing_period_start": current_date.replace(day=1).isoformat(),
-                "billing_period_end": (current_date.replace(day=28) + timedelta(days=4)).replace(day=1).isoformat() if current_date.month < 12 else f"{current_date.year + 1}-01-01",
-                "tags_json": json.dumps({"env": "prod", "team": "genai"}),
+                "invoice_section_id": None,
+                "invoice_section_name": None,
+                "billing_account_id": "billing-acct-001",
+                "billing_account_name": "India Inc Billing",
+                "billing_profile_id": "profile-001",
+                "billing_profile_name": "Default Profile",
+                "cost_center": "Engineering",
+                "benefit_id": None,
+                "benefit_name": None,
+                "is_azure_credit_eligible": True,
+                "resource_tags_json": json.dumps({"env": "prod", "team": "engineering"}),
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
                 "x_pipeline_id": "cloud_cost_azure",
                 "x_credential_id": "cred_azure_demo_001",
@@ -439,47 +612,51 @@ def generate_azure_billing_data(start_date: date, end_date: date) -> List[Dict]:
 
 
 def generate_oci_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate OCI billing data."""
+    """Generate OCI billing data with realistic patterns."""
     print("Generating OCI billing data...")
     records = []
     current_date = start_date
 
     while current_date <= end_date:
         run_id = generate_run_id("oci", current_date)
+        combined_mult = get_combined_multiplier(current_date, start_date)
 
         for service in OCI_SERVICES:
-            weekday_mult = get_weekday_multiplier(current_date)
-            growth_factor = get_monthly_growth_factor(current_date, start_date)
-            seasonal_factor = get_seasonal_factor(current_date)
-
-            cost = round(service["base_cost"] * weekday_mult * growth_factor * seasonal_factor * random.uniform(0.7, 1.3), 2)
-            usage_amount = round(random.uniform(5, 50), 2)
+            cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
+            usage_quantity = round(random.uniform(5, 50), 2)
 
             record = {
                 "usage_date": current_date.isoformat(),
                 "org_slug": ORG_SLUG,
                 "provider": "oci",
-                "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaagenaicommunitydemo",
+                "tenancy_id": "ocid1.tenancy.oc1..aaaaaaaaindiaincprod",
+                "tenancy_name": "India Inc Production",
                 "compartment_id": "ocid1.compartment.oc1..aaaaaaaaprod",
                 "compartment_name": "Production",
                 "compartment_path": "/Production",
-                "service": service["service"],
-                "resource_id": f"ocid1.{service['service'].lower()}.oc1..aaaaaaaademo{random.randint(1000, 9999)}",
-                "resource_name": f"{service['service'].lower()}-instance-{random.randint(1, 5)}",
                 "region": "us-ashburn-1",
                 "availability_domain": "AD-1",
+                "service_name": service["service"],
                 "sku_name": service["sku_name"],
                 "sku_part_number": f"B{random.randint(10000, 99999)}",
-                "usage_amount": usage_amount,
-                "usage_unit": "HOURS",
-                "computed_amount": cost,
-                "computed_quantity": usage_amount,
+                "resource_id": f"ocid1.{service['service'].lower()}.oc1..aaaaaaaademo{random.randint(1000, 9999)}",
+                "resource_name": f"{service['service'].lower()}-instance-{random.randint(1, 5)}",
+                "usage_type": "USAGE",
+                "unit": "HOURS",
+                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
+                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
+                "usage_quantity": usage_quantity,
+                "computed_quantity": usage_quantity,
+                "cost": cost,
+                "unit_price": round(cost / max(usage_quantity, 1), 4),
                 "currency": "USD",
-                "unit_price": round(cost / max(usage_amount, 1), 4),
-                "overages_flag": False,
-                "is_forecast": False,
+                "overage_flag": "N",
+                "is_correction": False,
                 "subscription_id": "sub_oci_demo_001",
-                "tags_json": json.dumps({"env": "prod", "team": "genai"}),
+                "platform_type": "IAAS",
+                "billing_period": current_date.strftime("%Y-%m"),
+                "freeform_tags_json": json.dumps({"env": "prod", "team": "engineering"}),
+                "defined_tags_json": json.dumps({"Oracle-Tags": {"CreatedBy": "demo"}}),
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
                 "x_pipeline_id": "cloud_cost_oci",
                 "x_credential_id": "cred_oci_demo_001",
@@ -495,8 +672,8 @@ def generate_oci_billing_data(start_date: date, end_date: date) -> List[Dict]:
     return records
 
 
-def generate_subscription_data(start_date: date) -> List[Dict]:
-    """Generate SaaS subscription plan data."""
+def generate_subscription_plans_data(start_date: date) -> List[Dict]:
+    """Generate SaaS subscription plan data (static master data)."""
     print("Generating subscription plans data...")
     records = []
 
@@ -510,7 +687,7 @@ def generate_subscription_data(start_date: date) -> List[Dict]:
             "category": sub["category"],
             "status": "active",
             "start_date": start_date.isoformat(),
-            "end_date": "",  # NULL for active subscriptions
+            "end_date": "",
             "billing_cycle": sub["billing_cycle"],
             "billing_anchor_day": "",
             "currency": "USD",
@@ -545,6 +722,69 @@ def generate_subscription_data(start_date: date) -> List[Dict]:
     return records
 
 
+def generate_subscription_costs_daily(start_date: date, end_date: date) -> List[Dict]:
+    """Generate daily amortized subscription costs."""
+    print("Generating daily subscription costs...")
+    records = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        run_id = generate_run_id("subscription", current_date)
+        days_in_month = monthrange(current_date.year, current_date.month)[1]
+
+        for i, sub in enumerate(SUBSCRIPTIONS, 1):
+            subscription_id = f"sub_{sub['provider']}_{sub['plan_name'].lower()}_{i:03d}"
+
+            # Calculate cycle cost
+            if sub["pricing_model"] == "PER_SEAT":
+                cycle_cost = sub["unit_price"] * sub["seats"]
+            else:
+                cycle_cost = sub["unit_price"]
+
+            # Calculate daily cost based on billing cycle
+            days_in_cycle = get_days_in_billing_cycle(sub["billing_cycle"])
+            daily_cost = round(cycle_cost / days_in_cycle, 4)
+            monthly_run_rate = round(daily_cost * days_in_month, 2)
+            annual_run_rate = round(daily_cost * 365, 2)
+
+            record = {
+                "org_slug": ORG_SLUG,
+                "provider": sub["provider"],
+                "subscription_id": subscription_id,
+                "plan_name": sub["plan_name"],
+                "display_name": sub["display_name"],
+                "cost_date": current_date.isoformat(),
+                "billing_cycle": sub["billing_cycle"],
+                "currency": "USD",
+                "seats": sub["seats"],
+                "pricing_model": sub["pricing_model"],
+                "cycle_cost": cycle_cost,
+                "daily_cost": daily_cost,
+                "monthly_run_rate": monthly_run_rate,
+                "annual_run_rate": annual_run_rate,
+                "invoice_id_last": f"INV-{current_date.strftime('%Y%m')}-{i:04d}",
+                "source": "subscription_amortization",
+                "x_pipeline_run_date": current_date.isoformat(),
+                "hierarchy_dept_id": None,
+                "hierarchy_dept_name": None,
+                "hierarchy_project_id": None,
+                "hierarchy_project_name": None,
+                "hierarchy_team_id": None,
+                "hierarchy_team_name": None,
+                "updated_at": f"{current_date.isoformat()}T23:59:59Z",
+                "x_pipeline_id": "saas_subscription_cost",
+                "x_credential_id": "cred_subscription_demo_001",
+                "x_run_id": run_id,
+                "x_ingested_at": f"{current_date.isoformat()}T23:59:59Z",
+            }
+            records.append(record)
+
+        current_date += timedelta(days=1)
+
+    print(f"  Generated {len(records)} daily cost records")
+    return records
+
+
 def write_json_data(data: List[Dict], filepath: Path):
     """Write data as newline-delimited JSON."""
     filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -568,6 +808,42 @@ def write_csv_data(data: List[Dict], filepath: Path):
     print(f"  Wrote {len(data)} records to {filepath}")
 
 
+def print_summary(start_date: date, end_date: date):
+    """Print a summary of the realistic patterns in the data."""
+    print()
+    print("=" * 70)
+    print("  DATA PATTERNS SUMMARY")
+    print("=" * 70)
+    print()
+    print("📅 DATE RANGE:")
+    print(f"   {start_date} to {end_date} ({(end_date - start_date).days + 1} days)")
+    print()
+    print("🎄 HOLIDAYS WITH SPIKES:")
+    for d, (mult, name) in sorted(HOLIDAYS_2025.items()):
+        spike = "🔥" if mult >= 2.0 else "📈" if mult >= 1.5 else "↗️"
+        print(f"   {spike} {d.strftime('%b %d')}: {name} ({mult}x)")
+    print()
+    print("⚠️ ANOMALY PERIODS:")
+    print(f"   🚨 Incident Week: {INCIDENT_WEEK_START} to {INCIDENT_WEEK_END} ({INCIDENT_MULTIPLIER}x)")
+    print(f"   🌴 Summer Dip: {SUMMER_DIP_START} to {SUMMER_DIP_END} ({SUMMER_DIP_MULTIPLIER}x)")
+    print(f"   📈 Random Spike Days: {len(RANDOM_SPIKE_DAYS)} days throughout the year")
+    print()
+    print("📊 SEASONAL PATTERNS:")
+    print("   Q1 (Jan-Mar): 0.85-1.05x (post-holiday recovery)")
+    print("   Q2 (Apr-Jun): 1.0-1.1x (stable growth)")
+    print("   Q3 (Jul-Sep): 0.8-1.15x (summer dip → back to work)")
+    print("   Q4 (Oct-Dec): 1.1-1.5x (holiday shopping surge)")
+    print()
+    print("📆 WEEKLY PATTERNS:")
+    print("   Weekdays: 1.2-1.6x")
+    print("   Saturday: 0.5-0.7x")
+    print("   Sunday: 0.4-0.6x")
+    print()
+    print("💰 MONTH-END PATTERNS:")
+    print("   Last 3 days of month: 1.1-1.2x (budget flush)")
+    print()
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -575,7 +851,7 @@ def write_csv_data(data: List[Dict], filepath: Path):
 def main():
     parser = argparse.ArgumentParser(description="Generate demo data for CloudAct")
     parser.add_argument("--start-date", type=str, default="2025-01-01", help="Start date (YYYY-MM-DD)")
-    parser.add_argument("--end-date", type=str, default="2025-12-28", help="End date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=str, default="2025-12-31", help="End date (YYYY-MM-DD)")
     parser.add_argument("--seed", type=int, default=RANDOM_SEED, help="Random seed for reproducibility")
     args = parser.parse_args()
 
@@ -585,11 +861,12 @@ def main():
     # Set random seed for reproducibility
     random.seed(args.seed)
 
-    print("=" * 60)
-    print("  CloudAct Demo Data Generator")
+    print()
+    print("=" * 70)
+    print("  CloudAct Demo Data Generator - REALISTIC PATTERNS")
     print(f"  Organization: {ORG_SLUG}")
     print(f"  Date Range: {start_date} to {end_date}")
-    print("=" * 60)
+    print("=" * 70)
     print()
 
     # Generate GenAI data
@@ -614,19 +891,41 @@ def main():
 
     print()
 
-    # Generate Subscription data
-    subscription_data = generate_subscription_data(start_date)
-    write_csv_data(subscription_data, SUBSCRIPTIONS_DIR / "saas_subscription_plans.csv")
+    # Generate Subscription data (master plans)
+    subscription_plans = generate_subscription_plans_data(start_date)
+    write_csv_data(subscription_plans, SUBSCRIPTIONS_DIR / "saas_subscription_plans.csv")
+
+    # Generate Daily subscription costs
+    subscription_costs = generate_subscription_costs_daily(start_date, end_date)
+    write_json_data(subscription_costs, SUBSCRIPTIONS_DIR / "saas_subscription_costs_daily.json")
 
     print()
-    print("=" * 60)
+
+    # Print pattern summary
+    print_summary(start_date, end_date)
+
+    print("=" * 70)
     print("  Data generation complete!")
-    print("=" * 60)
+    print("=" * 70)
+    print()
+    print("📁 Output files:")
+    print(f"   {GENAI_DIR}/")
+    print("     - openai_usage_raw.json")
+    print("     - anthropic_usage_raw.json")
+    print("     - gemini_usage_raw.json")
+    print(f"   {CLOUD_DIR}/")
+    print("     - gcp_billing_raw.json")
+    print("     - aws_billing_raw.json")
+    print("     - azure_billing_raw.json")
+    print("     - oci_billing_raw.json")
+    print(f"   {SUBSCRIPTIONS_DIR}/")
+    print("     - saas_subscription_plans.csv")
+    print("     - saas_subscription_costs_daily.json")
     print()
     print("Next steps:")
     print("  1. Review generated data in data/ directory")
     print("  2. Run: ./scripts/load-all.sh")
-    print("  3. Run pipelines to process the data")
+    print("  3. Verify data in BigQuery")
     print()
 
 

@@ -304,6 +304,12 @@ export function formatDateRange(start: Date | string, end: Date | string): strin
  */
 export function formatMonthYear(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date
+
+  // Handle invalid dates
+  if (isNaN(d.getTime())) {
+    return "Invalid date"
+  }
+
   return d.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",

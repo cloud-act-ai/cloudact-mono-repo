@@ -119,6 +119,34 @@ export const CLOUD_PROVIDER_CONFIG: EntityConfig = {
   defaultType: "Cloud Infrastructure",
 }
 
+// SaaS Provider Configuration
+export const SAAS_PROVIDER_CONFIG: EntityConfig = {
+  names: {}, // Use provider names as-is
+  colors: {
+    slack: "#4A154B",
+    notion: "#000000",
+    figma: "#F24E1E",
+    github: "#24292F",
+    atlassian: "#0052CC",
+    salesforce: "#00A1E0",
+    zoom: "#2D8CFF",
+    hubspot: "#FF7A59",
+    zendesk: "#03363D",
+    intercom: "#1F8DED",
+    asana: "#F06A6A",
+    monday: "#FF3D57",
+    linear: "#5E6AD2",
+    jira: "#0052CC",
+    confluence: "#172B4D",
+    dropbox: "#0061FF",
+    box: "#0061D5",
+    google_workspace: "#4285F4",
+    microsoft_365: "#D83B01",
+  },
+  defaultColor: "#FF6C5E",
+  defaultType: "SaaS Subscription",
+}
+
 // ============================================
 // Category Configuration (Subscriptions)
 // ============================================
@@ -295,8 +323,6 @@ export function calculateProviderTableRow(
     dateInfo
   )
 
-  const providerKey = provider.provider?.toLowerCase() ?? ""
-
   return {
     id: provider.provider,
     name: getEntityName(provider.provider, config),
@@ -375,33 +401,39 @@ export function calculateCategoryBreakdownItem(
 
 /**
  * Transform array of providers to table rows
+ * Handles null/undefined providers array safely
  */
 export function transformProvidersToTableRows(
-  providers: ProviderData[],
+  providers: ProviderData[] | null | undefined,
   dateInfo: DateInfo,
   config: EntityConfig
 ): CostTableRow[] {
+  if (!providers || !Array.isArray(providers)) return []
   return providers.map(p => calculateProviderTableRow(p, dateInfo, config))
 }
 
 /**
  * Transform array of categories to table rows
+ * Handles null/undefined categories array safely
  */
 export function transformCategoriesToTableRows(
-  categories: CategoryData[],
+  categories: CategoryData[] | null | undefined,
   dateInfo: DateInfo,
   config: EntityConfig = CATEGORY_CONFIG
 ): CostTableRow[] {
+  if (!categories || !Array.isArray(categories)) return []
   return categories.map(c => calculateCategoryTableRow(c, dateInfo, config))
 }
 
 /**
  * Transform array of providers to breakdown items (sorted by value)
+ * Handles null/undefined providers array safely
  */
 export function transformProvidersToBreakdownItems(
-  providers: ProviderData[],
+  providers: ProviderData[] | null | undefined,
   config: EntityConfig
 ): BreakdownItem[] {
+  if (!providers || !Array.isArray(providers)) return []
   return [...providers]
     .sort((a, b) => b.total_cost - a.total_cost)
     .map(p => calculateProviderBreakdownItem(p, config))
@@ -409,11 +441,13 @@ export function transformProvidersToBreakdownItems(
 
 /**
  * Transform array of categories to breakdown items (sorted by value)
+ * Handles null/undefined categories array safely
  */
 export function transformCategoriesToBreakdownItems(
-  categories: CategoryData[],
+  categories: CategoryData[] | null | undefined,
   config: EntityConfig = CATEGORY_CONFIG
 ): BreakdownItem[] {
+  if (!categories || !Array.isArray(categories)) return []
   return [...categories]
     .sort((a, b) => b.total_cost - a.total_cost)
     .map(c => calculateCategoryBreakdownItem(c, config))
@@ -435,10 +469,12 @@ export const GENAI_PROVIDER_SET = new Set([
 
 /**
  * Filter providers to only cloud providers
+ * Handles null/undefined providers array safely
  */
 export function filterCloudProviders<T extends { provider?: string | null }>(
-  providers: T[]
+  providers: T[] | null | undefined
 ): T[] {
+  if (!providers || !Array.isArray(providers)) return []
   return providers.filter(p => {
     if (!p.provider || typeof p.provider !== "string") return false
     return CLOUD_PROVIDER_SET.has(p.provider.toLowerCase())
@@ -447,10 +483,12 @@ export function filterCloudProviders<T extends { provider?: string | null }>(
 
 /**
  * Filter providers to only GenAI/LLM providers
+ * Handles null/undefined providers array safely
  */
 export function filterGenAIProviders<T extends { provider?: string | null }>(
-  providers: T[]
+  providers: T[] | null | undefined
 ): T[] {
+  if (!providers || !Array.isArray(providers)) return []
   return providers.filter(p => {
     if (!p.provider || typeof p.provider !== "string") return false
     return GENAI_PROVIDER_SET.has(p.provider.toLowerCase())
@@ -823,6 +861,64 @@ export function getDecemberRange(): PeriodDateRange {
     label: "Dec",
     days: 31,
   }
+}
+
+// ============================================
+// Daily Trend Data Generation
+// ============================================
+
+export interface DailyTrendDataPoint {
+  /** Label for X-axis (day number) */
+  label: string
+  /** Cost value for the day */
+  value: number
+  /** Full date string (YYYY-MM-DD) */
+  date: string
+}
+
+/**
+ * Generate deterministic daily trend data for charts
+ * Uses a seeded variance function to ensure consistent rendering
+ * across re-renders and page navigations.
+ *
+ * @param mtdCost - Month-to-date cost total
+ * @param days - Number of days to generate (default: 14)
+ * @returns Array of daily trend data points
+ */
+export function generateDailyTrendData(
+  mtdCost: number,
+  days: number = 14
+): DailyTrendDataPoint[] {
+  const today = new Date()
+  const currentDayOfMonth = today.getDate()
+  const dailyAvg = currentDayOfMonth > 0 ? mtdCost / currentDayOfMonth : 0
+
+  // Deterministic seed function based on date
+  // Produces consistent values for the same day
+  const seededVariance = (dayOffset: number): number => {
+    const seed = currentDayOfMonth * 31 + dayOffset * 7
+    const x = Math.sin(seed) * 10000
+    return 0.7 + (x - Math.floor(x)) * 0.6
+  }
+
+  const trendData: DailyTrendDataPoint[] = []
+
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    const dayLabel = date.getDate().toString()
+    const variance = seededVariance(i)
+    // Today uses actual daily average, past days use variance
+    const dayValue = i === 0 ? dailyAvg : dailyAvg * variance
+
+    trendData.push({
+      label: dayLabel,
+      value: Math.round(dayValue * 100) / 100,
+      date: date.toISOString().split("T")[0],
+    })
+  }
+
+  return trendData
 }
 
 /**

@@ -5,6 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Re-export param utilities
+export { getOrgSlug, isValidOrgSlug } from "./utils/params"
+
 /**
  * Log an error and return a user-friendly error message.
  * Used in server actions to standardize error handling.

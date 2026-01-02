@@ -120,11 +120,11 @@ function CustomTooltip({
     <div className="bg-slate-900/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-xl border border-slate-700">
       <p className="text-slate-300 text-xs font-medium mb-1.5">{label}</p>
       <div className="space-y-1">
-        {payload.map((entry, index) => {
+        {payload.map((entry) => {
           const isLine = entry.dataKey === "lineValue" || entry.dataKey === "secondLineValue"
           const displayLabel = isLine ? lineLabel : barLabel
           return (
-            <div key={index} className="flex items-center gap-2">
+            <div key={entry.dataKey} className="flex items-center gap-2">
               <div
                 className={cn(
                   "w-2 h-2 rounded-full",
@@ -186,13 +186,11 @@ export function CostComboChart({
   showLegend = true,
   yAxisDomain,
 }: CostComboChartProps) {
-  if (loading) {
-    return <ChartSkeleton height={height} />
-  }
-
   // Calculate dynamic Y-axis domain if not provided
+  // Must be called before any early returns to comply with rules of hooks
   const calculatedDomain = useMemo(() => {
     if (yAxisDomain) return yAxisDomain
+    if (!data || data.length === 0) return [0, 100] as [number, number]
 
     const allValues = data.flatMap((d) => [
       d.value,
@@ -206,7 +204,9 @@ export function CostComboChart({
   }, [data, budgetLine, yAxisDomain])
 
   // Calculate moving average if not provided
+  // Must be called before any early returns to comply with rules of hooks
   const enrichedData = useMemo(() => {
+    if (!data || data.length === 0) return []
     return data.map((point, index) => {
       // Calculate 7-day moving average if lineValue not provided
       if (point.lineValue === undefined) {
@@ -218,6 +218,16 @@ export function CostComboChart({
       return point
     })
   }, [data])
+
+  // Early returns after hooks are called
+  if (loading) {
+    return <ChartSkeleton height={height} />
+  }
+
+  // Guard against empty data
+  if (!data || data.length === 0) {
+    return null
+  }
 
   // Custom X-axis tick
   const formatXAxisTick = (value: string) => {
@@ -303,8 +313,8 @@ export function CostComboChart({
                 wrapperStyle={{ paddingTop: 16 }}
                 iconType="circle"
                 iconSize={8}
-                formatter={(value) => (
-                  <span className="text-xs text-slate-600 ml-1">{value}</span>
+                formatter={(value: string) => (
+                  <span className="text-xs text-slate-600 ml-1" key={value}>{value}</span>
                 )}
               />
             )}

@@ -1163,7 +1163,7 @@ export async function getExtendedPeriodCosts(
         case "llm":
           return getCategoryCost(result.data.llm)
         case "total":
-        default:
+        default: {
           // Sum all cost types for total
           const saas = getCategoryCost(result.data.saas)
           const cloud = getCategoryCost(result.data.cloud)
@@ -1171,6 +1171,7 @@ export async function getExtendedPeriodCosts(
           const total = saas + cloud + llm
           // Fallback to total.total_billed_cost or total_monthly_cost
           return total || (result.data.total?.total_billed_cost ?? result.data.total?.total_monthly_cost ?? 0)
+        }
       }
     }
 

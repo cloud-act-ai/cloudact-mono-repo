@@ -150,6 +150,7 @@ export {
   type EntityConfig,
   type PeriodDateRange,
   type ExtendedPeriodMetrics,
+  type DailyTrendDataPoint,
   // Date utilities
   getDateInfo,
   isInCurrentMonth,
@@ -183,6 +184,7 @@ export {
   // Config objects
   GENAI_PROVIDER_CONFIG,
   CLOUD_PROVIDER_CONFIG,
+  SAAS_PROVIDER_CONFIG,
   CATEGORY_CONFIG,
   OVERVIEW_CATEGORY_CONFIG,
   // Extended period date calculations
@@ -202,4 +204,6 @@ export {
   getSpecificMonthRange,
   getNovemberRange,
   getDecemberRange,
+  // Daily trend data generation
+  generateDailyTrendData,
 } from "./dashboard-calculators"

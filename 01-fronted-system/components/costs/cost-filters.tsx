@@ -10,7 +10,7 @@
  * - Consistent styling with cost dashboard design
  */
 
-import React, { useState, useCallback, useEffect } from "react"
+import React, { useState, useCallback } from "react"
 import {
   Building2,
   FolderKanban,
@@ -20,7 +20,9 @@ import {
   X,
   Filter,
   Layers,
+  Calendar,
 } from "lucide-react"
+import type { TimeRange } from "@/contexts/cost-data-context"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -511,4 +513,121 @@ export function CostFilters({
       )}
     </div>
   )
+}
+
+// ============================================
+// Time Range Filter (Standalone)
+// ============================================
+
+export interface TimeRangeFilterProps {
+  /** Current selected time range */
+  value: TimeRange
+  /** Callback when time range changes */
+  onChange: (range: TimeRange) => void
+  /** Optional class name */
+  className?: string
+  /** Disabled state */
+  disabled?: boolean
+  /** Size variant */
+  size?: "sm" | "default"
+}
+
+const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; shortLabel: string }[] = [
+  { value: "365", label: "Last 365 Days", shortLabel: "365D" },
+  { value: "90", label: "Last 90 Days", shortLabel: "90D" },
+  { value: "30", label: "Last 30 Days", shortLabel: "30D" },
+  { value: "14", label: "Last 14 Days", shortLabel: "14D" },
+  { value: "7", label: "Last 7 Days", shortLabel: "7D" },
+]
+
+export function TimeRangeFilter({
+  value,
+  onChange,
+  className,
+  disabled = false,
+  size = "default",
+}: TimeRangeFilterProps) {
+  const [open, setOpen] = useState(false)
+
+  const selectedOption = TIME_RANGE_OPTIONS.find((opt) => opt.value === value) || TIME_RANGE_OPTIONS[2]
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size={size === "sm" ? "sm" : "default"}
+          disabled={disabled}
+          className={cn(
+            "gap-2",
+            size === "sm" ? "h-8 px-2.5" : "h-9 px-3",
+            "border-slate-200 hover:border-slate-300",
+            "bg-white hover:bg-slate-50",
+            className
+          )}
+        >
+          <Calendar className={cn("text-slate-500", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
+          <span className={cn("font-medium text-slate-700", size === "sm" ? "text-xs" : "text-sm")}>
+            {selectedOption.label}
+          </span>
+          <ChevronDown className={cn("text-slate-400", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-44 p-1.5" align="end">
+        <div className="space-y-0.5">
+          {TIME_RANGE_OPTIONS.map((option) => {
+            const isSelected = option.value === value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm",
+                  "transition-colors",
+                  isSelected
+                    ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
+                    : "text-slate-700 hover:bg-slate-100"
+                )}
+              >
+                <span>{option.label}</span>
+                {isSelected && <Check className="h-4 w-4" />}
+              </button>
+            )
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/**
+ * Get rolling average window size based on time range
+ */
+export function getRollingAverageWindow(timeRange: TimeRange): number {
+  switch (timeRange) {
+    case "365": return 30  // 30-day rolling avg
+    case "90": return 14   // 14-day rolling avg
+    case "30": return 7    // 7-day rolling avg
+    case "14": return 3    // 3-day rolling avg
+    case "7": return 3     // 3-day rolling avg
+    default: return 7
+  }
+}
+
+/**
+ * Get label for the rolling average based on time range
+ */
+export function getRollingAverageLabel(timeRange: TimeRange): string {
+  switch (timeRange) {
+    case "365": return "30-Day Avg"
+    case "90": return "14-Day Avg"
+    case "30": return "7-Day Avg"
+    case "14": return "3-Day Avg"
+    case "7": return "3-Day Avg"
+    default: return "7-Day Avg"
+  }
 }

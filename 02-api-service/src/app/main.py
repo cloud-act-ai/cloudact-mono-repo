@@ -558,7 +558,39 @@ async def log_requests(request: Request, call_next):
     """Log all HTTP requests with timing."""
     start_time = time.time()
 
-    org_slug = "unknown"  # Will be set by auth dependency
+    # Extract org_slug from URL path
+    # Pattern: /api/v1/{resource}/{org_slug}/... or /api/v1/costs/{org_slug}/...
+    org_slug = "unknown"
+    path_parts = request.url.path.strip("/").split("/")
+
+    # Common patterns:
+    # /api/v1/costs/{org_slug}/total
+    # /api/v1/integrations/{org_slug}/...
+    # /api/v1/subscriptions/{org_slug}/...
+    # /api/v1/hierarchy/{org_slug}/...
+    # /api/v1/pipelines/{org_slug}/runs
+    # /api/v1/pipelines/status/{org_slug}  <- special case
+    if len(path_parts) >= 4 and path_parts[0] == "api" and path_parts[1] == "v1":
+        resource = path_parts[2]
+        # These resources have org_slug as the 4th path segment
+        if resource in ["costs", "integrations", "subscriptions", "hierarchy",
+                       "notifications", "quota", "usage"]:
+            org_slug = path_parts[3]
+        # pipelines has special sub-routes: /pipelines/status/{org}, /pipelines/run/{org}
+        elif resource == "pipelines" and len(path_parts) >= 5:
+            sub_resource = path_parts[3]
+            if sub_resource in ["status", "run"]:
+                # /api/v1/pipelines/status/{org_slug} or /api/v1/pipelines/run/{org_slug}
+                org_slug = path_parts[4]
+            else:
+                # /api/v1/pipelines/{org_slug}/runs
+                org_slug = path_parts[3]
+        elif resource == "pipelines" and len(path_parts) == 4:
+            # /api/v1/pipelines/{org_slug}
+            org_slug = path_parts[3]
+        # organizations/{org_slug}/... pattern
+        elif resource == "organizations" and len(path_parts) >= 4:
+            org_slug = path_parts[3]
 
     logger.info(
         f"Request started",

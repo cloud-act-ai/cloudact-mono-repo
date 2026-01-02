@@ -119,9 +119,13 @@ export {
 export {
   CostFilters,
   getDefaultFilters,
+  TimeRangeFilter,
+  getRollingAverageWindow,
+  getRollingAverageLabel,
   type CostFiltersState,
   type CostFiltersProps,
   type HierarchyEntity,
+  type TimeRangeFilterProps,
 } from "./cost-filters"
 
 // ============================================

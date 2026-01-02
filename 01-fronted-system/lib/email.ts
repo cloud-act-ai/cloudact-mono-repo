@@ -52,44 +52,69 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 }
 
 // =============================================
+// BRAND COLORS - CloudAct Design System
+// =============================================
+const BRAND = {
+  mint: "#90FCA6",           // Primary buttons, success states
+  mintDark: "#6EE890",       // Hover states
+  obsidian: "#0a0a0b",       // Icon backgrounds, premium dark
+  coral: "#FF6C5E",          // Warnings, destructive actions
+  black: "#000000",          // Text on mint buttons
+  white: "#ffffff",          // Text on dark buttons
+  gray: {
+    50: "#fafafa",
+    100: "#f4f4f5",
+    200: "#e4e4e7",
+    400: "#a1a1aa",
+    500: "#71717a",
+    600: "#52525b",
+    700: "#3f3f46",
+    900: "#18181b",
+  },
+  success: "#10b981",        // Green for confirmations
+  warning: "#f59e0b",        // Amber for warnings
+  error: "#ef4444",          // Red for errors
+  // Assets
+  logoUrl: "https://cloudact.ai/logos/cloudact-logo-black.png",
+  iconUrl: "https://cloudact.ai/logos/cloudact-icon-black.png",
+  siteUrl: "https://cloudact.ai",
+} as const
+
+// =============================================
 // BASE EMAIL LAYOUT - Single Brand Template
 // =============================================
 interface BaseEmailLayoutOptions {
   title: string
-  iconBg?: string      // Icon background color (default: #18181b)
-  iconText?: string    // Icon character (default: C)
   content: string      // Main email body HTML
   ctaText?: string     // Call-to-action button text
   ctaLink?: string     // Call-to-action button link
-  ctaBg?: string       // CTA button background (default: #18181b)
-  footerText?: string  // Optional additional footer text
+  ctaStyle?: "mint" | "dark" | "coral"  // Button style (default: mint)
 }
 
 function baseEmailLayout({
   title,
-  iconBg = "#18181b",
-  iconText = "C",
   content,
   ctaText,
   ctaLink,
-  ctaBg = "#18181b",
-  footerText,
+  ctaStyle = "mint",
 }: BaseEmailLayoutOptions): string {
+  // Button styles based on brand
+  const buttonStyles = {
+    mint: `background-color: ${BRAND.mint}; color: ${BRAND.black};`,
+    dark: `background-color: ${BRAND.obsidian}; color: ${BRAND.white};`,
+    coral: `background-color: ${BRAND.coral}; color: ${BRAND.white};`,
+  }
+
   const ctaButton = ctaText && ctaLink ? `
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 24px 0;">
                 <tr>
                   <td align="center">
-                    <a href="${ctaLink}" style="display: inline-block; padding: 14px 32px; background-color: ${ctaBg}; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
+                    <a href="${ctaLink}" style="display: inline-block; padding: 14px 32px; ${buttonStyles[ctaStyle]} text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
                       ${ctaText}
                     </a>
                   </td>
                 </tr>
               </table>` : ""
-
-  const additionalFooter = footerText ? `
-              <p style="margin: 20px 0 0 0; font-size: 12px; color: #a1a1aa; word-break: break-all;">
-                ${footerText}
-              </p>` : ""
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -97,18 +122,18 @@ function baseEmailLayout({
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+<body style="margin: 0; padding: 0; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: ${BRAND.gray[100]};">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
       <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
+        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: ${BRAND.white}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header with Logo -->
           <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <div style="display: inline-block; width: 48px; height: 48px; background-color: ${iconBg}; border-radius: 12px; line-height: 48px; text-align: center;">
-                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">${iconText}</span>
-              </div>
-              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">${title}</h1>
+            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid ${BRAND.gray[200]};">
+              <a href="${BRAND.siteUrl}" style="text-decoration: none;">
+                <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="160" height="40" style="display: inline-block; max-width: 160px; height: auto;" />
+              </a>
+              <h1 style="margin: 24px 0 0 0; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]};">${title}</h1>
             </td>
           </tr>
           <!-- Content -->
@@ -116,15 +141,37 @@ function baseEmailLayout({
             <td style="padding: 40px;">
               ${content}
               ${ctaButton}
-              ${additionalFooter}
             </td>
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
-                CloudAct.AI - Enterprise Cloud Cost Management
-              </p>
+            <td style="padding: 24px 40px; background-color: ${BRAND.gray[50]}; border-top: 1px solid ${BRAND.gray[200]}; border-radius: 0 0 12px 12px;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td align="center" style="padding-bottom: 16px;">
+                    <a href="${BRAND.siteUrl}" style="text-decoration: none;">
+                      <img src="${BRAND.iconUrl}" alt="CloudAct" width="32" height="32" style="display: inline-block;" />
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center">
+                    <p style="margin: 0 0 8px 0; font-size: 13px; color: ${BRAND.gray[600]}; font-weight: 500;">
+                      CloudAct.AI
+                    </p>
+                    <p style="margin: 0; font-size: 12px; color: ${BRAND.gray[400]};">
+                      Enterprise Cloud Cost Management
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 16px;">
+                    <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]};">
+                      <a href="${BRAND.siteUrl}" style="color: ${BRAND.gray[500]}; text-decoration: none;">cloudact.ai</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -158,14 +205,14 @@ export async function sendInviteEmail({
   const safeInviteLink = encodeURI(inviteLink)
 
   const content = `
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 <strong>${safeInviterName}</strong> has invited you to join <strong>${safeOrgName}</strong> on CloudAct.AI.
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #f4f4f5; border-radius: 8px;">
-                <p style="margin: 0 0 8px 0; font-size: 14px; color: #71717a;">Your role:</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #18181b;">${safeRoleDisplay}</p>
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: ${BRAND.gray[100]}; border-radius: 8px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Your role:</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: ${BRAND.gray[900]};">${safeRoleDisplay}</p>
               </div>
-              <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
+              <p style="margin: 30px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
                 This invitation expires in 48 hours. If you didn't expect this invitation, you can safely ignore this email.
               </p>`
 
@@ -174,7 +221,7 @@ export async function sendInviteEmail({
     content,
     ctaText: "Accept Invitation",
     ctaLink: safeInviteLink,
-    footerText: `Or copy this link: ${safeInviteLink}`,
+    ctaStyle: "mint",
   })
 
   return sendEmail({
@@ -196,21 +243,15 @@ export async function sendPasswordResetEmail({
   resetLink: string
 }): Promise<boolean> {
   const content = `
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 We received a request to reset your password for your CloudAct.AI account.
               </p>
-              <p style="margin: 20px 0 0 0; font-size: 13px; color: #71717a; text-align: center;">
-                Or copy and paste this link into your browser:
-              </p>
-              <p style="margin: 8px 0 0 0; font-size: 12px; color: #3b82f6; word-break: break-all; text-align: center; background-color: #f4f4f5; padding: 12px; border-radius: 6px;">
-                ${resetLink}
-              </p>
-              <div style="margin: 30px 0 0 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <div style="margin: 30px 0 0 0; padding: 16px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                   <strong>Security Notice:</strong> If you didn't request this, please ignore this email. Your password won't be changed.
                 </p>
               </div>
-              <p style="margin: 20px 0 0 0; font-size: 14px; color: #71717a;">
+              <p style="margin: 20px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
                 This link expires in 24 hours.
               </p>`
 
@@ -219,6 +260,7 @@ export async function sendPasswordResetEmail({
     content,
     ctaText: "Reset Password",
     ctaLink: resetLink,
+    ctaStyle: "mint",
   })
 
   return sendEmail({
@@ -253,25 +295,24 @@ export async function sendTrialEndingEmail({
   })
 
   const content = `
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Your free trial for <strong>${safeOrgName}</strong> on CloudAct.AI will end in <strong>${daysRemaining} days</strong> (${formattedDate}).
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                   To avoid any interruption to your service, please add a payment method before your trial ends.
                 </p>
               </div>
-              <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
+              <p style="margin: 30px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
                 If you have any questions about our plans, feel free to reach out to our support team.
               </p>`
 
   const html = baseEmailLayout({
     title: "Your Trial is Ending Soon",
-    iconBg: "#f59e0b",
-    iconText: "!",
     content,
     ctaText: "Subscribe Now",
     ctaLink: safeBillingLink,
+    ctaStyle: "mint",
   })
 
   return sendEmail({
@@ -298,26 +339,24 @@ export async function sendPaymentFailedEmail({
   const safeBillingLink = escapeHtml(billingLink)
 
   const content = `
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 We were unable to process your payment for <strong>${safeOrgName}</strong> on CloudAct.AI.
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #fee2e2; border-radius: 8px; border-left: 4px solid #ef4444;">
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.error};">
                 <p style="margin: 0; font-size: 14px; color: #991b1b;">
                   <strong>Action Required:</strong> Please update your payment method to avoid service interruption.
                 </p>
               </div>
-              <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
+              <p style="margin: 30px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
                 If you believe this is an error, please contact your bank or our support team for assistance.
               </p>`
 
   const html = baseEmailLayout({
     title: "Payment Failed",
-    iconBg: "#ef4444",
-    iconText: "!",
     content,
     ctaText: "Update Payment Method",
     ctaLink: safeBillingLink,
-    ctaBg: "#ef4444",
+    ctaStyle: "coral",
   })
 
   return sendEmail({
@@ -347,13 +386,13 @@ export async function sendWelcomeEmail({
   const safeDashboardLink = escapeHtml(dashboardLink)
 
   const content = `
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Hi ${safeName},
               </p>
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Welcome to <strong>${safeOrgName}</strong>! Your account is all set up and ready to go.
               </p>
-              <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
+              <p style="margin: 30px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
                 Need help getting started? Check out our documentation or contact support.
               </p>`
 
@@ -362,6 +401,7 @@ export async function sendWelcomeEmail({
     content,
     ctaText: "Go to Dashboard",
     ctaLink: safeDashboardLink,
+    ctaStyle: "mint",
   })
 
   return sendEmail({
@@ -394,27 +434,26 @@ export async function sendSubscriptionConfirmedEmail({
   const safeDashboardLink = escapeHtml(dashboardLink)
 
   const content = `
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Hi ${safeName},
               </p>
-              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Thank you for subscribing to <strong>${safeOrgName}</strong> on CloudAct.AI!
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(144, 252, 166, 0.15); border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: #047857;">Your plan:</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #18181b;">${safePlanName}</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: ${BRAND.gray[900]};">${safePlanName}</p>
               </div>
-              <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
+              <p style="margin: 30px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
                 You now have full access to all features. If you have any questions, our support team is here to help.
               </p>`
 
   const html = baseEmailLayout({
     title: "Subscription Confirmed!",
-    iconBg: "#10b981",
-    iconText: "✓",
     content,
     ctaText: "Go to Dashboard",
     ctaLink: safeDashboardLink,
+    ctaStyle: "mint",
   })
 
   return sendEmail({
