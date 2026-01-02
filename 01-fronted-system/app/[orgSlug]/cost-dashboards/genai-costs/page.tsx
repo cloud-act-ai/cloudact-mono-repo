@@ -10,20 +10,20 @@ import {
   CostSummaryGrid,
   CostBreakdownChart,
   CostDataTable,
-  DateRangeFilter,
+  TimeRangeFilter,
   CostFilters,
   CostScoreRing,
   CostComboChart,
-  getDefaultDateRange,
-  getDefaultFilters,
+  getRollingAverageLabel,
+  DEFAULT_TIME_RANGE,
   type CostSummaryData,
-  type DateRange,
   type CostFiltersState,
   type ScoreRingSegment,
   type ComboDataPoint,
+  type CustomDateRange,
 } from "@/components/costs"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
-import { useCostData } from "@/contexts/cost-data-context"
+import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
 import {
   getDateInfo,
   transformProvidersToBreakdownItems,
@@ -45,31 +45,40 @@ export default function GenAICostsPage() {
     error: contextError,
     refresh: refreshCostData,
     getFilteredProviders,
+    getDailyTrendForRange,
+    availableFilters,
   } = useCostData()
 
-  // Local state
+  // Local state - GenAI costs page (category fixed to "genai")
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
-  const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
+  const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
+  const [customRange, setCustomRange] = useState<CustomDateRange | undefined>(undefined)
+  const [filters, setFilters] = useState<CostFiltersState>({
+    department: undefined,
+    project: undefined,
+    team: undefined,
+    providers: [],
+    categories: [], // Category fixed by page, not user-filterable
+  })
 
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
 
-  // Get LLM providers from cached data (instant, no backend call)
-  const llmProviders = useMemo(() => {
-    return getFilteredProviders('llm')
+  // Get GenAI providers from cached data (instant, no backend call)
+  const genaiProviders = useMemo(() => {
+    return getFilteredProviders('genai')
   }, [getFilteredProviders])
 
   // Client-side filtered providers (instant, no backend call)
   const filteredProviders = useMemo(() => {
-    if (!hasProviderFilter) return llmProviders
+    if (!hasProviderFilter) return genaiProviders
 
-    // Filter LLM providers by selected providers (instant client-side)
+    // Filter GenAI providers by selected providers (instant client-side)
     const selectedProviders = new Set(filters.providers.map(p => p.toLowerCase()))
-    return llmProviders.filter(p =>
+    return genaiProviders.filter(p =>
       selectedProviders.has(p.provider.toLowerCase())
     )
-  }, [llmProviders, filters.providers, hasProviderFilter])
+  }, [genaiProviders, filters.providers, hasProviderFilter])
 
   // Use cached or client-side filtered data
   const providers = filteredProviders
@@ -80,13 +89,8 @@ export default function GenAICostsPage() {
 
   // Available providers for filter dropdown
   const availableProviders = useMemo(() => {
-    return llmProviders.map(p => p.provider)
-  }, [llmProviders])
-
-  // Handle date range change
-  const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    setDateRange(newRange)
-  }, [])
+    return genaiProviders.map(p => p.provider)
+  }, [genaiProviders])
 
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
@@ -102,46 +106,32 @@ export default function GenAICostsPage() {
     }
   }
 
-  // Generate daily trend data from period costs
-  // Uses deterministic pseudo-random based on date for consistent rendering
+  // Get rolling average label based on selected time range
+  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
+
+  // Get daily trend data from context (real data from backend)
+  // Pass "genai" category to get GenAI-specific trend data
   const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
-    const mtd = totalCosts?.llm?.mtd_cost ?? totalCosts?.llm?.total_monthly_cost ?? 0
-    const today = new Date()
-    const dailyAvg = today.getDate() > 0 ? mtd / today.getDate() : 0
+    const trendData = getDailyTrendForRange(timeRange, "genai", customRange)
 
-    // Deterministic seed function based on date
-    const seededVariance = (dayOffset: number): number => {
-      const seed = today.getDate() * 31 + dayOffset * 7
-      const x = Math.sin(seed) * 10000
-      return 0.7 + (x - Math.floor(x)) * 0.6
-    }
+    // Transform to ComboDataPoint format with lineValue for rolling average
+    return trendData.map((point) => ({
+      label: point.label,
+      value: point.value,
+      lineValue: point.rollingAvg,
+      date: point.date,
+    }))
+  }, [getDailyTrendForRange, timeRange, customRange])
 
-    const trendData: ComboDataPoint[] = []
-    for (let i = 13; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-      const dayLabel = date.getDate().toString()
-      const variance = seededVariance(i)
-      const dayValue = i === 0 ? dailyAvg : dailyAvg * variance
-
-      trendData.push({
-        label: dayLabel,
-        value: Math.round(dayValue * 100) / 100,
-        date: date.toISOString().split('T')[0],
-      })
-    }
-    return trendData
-  }, [totalCosts])
-
-  // Prepare summary data from cached totalCosts.llm
+  // Prepare summary data from cached totalCosts.genai
   const summaryData: CostSummaryData = useMemo(() => {
-    // Use LLM-specific metrics from totalCosts
-    const llmCosts = totalCosts?.llm
+    // Use GenAI-specific metrics from totalCosts
+    const genaiCosts = totalCosts?.genai
     return {
-      mtd: llmCosts?.mtd_cost ?? llmCosts?.total_monthly_cost ?? 0,
-      dailyRate: llmCosts?.total_daily_cost ?? 0,
-      forecast: llmCosts?.total_monthly_cost ?? 0,
-      ytd: llmCosts?.ytd_cost ?? llmCosts?.total_annual_cost ?? 0,
+      mtd: genaiCosts?.mtd_cost ?? genaiCosts?.total_monthly_cost ?? 0,
+      dailyRate: genaiCosts?.total_daily_cost ?? 0,
+      forecast: genaiCosts?.total_monthly_cost ?? 0,
+      ytd: genaiCosts?.total_annual_cost ?? 0,
       currency: orgCurrency,
     }
   }, [totalCosts, orgCurrency])
@@ -181,7 +171,7 @@ export default function GenAICostsPage() {
   }, [providers])
 
   // Check if data is truly empty (not just loading)
-  const isEmpty = !isLoading && !totalCosts?.llm && providers.length === 0
+  const isEmpty = !isLoading && !totalCosts?.genai && providers.length === 0
 
   return (
     <CostDashboardShell
@@ -212,13 +202,16 @@ export default function GenAICostsPage() {
             onChange={handleFiltersChange}
             hierarchy={hierarchy}
             availableProviders={availableProviders}
+            availableCategories={[]} // Category fixed by page - don't show category filter
             disabled={isLoading || isRefreshing}
             loading={isLoading}
           />
-          <DateRangeFilter
-            value={dateRange}
-            onChange={handleDateRangeChange}
-            disabled={isLoading || isRefreshing}
+          <TimeRangeFilter
+            value={timeRange}
+            onChange={setTimeRange}
+            customRange={customRange}
+            onCustomRangeChange={setCustomRange}
+            size="sm"
           />
         </div>
       }
@@ -230,13 +223,13 @@ export default function GenAICostsPage() {
       {dailyTrendData.length > 0 && (
         <CostComboChart
           title="GenAI Daily Cost Trend"
-          subtitle="Last 14 days with 7-day moving average"
+          subtitle={`${rollingAvgLabel} overlay on daily spend`}
           data={dailyTrendData}
           currency={orgCurrency}
           barColor="#10A37F"
           lineColor="#FF6C5E"
           barLabel="Daily Cost"
-          lineLabel="7-Day Avg"
+          lineLabel={rollingAvgLabel}
           height={320}
           showAreaFill
           loading={isLoading}

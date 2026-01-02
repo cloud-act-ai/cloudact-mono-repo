@@ -34,6 +34,12 @@ function parseArgs(): Partial<DemoAccountConfig> {
         const [key, value] = arg.replace('--', '').split('=')
         if (key && value) {
             switch (key) {
+                case 'firstName':
+                    config.firstName = value
+                    break
+                case 'lastName':
+                    config.lastName = value
+                    break
                 case 'email':
                     config.email = value
                     break
@@ -101,19 +107,22 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
         // Step 1: Navigate to signup page
         console.log('\n[Step 1/5] Navigating to signup page...')
         await page.goto(`${TEST_CONFIG.baseUrl}/signup`)
-        await page.waitForSelector('input[placeholder="you@company.com"]', { timeout: 10000 })
+        await page.waitForSelector('input[placeholder="John"]', { timeout: 10000 })
         console.log('  Signup page loaded')
 
         // Step 2: Fill account details (Step 1 of signup)
         console.log('\n[Step 2/5] Filling account details...')
+
+        // Fill first name and last name
+        await page.fill('input[placeholder="John"]', config.firstName)
+        await page.fill('input[placeholder="Doe"]', config.lastName)
+
+        // Fill email and password
         await page.fill('input[placeholder="you@company.com"]', config.email)
         await page.fill('input[placeholder="Min 8 characters"]', config.password)
 
-        // Select country code if different from default
-        if (config.countryCode !== '+1') {
-            await page.selectOption('select:near(:text("Phone number"))', config.countryCode)
-        }
-        await page.fill('input[placeholder="555 123 4567"]', config.phone)
+        // Fill phone number (placeholder has dashes: 555-123-4567)
+        await page.fill('input[placeholder="555-123-4567"]', config.phone)
 
         // Click Continue
         await page.click('button:has-text("Continue")')
@@ -150,26 +159,42 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
         console.log(`\n[Step 4/5] Selecting ${config.plan} plan...`)
         await page.waitForSelector('text=Choose your plan', { timeout: 10000 })
 
-        // Click the appropriate plan button
-        const planButtons = await page.$$('button:has-text("Select Plan")')
-        let planIndex = 0
-        switch (config.plan) {
-            case 'starter':
-                planIndex = 0
-                break
-            case 'professional':
-                planIndex = 1
-                break
-            case 'scale':
-                planIndex = 2
-                break
+        // Wait for plans to load (wait for "Loading plans..." to disappear)
+        console.log('  Waiting for plans to load...')
+        await page.waitForSelector('text=Loading plans...', { state: 'hidden', timeout: 30000 }).catch(() => {})
+
+        // Wait for plan cards to appear (look for price text like "$19" or plan names)
+        await page.waitForSelector('text=$19', { timeout: 15000 }).catch(() => {})
+        await page.waitForTimeout(1000) // Extra wait for rendering
+
+        // Click the appropriate plan card
+        const planSelectors: Record<string, string> = {
+            'starter': 'text=Starter',
+            'professional': 'text=Professional',
+            'scale': 'text=Scale',
         }
 
-        if (planButtons[planIndex]) {
-            await planButtons[planIndex].click()
+        // Click on the plan card to select it
+        const planSelector = planSelectors[config.plan]
+        const planCard = await page.locator(planSelector).first()
+        if (await planCard.isVisible()) {
+            await planCard.click()
             console.log(`  ${config.plan} plan selected`)
         } else {
-            throw new Error(`Could not find ${config.plan} plan button`)
+            // Fallback: try clicking Select Plan buttons by index
+            const planButtons = await page.$$('button:has-text("Select")')
+            let planIndex = 0
+            switch (config.plan) {
+                case 'starter': planIndex = 0; break
+                case 'professional': planIndex = 1; break
+                case 'scale': planIndex = 2; break
+            }
+            if (planButtons[planIndex]) {
+                await planButtons[planIndex].click()
+                console.log(`  ${config.plan} plan selected (fallback)`)
+            } else {
+                throw new Error(`Could not find ${config.plan} plan button`)
+            }
         }
 
         // Wait for "Continue to Checkout" button to be enabled

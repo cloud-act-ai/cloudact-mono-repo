@@ -13,9 +13,9 @@
 # Only ACTIVE and TRIAL statuses allow pipeline execution
 
 providers:
-  # LLM Providers
+  # GenAI Providers (API-based usage billing)
   OPENAI:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "OpenAI API Key"
     context_key: openai_api_key
@@ -34,13 +34,13 @@ providers:
     rate_limit_per_minute: 60 # Per-org rate limit for this provider
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
-      pricing_table: "llm_model_pricing"
-      subscriptions_table: "saas_subscription_plans"
-      seed_path: "configs/llm/seed"
-      pricing_schema: "llm_model_pricing.json"
+      pricing_table: "genai_model_pricing"
+      subscriptions_table: "subscription_plans"
+      seed_path: "configs/genai/seed"
+      pricing_schema: "genai_model_pricing.json"
 
   ANTHROPIC:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "Anthropic API Key"
     context_key: anthropic_api_key
@@ -58,15 +58,15 @@ providers:
     rate_limit_per_minute: 60 # Per-org rate limit for this provider
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
-      pricing_table: "llm_model_pricing"
-      subscriptions_table: "saas_subscription_plans"
-      seed_path: "configs/llm/seed"
-      pricing_schema: "llm_model_pricing.json"
+      pricing_table: "genai_model_pricing"
+      subscriptions_table: "subscription_plans"
+      seed_path: "configs/genai/seed"
+      pricing_schema: "genai_model_pricing.json"
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
     alias_for: ANTHROPIC # Indicates this is an alias
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "Claude API Key"
     context_key: claude_api_key
@@ -83,7 +83,7 @@ providers:
     rate_limit_per_minute: 60
 
   GEMINI:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "Google Gemini API Key"
     context_key: gemini_api_key
@@ -102,13 +102,13 @@ providers:
     rate_limit_per_minute: 60  # Per-org rate limit for this provider
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
-      pricing_table: "llm_model_pricing"
-      subscriptions_table: "saas_subscription_plans"
-      seed_path: "configs/llm/seed"
-      pricing_schema: "llm_model_pricing.json"
+      pricing_table: "genai_model_pricing"
+      subscriptions_table: "subscription_plans"
+      seed_path: "configs/genai/seed"
+      pricing_schema: "genai_model_pricing.json"
 
   DEEPSEEK:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "DeepSeek API Key"
     context_key: deepseek_api_key
@@ -126,10 +126,10 @@ providers:
     rate_limit_per_minute: 60  # Per-org rate limit for this provider
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
-      pricing_table: "llm_model_pricing"
-      subscriptions_table: "saas_subscription_plans"
-      seed_path: "configs/llm/seed"
-      pricing_schema: "llm_model_pricing.json"
+      pricing_table: "genai_model_pricing"
+      subscriptions_table: "subscription_plans"
+      seed_path: "configs/genai/seed"
+      pricing_schema: "genai_model_pricing.json"
 
   # Cloud Providers
   GCP_SA:
@@ -207,10 +207,10 @@ providers:
 
 # Provider groups for easy lookup
 provider_groups:
-  llm:
+  genai:
     - OPENAI
     - ANTHROPIC
-    - CLAUDE # Include CLAUDE alias in LLM group
+    - CLAUDE # Include CLAUDE alias in GenAI group
     - GEMINI
     - DEEPSEEK
   cloud:

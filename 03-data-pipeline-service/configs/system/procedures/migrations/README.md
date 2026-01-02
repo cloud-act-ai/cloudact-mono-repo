@@ -224,7 +224,7 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
 ### "Table not found"
 
 - Verify dataset name: `{org_slug}_prod` (e.g., `acme_corp_prod`)
-- Check table exists: `saas_subscription_plans`
+- Check table exists: `subscription_plans`
 - Ensure org has been onboarded
 
 ### "No rows updated"

@@ -5,6 +5,8 @@
  */
 
 export interface DemoAccountConfig {
+    firstName: string
+    lastName: string
     email: string
     password: string
     phone: string
@@ -18,6 +20,8 @@ export interface DemoAccountConfig {
 
 // Default demo account configuration
 export const DEFAULT_DEMO_ACCOUNT: DemoAccountConfig = {
+    firstName: 'John',
+    lastName: 'Doe',
     email: 'john@example.com',
     password: 'acme1234',
     phone: '5551234567',

@@ -32,7 +32,7 @@ DATA_FILES=(
     "${DATA_DIR}/cloud/aws_billing_raw.json"
     "${DATA_DIR}/cloud/azure_billing_raw.json"
     "${DATA_DIR}/cloud/oci_billing_raw.json"
-    "${DATA_DIR}/subscriptions/saas_subscription_plans.csv"
+    "${DATA_DIR}/subscriptions/subscription_plans.csv"
 )
 
 missing_files=0
@@ -59,7 +59,7 @@ SCHEMA_FILES=(
     "${SCHEMA_DIR}/aws_billing_cost.json"
     "${SCHEMA_DIR}/azure_billing_cost.json"
     "${SCHEMA_DIR}/oci_billing_cost.json"
-    "${SCHEMA_DIR}/saas_subscription_plans.json"
+    "${SCHEMA_DIR}/subscription_plans.json"
 )
 
 missing_schemas=0

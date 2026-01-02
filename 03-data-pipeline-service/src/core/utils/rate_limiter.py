@@ -6,6 +6,7 @@ Supports in-memory store for development and Redis for production.
 
 import time
 import asyncio
+import threading
 from typing import Dict, Tuple, Optional
 from collections import defaultdict
 from functools import wraps
@@ -265,21 +266,25 @@ class RateLimiter:
         return is_allowed, metadata
 
 
-# Global rate limiter instance
+# Thread-safe singleton instance
 _rate_limiter: Optional[RateLimiter] = None
+_rate_limiter_lock = threading.Lock()
 
 
 def get_rate_limiter() -> RateLimiter:
     """
-    Get or create global rate limiter instance.
+    Get or create global rate limiter instance (thread-safe).
 
     Returns:
         RateLimiter instance
     """
     global _rate_limiter
-    if _rate_limiter is None:
-        _rate_limiter = RateLimiter()
-    return _rate_limiter
+    if _rate_limiter is not None:
+        return _rate_limiter
+    with _rate_limiter_lock:
+        if _rate_limiter is None:
+            _rate_limiter = RateLimiter()
+        return _rate_limiter
 
 
 def init_rate_limiter(

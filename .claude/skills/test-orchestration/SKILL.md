@@ -125,7 +125,7 @@ cd 03-data-pipeline-service
 python -m pytest tests/ -v
 
 # Cost calculation tests
-python -m pytest tests/test_05b_saas_cost_calculation_unit.py -v
+python -m pytest tests/test_05b_subscription_cost_calculation_unit.py -v
 
 # Processor tests
 python -m pytest tests/test_processors/ -v

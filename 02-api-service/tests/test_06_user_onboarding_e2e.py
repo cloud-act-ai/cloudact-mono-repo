@@ -26,8 +26,8 @@ BOOTSTRAP TABLES (14 total):
 
 ONBOARDING TABLES (5 per org):
 - llm_model_pricing
-- saas_subscription_plans (29 columns with 3 multi-currency fields: source_currency, source_price, exchange_rate_used)
-- saas_subscription_plan_costs_daily
+- subscription_plans (29 columns with 3 multi-currency fields: source_currency, source_price, exchange_rate_used)
+- subscription_plan_costs_daily
 - cost_data_standard_1_3 (FOCUS 1.3 with org-specific extension fields)
 - contract_commitment_1_3 (FOCUS 1.3 commitment tracking)
 

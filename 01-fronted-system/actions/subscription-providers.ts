@@ -4,7 +4,7 @@
  * Subscription Providers Server Actions
  *
  * Actions for managing SaaS subscription providers:
- * - Supabase: saas_subscription_providers_meta (which providers are enabled)
+ * - Supabase: subscription_providers_meta (which providers are enabled)
  * - API Service: BigQuery plans (seeded + custom plans)
  *
  * Fixes applied:
@@ -139,7 +139,7 @@ export async function triggerCostBackfill(
     
 
     const response = await fetchWithTimeout(
-      `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/saas/costs/saas_cost`,
+      `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/subscription/costs/subscription_cost`,
       {
         method: "POST",
         headers: {
@@ -534,7 +534,7 @@ export async function listEnabledProviders(orgSlug: string): Promise<{
     const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from("saas_subscription_providers_meta")
+      .from("subscription_providers_meta")
       .select("*")
       .eq("org_id", orgId)
       .eq("is_enabled", true)
@@ -566,7 +566,7 @@ export async function getProviderMeta(
     const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from("saas_subscription_providers_meta")
+      .from("subscription_providers_meta")
       .select("*")
       .eq("org_id", orgId)
       .eq("provider_name", provider.toLowerCase())
@@ -606,7 +606,7 @@ export async function enableProvider(
 
     // 1. Upsert to Supabase meta table
     const { error: metaError } = await supabase
-      .from("saas_subscription_providers_meta")
+      .from("subscription_providers_meta")
       .upsert(
         {
           org_id: orgId,
@@ -676,7 +676,7 @@ export async function createCustomProviderWithPlan(
 
     // 1. Enable the provider in Supabase meta table (with custom flag and display_name)
     const { error: metaError } = await supabase
-      .from("saas_subscription_providers_meta")
+      .from("subscription_providers_meta")
       .upsert(
         {
           org_id: orgId,
@@ -806,7 +806,7 @@ export async function disableProvider(
 
     // Step 2: Disable provider in Supabase meta table
     const { error: metaError } = await supabase
-      .from("saas_subscription_providers_meta")
+      .from("subscription_providers_meta")
       .update({ is_enabled: false })
       .eq("org_id", orgId)
       .eq("provider_name", sanitizedProvider)
@@ -922,7 +922,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
 
     // Get enabled providers from meta table
     const { data: metaData } = await supabase
-      .from("saas_subscription_providers_meta")
+      .from("subscription_providers_meta")
       .select("provider_name, is_enabled")
       .eq("org_id", orgId)
 

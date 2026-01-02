@@ -46,8 +46,8 @@ BigQuery Project
 └── {org_slug}_prod (per-org dataset)
     ├── cost_data_standard_1_3
     ├── contract_commitment_1_3
-    ├── saas_subscription_plans
-    ├── saas_subscription_plan_costs_daily
+    ├── subscription_plans
+    ├── subscription_plan_costs_daily
     ├── org_hierarchy
     └── llm_model_pricing
 ```
@@ -147,8 +147,8 @@ WHERE partition_date = CURRENT_DATE()
 |-------|---------|------------|
 | cost_data_standard_1_3 | FOCUS 1.3 costs | SubAccountId (=org_slug), provider, amount |
 | contract_commitment_1_3 | Commitments | contract_id, commitment_value |
-| saas_subscription_plans | SaaS subscriptions | org_slug, provider, price |
-| saas_subscription_plan_costs_daily | Daily costs | org_slug, date, daily_cost |
+| subscription_plans | SaaS subscriptions | org_slug, provider, price |
+| subscription_plan_costs_daily | Daily costs | org_slug, date, daily_cost |
 | org_hierarchy | Org structure | org_slug, entity_id, parent_id |
 | genai_*_pricing | GenAI pricing | org_slug, model, input_price, output_price |
 

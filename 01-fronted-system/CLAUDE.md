@@ -53,8 +53,9 @@ npm run build        # Production build
 npm run lint         # ESLint
 npx vitest           # Tests
 
-# Database migrations
-cd scripts/supabase_db && ./migrate.sh
+# Supabase migrations (uses pooler connection: aws-0-{region}.pooler.supabase.com:6543)
+cd scripts/supabase_db && ./migrate.sh           # Run pending migrations
+cd scripts/supabase_db && ./migrate.sh --status  # Check status
 ```
 
 ## User Flow
@@ -565,7 +566,7 @@ className="rounded-lg sm:rounded-xl"   // Buttons
 - `organization_members` - Team membership
 - `profiles` - User profiles
 - `invites` - Team invites
-- `saas_subscriptions` - SaaS tracking
+- `subscriptions` - Subscription tracking
 
 **Backend Columns:** `backend_onboarded`, `backend_api_key_fingerprint`, `integration_*_status`
 
@@ -607,10 +608,10 @@ team,TEAM-001,Backend,PROJ-001,,Bob Wilson,bob@example.com,Backend team
 
 **Cost Allocation Flow:**
 ```
-saas_subscription_plans (hierarchy IDs)
-    ↓ sp_calculate_saas_subscription_plan_costs_daily
-saas_subscription_plan_costs_daily (with hierarchy)
-    ↓ sp_convert_saas_costs_to_focus_1_3
+subscription_plans (hierarchy IDs)
+    ↓ sp_calculate_subscription_plan_costs_daily
+subscription_plan_costs_daily (with hierarchy)
+    ↓ sp_convert_subscription_costs_to_focus_1_3
 cost_data_standard_1_3 (x_hierarchy_* extension fields)
 ```
 

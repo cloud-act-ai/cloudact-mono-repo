@@ -115,7 +115,7 @@ curl -X POST "http://localhost:8000/api/v1/admin/bootstrap/sync" \
 
 | Category | Tables |
 |----------|--------|
-| SaaS | `saas_subscription_plans`, `saas_subscription_plan_costs_daily` |
+| SaaS | `subscription_plans`, `subscription_plan_costs_daily` |
 | FOCUS 1.3 | `cost_data_standard_1_3`, `contract_commitment_1_3` |
 | GenAI PAYG | `genai_payg_pricing`, `genai_payg_usage_raw`, `genai_payg_costs_daily` |
 | GenAI Commitment | `genai_commitment_pricing`, `genai_commitment_usage_raw`, `genai_commitment_costs_daily` |

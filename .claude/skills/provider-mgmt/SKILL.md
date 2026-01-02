@@ -41,7 +41,7 @@ provider_name:
   data_tables:
     usage: "provider_usage"
     costs: "provider_costs"
-  seed_path: "configs/llm/seed/provider/"
+  seed_path: "configs/genai/seed/provider/"
 ```
 
 ## Current Providers
@@ -180,7 +180,7 @@ export default function NewLLMPage({ params }: PageProps) {
 
 ### 7. Add Pricing Data
 ```csv
-# configs/llm/seed/new_llm/pricing.csv
+# configs/genai/seed/new_llm/pricing.csv
 model_id,model_name,input_price_per_million,output_price_per_million,effective_date
 new-llm-base,New LLM Base,1.00,2.00,2024-01-01
 new-llm-pro,New LLM Pro,5.00,15.00,2024-01-01

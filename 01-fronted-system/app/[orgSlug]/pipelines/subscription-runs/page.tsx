@@ -69,7 +69,7 @@ const isSubscriptionPipeline = (pipeline: PipelineConfig) => {
     d === "saas" ||
     d === "subscription" ||
     d.includes("subscription") ||
-    p === "saas_subscription" ||
+    p === "subscription" ||
     p.includes("subscription") ||
     id.includes("saas") ||
     id.includes("subscription") ||
@@ -150,7 +150,7 @@ export default function SubscriptionRunsPage() {
             return (
               pipelineId.includes("saas") ||
               pipelineId.includes("subscription") ||
-              pipelineId.includes("saas_cost")
+              pipelineId.includes("subscription_cost")
             )
           }
         )

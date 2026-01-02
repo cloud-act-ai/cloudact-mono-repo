@@ -45,7 +45,7 @@ Frontend (3000)              API Service (8000)           Pipeline Engine (8001)
 ├─ Supabase Auth             ├─ Bootstrap                 ├─ Run pipelines
 ├─ Stripe Payments           ├─ Org onboarding            ├─ Process usage data
 └─ Dashboard UI              ├─ Integration setup         └─ Scheduled jobs
-                             └─ SaaS subscription plans
+                             └─ Subscription plans
                              ↓                            ↓
                              BigQuery (Shared)
                              ├─ organizations dataset (14 meta tables)
@@ -79,7 +79,7 @@ Frontend (3000)              API Service (8000)           Pipeline Engine (8001)
 | `x_ingested_at` | Pipeline write timestamp | ❌ NEVER | ✅ REQUIRED |
 
 **API Service tables (NO x_* fields):**
-- `saas_subscription_plans` - CRUD via REST API
+- `subscription_plans` - CRUD via REST API
 - `genai_*_pricing` - Seed/reference data
 - `org_hierarchy` - CRUD via REST API
 - Any table managed via `/api/v1/*` endpoints
@@ -140,7 +140,7 @@ CA_ROOT_API_KEY (system admin)
 - `POST /api/v1/admin/bootstrap` - Initialize system (20 meta tables)
 - `POST /api/v1/organizations/onboard` - Create org + API key + 6 tables
 - `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration
-- `GET/POST /api/v1/subscriptions/{org}/providers/*/plans` - SaaS CRUD
+- `GET/POST /api/v1/subscriptions/{org}/providers/*/plans` - Subscription CRUD
 - `GET/POST /api/v1/hierarchy/{org}/*` - Org hierarchy CRUD (Dept → Project → Team)
 
 ### pipeline-service (8001)
@@ -242,6 +242,13 @@ cd 03-data-pipeline-service && python3 -m uvicorn src.app.main:app --port 8001 -
 
 # Frontend (3000)
 cd 01-fronted-system && npm run dev
+
+# Bootstrap BigQuery (creates organizations dataset + 20 tables)
+curl -s -X POST http://localhost:8000/api/v1/admin/bootstrap \
+  -H "Content-Type: application/json" -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d @- <<< '{}'
+
+# Supabase migrations (pooler: aws-0-us-west-2.pooler.supabase.com:6543)
+cd 01-fronted-system/scripts/supabase_db && ./migrate.sh
 
 # Tests
 python -m pytest tests/ -v

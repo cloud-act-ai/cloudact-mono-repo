@@ -16,7 +16,7 @@ Manage BigQuery stored procedures, cleanup test datasets, and database operation
 /bigquery-ops sync-procedures stage      # Sync all procedures to stage
 /bigquery-ops sync-procedures prod       # Sync all procedures to prod
 /bigquery-ops sync-procedures test genai # Sync only GenAI domain
-/bigquery-ops sync-procedures prod saas_subscription # Sync only SaaS domain
+/bigquery-ops sync-procedures prod subscription # Sync only SaaS domain
 ```
 
 ### Cleanup Test Datasets
@@ -41,7 +41,7 @@ When user runs `/bigquery-ops <action> <env> [domain]`, execute the following:
 
 **Parse arguments:**
 - `{env}` = second argument (test, stage, prod)
-- `{domain}` = third argument if provided (genai, saas_subscription, cloud, migrations)
+- `{domain}` = third argument if provided (genai, subscription, cloud, migrations)
 
 **Step 1: Set environment variables**
 ```bash
@@ -176,7 +176,7 @@ ORDER BY routine_name
 
 | Domain | Procedures |
 |--------|------------|
-| `saas_subscription` | sp_run_saas_subscription_costs_pipeline, sp_calculate_saas_subscription_plan_costs_daily, sp_convert_saas_costs_to_focus_1_3 |
+| `subscription` | sp_run_subscription_costs_pipeline, sp_calculate_subscription_plan_costs_daily, sp_convert_subscription_costs_to_focus_1_3 |
 | `genai` | sp_consolidate_genai_costs_daily, sp_consolidate_genai_usage_daily, sp_convert_genai_to_focus_1_3 |
 | `cloud` | sp_convert_cloud_costs_to_focus_1_3 |
 | `migrations` | backfill_currency_audit_fields |

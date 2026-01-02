@@ -3,9 +3,9 @@
 # To add a new provider: just add an entry here - no code changes needed
 
 providers:
-  # LLM Providers
+  # GenAI Providers (API-based usage billing)
   OPENAI:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "OpenAI API Key"
     context_key: openai_api_key
@@ -20,7 +20,7 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60  # Per-org rate limit for this provider
-    # LLM data tables config (for pricing/subscriptions initialization)
+    # GenAI data tables config (for pricing/subscriptions initialization)
     data_tables:
       pricing_table: openai_model_pricing
       subscriptions_table: openai_subscriptions
@@ -29,7 +29,7 @@ providers:
       subscriptions_schema: openai_subscriptions.json
 
   ANTHROPIC:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "Anthropic API Key"
     context_key: anthropic_api_key
@@ -45,7 +45,7 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60  # Per-org rate limit for this provider
-    # LLM data tables config
+    # GenAI data tables config
     data_tables:
       pricing_table: anthropic_model_pricing
       subscriptions_table: anthropic_subscriptions
@@ -56,7 +56,7 @@ providers:
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
     alias_for: ANTHROPIC  # Indicates this is an alias
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "Claude API Key"
     context_key: claude_api_key
@@ -73,7 +73,7 @@ providers:
     rate_limit_per_minute: 60
 
   GEMINI:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "Google Gemini API Key"
     context_key: gemini_api_key
@@ -89,7 +89,7 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60
-    # LLM data tables config
+    # GenAI data tables config
     data_tables:
       pricing_table: gemini_model_pricing
       subscriptions_table: gemini_subscriptions
@@ -98,7 +98,7 @@ providers:
       subscriptions_schema: gemini_subscriptions.json
 
   DEEPSEEK:
-    type: llm
+    type: genai
     credential_type: API_KEY
     display_name: "DeepSeek API Key"
     context_key: deepseek_api_key
@@ -113,7 +113,7 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60
-    # LLM data tables config
+    # GenAI data tables config
     data_tables:
       pricing_table: deepseek_model_pricing
       subscriptions_table: deepseek_subscriptions
@@ -205,10 +205,10 @@ providers:
 
 # Provider groups for easy lookup
 provider_groups:
-  llm:
+  genai:
     - OPENAI
     - ANTHROPIC
-    - CLAUDE  # Include CLAUDE alias in LLM group
+    - CLAUDE  # Include CLAUDE alias in GenAI group
     - GEMINI
     - DEEPSEEK
   cloud:

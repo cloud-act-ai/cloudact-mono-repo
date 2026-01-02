@@ -10,7 +10,7 @@ Usage in pipeline:
 
 Idempotency:
     Uses MERGE (upsert) pattern to prevent duplicate data on re-runs.
-    Deduplication key: (org_slug, provider, resource_id, usage_date)
+    Deduplication key: (org_slug, provider, instance_id, usage_date)
     Use force_refresh=true to re-extract existing data.
 
 Fixes Applied:
@@ -254,7 +254,7 @@ class InfrastructureUsageProcessor:
         CRITICAL FIX #3: Insert records using MERGE for idempotency.
 
         Uses MERGE (upsert) instead of streaming inserts to prevent duplicate
-        data on re-runs. Deduplication key: (org_slug, provider, resource_id, usage_date)
+        data on re-runs. Deduplication key: (org_slug, provider, instance_id, usage_date)
 
         Returns:
             Dict with inserted and failed counts
@@ -290,19 +290,20 @@ class InfrastructureUsageProcessor:
                         return str(v) if v is not None else "0.0"
 
                     struct_values.append(f"""STRUCT(
+                        DATE('{record.get('usage_date')}') as usage_date,
                         {escape_str(record.get('org_slug'))} as org_slug,
                         {escape_str(record.get('provider'))} as provider,
-                        {escape_str(record.get('resource_id'))} as resource_id,
+                        {escape_str(record.get('resource_type') or 'gpu')} as resource_type,
                         {escape_str(record.get('instance_type'))} as instance_type,
+                        {escape_str(record.get('instance_id') or record.get('resource_id'))} as instance_id,
                         {escape_str(record.get('gpu_type'))} as gpu_type,
-                        {escape_int(record.get('gpu_count'))} as gpu_count,
-                        DATE('{record.get('usage_date')}') as usage_date,
                         {escape_str(record.get('region') or 'global')} as region,
+                        {escape_int(record.get('instance_count') or record.get('gpu_count'))} as instance_count,
+                        {escape_float(record.get('hours_used'))} as hours_used,
                         {escape_float(record.get('gpu_hours'))} as gpu_hours,
-                        {escape_float(record.get('spot_hours'))} as spot_hours,
-                        {escape_float(record.get('on_demand_hours'))} as on_demand_hours,
-                        {escape_float(record.get('preemptible_hours'))} as preemptible_hours,
-                        {escape_str(record.get('credential_id'))} as credential_id,
+                        {escape_str(record.get('pricing_type') or 'on_demand')} as pricing_type,
+                        {escape_float(record.get('avg_gpu_utilization_pct'))} as avg_gpu_utilization_pct,
+                        {escape_float(record.get('avg_memory_utilization_pct'))} as avg_memory_utilization_pct,
                         {escape_str(record.get('hierarchy_dept_id'))} as hierarchy_dept_id,
                         {escape_str(record.get('hierarchy_dept_name'))} as hierarchy_dept_name,
                         {escape_str(record.get('hierarchy_project_id'))} as hierarchy_project_id,
@@ -319,19 +320,26 @@ class InfrastructureUsageProcessor:
                 unnest_source = ",\n".join(struct_values)
 
                 # MERGE using UNNEST - correct BigQuery pattern (no temp tables)
+                # Deduplication key: (org_slug, provider, instance_id, usage_date)
                 merge_query = f"""
                     MERGE `{table_id}` T
                     USING UNNEST([{unnest_source}]) S
                     ON T.org_slug = S.org_slug
                         AND T.provider = S.provider
-                        AND T.resource_id = S.resource_id
+                        AND T.instance_id = S.instance_id
                         AND T.usage_date = S.usage_date
                     WHEN MATCHED THEN
                         UPDATE SET
+                            resource_type = S.resource_type,
+                            instance_type = S.instance_type,
+                            gpu_type = S.gpu_type,
+                            region = S.region,
+                            instance_count = S.instance_count,
+                            hours_used = S.hours_used,
                             gpu_hours = S.gpu_hours,
-                            spot_hours = S.spot_hours,
-                            on_demand_hours = S.on_demand_hours,
-                            preemptible_hours = S.preemptible_hours,
+                            pricing_type = S.pricing_type,
+                            avg_gpu_utilization_pct = S.avg_gpu_utilization_pct,
+                            avg_memory_utilization_pct = S.avg_memory_utilization_pct,
                             hierarchy_dept_id = S.hierarchy_dept_id,
                             hierarchy_dept_name = S.hierarchy_dept_name,
                             hierarchy_project_id = S.hierarchy_project_id,
@@ -344,18 +352,18 @@ class InfrastructureUsageProcessor:
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
-                        INSERT (org_slug, provider, resource_id, instance_type, gpu_type, gpu_count,
-                                usage_date, region, gpu_hours, spot_hours, on_demand_hours,
-                                preemptible_hours, credential_id, hierarchy_dept_id, hierarchy_dept_name,
-                                hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                                hierarchy_team_name, x_pipeline_id, x_credential_id, x_pipeline_run_date,
-                                x_run_id, x_ingested_at)
-                        VALUES (S.org_slug, S.provider, S.resource_id, S.instance_type, S.gpu_type, S.gpu_count,
-                                S.usage_date, S.region, S.gpu_hours, S.spot_hours, S.on_demand_hours,
-                                S.preemptible_hours, S.credential_id, S.hierarchy_dept_id, S.hierarchy_dept_name,
-                                S.hierarchy_project_id, S.hierarchy_project_name, S.hierarchy_team_id,
-                                S.hierarchy_team_name, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
-                                S.x_run_id, S.x_ingested_at)
+                        INSERT (usage_date, org_slug, provider, resource_type, instance_type,
+                                instance_id, gpu_type, region, instance_count, hours_used,
+                                gpu_hours, pricing_type, avg_gpu_utilization_pct, avg_memory_utilization_pct,
+                                hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
+                                hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
+                                x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+                        VALUES (S.usage_date, S.org_slug, S.provider, S.resource_type, S.instance_type,
+                                S.instance_id, S.gpu_type, S.region, S.instance_count, S.hours_used,
+                                S.gpu_hours, S.pricing_type, S.avg_gpu_utilization_pct, S.avg_memory_utilization_pct,
+                                S.hierarchy_dept_id, S.hierarchy_dept_name, S.hierarchy_project_id,
+                                S.hierarchy_project_name, S.hierarchy_team_id, S.hierarchy_team_name,
+                                S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 
                 job = client.query(merge_query)

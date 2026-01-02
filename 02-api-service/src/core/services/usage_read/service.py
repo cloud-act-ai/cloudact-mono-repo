@@ -15,6 +15,7 @@ import polars as pl
 import logging
 import asyncio
 import time
+import threading
 from datetime import date, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -533,13 +534,22 @@ class UsageReadService:
         return self._cache.stats
 
 
-# Singleton instance
+# Thread-safe singleton instance
 _usage_read_service: Optional[UsageReadService] = None
+_usage_read_service_lock = threading.Lock()
 
 
 def get_usage_read_service() -> UsageReadService:
-    """Get singleton usage read service instance."""
+    """Get singleton usage read service instance (thread-safe)."""
     global _usage_read_service
-    if _usage_read_service is None:
-        _usage_read_service = UsageReadService()
-    return _usage_read_service
+
+    # Quick check without lock
+    if _usage_read_service is not None:
+        return _usage_read_service
+
+    # Acquire lock for creation
+    with _usage_read_service_lock:
+        # Double-check after acquiring lock
+        if _usage_read_service is None:
+            _usage_read_service = UsageReadService()
+        return _usage_read_service

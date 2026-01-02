@@ -16,7 +16,7 @@ CloudAct is configuration-driven. This skill validates all config types before d
 - **Provider Registry:** `03-data-pipeline-service/configs/system/providers.yml`
 - **Bootstrap Schemas:** `02-api-service/configs/setup/bootstrap/schemas/*.json`
 - **Onboarding Schemas:** `02-api-service/configs/setup/organizations/onboarding/schemas/*.json`
-- **LLM Pricing:** `02-api-service/configs/llm/seed/`
+- **GenAI Pricing:** `02-api-service/configs/genai/seed/`
 
 ## Configuration Types
 

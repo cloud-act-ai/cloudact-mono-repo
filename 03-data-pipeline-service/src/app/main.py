@@ -638,9 +638,9 @@ async def readiness_probe():
         # Check for key stored procedures that must exist
         # These are in the organizations dataset
         required_procedures = [
-            'sp_run_saas_subscription_costs_pipeline',
-            'sp_calculate_saas_subscription_plan_costs_daily',
-            'sp_convert_saas_costs_to_focus_1_3',
+            'sp_run_subscription_costs_pipeline',
+            'sp_calculate_subscription_plan_costs_daily',
+            'sp_convert_subscription_costs_to_focus_1_3',
         ]
 
         query = f"""

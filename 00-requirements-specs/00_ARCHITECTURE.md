@@ -454,7 +454,7 @@ CloudAct tracks three distinct types of integrations:
 Users provide credentials via frontend → Backend validates → KMS encrypts → Stores in BigQuery
 
 **SaaS Subscriptions:**
-Users add subscription via frontend → Stored in Supabase `saas_subscriptions` table → No external validation
+Users add subscription via frontend → Stored in Supabase `subscriptions` table → No external validation
 
 **Auto-Initialization:** When OpenAI integration is set up, backend automatically creates and populates:
 
@@ -466,8 +466,8 @@ Users add subscription via frontend → Stored in Supabase `saas_subscriptions` 
 SaaS subscriptions are stored in Supabase (not BigQuery) since they are org metadata, not usage data:
 
 ```sql
--- Table: saas_subscriptions
-CREATE TABLE saas_subscriptions (
+-- Table: subscriptions
+CREATE TABLE subscriptions (
     id UUID PRIMARY KEY,
     org_id UUID REFERENCES organizations(id),
     provider_name VARCHAR(100),    -- e.g., "canva", "adobe_cc", "chatgpt_plus"

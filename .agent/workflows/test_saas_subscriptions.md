@@ -73,8 +73,8 @@ Fix any broken routes before proceeding.
 ### 0.3 Schema Validation
 ```
 Verify database schemas match expected structure:
-- [ ] Supabase: saas_subscriptions table
-- [ ] BigQuery: saas_subscriptions table with all columns
+- [ ] Supabase: subscriptions table
+- [ ] BigQuery: subscriptions table with all columns
 - [ ] BigQuery: Audit fields (source_currency, exchange_rate_used)
 - [ ] CSV: data/seed/exchange-rates.csv exists
 - [ ] CSV: data/seed/saas-subscription-templates.csv exists

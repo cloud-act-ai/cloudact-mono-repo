@@ -44,7 +44,7 @@ configs/
 ├── openai/cost/usage_cost.yml      # OpenAI usage + cost
 ├── anthropic/usage_cost.yml        # Anthropic usage + cost
 ├── gcp/cost/billing.yml            # GCP billing
-├── saas_subscription/costs/        # SaaS subscription costs
+├── subscription/costs/        # Subscription costs
 └── system/
     ├── providers.yml               # Provider registry
     └── procedures/                 # Stored procedures
@@ -63,8 +63,8 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing"
 curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/openai/cost/usage_cost" \
   -H "X-API-Key: $ORG_API_KEY" -d '{"start_date":"2025-12-01","end_date":"2025-12-08"}'
 
-# SaaS subscription costs
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/saas_subscription/costs/saas_cost" \
+# Subscription costs
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/subscription/costs/subscription_cost" \
   -H "X-API-Key: $ORG_API_KEY" -d '{}'
 
 # Sync stored procedures
@@ -85,7 +85,7 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" -H "X-CA-Root-Key: $
 | GCP BigQuery ETL | `gcp.bq_etl` | `gcp/cost/billing.yml` |
 | GCP API Extractor | `gcp.api_extractor` | `gcp/api/*.yml` |
 | Generic API | `generic.api_extractor` | Any API |
-| Procedure Executor | `generic.procedure_executor` | `saas_subscription/costs/*.yml` |
+| Procedure Executor | `generic.procedure_executor` | `subscription/costs/*.yml` |
 
 ### Creating New Processor
 
@@ -105,6 +105,77 @@ def get_engine():
 **Per-Org Datasets:** `{org_slug}_prod`
 
 **Multi-Tenant Isolation:** Credentials filtered by `org_slug` in every query.
+
+## Pipeline Lineage Columns (x_* Standard)
+
+**CRITICAL:** All pipeline-generated tables MUST include x_* lineage columns in the following **standard order**:
+
+| Order | Column | Type | Mode | Purpose |
+|-------|--------|------|------|---------|
+| 1 | `x_pipeline_id` | STRING | REQUIRED | Pipeline template name (e.g., `genai_to_focus`) |
+| 2 | `x_credential_id` | STRING | REQUIRED | Credential ID for multi-account isolation |
+| 3 | `x_pipeline_run_date` | DATE | REQUIRED | Data date being processed (for idempotency) |
+| 4 | `x_run_id` | STRING | REQUIRED | Unique pipeline execution UUID |
+| 5 | `x_ingested_at` | TIMESTAMP | REQUIRED | When data was written to table |
+| 6 | `x_data_quality_score` | FLOAT64 | NULLABLE | DQ validation score (0.0-1.0) |
+| 7 | `x_created_at` | TIMESTAMP | NULLABLE | Record creation timestamp |
+
+### Column Order Rules
+
+1. **Always use this exact order** in INSERT and SELECT statements
+2. **Required columns (1-5)** must come before optional columns (6-7)
+3. **Stored procedures and processors** must match this order exactly
+4. **Never use deprecated names** like `x_pipeline_run_id` (use `x_run_id`)
+
+### Usage in Processors
+
+```python
+# Correct order in MERGE/INSERT statements
+merge_query = """
+    MERGE `{table}` T
+    USING (
+        SELECT
+            -- ... business columns ...
+            -- x_* columns in standard order:
+            @pipeline_id as x_pipeline_id,
+            @credential_id as x_credential_id,
+            @process_date as x_pipeline_run_date,
+            @run_id as x_run_id,
+            CURRENT_TIMESTAMP() as x_ingested_at
+    ) S
+    ON ...
+"""
+```
+
+### Usage in Stored Procedures
+
+```sql
+-- INSERT column list (standard order)
+INSERT INTO `table` (
+    -- ... business columns ...
+    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
+    x_data_quality_score, x_created_at
+)
+SELECT
+    -- ... business columns ...
+    'pipeline_name' AS x_pipeline_id,
+    'credential_id' AS x_credential_id,
+    cost_date AS x_pipeline_run_date,
+    GENERATE_UUID() AS x_run_id,
+    CURRENT_TIMESTAMP() AS x_ingested_at,
+    1.0 AS x_data_quality_score,
+    CURRENT_TIMESTAMP() AS x_created_at
+```
+
+### Tables with x_* Columns
+
+| Table Pattern | Example |
+|---------------|---------|
+| `*_usage_raw` | `genai_payg_usage_raw` |
+| `*_costs_daily` | `genai_costs_daily_unified` |
+| `*_billing_raw_daily` | `cloud_gcp_billing_raw_daily` |
+| `cost_data_standard_1_3` | FOCUS 1.3 unified format |
+| `subscription_plan_costs_daily` | Subscription daily costs |
 
 ## Stored Procedures
 

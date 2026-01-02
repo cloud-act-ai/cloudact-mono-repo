@@ -158,7 +158,7 @@ Search ALL 3 services for the feature. **Must check every relevant file.**
 |---------|----------|-------------|------------------|
 | **pipeline-setup** | `app/[orgSlug]/integrations/` | `routers/integrations.py`, `services/integration_service.py` | `routers/pipelines.py`, `pipeline/executor.py` |
 | **quota-enforcement** | `components/quota/` | `routers/quota.py`, `services/quota_service.py` | `middleware/quota.py` |
-| **subscription-billing** | `app/[orgSlug]/subscriptions/` | `routers/subscriptions.py`, `services/subscription_service.py` | `configs/saas/` |
+| **subscription-billing** | `app/[orgSlug]/subscriptions/` | `routers/subscriptions.py`, `services/subscription_service.py` | `configs/subscription/` |
 | **org-onboarding** | `app/[orgSlug]/onboarding/` | `routers/organizations.py`, `services/organization_service.py` | N/A |
 | **integration-credentials** | `components/integrations/` | `routers/integrations.py`, `security/kms_encryption.py` | `processors/*/authenticator.py` |
 | **hierarchy** | `app/[orgSlug]/settings/hierarchy/` | `routers/hierarchy.py`, `services/hierarchy_service.py` | N/A |

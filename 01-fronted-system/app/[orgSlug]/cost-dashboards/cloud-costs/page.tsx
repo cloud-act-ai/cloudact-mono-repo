@@ -10,20 +10,20 @@ import {
   CostSummaryGrid,
   CostBreakdownChart,
   CostDataTable,
-  DateRangeFilter,
+  TimeRangeFilter,
   CostFilters,
   CostScoreRing,
   CostComboChart,
-  getDefaultDateRange,
-  getDefaultFilters,
+  getRollingAverageLabel,
+  DEFAULT_TIME_RANGE,
   type CostSummaryData,
-  type DateRange,
   type CostFiltersState,
   type ScoreRingSegment,
   type ComboDataPoint,
+  type CustomDateRange,
 } from "@/components/costs"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
-import { useCostData } from "@/contexts/cost-data-context"
+import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
 import {
   getDateInfo,
   transformProvidersToBreakdownItems,
@@ -45,12 +45,21 @@ export default function CloudCostsPage() {
     error: contextError,
     refresh: refreshCostData,
     getFilteredProviders,
+    getDailyTrendForRange,
+    availableFilters,
   } = useCostData()
 
-  // Local state
+  // Local state - Cloud costs page (category fixed to "cloud")
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
-  const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
+  const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
+  const [customRange, setCustomRange] = useState<CustomDateRange | undefined>(undefined)
+  const [filters, setFilters] = useState<CostFiltersState>({
+    department: undefined,
+    project: undefined,
+    team: undefined,
+    providers: [],
+    categories: [], // Category fixed by page, not user-filterable
+  })
 
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
@@ -83,11 +92,6 @@ export default function CloudCostsPage() {
     return cloudProviders.map(p => p.provider)
   }, [cloudProviders])
 
-  // Handle date range change
-  const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    setDateRange(newRange)
-  }, [])
-
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
@@ -102,36 +106,22 @@ export default function CloudCostsPage() {
     }
   }
 
-  // Generate daily trend data from period costs
-  // Uses deterministic pseudo-random based on date for consistent rendering
+  // Get rolling average label based on selected time range
+  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
+
+  // Get daily trend data from context (real data from backend)
+  // Pass "cloud" category to get Cloud-specific trend data
   const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
-    const mtd = totalCosts?.cloud?.mtd_cost ?? totalCosts?.cloud?.total_monthly_cost ?? 0
-    const today = new Date()
-    const dailyAvg = today.getDate() > 0 ? mtd / today.getDate() : 0
+    const trendData = getDailyTrendForRange(timeRange, "cloud", customRange)
 
-    // Deterministic seed function based on date
-    const seededVariance = (dayOffset: number): number => {
-      const seed = today.getDate() * 31 + dayOffset * 7
-      const x = Math.sin(seed) * 10000
-      return 0.7 + (x - Math.floor(x)) * 0.6
-    }
-
-    const trendData: ComboDataPoint[] = []
-    for (let i = 13; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-      const dayLabel = date.getDate().toString()
-      const variance = seededVariance(i)
-      const dayValue = i === 0 ? dailyAvg : dailyAvg * variance
-
-      trendData.push({
-        label: dayLabel,
-        value: Math.round(dayValue * 100) / 100,
-        date: date.toISOString().split('T')[0],
-      })
-    }
-    return trendData
-  }, [totalCosts])
+    // Transform to ComboDataPoint format with lineValue for rolling average
+    return trendData.map((point) => ({
+      label: point.label,
+      value: point.value,
+      lineValue: point.rollingAvg,
+      date: point.date,
+    }))
+  }, [getDailyTrendForRange, timeRange, customRange])
 
   // Prepare summary data from cached totalCosts.cloud
   const summaryData: CostSummaryData = useMemo(() => {
@@ -141,7 +131,7 @@ export default function CloudCostsPage() {
       mtd: cloudCosts?.mtd_cost ?? cloudCosts?.total_monthly_cost ?? 0,
       dailyRate: cloudCosts?.total_daily_cost ?? 0,
       forecast: cloudCosts?.total_monthly_cost ?? 0,
-      ytd: cloudCosts?.ytd_cost ?? cloudCosts?.total_annual_cost ?? 0,
+      ytd: cloudCosts?.total_annual_cost ?? 0,
       currency: orgCurrency,
     }
   }, [totalCosts, orgCurrency])
@@ -212,13 +202,16 @@ export default function CloudCostsPage() {
             onChange={handleFiltersChange}
             hierarchy={hierarchy}
             availableProviders={availableProviders}
+            availableCategories={[]} // Category fixed by page - don't show category filter
             disabled={isLoading || isRefreshing}
             loading={isLoading}
           />
-          <DateRangeFilter
-            value={dateRange}
-            onChange={handleDateRangeChange}
-            disabled={isLoading || isRefreshing}
+          <TimeRangeFilter
+            value={timeRange}
+            onChange={setTimeRange}
+            customRange={customRange}
+            onCustomRangeChange={setCustomRange}
+            size="sm"
           />
         </div>
       }
@@ -230,13 +223,13 @@ export default function CloudCostsPage() {
       {dailyTrendData.length > 0 && (
         <CostComboChart
           title="Cloud Daily Cost Trend"
-          subtitle="Last 14 days with 7-day moving average"
+          subtitle={`${rollingAvgLabel} overlay on daily spend`}
           data={dailyTrendData}
           currency={orgCurrency}
           barColor="#4285F4"
           lineColor="#FF6C5E"
           barLabel="Daily Cost"
-          lineLabel="7-Day Avg"
+          lineLabel={rollingAvgLabel}
           height={320}
           showAreaFill
           loading={isLoading}

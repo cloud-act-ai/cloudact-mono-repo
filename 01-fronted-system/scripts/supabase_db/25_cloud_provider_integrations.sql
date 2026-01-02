@@ -1,7 +1,7 @@
 -- =============================================
 -- Migration: Cloud Provider Integrations Table
 -- Purpose: Multi-credential support for cloud providers (GCP, AWS, Azure, OCI)
--- Pattern: Mirrors saas_subscriptions junction table approach
+-- Pattern: Mirrors subscriptions junction table approach
 -- Run: Execute in Supabase SQL Editor
 -- =============================================
 

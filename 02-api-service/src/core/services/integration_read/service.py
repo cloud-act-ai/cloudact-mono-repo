@@ -15,6 +15,7 @@ import polars as pl
 import logging
 import asyncio
 import time
+import threading
 from typing import Optional, List, Dict, Any
 
 from google.cloud import bigquery
@@ -254,13 +255,20 @@ class IntegrationReadService:
         return self._cache.stats
 
 
-# Singleton instance
+# Thread-safe singleton instance
 _integration_read_service: Optional[IntegrationReadService] = None
+_integration_read_service_lock = threading.Lock()
 
 
 def get_integration_read_service() -> IntegrationReadService:
-    """Get singleton integration read service instance."""
+    """Get singleton integration read service instance (thread-safe)."""
     global _integration_read_service
-    if _integration_read_service is None:
-        _integration_read_service = IntegrationReadService()
-    return _integration_read_service
+    # Fast path: already initialized
+    if _integration_read_service is not None:
+        return _integration_read_service
+    # Slow path: need to initialize with lock
+    with _integration_read_service_lock:
+        # Double-check after acquiring lock
+        if _integration_read_service is None:
+            _integration_read_service = IntegrationReadService()
+        return _integration_read_service

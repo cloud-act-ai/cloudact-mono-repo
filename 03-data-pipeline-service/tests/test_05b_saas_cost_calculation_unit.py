@@ -11,7 +11,7 @@ Test Categories:
 - CALC-04: Combined calculations (discount + quantity + proration)
 - CALC-05: Edge cases (zero price, negative values, free tiers)
 
-To run: pytest tests/test_05b_saas_cost_calculation_unit.py -v
+To run: pytest tests/test_05b_subscription_cost_calculation_unit.py -v
 """
 
 import pytest

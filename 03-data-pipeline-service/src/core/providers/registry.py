@@ -11,8 +11,8 @@ Usage:
     if provider_registry.is_valid_provider("OPENAI"):
         ...
 
-    # Get all LLM providers
-    llm_providers = provider_registry.get_llm_providers()
+    # Get all GenAI providers
+    genai_providers = provider_registry.get_genai_providers()
 
     # Get provider config
     config = provider_registry.get_provider("OPENAI")
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class ProviderConfig:
     """Configuration for a single provider."""
     name: str
-    type: str  # "llm" or "cloud"
+    type: str  # "genai" or "cloud"
     credential_type: str  # "API_KEY" or "SERVICE_ACCOUNT_JSON"
     display_name: str
     context_key: str
@@ -45,7 +45,7 @@ class ProviderConfig:
     extra_headers: Dict[str, str] = field(default_factory=dict)
     required_fields: List[str] = field(default_factory=list)
     expected_type: Optional[str] = None
-    # LLM data tables config (for pricing/subscriptions)
+    # GenAI data tables config (for pricing/subscriptions)
     data_tables: Dict[str, str] = field(default_factory=dict)
     # Gemini AI data tables (for GCP provider - usage from billing export)
     gemini_data_tables: Dict[str, str] = field(default_factory=dict)
@@ -97,7 +97,7 @@ class ProviderRegistry:
             for name, data in providers_data.items():
                 self._providers[name] = ProviderConfig(
                     name=name,
-                    type=data.get("type", "llm"),
+                    type=data.get("type", "genai"),
                     credential_type=data.get("credential_type", "API_KEY"),
                     display_name=data.get("display_name", name),
                     context_key=data.get("context_key", f"{name.lower()}_credential"),
@@ -134,7 +134,7 @@ class ProviderRegistry:
         self._providers = {
             "OPENAI": ProviderConfig(
                 name="OPENAI",
-                type="llm",
+                type="genai",
                 credential_type="API_KEY",
                 display_name="OpenAI API Key",
                 context_key="openai_api_key",
@@ -150,7 +150,7 @@ class ProviderRegistry:
             ),
             "ANTHROPIC": ProviderConfig(
                 name="ANTHROPIC",
-                type="llm",
+                type="genai",
                 credential_type="API_KEY",
                 display_name="Anthropic API Key",
                 context_key="anthropic_api_key",
@@ -166,7 +166,7 @@ class ProviderRegistry:
             ),
             "CLAUDE": ProviderConfig(
                 name="CLAUDE",
-                type="llm",
+                type="genai",
                 credential_type="API_KEY",
                 display_name="Claude API Key",
                 context_key="claude_api_key",
@@ -195,7 +195,7 @@ class ProviderRegistry:
             ),
         }
         self._provider_groups = {
-            "llm": ["OPENAI", "ANTHROPIC", "CLAUDE"],
+            "genai": ["OPENAI", "ANTHROPIC", "CLAUDE"],
             "cloud": ["GCP_SA"],
             "all": ["OPENAI", "ANTHROPIC", "CLAUDE", "GCP_SA"],
         }
@@ -237,18 +237,26 @@ class ProviderRegistry:
         """Get list of all valid provider names."""
         return list(self._providers.keys())
 
+    def get_genai_providers(self) -> List[str]:
+        """Get list of GenAI provider names."""
+        return [name for name, config in self._providers.items() if config.type == "genai"]
+
     def get_llm_providers(self) -> List[str]:
-        """Get list of LLM provider names."""
-        return [name for name, config in self._providers.items() if config.type == "llm"]
+        """Get list of LLM provider names (deprecated - use get_genai_providers)."""
+        return self.get_genai_providers()
 
     def get_cloud_providers(self) -> List[str]:
         """Get list of cloud provider names."""
         return [name for name, config in self._providers.items() if config.type == "cloud"]
 
-    def is_llm_provider(self, name: str) -> bool:
-        """Check if provider is an LLM provider."""
+    def is_genai_provider(self, name: str) -> bool:
+        """Check if provider is a GenAI provider."""
         provider = self.get_provider(name)
-        return provider is not None and provider.type == "llm"
+        return provider is not None and provider.type == "genai"
+
+    def is_llm_provider(self, name: str) -> bool:
+        """Check if provider is an LLM provider (deprecated - use is_genai_provider)."""
+        return self.is_genai_provider(name)
 
     def is_cloud_provider(self, name: str) -> bool:
         """Check if provider is a cloud provider."""
@@ -316,7 +324,7 @@ class ProviderRegistry:
         return headers
 
     # =====================================================
-    # Data Tables Methods (LLM Pricing/Subscriptions)
+    # Data Tables Methods (GenAI Pricing/Subscriptions)
     # =====================================================
 
     def get_data_tables(self, name: str) -> Optional[Dict[str, str]]:

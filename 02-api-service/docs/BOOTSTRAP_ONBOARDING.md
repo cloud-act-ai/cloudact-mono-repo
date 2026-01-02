@@ -200,8 +200,8 @@ Created per-org in `{org_slug}_prod` dataset:
 
 | Table | Purpose |
 |-------|---------|
-| `saas_subscription_plans` | SaaS subscription definitions |
-| `saas_subscription_plan_costs_daily` | Daily amortized costs |
+| `subscription_plans` | SaaS subscription definitions |
+| `subscription_plan_costs_daily` | Daily amortized costs |
 | `cost_data_standard_1_3` | FOCUS 1.3 unified cost data |
 | `contract_commitment_1_3` | Reserved capacity tracking |
 | `genai_payg_*` | PAYG usage/pricing/costs |

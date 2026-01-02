@@ -16,6 +16,7 @@ import polars as pl
 import logging
 import asyncio
 import time
+import threading
 from datetime import date
 from typing import Optional, List, Dict, Any
 
@@ -203,6 +204,49 @@ class CostReadService:
         """
 
         return await self._execute_query(sql, query_params)
+
+    def _filter_by_category(
+        self,
+        df: pl.DataFrame,
+        category: Optional[str]
+    ) -> pl.DataFrame:
+        """
+        Filter DataFrame by cost category (genai, cloud, subscription).
+
+        Uses same filtering logic as get_genai_costs, get_cloud_costs,
+        get_subscription_costs for consistency.
+        """
+        if not category or df.is_empty():
+            return df
+
+        category_lower = category.lower()
+
+        if category_lower in ("subscription", "saas"):
+            # Filter to Subscription source system
+            if "x_source_system" in df.columns:
+                df = df.filter(
+                    pl.col("x_source_system").fill_null("").eq("subscription_costs_daily")
+                )
+
+        elif category_lower == "cloud":
+            # Filter to cloud providers
+            cloud_providers = ["gcp", "aws", "azure", "google", "amazon", "microsoft", "oci", "oracle"]
+            if "ServiceProviderName" in df.columns:
+                provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(cloud_providers)
+                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("cloud|gcp|aws|azure|oci")
+                df = df.filter(provider_match | source_match)
+
+        elif category_lower == "genai":
+            # Filter to GenAI providers
+            genai_providers = ["openai", "anthropic", "google", "cohere", "mistral", "gemini", "claude"]
+            if "ServiceProviderName" in df.columns and "ServiceCategory" in df.columns:
+                provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(genai_providers)
+                category_match = pl.col("ServiceCategory").fill_null("").str.to_lowercase().is_in(["genai", "llm"])
+                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("genai|llm|openai|anthropic|gemini")
+                not_saas = pl.col("x_source_system").fill_null("").ne("subscription_costs_daily")
+                df = df.filter((provider_match | category_match | source_match) & not_saas)
+
+        return df
 
     # ==========================================================================
     # Core Methods (using CostQuery + lib/costs/)
@@ -435,10 +479,22 @@ class CostReadService:
                 query_time_ms=(time.time() - start_time) * 1000
             )
 
-    async def get_cost_trend(self, query: CostQuery, granularity: str = "daily") -> CostResponse:
-        """Get cost trend over time using lib/costs/aggregate_by_date."""
+    async def get_cost_trend(
+        self,
+        query: CostQuery,
+        granularity: str = "daily",
+        category: Optional[str] = None
+    ) -> CostResponse:
+        """Get cost trend over time using lib/costs/aggregate_by_date.
+
+        Args:
+            query: Cost query with org_slug and date range
+            granularity: "daily", "weekly", or "monthly"
+            category: Optional category filter ("genai", "cloud", "subscription")
+        """
         start_time = time.time()
-        cache_key = f"trend:{query.cache_key()}:{granularity}"
+        # Include category in cache key for proper isolation
+        cache_key = f"trend:{query.cache_key()}:{granularity}:{category or 'all'}"
 
         cached = self._cache.get(cache_key)
         if cached is not None:
@@ -451,6 +507,9 @@ class CostReadService:
 
         try:
             df = await self._fetch_cost_data(query)
+
+            # Apply category filter if specified
+            df = self._filter_by_category(df, category)
 
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_date(df, granularity=granularity)
@@ -752,13 +811,13 @@ class CostReadService:
             )
 
     # ==========================================================================
-    # Cost Type Filters (SaaS, Cloud, LLM)
+    # Cost Type Filters (Subscriptions, Cloud, LLM)
     # ==========================================================================
 
-    async def get_saas_subscription_costs(self, query: CostQuery) -> CostResponse:
-        """Get SaaS subscription costs from cost_data_standard_1_3."""
+    async def get_subscription_costs(self, query: CostQuery) -> CostResponse:
+        """Get subscription costs from cost_data_standard_1_3."""
         start_time = time.time()
-        cache_key = f"saas_costs:{query.cache_key()}"
+        cache_key = f"subscription_costs:{query.cache_key()}"
 
         cached = self._cache.get(cache_key)
         if cached is not None:
@@ -773,10 +832,10 @@ class CostReadService:
         try:
             df = await self._fetch_cost_data(query)
 
-            # Filter to SaaS source system (handle nulls safely)
+            # Filter to Subscription source system (handle nulls safely)
             if "x_source_system" in df.columns and not df.is_empty():
                 df = df.filter(
-                    pl.col("x_source_system").fill_null("").eq("saas_subscription_costs_daily")
+                    pl.col("x_source_system").fill_null("").eq("subscription_costs_daily")
                 )
 
             if df.is_empty():
@@ -942,10 +1001,10 @@ class CostReadService:
                 query_time_ms=(time.time() - start_time) * 1000
             )
 
-    async def get_llm_costs(self, query: CostQuery) -> CostResponse:
-        """Get LLM API costs (OpenAI, Anthropic, etc.)."""
+    async def get_genai_costs(self, query: CostQuery) -> CostResponse:
+        """Get GenAI API costs (OpenAI, Anthropic, etc.)."""
         start_time = time.time()
-        cache_key = f"llm_costs:{query.cache_key()}"
+        cache_key = f"genai_costs:{query.cache_key()}"
 
         cached = self._cache.get(cache_key)
         if cached is not None:
@@ -960,14 +1019,14 @@ class CostReadService:
         try:
             df = await self._fetch_cost_data(query)
 
-            # Filter to LLM providers (handle nulls safely)
-            llm_providers = ["openai", "anthropic", "google", "cohere", "mistral"]
+            # Filter to GenAI providers (handle nulls safely)
+            genai_providers = ["openai", "anthropic", "google", "cohere", "mistral"]
             if "ServiceProviderName" in df.columns and "ServiceCategory" in df.columns and not df.is_empty():
                 # Use fill_null to safely handle null values before string operations
-                provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(llm_providers)
-                category_match = pl.col("ServiceCategory").fill_null("").str.to_lowercase().eq("llm")
-                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("llm|openai|anthropic|gemini")
-                not_saas = pl.col("x_source_system").fill_null("").ne("saas_subscription_costs_daily")
+                provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(genai_providers)
+                category_match = pl.col("ServiceCategory").fill_null("").str.to_lowercase().is_in(["genai", "llm"])
+                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("genai|llm|openai|anthropic|gemini")
+                not_saas = pl.col("x_source_system").fill_null("").ne("subscription_costs_daily")
 
                 df = df.filter(
                     (provider_match | category_match | source_match) & not_saas
@@ -1029,12 +1088,16 @@ class CostReadService:
             )
 
         except Exception as e:
-            logger.error(f"LLM costs query failed for {query.org_slug}: {e}", exc_info=True)
+            logger.error(f"GenAI costs query failed for {query.org_slug}: {e}", exc_info=True)
             return CostResponse(
                 success=False,
                 error=str(e),
                 query_time_ms=(time.time() - start_time) * 1000
             )
+
+    async def get_llm_costs(self, query: CostQuery) -> CostResponse:
+        """Get LLM API costs (deprecated - use get_genai_costs instead)."""
+        return await self.get_genai_costs(query)
 
     # ==========================================================================
     # Cache Management
@@ -1050,13 +1113,20 @@ class CostReadService:
         return self._cache.stats
 
 
-# Singleton instance
+# Thread-safe singleton instance
 _cost_read_service: Optional[CostReadService] = None
+_cost_read_service_lock = threading.Lock()
 
 
 def get_cost_read_service() -> CostReadService:
-    """Get singleton cost read service instance."""
+    """Get singleton cost read service instance (thread-safe)."""
     global _cost_read_service
-    if _cost_read_service is None:
-        _cost_read_service = CostReadService()
-    return _cost_read_service
+    # Fast path: already initialized
+    if _cost_read_service is not None:
+        return _cost_read_service
+    # Slow path: need to initialize with lock
+    with _cost_read_service_lock:
+        # Double-check after acquiring lock
+        if _cost_read_service is None:
+            _cost_read_service = CostReadService()
+        return _cost_read_service

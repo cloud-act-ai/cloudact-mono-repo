@@ -53,9 +53,9 @@ import { getMonthStartUTC, getTodayDateUTC } from "@/lib/api/helpers"
 // ============================================
 const DAILY_PIPELINES = [
   {
-    id: "saas_subscription_costs",
-    path: "saas/costs/saas_cost",
-    description: "SaaS subscription cost calculation",
+    id: "subscription_costs",
+    path: "subscription/costs/subscription_cost",
+    description: "Subscription cost calculation",
   },
   // Future pipelines:
   // { id: "gcp_billing", path: "gcp/cost/billing", description: "GCP billing extraction" },

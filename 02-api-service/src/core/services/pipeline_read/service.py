@@ -15,6 +15,7 @@ import polars as pl
 import logging
 import asyncio
 import time
+import threading
 from datetime import date, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -377,13 +378,20 @@ class PipelineReadService:
         return self._cache.stats
 
 
-# Singleton instance
+# Thread-safe singleton instance
 _pipeline_read_service: Optional[PipelineReadService] = None
+_pipeline_read_service_lock = threading.Lock()
 
 
 def get_pipeline_read_service() -> PipelineReadService:
-    """Get singleton pipeline read service instance."""
+    """Get singleton pipeline read service instance (thread-safe)."""
     global _pipeline_read_service
-    if _pipeline_read_service is None:
-        _pipeline_read_service = PipelineReadService()
-    return _pipeline_read_service
+    # Fast path: already initialized
+    if _pipeline_read_service is not None:
+        return _pipeline_read_service
+    # Slow path: need to initialize with lock
+    with _pipeline_read_service_lock:
+        # Double-check after acquiring lock
+        if _pipeline_read_service is None:
+            _pipeline_read_service = PipelineReadService()
+        return _pipeline_read_service

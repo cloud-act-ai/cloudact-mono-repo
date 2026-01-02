@@ -17,18 +17,19 @@ import {
   CostSummaryGrid,
   CostBreakdownChart,
   CostDataTable,
-  DateRangeFilter,
+  TimeRangeFilter,
   CostFilters,
   CostScoreRing,
   CostComboChart,
-  getDefaultDateRange,
   getDefaultFilters,
+  getRollingAverageLabel,
+  DEFAULT_TIME_RANGE,
   type BreakdownItem,
   type CostSummaryData,
-  type DateRange,
   type CostFiltersState,
   type ScoreRingSegment,
   type ComboDataPoint,
+  type CustomDateRange,
 } from "@/components/costs"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
@@ -40,7 +41,7 @@ import {
   OVERVIEW_CATEGORY_CONFIG,
   type ProviderData,
 } from "@/lib/costs"
-import { useCostData } from "@/contexts/cost-data-context"
+import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
 
 export default function CostOverviewPage() {
   const params = useParams()
@@ -56,11 +57,14 @@ export default function CostOverviewPage() {
     isLoading: isCostLoading,
     error: contextError,
     refresh: refreshCostData,
+    getDailyTrendForRange,
+    availableFilters,
   } = useCostData()
 
-  // Local state
+  // Local state - Overview page shows all categories with 365 days default
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
+  const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
+  const [customRange, setCustomRange] = useState<CustomDateRange | undefined>(undefined)
   const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
 
   // Determine if provider filter is active (for client-side filtering)
@@ -91,11 +95,6 @@ export default function CostOverviewPage() {
     return cachedProviders.map(p => p.provider)
   }, [cachedProviders])
 
-  // Handle date range change
-  const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    setDateRange(newRange)
-  }, [])
-
   // Handle filter changes - triggers data reload via loadData dependency
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
@@ -110,36 +109,21 @@ export default function CostOverviewPage() {
     }
   }
 
-  // Generate daily trend data from period costs
-  // Uses deterministic pseudo-random based on date for consistent rendering
+  // Get rolling average label based on selected time range
+  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
+
+  // Get daily trend data from context (real data from backend)
   const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
-    const mtd = periodCosts?.mtd ?? totalSummary?.total?.total_monthly_cost ?? 0
-    const today = new Date()
-    const dailyAvg = today.getDate() > 0 ? mtd / today.getDate() : 0
+    const trendData = getDailyTrendForRange(timeRange, undefined, customRange)
 
-    // Deterministic seed function based on date
-    const seededVariance = (dayOffset: number): number => {
-      const seed = today.getDate() * 31 + dayOffset * 7
-      const x = Math.sin(seed) * 10000
-      return 0.7 + (x - Math.floor(x)) * 0.6
-    }
-
-    const trendData: ComboDataPoint[] = []
-    for (let i = 13; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-      const dayLabel = date.getDate().toString()
-      const variance = seededVariance(i)
-      const dayValue = i === 0 ? dailyAvg : dailyAvg * variance
-
-      trendData.push({
-        label: dayLabel,
-        value: Math.round(dayValue * 100) / 100,
-        date: date.toISOString().split('T')[0],
-      })
-    }
-    return trendData
-  }, [periodCosts, totalSummary])
+    // Transform to ComboDataPoint format with lineValue for rolling average
+    return trendData.map((point) => ({
+      label: point.label,
+      value: point.value,
+      lineValue: point.rollingAvg,
+      date: point.date,
+    }))
+  }, [getDailyTrendForRange, timeRange, customRange])
 
   // Build category breakdown from total costs data
   const categories = useMemo<BreakdownItem[]>(() => {
@@ -156,10 +140,10 @@ export default function CostOverviewPage() {
       }]
     }
 
-    const genaiCost = totalSummary?.llm?.total_monthly_cost ?? 0
+    const genaiCost = totalSummary?.genai?.total_monthly_cost ?? 0
     const cloudCost = totalSummary?.cloud?.total_monthly_cost ?? 0
-    const saasCost = totalSummary?.saas?.total_monthly_cost ?? 0
-    const totalCost = genaiCost + cloudCost + saasCost
+    const subscriptionCost = totalSummary?.subscription?.total_monthly_cost ?? 0
+    const totalCost = genaiCost + cloudCost + subscriptionCost
 
     if (totalCost === 0) return []
 
@@ -179,11 +163,11 @@ export default function CostOverviewPage() {
         color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
       },
       {
-        key: "saas",
-        name: OVERVIEW_CATEGORY_CONFIG.names.saas,
-        value: saasCost,
-        percentage: calculatePercentage(saasCost, totalCost),
-        color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
+        key: "subscription",
+        name: OVERVIEW_CATEGORY_CONFIG.names.subscription,
+        value: subscriptionCost,
+        percentage: calculatePercentage(subscriptionCost, totalCost),
+        color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       },
     ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
   }, [totalSummary, hasProviderFilter, filteredProviders, filters.providers])
@@ -194,15 +178,15 @@ export default function CostOverviewPage() {
     const mtdFromPeriod = periodCosts?.mtd ?? 0
     const ytdFromPeriod = periodCosts?.ytd ?? 0
 
-    const saasMtd = getSafeValue(totalSummary?.saas, "mtd_cost")
+    const subscriptionMtd = getSafeValue(totalSummary?.subscription, "mtd_cost")
     const cloudMtd = getSafeValue(totalSummary?.cloud, "mtd_cost")
-    const llmMtd = getSafeValue(totalSummary?.llm, "mtd_cost")
-    const combinedMTD = mtdFromPeriod || saasMtd + cloudMtd + llmMtd || (totalSummary?.total?.total_monthly_cost ?? 0)
+    const genaiMtd = getSafeValue(totalSummary?.genai, "mtd_cost")
+    const combinedMTD = mtdFromPeriod || subscriptionMtd + cloudMtd + genaiMtd || (totalSummary?.total?.total_monthly_cost ?? 0)
 
-    const saasYtd = getSafeValue(totalSummary?.saas, "ytd_cost")
+    const subscriptionYtd = getSafeValue(totalSummary?.subscription, "ytd_cost")
     const cloudYtd = getSafeValue(totalSummary?.cloud, "ytd_cost")
-    const llmYtd = getSafeValue(totalSummary?.llm, "ytd_cost")
-    const combinedYTD = ytdFromPeriod || saasYtd + cloudYtd + llmYtd || (totalSummary?.total?.total_annual_cost ?? 0)
+    const genaiYtd = getSafeValue(totalSummary?.genai, "ytd_cost")
+    const combinedYTD = ytdFromPeriod || subscriptionYtd + cloudYtd + genaiYtd || (totalSummary?.total?.total_annual_cost ?? 0)
 
     return {
       mtd: combinedMTD,
@@ -235,14 +219,14 @@ export default function CostOverviewPage() {
 
   // Score ring segments for Apple Health style visualization
   const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
-    const genaiCost = totalSummary?.llm?.total_monthly_cost ?? 0
+    const genaiCost = totalSummary?.genai?.total_monthly_cost ?? 0
     const cloudCost = totalSummary?.cloud?.total_monthly_cost ?? 0
-    const saasCost = totalSummary?.saas?.total_monthly_cost ?? 0
+    const subscriptionCost = totalSummary?.subscription?.total_monthly_cost ?? 0
 
     return [
       { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
       { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
-      { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
+      { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: "#FF6C5E" },
     ].filter(s => s.value > 0)
   }, [totalSummary])
 
@@ -274,13 +258,16 @@ export default function CostOverviewPage() {
             onChange={handleFiltersChange}
             hierarchy={hierarchy}
             availableProviders={availableProviders}
+            availableCategories={availableFilters.categories}
             disabled={isLoading || isRefreshing}
             loading={isLoading}
           />
-          <DateRangeFilter
-            value={dateRange}
-            onChange={handleDateRangeChange}
-            disabled={isLoading || isRefreshing}
+          <TimeRangeFilter
+            value={timeRange}
+            onChange={setTimeRange}
+            customRange={customRange}
+            onCustomRangeChange={setCustomRange}
+            size="sm"
           />
         </div>
       }
@@ -292,13 +279,13 @@ export default function CostOverviewPage() {
       {dailyTrendData.length > 0 && (
         <CostComboChart
           title="Daily Cost Trend"
-          subtitle="Last 14 days with 7-day moving average"
+          subtitle={`${rollingAvgLabel} overlay on daily spend`}
           data={dailyTrendData}
           currency={orgCurrency}
           barColor="#90FCA6"
           lineColor="#FF6C5E"
           barLabel="Daily Cost"
-          lineLabel="7-Day Avg"
+          lineLabel={rollingAvgLabel}
           height={320}
           showAreaFill
           loading={isLoading}

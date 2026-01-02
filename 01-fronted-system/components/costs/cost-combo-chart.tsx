@@ -116,15 +116,23 @@ function CustomTooltip({
 }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
 
+  // Deduplicate payload entries by dataKey (Area and Line both use lineValue)
+  const seenKeys = new Set<string>()
+  const uniquePayload = payload.filter((entry) => {
+    if (seenKeys.has(entry.dataKey)) return false
+    seenKeys.add(entry.dataKey)
+    return true
+  })
+
   return (
     <div className="bg-slate-900/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-xl border border-slate-700">
       <p className="text-slate-300 text-xs font-medium mb-1.5">{label}</p>
       <div className="space-y-1">
-        {payload.map((entry) => {
+        {uniquePayload.map((entry, index) => {
           const isLine = entry.dataKey === "lineValue" || entry.dataKey === "secondLineValue"
           const displayLabel = isLine ? lineLabel : barLabel
           return (
-            <div key={entry.dataKey} className="flex items-center gap-2">
+            <div key={`${entry.dataKey}-${index}`} className="flex items-center gap-2">
               <div
                 className={cn(
                   "w-2 h-2 rounded-full",
@@ -224,9 +232,40 @@ export function CostComboChart({
     return <ChartSkeleton height={height} />
   }
 
-  // Guard against empty data
+  // Guard against empty data - show empty state
   if (!data || data.length === 0) {
-    return null
+    return (
+      <div
+        className={cn(
+          "bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6",
+          "shadow-sm",
+          className
+        )}
+      >
+        {/* Header */}
+        {title && (
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+            {subtitle && (
+              <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+            )}
+          </div>
+        )}
+        {/* Empty state */}
+        <div
+          className="flex flex-col items-center justify-center text-center"
+          style={{ height: height - 80 }}
+        >
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+            <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-slate-600 mb-1">No cost data available</p>
+          <p className="text-xs text-slate-400">Run pipelines to start tracking costs</p>
+        </div>
+      </div>
+    )
   }
 
   // Custom X-axis tick

@@ -3,7 +3,7 @@ name: subscription-costs
 description: |
   SaaS subscription cost management for CloudAct. Run subscription cost pipelines, debug calculations, manage subscription plans.
   Use when: running subscription cost pipelines, debugging cost calculations, managing SaaS subscriptions,
-  working with saas_subscription_plans table, or FOCUS 1.3 conversion for subscriptions.
+  working with subscription_plans table, or FOCUS 1.3 conversion for subscriptions.
 ---
 
 # Subscription Costs
@@ -12,8 +12,8 @@ description: |
 CloudAct manages SaaS subscription costs through a unified pipeline that calculates daily amortized costs and converts them to FOCUS 1.3 format.
 
 ## Key Locations
-- **Pipeline Config:** `03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml`
-- **Stored Procedures:** `03-data-pipeline-service/configs/system/procedures/saas_subscription/`
+- **Pipeline Config:** `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml`
+- **Stored Procedures:** `03-data-pipeline-service/configs/system/procedures/subscription/`
 - **Processor:** `03-data-pipeline-service/src/core/processors/generic/procedure_executor.py`
 - **Frontend:** `01-fronted-system/app/[orgSlug]/integrations/subscriptions/`
 - **Dashboard:** `01-fronted-system/app/[orgSlug]/cost-dashboards/subscription-costs/`
@@ -21,30 +21,30 @@ CloudAct manages SaaS subscription costs through a unified pipeline that calcula
 ## Pipeline Architecture
 
 ```
-POST /api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost
+POST /api/v1/pipelines/run/{org_slug}/subscription/costs/subscription_cost
   │
   └─► procedure_executor (generic.procedure_executor)
        │
-       └─► sp_run_saas_subscription_costs_pipeline
+       └─► sp_run_subscription_costs_pipeline
             │
-            ├─► Stage 1: sp_calculate_saas_subscription_plan_costs_daily
-            │   └─► Outputs: saas_subscription_plan_costs_daily
+            ├─► Stage 1: sp_calculate_subscription_plan_costs_daily
+            │   └─► Outputs: subscription_plan_costs_daily
             │
-            └─► Stage 2: sp_convert_saas_costs_to_focus_1_3
-                └─► Outputs: cost_data_standard_1_3 (x_source_system = 'saas_subscription_costs_daily')
+            └─► Stage 2: sp_convert_subscription_costs_to_focus_1_3
+                └─► Outputs: cost_data_standard_1_3 (x_source_system = 'subscription_costs_daily')
 ```
 
 ## Stored Procedures
 
 | Procedure | Purpose |
 |-----------|---------|
-| `sp_run_saas_subscription_costs_pipeline` | Orchestrator - calls Stage 1 & 2 |
-| `sp_calculate_saas_subscription_plan_costs_daily` | Calculate daily amortized costs |
-| `sp_convert_saas_costs_to_focus_1_3` | Convert to FOCUS 1.3 format |
+| `sp_run_subscription_costs_pipeline` | Orchestrator - calls Stage 1 & 2 |
+| `sp_calculate_subscription_plan_costs_daily` | Calculate daily amortized costs |
+| `sp_convert_subscription_costs_to_focus_1_3` | Convert to FOCUS 1.3 format |
 
 ## Tables
 
-### Input Table: `saas_subscription_plans`
+### Input Table: `subscription_plans`
 ```sql
 subscription_id      STRING    -- Unique ID
 org_slug            STRING    -- Organization
@@ -62,7 +62,7 @@ hierarchy_project_id STRING
 hierarchy_team_id   STRING
 ```
 
-### Output Table: `saas_subscription_plan_costs_daily`
+### Output Table: `subscription_plan_costs_daily`
 ```sql
 cost_date           DATE      -- The day
 subscription_id     STRING    -- From plans
@@ -75,20 +75,20 @@ hierarchy_*         STRING    -- Allocation fields
 ```
 
 ### FOCUS Output: `cost_data_standard_1_3`
-Filtered by: `x_source_system = 'saas_subscription_costs_daily'`
+Filtered by: `x_source_system = 'subscription_costs_daily'`
 
 ## Instructions
 
 ### 1. Run Subscription Cost Pipeline
 ```bash
 # Run for specific org
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/subscription/costs/subscription_cost" \
   -H "X-API-Key: {org_api_key}" \
   -H "Content-Type: application/json" \
   -d '{}'
 
 # With date range (optional)
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/subscription/costs/subscription_cost" \
   -H "X-API-Key: {org_api_key}" \
   -H "Content-Type: application/json" \
   -d '{"start_date": "2025-01-01", "end_date": "2025-01-31"}'
@@ -144,19 +144,19 @@ curl -X POST "http://localhost:8000/api/v1/subscriptions/{org_slug}/providers/ch
 ### 5. Debug Cost Calculations
 ```sql
 -- Check subscription plans
-SELECT * FROM `{project}.{org_slug}_dev.saas_subscription_plans`
+SELECT * FROM `{project}.{org_slug}_dev.subscription_plans`
 WHERE status = 'active';
 
 -- Check daily costs
 SELECT cost_date, subscription_id, daily_cost_local, daily_cost_usd
-FROM `{project}.{org_slug}_dev.saas_subscription_plan_costs_daily`
+FROM `{project}.{org_slug}_dev.subscription_plan_costs_daily`
 ORDER BY cost_date DESC
 LIMIT 10;
 
 -- Check FOCUS output
 SELECT BillingPeriodStart, ServiceName, EffectiveCost, x_source_system
 FROM `{project}.{org_slug}_dev.cost_data_standard_1_3`
-WHERE x_source_system = 'saas_subscription_costs_daily'
+WHERE x_source_system = 'subscription_costs_daily'
 ORDER BY BillingPeriodStart DESC
 LIMIT 10;
 ```
@@ -184,13 +184,13 @@ daily_cost_usd = daily_cost_local * exchange_rate_to_usd
 ```
 
 ## Validation Checklist
-- [ ] Subscription plans exist in `saas_subscription_plans` table
+- [ ] Subscription plans exist in `subscription_plans` table
 - [ ] Plans have `status = 'active'` and valid `start_date`
 - [ ] Currency matches org's `default_currency`
 - [ ] Stored procedures are synced to BigQuery
 - [ ] Pipeline completes without errors
 - [ ] Daily costs appear in output tables
-- [ ] FOCUS data has `x_source_system = 'saas_subscription_costs_daily'`
+- [ ] FOCUS data has `x_source_system = 'subscription_costs_daily'`
 
 ## Common Issues
 
@@ -199,7 +199,7 @@ daily_cost_usd = daily_cost_local * exchange_rate_to_usd
 | Pipeline stuck PENDING | Duplicate run detection | Wait for existing run or check logs |
 | No costs calculated | No active subscriptions | Add plans with `status = 'active'` |
 | Wrong currency | Plan currency mismatch | Match plan currency to org default |
-| Missing FOCUS data | Stage 2 failed | Check `sp_convert_saas_costs_to_focus_1_3` |
+| Missing FOCUS data | Stage 2 failed | Check `sp_convert_subscription_costs_to_focus_1_3` |
 | Procedure not found | Not synced | Run `/api/v1/procedures/sync` |
 
 ## Example Prompts

@@ -72,8 +72,9 @@ BEGIN
        x_hierarchy_team_id, x_hierarchy_team_name,
        x_hierarchy_validated_at,  -- Issue #8-11 FIX: Add hierarchy validation timestamp
        -- STATE-001 FIX: Required lineage columns for FOCUS 1.3 (Issue #1: snake_case)
-       x_pipeline_id, x_run_id, x_data_quality_score, x_created_at,
-       x_credential_id, x_pipeline_run_date, x_ingested_at)
+       -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
+       x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
+       x_data_quality_score, x_created_at)
       SELECT
         cost_date as ChargePeriodStart,
         cost_date as ChargePeriodEnd,
@@ -177,13 +178,14 @@ BEGIN
         END as x_hierarchy_validated_at,
 
         -- STATE-001 FIX: Lineage values for FOCUS 1.3 (Issue #1: snake_case)
+        -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
         COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
-        COALESCE(x_run_id, @p_run_id) as x_run_id,
-        100.0 as x_data_quality_score,  -- GenAI consolidated costs are high quality
-        CURRENT_TIMESTAMP() as x_created_at,
         COALESCE(x_credential_id, @p_credential_id, 'internal') as x_credential_id,
         COALESCE(x_pipeline_run_date, cost_date) as x_pipeline_run_date,
-        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
+        COALESCE(x_run_id, @p_run_id) as x_run_id,
+        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at,
+        100.0 as x_data_quality_score,  -- GenAI consolidated costs are high quality
+        CURRENT_TIMESTAMP() as x_created_at
 
       FROM `%s.%s.genai_costs_daily_unified`
       WHERE cost_date = @p_date

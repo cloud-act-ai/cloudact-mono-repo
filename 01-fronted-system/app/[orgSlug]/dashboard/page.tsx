@@ -36,6 +36,7 @@ import {
   CostComboChart,
   TimeRangeFilter,
   getRollingAverageLabel,
+  DEFAULT_TIME_RANGE,
   type CostSummaryData,
   type BreakdownItem,
   type ScoreRingSegment,
@@ -91,7 +92,7 @@ export default function DashboardPage() {
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
   const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
-  const [timeRange, setTimeRange] = useState<TimeRange>("365")
+  const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
 
   // Get daily trend data from context (real data from backend)
   const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
@@ -202,9 +203,9 @@ export default function DashboardPage() {
 
   // Check if we have any cost data
   const hasData = costSummary && (
-    (costSummary.llm?.total_monthly_cost ?? 0) > 0 ||
+    (costSummary.genai?.total_monthly_cost ?? 0) > 0 ||
     (costSummary.cloud?.total_monthly_cost ?? 0) > 0 ||
-    (costSummary.saas?.total_monthly_cost ?? 0) > 0
+    (costSummary.subscription?.total_monthly_cost ?? 0) > 0
   )
 
   // Prepare summary data - always show real data (zeros if no data)
@@ -227,10 +228,10 @@ export default function DashboardPage() {
 
   // Prepare category breakdown - always show real data
   const categoryBreakdown: BreakdownItem[] = useMemo(() => {
-    const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
+    const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
-    const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
-    const totalCost = genaiCost + cloudCost + saasCost
+    const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
+    const totalCost = genaiCost + cloudCost + subscriptionCost
 
     // Show all categories even if zero (for consistent UI)
     return [
@@ -239,7 +240,7 @@ export default function DashboardPage() {
         name: OVERVIEW_CATEGORY_CONFIG.names.genai,
         value: genaiCost,
         percentage: totalCost > 0 ? calculatePercentage(genaiCost, totalCost) : 0,
-        count: costSummary?.llm?.providers?.length ?? 0,
+        count: costSummary?.genai?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
       },
       {
@@ -251,27 +252,27 @@ export default function DashboardPage() {
         color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
       },
       {
-        key: "saas",
-        name: OVERVIEW_CATEGORY_CONFIG.names.saas,
-        value: saasCost,
-        percentage: totalCost > 0 ? calculatePercentage(saasCost, totalCost) : 0,
-        count: costSummary?.saas?.providers?.length ?? 0,
-        color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
+        key: "subscription",
+        name: OVERVIEW_CATEGORY_CONFIG.names.subscription,
+        value: subscriptionCost,
+        percentage: totalCost > 0 ? calculatePercentage(subscriptionCost, totalCost) : 0,
+        count: costSummary?.subscription?.providers?.length ?? 0,
+        color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       },
     ].sort((a, b) => b.value - a.value)
   }, [costSummary])
 
   // Score ring segments - always show real data
   const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
-    const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
+    const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
-    const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
+    const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
 
     // Show all segments even if zero
     return [
       { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
       { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
-      { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
+      { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: "#FF6C5E" },
     ]
   }, [costSummary])
 
@@ -395,30 +396,20 @@ export default function DashboardPage() {
       <CostSummaryGrid data={summaryData} />
 
       {/* Daily Cost Trend Chart */}
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">Daily Cost Trend</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {rollingAvgLabel} overlay on daily spend
-          </p>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <CostComboChart
-            title=""
-            data={dailyTrendData}
-            currency={displayCurrency}
-            barColor="#90FCA6"
-            lineColor="#FF6C5E"
-            barLabel="Daily Cost"
-            lineLabel={rollingAvgLabel}
-            height={260}
-            showAreaFill
-            loading={isLoading || dailyTrendData.length === 0}
-            showLegend={true}
-            className="border-0 shadow-none p-0"
-          />
-        </CardContent>
-      </Card>
+      <CostComboChart
+        title="Daily Cost Trend"
+        subtitle={`${rollingAvgLabel} overlay on daily spend`}
+        data={dailyTrendData}
+        currency={displayCurrency}
+        barColor="#90FCA6"
+        lineColor="#FF6C5E"
+        barLabel="Daily Cost"
+        lineLabel={rollingAvgLabel}
+        height={320}
+        showAreaFill
+        loading={isLoading}
+        showLegend={true}
+      />
 
       {/* Score Ring with Category Breakdown */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">

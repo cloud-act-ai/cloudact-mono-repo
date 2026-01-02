@@ -181,12 +181,12 @@ export const OVERVIEW_CATEGORY_CONFIG: EntityConfig = {
   names: {
     genai: "GenAI",
     cloud: "Cloud",
-    saas: "SaaS",
+    subscription: "Subscriptions",
   },
   colors: {
     genai: "#10A37F",
     cloud: "#4285F4",
-    saas: "#FF6C5E",
+    subscription: "#FF6C5E",
   },
   defaultColor: "#94a3b8",
 }
@@ -454,44 +454,130 @@ export function transformCategoriesToBreakdownItems(
 }
 
 // ============================================
-// Provider Sets (for filtering)
+// Provider Categorization (Future-Proof)
 // ============================================
 
+/**
+ * Cloud provider identifiers - canonical names
+ * Backend should ideally provide `category` field, this is fallback
+ */
 export const CLOUD_PROVIDER_SET = new Set([
-  "gcp", "aws", "azure",
-  "google_cloud", "amazon_web_services", "microsoft_azure"
+  // Primary identifiers
+  "gcp", "aws", "azure", "oci",
+  // Alternative names
+  "google_cloud", "google-cloud", "googlecloud",
+  "amazon_web_services", "amazon-web-services", "amazonwebservices",
+  "microsoft_azure", "microsoft-azure", "microsoftazure",
+  "oracle_cloud", "oracle-cloud", "oraclecloud",
+  // Service-specific
+  "gcp_billing", "aws_billing", "azure_billing", "oci_billing",
 ])
 
+/**
+ * GenAI/LLM provider identifiers - canonical names
+ * Backend should ideally provide `category` field, this is fallback
+ */
 export const GENAI_PROVIDER_SET = new Set([
-  "openai", "anthropic", "google", "gemini",
-  "cohere", "mistral", "azure_openai", "aws_bedrock"
+  // Primary identifiers
+  "openai", "anthropic", "gemini", "deepseek", "perplexity",
+  "cohere", "mistral", "groq", "together", "replicate",
+  // Alternative names
+  "google_ai", "google-ai", "claude",
+  // Hosted/Managed variants
+  "azure_openai", "azure-openai", "azureopenai",
+  "aws_bedrock", "aws-bedrock", "awsbedrock",
+  "gcp_vertex", "gcp-vertex", "vertexai", "vertex_ai",
 ])
+
+/**
+ * Pattern-based provider detection for unknown providers
+ * Returns: "cloud" | "genai" | "subscription" | null
+ */
+export function detectProviderCategory(provider: string): "cloud" | "genai" | "subscription" | null {
+  if (!provider || typeof provider !== "string") return null
+
+  const normalized = provider.toLowerCase().trim()
+
+  // Check exact match first
+  if (CLOUD_PROVIDER_SET.has(normalized)) return "cloud"
+  if (GENAI_PROVIDER_SET.has(normalized)) return "genai"
+
+  // Pattern-based detection for unknown providers
+  const cloudPatterns = [
+    /^(gcp|aws|azure|oci)[-_]?/,  // Starts with cloud prefix
+    /[-_](cloud|billing|infrastructure)$/,  // Ends with cloud suffix
+    /^(google|amazon|microsoft|oracle)[-_]?(cloud|web|azure)/,  // Full names
+  ]
+
+  const genaiPatterns = [
+    /[-_]?(ai|llm|gpt|chat|completion)[-_]?/,  // AI-related keywords
+    /^(openai|anthropic|claude|gemini|deepseek|mistral|cohere)/,  // Known AI prefixes
+    /(bedrock|vertex|sagemaker)[-_]?(ai)?$/,  // Managed AI services
+  ]
+
+  for (const pattern of cloudPatterns) {
+    if (pattern.test(normalized)) return "cloud"
+  }
+
+  for (const pattern of genaiPatterns) {
+    if (pattern.test(normalized)) return "genai"
+  }
+
+  // Unknown provider - assume subscription (SaaS)
+  return null
+}
+
+/**
+ * Check if provider is cloud type
+ */
+export function isCloudProvider(provider: string | null | undefined): boolean {
+  if (!provider) return false
+  return detectProviderCategory(provider) === "cloud"
+}
+
+/**
+ * Check if provider is GenAI type
+ */
+export function isGenAIProvider(provider: string | null | undefined): boolean {
+  if (!provider) return false
+  return detectProviderCategory(provider) === "genai"
+}
 
 /**
  * Filter providers to only cloud providers
  * Handles null/undefined providers array safely
+ * Uses pattern matching for unknown providers
  */
 export function filterCloudProviders<T extends { provider?: string | null }>(
   providers: T[] | null | undefined
 ): T[] {
   if (!providers || !Array.isArray(providers)) return []
-  return providers.filter(p => {
-    if (!p.provider || typeof p.provider !== "string") return false
-    return CLOUD_PROVIDER_SET.has(p.provider.toLowerCase())
-  })
+  return providers.filter(p => isCloudProvider(p.provider))
 }
 
 /**
  * Filter providers to only GenAI/LLM providers
  * Handles null/undefined providers array safely
+ * Uses pattern matching for unknown providers
  */
 export function filterGenAIProviders<T extends { provider?: string | null }>(
   providers: T[] | null | undefined
 ): T[] {
   if (!providers || !Array.isArray(providers)) return []
+  return providers.filter(p => isGenAIProvider(p.provider))
+}
+
+/**
+ * Filter providers to subscription (not cloud, not genai)
+ */
+export function filterSubscriptionProviders<T extends { provider?: string | null }>(
+  providers: T[] | null | undefined
+): T[] {
+  if (!providers || !Array.isArray(providers)) return []
   return providers.filter(p => {
-    if (!p.provider || typeof p.provider !== "string") return false
-    return GENAI_PROVIDER_SET.has(p.provider.toLowerCase())
+    if (!p.provider) return false
+    const category = detectProviderCategory(p.provider)
+    return category === null || category === "subscription"
   })
 }
 
@@ -864,7 +950,7 @@ export function getDecemberRange(): PeriodDateRange {
 }
 
 // ============================================
-// Daily Trend Data Generation
+// Daily Trend Data Generation (DEPRECATED)
 // ============================================
 
 export interface DailyTrendDataPoint {
@@ -877,6 +963,10 @@ export interface DailyTrendDataPoint {
 }
 
 /**
+ * @deprecated Use `useCostData().getDailyTrendForRange(timeRange)` instead.
+ * This function generates fake deterministic data based on MTD cost.
+ * The context-based approach uses real daily cost data from the backend.
+ *
  * Generate deterministic daily trend data for charts
  * Uses a seeded variance function to ensure consistent rendering
  * across re-renders and page navigations.

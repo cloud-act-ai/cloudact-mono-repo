@@ -122,7 +122,7 @@ BEGIN
         org_slug,
         'commitment' as cost_type,
         provider,
-        model_group as model,
+        model,
         NULL as instance_type,
         NULL as gpu_type,
         region,

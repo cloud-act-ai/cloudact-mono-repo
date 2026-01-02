@@ -123,10 +123,14 @@ export {
   getRollingAverageWindow,
   getRollingAverageLabel,
   getTimeRangeLabel,
+  DEFAULT_TIME_RANGE,
+  TIME_RANGE_OPTIONS,
   type CostFiltersState,
   type CostFiltersProps,
   type HierarchyEntity,
   type TimeRangeFilterProps,
+  type CategoryOption,
+  type CustomDateRange,
 } from "./cost-filters"
 
 // ============================================

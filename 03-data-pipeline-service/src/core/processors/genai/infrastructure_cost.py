@@ -223,7 +223,7 @@ class InfrastructureCostProcessor:
 
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_infrastructure_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
-                        u.credential_id as x_credential_id,
+                        u.x_credential_id as x_credential_id,
                         @process_date as x_pipeline_run_date,
                         @run_id as x_run_id,
                         CURRENT_TIMESTAMP() as x_ingested_at

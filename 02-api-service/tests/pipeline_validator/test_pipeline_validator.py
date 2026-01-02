@@ -511,7 +511,7 @@ async def test_validate_pipeline_no_integration_required(mock_org, mock_quota):
     """
     Test validation for pipeline with no required integration.
 
-    Some pipelines like saas_cost don't require external integrations.
+    Some pipelines like subscription_cost don't require external integrations.
     Expected: Valid response without credential check
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
@@ -525,7 +525,7 @@ async def test_validate_pipeline_no_integration_required(mock_org, mock_quota):
                     f"/api/v1/validator/validate/{TEST_ORG_SLUG}",
                     headers={"X-API-Key": "test-key"},
                     json={
-                        "pipeline_id": "saas_subscription_saas_cost",
+                        "pipeline_id": "subscription_subscription_cost",
                         "include_credentials": False
                     }
                 )

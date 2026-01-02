@@ -380,7 +380,7 @@ async def trigger_templated_pipeline(
     Path Formats:
     - Cloud: /cloud/gcp/cost/billing → configs/cloud/gcp/cost/billing.yml
     - GenAI: /genai/payg/openai → configs/genai/payg/openai.yml
-    - SaaS: /saas/costs/saas_cost → configs/saas/costs/saas_cost.yml
+    - Subscription: /subscription/costs/subscription_cost → configs/subscription/costs/subscription_cost.yml
 
     Template Variables:
     - {org_slug} - Replaced with org_slug from path
@@ -474,7 +474,7 @@ async def trigger_templated_pipeline(
 
     # Construct pipeline_id for validation (matches registry format)
     # Format: {category}_{provider}_{domain}_{pipeline} for cloud, {category}_{domain}_{pipeline} for others
-    # Examples: "cloud_gcp_cost_billing", "genai_payg_openai", "saas_costs_saas_cost"
+    # Examples: "cloud_gcp_cost_billing", "genai_payg_openai", "subscription_costs_subscription_cost"
     if provider:
         validation_pipeline_id = f"{category}_{provider}_{domain}_{template_name}"
     else:

@@ -113,7 +113,7 @@ class PipelineStatusResponse(BaseModel):
 # ============================================
 
 KNOWN_DAILY_PIPELINES = [
-    {"id": "saas_subscription_costs", "path": "saas/costs/saas_cost"},
+    {"id": "subscription_costs", "path": "subscription/costs/subscription_cost"},
     # Add more as needed:
     # {"id": "gcp_billing", "path": "cloud/gcp/cost/billing"},
     # {"id": "openai_usage", "path": "genai/payg/openai"},
@@ -159,8 +159,8 @@ async def get_pipeline_status(
 
     try:
         # Query for today's pipeline runs
-        # Match pipeline_id patterns like: "saas_subscription/costs/saas_cost"
-        # or "{org}-saas_subscription-costs-saas_cost"
+        # Match pipeline_id patterns like: "subscription/costs/subscription_cost"
+        # or "{org}-subscription-costs-subscription_cost"
         # FIX: Use DATE(start_time) instead of run_date which can be NULL
         query = f"""
         SELECT
@@ -204,8 +204,8 @@ async def get_pipeline_status(
             matching_run = None
             for pid, run_data in pipeline_runs.items():
                 # Match patterns:
-                # 1. Exact path: "saas_subscription/costs/saas_cost"
-                # 2. With org prefix: "{org}-saas_subscription-costs-saas_cost"
+                # 1. Exact path: "subscription/costs/subscription_cost"
+                # 2. With org prefix: "{org}-subscription-costs-subscription_cost"
                 # 3. Pipeline ID format: contains the path components
                 if (pipeline_path in pid or
                     pipeline_path.replace("/", "-") in pid or

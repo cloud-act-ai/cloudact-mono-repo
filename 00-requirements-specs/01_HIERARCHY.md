@@ -71,7 +71,7 @@
 | Storage | Table | What |
 |---------|-------|------|
 | BigQuery | `{org_slug}_prod.org_hierarchy` | All hierarchy entities |
-| BigQuery | `{org_slug}_prod.saas_subscription_plans` | References via `hierarchy_dept_id`, `hierarchy_project_id`, `hierarchy_team_id` |
+| BigQuery | `{org_slug}_prod.subscription_plans` | References via `hierarchy_dept_id`, `hierarchy_project_id`, `hierarchy_team_id` |
 
 ---
 
@@ -244,7 +244,7 @@ team,TEAM-002,Frontend,PROJ-001,,Diana White,diana@example.com,Frontend developm
 Before delete, check:
 
 1. **Children exist** - Projects under department, teams under project
-2. **Subscription references** - `saas_subscription_plans` with `hierarchy_dept_id`, `hierarchy_project_id`, or `hierarchy_team_id`
+2. **Subscription references** - `subscription_plans` with `hierarchy_dept_id`, `hierarchy_project_id`, or `hierarchy_team_id`
 
 **Response on Block:**
 
@@ -355,14 +355,14 @@ Subscription plans reference hierarchy entities for cost allocation:
 ### Cost Calculation Flow
 
 ```
-saas_subscription_plans (with hierarchy IDs)
-    ↓ sp_calculate_saas_subscription_plan_costs_daily
-saas_subscription_plan_costs_daily (hierarchy propagated)
-    ↓ sp_convert_saas_costs_to_focus_1_3
+subscription_plans (with hierarchy IDs)
+    ↓ sp_calculate_subscription_plan_costs_daily
+subscription_plan_costs_daily (hierarchy propagated)
+    ↓ sp_convert_subscription_costs_to_focus_1_3
 cost_data_standard_1_3 (x_hierarchy_dept_id, x_hierarchy_project_id, x_hierarchy_team_id)
 ```
 
-**Stored Procedures Location:** `03-data-pipeline-service/configs/system/procedures/saas_subscription/`
+**Stored Procedures Location:** `03-data-pipeline-service/configs/system/procedures/subscription/`
 
 ---
 
@@ -503,7 +503,7 @@ curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_corp/import" \
 
 | File | Change |
 |------|--------|
-| `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | Added hierarchy reference fields |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/subscription_plans.json` | Added hierarchy reference fields |
 | `02-api-service/src/app/main.py` | Registered hierarchy router |
 | `01-fronted-system/components/dashboard-sidebar.tsx` | Added nav link |
 | `01-fronted-system/components/mobile-nav.tsx` | Added nav link |

@@ -19,7 +19,7 @@ action: warn
 | `x_ingested_at` | Pipeline write timestamp | NEVER | REQUIRED |
 
 **API Service schemas (02-api-service/) - NO x_* fields:**
-- `saas_subscription_plans.json` - CRUD via REST API
+- `subscription_plans.json` - CRUD via REST API
 - `genai_*_pricing.json` - Seed/reference data
 - `org_hierarchy` - CRUD via REST API
 - Bootstrap schemas - System initialization

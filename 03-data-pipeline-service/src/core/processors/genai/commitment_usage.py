@@ -301,11 +301,10 @@ class CommitmentUsageProcessor:
                         {escape_str(record.get('model'))} as model,
                         DATE('{record.get('usage_date')}') as usage_date,
                         {escape_str(record.get('region') or 'global')} as region,
-                        {escape_int(record.get('ptu_units'))} as ptu_units,
-                        {escape_int(record.get('tokens_generated'))} as tokens_generated,
+                        {escape_int(record.get('provisioned_units') or record.get('ptu_units'))} as provisioned_units,
+                        {escape_int(record.get('tokens_processed') or record.get('tokens_generated'))} as tokens_processed,
                         {escape_float(record.get('utilization_pct'))} as utilization_pct,
-                        {escape_float(record.get('usage_hours'))} as usage_hours,
-                        {escape_str(record.get('credential_id'))} as credential_id,
+                        {escape_float(record.get('hours_active') or record.get('usage_hours'))} as hours_active,
                         {escape_str(record.get('hierarchy_dept_id'))} as hierarchy_dept_id,
                         {escape_str(record.get('hierarchy_dept_name'))} as hierarchy_dept_name,
                         {escape_str(record.get('hierarchy_project_id'))} as hierarchy_project_id,
@@ -331,10 +330,10 @@ class CommitmentUsageProcessor:
                         AND T.usage_date = S.usage_date
                     WHEN MATCHED THEN
                         UPDATE SET
-                            ptu_units = S.ptu_units,
-                            tokens_generated = S.tokens_generated,
+                            provisioned_units = S.provisioned_units,
+                            tokens_processed = S.tokens_processed,
                             utilization_pct = S.utilization_pct,
-                            usage_hours = S.usage_hours,
+                            hours_active = S.hours_active,
                             hierarchy_dept_id = S.hierarchy_dept_id,
                             hierarchy_dept_name = S.hierarchy_dept_name,
                             hierarchy_project_id = S.hierarchy_project_id,
@@ -348,12 +347,12 @@ class CommitmentUsageProcessor:
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
                         INSERT (org_slug, provider, commitment_id, commitment_type, model, usage_date, region,
-                                ptu_units, tokens_generated, utilization_pct, usage_hours, credential_id,
+                                provisioned_units, tokens_processed, utilization_pct, hours_active,
                                 hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
                                 hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.commitment_id, S.commitment_type, S.model, S.usage_date, S.region,
-                                S.ptu_units, S.tokens_generated, S.utilization_pct, S.usage_hours, S.credential_id,
+                                S.provisioned_units, S.tokens_processed, S.utilization_pct, S.hours_active,
                                 S.hierarchy_dept_id, S.hierarchy_dept_name, S.hierarchy_project_id,
                                 S.hierarchy_project_name, S.hierarchy_team_id, S.hierarchy_team_name,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)

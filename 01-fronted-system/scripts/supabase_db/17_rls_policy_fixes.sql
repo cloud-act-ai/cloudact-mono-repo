@@ -4,7 +4,7 @@
 -- Purpose: Fix remaining RLS policy issues for data integrity
 --
 -- Changes:
--- 1. Add UPDATE policy WITH CHECK to saas_subscriptions to prevent org_id changes
+-- 1. Add UPDATE policy WITH CHECK to subscriptions to prevent org_id changes
 -- 2. Add UPDATE policies WITH CHECK for other sensitive tables to prevent org_id tampering
 -- 3. Note on activity_logs: Uses ON DELETE SET NULL for audit trail preservation
 --
@@ -19,13 +19,13 @@
 -- Issue: Missing WITH CHECK in UPDATE policy allows org_id to be changed
 -- Fix: Add WITH CHECK clause to prevent org_id changes during updates
 
-DROP POLICY IF EXISTS "Admins can update subscriptions" ON saas_subscriptions;
-CREATE POLICY "Admins can update subscriptions" ON saas_subscriptions
+DROP POLICY IF EXISTS "Admins can update subscriptions" ON subscriptions;
+CREATE POLICY "Admins can update subscriptions" ON subscriptions
     FOR UPDATE
     USING (
         EXISTS (
             SELECT 1 FROM organization_members om
-            WHERE om.org_id = saas_subscriptions.org_id
+            WHERE om.org_id = subscriptions.org_id
             AND om.user_id = auth.uid()
             AND om.status = 'active'
             AND om.role IN ('owner', 'admin')
@@ -42,8 +42,8 @@ CREATE POLICY "Admins can update subscriptions" ON saas_subscriptions
     );
 
 -- Also update the migration 13 version for consistency
-DROP POLICY IF EXISTS "Admins can update saas subscriptions" ON saas_subscriptions;
-CREATE POLICY "Admins can update saas subscriptions" ON saas_subscriptions
+DROP POLICY IF EXISTS "Admins can update saas subscriptions" ON subscriptions;
+CREATE POLICY "Admins can update saas subscriptions" ON subscriptions
     FOR UPDATE
     USING (
         org_id IN (
@@ -203,10 +203,10 @@ COMMENT ON TABLE activity_logs IS 'Audit trail for organization activities and c
 -- VERIFICATION COMMENTS
 -- ================================================
 
-COMMENT ON POLICY "Admins can update subscriptions" ON saas_subscriptions
+COMMENT ON POLICY "Admins can update subscriptions" ON subscriptions
     IS 'Admins can update subscriptions but cannot move them to different orgs';
 
-COMMENT ON POLICY "Admins can update saas subscriptions" ON saas_subscriptions
+COMMENT ON POLICY "Admins can update saas subscriptions" ON subscriptions
     IS 'Migration 13 version - Admins can update subscriptions but cannot move them to different orgs';
 
 COMMENT ON POLICY "Owners can update organizations" ON organizations
@@ -281,7 +281,7 @@ ON CONFLICT (filename) DO NOTHING;
 -- Check all UPDATE policies on tables with org_id:
 -- SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
 -- FROM pg_policies
--- WHERE tablename IN ('saas_subscriptions', 'organizations', 'organization_members', 'invites', 'usage_tracking', 'activity_logs')
+-- WHERE tablename IN ('subscriptions', 'organizations', 'organization_members', 'invites', 'usage_tracking', 'activity_logs')
 -- AND cmd = 'UPDATE'
 -- ORDER BY tablename, policyname;
 

@@ -79,15 +79,15 @@ CloudAct cost analytics platform architecture documentation. All cost types (Saa
 ```
 03-data-pipeline-service/
 ├── configs/
-│   ├── saas/costs/saas_cost.yml
+│   ├── subscription/costs/subscription_cost.yml
 │   ├── cloud/gcp/cost/billing.yml
 │   ├── cloud/aws/cost/billing.yml
 │   ├── cloud/azure/cost/billing.yml
 │   └── system/procedures/
-│       └── saas_subscription/
-│           ├── sp_calculate_saas_subscription_plan_costs_daily.sql
-│           ├── sp_convert_saas_costs_to_focus_1_3.sql
-│           └── sp_run_saas_subscription_costs_pipeline.sql
+│       └── subscription/
+│           ├── sp_calculate_subscription_plan_costs_daily.sql
+│           ├── sp_convert_subscription_costs_to_focus_1_3.sql
+│           └── sp_run_subscription_costs_pipeline.sql
 └── src/core/processors/
     └── {provider}/cost.py
 ```

@@ -399,7 +399,6 @@ class PAYGCostProcessor:
                         END * (1 - COALESCE(p.volume_discount_pct, 0) / 100), 4) as effective_rate_output,
 
                         u.request_count,
-                        u.credential_id,
 
                         -- Issue #43: Handle NULL hierarchy fields with COALESCE for safe insertion
                         NULLIF(TRIM(COALESCE(u.hierarchy_dept_id, '')), '') as hierarchy_dept_id,
@@ -412,7 +411,7 @@ class PAYGCostProcessor:
                         CURRENT_TIMESTAMP() as calculated_at,
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_payg_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
-                        u.credential_id as x_credential_id,
+                        u.x_credential_id as x_credential_id,
                         @process_date as x_pipeline_run_date,
                         @run_id as x_run_id,
                         CURRENT_TIMESTAMP() as x_ingested_at
@@ -464,7 +463,7 @@ class PAYGCostProcessor:
                             input_tokens, output_tokens, cached_input_tokens, total_tokens,
                             input_cost_usd, output_cost_usd, cached_cost_usd, total_cost_usd,
                             discount_applied_pct, effective_rate_input, effective_rate_output,
-                            request_count, credential_id,
+                            request_count,
                             hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
                             hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
@@ -473,7 +472,7 @@ class PAYGCostProcessor:
                             S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
                             S.input_cost_usd, S.output_cost_usd, S.cached_cost_usd, S.total_cost_usd,
                             S.discount_applied_pct, S.effective_rate_input, S.effective_rate_output,
-                            S.request_count, S.credential_id,
+                            S.request_count,
                             S.hierarchy_dept_id, S.hierarchy_dept_name, S.hierarchy_project_id,
                             S.hierarchy_project_name, S.hierarchy_team_id, S.hierarchy_team_name,
                             S.calculated_at, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,

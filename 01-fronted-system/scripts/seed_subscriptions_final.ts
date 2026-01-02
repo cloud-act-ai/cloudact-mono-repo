@@ -71,7 +71,7 @@ async function main() {
 
     // Enable provider first (Meta table)
     const { error: enableError } = await supabase
-        .from('saas_subscription_providers_meta')
+        .from('subscription_providers_meta')
         .upsert(
             {
                 org_id: org.id,

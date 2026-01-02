@@ -27,7 +27,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
                 '**/tests/07-*.test.ts',
                 '**/tests/09-*.test.ts',
                 '**/tests/13-*.test.ts',
-                '**/tests/saas_subscription/*.test.ts',
+                '**/tests/subscription/*.test.ts',
                 '**/tests/organization_onboarding/*.test.ts',
                 '**/tests/user_account/*.test.ts',
                 // E2E tests that require Node.js modules

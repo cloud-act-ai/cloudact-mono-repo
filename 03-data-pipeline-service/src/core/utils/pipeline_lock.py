@@ -7,6 +7,7 @@ Thread-safe implementation using asyncio locks.
 import asyncio
 import time
 import logging
+import threading
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -247,13 +248,14 @@ class PipelineLockManager:
             return lock
 
 
-# Global singleton instance
+# Thread-safe singleton instance
 _pipeline_lock_manager: Optional[PipelineLockManager] = None
+_pipeline_lock_manager_lock = threading.Lock()
 
 
 def get_pipeline_lock_manager(lock_timeout_seconds: int = 3600) -> PipelineLockManager:
     """
-    Get the global pipeline lock manager instance (singleton pattern).
+    Get the global pipeline lock manager instance (thread-safe singleton).
 
     Args:
         lock_timeout_seconds: Lock expiration time (only used on first call)
@@ -263,8 +265,11 @@ def get_pipeline_lock_manager(lock_timeout_seconds: int = 3600) -> PipelineLockM
     """
     global _pipeline_lock_manager
 
-    if _pipeline_lock_manager is None:
-        _pipeline_lock_manager = PipelineLockManager(lock_timeout_seconds)
-        logger.info(f"Initialized PipelineLockManager with {lock_timeout_seconds}s timeout")
+    if _pipeline_lock_manager is not None:
+        return _pipeline_lock_manager
 
-    return _pipeline_lock_manager
+    with _pipeline_lock_manager_lock:
+        if _pipeline_lock_manager is None:
+            _pipeline_lock_manager = PipelineLockManager(lock_timeout_seconds)
+            logger.info(f"Initialized PipelineLockManager with {lock_timeout_seconds}s timeout")
+        return _pipeline_lock_manager

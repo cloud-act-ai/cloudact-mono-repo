@@ -32,8 +32,8 @@
 
 ```
 SUPABASE                              BIGQUERY
-saas_subscription_providers_meta      {org}_{env}.saas_subscription_plans (28 cols)
-├─ provider ON/OFF toggles            {org}_{env}.saas_subscription_plan_costs_daily
+subscription_providers_meta      {org}_{env}.subscription_plans (28 cols)
+├─ provider ON/OFF toggles            {org}_{env}.subscription_plan_costs_daily
 └─ NO plan data                       {org}_{env}.cost_data_standard_1_3
 ```
 
@@ -96,14 +96,14 @@ GET    /api/v1/subscriptions/{org}/providers/{p}/available-plans # Get templates
 
 ## Cost Pipeline
 
-**Config:** `03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml`
+**Config:** `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml`
 
 **Stored Procedures:**
 | Procedure | Purpose |
 |-----------|---------|
-| `sp_calculate_saas_subscription_plan_costs_daily` | Daily amortized costs |
-| `sp_convert_saas_costs_to_focus_1_3` | FOCUS 1.3 format |
-| `sp_run_saas_subscription_costs_pipeline` | Orchestrator |
+| `sp_calculate_subscription_plan_costs_daily` | Daily amortized costs |
+| `sp_convert_subscription_costs_to_focus_1_3` | FOCUS 1.3 format |
+| `sp_run_subscription_costs_pipeline` | Orchestrator |
 
 ---
 
@@ -140,8 +140,8 @@ GET    /api/v1/subscriptions/{org}/providers/{p}/available-plans # Get templates
 |------|---------|
 | `01-fronted-system/actions/subscription-providers.ts` | Server actions |
 | `02-api-service/src/app/routers/subscription_plans.py` | CRUD endpoints |
-| `02-api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Templates |
-| `03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml` | Pipeline |
+| `02-api-service/configs/subscription/seed/data/subscription_plans.csv` | Templates |
+| `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml` | Pipeline |
 
 ---
 

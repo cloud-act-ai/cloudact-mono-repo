@@ -97,7 +97,7 @@ export interface CostDataResponse {
 }
 
 export interface TotalCostSummary {
-  saas: {
+  subscription: {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
@@ -115,7 +115,7 @@ export interface TotalCostSummary {
     record_count: number
     providers: string[]
   }
-  llm: {
+  genai: {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
@@ -246,7 +246,7 @@ export async function getGenAICosts(
     }
 
     const apiUrl = getApiServiceUrl()
-    let url = `${apiUrl}/api/v1/costs/${orgSlug}/llm`
+    let url = `${apiUrl}/api/v1/costs/${orgSlug}/genai`
 
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
@@ -613,9 +613,9 @@ export async function getTotalCosts(
     }
 
     const result = await safeJsonParse<TotalCostSummary>(response, {
-      saas: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, record_count: 0, providers: [] },
+      subscription: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, record_count: 0, providers: [] },
       cloud: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, record_count: 0, providers: [] },
-      llm: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, record_count: 0, providers: [] },
+      genai: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0, record_count: 0, providers: [] },
       total: { total_daily_cost: 0, total_monthly_cost: 0, total_annual_cost: 0 },
       date_range: { start: "", end: "" },
       currency: "USD",
@@ -642,7 +642,8 @@ export async function getTotalCosts(
 export async function getCostTrend(
   orgSlug: string,
   granularity: "daily" | "weekly" | "monthly" = "daily",
-  days: number = 30
+  days: number = 30,
+  category?: "genai" | "cloud" | "subscription"
 ): Promise<{
   success: boolean
   data: CostTrendPoint[]
@@ -663,7 +664,14 @@ export async function getCostTrend(
     }
 
     const apiUrl = getApiServiceUrl()
-    const url = `${apiUrl}/api/v1/costs/${orgSlug}/trend?granularity=${granularity}&days=${days}`
+    const params = new URLSearchParams({
+      granularity,
+      days: days.toString(),
+    })
+    if (category) {
+      params.set("category", category)
+    }
+    const url = `${apiUrl}/api/v1/costs/${orgSlug}/trend?${params.toString()}`
 
     const response = await fetchWithTimeout(url, {
       headers: { "X-API-Key": orgApiKey },
@@ -1107,7 +1115,7 @@ export interface PeriodCostsResponse {
  */
 export async function getExtendedPeriodCosts(
   orgSlug: string,
-  costType: "total" | "cloud" | "llm" = "total",
+  costType: "total" | "cloud" | "genai" = "total",
   filters?: CostFilterParams,
   fiscalStartMonth: number = 4
 ): Promise<PeriodCostsResponse> {
@@ -1176,15 +1184,15 @@ export async function getExtendedPeriodCosts(
       switch (costType) {
         case "cloud":
           return getCategoryCost(result.data.cloud)
-        case "llm":
-          return getCategoryCost(result.data.llm)
+        case "genai":
+          return getCategoryCost(result.data.genai)
         case "total":
         default: {
           // Sum all cost types for total
-          const saas = getCategoryCost(result.data.saas)
+          const subscription = getCategoryCost(result.data.subscription)
           const cloud = getCategoryCost(result.data.cloud)
-          const llm = getCategoryCost(result.data.llm)
-          const total = saas + cloud + llm
+          const genai = getCategoryCost(result.data.genai)
+          const total = subscription + cloud + genai
           // Fallback to total.total_billed_cost or total_monthly_cost
           return total || (result.data.total?.total_billed_cost ?? result.data.total?.total_monthly_cost ?? 0)
         }

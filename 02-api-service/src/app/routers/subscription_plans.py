@@ -77,7 +77,7 @@ The system automatically handles:
 
 Database Schema:
 ----------------
-saas_subscription_plans table includes:
+subscription_plans table includes:
 - start_date: When this version became effective
 - end_date: When this version expired (NULL for current version)
 - status: active | pending | expired | cancelled
@@ -105,8 +105,8 @@ import sys
 from google.cloud import bigquery
 import google.api_core.exceptions
 
-# Add configs/saas/schema to path for schema imports
-schema_path = Path(__file__).parent.parent.parent.parent / "configs" / "saas" / "schema"
+# Add configs/subscription/schema to path for schema imports
+schema_path = Path(__file__).parent.parent.parent.parent / "configs" / "subscription" / "schema"
 if str(schema_path) not in sys.path:
     sys.path.insert(0, str(schema_path))
 
@@ -209,7 +209,7 @@ def invalidate_all_subscription_caches(org_slug: str, provider: str = None) -> i
 # ============================================
 
 # Table name for SaaS subscription plans
-SAAS_SUBSCRIPTION_PLANS_TABLE = "saas_subscription_plans"
+SAAS_SUBSCRIPTION_PLANS_TABLE = "subscription_plans"
 
 # Note: LLM_API_PROVIDERS, SAAS_PROVIDERS, PROVIDER_CATEGORIES, and helper functions
 # are now imported from the centralized subscription_schema module
@@ -864,7 +864,7 @@ def load_seed_data_for_provider(provider: str) -> List[Dict[str, Any]]:
     # Check cache first
     if provider_key in _SEED_DATA_CACHE:
         return _SEED_DATA_CACHE[provider_key]
-    seed_path = Path(__file__).parent.parent.parent.parent / "configs" / "saas" / "seed" / "data" / "saas_subscription_plans.csv"
+    seed_path = Path(__file__).parent.parent.parent.parent / "configs" / "subscription" / "seed" / "data" / "subscription_plans.csv"
 
     if not seed_path.exists():
         logger.warning(f"Seed data file not found: {seed_path}")
@@ -892,9 +892,9 @@ def load_seed_data_for_provider(provider: str) -> List[Dict[str, Any]]:
     return plans
 
 
-def get_saas_subscription_plans_schema() -> List[bigquery.SchemaField]:
+def get_subscription_plans_schema() -> List[bigquery.SchemaField]:
     """
-    Get the schema for saas_subscription_plans table.
+    Get the schema for subscription_plans table.
 
     NOTE: This schema must match the Pydantic models (SubscriptionPlan, PlanCreate, etc.)
     defined in this file and in subscription_schema.py. Any schema changes should be
@@ -935,7 +935,7 @@ def get_saas_subscription_plans_schema() -> List[bigquery.SchemaField]:
 
 async def ensure_table_exists(bq_client: BigQueryClient, dataset_id: str) -> bool:
     """
-    Ensure the saas_subscription_plans table exists in the org's dataset.
+    Ensure the subscription_plans table exists in the org's dataset.
     Creates it if it doesn't exist.
 
     Returns True if table exists or was created successfully.
@@ -951,7 +951,7 @@ async def ensure_table_exists(bq_client: BigQueryClient, dataset_id: str) -> boo
         # Table doesn't exist - create it
         logger.info(f"Table not found, creating: {table_ref}")
         try:
-            schema = get_saas_subscription_plans_schema()
+            schema = get_subscription_plans_schema()
             table = bigquery.Table(table_ref, schema=schema)
             table.description = "SaaS subscription plans for providers (Canva, Slack, ChatGPT Plus, etc.)"
             table.clustering_fields = ["provider", "plan_name"]
@@ -1129,7 +1129,12 @@ async def disable_provider(
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     # MT-003: Verify org isolation - authenticated org must match requested org_slug
-    assert org_slug == org["org_slug"], f"Org mismatch: requested {org_slug} but authenticated as {org['org_slug']}"
+    # BUG FIX: assert can be disabled with -O flag, use HTTPException instead
+    if org_slug != org["org_slug"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: cannot access organization '{org_slug}'"
+        )
 
     # First, count how many plans will be deleted (scoped to org for multi-tenant safety)
     count_query = f"""
@@ -1190,62 +1195,6 @@ async def disable_provider(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to disable provider. Please try again."
         )
-
-
-@router.get(
-    "/subscriptions/{org_slug}/providers/{provider}/available-plans",
-    response_model=AvailablePlansResponse,
-    summary="Get available predefined plans from seed data",
-    tags=["Subscriptions"]
-)
-async def get_available_plans(
-    org_slug: str,
-    provider: str,
-    org: Dict = Depends(get_current_org)
-):
-    """
-    Get predefined subscription plans from seed CSV data.
-
-    Returns plan templates that can be used to create subscriptions.
-    These are NOT active subscriptions - they are templates to choose from.
-
-    Use POST /plans to create an actual subscription from these templates.
-    """
-    validate_org_slug(org_slug)
-    check_org_access(org, org_slug)
-    provider = validate_provider(provider)
-
-    # Load seed data from CSV
-    seed_data = load_seed_data_for_provider(provider)
-
-    # Convert to AvailablePlan objects
-    # EDGE-001: Empty result is valid - provider may have no plans configured yet
-    plans = []
-    for row in seed_data:
-        try:
-            plan = AvailablePlan(
-                plan_name=row.get("plan_name", "").upper(),
-                display_name=row.get("display_name") or row.get("plan_name", ""),
-                billing_cycle=row.get("billing_cycle", "monthly"),
-                pricing_model=row.get("pricing_model", "FLAT_FEE"),
-                unit_price=float(row.get("unit_price", 0)),
-                yearly_price=float(row.get("yearly_price")) if row.get("yearly_price") else None,
-                notes=row.get("notes"),
-                seats=int(row.get("seats", 0)) if row.get("seats") else 0,
-                category=row.get("category", "other"),
-                discount_type=row.get("discount_type") if row.get("discount_type") else None,
-                discount_value=int(row.get("discount_value")) if row.get("discount_value") else None,
-            )
-            plans.append(plan)
-        except (ValueError, TypeError) as e:
-            logger.warning(f"Skipping invalid seed row for {provider}: {e}")
-            continue
-
-    return AvailablePlansResponse(
-        success=True,
-        provider=provider,
-        plans=plans
-    )
 
 
 # ============================================
@@ -1471,7 +1420,7 @@ async def get_available_plans(
     """
     Get predefined plan templates for a provider from CSV seed data.
 
-    This endpoint reads from configs/saas/seed/data/saas_subscription_plans.csv
+    This endpoint reads from configs/subscription/seed/data/subscription_plans.csv
     and returns plan metadata (not org-specific fields like subscription_id).
 
     Use these templates as a reference when creating plans via POST /plans.
@@ -1917,7 +1866,7 @@ async def create_plan(
             "exchange_rate_used": plan.exchange_rate_used,
         }
         # STATE-005: Audit logs are best-effort and non-blocking. If audit logging fails,
-        # the state can be regenerated from saas_subscription_plans table history
+        # the state can be regenerated from subscription_plans table history
         # (using subscription_id, created_at, updated_at, start_date, end_date).
         audit_logged = False
         for attempt in range(3):
@@ -2260,7 +2209,7 @@ async def edit_plan_with_version(
     How Cost Service Handles Version History:
     ------------------------------------------
     The cost aggregation logic (see cost_service.py) automatically handles this by:
-    1. Querying saas_subscription_plans WHERE start_date <= cost_date AND (end_date IS NULL OR end_date >= cost_date)
+    1. Querying subscription_plans WHERE start_date <= cost_date AND (end_date IS NULL OR end_date >= cost_date)
     2. This ensures only the active version for each date range is used
     3. YTD/MTD calculations sum across all applicable versions
     4. Forecast uses ONLY the latest version (current pricing)

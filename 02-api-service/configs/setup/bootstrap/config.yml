@@ -33,10 +33,10 @@ tables:
     partition:
       type: "DAY"
       field: "usage_date"
-    clustering: ["org_slug", "usage_date"]
+    clustering: ["org_slug"]
 
   org_integration_credentials:
-    description: "Integration credentials for LLM providers and cloud accounts (KMS encrypted)"
+    description: "Integration credentials for GenAI providers and cloud accounts (KMS encrypted)"
     clustering: ["org_slug", "provider", "validation_status"]
 
   org_pipeline_configs:
@@ -107,7 +107,10 @@ tables:
 
   org_idempotency_keys:
     description: "Idempotency key tracking for duplicate request prevention (24-hour TTL)"
-    clustering: ["idempotency_key", "org_slug"]
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "idempotency_key"]
 
   # ============================================
   # Notification System Tables
@@ -120,7 +123,10 @@ tables:
 
   org_notification_rules:
     description: "Cost alert rules and thresholds"
-    clustering: ["org_slug", "rule_type", "is_active"]
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "rule_category", "is_active"]
 
   org_notification_summaries:
     description: "Scheduled cost summary configurations"
@@ -140,4 +146,7 @@ tables:
 
   org_hierarchy:
     description: "Organizational hierarchy (Dept → Project → Team) for cost allocation"
+    partition:
+      type: "DAY"
+      field: "created_at"
     clustering: ["org_slug", "entity_type", "is_active"]

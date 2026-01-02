@@ -20,7 +20,7 @@ Tests should be run in this order due to dependencies:
 5. test_integrations.md         -> LLM/Cloud setup (required for pipelines)
 6. test_pipelines.md            -> Pipeline execution (requires integrations)
 7. test_dashboards.md           -> Analytics (requires pipeline data)
-8. test_saas_subscriptions.md   -> SaaS costs (independent)
+8. test_subscriptions.md   -> SaaS costs (independent)
 ```
 
 ---
@@ -36,7 +36,7 @@ Tests should be run in this order due to dependencies:
 | 5 | `test_integrations.md` | 20 | OpenAI, Anthropic, GCP setup | #1, #2 |
 | 6 | `test_pipelines.md` | 20 | Pipeline execution, quota, history | #1, #2, #5 |
 | 7 | `test_dashboards.md` | 20 | Cost dashboards, analytics, logs | #1, #6 |
-| 8 | `test_saas_subscriptions.md` | 20 | SaaS subscriptions, multi-currency | #1, #2 |
+| 8 | `test_subscriptions.md` | 20 | SaaS subscriptions, multi-currency | #1, #2 |
 
 **Total: 160 tests across 8 workflows**
 
@@ -54,14 +54,14 @@ Tests should be run in this order due to dependencies:
 @test_integrations.md
 @test_pipelines.md
 @test_dashboards.md
-@test_saas_subscriptions.md
+@test_subscriptions.md
 ```
 
 ### Run Independent Tests (Parallel OK)
 ```bash
 # These can run in parallel after #1-2 complete
 @test_team_invites.md      # Independent
-@test_saas_subscriptions.md # Independent
+@test_subscriptions.md # Independent
 @test_organization.md       # Independent
 ```
 
@@ -87,7 +87,7 @@ Tests should be run in this order due to dependencies:
 
 ### Integrations
 - `test_integrations.md` - LLM + Cloud providers
-- `test_saas_subscriptions.md` - SaaS cost tracking
+- `test_subscriptions.md` - SaaS cost tracking
 
 ### Execution & Analytics
 - `test_pipelines.md` - Pipeline runs
@@ -108,7 +108,7 @@ Each workflow generates a report in `.agent/artifacts/`:
 | test_integrations | `INTEGRATIONS_TEST_REPORT.md` |
 | test_pipelines | `PIPELINES_TEST_REPORT.md` |
 | test_dashboards | `DASHBOARDS_TEST_REPORT.md` |
-| test_saas_subscriptions | `SUBSCRIPTION_TEST_REPORT_COMPREHENSIVE.md` |
+| test_subscriptions | `SUBSCRIPTION_TEST_REPORT_COMPREHENSIVE.md` |
 
 ---
 

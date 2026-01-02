@@ -66,11 +66,12 @@ run_sql() {
         exit 1
     fi
 
-    # Use direct connection: db.<project_ref>.supabase.co:5432
+    # Use pooler connection: aws-0-{region}.pooler.supabase.com:6543
+    local region="${SUPABASE_REGION:-us-west-2}"
     PGPASSWORD="$SUPABASE_DB_PASSWORD" psql \
-        -h "db.${project_ref}.supabase.co" \
-        -p 5432 \
-        -U "postgres" \
+        -h "aws-0-${region}.pooler.supabase.com" \
+        -p 6543 \
+        -U "postgres.${project_ref}" \
         -d "postgres" \
         -t -q -c "$sql" 2>/dev/null
 }
@@ -79,11 +80,12 @@ run_sql() {
 run_sql_file() {
     local file="$1"
     local project_ref=$(get_project_ref)
+    local region="${SUPABASE_REGION:-us-west-2}"
 
     PGPASSWORD="$SUPABASE_DB_PASSWORD" psql \
-        -h "db.${project_ref}.supabase.co" \
-        -p 5432 \
-        -U "postgres" \
+        -h "aws-0-${region}.pooler.supabase.com" \
+        -p 6543 \
+        -U "postgres.${project_ref}" \
         -d "postgres" \
         -q -f "$file" 2>&1
 }

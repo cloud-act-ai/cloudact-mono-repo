@@ -39,7 +39,7 @@ Not Configured → Setup → Validating → Active
 | BigQuery | `organizations.org_integrations` | Status + config |
 | BigQuery | `organizations.org_credentials` | KMS-encrypted credentials |
 | File | `configs/system/providers.yml` | Provider registry |
-| Supabase | `saas_subscription_providers_meta` | SaaS toggles |
+| Supabase | `subscription_providers_meta` | SaaS toggles |
 
 ---
 

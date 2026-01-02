@@ -125,7 +125,7 @@ class CostQueryParams(BaseModel):
     start_date: Optional[date] = Field(None, description="Start date for cost data (inclusive)")
     end_date: Optional[date] = Field(None, description="End date for cost data (inclusive)")
     providers: Optional[List[str]] = Field(None, description="Filter by providers (e.g., openai, anthropic, gcp)")
-    service_categories: Optional[List[str]] = Field(None, description="Filter by service categories (e.g., SaaS, Cloud)")
+    service_categories: Optional[List[str]] = Field(None, description="Filter by service categories (e.g., Subscriptions, Cloud)")
     department_id: Optional[str] = Field(None, description="Filter by department ID (hierarchy)")
     project_id: Optional[str] = Field(None, description="Filter by project ID (hierarchy)")
     team_id: Optional[str] = Field(None, description="Filter by team ID (hierarchy)")
@@ -150,8 +150,8 @@ class CostDataResponse(BaseModel):
                 "success": True,
                 "data": [
                     {
-                        "Provider": "openai",
-                        "ServiceCategory": "SaaS",
+                        "Provider": "slack",
+                        "ServiceCategory": "Subscription",
                         "BilledCost": 150.50,
                         "ChargePeriodStart": "2025-12-01"
                     }
@@ -269,7 +269,7 @@ async def get_costs(
     - **start_date**: Filter costs from this date
     - **end_date**: Filter costs until this date
     - **providers**: Comma-separated provider filter (e.g., "openai,anthropic")
-    - **service_categories**: Comma-separated category filter (e.g., "SaaS,Cloud")
+    - **service_categories**: Comma-separated category filter (e.g., "Subscriptions,Cloud")
     - **department_id**: Filter by department ID (hierarchy)
     - **project_id**: Filter by project ID (hierarchy)
     - **team_id**: Filter by team ID (hierarchy)
@@ -513,6 +513,7 @@ async def get_cost_trend(
     request: Request,
     granularity: Granularity = Query(Granularity.DAILY, description="Time granularity"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    category: Optional[str] = Query(None, description="Cost category filter: genai, cloud, or subscription"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -522,6 +523,7 @@ async def get_cost_trend(
 
     - **granularity**: "daily", "weekly", or "monthly"
     - **days**: Number of days to look back (default 30, max 365)
+    - **category**: Filter by cost category ("genai", "cloud", "subscription")
 
     Returns time series data with:
     - Period (date)
@@ -551,7 +553,7 @@ async def get_cost_trend(
         start_date=today - timedelta(days=days),
         end_date=today
     )
-    result = await cost_service.get_cost_trend(query, granularity.value)
+    result = await cost_service.get_cost_trend(query, granularity.value, category=category)
 
     if not result.success:
         raise HTTPException(
@@ -566,16 +568,16 @@ async def get_cost_trend(
 
 
 # ==============================================================================
-# SaaS Subscription Costs Endpoint (Polars-powered)
+# Subscription Costs Endpoint (Polars-powered)
 # ==============================================================================
 
 @router.get(
-    "/{org_slug}/saas-subscriptions",
+    "/{org_slug}/subscriptions",
     response_model=CostDataResponse,
-    summary="Get SaaS Subscription Costs",
-    description="Get actual calculated SaaS subscription costs from cost_data_standard_1_3 (pipeline output). Rate limited: 60 req/min per org."
+    summary="Get Subscription Costs",
+    description="Get actual calculated subscription costs from cost_data_standard_1_3 (pipeline output). Rate limited: 60 req/min per org."
 )
-async def get_saas_subscription_costs(
+async def get_subscription_costs(
     org_slug: str,
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
@@ -588,10 +590,10 @@ async def get_saas_subscription_costs(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get SaaS subscription costs from the cost_data_standard_1_3 table.
+    Get subscription costs from the cost_data_standard_1_3 table.
 
     This is the **source of truth** for subscription costs, calculated by the
-    SaaS subscription costs pipeline (sp_run_saas_subscription_costs_pipeline).
+    subscription costs pipeline (sp_run_subscription_costs_pipeline).
 
     Returns:
     - Per-subscription monthly and annual run rates (calculated from daily costs)
@@ -609,7 +611,7 @@ async def get_saas_subscription_costs(
         request=request,
         org_slug=org_slug,
         limit_per_minute=60,
-        endpoint_name="get_saas_subscription_costs"
+        endpoint_name="get_subscription_costs"
     )
 
     query = CostQuery(
@@ -620,12 +622,12 @@ async def get_saas_subscription_costs(
         project_id=project_id,
         team_id=team_id
     )
-    result = await cost_service.get_saas_subscription_costs(query)
+    result = await cost_service.get_subscription_costs(query)
 
     if not result.success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=result.error or "Failed to retrieve SaaS subscription costs"
+            detail=result.error or "Failed to retrieve subscription costs"
         )
 
     # Fetch org currency
@@ -701,16 +703,16 @@ async def get_cloud_costs(
 
 
 # ==============================================================================
-# LLM API Costs Endpoint
+# GenAI API Costs Endpoint
 # ==============================================================================
 
 @router.get(
-    "/{org_slug}/llm",
+    "/{org_slug}/genai",
     response_model=CostDataResponse,
-    summary="Get LLM API Costs",
-    description="Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_3. Rate limited: 60 req/min per org."
+    summary="Get GenAI API Costs",
+    description="Get GenAI API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_3. Rate limited: 60 req/min per org."
 )
-async def get_llm_costs(
+async def get_genai_costs(
     org_slug: str,
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
@@ -723,7 +725,7 @@ async def get_llm_costs(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get LLM API costs from cost_data_standard_1_3.
+    Get GenAI API costs from cost_data_standard_1_3.
 
     Includes costs from:
     - OpenAI (GPT-4, GPT-3.5, embeddings, etc.)
@@ -731,7 +733,7 @@ async def get_llm_costs(
     - Google (Gemini)
     - Cohere
     - Mistral
-    - Other LLM providers
+    - Other GenAI providers
 
     Returns:
     - Daily, monthly, and annual cost projections
@@ -744,7 +746,7 @@ async def get_llm_costs(
         request=request,
         org_slug=org_slug,
         limit_per_minute=60,
-        endpoint_name="get_llm_costs"
+        endpoint_name="get_genai_costs"
     )
 
     query = CostQuery(
@@ -755,12 +757,12 @@ async def get_llm_costs(
         project_id=project_id,
         team_id=team_id
     )
-    result = await cost_service.get_llm_costs(query)
+    result = await cost_service.get_genai_costs(query)
 
     if not result.success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=result.error or "Failed to retrieve LLM costs"
+            detail=result.error or "Failed to retrieve GenAI costs"
         )
 
     # Fetch org currency
@@ -777,7 +779,7 @@ class TotalCostSummary(BaseModel):
     """Aggregated cost summary across all cost types."""
     saas: Dict[str, Any]
     cloud: Dict[str, Any]
-    llm: Dict[str, Any]
+    genai: Dict[str, Any]
     total: Dict[str, Any]
     date_range: Dict[str, str]
     query_time_ms: float
@@ -788,7 +790,7 @@ class TotalCostSummary(BaseModel):
     "/{org_slug}/total",
     response_model=TotalCostSummary,
     summary="Get Total Costs",
-    description="Get aggregated costs across SaaS subscriptions, cloud infrastructure, and LLM APIs. Rate limited: 60 req/min per org."
+    description="Get aggregated costs across subscriptions, cloud infrastructure, and GenAI APIs. Rate limited: 60 req/min per org."
 )
 async def get_total_costs(
     org_slug: str,
@@ -806,7 +808,7 @@ async def get_total_costs(
     Get total costs aggregated from all sources.
 
     Combines costs from:
-    - SaaS subscriptions (ChatGPT Plus, Canva, Slack, etc.)
+    - Subscriptions (ChatGPT Plus, Canva, Slack, etc.)
     - Cloud infrastructure (GCP, AWS, Azure)
     - LLM APIs (OpenAI, Anthropic, etc.)
 
@@ -840,15 +842,15 @@ async def get_total_costs(
     )
 
     # Fetch all cost types in parallel
-    saas_result, cloud_result, llm_result = await asyncio.gather(
-        cost_service.get_saas_subscription_costs(query),
+    saas_result, cloud_result, genai_result = await asyncio.gather(
+        cost_service.get_subscription_costs(query),
         cost_service.get_cloud_costs(query),
-        cost_service.get_llm_costs(query)
+        cost_service.get_genai_costs(query)
     )
 
     # Validate date ranges match across cost types
     date_ranges = []
-    for result_name, result in [("saas", saas_result), ("cloud", cloud_result), ("llm", llm_result)]:
+    for result_name, result in [("saas", saas_result), ("cloud", cloud_result), ("genai", genai_result)]:
         if result.success and result.summary and "date_range" in result.summary:
             date_ranges.append((result_name, result.summary["date_range"]))
         elif result.success and result.data:
@@ -909,19 +911,19 @@ async def get_total_costs(
 
     saas_summary = safe_summary(saas_result)
     cloud_summary = safe_summary(cloud_result)
-    llm_summary = safe_summary(llm_result)
+    genai_summary = safe_summary(genai_result)
 
     # Calculate totals (both projections and actual billed)
-    total_daily = saas_summary["total_daily_cost"] + cloud_summary["total_daily_cost"] + llm_summary["total_daily_cost"]
-    total_monthly = saas_summary["total_monthly_cost"] + cloud_summary["total_monthly_cost"] + llm_summary["total_monthly_cost"]
-    total_annual = saas_summary["total_annual_cost"] + cloud_summary["total_annual_cost"] + llm_summary["total_annual_cost"]
-    total_billed = saas_summary["total_billed_cost"] + cloud_summary["total_billed_cost"] + llm_summary["total_billed_cost"]
+    total_daily = saas_summary["total_daily_cost"] + cloud_summary["total_daily_cost"] + genai_summary["total_daily_cost"]
+    total_monthly = saas_summary["total_monthly_cost"] + cloud_summary["total_monthly_cost"] + genai_summary["total_monthly_cost"]
+    total_annual = saas_summary["total_annual_cost"] + cloud_summary["total_annual_cost"] + genai_summary["total_annual_cost"]
+    total_billed = saas_summary["total_billed_cost"] + cloud_summary["total_billed_cost"] + genai_summary["total_billed_cost"]
 
     query_time = (time.time() - start_time) * 1000
 
     # Determine date range from first successful result
     date_range = {"start": "", "end": ""}
-    for result in [saas_result, cloud_result, llm_result]:
+    for result in [saas_result, cloud_result, genai_result]:
         if result.success and result.summary and "date_range" in result.summary:
             date_range = result.summary["date_range"]
             break
@@ -932,7 +934,7 @@ async def get_total_costs(
     return TotalCostSummary(
         saas=saas_summary,
         cloud=cloud_summary,
-        llm=llm_summary,
+        genai=genai_summary,
         total={
             "total_daily_cost": round(total_daily, 2),
             "total_monthly_cost": round(total_monthly, 2),

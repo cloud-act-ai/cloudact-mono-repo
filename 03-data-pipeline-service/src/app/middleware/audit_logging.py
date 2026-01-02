@@ -6,6 +6,7 @@ Provides comprehensive audit logging for all org actions.
 import uuid
 import json
 import logging
+import threading
 from typing import Optional, Dict, Any
 from datetime import datetime
 from fastapi import Request
@@ -180,16 +181,20 @@ class AuditLogger:
         )
 
 
-# Global audit logger instance
+# Thread-safe singleton instance
 _audit_logger: Optional[AuditLogger] = None
+_audit_logger_lock = threading.Lock()
 
 
 def get_audit_logger() -> AuditLogger:
-    """Get or create the global audit logger instance."""
+    """Get or create the global audit logger instance (thread-safe)."""
     global _audit_logger
-    if _audit_logger is None:
-        _audit_logger = AuditLogger()
-    return _audit_logger
+    if _audit_logger is not None:
+        return _audit_logger
+    with _audit_logger_lock:
+        if _audit_logger is None:
+            _audit_logger = AuditLogger()
+        return _audit_logger
 
 
 # Convenience functions for common audit events

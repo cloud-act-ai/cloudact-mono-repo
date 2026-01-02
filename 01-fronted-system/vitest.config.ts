@@ -21,7 +21,7 @@ export default defineConfig({
             '**/tests/07-*.test.ts',
             '**/tests/09-*.test.ts',
             '**/tests/13-*.test.ts',
-            '**/tests/saas_subscription/**',
+            '**/tests/subscription/**',
             '**/tests/organization_onboarding/**',
             '**/tests/user_account/**',
             // E2E tests that require Node.js modules (fs, crypto)

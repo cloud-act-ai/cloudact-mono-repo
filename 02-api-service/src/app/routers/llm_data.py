@@ -2,7 +2,7 @@
 LLM Provider Data CRUD API Routes
 
 Generic endpoints for managing pricing and subscription data for all LLM providers.
-Uses unified tables (saas_subscriptions, llm_model_pricing) with provider column filtering.
+Uses unified tables (subscriptions, llm_model_pricing) with provider column filtering.
 
 URL Structure: /api/v1/integrations/{org_slug}/{provider}/pricing|subscriptions
 """
@@ -39,7 +39,7 @@ settings = get_settings()
 # ============================================
 # Unified Table Names (V7 Architecture)
 # ============================================
-UNIFIED_SUBSCRIPTIONS_TABLE = "saas_subscription_plans"
+UNIFIED_SUBSCRIPTIONS_TABLE = "subscription_plans"
 UNIFIED_PRICING_TABLE = "llm_model_pricing"
 
 # Valid providers for filtering (including 'custom' for user-defined)
@@ -810,7 +810,7 @@ async def list_subscriptions(
     """
     List all subscription records for an organization and provider.
 
-    Uses unified saas_subscriptions table with provider filtering.
+    Uses unified subscriptions table with provider filtering.
     By default includes both provider-specific and custom entries.
     """
     validate_org_slug(org_slug)
@@ -1200,7 +1200,7 @@ async def update_subscription(
 
         update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-        # SECURITY: Include org_slug in WHERE clause for defense in depth (saas_subscription_plans has org_slug column)
+        # SECURITY: Include org_slug in WHERE clause for defense in depth (subscription_plans has org_slug column)
         query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE plan_name = @plan_name AND provider = @provider AND org_slug = @org_slug"
         job_config = bigquery.QueryJobConfig(
             query_parameters=query_params,
@@ -1291,8 +1291,8 @@ async def reset_subscriptions(
     check_org_access(org, org_slug)
 
     try:
-        from src.app.routers.integrations import _initialize_saas_subscriptions
-        result = await _initialize_saas_subscriptions(org_slug, provider.value, force=True)
+        from src.app.routers.integrations import _initialize_subscriptions
+        result = await _initialize_subscriptions(org_slug, provider.value, force=True)
 
         if result.get("status") != "SUCCESS":
             raise HTTPException(status_code=500, detail=result.get("error", "Failed to reset subscriptions"))

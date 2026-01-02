@@ -314,7 +314,7 @@ tmpl_discord_nitro,,sub_discord_nitro,discord,NITRO,Discord Nitro,communication,
 This CSV architecture replaces direct backend CSV imports with frontend-managed seed data:
 
 **Before (Backend CSV):**
-- `02-api-service/configs/saas/seed/data/saas_subscription_plans.csv`
+- `02-api-service/configs/subscription/seed/data/subscription_plans.csv`
 - No exchange rate CSV (hardcoded in backend)
 
 **After (Frontend CSV):**

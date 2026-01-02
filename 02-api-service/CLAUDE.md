@@ -31,7 +31,7 @@ Frontend-facing API for org management, auth, and integrations. Handles bootstra
 | Admin | `/api/v1/admin/*` | Bootstrap, dev API key |
 | Organizations | `/api/v1/organizations/*` | Onboarding, subscription, locale |
 | Integrations | `/api/v1/integrations/*` | Setup/validate credentials |
-| Subscription Plans | `/api/v1/subscriptions/*` | SaaS CRUD with version history |
+| Subscription Plans | `/api/v1/subscriptions/*` | Subscription CRUD with version history |
 | Cost Service | `/api/v1/costs/*` | Polars-powered analytics |
 
 ## Development
@@ -137,7 +137,7 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/my_org" -H "X-CA-Roo
 curl -X POST "http://localhost:8000/api/v1/integrations/my_org/openai/setup" \
   -H "X-API-Key: $ORG_API_KEY" -d '{"api_key":"sk-..."}'
 
-# SaaS subscription
+# Subscription plan
 curl -X POST "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt_plus/plans" \
   -H "X-API-Key: $ORG_API_KEY" -d '{"plan_name":"TEAM","price_per_user_monthly":25.00,"currency":"USD"}'
 ```
@@ -304,7 +304,7 @@ API Request → CostQuery(resolve_dates()) → _fetch_cost_data() → lib/costs/
 | `get_hierarchy_rollup()` | Full hierarchy (single fetch) | `aggregate_by_hierarchy` x3 |
 | `get_cost_forecast()` | MTD → forecasts | `calculate_forecasts` |
 | `get_cost_comparison()` | Period vs Period | `get_comparison_ranges`, `calculate_percentage_change` |
-| `get_saas_subscription_costs()` | SaaS costs | `aggregate_by_provider`, `calculate_forecasts` |
+| `get_subscription_costs()` | Subscription costs | `aggregate_by_provider`, `calculate_forecasts` |
 | `get_cloud_costs()` | Cloud costs | `aggregate_by_provider`, `calculate_forecasts` |
 | `get_llm_costs()` | LLM API costs | `aggregate_by_provider`, `calculate_forecasts` |
 
@@ -433,7 +433,7 @@ get_comparison_ranges(ComparisonType.CUSTOM_DAYS, days=90)
 | Table Pattern | Owner | Field Prefix | Modifications |
 |---------------|-------|--------------|---------------|
 | `org_integration_credentials` | API (8000) | None | CRUD via routers |
-| `saas_subscription_plans` | API (8000) | None | CRUD via routers |
+| `subscription_plans` | API (8000) | None | CRUD via routers |
 | `org_hierarchy` | API (8000) | None | CRUD via routers |
 | `org_profiles` | API (8000) | None | CRUD via routers |
 | `*_usage_raw` | Pipeline (8001) | `x_*` | Read-only from API |

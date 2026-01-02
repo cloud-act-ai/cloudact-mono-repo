@@ -405,7 +405,7 @@ export function CostCategoryRing({
   const segments: ScoreRingSegment[] = [
     { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
     { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
-    { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
+    { key: "saas", name: "Subscriptions", value: saasCost, color: "#FF6C5E" },
   ].filter((s) => s.value > 0)
 
   // Calculate a spend "score" based on budget efficiency or trend

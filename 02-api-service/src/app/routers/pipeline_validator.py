@@ -188,7 +188,7 @@ class PipelineRegistry:
             category: Category (cloud, genai, saas)
             provider: Provider (gcp, aws, azure, or empty for genai/saas)
             domain: Domain (cost, payg, costs)
-            pipeline: Pipeline template name (billing, saas_cost, etc.)
+            pipeline: Pipeline template name (billing, subscription_cost, etc.)
 
         Returns:
             Pipeline config dict if found, None otherwise
@@ -382,7 +382,7 @@ async def validate_pipeline_execution(
 
             # Known categories that use 3-segment format (category_domain_pipeline)
             # For these, provider equals category in the registry
-            three_segment_categories = {"saas", "genai"}
+            three_segment_categories = {"saas", "genai", "subscription"}
 
             if category == "cloud" and len(parts) >= 4:
                 # Cloud uses 4-segment: cloud_provider_domain_pipeline
@@ -391,7 +391,7 @@ async def validate_pipeline_execution(
                 pipeline = "_".join(parts[3:])  # Handle multi-part pipeline names
             elif category in three_segment_categories:
                 # SaaS/GenAI use 3-segment: category_domain_pipeline
-                # Pipeline name may contain underscores (e.g., saas_cost, azure_openai)
+                # Pipeline name may contain underscores (e.g., subscription_cost, azure_openai)
                 domain = parts[1]
                 pipeline = "_".join(parts[2:])  # Everything after domain is pipeline name
                 provider = ""  # Will match if registry has provider="" or provider=category

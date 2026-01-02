@@ -8,7 +8,7 @@
 -- SaaS Subscriptions Table
 -- =============================================
 
-CREATE TABLE IF NOT EXISTS saas_subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
 
@@ -39,43 +39,43 @@ CREATE TABLE IF NOT EXISTS saas_subscriptions (
 -- Indexes for Performance
 -- =============================================
 
-CREATE INDEX IF NOT EXISTS idx_saas_subscriptions_org_id
-    ON saas_subscriptions(org_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_org_id
+    ON subscriptions(org_id);
 
-CREATE INDEX IF NOT EXISTS idx_saas_subscriptions_provider
-    ON saas_subscriptions(org_id, provider_name);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_provider
+    ON subscriptions(org_id, provider_name);
 
-CREATE INDEX IF NOT EXISTS idx_saas_subscriptions_category
-    ON saas_subscriptions(org_id, category);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_category
+    ON subscriptions(org_id, category);
 
-CREATE INDEX IF NOT EXISTS idx_saas_subscriptions_enabled
-    ON saas_subscriptions(org_id, is_enabled);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_enabled
+    ON subscriptions(org_id, is_enabled);
 
 -- =============================================
 -- Row Level Security (RLS)
 -- =============================================
 
-ALTER TABLE saas_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Organization members can view their org's subscriptions
-CREATE POLICY "Members can view org subscriptions" ON saas_subscriptions
+CREATE POLICY "Members can view org subscriptions" ON subscriptions
     FOR SELECT
     USING (
         EXISTS (
             SELECT 1 FROM organization_members om
-            WHERE om.org_id = saas_subscriptions.org_id
+            WHERE om.org_id = subscriptions.org_id
             AND om.user_id = auth.uid()
             AND om.status = 'active'
         )
     );
 
 -- Policy: Owners and admins can insert subscriptions
-CREATE POLICY "Admins can create subscriptions" ON saas_subscriptions
+CREATE POLICY "Admins can create subscriptions" ON subscriptions
     FOR INSERT
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM organization_members om
-            WHERE om.org_id = saas_subscriptions.org_id
+            WHERE om.org_id = subscriptions.org_id
             AND om.user_id = auth.uid()
             AND om.status = 'active'
             AND om.role IN ('owner', 'admin')
@@ -83,12 +83,12 @@ CREATE POLICY "Admins can create subscriptions" ON saas_subscriptions
     );
 
 -- Policy: Owners and admins can update subscriptions
-CREATE POLICY "Admins can update subscriptions" ON saas_subscriptions
+CREATE POLICY "Admins can update subscriptions" ON subscriptions
     FOR UPDATE
     USING (
         EXISTS (
             SELECT 1 FROM organization_members om
-            WHERE om.org_id = saas_subscriptions.org_id
+            WHERE om.org_id = subscriptions.org_id
             AND om.user_id = auth.uid()
             AND om.status = 'active'
             AND om.role IN ('owner', 'admin')
@@ -96,12 +96,12 @@ CREATE POLICY "Admins can update subscriptions" ON saas_subscriptions
     );
 
 -- Policy: Owners and admins can delete subscriptions
-CREATE POLICY "Admins can delete subscriptions" ON saas_subscriptions
+CREATE POLICY "Admins can delete subscriptions" ON subscriptions
     FOR DELETE
     USING (
         EXISTS (
             SELECT 1 FROM organization_members om
-            WHERE om.org_id = saas_subscriptions.org_id
+            WHERE om.org_id = subscriptions.org_id
             AND om.user_id = auth.uid()
             AND om.status = 'active'
             AND om.role IN ('owner', 'admin')
@@ -112,7 +112,7 @@ CREATE POLICY "Admins can delete subscriptions" ON saas_subscriptions
 -- Trigger for updated_at
 -- =============================================
 
-CREATE OR REPLACE FUNCTION update_saas_subscriptions_updated_at()
+CREATE OR REPLACE FUNCTION update_subscriptions_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -120,33 +120,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS saas_subscriptions_updated_at ON saas_subscriptions;
+DROP TRIGGER IF EXISTS subscriptions_updated_at ON subscriptions;
 
-CREATE TRIGGER saas_subscriptions_updated_at
-    BEFORE UPDATE ON saas_subscriptions
+CREATE TRIGGER subscriptions_updated_at
+    BEFORE UPDATE ON subscriptions
     FOR EACH ROW
-    EXECUTE FUNCTION update_saas_subscriptions_updated_at();
+    EXECUTE FUNCTION update_subscriptions_updated_at();
 
 -- =============================================
 -- Comments for Documentation
 -- =============================================
 
-COMMENT ON TABLE saas_subscriptions IS 'Tracks fixed-cost SaaS subscriptions (Canva, Adobe, ChatGPT Plus, etc.) - NOT per-usage API costs';
-COMMENT ON COLUMN saas_subscriptions.provider_name IS 'Lowercase identifier (e.g., canva, adobe_cc, chatgpt_plus)';
-COMMENT ON COLUMN saas_subscriptions.display_name IS 'Human-readable name (e.g., Canva Pro, Adobe Creative Cloud)';
-COMMENT ON COLUMN saas_subscriptions.billing_cycle IS 'Billing frequency: monthly, annual, quarterly, or custom';
-COMMENT ON COLUMN saas_subscriptions.cost_per_cycle IS 'Cost per billing cycle in the specified currency';
-COMMENT ON COLUMN saas_subscriptions.seats IS 'Number of licenses/seats (optional)';
-COMMENT ON COLUMN saas_subscriptions.renewal_date IS 'Next billing/renewal date (optional)';
-COMMENT ON COLUMN saas_subscriptions.category IS 'Category for grouping (design, productivity, ai, development, etc.)';
-COMMENT ON COLUMN saas_subscriptions.is_enabled IS 'Whether this subscription is currently active for cost tracking';
+COMMENT ON TABLE subscriptions IS 'Tracks fixed-cost SaaS subscriptions (Canva, Adobe, ChatGPT Plus, etc.) - NOT per-usage API costs';
+COMMENT ON COLUMN subscriptions.provider_name IS 'Lowercase identifier (e.g., canva, adobe_cc, chatgpt_plus)';
+COMMENT ON COLUMN subscriptions.display_name IS 'Human-readable name (e.g., Canva Pro, Adobe Creative Cloud)';
+COMMENT ON COLUMN subscriptions.billing_cycle IS 'Billing frequency: monthly, annual, quarterly, or custom';
+COMMENT ON COLUMN subscriptions.cost_per_cycle IS 'Cost per billing cycle in the specified currency';
+COMMENT ON COLUMN subscriptions.seats IS 'Number of licenses/seats (optional)';
+COMMENT ON COLUMN subscriptions.renewal_date IS 'Next billing/renewal date (optional)';
+COMMENT ON COLUMN subscriptions.category IS 'Category for grouping (design, productivity, ai, development, etc.)';
+COMMENT ON COLUMN subscriptions.is_enabled IS 'Whether this subscription is currently active for cost tracking';
 
 -- =============================================
 -- Record Migration
 -- =============================================
 
 INSERT INTO schema_migrations (filename, checksum)
-VALUES ('12_saas_subscriptions_table.sql', 'saas-subscriptions-v1')
+VALUES ('12_subscriptions_table.sql', 'saas-subscriptions-v1')
 ON CONFLICT (filename) DO NOTHING;
 
 -- =============================================
@@ -154,11 +154,11 @@ ON CONFLICT (filename) DO NOTHING;
 -- =============================================
 
 -- Check table exists:
--- SELECT * FROM saas_subscriptions LIMIT 5;
+-- SELECT * FROM subscriptions LIMIT 5;
 
 -- Check RLS policies:
 -- SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual
--- FROM pg_policies WHERE tablename = 'saas_subscriptions';
+-- FROM pg_policies WHERE tablename = 'subscriptions';
 
 -- Get subscription summary for an org:
 -- SELECT
@@ -168,6 +168,6 @@ ON CONFLICT (filename) DO NOTHING;
 --              WHEN billing_cycle = 'annual' THEN cost_per_cycle / 12
 --              WHEN billing_cycle = 'quarterly' THEN cost_per_cycle / 3
 --              ELSE cost_per_cycle END) as monthly_equivalent
--- FROM saas_subscriptions
+-- FROM subscriptions
 -- WHERE org_id = 'your-org-id' AND is_enabled = true
 -- GROUP BY category;

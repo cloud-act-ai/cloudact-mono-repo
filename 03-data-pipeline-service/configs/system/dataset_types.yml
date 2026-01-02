@@ -18,7 +18,7 @@ dataset_types:
       cluster_fields: []
     # Supported tables and their configurations
     supported_tables:
-      # LLM Usage Tables (high volume - partitioned)
+      # GenAI Usage Tables (high volume - partitioned)
       openai_usage_daily_raw:
         partition_field: usage_date
         cluster_fields: [model_id, user_id]
@@ -45,19 +45,19 @@ dataset_types:
       anthropic_subscriptions:
         partition_field: null
         cluster_fields: [plan_name]
-      # Cloud Billing (high volume - partitioned)
+      # Cloud Billing (high volume - partitioned, max 4 clustering fields)
       cloud_gcp_billing_raw_daily:
         partition_field: ingestion_date
-        cluster_fields: [billing_account_id, service_id, project_id]
+        cluster_fields: [billing_account_id, service_id, project_id, location_region]
       cloud_aws_billing_raw_daily:
         partition_field: usage_date
-        cluster_fields: [linked_account_id, service_code]
+        cluster_fields: [linked_account_id, service_code, product_code, region]
       cloud_azure_billing_raw_daily:
         partition_field: usage_date
-        cluster_fields: [subscription_id, service_name]
+        cluster_fields: [subscription_id, service_name, resource_group, resource_location]
       cloud_oci_billing_raw_daily:
         partition_field: usage_date
-        cluster_fields: [tenancy_id, service_name]
+        cluster_fields: [tenancy_id, service_name, compartment_id, region]
 
 # Scalability notes:
 # - High-volume tables (usage, cost, billing) are partitioned by date

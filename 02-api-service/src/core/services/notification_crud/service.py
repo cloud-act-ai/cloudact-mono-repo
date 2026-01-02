@@ -9,6 +9,7 @@ import json
 import uuid
 import logging
 import base64
+import threading
 from typing import Optional, List, Dict, Any, Set
 from datetime import datetime, timedelta, timezone
 
@@ -1045,20 +1046,28 @@ class NotificationSettingsService:
             raise
 
 
-# Global service instance
+# Thread-safe global service instance
 _notification_settings_service: Optional[NotificationSettingsService] = None
+_notification_settings_service_lock = threading.Lock()
 
 
 def get_notification_settings_service(
     project_id: Optional[str] = None,
     dataset_id: str = "organizations",
 ) -> NotificationSettingsService:
-    """Get or create the global notification settings service instance."""
+    """Get or create the global notification settings service instance (thread-safe)."""
     global _notification_settings_service
 
-    if _notification_settings_service is None:
-        import os
-        project = project_id or os.environ.get("GCP_PROJECT_ID", "cloudact-testing-1")
-        _notification_settings_service = NotificationSettingsService(project, dataset_id)
+    # Fast path: already initialized
+    if _notification_settings_service is not None:
+        return _notification_settings_service
 
-    return _notification_settings_service
+    # Slow path: need to initialize with lock
+    with _notification_settings_service_lock:
+        # Double-check after acquiring lock
+        if _notification_settings_service is None:
+            import os
+            project = project_id or os.environ.get("GCP_PROJECT_ID", "cloudact-testing-1")
+            _notification_settings_service = NotificationSettingsService(project, dataset_id)
+
+        return _notification_settings_service

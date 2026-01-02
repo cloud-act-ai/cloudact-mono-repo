@@ -18,7 +18,7 @@ dataset_types:
       cluster_fields: []
     # Supported tables and their configurations
     supported_tables:
-      # LLM Usage Tables (high volume - partitioned)
+      # GenAI Usage Tables (high volume - partitioned)
       openai_usage_daily_raw:
         partition_field: usage_date
         cluster_fields: [model_id, user_id]

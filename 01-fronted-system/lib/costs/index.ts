@@ -173,11 +173,15 @@ export {
   transformCategoriesToTableRows,
   transformProvidersToBreakdownItems,
   transformCategoriesToBreakdownItems,
-  // Provider filtering
+  // Provider filtering & categorization
   CLOUD_PROVIDER_SET,
   GENAI_PROVIDER_SET,
+  detectProviderCategory,
+  isCloudProvider,
+  isGenAIProvider,
   filterCloudProviders,
   filterGenAIProviders,
+  filterSubscriptionProviders,
   // Safe value extraction
   getSafeValue,
   calculatePercentage,

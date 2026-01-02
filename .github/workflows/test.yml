@@ -134,7 +134,7 @@ jobs:
       - name: Run pure unit tests
         run: |
           cd 03-data-pipeline-service
-          python -m pytest tests/test_05b_saas_cost_calculation_unit.py -v --tb=short
+          python -m pytest tests/test_05b_subscription_cost_calculation_unit.py -v --tb=short
 
   # ==================================================
   # Integration Tests - Only on main branch or manual trigger

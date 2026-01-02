@@ -52,10 +52,10 @@ const ALL_PROVIDERS: ProviderConfig[] = [
   { id: "gcp", name: "Google Cloud", icon: <Cloud className="h-4 w-4" />, category: "cloud" },
   { id: "aws", name: "AWS", icon: <Server className="h-4 w-4" />, category: "cloud" },
   { id: "azure", name: "Azure", icon: <Database className="h-4 w-4" />, category: "cloud" },
-  { id: "openai", name: "OpenAI", icon: <Brain className="h-4 w-4" />, category: "llm" },
-  { id: "anthropic", name: "Claude", icon: <Sparkles className="h-4 w-4" />, category: "llm" },
-  { id: "gemini", name: "Gemini", icon: <Gem className="h-4 w-4" />, category: "llm" },
-  { id: "deepseek", name: "DeepSeek", icon: <Cpu className="h-4 w-4" />, category: "llm" },
+  { id: "openai", name: "OpenAI", icon: <Brain className="h-4 w-4" />, category: "genai" },
+  { id: "anthropic", name: "Claude", icon: <Sparkles className="h-4 w-4" />, category: "genai" },
+  { id: "gemini", name: "Gemini", icon: <Gem className="h-4 w-4" />, category: "genai" },
+  { id: "deepseek", name: "DeepSeek", icon: <Cpu className="h-4 w-4" />, category: "genai" },
   { id: "slack", name: "Slack", icon: <MessageSquare className="h-4 w-4" />, category: "saas" },
   { id: "notion", name: "Notion", icon: <FileText className="h-4 w-4" />, category: "saas" },
   { id: "figma", name: "Figma", icon: <Palette className="h-4 w-4" />, category: "saas" },
@@ -75,13 +75,13 @@ const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
     providers: ALL_PROVIDERS.filter((p) => p.category === "cloud"),
   },
   {
-    id: "llm",
+    id: "genai",
     name: "GenAI Providers",
     description: "OpenAI, Claude, Gemini usage",
     icon: Brain,
-    href: "llm",
+    href: "genai",
     accent: "coral", // Maps to --cloudact-coral
-    providers: ALL_PROVIDERS.filter((p) => p.category === "llm"),
+    providers: ALL_PROVIDERS.filter((p) => p.category === "genai"),
   },
   {
     id: "subscriptions",
@@ -168,7 +168,7 @@ export default function IntegrationsPage() {
           int.status === "VALID" &&
           int.is_enabled !== false
       ).length
-    } else if (categoryId === "llm") {
+    } else if (categoryId === "genai") {
       return Object.entries(integrations).filter(
         ([key, int]) =>
           (key === "OPENAI" || key === "ANTHROPIC" || key === "GEMINI" || key === "DEEPSEEK") &&
@@ -191,7 +191,7 @@ export default function IntegrationsPage() {
 
   const connectedCount = allConnectedProviders.length
   const cloudCount = getConnectedCount("cloud-providers")
-  const llmCount = getConnectedCount("llm")
+  const genaiCount = getConnectedCount("genai")
   const saasCount = getConnectedCount("subscriptions")
 
   if (isLoading) {
@@ -289,7 +289,7 @@ export default function IntegrationsPage() {
             <Brain className="h-4 w-4 text-[#FF6C5E]" />
           </div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-bold text-slate-900">{llmCount}</span> LLM
+            <span className="font-bold text-slate-900">{genaiCount}</span> GenAI
           </span>
         </div>
         <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>

@@ -638,15 +638,12 @@ def get_same_period_last_year(
     # Cap current end to today
     current_end = min(end_date, today)
 
-    # Calculate same period last year
+    # Calculate same period last year (handle leap year edge case)
     prev_start = date(start_date.year - 1, start_date.month, start_date.day)
-    prev_end = date(end_date.year - 1, end_date.month, min(end_date.day, 28))  # Safe for Feb
-
-    # Handle leap year edge case
     try:
         prev_end = date(end_date.year - 1, end_date.month, end_date.day)
     except ValueError:
-        # Feb 29 doesn't exist in non-leap years
+        # Feb 29 doesn't exist in non-leap years, use Feb 28
         prev_end = date(end_date.year - 1, end_date.month, 28)
 
     return DateComparison(

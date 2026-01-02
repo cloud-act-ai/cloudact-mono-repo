@@ -160,7 +160,7 @@ def get_template_path(
     Supports multiple path structures:
     - Cloud providers: configs/cloud/gcp/cost/billing.yml (4 segments)
     - GenAI: configs/genai/payg/openai.yml (3 segments, empty provider)
-    - SaaS: configs/saas/costs/saas_cost.yml (3 segments, empty provider)
+    - Subscription: configs/subscription/costs/subscription_cost.yml (3 segments, empty provider)
 
     Args:
         category: Top-level category (e.g., 'cloud', 'genai', 'saas')
@@ -176,8 +176,8 @@ def get_template_path(
         'configs/cloud/gcp/cost/billing.yml'
         >>> get_template_path("genai", "", "payg", "openai")
         'configs/genai/payg/openai.yml'
-        >>> get_template_path("saas", "", "costs", "saas_cost")
-        'configs/saas/costs/saas_cost.yml'
+        >>> get_template_path("subscription", "", "costs", "subscription_cost")
+        'configs/subscription/costs/subscription_cost.yml'
     """
     if provider:
         # 4-segment path for cloud providers

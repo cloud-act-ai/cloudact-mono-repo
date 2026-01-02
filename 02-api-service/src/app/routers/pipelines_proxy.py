@@ -444,7 +444,7 @@ async def get_cache_metrics_endpoint(
     Used by frontend on login to decide what pipelines to trigger.
 
     Returns status for known pipeline types:
-    - saas_subscription_costs: SaaS subscription cost calculation
+    - subscription_costs: Subscription cost calculation
     - gcp_billing: GCP billing cost extraction (future)
     - llm_costs: LLM API usage costs (future)
 
@@ -562,7 +562,7 @@ async def get_pipeline_status(
         )
 
     # Add entries for known pipeline types that haven't run
-    known_pipelines = ["saas_subscription_costs", "gcp_billing", "llm_costs"]
+    known_pipelines = ["subscription_costs", "gcp_billing", "llm_costs"]
     for known_id in known_pipelines:
         if known_id not in pipeline_status:
             pipeline_status[known_id] = PipelineRunStatus(
@@ -595,17 +595,17 @@ def _normalize_pipeline_id(pipeline_id: str) -> str:
     Normalize pipeline_id to known type.
 
     Examples:
-        "guru_inc-saas_subscription-costs-saas_cost" -> "saas_subscription_costs"
+        "guru_inc-subscription-costs-subscription_cost" -> "subscription_costs"
         "guru_inc-gcp-cost-billing" -> "gcp_billing"
     """
     pipeline_id_lower = pipeline_id.lower()
 
-    if "saas_subscription" in pipeline_id_lower or "saas_cost" in pipeline_id_lower:
-        return "saas_subscription_costs"
+    if "subscription" in pipeline_id_lower or "subscription_cost" in pipeline_id_lower:
+        return "subscription_costs"
     elif "gcp" in pipeline_id_lower and ("billing" in pipeline_id_lower or "cost" in pipeline_id_lower):
         return "gcp_billing"
-    elif "llm" in pipeline_id_lower or "openai" in pipeline_id_lower or "anthropic" in pipeline_id_lower:
-        return "llm_costs"
+    elif "genai" in pipeline_id_lower or "llm" in pipeline_id_lower or "openai" in pipeline_id_lower or "anthropic" in pipeline_id_lower:
+        return "genai_costs"
     else:
         return pipeline_id
 
@@ -688,7 +688,7 @@ async def _call_pipeline_service_with_retry(
     Required scope: pipelines:execute (or no scopes for legacy keys)
 
     Example paths:
-    - /trigger/acme/saas_subscription/costs/saas_cost
+    - /trigger/acme/subscription/costs/subscription_cost
     - /trigger/acme/gcp/cost/billing
     """
 )

@@ -505,7 +505,7 @@ class OrgOnboardingProcessor:
             "errors": []
         }
 
-        subscriptions_csv = config.get("saas_subscriptions_csv")
+        subscriptions_csv = config.get("subscriptions_csv")
         pricing_csv = config.get("llm_pricing_csv")
         now = datetime.utcnow().isoformat() + "Z"
 
@@ -513,7 +513,7 @@ class OrgOnboardingProcessor:
         if subscriptions_csv:
             subscriptions = self._load_csv_file(subscriptions_csv)
             if subscriptions:
-                table_id = f"{self.settings.gcp_project_id}.{dataset_id}.saas_subscriptions"
+                table_id = f"{self.settings.gcp_project_id}.{dataset_id}.subscriptions"
                 try:
                     rows_to_insert = []
                     for sub in subscriptions:
@@ -809,7 +809,7 @@ class OrgOnboardingProcessor:
                 "teams": hierarchy_result.get("teams_seeded", 0),
                 "total": hierarchy_total
             },
-            "saas_subscriptions_seeded": llm_seed_result.get("subscriptions_seeded", 0),
+            "subscriptions_seeded": llm_seed_result.get("subscriptions_seeded", 0),
             "llm_pricing_seeded": llm_seed_result.get("pricing_seeded", 0),
             "message": f"Created {len(tables_created)} tables, {len(views_created)} views, and {hierarchy_total} hierarchy entities for organization {org_slug}"
         }

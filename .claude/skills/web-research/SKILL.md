@@ -77,7 +77,7 @@ Use internet search to gather and analyze external data like LLM pricing, provid
 ### 5. Update CloudAct Pricing Table
 After research, update the pricing data:
 ```python
-# Path: 02-api-service/configs/llm/seed/data/default_pricing.csv
+# Path: 02-api-service/configs/genai/seed/data/default_pricing.csv
 # Format:
 provider,model_id,model_name,input_price_per_million,output_price_per_million,effective_date
 openai,gpt-4o,GPT-4o,2.50,10.00,2024-12-01

@@ -721,7 +721,7 @@ def run_cost_pipeline(
 
     with httpx.Client(timeout=120.0) as client:
         response = client.post(
-            f"{pipeline_url}/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
+            f"{pipeline_url}/api/v1/pipelines/run/{org_slug}/subscription/costs/subscription_cost",
             headers={
                 "X-API-Key": api_key,
                 "Content-Type": "application/json"

@@ -1312,19 +1312,19 @@ async def onboard_org(
                         # ========================================
                         # SaaS Subscription Plans table (dimension table)
                         {
-                            "table_name": "saas_subscription_plans",
-                            "schema_file": "saas_subscription_plans.json",
+                            "table_name": "subscription_plans",
+                            "schema_file": "subscription_plans.json",
                             "description": "Master dimension table for SaaS subscriptions. Contains terms, pricing, and active windows.",
                             "partition_field": "start_date",
-                            "clustering_fields": ["org_slug", "provider"]
+                            "clustering_fields": ["provider", "status", "billing_cycle"]
                         },
                         # Daily Amortized Costs (fact table)
                         {
-                            "table_name": "saas_subscription_plan_costs_daily",
-                            "schema_file": "saas_subscription_plan_costs_daily.json",
+                            "table_name": "subscription_plan_costs_daily",
+                            "schema_file": "subscription_plan_costs_daily.json",
                             "description": "Daily fact table. Granular daily cost breakdown for every active subscription.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["org_slug", "subscription_id"]
+                            "clustering_fields": ["subscription_id", "provider", "hierarchy_team_id"]
                         },
                         # FOCUS 1.3 Standardized Cost Data (common table for all cost sources)
                         {
@@ -1332,7 +1332,7 @@ async def onboard_org(
                             "schema_file": "cost_data_standard_1_3.json",
                             "description": "Standardized billing data adhering to FinOps FOCUS 1.3 specification. Supports cloud (GCP/AWS/Azure), SaaS subscriptions, and LLM API costs with full cost allocation, commitment tracking, and multi-currency support.",
                             "partition_field": "ChargePeriodStart",
-                            "clustering_fields": ["SubAccountId", "ServiceProviderName", "ServiceCategory"]
+                            "clustering_fields": ["SubAccountId", "ServiceProviderName", "ServiceCategory", "ChargeCategory"]
                         },
                         # FOCUS 1.3 Contract Commitment Data (tracks reserved instances, savings plans, CUDs)
                         {
@@ -1340,7 +1340,7 @@ async def onboard_org(
                             "schema_file": "contract_commitment_1_3.json",
                             "description": "Contract commitment tracking for reserved capacity, savings plans, and committed use discounts. Links to cost_data_standard_1_3 via ContractApplied field.",
                             "partition_field": "ContractPeriodStart",
-                            "clustering_fields": ["ContractId", "x_sub_account_id"]
+                            "clustering_fields": ["ContractId", "x_sub_account_id", "ContractCommitmentCategory", "ContractCommitmentType"]
                         },
                         # NOTE: org_hierarchy moved to central organizations dataset (bootstrap)
                         # ========================================
@@ -1365,7 +1365,7 @@ async def onboard_org(
                             "schema_file": "genai_payg_costs_daily.json",
                             "description": "Daily GenAI PAYG costs calculated from usage and pricing.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["provider", "hierarchy_team_id"]
+                            "clustering_fields": ["provider", "model", "hierarchy_team_id"]
                         },
                         # --- Commitment Flow (PTU/GSU: Azure OpenAI, AWS Bedrock, GCP Vertex) ---
                         {
@@ -1386,7 +1386,7 @@ async def onboard_org(
                             "schema_file": "genai_commitment_costs_daily.json",
                             "description": "Daily GenAI commitment costs (fixed + overage).",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["provider", "hierarchy_team_id"]
+                            "clustering_fields": ["provider", "commitment_type", "hierarchy_team_id"]
                         },
                         # --- Infrastructure Flow (Self-hosted: GPU/TPU hourly) ---
                         {
@@ -1407,7 +1407,7 @@ async def onboard_org(
                             "schema_file": "genai_infrastructure_costs_daily.json",
                             "description": "Daily GPU/TPU infrastructure costs.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["provider", "hierarchy_team_id"]
+                            "clustering_fields": ["provider", "instance_type", "hierarchy_team_id"]
                         },
                         # --- Unified Tables (All 3 flows consolidated) ---
                         {
@@ -1415,14 +1415,14 @@ async def onboard_org(
                             "schema_file": "genai_usage_daily_unified.json",
                             "description": "Consolidated GenAI usage (PAYG + Commitment + Infrastructure) for analytics and forecasting.",
                             "partition_field": "usage_date",
-                            "clustering_fields": ["cost_type", "provider"]
+                            "clustering_fields": ["cost_type", "provider", "hierarchy_team_id"]
                         },
                         {
                             "table_name": "genai_costs_daily_unified",
                             "schema_file": "genai_costs_daily_unified.json",
                             "description": "Consolidated GenAI costs (PAYG + Commitment + Infrastructure) for dashboards and billing.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["cost_type", "provider"]
+                            "clustering_fields": ["cost_type", "provider", "hierarchy_team_id"]
                         },
                         # ========================================
                         # Cloud Billing Tables (GCP, AWS, Azure, OCI)
@@ -1431,29 +1431,29 @@ async def onboard_org(
                             "table_name": "cloud_gcp_billing_raw_daily",
                             "schema_file": "cloud_gcp_billing_raw_daily.json",
                             "description": "Raw GCP billing data from BigQuery billing export.",
-                            "partition_field": "usage_start_time",
-                            "clustering_fields": ["billing_account_id", "service_id", "project_id"]
+                            "partition_field": "ingestion_date",
+                            "clustering_fields": ["billing_account_id", "service_id", "project_id", "location_region"]
                         },
                         {
                             "table_name": "cloud_aws_billing_raw_daily",
                             "schema_file": "cloud_aws_billing_raw_daily.json",
                             "description": "Raw AWS billing data from Cost & Usage Report (CUR).",
                             "partition_field": "usage_date",
-                            "clustering_fields": ["linked_account_id", "service_code", "product_code"]
+                            "clustering_fields": ["linked_account_id", "service_code", "product_code", "region"]
                         },
                         {
                             "table_name": "cloud_azure_billing_raw_daily",
                             "schema_file": "cloud_azure_billing_raw_daily.json",
                             "description": "Raw Azure billing data from Cost Management export.",
                             "partition_field": "usage_date",
-                            "clustering_fields": ["subscription_id", "service_name", "resource_group"]
+                            "clustering_fields": ["subscription_id", "service_name", "resource_group", "resource_location"]
                         },
                         {
                             "table_name": "cloud_oci_billing_raw_daily",
                             "schema_file": "cloud_oci_billing_raw_daily.json",
                             "description": "Raw OCI billing data from Cost Analysis API.",
                             "partition_field": "usage_date",
-                            "clustering_fields": ["tenancy_id", "service_name", "compartment_id"]
+                            "clustering_fields": ["tenancy_id", "service_name", "compartment_id", "region"]
                         }
                     ],
                     # LLM tables created empty - customers add custom plans via UI
@@ -3016,14 +3016,14 @@ async def repair_org_tables(
     # Define all required org tables
     ORG_TABLES = [
         {
-            "table_name": "saas_subscription_plans",
-            "schema_file": "saas_subscription_plans.json",
+            "table_name": "subscription_plans",
+            "schema_file": "subscription_plans.json",
             "partition_field": "start_date",
             "clustering_fields": ["org_slug", "provider"]
         },
         {
-            "table_name": "saas_subscription_plan_costs_daily",
-            "schema_file": "saas_subscription_plan_costs_daily.json",
+            "table_name": "subscription_plan_costs_daily",
+            "schema_file": "subscription_plan_costs_daily.json",
             "partition_field": "cost_date",
             "clustering_fields": ["org_slug", "subscription_id"]
         },

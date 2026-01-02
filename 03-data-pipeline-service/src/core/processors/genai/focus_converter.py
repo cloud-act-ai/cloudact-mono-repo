@@ -173,7 +173,7 @@ class FOCUSConverterProcessor:
                         'focus_convert_genai' as x_pipeline_id,
                         @credential_id as x_credential_id,
                         @process_date as x_pipeline_run_date,
-                        @run_id as x_pipeline_run_id,
+                        @run_id as x_run_id,
                         CURRENT_TIMESTAMP() as x_ingested_at
                     FROM `{project_id}.{dataset_id}.genai_costs_daily_unified`
                     WHERE cost_date = @process_date
@@ -220,7 +220,7 @@ class FOCUSConverterProcessor:
                         x_hierarchy_project_name = S.x_hierarchy_project_name,
                         x_hierarchy_team_id = S.x_hierarchy_team_id,
                         x_hierarchy_team_name = S.x_hierarchy_team_name,
-                        x_pipeline_run_id = S.x_pipeline_run_id,
+                        x_run_id = S.x_run_id,
                         x_ingested_at = S.x_ingested_at
                 WHEN NOT MATCHED THEN
                     INSERT (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
@@ -235,7 +235,7 @@ class FOCUSConverterProcessor:
                             x_hierarchy_dept_id, x_hierarchy_dept_name,
                             x_hierarchy_project_id, x_hierarchy_project_name,
                             x_hierarchy_team_id, x_hierarchy_team_name,
-                            x_pipeline_id, x_credential_id, x_pipeline_run_date, x_pipeline_run_id, x_ingested_at)
+                            x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                     VALUES (S.ChargePeriodStart, S.ChargePeriodEnd, S.BillingPeriodStart, S.BillingPeriodEnd,
                             S.InvoiceIssuerName, S.ServiceProviderName, S.ServiceCategory, S.ServiceName,
                             S.ResourceId, S.ResourceName, S.ResourceType, S.RegionId, S.RegionName,
@@ -248,7 +248,7 @@ class FOCUSConverterProcessor:
                             S.x_hierarchy_dept_id, S.x_hierarchy_dept_name,
                             S.x_hierarchy_project_id, S.x_hierarchy_project_name,
                             S.x_hierarchy_team_id, S.x_hierarchy_team_name,
-                            S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_pipeline_run_id, S.x_ingested_at)
+                            S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
             """
 
             # Get lineage context from pipeline execution

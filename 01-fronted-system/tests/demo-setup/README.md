@@ -179,7 +179,7 @@ export ORG_SLUG="acme_inc_01012026"  # Replace with actual slug
 export API_KEY="your_api_key_here"   # Replace with actual key
 
 # Verify GenAI costs
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/llm?start_date=2025-12-01&end_date=2025-12-31" \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/genai?start_date=2025-12-01&end_date=2025-12-31" \
   -H "X-API-Key: ${API_KEY}" | python3 -m json.tool
 
 # Verify Cloud costs

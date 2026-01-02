@@ -59,7 +59,7 @@ class SubscriptionStatus(str, Enum):
     """
     Status values for SaaS subscriptions.
 
-    Maps to saas_subscription_plans.status column.
+    Maps to subscription_plans.status column.
     """
     ACTIVE = "active"  # lowercase per existing DB schema
     PENDING = "pending"

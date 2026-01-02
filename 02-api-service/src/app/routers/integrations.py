@@ -1098,7 +1098,7 @@ async def _setup_integration(
                     pricing_initialized = pricing_result.get("status") == "SUCCESS"
                     pricing_rows_seeded = pricing_result.get("rows_seeded", 0)
 
-                    subs_result = await _initialize_saas_subscriptions(org_slug, provider.lower())
+                    subs_result = await _initialize_subscriptions(org_slug, provider.lower())
                     subscriptions_initialized = subs_result.get("status") == "SUCCESS"
                     subscriptions_rows_seeded = subs_result.get("rows_seeded", 0)
 
@@ -1741,7 +1741,7 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         return {"status": "FAILED", "error": "Pricing initialization failed"}
 
 
-async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
+async def _initialize_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
     """
     Initialize SaaS provider subscriptions table with default data.
     Configuration is loaded from providers.yml.

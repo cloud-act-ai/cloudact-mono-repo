@@ -50,6 +50,15 @@ export interface CostFiltersState {
   categories: string[]
 }
 
+/** Category option with metadata */
+export interface CategoryOption {
+  id: string
+  name: string
+  color: string
+  providerCount?: number
+  totalCost?: number
+}
+
 export interface CostFiltersProps {
   /** Current filter state */
   value: CostFiltersState
@@ -57,10 +66,10 @@ export interface CostFiltersProps {
   onChange: (filters: CostFiltersState) => void
   /** Available hierarchy entities */
   hierarchy?: HierarchyEntity[]
-  /** Available providers */
+  /** Available providers (from backend) */
   availableProviders?: string[]
-  /** Available categories */
-  availableCategories?: string[]
+  /** Available categories (from backend with metadata) */
+  availableCategories?: CategoryOption[]
   /** Optional class name */
   className?: string
   /** Disabled state */
@@ -76,7 +85,7 @@ export interface CostFiltersProps {
 const DEFAULT_CATEGORIES = [
   { id: "genai", name: "GenAI", color: "#10A37F" },
   { id: "cloud", name: "Cloud", color: "#4285F4" },
-  { id: "saas", name: "SaaS", color: "#FF6C5E" },
+  { id: "subscription", name: "Subscription", color: "#FF6C5E" },
 ]
 
 export function getDefaultFilters(): CostFiltersState {
@@ -181,13 +190,12 @@ export function CostFilters({
     ? teams.filter((t) => t.parent_id === value.project)
     : teams
 
-  const categories = availableCategories
-    ? availableCategories.map((c) => ({
-        id: c,
-        name: c.charAt(0).toUpperCase() + c.slice(1),
-        color: DEFAULT_CATEGORIES.find((dc) => dc.id === c)?.color || "#94a3b8",
-      }))
-    : DEFAULT_CATEGORIES
+  // Use dynamic categories from backend
+  // If availableCategories is undefined/null → use defaults (backward compat)
+  // If availableCategories is [] (empty) → hide category filter (category-specific pages)
+  const categories = availableCategories === undefined || availableCategories === null
+    ? DEFAULT_CATEGORIES
+    : availableCategories
 
   // Handlers
   const handleDepartmentChange = useCallback(
@@ -449,55 +457,57 @@ export function CostFilters({
         </Popover>
       )}
 
-      {/* Category Filter */}
-      <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
-        <PopoverTrigger asChild>
-          <div>
-            <FilterButton
-              label="Category"
-              value={value.categories}
-              icon={<Filter className="h-4 w-4 text-slate-500" />}
-              onClick={() => setCategoryOpen(true)}
-              onClear={
-                value.categories.length > 0
-                  ? () => onChange({ ...value, categories: [] })
-                  : undefined
-              }
-              disabled={disabled || loading}
-            />
-          </div>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-2" align="start">
-          <div className="space-y-1">
-            {categories.map((cat) => {
-              const isSelected = value.categories.includes(cat.id)
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleCategoryToggle(cat.id)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm",
-                    "transition-colors",
-                    isSelected
-                      ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                      : "text-slate-700 hover:bg-slate-100"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    <span>{cat.name}</span>
-                  </div>
-                  {isSelected && <Check className="h-4 w-4" />}
-                </button>
-              )
-            })}
-          </div>
-        </PopoverContent>
-      </Popover>
+      {/* Category Filter - only show if categories available (hidden on category-specific pages) */}
+      {categories.length > 0 && (
+        <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+          <PopoverTrigger asChild>
+            <div>
+              <FilterButton
+                label="Category"
+                value={value.categories}
+                icon={<Filter className="h-4 w-4 text-slate-500" />}
+                onClick={() => setCategoryOpen(true)}
+                onClear={
+                  value.categories.length > 0
+                    ? () => onChange({ ...value, categories: [] })
+                    : undefined
+                }
+                disabled={disabled || loading}
+              />
+            </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2" align="start">
+            <div className="space-y-1">
+              {categories.map((cat) => {
+                const isSelected = value.categories.includes(cat.id)
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategoryToggle(cat.id)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm",
+                      "transition-colors",
+                      isSelected
+                        ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
+                        : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span>{cat.name}</span>
+                    </div>
+                    {isSelected && <Check className="h-4 w-4" />}
+                  </button>
+                )
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Clear All */}
       {hasActiveFilters && (
@@ -519,11 +529,20 @@ export function CostFilters({
 // Time Range Filter (Standalone)
 // ============================================
 
+export interface CustomDateRange {
+  startDate: string  // YYYY-MM-DD format
+  endDate: string    // YYYY-MM-DD format
+}
+
 export interface TimeRangeFilterProps {
   /** Current selected time range */
   value: TimeRange
   /** Callback when time range changes */
   onChange: (range: TimeRange) => void
+  /** Custom date range (when value is "custom") */
+  customRange?: CustomDateRange
+  /** Callback when custom date range changes */
+  onCustomRangeChange?: (range: CustomDateRange) => void
   /** Optional class name */
   className?: string
   /** Disabled state */
@@ -532,7 +551,10 @@ export interface TimeRangeFilterProps {
   size?: "sm" | "default"
 }
 
-const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; shortLabel: string }[] = [
+/** Default time range for all cost pages - 365 days */
+export const DEFAULT_TIME_RANGE: TimeRange = "365"
+
+export const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; shortLabel: string }[] = [
   { value: "365", label: "Last 365 Days", shortLabel: "1Y" },
   { value: "ytd", label: "Year to Date", shortLabel: "YTD" },
   { value: "qtd", label: "This Quarter", shortLabel: "QTD" },
@@ -542,18 +564,76 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; shortLabel: string 
   { value: "last_month", label: "Last Month", shortLabel: "LM" },
   { value: "14", label: "Last 14 Days", shortLabel: "14D" },
   { value: "7", label: "Last 7 Days", shortLabel: "7D" },
+  { value: "custom", label: "Custom Range", shortLabel: "Custom" },
 ]
+
+/** Get display label for time range (including custom date format) */
+export function getTimeRangeLabel(
+  timeRange: TimeRange,
+  customRange?: CustomDateRange
+): string {
+  if (timeRange === "custom" && customRange) {
+    const start = new Date(customRange.startDate)
+    const end = new Date(customRange.endDate)
+    const formatDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    return `${formatDate(start)} - ${formatDate(end)}`
+  }
+  const option = TIME_RANGE_OPTIONS.find((opt) => opt.value === timeRange)
+  return option?.label || "Select range"
+}
 
 export function TimeRangeFilter({
   value,
   onChange,
+  customRange,
+  onCustomRangeChange,
   className,
   disabled = false,
   size = "default",
 }: TimeRangeFilterProps) {
   const [open, setOpen] = useState(false)
+  const [showCustomPicker, setShowCustomPicker] = useState(false)
+  const [tempStartDate, setTempStartDate] = useState(customRange?.startDate || "")
+  const [tempEndDate, setTempEndDate] = useState(customRange?.endDate || "")
 
-  const selectedOption = TIME_RANGE_OPTIONS.find((opt) => opt.value === value) || TIME_RANGE_OPTIONS[2]
+  // Get display label
+  const displayLabel = getTimeRangeLabel(value, customRange)
+
+  // Handle preset selection
+  const handlePresetSelect = (range: TimeRange) => {
+    if (range === "custom") {
+      setShowCustomPicker(true)
+      // Initialize with last 30 days if no custom range
+      if (!tempStartDate || !tempEndDate) {
+        const today = new Date()
+        const start = new Date(today)
+        start.setDate(start.getDate() - 30)
+        setTempStartDate(start.toISOString().split("T")[0])
+        setTempEndDate(today.toISOString().split("T")[0])
+      }
+    } else {
+      onChange(range)
+      setShowCustomPicker(false)
+      setOpen(false)
+    }
+  }
+
+  // Apply custom range
+  const handleApplyCustom = () => {
+    if (tempStartDate && tempEndDate && onCustomRangeChange) {
+      onCustomRangeChange({ startDate: tempStartDate, endDate: tempEndDate })
+      onChange("custom")
+      setOpen(false)
+      setShowCustomPicker(false)
+    }
+  }
+
+  // Cancel custom picker
+  const handleCancelCustom = () => {
+    setShowCustomPicker(false)
+    setTempStartDate(customRange?.startDate || "")
+    setTempEndDate(customRange?.endDate || "")
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -572,37 +652,93 @@ export function TimeRangeFilter({
         >
           <Calendar className={cn("text-slate-500", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
           <span className={cn("font-medium text-slate-700", size === "sm" ? "text-xs" : "text-sm")}>
-            {selectedOption.label}
+            {displayLabel}
           </span>
           <ChevronDown className={cn("text-slate-400", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-1.5" align="end">
-        <div className="space-y-0.5">
-          {TIME_RANGE_OPTIONS.map((option) => {
-            const isSelected = option.value === value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  onChange(option.value)
-                  setOpen(false)
-                }}
-                className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm",
-                  "transition-colors",
-                  isSelected
-                    ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                    : "text-slate-700 hover:bg-slate-100"
-                )}
+      <PopoverContent className={cn("p-1.5", showCustomPicker ? "w-72" : "w-48")} align="end">
+        {!showCustomPicker ? (
+          // Preset options
+          <div className="space-y-0.5">
+            {TIME_RANGE_OPTIONS.map((option) => {
+              const isSelected = option.value === value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handlePresetSelect(option.value)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm",
+                    "transition-colors",
+                    isSelected
+                      ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
+                      : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <span>{option.label}</span>
+                  {isSelected && <Check className="h-4 w-4" />}
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          // Custom date picker
+          <div className="space-y-3 p-2">
+            <div className="text-sm font-medium text-slate-700">Custom Date Range</div>
+
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Start Date</label>
+                <input
+                  type="date"
+                  value={tempStartDate}
+                  onChange={(e) => setTempStartDate(e.target.value)}
+                  max={tempEndDate || undefined}
+                  className={cn(
+                    "w-full px-3 py-2 rounded-md border border-slate-200",
+                    "text-sm text-slate-700",
+                    "focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:border-transparent"
+                  )}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">End Date</label>
+                <input
+                  type="date"
+                  value={tempEndDate}
+                  onChange={(e) => setTempEndDate(e.target.value)}
+                  min={tempStartDate || undefined}
+                  max={new Date().toISOString().split("T")[0]}
+                  className={cn(
+                    "w-full px-3 py-2 rounded-md border border-slate-200",
+                    "text-sm text-slate-700",
+                    "focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:border-transparent"
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelCustom}
+                className="flex-1 text-slate-600"
               >
-                <span>{option.label}</span>
-                {isSelected && <Check className="h-4 w-4" />}
-              </button>
-            )
-          })}
-        </div>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleApplyCustom}
+                disabled={!tempStartDate || !tempEndDate}
+                className="flex-1 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900"
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   )
@@ -610,8 +746,23 @@ export function TimeRangeFilter({
 
 /**
  * Get rolling average window size based on time range
+ * For custom ranges, calculate based on number of days
  */
-export function getRollingAverageWindow(timeRange: TimeRange): number {
+export function getRollingAverageWindow(
+  timeRange: TimeRange,
+  customRange?: CustomDateRange
+): number {
+  // Handle custom range
+  if (timeRange === "custom" && customRange) {
+    const start = new Date(customRange.startDate)
+    const end = new Date(customRange.endDate)
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    if (days >= 180) return 30
+    if (days >= 60) return 14
+    if (days >= 21) return 7
+    return 3
+  }
+
   switch (timeRange) {
     case "365":
     case "ytd":
@@ -633,31 +784,12 @@ export function getRollingAverageWindow(timeRange: TimeRange): number {
 
 /**
  * Get label for the rolling average based on time range
+ * For custom ranges, calculate based on number of days
  */
-export function getRollingAverageLabel(timeRange: TimeRange): string {
-  switch (timeRange) {
-    case "365":
-    case "ytd":
-      return "30-Day Avg"
-    case "qtd":
-    case "90":
-      return "14-Day Avg"
-    case "mtd":
-    case "30":
-    case "last_month":
-      return "7-Day Avg"
-    case "14":
-    case "7":
-      return "3-Day Avg"
-    default:
-      return "7-Day Avg"
-  }
-}
-
-/**
- * Get display label for a time range
- */
-export function getTimeRangeLabel(timeRange: TimeRange): string {
-  const option = TIME_RANGE_OPTIONS.find((opt) => opt.value === timeRange)
-  return option?.label || "Last 30 Days"
+export function getRollingAverageLabel(
+  timeRange: TimeRange,
+  customRange?: CustomDateRange
+): string {
+  const window = getRollingAverageWindow(timeRange, customRange)
+  return `${window}-Day Avg`
 }

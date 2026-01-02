@@ -36,7 +36,7 @@
 |---------|--------|------|
 | BigQuery | `cloud_gcp_billing_raw_daily` | GCP cost data |
 | BigQuery | `cost_data_standard_1_3` | FOCUS 1.3 unified costs |
-| BigQuery | `saas_subscription_plans` | SaaS subscription costs |
+| BigQuery | `subscription_plans` | SaaS subscription costs |
 | BigQuery | `llm_usage_daily` | LLM usage (future) |
 | API Service | Aggregation queries | Real-time calculations |
 
@@ -50,7 +50,7 @@
 | `/{org}/analytics` | Detailed analytics | All sources |
 | `/{org}/analytics/gcp` | GCP cost breakdown | cloud_gcp_billing_raw_daily |
 | `/{org}/analytics/llm` | LLM usage analytics | llm_usage_daily |
-| `/{org}/subscriptions` | SaaS cost overview | saas_subscription_plans |
+| `/{org}/subscriptions` | SaaS cost overview | subscription_plans |
 
 ---
 
@@ -157,7 +157,7 @@ Frontend (3000)              Pipeline Service (8001)              BigQuery
 Data Sources:
 - cloud_gcp_billing_raw_daily: GCP cost line items
 - cost_data_standard_1_3: FOCUS 1.3 unified costs
-- saas_subscription_plans: SaaS subscription data
+- subscription_plans: SaaS subscription data
 - pipeline_runs: Recent pipeline executions
 ```
 
@@ -308,7 +308,7 @@ export interface CostTrendData {
   date: string
   gcp_cost?: number
   llm_cost?: number
-  saas_cost?: number
+  subscription_cost?: number
   total_cost: number
 }
 

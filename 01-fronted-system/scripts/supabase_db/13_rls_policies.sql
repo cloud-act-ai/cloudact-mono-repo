@@ -11,7 +11,7 @@
 -- - profiles
 -- - invites
 -- - activity_logs
--- - saas_subscriptions
+-- - subscriptions
 --
 -- Pattern: Users can only access rows where org_slug/org_id matches their org
 -- ================================================
@@ -22,7 +22,7 @@ ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE saas_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- ================================================
 -- ORGANIZATIONS TABLE
@@ -311,9 +311,9 @@ USING (
 -- ================================================
 
 -- Policy: Members can view SaaS subscriptions for their organizations
-DROP POLICY IF EXISTS "Members can view saas subscriptions" ON saas_subscriptions;
+DROP POLICY IF EXISTS "Members can view saas subscriptions" ON subscriptions;
 CREATE POLICY "Members can view saas subscriptions"
-ON saas_subscriptions
+ON subscriptions
 FOR SELECT
 USING (
   org_id IN (
@@ -325,9 +325,9 @@ USING (
 );
 
 -- Policy: Admins can create SaaS subscriptions
-DROP POLICY IF EXISTS "Admins can create saas subscriptions" ON saas_subscriptions;
+DROP POLICY IF EXISTS "Admins can create saas subscriptions" ON subscriptions;
 CREATE POLICY "Admins can create saas subscriptions"
-ON saas_subscriptions
+ON subscriptions
 FOR INSERT
 WITH CHECK (
   org_id IN (
@@ -340,9 +340,9 @@ WITH CHECK (
 );
 
 -- Policy: Admins can update SaaS subscriptions
-DROP POLICY IF EXISTS "Admins can update saas subscriptions" ON saas_subscriptions;
+DROP POLICY IF EXISTS "Admins can update saas subscriptions" ON subscriptions;
 CREATE POLICY "Admins can update saas subscriptions"
-ON saas_subscriptions
+ON subscriptions
 FOR UPDATE
 USING (
   org_id IN (
@@ -355,9 +355,9 @@ USING (
 );
 
 -- Policy: Admins can delete SaaS subscriptions
-DROP POLICY IF EXISTS "Admins can delete saas subscriptions" ON saas_subscriptions;
+DROP POLICY IF EXISTS "Admins can delete saas subscriptions" ON subscriptions;
 CREATE POLICY "Admins can delete saas subscriptions"
-ON saas_subscriptions
+ON subscriptions
 FOR DELETE
 USING (
   org_id IN (

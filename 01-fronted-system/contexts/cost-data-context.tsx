@@ -40,12 +40,8 @@ import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import { dateRangeToApiParams, getDefaultDateRange } from "@/components/costs"
 import type { HierarchyEntity } from "@/components/costs"
-import {
-  filterCloudProviders,
-  filterGenAIProviders,
-  CLOUD_PROVIDER_SET,
-  GENAI_PROVIDER_SET,
-} from "@/lib/costs"
+// Note: Provider categorization now comes from backend (totalCosts.genai/cloud/saas.providers)
+// No hardcoded provider sets needed!
 
 // ============================================
 // Types
@@ -62,6 +58,13 @@ export type TimeRange =
   | "30"         // Last 30 days
   | "14"         // Last 14 days
   | "7"          // Last 7 days
+  | "custom"     // Custom date range
+
+/** Custom date range for when TimeRange is "custom" */
+export interface CustomDateRange {
+  startDate: string  // YYYY-MM-DD format
+  endDate: string    // YYYY-MM-DD format
+}
 
 /** Daily trend data point with rolling average */
 export interface DailyTrendDataPoint {
@@ -75,6 +78,35 @@ export interface DailyTrendDataPoint {
   rollingAvg: number
 }
 
+/** Available filter options derived from backend data */
+export interface AvailableFilters {
+  /** Categories with data (genai, cloud, subscription) */
+  categories: Array<{
+    id: string
+    name: string
+    color: string
+    providerCount: number
+    totalCost: number
+  }>
+  /** All providers grouped by category */
+  providers: Array<{
+    id: string
+    name: string
+    category: "genai" | "cloud" | "subscription"
+    totalCost: number
+  }>
+  /** Hierarchy entities (from getHierarchy) */
+  hierarchy: HierarchyEntity[]
+}
+
+/** Category-specific trend data storage */
+export interface CategoryTrendData {
+  all: CostTrendPoint[]
+  genai: CostTrendPoint[]
+  cloud: CostTrendPoint[]
+  subscription: CostTrendPoint[]
+}
+
 export interface CostDataState {
   // Core cost data
   totalCosts: TotalCostSummary | null
@@ -82,14 +114,22 @@ export interface CostDataState {
   periodCosts: PeriodCostsData | null
   hierarchy: HierarchyEntity[]
 
-  // Daily trend data (365 days)
-  dailyTrendData: CostTrendPoint[]
+  // Daily trend data (365 days) - by category
+  dailyTrendData: CostTrendPoint[]  // Legacy: all categories
+  categoryTrendData: CategoryTrendData  // New: per-category data
+
+  // Available filters (derived from backend data)
+  availableFilters: AvailableFilters
 
   // Metadata
   currency: string
   lastFetchedAt: Date | null
   dataAsOf: string | null
   cachedDateRange: { start: string; end: string } | null
+
+  // Cache tracking
+  cacheVersion: number
+  isStale: boolean
 
   // Loading states
   isLoading: boolean
@@ -101,6 +141,7 @@ export interface CostDataContextValue extends CostDataState {
   // Actions
   refresh: () => Promise<void>
   fetchIfNeeded: () => Promise<void>
+  invalidateCache: () => void
 
   // Filter application (client-side)
   getFilteredData: (filters: CostFilterParams) => {
@@ -108,11 +149,17 @@ export interface CostDataContextValue extends CostDataState {
     providerBreakdown: ProviderBreakdown[]
   }
 
-  // Get providers filtered by type (cloud, llm, saas)
-  getFilteredProviders: (providerType: "cloud" | "llm" | "saas") => ProviderBreakdown[]
+  // Get providers filtered by category (uses backend categorization)
+  getFilteredProviders: (category: "cloud" | "genai" | "subscription") => ProviderBreakdown[]
 
   // Get daily trend data filtered by time range with rolling average
-  getDailyTrendForRange: (timeRange: TimeRange) => DailyTrendDataPoint[]
+  // Optional category parameter filters to specific cost category
+  // Optional customRange for when timeRange is "custom"
+  getDailyTrendForRange: (
+    timeRange: TimeRange,
+    category?: "genai" | "cloud" | "subscription",
+    customRange?: CustomDateRange
+  ) => DailyTrendDataPoint[]
 
   // Check if cached data covers a date range
   isCachedForDateRange: (start: string, end: string) => boolean
@@ -161,10 +208,23 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     periodCosts: null,
     hierarchy: [],
     dailyTrendData: [],
+    categoryTrendData: {
+      all: [],
+      genai: [],
+      cloud: [],
+      subscription: [],
+    },
+    availableFilters: {
+      categories: [],
+      providers: [],
+      hierarchy: [],
+    },
     currency: DEFAULT_CURRENCY,
     lastFetchedAt: null,
     dataAsOf: null,
     cachedDateRange: null,
+    cacheVersion: 0,
+    isStale: false,
     isLoading: false,
     isInitialized: false,
     error: null,
@@ -177,23 +237,34 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      // Get default date range (MTD)
-      const dateRange = getDefaultDateRange()
-      const { startDate, endDate } = dateRangeToApiParams(dateRange)
+      // Calculate 365-day date range for consistent data
+      const today = new Date()
+      const startOfRange = new Date(today)
+      startOfRange.setDate(startOfRange.getDate() - 365)
 
-      // Fetch all data in parallel (including 365-day trend data)
+      const endDate = today.toISOString().split("T")[0]
+      const startDate = startOfRange.toISOString().split("T")[0]
+
+      // Fetch all data in parallel with consistent 365-day range
+      // Include category-specific trend data for accurate charts on category pages
       const [
         totalCostsResult,
         providerResult,
         periodCostsResult,
         hierarchyResult,
         dailyTrendResult,
+        genaiTrendResult,
+        cloudTrendResult,
+        subscriptionTrendResult,
       ] = await Promise.all([
         getTotalCosts(orgSlug, startDate, endDate),
         getCostByProvider(orgSlug, startDate, endDate),
         getExtendedPeriodCosts(orgSlug, "total"),
         getHierarchy(orgSlug),
-        getCostTrend(orgSlug, "daily", 365),
+        getCostTrend(orgSlug, "daily", 365),  // All categories
+        getCostTrend(orgSlug, "daily", 365, "genai"),  // GenAI only
+        getCostTrend(orgSlug, "daily", 365, "cloud"),  // Cloud only
+        getCostTrend(orgSlug, "daily", 365, "subscription"),  // Subscription only
       ])
 
       // Extract hierarchy entities
@@ -207,24 +278,97 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
             }))
           : []
 
-      // Update state with fetched data
-      setState({
-        totalCosts: totalCostsResult.success ? totalCostsResult.data : null,
-        providerBreakdown: providerResult.success && providerResult.data ? providerResult.data : [],
+      // Build available filters from backend data (DYNAMIC - no hardcoding!)
+      const totalCosts = totalCostsResult.success ? totalCostsResult.data : null
+      const providerData = providerResult.success && providerResult.data ? providerResult.data : []
+
+      // Build category list from backend response
+      const categoryConfigs = [
+        { id: "genai", name: "GenAI", color: "#10A37F", data: totalCosts?.genai },
+        { id: "cloud", name: "Cloud", color: "#4285F4", data: totalCosts?.cloud },
+        { id: "subscription", name: "Subscription", color: "#FF6C5E", data: totalCosts?.subscription },
+      ]
+
+      const availableCategories = categoryConfigs
+        .filter(cat => cat.data && (cat.data.providers?.length > 0 || cat.data.total_monthly_cost > 0))
+        .map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          color: cat.color,
+          providerCount: cat.data?.providers?.length ?? 0,
+          totalCost: cat.data?.total_monthly_cost ?? 0,
+        }))
+
+      // Build provider list with category from backend (derived from totalCosts structure)
+      // IMPORTANT: Normalize all provider names to lowercase for case-insensitive matching
+      const genaiProviders = new Set(
+        (totalCosts?.genai?.providers ?? []).map(p => p.toLowerCase())
+      )
+      const cloudProviders = new Set(
+        (totalCosts?.cloud?.providers ?? []).map(p => p.toLowerCase())
+      )
+      const subscriptionProviders = new Set(
+        (totalCosts?.subscription?.providers ?? []).map(p => p.toLowerCase())
+      )
+
+      const availableProviders = providerData.map(p => {
+        const providerLower = p.provider.toLowerCase()
+        let category: "genai" | "cloud" | "subscription" = "subscription"
+
+        // Use backend's categorization from totalCosts (case-insensitive)
+        if (genaiProviders.has(providerLower)) {
+          category = "genai"
+        } else if (cloudProviders.has(providerLower)) {
+          category = "cloud"
+        } else if (subscriptionProviders.has(providerLower)) {
+          category = "subscription"
+        }
+        // If not in any backend list, defaults to "subscription" (uncategorized)
+
+        return {
+          id: p.provider,
+          name: p.provider,
+          category,
+          totalCost: p.total_cost,
+        }
+      })
+
+      const availableFilters: AvailableFilters = {
+        categories: availableCategories,
+        providers: availableProviders,
+        hierarchy: hierarchyEntities,
+      }
+
+      // Build category trend data object
+      const categoryTrendData: CategoryTrendData = {
+        all: dailyTrendResult.success && dailyTrendResult.data ? dailyTrendResult.data : [],
+        genai: genaiTrendResult.success && genaiTrendResult.data ? genaiTrendResult.data : [],
+        cloud: cloudTrendResult.success && cloudTrendResult.data ? cloudTrendResult.data : [],
+        subscription: subscriptionTrendResult.success && subscriptionTrendResult.data ? subscriptionTrendResult.data : [],
+      }
+
+      // Update state with fetched data - increment cache version on refresh
+      setState((prev) => ({
+        totalCosts,
+        providerBreakdown: providerData,
         periodCosts: periodCostsResult.success ? periodCostsResult.data : null,
         hierarchy: hierarchyEntities,
-        dailyTrendData: dailyTrendResult.success && dailyTrendResult.data ? dailyTrendResult.data : [],
+        dailyTrendData: categoryTrendData.all,  // Legacy: all categories
+        categoryTrendData,  // New: per-category data
+        availableFilters,
         currency:
-          totalCostsResult.data?.currency ||
+          totalCosts?.currency ||
           (providerResult.success && providerResult.currency ? providerResult.currency : null) ||
           DEFAULT_CURRENCY,
         lastFetchedAt: new Date(),
         dataAsOf: periodCostsResult.data?.dataAsOf || null,
         cachedDateRange: { start: startDate, end: endDate },
+        cacheVersion: prev.cacheVersion + 1, // Increment on each fetch
+        isStale: false, // Fresh data
         isLoading: false,
         isInitialized: true,
         error: totalCostsResult.error || providerResult.error || null,
-      })
+      }))
     } catch (err) {
       console.error("Cost data fetch error:", err)
       setState((prev) => ({
@@ -243,10 +387,17 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     }
   }, [state.isInitialized, state.isLoading, fetchCostData])
 
-  // Refresh (always fetches fresh data)
+  // Refresh (always fetches fresh data - invalidates cache)
   const refresh = useCallback(async () => {
+    // Mark as stale first for immediate UI feedback
+    setState((prev) => ({ ...prev, isStale: true }))
     await fetchCostData()
   }, [fetchCostData])
+
+  // Invalidate cache (marks data as stale without fetching)
+  const invalidateCache = useCallback(() => {
+    setState((prev) => ({ ...prev, isStale: true }))
+  }, [])
 
   // Client-side filter application
   const getFilteredData = useCallback(
@@ -307,37 +458,40 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     [state.totalCosts, state.providerBreakdown]
   )
 
-  // Get providers filtered by type (cloud, llm, saas) - client-side filtering
+  // Get providers filtered by category - uses dynamic data from backend
   const getFilteredProviders = useCallback(
-    (providerType: "cloud" | "llm" | "saas"): ProviderBreakdown[] => {
-      const providers = state.providerBreakdown
+    (category: "cloud" | "genai" | "subscription"): ProviderBreakdown[] => {
+      // Map category to internal name (saas → subscription)
+      const categoryKey = category === "subscription" ? "subscription" : category
 
-      switch (providerType) {
-        case "cloud":
-          return filterCloudProviders(providers)
-        case "llm":
-          return filterGenAIProviders(providers)
-        case "saas":
-          // SaaS = providers that are NOT cloud AND NOT GenAI
-          return providers.filter((p) => {
-            if (!p.provider) return false
-            const providerLower = p.provider.toLowerCase()
-            return (
-              !CLOUD_PROVIDER_SET.has(providerLower) &&
-              !GENAI_PROVIDER_SET.has(providerLower)
-            )
-          })
-        default:
-          return providers
-      }
+      // Use availableFilters which has category info from backend
+      const categoryProviderIds = new Set(
+        state.availableFilters.providers
+          .filter(p => p.category === categoryKey)
+          .map(p => p.id.toLowerCase())
+      )
+
+      // Filter providerBreakdown using dynamic category data
+      return state.providerBreakdown.filter(p =>
+        categoryProviderIds.has(p.provider.toLowerCase())
+      )
     },
-    [state.providerBreakdown]
+    [state.providerBreakdown, state.availableFilters.providers]
   )
 
   // Get daily trend data filtered by time range with rolling average
+  // Optional category parameter selects category-specific data from backend
+  // Optional customRange for when timeRange is "custom"
   const getDailyTrendForRange = useCallback(
-    (timeRange: TimeRange): DailyTrendDataPoint[] => {
-      const trendData = state.dailyTrendData
+    (
+      timeRange: TimeRange,
+      category?: "genai" | "cloud" | "subscription",
+      customRange?: CustomDateRange
+    ): DailyTrendDataPoint[] => {
+      // Select appropriate dataset based on category
+      const trendData = category
+        ? state.categoryTrendData[category]
+        : state.categoryTrendData.all
       if (!trendData || trendData.length === 0) return []
 
       // Filter out any items with missing period and sort by date (ascending)
@@ -351,9 +505,23 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       // Calculate date range based on time range type
       const today = new Date()
       let startDate: Date
+      let endDate: Date = today
       let days: number
 
       switch (timeRange) {
+        case "custom":
+          // Custom date range - use provided start/end dates
+          if (customRange?.startDate && customRange?.endDate) {
+            startDate = new Date(customRange.startDate)
+            endDate = new Date(customRange.endDate)
+            days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          } else {
+            // Fallback to 30 days if no custom range provided
+            days = 30
+            startDate = new Date(today)
+            startDate.setDate(startDate.getDate() - days + 1)
+          }
+          break
         case "mtd":
           // Month to date - from 1st of current month
           startDate = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -375,6 +543,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
           const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
           startDate = lastMonthStart
+          endDate = lastMonthEnd
           days = lastMonthEnd.getDate()
           break
         default:
@@ -384,12 +553,14 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           startDate.setDate(startDate.getDate() - days + 1)
       }
 
-      // Format startDate as YYYY-MM-DD for comparison
+      // Format dates as YYYY-MM-DD for comparison
       const startDateStr = startDate.toISOString().split("T")[0]
+      const endDateStr = endDate.toISOString().split("T")[0]
 
-      // Filter data by date range
-      const filteredData = sortedData.filter((d) => d.period >= startDateStr)
-
+      // Filter data by date range (inclusive of both start and end)
+      const filteredData = sortedData.filter(
+        (d) => d.period >= startDateStr && d.period <= endDateStr
+      )
       if (filteredData.length === 0) return []
 
       // Calculate rolling average window based on number of days
@@ -444,7 +615,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         }
       })
     },
-    [state.dailyTrendData]
+    [state.categoryTrendData]
   )
 
   // Check if cached data covers a date range
@@ -472,12 +643,13 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       orgSlug,
       refresh,
       fetchIfNeeded,
+      invalidateCache,
       getFilteredData,
       getFilteredProviders,
       getDailyTrendForRange,
       isCachedForDateRange,
     }),
-    [state, orgSlug, refresh, fetchIfNeeded, getFilteredData, getFilteredProviders, getDailyTrendForRange, isCachedForDateRange]
+    [state, orgSlug, refresh, fetchIfNeeded, invalidateCache, getFilteredData, getFilteredProviders, getDailyTrendForRange, isCachedForDateRange]
   )
 
   return (
@@ -525,10 +697,16 @@ export function useHierarchy() {
 
 /**
  * Hook to get daily trend data for a specific time range
+ * Optionally filtered by category (genai, cloud, subscription)
+ * Optional customRange for when timeRange is "custom"
  */
-export function useDailyTrend(timeRange: TimeRange = "30") {
+export function useDailyTrend(
+  timeRange: TimeRange = "30",
+  category?: "genai" | "cloud" | "subscription",
+  customRange?: CustomDateRange
+) {
   const { getDailyTrendForRange, dailyTrendData, isLoading, error, currency } = useCostData()
-  const trendData = getDailyTrendForRange(timeRange)
+  const trendData = getDailyTrendForRange(timeRange, category, customRange)
 
   // Calculate summary stats for the selected range
   const summary = {

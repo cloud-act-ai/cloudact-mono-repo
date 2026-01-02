@@ -70,7 +70,7 @@ def validate_entity_id(entity_id: str) -> str:
 
 ORG_HIERARCHY_TABLE = "org_hierarchy"
 ORG_HIERARCHY_VIEW = "x_org_hierarchy"  # Materialized view in org dataset for fast reads
-SAAS_SUBSCRIPTION_PLANS_TABLE = "saas_subscription_plans"
+SAAS_SUBSCRIPTION_PLANS_TABLE = "subscription_plans"
 CENTRAL_DATASET = "organizations"  # org_hierarchy is in central dataset for consistency
 
 
@@ -168,7 +168,8 @@ class HierarchyService:
         org_slug = validate_org_slug(org_slug)
         table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
-        # Build query - view is already filtered by org_slug and end_date
+        # Build parameterized query - view is already filtered by org_slug and end_date
+        query_params = []
         if uses_view:
             query = f"""
             SELECT *
@@ -180,20 +181,23 @@ class HierarchyService:
             query = f"""
             SELECT *
             FROM `{table_ref}`
-            WHERE org_slug = '{org_slug}'
+            WHERE org_slug = @org_slug
               AND end_date IS NULL
             """
+            query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
 
         if not include_inactive:
             query += " AND is_active = TRUE"
 
         if entity_type:
-            query += f" AND entity_type = '{entity_type.value}'"
+            query += " AND entity_type = @entity_type"
+            query_params.append(bigquery.ScalarQueryParameter("entity_type", "STRING", entity_type.value))
 
         query += " ORDER BY entity_type, entity_id"
 
         try:
-            results = list(self.bq_client.query(query))
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params) if query_params else None
+            results = list(self.bq_client.client.query(query, job_config=job_config).result())
 
             entities = []
             for row in results:
@@ -247,13 +251,17 @@ class HierarchyService:
         entity_id = validate_entity_id(entity_id)
         table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
-        # Build query - view is already filtered by org_slug and end_date
+        # Build parameterized query - view is already filtered by org_slug and end_date
+        query_params = [
+            bigquery.ScalarQueryParameter("entity_type", "STRING", entity_type.value),
+            bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
+        ]
         if uses_view:
             query = f"""
             SELECT *
             FROM `{table_ref}`
-            WHERE entity_type = '{entity_type.value}'
-              AND entity_id = '{entity_id}'
+            WHERE entity_type = @entity_type
+              AND entity_id = @entity_id
             LIMIT 1
             """
         else:
@@ -261,15 +269,17 @@ class HierarchyService:
             query = f"""
             SELECT *
             FROM `{table_ref}`
-            WHERE org_slug = '{org_slug}'
-              AND entity_type = '{entity_type.value}'
-              AND entity_id = '{entity_id}'
+            WHERE org_slug = @org_slug
+              AND entity_type = @entity_type
+              AND entity_id = @entity_id
               AND end_date IS NULL
             LIMIT 1
             """
+            query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
 
         try:
-            results = list(self.bq_client.query(query))
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            results = list(self.bq_client.client.query(query, job_config=job_config).result())
 
             if not results:
                 return None
@@ -557,21 +567,30 @@ class HierarchyService:
         if not existing:
             raise ValueError(f"{entity_type.value.title()} {entity_id} does not exist")
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow()
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
-        # Mark old version as ended
+        # Mark old version as ended using parameterized query
         end_query = f"""
         UPDATE `{table_ref}`
-        SET end_date = TIMESTAMP('{now}'),
-            updated_at = TIMESTAMP('{now}'),
-            updated_by = '{updated_by}'
-        WHERE org_slug = '{org_slug}'
-          AND id = '{existing.id}'
+        SET end_date = @now_ts,
+            updated_at = @now_ts,
+            updated_by = @updated_by
+        WHERE org_slug = @org_slug
+          AND id = @entity_record_id
         """
-        list(self.bq_client.query(end_query))  # Execute UPDATE
+        end_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("entity_record_id", "STRING", existing.id),
+            ]
+        )
+        list(self.bq_client.client.query(end_query, job_config=end_job_config).result())  # Execute UPDATE
 
         # Create new version
+        now_iso = now.isoformat()
         new_id = str(uuid.uuid4())
         row = {
             "id": new_id,
@@ -595,7 +614,7 @@ class HierarchyService:
             "is_active": request.is_active if request.is_active is not None else existing.is_active,
             "created_at": existing.created_at.isoformat() if hasattr(existing.created_at, 'isoformat') else existing.created_at,
             "created_by": existing.created_by,
-            "updated_at": now,
+            "updated_at": now_iso,
             "updated_by": updated_by,
             "version": existing.version + 1,
             "end_date": None,
@@ -638,29 +657,35 @@ class HierarchyService:
         blocking_entities = []
         table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
-        # Check for child entities
+        # Check for child entities using parameterized queries
         if entity_type == HierarchyEntityType.DEPARTMENT:
             # Check for projects under this department
             # View is already filtered by org_slug and end_date IS NULL
+            query_params = [
+                bigquery.ScalarQueryParameter("parent_id", "STRING", entity_id),
+                bigquery.ScalarQueryParameter("parent_type", "STRING", "department"),
+            ]
             if uses_view:
                 query = f"""
                 SELECT entity_type, entity_id, entity_name
                 FROM `{table_ref}`
-                WHERE parent_id = '{entity_id}'
-                  AND parent_type = 'department'
+                WHERE parent_id = @parent_id
+                  AND parent_type = @parent_type
                   AND is_active = TRUE
                 """
             else:
                 query = f"""
                 SELECT entity_type, entity_id, entity_name
                 FROM `{table_ref}`
-                WHERE org_slug = '{org_slug}'
-                  AND parent_id = '{entity_id}'
-                  AND parent_type = 'department'
+                WHERE org_slug = @org_slug
+                  AND parent_id = @parent_id
+                  AND parent_type = @parent_type
                   AND end_date IS NULL
                   AND is_active = TRUE
                 """
-            results = list(self.bq_client.query(query))
+                query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            results = list(self.bq_client.client.query(query, job_config=job_config).result())
             for row in results:
                 blocking_entities.append({
                     "entity_type": row['entity_type'],
@@ -671,25 +696,31 @@ class HierarchyService:
         elif entity_type == HierarchyEntityType.PROJECT:
             # Check for teams under this project
             # View is already filtered by org_slug and end_date IS NULL
+            query_params = [
+                bigquery.ScalarQueryParameter("parent_id", "STRING", entity_id),
+                bigquery.ScalarQueryParameter("parent_type", "STRING", "project"),
+            ]
             if uses_view:
                 query = f"""
                 SELECT entity_type, entity_id, entity_name
                 FROM `{table_ref}`
-                WHERE parent_id = '{entity_id}'
-                  AND parent_type = 'project'
+                WHERE parent_id = @parent_id
+                  AND parent_type = @parent_type
                   AND is_active = TRUE
                 """
             else:
                 query = f"""
                 SELECT entity_type, entity_id, entity_name
                 FROM `{table_ref}`
-                WHERE org_slug = '{org_slug}'
-                  AND parent_id = '{entity_id}'
-                  AND parent_type = 'project'
+                WHERE org_slug = @org_slug
+                  AND parent_id = @parent_id
+                  AND parent_type = @parent_type
                   AND end_date IS NULL
                   AND is_active = TRUE
                 """
-            results = list(self.bq_client.query(query))
+                query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            results = list(self.bq_client.client.query(query, job_config=job_config).result())
             for row in results:
                 blocking_entities.append({
                     "entity_type": row['entity_type'],
@@ -697,14 +728,15 @@ class HierarchyService:
                     "entity_name": row['entity_name']
                 })
 
-        # Check for references in subscription plans
+        # Check for references in subscription plans using parameterized queries
         subscription_table = self._get_table_ref(org_slug, SAAS_SUBSCRIPTION_PLANS_TABLE)
         try:
+            ref_params = [bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id)]
             if entity_type == HierarchyEntityType.DEPARTMENT:
                 ref_query = f"""
                 SELECT subscription_id, provider, plan_name
                 FROM `{subscription_table}`
-                WHERE hierarchy_dept_id = '{entity_id}'
+                WHERE hierarchy_dept_id = @entity_id
                   AND end_date IS NULL
                 LIMIT 10
                 """
@@ -712,7 +744,7 @@ class HierarchyService:
                 ref_query = f"""
                 SELECT subscription_id, provider, plan_name
                 FROM `{subscription_table}`
-                WHERE hierarchy_project_id = '{entity_id}'
+                WHERE hierarchy_project_id = @entity_id
                   AND end_date IS NULL
                 LIMIT 10
                 """
@@ -720,12 +752,13 @@ class HierarchyService:
                 ref_query = f"""
                 SELECT subscription_id, provider, plan_name
                 FROM `{subscription_table}`
-                WHERE hierarchy_team_id = '{entity_id}'
+                WHERE hierarchy_team_id = @entity_id
                   AND end_date IS NULL
                 LIMIT 10
                 """
 
-            ref_results = list(self.bq_client.query(ref_query))
+            ref_job_config = bigquery.QueryJobConfig(query_parameters=ref_params)
+            ref_results = list(self.bq_client.client.query(ref_query, job_config=ref_job_config).result())
             for row in ref_results:
                 blocking_entities.append({
                     "entity_type": "subscription",
@@ -780,21 +813,28 @@ class HierarchyService:
         if not existing:
             raise ValueError(f"{entity_type.value.title()} {entity_id} does not exist")
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow()
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
-        # Soft delete by setting end_date and is_active = false
+        # Soft delete by setting end_date and is_active = false using parameterized query
         delete_query = f"""
         UPDATE `{table_ref}`
-        SET end_date = TIMESTAMP('{now}'),
+        SET end_date = @now_ts,
             is_active = FALSE,
-            updated_at = TIMESTAMP('{now}'),
-            updated_by = '{deleted_by}'
-        WHERE org_slug = '{org_slug}'
-          AND id = '{existing.id}'
+            updated_at = @now_ts,
+            updated_by = @deleted_by
+        WHERE org_slug = @org_slug
+          AND id = @entity_record_id
         """
-
-        list(self.bq_client.query(delete_query))  # Execute UPDATE
+        delete_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                bigquery.ScalarQueryParameter("deleted_by", "STRING", deleted_by),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("entity_record_id", "STRING", existing.id),
+            ]
+        )
+        list(self.bq_client.client.query(delete_query, job_config=delete_job_config).result())
         return True
 
     # ==========================================================================
@@ -824,19 +864,26 @@ class HierarchyService:
         sorted_rows = sorted(rows, key=lambda r: type_order[r.entity_type])
 
         if mode == "replace":
-            # Delete all existing entities for this org
+            # Delete all existing entities for this org using parameterized query
             table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
-            now = datetime.utcnow().isoformat()
+            now = datetime.utcnow()
             delete_query = f"""
             UPDATE `{table_ref}`
-            SET end_date = TIMESTAMP('{now}'),
+            SET end_date = @now_ts,
                 is_active = FALSE,
-                updated_by = '{imported_by}'
-            WHERE org_slug = '{org_slug}'
+                updated_by = @imported_by
+            WHERE org_slug = @org_slug
               AND end_date IS NULL
             """
+            replace_job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                    bigquery.ScalarQueryParameter("imported_by", "STRING", imported_by),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                ]
+            )
             try:
-                list(self.bq_client.query(delete_query))  # Execute UPDATE
+                list(self.bq_client.client.query(delete_query, job_config=replace_job_config).result())
             except google.api_core.exceptions.NotFound:
                 pass
 

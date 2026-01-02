@@ -62,7 +62,7 @@ openai:
   data_tables:
     usage: "openai_usage"
     costs: "openai_costs"
-  seed_path: "configs/llm/seed/openai/"
+  seed_path: "configs/genai/seed/openai/"
 ```
 
 ## Instructions

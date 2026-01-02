@@ -452,7 +452,7 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     const flow = [
       '1. User toggles provider switch ON',
       '2. Frontend calls enableProvider(orgSlug, provider)',
-      '3. Action upserts to saas_subscription_providers_meta (Supabase)',
+      '3. Action upserts to subscription_providers_meta (Supabase)',
       '4. Action calls API: POST /subscriptions/{org}/providers/{provider}/enable',
       '5. API seeds default plans to BigQuery',
       '6. Response returns plans_seeded count',
@@ -600,7 +600,7 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     const flow = [
       '1. User toggles provider switch OFF',
       '2. Frontend calls disableProvider(orgSlug, provider)',
-      '3. Action updates saas_subscription_providers_meta.is_enabled=false',
+      '3. Action updates subscription_providers_meta.is_enabled=false',
       '4. Action calls API: POST /subscriptions/{org}/providers/{provider}/disable',
       '5. API sets all plans status to cancelled in BigQuery',
       '6. Response confirms disable',

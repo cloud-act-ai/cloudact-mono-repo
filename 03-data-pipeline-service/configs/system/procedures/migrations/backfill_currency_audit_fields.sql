@@ -65,7 +65,7 @@ BEGIN
   -- 2. Count rows that need updating
   EXECUTE IMMEDIATE FORMAT("""
     SELECT COUNT(*)
-    FROM `%s.%s.saas_subscription_plans`
+    FROM `%s.%s.subscription_plans`
     WHERE (source_currency IS NULL
            OR source_price IS NULL
            OR exchange_rate_used IS NULL)
@@ -101,7 +101,7 @@ BEGIN
         END AS new_exchange_rate_used,
         start_date,
         status
-      FROM `%s.%s.saas_subscription_plans`
+      FROM `%s.%s.subscription_plans`
       WHERE (source_currency IS NULL
              OR source_price IS NULL
              OR exchange_rate_used IS NULL)
@@ -118,7 +118,7 @@ BEGIN
   ELSE
     -- 4. Execute backfill update
     EXECUTE IMMEDIATE FORMAT("""
-      UPDATE `%s.%s.saas_subscription_plans`
+      UPDATE `%s.%s.subscription_plans`
       SET
         source_currency = COALESCE(source_currency, currency, 'USD'),
         source_price = COALESCE(source_price, unit_price),
@@ -169,7 +169,7 @@ BEGIN
         start_date,
         status,
         updated_at
-      FROM `%s.%s.saas_subscription_plans`
+      FROM `%s.%s.subscription_plans`
       WHERE updated_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
       ORDER BY provider, subscription_id, start_date DESC
       LIMIT 20

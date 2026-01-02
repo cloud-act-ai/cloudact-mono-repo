@@ -9,13 +9,13 @@ Tests the Polars-powered cost analytics endpoints including:
 - GET /{org_slug}/trend - Cost trend over time
 - GET /{org_slug}/saas-subscriptions - SaaS subscription costs
 - GET /{org_slug}/cloud - Cloud infrastructure costs
-- GET /{org_slug}/llm - LLM API costs
+- GET /{org_slug}/genai - GenAI API costs
 - GET /{org_slug}/total - Total aggregated costs
 - GET /{org_slug}/cache/stats - Cache statistics
 - POST /{org_slug}/cache/invalidate - Invalidate cache
 
 NOTE: Tests work with latest SaaS subscription schema changes:
-- saas_subscription_plans now has 29 columns (added 3 multi-currency fields: source_currency, source_price, exchange_rate_used)
+- subscription_plans now has 29 columns (added 3 multi-currency fields: source_currency, source_price, exchange_rate_used)
 - Removed tables: org_subscription_audit, llm_subscriptions, subscription_analysis
 - Subscription audits now in org_audit_logs table
 """
@@ -524,9 +524,9 @@ class TestGetSaaSSubscriptionCosts:
     """Tests for GET /{org_slug}/saas-subscriptions endpoint."""
 
     @pytest.mark.asyncio
-    async def test_get_saas_costs_success(self, test_client, mock_cost_service):
+    async def test_get_subscription_costs_success(self, test_client, mock_cost_service):
         """Test successful SaaS subscription costs retrieval."""
-        mock_cost_service.get_saas_subscription_costs = AsyncMock(return_value=MagicMock(
+        mock_cost_service.get_subscription_costs = AsyncMock(return_value=MagicMock(
             success=True,
             data=[
                 {"Provider": "chatgpt_plus", "MonthlyCost": 20.0, "AnnualCost": 240.0},
@@ -583,16 +583,16 @@ class TestGetCloudCosts:
 
 
 # ============================================
-# LLM Costs Tests
+# GenAI Costs Tests
 # ============================================
 
-class TestGetLLMCosts:
-    """Tests for GET /{org_slug}/llm endpoint."""
+class TestGetGenAICosts:
+    """Tests for GET /{org_slug}/genai endpoint."""
 
     @pytest.mark.asyncio
-    async def test_get_llm_costs_success(self, test_client, mock_cost_service):
-        """Test successful LLM costs retrieval."""
-        mock_cost_service.get_llm_costs = AsyncMock(return_value=MagicMock(
+    async def test_get_genai_costs_success(self, test_client, mock_cost_service):
+        """Test successful GenAI costs retrieval."""
+        mock_cost_service.get_genai_costs = AsyncMock(return_value=MagicMock(
             success=True,
             data=[
                 {"Provider": "openai", "Model": "gpt-4", "MonthlyCost": 3000.0},
@@ -608,7 +608,7 @@ class TestGetLLMCosts:
             error=None
         ))
 
-        response = await test_client.get("/api/v1/costs/test_org/llm")
+        response = await test_client.get("/api/v1/costs/test_org/genai")
 
         assert response.status_code == 200
 
@@ -632,14 +632,14 @@ class TestGetTotalCosts:
             success=True,
             summary={"total_daily_cost": 200.0, "total_monthly_cost": 6000.0, "total_annual_cost": 72000.0, "record_count": 100, "providers": ["gcp"]}
         )
-        llm_response = MagicMock(
+        genai_response = MagicMock(
             success=True,
             summary={"total_daily_cost": 100.0, "total_monthly_cost": 3000.0, "total_annual_cost": 36000.0, "record_count": 50, "providers": ["openai"], "date_range": {"start": "2025-01-01", "end": "2025-01-31"}}
         )
 
-        mock_cost_service.get_saas_subscription_costs = AsyncMock(return_value=saas_response)
+        mock_cost_service.get_subscription_costs = AsyncMock(return_value=saas_response)
         mock_cost_service.get_cloud_costs = AsyncMock(return_value=cloud_response)
-        mock_cost_service.get_llm_costs = AsyncMock(return_value=llm_response)
+        mock_cost_service.get_genai_costs = AsyncMock(return_value=genai_response)
 
         response = await test_client.get("/api/v1/costs/test_org/total")
 
@@ -647,7 +647,7 @@ class TestGetTotalCosts:
         data = response.json()
         assert "saas" in data
         assert "cloud" in data
-        assert "llm" in data
+        assert "genai" in data
         assert "total" in data
         assert data["total"]["total_monthly_cost"] == 9300.0  # 300 + 6000 + 3000
 
