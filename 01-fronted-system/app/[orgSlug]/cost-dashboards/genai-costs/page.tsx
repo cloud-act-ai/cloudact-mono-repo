@@ -98,15 +98,18 @@ export default function GenAICostsPage() {
         setPeriodCosts(periodCostsResult.data)
       }
 
-      // Process hierarchy data if loaded
-      if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
-        const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
-          entity_id: h.entity_id,
-          entity_name: h.entity_name,
-          entity_type: h.entity_type as "department" | "project" | "team",
-          parent_id: h.parent_id,
-        }))
-        setHierarchy(entities)
+      // Process hierarchy data if loaded - always mark as loaded to prevent re-fetching
+      if (hierarchyResult) {
+        if (hierarchyResult.success && hierarchyResult.data?.entities) {
+          const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
+            entity_id: h.entity_id,
+            entity_name: h.entity_name,
+            entity_type: h.entity_type as "department" | "project" | "team",
+            parent_id: h.parent_id,
+          }))
+          setHierarchy(entities)
+        }
+        // Always mark as loaded even on failure to prevent infinite fetch loops
         setHierarchyLoaded(true)
       }
 
@@ -137,8 +140,11 @@ export default function GenAICostsPage() {
         const daysRemaining = daysInMonth - currentDay
         const dailyRate = currentDay > 0 ? filteredTotalCost / currentDay : 0
         const forecastMonthly = filteredTotalCost + (dailyRate * daysRemaining)
-        const currentMonth = today.getMonth() + 1
-        const ytdEstimate = filteredTotalCost // Use MTD as YTD estimate when filtered
+        // Calculate YTD estimate based on days elapsed in year
+        const startOfYearDate = new Date(today.getFullYear(), 0, 1)
+        const daysElapsedInYear = Math.ceil((today.getTime() - startOfYearDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        const dailyRateForYear = daysElapsedInYear > 0 ? filteredTotalCost / currentDay : 0
+        const ytdEstimate = dailyRateForYear * daysElapsedInYear
 
         // Create filtered summary
         const filteredSummary: CostSummary = {
@@ -235,11 +241,12 @@ export default function GenAICostsPage() {
 
   // Score ring segments for LLM provider breakdown
   const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
-    return providers.slice(0, 4).map((p, index) => ({
+    const colors = ["#10A37F", "#D4A574", "#4285F4", "#7C3AED", "#FF6C5E", "#00CED1", "#FF69B4", "#32CD32"]
+    return providers.slice(0, 6).map((p, index) => ({
       key: p.provider,
       name: GENAI_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
       value: p.total_cost,
-      color: ["#10A37F", "#D4A574", "#4285F4", "#7C3AED"][index] || "#94a3b8",
+      color: colors[index % colors.length],
     })).filter(s => s.value > 0)
   }, [providers])
 

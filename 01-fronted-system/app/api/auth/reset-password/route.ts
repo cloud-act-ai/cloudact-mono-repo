@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate password reset link using admin API
+    // Redirect directly to reset-password page - it handles the implicit flow hash tokens
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email,

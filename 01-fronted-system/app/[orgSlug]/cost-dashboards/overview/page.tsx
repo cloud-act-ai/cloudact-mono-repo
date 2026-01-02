@@ -117,15 +117,18 @@ export default function CostOverviewPage() {
         setPeriodCosts(periodCostsResult.data)
       }
 
-      // Process hierarchy data if loaded
-      if (hierarchyResult && hierarchyResult.success && hierarchyResult.data?.entities) {
-        const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
-          entity_id: h.entity_id,
-          entity_name: h.entity_name,
-          entity_type: h.entity_type as "department" | "project" | "team",
-          parent_id: h.parent_id,
-        }))
-        setHierarchy(entities)
+      // Process hierarchy data if loaded - always mark as loaded to prevent re-fetching
+      if (hierarchyResult) {
+        if (hierarchyResult.success && hierarchyResult.data?.entities) {
+          const entities: HierarchyEntity[] = hierarchyResult.data.entities.map((h) => ({
+            entity_id: h.entity_id,
+            entity_name: h.entity_name,
+            entity_type: h.entity_type as "department" | "project" | "team",
+            parent_id: h.parent_id,
+          }))
+          setHierarchy(entities)
+        }
+        // Always mark as loaded even on failure to prevent infinite fetch loops
         setHierarchyLoaded(true)
       }
 
@@ -194,9 +197,13 @@ export default function CostOverviewPage() {
         const dailyRate = currentDay > 0 ? filteredTotalCost / currentDay : 0
         const forecastMonthly = filteredTotalCost + (dailyRate * daysRemaining)
 
-        // Calculate YTD estimate (filtered total * 12 / 12 months elapsed ratio)
-        const currentMonth = today.getMonth() + 1 // 1-12
-        const ytdEstimate = (filteredTotalCost / currentMonth) * currentMonth // Simplified: just use MTD for YTD when filtered
+        // Calculate YTD estimate based on days elapsed in year
+        const startOfYearDate = new Date(today.getFullYear(), 0, 1)
+        const daysElapsedInYear = Math.ceil((today.getTime() - startOfYearDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        const daysInYear = today.getFullYear() % 4 === 0 ? 366 : 365
+        // Extrapolate from current period to full year if we have data
+        const dailyRateForYear = daysElapsedInYear > 0 ? filteredTotalCost / currentDay : 0
+        const ytdEstimate = dailyRateForYear * daysElapsedInYear
 
         // Create filtered total summary for use in metrics
         // Include mtd_cost and ytd_cost fields for getSafeValue helper compatibility

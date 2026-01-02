@@ -193,3 +193,19 @@ export {
   type CostPeriodMetricsGridProps,
   type CostPeriodMetricsBarProps,
 } from "./cost-period-metrics-grid"
+
+// ============================================
+// Combo Chart (Bar + Line overlay)
+// ============================================
+
+export {
+  CostComboChart,
+  MonthlyCostTrendChart,
+  ProviderCostComparisonChart,
+  WeekComparisonChart,
+  type ComboDataPoint,
+  type CostComboChartProps,
+  type MonthlyCostTrendProps,
+  type ProviderCostComparisonProps,
+  type WeekComparisonProps,
+} from "./cost-combo-chart"

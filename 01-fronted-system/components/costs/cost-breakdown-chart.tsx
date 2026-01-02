@@ -178,7 +178,7 @@ function BarItem({ item, currency, countLabel, compact, onClick, index }: BarIte
         <div className="flex items-center gap-2.5">
           {/* Color indicator dot */}
           <div
-            className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm"
+            className={cn("w-3 h-3 rounded-full flex-shrink-0 shadow-sm", bgClass)}
             style={{ backgroundColor: hexColor }}
           />
           {item.icon && (

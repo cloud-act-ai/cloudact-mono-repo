@@ -23,7 +23,6 @@ const transporter = nodemailer.createTransport({
 
 const fromEmail = process.env.FROM_EMAIL || "support@cloudact.ai"
 const fromName = process.env.FROM_NAME || "CloudAct.ai"
-const appName = "CloudAct.ai"
 
 interface SendEmailOptions {
   to: string
@@ -47,10 +46,93 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
     })
     return true
   } catch (emailError) {
-    // Log error for debugging - email failures should be visible in logs
     console.error("[Email] Failed to send email:", emailError instanceof Error ? emailError.message : emailError)
     return false
   }
+}
+
+// =============================================
+// BASE EMAIL LAYOUT - Single Brand Template
+// =============================================
+interface BaseEmailLayoutOptions {
+  title: string
+  iconBg?: string      // Icon background color (default: #18181b)
+  iconText?: string    // Icon character (default: C)
+  content: string      // Main email body HTML
+  ctaText?: string     // Call-to-action button text
+  ctaLink?: string     // Call-to-action button link
+  ctaBg?: string       // CTA button background (default: #18181b)
+  footerText?: string  // Optional additional footer text
+}
+
+function baseEmailLayout({
+  title,
+  iconBg = "#18181b",
+  iconText = "C",
+  content,
+  ctaText,
+  ctaLink,
+  ctaBg = "#18181b",
+  footerText,
+}: BaseEmailLayoutOptions): string {
+  const ctaButton = ctaText && ctaLink ? `
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${ctaLink}" style="display: inline-block; padding: 14px 32px; background-color: ${ctaBg}; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
+                      ${ctaText}
+                    </a>
+                  </td>
+                </tr>
+              </table>` : ""
+
+  const additionalFooter = footerText ? `
+              <p style="margin: 20px 0 0 0; font-size: 12px; color: #a1a1aa; word-break: break-all;">
+                ${footerText}
+              </p>` : ""
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
+              <div style="display: inline-block; width: 48px; height: 48px; background-color: ${iconBg}; border-radius: 12px; line-height: 48px; text-align: center;">
+                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">${iconText}</span>
+              </div>
+              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">${title}</h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              ${content}
+              ${ctaButton}
+              ${additionalFooter}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
+                CloudAct.AI - Enterprise Cloud Cost Management
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
 }
 
 // =============================================
@@ -70,36 +152,12 @@ export async function sendInviteEmail({
   inviteLink: string
 }): Promise<boolean> {
   const roleDisplay = role === "read_only" ? "Read Only" : role.charAt(0).toUpperCase() + role.slice(1)
-
-  // Escape user-provided content to prevent XSS
   const safeInviterName = escapeHtml(inviterName)
   const safeOrgName = escapeHtml(orgName)
   const safeRoleDisplay = escapeHtml(roleDisplay)
-  // inviteLink is server-generated URL - use encodeURI for href attributes
   const safeInviteLink = encodeURI(inviteLink)
 
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <div style="display: inline-block; width: 48px; height: 48px; background-color: #18181b; border-radius: 12px; line-height: 48px; text-align: center;">
-                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">C</span>
-              </div>
-              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">You're Invited!</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 40px;">
+  const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
                 <strong>${safeInviterName}</strong> has invited you to join <strong>${safeOrgName}</strong> on CloudAct.AI.
               </p>
@@ -107,36 +165,17 @@ export async function sendInviteEmail({
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: #71717a;">Your role:</p>
                 <p style="margin: 0; font-size: 18px; font-weight: 600; color: #18181b;">${safeRoleDisplay}</p>
               </div>
-              <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td align="center">
-                    <a href="${safeInviteLink}" style="display: inline-block; padding: 14px 32px; background-color: #18181b; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
-                      Accept Invitation
-                    </a>
-                  </td>
-                </tr>
-              </table>
               <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
                 This invitation expires in 48 hours. If you didn't expect this invitation, you can safely ignore this email.
-              </p>
-              <p style="margin: 20px 0 0 0; font-size: 12px; color: #a1a1aa; word-break: break-all;">
-                Or copy this link: ${safeInviteLink}
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
-                CloudAct.AI - Enterprise Cloud Cost Management
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "You're Invited!",
+    content,
+    ctaText: "Accept Invitation",
+    ctaLink: safeInviteLink,
+    footerText: `Or copy this link: ${safeInviteLink}`,
+  })
 
   return sendEmail({
     to,
@@ -147,7 +186,7 @@ export async function sendInviteEmail({
 }
 
 // =============================================
-// PASSWORD RESET EMAIL (Fallback if Supabase fails)
+// PASSWORD RESET EMAIL
 // =============================================
 export async function sendPasswordResetEmail({
   to,
@@ -156,66 +195,31 @@ export async function sendPasswordResetEmail({
   to: string
   resetLink: string
 }): Promise<boolean> {
-  // Escape the reset link for safety (even though server-generated)
-  const safeResetLink = escapeHtml(resetLink)
-
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <div style="display: inline-block; width: 48px; height: 48px; background-color: #18181b; border-radius: 12px; line-height: 48px; text-align: center;">
-                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">C</span>
-              </div>
-              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">Reset Your Password</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 40px;">
+  const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
                 We received a request to reset your password for your CloudAct.AI account.
               </p>
-              <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td align="center">
-                    <a href="${safeResetLink}" style="display: inline-block; padding: 14px 32px; background-color: #18181b; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
-                      Reset Password
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              <div style="margin: 30px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <p style="margin: 20px 0 0 0; font-size: 13px; color: #71717a; text-align: center;">
+                Or copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0 0; font-size: 12px; color: #3b82f6; word-break: break-all; text-align: center; background-color: #f4f4f5; padding: 12px; border-radius: 6px;">
+                ${resetLink}
+              </p>
+              <div style="margin: 30px 0 0 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                   <strong>Security Notice:</strong> If you didn't request this, please ignore this email. Your password won't be changed.
                 </p>
               </div>
-              <p style="margin: 0; font-size: 14px; color: #71717a;">
-                This link expires in 1 hour.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
-                CloudAct.AI - Enterprise Cloud Cost Management
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
+              <p style="margin: 20px 0 0 0; font-size: 14px; color: #71717a;">
+                This link expires in 24 hours.
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Reset Your Password",
+    content,
+    ctaText: "Reset Password",
+    ctaLink: resetLink,
+  })
 
   return sendEmail({
     to,
@@ -248,28 +252,7 @@ export async function sendTrialEndingEmail({
     day: "numeric",
   })
 
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <div style="display: inline-block; width: 48px; height: 48px; background-color: #f59e0b; border-radius: 12px; line-height: 48px; text-align: center;">
-                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">!</span>
-              </div>
-              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">Your Trial is Ending Soon</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 40px;">
+  const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
                 Your free trial for <strong>${safeOrgName}</strong> on CloudAct.AI will end in <strong>${daysRemaining} days</strong> (${formattedDate}).
               </p>
@@ -278,33 +261,18 @@ export async function sendTrialEndingEmail({
                   To avoid any interruption to your service, please add a payment method before your trial ends.
                 </p>
               </div>
-              <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td align="center">
-                    <a href="${safeBillingLink}" style="display: inline-block; padding: 14px 32px; background-color: #18181b; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
-                      Subscribe Now
-                    </a>
-                  </td>
-                </tr>
-              </table>
               <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
                 If you have any questions about our plans, feel free to reach out to our support team.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
-                CloudAct.AI - Enterprise Cloud Cost Management
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Your Trial is Ending Soon",
+    iconBg: "#f59e0b",
+    iconText: "!",
+    content,
+    ctaText: "Subscribe Now",
+    ctaLink: safeBillingLink,
+  })
 
   return sendEmail({
     to,
@@ -329,28 +297,7 @@ export async function sendPaymentFailedEmail({
   const safeOrgName = escapeHtml(orgName)
   const safeBillingLink = escapeHtml(billingLink)
 
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <div style="display: inline-block; width: 48px; height: 48px; background-color: #ef4444; border-radius: 12px; line-height: 48px; text-align: center;">
-                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">!</span>
-              </div>
-              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">Payment Failed</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 40px;">
+  const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
                 We were unable to process your payment for <strong>${safeOrgName}</strong> on CloudAct.AI.
               </p>
@@ -359,33 +306,19 @@ export async function sendPaymentFailedEmail({
                   <strong>Action Required:</strong> Please update your payment method to avoid service interruption.
                 </p>
               </div>
-              <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td align="center">
-                    <a href="${safeBillingLink}" style="display: inline-block; padding: 14px 32px; background-color: #ef4444; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
-                      Update Payment Method
-                    </a>
-                  </td>
-                </tr>
-              </table>
               <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
                 If you believe this is an error, please contact your bank or our support team for assistance.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
-                CloudAct.AI - Enterprise Cloud Cost Management
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Payment Failed",
+    iconBg: "#ef4444",
+    iconText: "!",
+    content,
+    ctaText: "Update Payment Method",
+    ctaLink: safeBillingLink,
+    ctaBg: "#ef4444",
+  })
 
   return sendEmail({
     to,
@@ -409,71 +342,85 @@ export async function sendWelcomeEmail({
   orgName: string
   dashboardLink: string
 }): Promise<boolean> {
-  // Escape user-provided content to prevent XSS
   const safeName = escapeHtml(name)
   const safeOrgName = escapeHtml(orgName)
   const safeDashboardLink = escapeHtml(dashboardLink)
 
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
-              <div style="display: inline-block; width: 48px; height: 48px; background-color: #18181b; border-radius: 12px; line-height: 48px; text-align: center;">
-                <span style="color: #ffffff; font-size: 24px; font-weight: bold;">C</span>
-              </div>
-              <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 700; color: #18181b;">Welcome to CloudAct.AI!</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 40px;">
+  const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
                 Hi ${safeName},
               </p>
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
                 Welcome to <strong>${safeOrgName}</strong>! Your account is all set up and ready to go.
               </p>
-              <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td align="center">
-                    <a href="${safeDashboardLink}" style="display: inline-block; padding: 14px 32px; background-color: #18181b; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
-                      Go to Dashboard
-                    </a>
-                  </td>
-                </tr>
-              </table>
               <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
                 Need help getting started? Check out our documentation or contact support.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
-                CloudAct.AI - Enterprise Cloud Cost Management
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Welcome to CloudAct.AI!",
+    content,
+    ctaText: "Go to Dashboard",
+    ctaLink: safeDashboardLink,
+  })
 
   return sendEmail({
     to,
     subject: `Welcome to ${safeOrgName} on CloudAct.AI!`,
     html,
     text: `Welcome to ${orgName} on CloudAct.AI! Go to your dashboard: ${dashboardLink}`,
+  })
+}
+
+// =============================================
+// SUBSCRIPTION CONFIRMED EMAIL
+// =============================================
+export async function sendSubscriptionConfirmedEmail({
+  to,
+  name,
+  orgName,
+  planName,
+  dashboardLink,
+}: {
+  to: string
+  name: string
+  orgName: string
+  planName: string
+  dashboardLink: string
+}): Promise<boolean> {
+  const safeName = escapeHtml(name)
+  const safeOrgName = escapeHtml(orgName)
+  const safePlanName = escapeHtml(planName)
+  const safeDashboardLink = escapeHtml(dashboardLink)
+
+  const content = `
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                Hi ${safeName},
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                Thank you for subscribing to <strong>${safeOrgName}</strong> on CloudAct.AI!
+              </p>
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: #047857;">Your plan:</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #18181b;">${safePlanName}</p>
+              </div>
+              <p style="margin: 30px 0 0 0; font-size: 14px; color: #71717a;">
+                You now have full access to all features. If you have any questions, our support team is here to help.
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Subscription Confirmed!",
+    iconBg: "#10b981",
+    iconText: "✓",
+    content,
+    ctaText: "Go to Dashboard",
+    ctaLink: safeDashboardLink,
+  })
+
+  return sendEmail({
+    to,
+    subject: `Subscription confirmed for ${safeOrgName} - CloudAct.AI`,
+    html,
+    text: `Thank you for subscribing to ${orgName} on CloudAct.AI! Your plan: ${planName}. Go to your dashboard: ${dashboardLink}`,
   })
 }

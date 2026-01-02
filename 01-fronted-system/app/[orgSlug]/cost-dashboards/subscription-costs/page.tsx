@@ -218,13 +218,16 @@ export default function SubscriptionCostsPage() {
       "design": "#F24E1E",
       "marketing": "#7C3AED",
       "analytics": "#FBBC04",
+      "storage": "#00CED1",
+      "security": "#FF69B4",
     }
+    const fallbackColors = ["#FF6C5E", "#10A37F", "#4285F4", "#7C3AED", "#F24E1E", "#FBBC04", "#00CED1", "#FF69B4"]
 
-    return categories.slice(0, 4).map((c, index) => ({
+    return categories.slice(0, 6).map((c, index) => ({
       key: c.category,
       name: c.category,
       value: c.total_cost,
-      color: categoryColors[c.category.toLowerCase()] || ["#FF6C5E", "#10A37F", "#4285F4", "#7C3AED"][index] || "#94a3b8",
+      color: categoryColors[c.category.toLowerCase()] || fallbackColors[index % fallbackColors.length],
     })).filter(s => s.value > 0)
   }, [categories])
 
@@ -304,6 +307,11 @@ export default function SubscriptionCostsPage() {
             ytd: periodCosts.ytd,
             fytd: periodCosts.fytd,
             fyForecast: periodCosts.fyForecast,
+            // 30-day period data
+            last30Days: periodCosts.last30Days,
+            previous30Days: periodCosts.previous30Days,
+            november: periodCosts.november,
+            december: periodCosts.december,
           }}
           currency={orgCurrency}
           loading={isLoading}

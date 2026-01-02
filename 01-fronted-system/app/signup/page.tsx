@@ -188,9 +188,13 @@ function SignupForm() {
       const finalRedirect = redirectTo || "/onboarding/billing"
       const normalizedEmail = email.trim().toLowerCase()
 
+      // Combine first and last name for full_name (used by database trigger)
+      const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ")
+
       const userData: Record<string, string> = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
+        full_name: fullName, // Required by handle_new_user() trigger
         phone: fullPhone,
         signup_completed_at: new Date().toISOString(),
       }

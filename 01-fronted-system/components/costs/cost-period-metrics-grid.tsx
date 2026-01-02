@@ -146,11 +146,7 @@ export function CostPeriodMetricsGrid({
   compact = false,
   variant = "full",
 }: CostPeriodMetricsGridProps) {
-  if (loading) {
-    return <PeriodMetricsSkeleton variant={variant} />
-  }
-
-  // Get period labels
+  // Get period labels - MUST be called before any conditional returns to satisfy React hooks rules
   const periodLabels = useMemo(() => ({
     yesterday: getFormattedPeriodLabel(getYesterdayRange),
     wtd: getFormattedPeriodLabel(getWTDRange),
@@ -166,7 +162,7 @@ export function CostPeriodMetricsGrid({
     december: getFormattedPeriodLabel(getDecemberRange),
   }), [fiscalStartMonth])
 
-  // Calculate FY forecast if not provided
+  // Calculate FY forecast if not provided - MUST be called before any conditional returns
   const fyForecast = useMemo(() => {
     if (data.fyForecast !== undefined) return data.fyForecast
     if (data.fytd !== undefined) {
@@ -176,6 +172,11 @@ export function CostPeriodMetricsGrid({
     }
     return 0
   }, [data.fyForecast, data.fytd, fiscalStartMonth])
+
+  // Now it's safe to return loading skeleton after all hooks are called
+  if (loading) {
+    return <PeriodMetricsSkeleton variant={variant} />
+  }
 
   // Summary variant shows only 4 key metrics
   if (variant === "summary") {

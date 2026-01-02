@@ -159,8 +159,9 @@ export default function DashboardPage() {
       if (orgResult.data?.default_currency) {
         setOrgCurrency(orgResult.data.default_currency)
       }
-    } catch {
-      // Silently handle errors - show empty state
+    } catch (err) {
+      // Log error but show empty state to user
+      console.error("[Dashboard] Failed to load data:", err instanceof Error ? err.message : "Unknown error")
     } finally {
       setIsLoading(false)
     }
@@ -181,43 +182,15 @@ export default function DashboardPage() {
     setIsRefreshing(false)
   }
 
-  // Demo data for when no real cost data is available
-  const DEMO_DATA = useMemo(() => ({
-    summaryData: {
-      mtd: 4250.00,
-      dailyRate: 142.50,
-      forecast: 4500.00,
-      ytd: 38750.00,
-      currency: orgCurrency,
-    } as CostSummaryData,
-    categoryBreakdown: [
-      { key: "genai", name: "GenAI", value: 1850.00, percentage: 43.5, count: 3, color: "#10A37F" },
-      { key: "cloud", name: "Cloud", value: 1450.00, percentage: 34.1, count: 2, color: "#4285F4" },
-      { key: "saas", name: "SaaS", value: 950.00, percentage: 22.4, count: 8, color: "#FF6C5E" },
-    ] as BreakdownItem[],
-    scoreRingSegments: [
-      { key: "genai", name: "GenAI", value: 1850.00, color: "#10A37F" },
-      { key: "cloud", name: "Cloud", value: 1450.00, color: "#4285F4" },
-      { key: "saas", name: "SaaS", value: 950.00, color: "#FF6C5E" },
-    ] as ScoreRingSegment[],
-    insightsData: {
-      todaySpend: 142.50,
-      averageDaily: 137.50,
-      forecast: 4500.00,
-    },
-  }), [orgCurrency])
-
-  // Check if we have real data
-  const hasRealData = costSummary && (
+  // Check if we have any cost data
+  const hasData = costSummary && (
     (costSummary.llm?.total_monthly_cost ?? 0) > 0 ||
     (costSummary.cloud?.total_monthly_cost ?? 0) > 0 ||
     (costSummary.saas?.total_monthly_cost ?? 0) > 0
   )
 
-  // Prepare summary data using shared pattern from cost dashboards
+  // Prepare summary data - always show real data (zeros if no data)
   const summaryData: CostSummaryData = useMemo(() => {
-    if (!hasRealData) return DEMO_DATA.summaryData
-
     const dateInfo = getDateInfo()
     const totalMtd = costSummary?.total?.total_monthly_cost ?? 0
     const dailyRate = costSummary?.total?.total_daily_cost ?? 0
@@ -228,28 +201,25 @@ export default function DashboardPage() {
       mtd: totalMtd,
       dailyRate: dailyRate,
       forecast: forecast,
-      ytd: costSummary?.total?.total_annual_cost ?? totalMtd, // Use annual as YTD fallback
+      ytd: costSummary?.total?.total_annual_cost ?? totalMtd,
       currency: orgCurrency,
     }
-  }, [costSummary, orgCurrency, hasRealData, DEMO_DATA])
+  }, [costSummary, orgCurrency])
 
-  // Prepare category breakdown using shared utilities
+  // Prepare category breakdown - always show real data
   const categoryBreakdown: BreakdownItem[] = useMemo(() => {
-    if (!hasRealData) return DEMO_DATA.categoryBreakdown
-
     const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
     const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
     const totalCost = genaiCost + cloudCost + saasCost
 
-    if (totalCost === 0) return DEMO_DATA.categoryBreakdown
-
+    // Show all categories even if zero (for consistent UI)
     return [
       {
         key: "genai",
         name: OVERVIEW_CATEGORY_CONFIG.names.genai,
         value: genaiCost,
-        percentage: calculatePercentage(genaiCost, totalCost),
+        percentage: totalCost > 0 ? calculatePercentage(genaiCost, totalCost) : 0,
         count: costSummary?.llm?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
       },
@@ -257,7 +227,7 @@ export default function DashboardPage() {
         key: "cloud",
         name: OVERVIEW_CATEGORY_CONFIG.names.cloud,
         value: cloudCost,
-        percentage: calculatePercentage(cloudCost, totalCost),
+        percentage: totalCost > 0 ? calculatePercentage(cloudCost, totalCost) : 0,
         count: costSummary?.cloud?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
       },
@@ -265,34 +235,29 @@ export default function DashboardPage() {
         key: "saas",
         name: OVERVIEW_CATEGORY_CONFIG.names.saas,
         value: saasCost,
-        percentage: calculatePercentage(saasCost, totalCost),
+        percentage: totalCost > 0 ? calculatePercentage(saasCost, totalCost) : 0,
         count: costSummary?.saas?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
       },
-    ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
-  }, [costSummary, hasRealData, DEMO_DATA])
+    ].sort((a, b) => b.value - a.value)
+  }, [costSummary])
 
-  // Score ring segments for Apple Health style visualization
+  // Score ring segments - always show real data
   const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
-    if (!hasRealData) return DEMO_DATA.scoreRingSegments
-
     const genaiCost = costSummary?.llm?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
     const saasCost = costSummary?.saas?.total_monthly_cost ?? 0
 
-    const segments = [
+    // Show all segments even if zero
+    return [
       { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
       { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
       { key: "saas", name: "SaaS", value: saasCost, color: "#FF6C5E" },
-    ].filter(s => s.value > 0)
+    ]
+  }, [costSummary])
 
-    return segments.length > 0 ? segments : DEMO_DATA.scoreRingSegments
-  }, [costSummary, hasRealData, DEMO_DATA])
-
-  // Insights data
+  // Insights data - always show real data
   const insightsData = useMemo(() => {
-    if (!hasRealData) return DEMO_DATA.insightsData
-
     const dailyRate = summaryData.dailyRate
     const forecast = summaryData.forecast
     const mtd = summaryData.mtd
@@ -302,7 +267,7 @@ export default function DashboardPage() {
       averageDaily: mtd > 0 ? mtd / new Date().getDate() : 0,
       forecast,
     }
-  }, [summaryData, hasRealData, DEMO_DATA])
+  }, [summaryData])
 
   // Memoize quickActions to prevent recreation on every render
   const quickActions: QuickAction[] = useMemo(() => [
@@ -361,12 +326,19 @@ export default function DashboardPage() {
   const formatTimeAgo = (dateStr?: string) => {
     if (!dateStr) return "Unknown"
     const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return "Invalid date"
+
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
+
+    // Handle future dates
+    if (diffMs < 0) return "Just now"
+
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
+    if (diffMins < 1) return "Just now"
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
@@ -416,9 +388,9 @@ export default function DashboardPage() {
           title="Total Spend"
           segments={scoreRingSegments}
           currency={orgCurrency}
-          insight={!hasRealData
-            ? "Sample data shown. Connect providers to see real costs."
-            : `Spending across ${scoreRingSegments.length} cost categories this month.`
+          insight={!hasData
+            ? "No cost data yet. Connect providers and run pipelines to see costs."
+            : `Spending across ${scoreRingSegments.filter(s => s.value > 0).length} cost categories this month.`
           }
           showChevron
           onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
@@ -436,8 +408,8 @@ export default function DashboardPage() {
           averageValue={insightsData.averageDaily}
           averageLabel="Daily Avg"
           insight={
-            !hasRealData
-              ? "Sample trend data. Run pipelines to see real spending patterns."
+            !hasData
+              ? "No spending data yet. Run pipelines to see daily patterns."
               : insightsData.todaySpend > insightsData.averageDaily * 1.2
                 ? "Spending is higher than your daily average today."
                 : insightsData.todaySpend < insightsData.averageDaily * 0.8
@@ -477,9 +449,9 @@ export default function DashboardPage() {
                 maxItems={3}
               />
 
-              {!hasRealData && (
+              {!hasData && (
                 <p className="text-xs text-slate-500 text-center mt-3 italic">
-                  Sample data shown. Connect providers for real costs.
+                  No cost data yet. Connect providers and run pipelines.
                 </p>
               )}
 
