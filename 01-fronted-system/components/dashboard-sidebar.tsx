@@ -66,7 +66,8 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "notifications" | "settings" | null
+type NonNullSectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "notifications" | "settings"
+type SectionId = NonNullSectionId | null
 
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
@@ -232,7 +233,7 @@ export function DashboardSidebar({
   )
 
   // Section icons for visual hierarchy - slightly larger
-  const sectionIcons: Record<SectionId, React.ReactNode> = {
+  const sectionIcons: Record<NonNullSectionId, React.ReactNode> = {
     dashboards: <BarChart3 className="h-4 w-4" />,
     "cost-analytics": <TrendingUp className="h-4 w-4" />,
     pipelines: <Workflow className="h-4 w-4" />,
@@ -247,7 +248,7 @@ export function DashboardSidebar({
     isExpanded
   }: {
     title: string
-    section: SectionId
+    section: NonNullSectionId
     isExpanded: boolean
   }) => (
     <div

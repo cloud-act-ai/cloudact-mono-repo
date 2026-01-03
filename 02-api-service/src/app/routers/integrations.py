@@ -1091,10 +1091,10 @@ async def _setup_integration(
             subscriptions_initialized = False
             subscriptions_rows_seeded = 0
 
-            # Check if provider is LLM and has data tables configured (from providers.yml)
-            if provider_registry.is_llm_provider(provider) and provider_registry.has_data_tables(provider) and is_valid:
+            # Check if provider is GenAI and has data tables configured (from providers.yml)
+            if provider_registry.is_genai_provider(provider) and provider_registry.has_data_tables(provider) and is_valid:
                 try:
-                    pricing_result = await _initialize_llm_pricing(org_slug, provider.lower())
+                    pricing_result = await _initialize_genai_pricing(org_slug, provider.lower())
                     pricing_initialized = pricing_result.get("status") == "SUCCESS"
                     pricing_rows_seeded = pricing_result.get("rows_seeded", 0)
 
@@ -1515,11 +1515,11 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
 
 
 # ============================================
-# Generic LLM Provider Initialization (from providers.yml)
+# Generic GenAI Provider Initialization (from providers.yml)
 # ============================================
 
-def _get_llm_provider_config(provider: str) -> Optional[Dict[str, str]]:
-    """Get LLM provider data tables config from registry."""
+def _get_genai_provider_config(provider: str) -> Optional[Dict[str, str]]:
+    """Get GenAI provider data tables config from registry."""
     provider_upper = provider.upper()
     if not provider_registry.has_data_tables(provider_upper):
         return None
@@ -1533,22 +1533,22 @@ def _get_llm_provider_config(provider: str) -> Optional[Dict[str, str]]:
     }
 
 
-async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
+async def _initialize_genai_pricing(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
     """
-    Initialize LLM provider pricing table with default data.
+    Initialize GenAI provider pricing table with default data.
     Configuration is loaded from providers.yml.
 
     Args:
         org_slug: Organization slug
-        provider: LLM provider name (openai, anthropic)
+        provider: GenAI provider name (openai, anthropic)
         force: If True, delete existing data and re-seed
 
     Returns:
         Dict with status and rows_seeded count
     """
-    config = _get_llm_provider_config(provider)
+    config = _get_genai_provider_config(provider)
     if not config:
-        return {"status": "FAILED", "error": f"Unknown LLM provider or no data tables configured: {provider}"}
+        return {"status": "FAILED", "error": f"Unknown GenAI provider or no data tables configured: {provider}"}
 
     try:
         bq_client = get_bigquery_client()
@@ -1754,9 +1754,9 @@ async def _initialize_subscriptions(org_slug: str, provider: str, force: bool = 
     Returns:
         Dict with status and rows_seeded count
     """
-    config = _get_llm_provider_config(provider)
+    config = _get_genai_provider_config(provider)
     if not config:
-        return {"status": "FAILED", "error": f"Unknown LLM provider or no data tables configured: {provider}"}
+        return {"status": "FAILED", "error": f"Unknown GenAI provider or no data tables configured: {provider}"}
 
     try:
         bq_client = get_bigquery_client()

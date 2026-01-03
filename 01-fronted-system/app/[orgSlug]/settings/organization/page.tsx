@@ -56,6 +56,8 @@ import {
   getOrgLogo,
   getOrgContactDetails,
   updateOrgContactDetails,
+  getOrgName,
+  updateOrgName,
   type OrgContactDetails,
 } from "@/actions/organization-locale"
 import { LogoUpload } from "@/components/ui/logo-upload"
@@ -104,6 +106,11 @@ export default function OrganizationSettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Organization name fields
+  const [orgName, setOrgName] = useState("")
+  const [originalOrgName, setOriginalOrgName] = useState("")
+  const [isSavingOrgName, setIsSavingOrgName] = useState(false)
 
   // Locale fields
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
@@ -465,11 +472,12 @@ export default function OrganizationSettingsPage() {
     setIsLoading(true)
     try {
       // Wrap Promise.all in try-catch to handle individual failures
-      let localeResult, logoResult
+      let localeResult, logoResult, nameResult
       try {
-        [localeResult, logoResult] = await Promise.all([
+        [localeResult, logoResult, nameResult] = await Promise.all([
           getOrgLocale(orgSlug),
-          getOrgLogo(orgSlug)
+          getOrgLogo(orgSlug),
+          getOrgName(orgSlug)
         ])
       } catch {
         setError("Failed to load organization settings")
@@ -493,6 +501,12 @@ export default function OrganizationSettingsPage() {
       const fiscalYear = localeResult.locale.fiscal_year_start_month || getFiscalYearFromTimezone(localeResult.locale.default_timezone)
       setFiscalYearStart(fiscalYear)
       setOriginalFiscalYearStart(fiscalYear)
+
+      // Set org name
+      if (nameResult.success && nameResult.orgName) {
+        setOrgName(nameResult.orgName)
+        setOriginalOrgName(nameResult.orgName)
+      }
 
       // Set logo URL
       if (logoResult.success) {
@@ -570,6 +584,7 @@ export default function OrganizationSettingsPage() {
 
   const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone
   const hasFiscalYearChanges = fiscalYearStart !== originalFiscalYearStart
+  const hasOrgNameChanges = orgName !== originalOrgName && orgName.trim().length >= 2
   const hasContactChanges =
     contactDetails.business_person_name !== originalContactDetails.business_person_name ||
     contactDetails.business_person_position !== originalContactDetails.business_person_position ||
@@ -605,6 +620,32 @@ export default function OrganizationSettingsPage() {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
       setIsSavingFiscalYear(false)
+    }
+  }
+
+  const handleSaveOrgName = async () => {
+    if (!hasOrgNameChanges) return
+
+    setIsSavingOrgName(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const result = await updateOrgName(orgSlug, orgName.trim())
+
+      if (!result.success) {
+        setError(result.error || "Failed to update organization name")
+        return
+      }
+
+      setOriginalOrgName(result.orgName || orgName.trim())
+      setOrgName(result.orgName || orgName.trim())
+      setSuccess("Organization name updated successfully!")
+      setTimeout(() => setSuccess(null), 4000)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsSavingOrgName(false)
     }
   }
 
@@ -916,6 +957,74 @@ export default function OrganizationSettingsPage() {
         </div>
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Organization Details - Premium Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold text-slate-900">Organization Details</h2>
+              <p className="text-[13px] text-slate-500">
+                Your organization name and unique identifier
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 sm:p-8 space-y-5">
+          {/* Organization Name */}
+          <div className="space-y-2">
+            <Label htmlFor="orgName" className="text-[14px] font-medium text-foreground">
+              Organization Name <span className="text-[#FF6C5E]">*</span>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="orgName"
+                type="text"
+                value={orgName}
+                onChange={(e) => { setOrgName(e.target.value); setError(null); }}
+                placeholder="Enter organization name"
+                maxLength={100}
+                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] flex-1"
+              />
+              {hasOrgNameChanges && (
+                <Button
+                  onClick={handleSaveOrgName}
+                  disabled={isSavingOrgName}
+                  size="sm"
+                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 font-medium rounded-lg"
+                >
+                  {isSavingOrgName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </Button>
+              )}
+            </div>
+            <p className="text-[13px] text-muted-foreground">
+              Displayed in sidebar and throughout the app (2-100 characters)
+            </p>
+          </div>
+
+          {/* Organization Slug (Read-only) */}
+          <div className="space-y-2">
+            <Label htmlFor="orgSlugDisplay" className="text-[14px] font-medium text-foreground">
+              Organization Slug
+            </Label>
+            <Input
+              id="orgSlugDisplay"
+              type="text"
+              value={orgSlug}
+              readOnly
+              disabled
+              className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
+            />
+            <p className="text-[13px] text-muted-foreground">
+              Unique identifier used in URLs (cannot be changed)
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Organization Branding - Premium Card */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100">

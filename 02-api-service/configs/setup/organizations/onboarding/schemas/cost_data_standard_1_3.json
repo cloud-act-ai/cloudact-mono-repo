@@ -126,6 +126,12 @@
     "description": "How often the charge occurs. Values: 'One-Time', 'Recurring', 'Usage-Based'."
   },
   {
+    "name": "ChargeType",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider-specific classification of the charge type. Examples: 'Usage', 'Tax', 'Credit', 'Purchase', 'Refund', 'Adjustment'."
+  },
+  {
     "name": "ChargePeriodStart",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",

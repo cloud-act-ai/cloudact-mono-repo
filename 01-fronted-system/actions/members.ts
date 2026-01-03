@@ -26,9 +26,20 @@ const isValidOrgSlug = (slug: string): boolean => {
 const inviteRateLimits = new Map<string, { count: number; resetTime: number }>()
 const INVITE_RATE_LIMIT = 10 // Max invites per window
 const INVITE_RATE_WINDOW = 3600000 // 1 hour in milliseconds
+const RATE_LIMIT_MAX_ENTRIES = 10000 // Prevent memory leak
 
 function checkInviteRateLimit(userId: string): boolean {
   const now = Date.now()
+
+  // MT-001 FIX: Cleanup expired entries to prevent memory leak
+  if (inviteRateLimits.size > RATE_LIMIT_MAX_ENTRIES) {
+    for (const [id, limit] of inviteRateLimits.entries()) {
+      if (now > limit.resetTime) {
+        inviteRateLimits.delete(id)
+      }
+    }
+  }
+
   const userLimit = inviteRateLimits.get(userId)
 
   if (!userLimit || now > userLimit.resetTime) {
@@ -138,12 +149,20 @@ export async function fetchMembersData(orgSlug: string) {
       return { success: false, error: "Failed to fetch invites" }
     }
 
-    // Check if there might be more members beyond the pagination limit
-    const { count: totalMemberCount } = await adminClient
-      .from("organization_members")
-      .select("*", { count: "exact", head: true })
-      .eq("org_id", org.id)
-      .eq("status", "active")
+    // PERF-001 FIX: Only run count query if we hit the pagination limit
+    let totalMemberCount = membersWithProfiles.length
+    let hasMoreMembers = false
+
+    if (membersWithProfiles.length >= MAX_MEMBERS_PER_PAGE) {
+      const { count } = await adminClient
+        .from("organization_members")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", org.id)
+        .eq("status", "active")
+
+      totalMemberCount = count || membersWithProfiles.length
+      hasMoreMembers = totalMemberCount > MAX_MEMBERS_PER_PAGE
+    }
 
     return {
       success: true,
@@ -153,8 +172,8 @@ export async function fetchMembersData(orgSlug: string) {
         members: membersWithProfiles,
         invites: invitesData || [],
         pagination: {
-          totalMembers: totalMemberCount || membersWithProfiles.length,
-          hasMoreMembers: (totalMemberCount || 0) > MAX_MEMBERS_PER_PAGE,
+          totalMembers: totalMemberCount,
+          hasMoreMembers,
           limit: MAX_MEMBERS_PER_PAGE,
         },
       },
@@ -313,6 +332,7 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
 
     // Insert invite using adminClient to bypass RLS
     // Use normalizedEmail to ensure consistent case for lookups
+    // IDEM-001 FIX: Handle unique constraint violation for concurrent requests
     const { error: inviteError } = await adminClient
       .from("invites")
       .insert({
@@ -328,6 +348,10 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       .single()
 
     if (inviteError) {
+      // Handle unique constraint violation (PostgreSQL error code 23505)
+      if (inviteError.code === "23505" || inviteError.message?.includes("duplicate") || inviteError.message?.includes("unique")) {
+        return { success: false, error: "An invite is already pending for this email" }
+      }
       return { success: false, error: "Failed to create invite" }
     }
 
@@ -340,7 +364,12 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     const inviteLink = `${appUrl}/invite/${token}`
 
     // Send invite email via SMTP
-    await sendInviteEmail({
+    // ERR-001 FIX: Check email send result and inform user
+    console.log(`[inviteMember] Attempting to send invite email to ${normalizedEmail}...`)
+    console.log(`[inviteMember] Invite link: ${inviteLink}`)
+    console.log(`[inviteMember] Inviter: ${inviterName}, Org: ${org.org_name}, Role: ${role}`)
+
+    const emailSent = await sendInviteEmail({
       to: normalizedEmail,
       inviterName,
       orgName: org.org_name,
@@ -348,10 +377,19 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       inviteLink,
     })
 
+    console.log(`[inviteMember] Email send result: ${emailSent ? "SUCCESS" : "FAILED"}`)
+
+    if (!emailSent) {
+      console.warn(`[inviteMember] Email failed to send to ${normalizedEmail} for org ${orgSlug}`)
+    }
+
     return {
       success: true,
       inviteLink,
-      message: "Invite sent successfully",
+      emailSent,
+      message: emailSent
+        ? "Invite sent successfully"
+        : "Invite created but email delivery failed. Please share the invite link manually.",
     }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Failed to invite member"
@@ -555,6 +593,9 @@ export async function acceptInvite(token: string) {
       return { success: false, error: "Invalid invite link" }
     }
 
+    // EDGE-001 FIX: Normalize token to lowercase for consistent DB lookup
+    const normalizedToken = token.toLowerCase()
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 
@@ -569,7 +610,7 @@ export async function acceptInvite(token: string) {
     const { data: invite, error: fetchError } = await adminClient
       .from("invites")
       .select("id, org_id, email, role, expires_at, status")
-      .eq("token", token)
+      .eq("token", normalizedToken)
       .maybeSingle()
 
     if (fetchError) {
@@ -717,13 +758,16 @@ export async function getInviteInfo(token: string) {
       return { success: false, error: "Invalid invite link format. Please check the link and try again." }
     }
 
+    // EDGE-001 FIX: Normalize token to lowercase for consistent DB lookup
+    const normalizedToken = token.toLowerCase()
+
     const adminClient = createServiceRoleClient()
 
     // First, fetch the invite without the join to get better error context
     const { data: invite, error: inviteError } = await adminClient
       .from("invites")
       .select("id, email, role, status, expires_at, created_at, org_id")
-      .eq("token", token)
+      .eq("token", normalizedToken)
       .maybeSingle()
 
     if (inviteError) {
@@ -808,20 +852,153 @@ export async function cancelInvite(orgSlug: string, inviteId: string) {
       return { success: false, error: "Only the owner can cancel invites" }
     }
 
-    // Update invite status
-    const { error: updateError } = await adminClient
+    // ERR-002 FIX: Verify invite exists and was actually updated
+    const { data: updatedInvite, error: updateError } = await adminClient
       .from("invites")
       .update({ status: "revoked" })
       .eq("id", inviteId)
       .eq("org_id", org.id)
+      .eq("status", "pending") // Only revoke pending invites
+      .select("id")
+      .maybeSingle()
 
     if (updateError) {
       return { success: false, error: "Failed to cancel invite" }
     }
 
+    if (!updatedInvite) {
+      return { success: false, error: "Invite not found or already processed" }
+    }
+
     return { success: true, message: "Invite canceled successfully" }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Failed to cancel invite"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Resend an invite with a new token
+ * Generates fresh token, extends expiry, and sends new email
+ */
+export async function resendInvite(orgSlug: string, inviteId: string) {
+  try {
+    // Validate orgSlug format
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization" }
+    }
+
+    // Validate inviteId is a valid UUID to prevent injection
+    if (!isValidUUID(inviteId)) {
+      return { success: false, error: "Invalid invite ID" }
+    }
+
+    const supabase = await createClient()
+    const adminClient = createServiceRoleClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: "Not authenticated" }
+    }
+
+    // Get organization details
+    const { data: org } = await adminClient
+      .from("organizations")
+      .select("id, org_name")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (!org) {
+      return { success: false, error: "Organization not found" }
+    }
+
+    // Verify user is owner before resending
+    const { data: membership } = await adminClient
+      .from("organization_members")
+      .select("role")
+      .eq("org_id", org.id)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single()
+
+    if (membership?.role !== "owner") {
+      return { success: false, error: "Only the owner can resend invites" }
+    }
+
+    // Get the existing pending invite
+    const { data: existingInvite, error: fetchError } = await adminClient
+      .from("invites")
+      .select("id, email, role, invited_by")
+      .eq("id", inviteId)
+      .eq("org_id", org.id)
+      .eq("status", "pending")
+      .maybeSingle()
+
+    if (fetchError || !existingInvite) {
+      return { success: false, error: "Invite not found or already processed" }
+    }
+
+    // Generate new token and expiry
+    const newToken = randomBytes(32).toString("hex")
+    const newExpiresAt = new Date()
+    newExpiresAt.setHours(newExpiresAt.getHours() + 48) // 48 hour expiry
+
+    // Update invite with new token and expiry
+    const { error: updateError } = await adminClient
+      .from("invites")
+      .update({
+        token: newToken,
+        expires_at: newExpiresAt.toISOString(),
+      })
+      .eq("id", inviteId)
+      .eq("org_id", org.id)
+      .eq("status", "pending")
+
+    if (updateError) {
+      return { success: false, error: "Failed to regenerate invite token" }
+    }
+
+    // Generate new invite link
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3000" : null)
+    if (!appUrl) {
+      return { success: false, error: "Application URL not configured. Please contact support." }
+    }
+    const inviteLink = `${appUrl}/invite/${newToken}`
+
+    // Get inviter name for email
+    const { data: inviterProfile } = await adminClient
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single()
+
+    const inviterName = inviterProfile?.full_name || inviterProfile?.email?.split("@")[0] || "A team member"
+
+    // Send new invite email
+    const emailSent = await sendInviteEmail({
+      to: existingInvite.email,
+      inviterName,
+      orgName: org.org_name,
+      role: existingInvite.role,
+      inviteLink,
+    })
+
+    if (!emailSent) {
+      console.warn(`[resendInvite] Email failed to send to ${existingInvite.email} for org ${orgSlug}`)
+    }
+
+    return {
+      success: true,
+      inviteLink,
+      emailSent,
+      message: emailSent
+        ? "Invite resent successfully with new link"
+        : "Invite regenerated but email delivery failed. Please share the invite link manually.",
+    }
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to resend invite"
     return { success: false, error: errorMessage }
   }
 }

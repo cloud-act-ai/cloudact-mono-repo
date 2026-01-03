@@ -10,7 +10,7 @@ tests/
 ├── test_01_bootstrap.py           # Bootstrap (14 meta tables creation)
 ├── test_02_organizations.py       # Organization onboarding
 ├── test_03_integrations.py        # Integration setup (OpenAI, Anthropic, GCP)
-├── test_04_llm_data.py            # LLM pricing and subscriptions CRUD
+├── test_04_genai_pricing.py       # GenAI pricing and subscriptions CRUD
 ├── test_05_quota.py               # Quota enforcement and validation
 ├── test_06_user_onboarding_e2e.py # E2E integration tests (full user journey)
 ├── test_cache.py                  # Caching utilities tests

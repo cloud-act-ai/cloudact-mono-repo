@@ -381,7 +381,7 @@ export function CostScoreRing({
 export interface CostCategoryRingProps {
   genaiCost: number
   cloudCost: number
-  saasCost: number
+  subscriptionCost: number
   currency?: string
   loading?: boolean
   onClick?: () => void
@@ -393,19 +393,19 @@ export interface CostCategoryRingProps {
 export function CostCategoryRing({
   genaiCost,
   cloudCost,
-  saasCost,
+  subscriptionCost,
   currency = "USD",
   loading = false,
   onClick,
   className,
   titleColor,
 }: CostCategoryRingProps) {
-  const total = genaiCost + cloudCost + saasCost
+  const total = genaiCost + cloudCost + subscriptionCost
 
   const segments: ScoreRingSegment[] = [
     { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
     { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
-    { key: "saas", name: "Subscriptions", value: saasCost, color: "#FF6C5E" },
+    { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: "#FF6C5E" },
   ].filter((s) => s.value > 0)
 
   // Calculate a spend "score" based on budget efficiency or trend

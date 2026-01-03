@@ -5,7 +5,7 @@
  *
  * Provides consistent filter state management across all cost pages:
  * - Default time range: 365 days
- * - Category presets for specific cost types (genai, cloud, saas)
+ * - Category presets for specific cost types (genai, cloud, subscription)
  * - Reusable filter state with proper defaults
  */
 

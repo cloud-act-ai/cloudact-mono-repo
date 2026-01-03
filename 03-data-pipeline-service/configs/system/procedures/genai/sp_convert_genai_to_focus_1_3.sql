@@ -41,7 +41,7 @@ BEGIN
     IF p_credential_id IS NOT NULL THEN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
-        WHERE ChargePeriodStart = @p_date
+        WHERE DATE(ChargePeriodStart) = @p_date
           AND x_genai_cost_type IS NOT NULL
           AND x_credential_id = @p_credential_id
       """, p_project_id, p_dataset_id)
@@ -49,7 +49,7 @@ BEGIN
     ELSE
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
-        WHERE ChargePeriodStart = @p_date
+        WHERE DATE(ChargePeriodStart) = @p_date
           AND x_genai_cost_type IS NOT NULL
       """, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date;
@@ -59,12 +59,13 @@ BEGIN
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.cost_data_standard_1_3`
       (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+       BillingAccountId, BillingCurrency, HostProviderName,
        InvoiceIssuerName, ServiceProviderName, ServiceCategory, ServiceName,
-       ResourceId, ResourceName, ResourceType, Region,
-       UsageAmount, UsageUnit, PricingCategory, PricingUnit,
+       ResourceId, ResourceName, ResourceType, RegionId, RegionName,
+       ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
        EffectiveCost, BilledCost, ListCost, ListUnitPrice,
        ContractedCost, ContractedUnitPrice,
-       CostCategory, ChargeType, ChargeFrequency, ChargePeriodType,
+       ChargeCategory, ChargeType, ChargeFrequency,
        SubAccountId, SubAccountName,
        x_genai_cost_type, x_genai_provider, x_genai_model,
        x_hierarchy_dept_id, x_hierarchy_dept_name,
@@ -76,10 +77,15 @@ BEGIN
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
        x_data_quality_score, x_created_at)
       SELECT
-        cost_date as ChargePeriodStart,
-        cost_date as ChargePeriodEnd,
-        DATE_TRUNC(cost_date, MONTH) as BillingPeriodStart,
-        LAST_DAY(cost_date, MONTH) as BillingPeriodEnd,
+        TIMESTAMP(cost_date) as ChargePeriodStart,
+        TIMESTAMP(cost_date) as ChargePeriodEnd,
+        TIMESTAMP(DATE_TRUNC(cost_date, MONTH)) as BillingPeriodStart,
+        TIMESTAMP(LAST_DAY(cost_date, MONTH)) as BillingPeriodEnd,
+
+        -- Required billing fields
+        org_slug as BillingAccountId,
+        'USD' as BillingCurrency,
+        'CloudAct' as HostProviderName,
 
         -- Provider name mapping
         CASE provider
@@ -125,11 +131,12 @@ BEGIN
         COALESCE(model, instance_type, 'default') as ResourceId,
         COALESCE(model, instance_type, provider) as ResourceName,
         cost_type as ResourceType,
-        COALESCE(region, 'global') as Region,
+        COALESCE(region, 'global') as RegionId,
+        COALESCE(region, 'global') as RegionName,
 
         -- Usage
-        usage_quantity as UsageAmount,
-        usage_unit as UsageUnit,
+        CAST(usage_quantity AS NUMERIC) as ConsumedQuantity,
+        usage_unit as ConsumedUnit,
 
         CASE cost_type
           WHEN 'commitment' THEN 'Committed'
@@ -143,18 +150,17 @@ BEGIN
         usage_unit as PricingUnit,
 
         -- Costs
-        total_cost_usd as EffectiveCost,
-        total_cost_usd as BilledCost,
-        ROUND(total_cost_usd / (1 - COALESCE(discount_applied_pct, 0) / 100), 2) as ListCost,
-        NULL as ListUnitPrice,
-        CASE WHEN cost_type = 'commitment' THEN total_cost_usd ELSE NULL END as ContractedCost,
-        NULL as ContractedUnitPrice,
+        CAST(total_cost_usd AS NUMERIC) as EffectiveCost,
+        CAST(total_cost_usd AS NUMERIC) as BilledCost,
+        CAST(ROUND(total_cost_usd / (1 - COALESCE(discount_applied_pct, 0) / 100), 2) AS NUMERIC) as ListCost,
+        CAST(NULL AS NUMERIC) as ListUnitPrice,
+        CASE WHEN cost_type = 'commitment' THEN CAST(total_cost_usd AS NUMERIC) ELSE CAST(0 AS NUMERIC) END as ContractedCost,
+        CAST(0 AS NUMERIC) as ContractedUnitPrice,
 
         -- Charge attributes
-        'Usage' as CostCategory,
+        'Usage' as ChargeCategory,
         'Usage' as ChargeType,
         'Usage-Based' as ChargeFrequency,
-        'Daily' as ChargePeriodType,
 
         -- Account
         org_slug as SubAccountId,

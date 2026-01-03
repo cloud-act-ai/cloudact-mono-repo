@@ -199,7 +199,7 @@ lib/
 
 data/seed/
 ├── exchange-rates.csv      # 16 currencies
-└── saas-subscription-templates.csv
+└── subscription-templates.csv
 ```
 
 ## Authentication Guards

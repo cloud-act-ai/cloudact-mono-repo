@@ -24,12 +24,13 @@
 3. Pipeline Service running: `http://localhost:8001`
 4. Supabase: Email confirmation DISABLED in Auth settings
 5. GCP authenticated: `gcloud auth login`
+6. Environment variables loaded: `source 01-fronted-system/.env.local`
 
 ## Complete Workflow
 
 ```
-1. [Optional] Cleanup existing demo org
-2. Create Account via Frontend (Playwright or browser)
+1. [Optional] Cleanup existing demo org (use cleanup script)
+2. Create Account via Playwright automation
 3. Verify tables have partitioning/clustering
 4. Get API key for org
 5. Load demo raw data
@@ -42,14 +43,35 @@
 
 ## Step 1: Cleanup (If Re-creating Demo Org)
 
-### 1a. Delete BigQuery Dataset
+### Using Cleanup Script (RECOMMENDED)
+
+```bash
+cd 01-fronted-system
+
+# Cleanup by email
+npx ts-node tests/demo-setup/cleanup-demo-account.ts --email=john@example.com
+
+# OR cleanup by org slug
+npx ts-node tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc_01022026
+```
+
+This script automatically:
+- Deletes auth.users record
+- Deletes profiles record
+- Deletes organization_members records
+- Deletes organizations record
+- Deletes BigQuery dataset (`{org_slug}_local`)
+
+### Manual Cleanup (If Script Fails)
+
+#### 1a. Delete BigQuery Dataset
 
 ```bash
 export ORG_SLUG="acme_inc_01022026"
 bq rm -r -f cloudact-testing-1:${ORG_SLUG}_local
 ```
 
-### 1b. Delete from Central BigQuery Tables
+#### 1b. Delete from Central BigQuery Tables
 
 ```bash
 bq query --use_legacy_sql=false "DELETE FROM \`cloudact-testing-1.organizations.org_profiles\` WHERE org_slug = '${ORG_SLUG}'"
@@ -59,66 +81,96 @@ bq query --use_legacy_sql=false "DELETE FROM \`cloudact-testing-1.organizations.
 bq query --use_legacy_sql=false "DELETE FROM \`cloudact-testing-1.organizations.org_hierarchy\` WHERE org_slug = '${ORG_SLUG}'"
 ```
 
-### 1c. Delete from Supabase
-
-**IMPORTANT**: Must disable `protect_owner` trigger first!
+#### 1c. Delete from Supabase (SQL Editor)
 
 ```sql
--- Run in Supabase SQL Editor (Test project: kwroaccbrxppfiysqlzs)
-
--- 1. Find user ID and org ID
-SELECT id, email FROM auth.users WHERE email = 'john@example.com';
-SELECT id, org_slug FROM organizations WHERE org_slug = 'acme_inc_01022026';
-
--- 2. Disable protect_owner trigger (prevents deletion)
+-- Disable protect_owner trigger first
 ALTER TABLE public.organization_members DISABLE TRIGGER protect_owner;
 
--- 3. Delete in order (respecting foreign keys)
-DELETE FROM public.organization_members WHERE org_id = '<org_id>';
+-- Delete in order
+DELETE FROM public.organization_members WHERE org_id IN (SELECT id FROM organizations WHERE org_slug = 'acme_inc_01022026');
 DELETE FROM public.organizations WHERE org_slug = 'acme_inc_01022026';
 
--- 4. Re-enable trigger
+-- Re-enable trigger
 ALTER TABLE public.organization_members ENABLE TRIGGER protect_owner;
 
--- 5. Delete user
-DELETE FROM public.profiles WHERE id = '<user_id>';
-DELETE FROM auth.users WHERE id = '<user_id>';
+-- Delete user
+DELETE FROM public.profiles WHERE email = 'john@example.com';
+DELETE FROM auth.users WHERE email = 'john@example.com';
 ```
 
 ---
 
-## Step 2: Create Demo Account
+## Step 2: Create Demo Account (PLAYWRIGHT)
 
-### Option A: Manual Browser Flow
+**ALWAYS use Playwright to create demo accounts.** This ensures consistent org creation and handles the full signup flow including Stripe checkout.
 
-1. Navigate to `http://localhost:3000/signup`
-2. **Step 1 - Account Details:**
-   - First name: `John`
-   - Last name: `Doe`
-   - Email: `john@example.com`
-   - Password: `acme1234`
-   - Phone: `5551234567`
-   - Click "Continue"
-3. **Step 2 - Organization:**
-   - Company name: `Acme Inc 01022026`
-   - Company type: `Company`
-   - Currency: `$ USD`
-   - Timezone: `PST/PDT - Los Angeles, USA`
-   - Click "Create account"
-4. **Plan Selection:**
-   - Click "Select Plan" under Starter ($19)
-   - Click "Continue to Checkout"
-5. **Stripe Checkout:**
-   - Click "Start trial" (no card needed for trial)
-6. Wait for redirect to dashboard
+### Using Playwright Script (RECOMMENDED)
 
-### Option B: Playwright Automation (MCP)
+```bash
+cd 01-fronted-system
 
-Use Playwright MCP tools:
-1. `browser_navigate` to `http://localhost:3000/signup`
-2. `browser_fill_form` for account fields
-3. `browser_click` for buttons
-4. Follow the same flow as manual
+# Default demo account (john@example.com / acme1234)
+npx ts-node tests/demo-setup/setup-demo-account.ts
+
+# Custom email
+npx ts-node tests/demo-setup/setup-demo-account.ts --email=custom@test.com
+
+# Custom company (org slug derived from company name)
+npx ts-node tests/demo-setup/setup-demo-account.ts --company="My Company 01022026"
+
+# Full custom options
+npx ts-node tests/demo-setup/setup-demo-account.ts \
+  --firstName=Jane \
+  --lastName=Smith \
+  --email=jane@test.com \
+  --password=test1234 \
+  --company="Test Corp 01022026" \
+  --plan=professional
+
+# Run with visible browser (not headless)
+TEST_HEADLESS=false npx ts-node tests/demo-setup/setup-demo-account.ts
+```
+
+### Environment Variables for Playwright
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TEST_BASE_URL` | `http://localhost:3000` | Frontend URL |
+| `TEST_HEADLESS` | `true` | Run browser in headless mode |
+| `TEST_SLOW_MO` | `0` | Slow down actions by ms (for debugging) |
+| `TEST_TIMEOUT` | `60000` | Timeout in ms |
+
+### What the Playwright Script Does
+
+1. Navigates to `/signup`
+2. Fills Step 1 (Account Details): name, email, password, phone
+3. Fills Step 2 (Organization): company name, type, currency, timezone
+4. Clicks "Create account" (this triggers Supabase signup + backend onboarding)
+5. Selects billing plan on `/onboarding/billing`
+6. Clicks "Continue to Checkout" (redirects to Stripe)
+7. Returns org slug and dashboard URL
+
+### Using Playwright MCP (Alternative)
+
+If running within Claude with Playwright MCP:
+
+```
+1. browser_navigate to http://localhost:3000/signup
+2. browser_snapshot to see the page
+3. browser_fill_form for account fields:
+   - First name: John
+   - Last name: Doe
+   - Email: john@example.com
+   - Password: acme1234
+   - Phone: 5551234567
+4. browser_click "Continue" button
+5. browser_fill_form for organization fields
+6. browser_click "Create account"
+7. Wait for billing page, select plan
+8. browser_click "Continue to Checkout"
+9. Complete Stripe checkout
+```
 
 ---
 
@@ -142,10 +194,13 @@ If tables are missing partitioning, the org was created before the fix. Delete a
 
 ```bash
 export CA_ROOT_API_KEY="test-ca-root-key-dev-32chars"
+export ORG_SLUG="acme_inc_01022026"
 
 # Get org API key
-curl -s "http://localhost:8000/api/v1/admin/dev/api-key/acme_inc_01022026" \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" | jq -r '.api_key'
+ORG_API_KEY=$(curl -s "http://localhost:8000/api/v1/admin/dev/api-key/${ORG_SLUG}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" | jq -r '.api_key')
+
+echo "API Key: $ORG_API_KEY"
 ```
 
 ---
@@ -179,7 +234,7 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
 
 ```bash
 # Subscription costs
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/${ORG_SLUG}/saas_subscription/costs/saas_cost" \
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/${ORG_SLUG}/subscription/costs/subscription_cost" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"start_date":"2025-01-01","end_date":"2026-01-02"}'
@@ -223,6 +278,17 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total" \
 
 ---
 
+## Script Locations
+
+| Script | Path | Purpose |
+|--------|------|---------|
+| Setup (Playwright) | `01-fronted-system/tests/demo-setup/setup-demo-account.ts` | Create demo account via browser |
+| Cleanup | `01-fronted-system/tests/demo-setup/cleanup-demo-account.ts` | Delete user + BigQuery dataset |
+| Config | `01-fronted-system/tests/demo-setup/config.ts` | Default demo credentials |
+| Load Data | `04-inra-cicd-automation/load-demo-data/scripts/load-all.sh` | Load raw demo data |
+
+---
+
 ## Key Learnings & Gotchas
 
 | Issue | Root Cause | Solution |
@@ -230,33 +296,26 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total" \
 | Dashboard shows $0 | `x_source_system` field is NULL | Pipelines must set this field |
 | Cloud/SaaS shows $0 | Cost categorization uses `x_source_system` | Check stored procedures |
 | Slow dashboard (~5s) | No partitioning on tables | Re-onboard to get partitioned tables |
-| Supabase delete fails | `protect_owner` trigger | Disable trigger before deleting |
+| Supabase delete fails | `protect_owner` trigger | Use cleanup script or disable trigger |
 | Signup 400 error | Email confirmation enabled | Disable in Supabase Auth settings |
 | Tables missing partition | Old onboarding code | Delete dataset and re-onboard |
+| Stripe checkout hangs | Test mode requires manual action | Use "Start trial" button |
 
-## Cost Categorization Logic
+## Dynamic Org Slug Convention
 
-The `cost_read` service (`02-api-service/src/core/services/cost_read/service.py`) categorizes costs using `x_source_system`:
+Org slugs include the date to prevent collisions:
 
-```python
-# GenAI: x_source_system contains "genai|llm|openai|anthropic|gemini"
-# Cloud: x_source_system contains "cloud|gcp|aws|azure|oci"
-# SaaS: x_source_system equals "subscription_costs_daily"
+```
+Format: {company_name}_{MMDDYYYY}
+Example: acme_inc_01022026
+
+Derived from: "Acme Inc 01022026" -> "acme_inc_01022026"
 ```
 
-## Partitioning Configuration
-
-All table partitioning is configured in:
-- **File**: `02-api-service/src/app/routers/organizations.py` (lines 1309-1458)
-- **Applied by**: `02-api-service/src/core/processors/setup/organizations/onboarding.py`
-
-Key tables:
-| Table | Partition Field | Clustering Fields |
-|-------|-----------------|-------------------|
-| `cost_data_standard_1_3` | `ChargePeriodStart` | `SubAccountId, ServiceProviderName, ServiceCategory` |
-| `genai_payg_usage_raw` | `usage_date` | `provider, model` |
-| `cloud_*_billing_raw_daily` | `usage_date` | provider-specific |
-| `subscription_plan_costs_daily` | `cost_date` | `org_slug, subscription_id` |
+This allows:
+- Multiple demo accounts on different dates
+- Easy identification of when demo was created
+- No cleanup conflicts between sessions
 
 ## Environment Configuration
 

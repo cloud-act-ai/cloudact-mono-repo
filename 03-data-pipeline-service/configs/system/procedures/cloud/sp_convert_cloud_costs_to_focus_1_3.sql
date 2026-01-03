@@ -74,12 +74,12 @@ BEGIN
     IF p_provider IN ('gcp', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
         INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         UsageAmount, UsageUnit, PricingCategory, PricingUnit,
-         EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
          ChargeCategory, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
@@ -89,6 +89,7 @@ BEGIN
          x_cloud_provider, x_cloud_account_id,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
+          billing_account_id as BillingAccountId,
           TIMESTAMP(usage_start_time) as ChargePeriodStart,
           TIMESTAMP(usage_end_time) as ChargePeriodEnd,
           TIMESTAMP(DATE_TRUNC(DATE(usage_start_time), MONTH)) as BillingPeriodStart,
@@ -114,8 +115,8 @@ BEGIN
           COALESCE(location_region, location_location, 'global') as RegionId,
           COALESCE(location_region, location_location, 'Global') as RegionName,
 
-          CAST(usage_amount AS NUMERIC) as UsageAmount,
-          usage_unit as UsageUnit,
+          CAST(usage_amount AS NUMERIC) as ConsumedQuantity,
+          usage_unit as ConsumedUnit,
           CASE cost_type
             WHEN 'regular' THEN 'On-Demand'
             WHEN 'tax' THEN 'Tax'
@@ -123,6 +124,7 @@ BEGIN
           END as PricingCategory,
           usage_pricing_unit as PricingUnit,
 
+          CAST(cost AS NUMERIC) as ContractedCost,
           CAST(cost AS NUMERIC) as EffectiveCost,
           CAST(cost AS NUMERIC) as BilledCost,
           CAST(COALESCE(cost_at_list, cost) AS NUMERIC) as ListCost,
@@ -132,7 +134,7 @@ BEGIN
           COALESCE(cost_type, 'Usage') as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
-          project_id as SubAccountId,
+          @v_org_slug as SubAccountId,
           COALESCE(project_name, project_id) as SubAccountName,
 
           sku_id as SkuId,
@@ -157,7 +159,7 @@ BEGIN
         WHERE DATE(usage_start_time) = @p_date
           AND cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
+      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -168,12 +170,12 @@ BEGIN
     IF p_provider IN ('aws', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
         INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         UsageAmount, UsageUnit, PricingCategory, PricingUnit,
-         EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
          ChargeCategory, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
@@ -184,6 +186,7 @@ BEGIN
          CommitmentDiscountId, CommitmentDiscountType,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
+          payer_account_id as BillingAccountId,
           COALESCE(usage_start_time, TIMESTAMP(usage_date)) as ChargePeriodStart,
           COALESCE(usage_end_time, TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
           TIMESTAMP(billing_period_start) as BillingPeriodStart,
@@ -209,8 +212,8 @@ BEGIN
           COALESCE(region, 'global') as RegionId,
           COALESCE(region, 'Global') as RegionName,
 
-          CAST(usage_amount AS NUMERIC) as UsageAmount,
-          usage_unit as UsageUnit,
+          CAST(usage_amount AS NUMERIC) as ConsumedQuantity,
+          usage_unit as ConsumedUnit,
           CASE
             WHEN reservation_arn IS NOT NULL THEN 'Committed'
             WHEN savings_plan_arn IS NOT NULL THEN 'Committed'
@@ -218,6 +221,7 @@ BEGIN
           END as PricingCategory,
           pricing_unit as PricingUnit,
 
+          CAST(COALESCE(net_unblended_cost, unblended_cost) AS NUMERIC) as ContractedCost,
           CAST(COALESCE(net_unblended_cost, unblended_cost) AS NUMERIC) as EffectiveCost,
           CAST(unblended_cost AS NUMERIC) as BilledCost,
           CAST(COALESCE(public_on_demand_cost, unblended_cost) AS NUMERIC) as ListCost,
@@ -231,7 +235,7 @@ BEGIN
           COALESCE(line_item_type, 'Usage') as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
-          linked_account_id as SubAccountId,
+          @v_org_slug as SubAccountId,
           COALESCE(linked_account_name, linked_account_id) as SubAccountName,
 
           CONCAT(product_code, '/', usage_type) as SkuId,
@@ -263,7 +267,7 @@ BEGIN
         WHERE usage_date = @p_date
           AND unblended_cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
+      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -274,12 +278,12 @@ BEGIN
     IF p_provider IN ('azure', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
         INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         UsageAmount, UsageUnit, PricingCategory, PricingUnit,
-         EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
          ChargeCategory, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
@@ -290,6 +294,7 @@ BEGIN
          CommitmentDiscountId, CommitmentDiscountName,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
+          subscription_id as BillingAccountId,
           TIMESTAMP(usage_date) as ChargePeriodStart,
           TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
           TIMESTAMP(billing_period_start) as BillingPeriodStart,
@@ -309,11 +314,12 @@ BEGIN
           COALESCE(resource_location, 'global') as RegionId,
           COALESCE(resource_location, 'Global') as RegionName,
 
-          CAST(usage_quantity AS NUMERIC) as UsageAmount,
-          unit_of_measure as UsageUnit,
+          CAST(usage_quantity AS NUMERIC) as ConsumedQuantity,
+          unit_of_measure as ConsumedUnit,
           COALESCE(pricing_model, 'On-Demand') as PricingCategory,
           unit_of_measure as PricingUnit,
 
+          CAST(cost_in_billing_currency AS NUMERIC) as ContractedCost,
           CAST(cost_in_billing_currency AS NUMERIC) as EffectiveCost,
           CAST(cost_in_billing_currency AS NUMERIC) as BilledCost,
           CAST(COALESCE(usage_quantity * unit_price, cost_in_billing_currency) AS NUMERIC) as ListCost,
@@ -327,7 +333,7 @@ BEGIN
           COALESCE(charge_type, 'Usage') as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
-          subscription_id as SubAccountId,
+          @v_org_slug as SubAccountId,
           COALESCE(subscription_name, subscription_id) as SubAccountName,
 
           meter_id as SkuId,
@@ -355,7 +361,7 @@ BEGIN
         WHERE usage_date = @p_date
           AND cost_in_billing_currency > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
+      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -366,12 +372,12 @@ BEGIN
     IF p_provider IN ('oci', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
         INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         UsageAmount, UsageUnit, PricingCategory, PricingUnit,
-         EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
          ChargeCategory, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
@@ -381,6 +387,7 @@ BEGIN
          x_cloud_provider, x_cloud_account_id,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
+          tenancy_id as BillingAccountId,
           TIMESTAMP(usage_date) as ChargePeriodStart,
           TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
           TIMESTAMP(DATE_TRUNC(usage_date, MONTH)) as BillingPeriodStart,
@@ -406,14 +413,15 @@ BEGIN
           COALESCE(region, 'global') as RegionId,
           COALESCE(region, 'Global') as RegionName,
 
-          CAST(usage_quantity AS NUMERIC) as UsageAmount,
-          unit as UsageUnit,
+          CAST(usage_quantity AS NUMERIC) as ConsumedQuantity,
+          unit as ConsumedUnit,
           CASE
             WHEN overage_flag = 'Y' THEN 'Overage'
             ELSE 'On-Demand'
           END as PricingCategory,
           unit as PricingUnit,
 
+          CAST(cost AS NUMERIC) as ContractedCost,
           CAST(cost AS NUMERIC) as EffectiveCost,
           CAST(cost AS NUMERIC) as BilledCost,
           CAST(COALESCE(usage_quantity * unit_price, cost) AS NUMERIC) as ListCost,
@@ -423,7 +431,7 @@ BEGIN
           'Usage' as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
-          compartment_id as SubAccountId,
+          @v_org_slug as SubAccountId,
           COALESCE(compartment_name, compartment_id) as SubAccountName,
 
           sku_part_number as SkuId,
@@ -448,7 +456,7 @@ BEGIN
         WHERE usage_date = @p_date
           AND cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
+      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;

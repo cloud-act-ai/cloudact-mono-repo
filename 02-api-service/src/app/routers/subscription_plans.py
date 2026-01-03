@@ -3,7 +3,7 @@ SaaS Subscription Plans Management API Routes
 
 Endpoints for managing SaaS subscription plans across multiple providers.
 This handles FIXED-COST subscription plans for each provider (Canva, ChatGPT Plus, Slack, etc.)
-NOT LLM API usage tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - those are in llm_data.py)
+NOT LLM API usage tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - those are in genai_pricing.py)
 
 URL Structure: /api/v1/subscriptions/{org_slug}/providers/...
 

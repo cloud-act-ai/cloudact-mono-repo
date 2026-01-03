@@ -132,7 +132,7 @@ BEGIN
         overage_cost_usd,
         NULL as infrastructure_cost_usd,
         total_cost_usd,
-        discount_applied_pct,
+        0.0 as discount_applied_pct,  -- Commitment costs don't have discounts
         provisioned_units as usage_quantity,
         'ptu_hours' as usage_unit,
         hierarchy_dept_id,

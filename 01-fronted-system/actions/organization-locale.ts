@@ -1347,8 +1347,152 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
       },
     }
   } catch (err: unknown) {
-    
+
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization quota limits"
+    return { success: false, error: errorMessage }
+  }
+}
+
+// ============================================
+// Get Org Name
+// ============================================
+
+/**
+ * Get organization name from Supabase.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function getOrgName(orgSlug: string): Promise<{
+  success: boolean
+  orgName?: string
+  error?: string
+}> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Fetch org name from Supabase
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("org_name")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (error || !data) {
+      return { success: false, error: "Failed to fetch organization name" }
+    }
+
+    return {
+      success: true,
+      orgName: data.org_name,
+    }
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to get organization name"
+    return { success: false, error: errorMessage }
+  }
+}
+
+// ============================================
+// Update Org Name
+// ============================================
+
+/**
+ * Validate organization name.
+ * Prevents XSS and ensures reasonable length.
+ */
+function isValidOrgNameInput(name: string): boolean {
+  if (!name || typeof name !== "string") return false
+  const trimmed = name.trim()
+  // Must be 2-100 characters, no HTML tags or script injections
+  if (trimmed.length < 2 || trimmed.length > 100) return false
+  // Block common XSS patterns
+  if (/<[^>]*>/.test(trimmed)) return false
+  if (/javascript:/i.test(trimmed)) return false
+  if (/on\w+\s*=/i.test(trimmed)) return false
+  return true
+}
+
+/**
+ * Sanitize organization name.
+ * Removes potentially dangerous characters.
+ */
+function sanitizeOrgNameInput(name: string): string {
+  return name
+    .trim()
+    .replace(/[<>"'&;]/g, "") // Remove dangerous chars
+    .slice(0, 100) // Enforce max length
+}
+
+/**
+ * Update organization name in Supabase.
+ *
+ * SECURITY:
+ * - Requires org membership
+ * - Input is validated and sanitized
+ * - Only updates the org_name field (not org_slug which is immutable)
+ */
+export async function updateOrgName(
+  orgSlug: string,
+  newOrgName: string
+): Promise<{
+  success: boolean
+  orgName?: string
+  error?: string
+}> {
+  try {
+    // Step 1: Validate inputs
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    if (!isValidOrgNameInput(newOrgName)) {
+      return { success: false, error: "Invalid organization name. Must be 2-100 characters without HTML tags." }
+    }
+
+    // Sanitize the name
+    const sanitizedName = sanitizeOrgNameInput(newOrgName)
+
+    // Step 2: Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Step 3: Update org name in Supabase
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("organizations")
+      .update({ org_name: sanitizedName })
+      .eq("org_slug", orgSlug)
+      .select("org_name")
+      .single()
+
+    if (error || !data) {
+      return { success: false, error: error?.message || "Failed to update organization name" }
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[updateOrgName] Updated org name for ${orgSlug} to "${sanitizedName}"`)
+    }
+
+    return {
+      success: true,
+      orgName: data.org_name,
+    }
+  } catch (err: unknown) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[updateOrgName] Unexpected error:", err)
+    }
+    const errorMessage = err instanceof Error ? err.message : "Failed to update organization name"
     return { success: false, error: errorMessage }
   }
 }

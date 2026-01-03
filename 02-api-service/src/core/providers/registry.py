@@ -243,10 +243,6 @@ class ProviderRegistry:
         """Get list of GenAI provider names."""
         return [name for name, config in self._providers.items() if config.type == "genai"]
 
-    def get_llm_providers(self) -> List[str]:
-        """Get list of LLM provider names (deprecated - use get_genai_providers)."""
-        return self.get_genai_providers()
-
     def get_cloud_providers(self) -> List[str]:
         """Get list of cloud provider names."""
         return [name for name, config in self._providers.items() if config.type == "cloud"]
@@ -255,10 +251,6 @@ class ProviderRegistry:
         """Check if provider is a GenAI provider."""
         provider = self.get_provider(name)
         return provider is not None and provider.type == "genai"
-
-    def is_llm_provider(self, name: str) -> bool:
-        """Check if provider is an LLM provider (deprecated - use is_genai_provider)."""
-        return self.is_genai_provider(name)
 
     def is_cloud_provider(self, name: str) -> bool:
         """Check if provider is a cloud provider."""

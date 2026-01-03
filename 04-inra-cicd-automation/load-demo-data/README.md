@@ -118,7 +118,7 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
 
 # Run subscription costs pipeline
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/${ORG_SLUG}/saas_subscription/costs/saas_cost" \
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/${ORG_SLUG}/subscription/costs/subscription_cost" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"start_date":"2025-01-01","end_date":"2026-01-02"}'
@@ -381,7 +381,7 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
 
 ```bash
 # Subscription costs (amortizes plans into daily costs)
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/${ORG_SLUG}/saas_subscription/costs/saas_cost" \
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/${ORG_SLUG}/subscription/costs/subscription_cost" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"start_date":"2025-01-01","end_date":"2025-12-28"}'

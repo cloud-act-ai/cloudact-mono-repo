@@ -664,7 +664,7 @@ export async function addCustomPricing(
     }
 
     // Defensive JSON parsing
-    let data: { pricing_id?: string; id?: string; data?: { pricing_id?: string; id?: string } }
+    let data: Record<string, unknown>
     try {
       data = await response.json()
     } catch {
@@ -672,7 +672,8 @@ export async function addCustomPricing(
     }
 
     // Extract pricing_id from response - check multiple possible field names
-    const pricingId = data.pricing_id || data.id || data.data?.pricing_id || data.data?.id
+    const nestedData = data.data as Record<string, unknown> | undefined
+    const pricingId = data.pricing_id || data.id || nestedData?.pricing_id || nestedData?.id
 
     // Validate that we received a pricing ID - this is required for subsequent operations
     if (!pricingId) {
@@ -688,7 +689,8 @@ export async function addCustomPricing(
     return {
       success: true,
       pricingId: String(pricingId),
-      data: data.data || data
+      // The API returns the full pricing record - cast to expected union type
+      data: (nestedData || data) as unknown as AddCustomPricingResult["data"]
     }
   } catch (error) {
     if (process.env.NODE_ENV === "development") {

@@ -123,15 +123,15 @@ export default function SubscriptionCostsPage() {
     }))
   }, [getDailyTrendForRange, timeRange, customRange])
 
-  // Prepare summary data from cached totalCosts.saas
+  // Prepare summary data from cached totalCosts.subscription
   const summaryData: CostSummaryData = useMemo(() => {
-    // Use SaaS-specific metrics from totalCosts
-    const saasCosts = totalCosts?.saas
+    // Use subscription-specific metrics from totalCosts
+    const subscriptionCosts = totalCosts?.subscription
     return {
-      mtd: saasCosts?.mtd_cost ?? saasCosts?.total_monthly_cost ?? 0,
-      dailyRate: saasCosts?.total_daily_cost ?? 0,
-      forecast: saasCosts?.total_monthly_cost ?? 0,
-      ytd: saasCosts?.total_annual_cost ?? 0,
+      mtd: subscriptionCosts?.mtd_cost ?? subscriptionCosts?.total_monthly_cost ?? 0,
+      dailyRate: subscriptionCosts?.total_daily_cost ?? 0,
+      forecast: subscriptionCosts?.total_monthly_cost ?? 0,
+      ytd: subscriptionCosts?.total_annual_cost ?? 0,
       currency: orgCurrency,
     }
   }, [totalCosts, orgCurrency])
@@ -176,7 +176,7 @@ export default function SubscriptionCostsPage() {
   }, [providers])
 
   // Check if data is truly empty (not just loading)
-  const isEmpty = !isLoading && !totalCosts?.saas && providers.length === 0
+  const isEmpty = !isLoading && !totalCosts?.subscription && providers.length === 0
 
   return (
     <CostDashboardShell

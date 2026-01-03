@@ -5,7 +5,7 @@
 #   id: Unique identifier (used in API calls)
 #   name: Human-readable name (displayed in UI)
 #   description: What this pipeline does
-#   category: Top-level category (cloud, genai, saas) - matches configs/{category}/...
+#   category: Top-level category (cloud, genai, subscription) - matches configs/{category}/...
 #   provider: Provider within category (gcp, aws, openai, anthropic)
 #   domain: Domain that matches config path (e.g., "cost" for configs/cloud/gcp/cost/billing.yml)
 #   pipeline: Template name (matches configs/{category}/{provider}/{domain}/{pipeline}.yml)

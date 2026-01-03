@@ -196,7 +196,7 @@ curl -X DELETE "http://localhost:8000/api/v1/subscriptions/my_org/providers/chat
 │   └── integrations/           # Integration status/health
 ├── configs/
 │   ├── setup/bootstrap/        # 14 table schemas
-│   └── saas/seed/              # Subscription templates
+│   └── subscription/seed/      # Subscription templates
 └── tests/
 ```
 

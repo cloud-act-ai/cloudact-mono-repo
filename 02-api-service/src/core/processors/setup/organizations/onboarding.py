@@ -482,14 +482,14 @@ class OrgOnboardingProcessor:
 
         return result
 
-    async def _seed_llm_data(
+    async def _seed_genai_data(
         self,
         bq_client: BigQueryClient,
         dataset_id: str,
         config: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Seed LLM subscription and pricing data from CSV files.
+        Seed GenAI subscription and pricing data from CSV files.
 
         Args:
             bq_client: BigQuery client
@@ -506,7 +506,7 @@ class OrgOnboardingProcessor:
         }
 
         subscriptions_csv = config.get("subscriptions_csv")
-        pricing_csv = config.get("llm_pricing_csv")
+        pricing_csv = config.get("genai_pricing_csv")
         now = datetime.utcnow().isoformat() + "Z"
 
         # Seed subscriptions
@@ -557,7 +557,7 @@ class OrgOnboardingProcessor:
         if pricing_csv:
             pricing_rows = self._load_csv_file(pricing_csv)
             if pricing_rows:
-                table_id = f"{self.settings.gcp_project_id}.{dataset_id}.llm_model_pricing"
+                table_id = f"{self.settings.gcp_project_id}.{dataset_id}.genai_model_pricing"
                 try:
                     rows_to_insert = []
                     for price in pricing_rows:
@@ -772,19 +772,19 @@ class OrgOnboardingProcessor:
         # This MV queries central organizations tables filtered by org_slug
         views_created, views_failed = self._create_org_materialized_views(org_slug, dataset_id)
 
-        # Step 5: Seed LLM subscription and pricing data if configured
-        llm_seed_result = {"subscriptions_seeded": 0, "pricing_seeded": 0, "errors": []}
-        if config.get("seed_llm_data", False):
-            self.logger.info(f"Seeding LLM data for organization {org_slug}")
-            llm_seed_result = await self._seed_llm_data(bq_client, dataset_id, config)
-            if llm_seed_result.get("errors"):
+        # Step 5: Seed GenAI subscription and pricing data if configured
+        genai_seed_result = {"subscriptions_seeded": 0, "pricing_seeded": 0, "errors": []}
+        if config.get("seed_genai_data", False):
+            self.logger.info(f"Seeding GenAI data for organization {org_slug}")
+            genai_seed_result = await self._seed_genai_data(bq_client, dataset_id, config)
+            if genai_seed_result.get("errors"):
                 self.logger.warning(
-                    f"LLM seeding completed with errors: {llm_seed_result['errors']}"
+                    f"GenAI seeding completed with errors: {genai_seed_result['errors']}"
                 )
             else:
                 self.logger.info(
-                    f"LLM seeding complete: {llm_seed_result['subscriptions_seeded']} subscriptions, "
-                    f"{llm_seed_result['pricing_seeded']} pricing records"
+                    f"GenAI seeding complete: {genai_seed_result['subscriptions_seeded']} subscriptions, "
+                    f"{genai_seed_result['pricing_seeded']} pricing records"
                 )
 
         # Prepare result
@@ -809,8 +809,8 @@ class OrgOnboardingProcessor:
                 "teams": hierarchy_result.get("teams_seeded", 0),
                 "total": hierarchy_total
             },
-            "subscriptions_seeded": llm_seed_result.get("subscriptions_seeded", 0),
-            "llm_pricing_seeded": llm_seed_result.get("pricing_seeded", 0),
+            "subscriptions_seeded": genai_seed_result.get("subscriptions_seeded", 0),
+            "genai_pricing_seeded": genai_seed_result.get("pricing_seeded", 0),
             "message": f"Created {len(tables_created)} tables, {len(views_created)} views, and {hierarchy_total} hierarchy entities for organization {org_slug}"
         }
 

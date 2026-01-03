@@ -940,12 +940,12 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota, costs, pipelines_proxy, hierarchy, genai, notifications
+from src.app.routers import admin, organizations, integrations, genai_pricing, pipeline_validator, pipeline_logs, subscription_plans, quota, costs, pipelines_proxy, hierarchy, genai, notifications
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
-app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
+app.include_router(genai_pricing.router, prefix="/api/v1", tags=["GenAI Pricing"])
 app.include_router(subscription_plans.router, prefix="/api/v1", tags=["Subscription Plans"])
 app.include_router(pipeline_validator.router, prefix="/api/v1", tags=["Pipeline Validator"])
 app.include_router(pipeline_logs.router, prefix="/api/v1", tags=["Pipeline Logs"])

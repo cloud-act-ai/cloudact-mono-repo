@@ -777,7 +777,7 @@ async def get_genai_costs(
 
 class TotalCostSummary(BaseModel):
     """Aggregated cost summary across all cost types."""
-    saas: Dict[str, Any]
+    subscription: Dict[str, Any]
     cloud: Dict[str, Any]
     genai: Dict[str, Any]
     total: Dict[str, Any]
@@ -842,7 +842,7 @@ async def get_total_costs(
     )
 
     # Fetch all cost types in parallel
-    saas_result, cloud_result, genai_result = await asyncio.gather(
+    subscription_result, cloud_result, genai_result = await asyncio.gather(
         cost_service.get_subscription_costs(query),
         cost_service.get_cloud_costs(query),
         cost_service.get_genai_costs(query)
@@ -850,7 +850,7 @@ async def get_total_costs(
 
     # Validate date ranges match across cost types
     date_ranges = []
-    for result_name, result in [("saas", saas_result), ("cloud", cloud_result), ("genai", genai_result)]:
+    for result_name, result in [("subscription", subscription_result), ("cloud", cloud_result), ("genai", genai_result)]:
         if result.success and result.summary and "date_range" in result.summary:
             date_ranges.append((result_name, result.summary["date_range"]))
         elif result.success and result.data:
@@ -909,21 +909,21 @@ async def get_total_costs(
             "providers": [],
         }
 
-    saas_summary = safe_summary(saas_result)
+    subscription_summary = safe_summary(subscription_result)
     cloud_summary = safe_summary(cloud_result)
     genai_summary = safe_summary(genai_result)
 
     # Calculate totals (both projections and actual billed)
-    total_daily = saas_summary["total_daily_cost"] + cloud_summary["total_daily_cost"] + genai_summary["total_daily_cost"]
-    total_monthly = saas_summary["total_monthly_cost"] + cloud_summary["total_monthly_cost"] + genai_summary["total_monthly_cost"]
-    total_annual = saas_summary["total_annual_cost"] + cloud_summary["total_annual_cost"] + genai_summary["total_annual_cost"]
-    total_billed = saas_summary["total_billed_cost"] + cloud_summary["total_billed_cost"] + genai_summary["total_billed_cost"]
+    total_daily = subscription_summary["total_daily_cost"] + cloud_summary["total_daily_cost"] + genai_summary["total_daily_cost"]
+    total_monthly = subscription_summary["total_monthly_cost"] + cloud_summary["total_monthly_cost"] + genai_summary["total_monthly_cost"]
+    total_annual = subscription_summary["total_annual_cost"] + cloud_summary["total_annual_cost"] + genai_summary["total_annual_cost"]
+    total_billed = subscription_summary["total_billed_cost"] + cloud_summary["total_billed_cost"] + genai_summary["total_billed_cost"]
 
     query_time = (time.time() - start_time) * 1000
 
     # Determine date range from first successful result
     date_range = {"start": "", "end": ""}
-    for result in [saas_result, cloud_result, genai_result]:
+    for result in [subscription_result, cloud_result, genai_result]:
         if result.success and result.summary and "date_range" in result.summary:
             date_range = result.summary["date_range"]
             break
@@ -932,7 +932,7 @@ async def get_total_costs(
     currency = await _get_org_currency(org_slug, bq_client)
 
     return TotalCostSummary(
-        saas=saas_summary,
+        subscription=subscription_summary,
         cloud=cloud_summary,
         genai=genai_summary,
         total={

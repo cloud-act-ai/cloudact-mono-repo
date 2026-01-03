@@ -27,8 +27,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { UserPlus, Trash2, Mail, Copy, CheckCircle2, Loader2, Users, Clock, Check, AlertCircle, Eye, Edit3 } from "lucide-react"
-import { fetchMembersData, inviteMember, removeMember, updateMemberRole, cancelInvite } from "@/actions/members"
+import { UserPlus, Trash2, Mail, Copy, CheckCircle2, Loader2, Users, Clock, Check, AlertCircle, Eye, Edit3, RefreshCw } from "lucide-react"
+import { fetchMembersData, inviteMember, removeMember, updateMemberRole, cancelInvite, resendInvite } from "@/actions/members"
 import { logError } from "@/lib/utils"
 
 interface Member {
@@ -142,7 +142,12 @@ export default function InviteMembersPage() {
         return
       }
 
-      toast.success("Invitation sent successfully")
+      // Show appropriate toast based on email delivery status
+      if (result.emailSent === false) {
+        toast.warning("Invite created but email delivery failed. Please share the link manually.")
+      } else {
+        toast.success("Invitation sent successfully")
+      }
       setInviteLink(result.inviteLink || null)
       setInviteEmail("")
       await fetchData() // Await to ensure list updates before any UI changes
@@ -185,6 +190,31 @@ export default function InviteMembersPage() {
       await fetchData() // Await to ensure UI reflects cancellation
     } else {
       toast.error(result.error || "Failed to cancel invitation")
+    }
+  }
+
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null)
+
+  const handleResendInvite = async (inviteId: string) => {
+    setResendingInviteId(inviteId)
+    try {
+      const result = await resendInvite(orgSlug, inviteId)
+      if (result.success) {
+        if (result.emailSent === false) {
+          toast.warning("Invite regenerated but email delivery failed. Please share the link manually.")
+          // Optionally show the new invite link
+          if (result.inviteLink) {
+            setInviteLink(result.inviteLink)
+          }
+        } else {
+          toast.success("Invitation resent with new link")
+        }
+        await fetchData() // Refresh to show updated expiry
+      } else {
+        toast.error(result.error || "Failed to resend invitation")
+      }
+    } finally {
+      setResendingInviteId(null)
     }
   }
 
@@ -244,7 +274,9 @@ export default function InviteMembersPage() {
   const isOwner = userRole === "owner"
   const seatLimit = orgData?.seat_limit
   const currentSeats = members.length
-  const seatsAvailable = seatLimit ? seatLimit - currentSeats : 0
+  const pendingInvitesCount = invites.length
+  // STATE-001 FIX: Include pending invites in seat calculation (they reserve seats)
+  const seatsAvailable = seatLimit ? seatLimit - currentSeats - pendingInvitesCount : 0
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-0">
@@ -594,12 +626,26 @@ export default function InviteMembersPage() {
                         {invite.role === "read_only" ? "Read Only" : invite.role.charAt(0).toUpperCase() + invite.role.slice(1)}
                       </Badge>
                       {isOwner && (
-                        <button
-                          onClick={() => handleCancelInvite(invite.id)}
-                          className="h-9 px-4 rounded-lg text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleResendInvite(invite.id)}
+                            disabled={resendingInviteId === invite.id}
+                            className="h-9 px-4 rounded-lg text-[12px] font-medium text-[#1a7a3a] hover:text-[#0d5a26] hover:bg-[#90FCA6]/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          >
+                            {resendingInviteId === invite.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            )}
+                            Resend
+                          </button>
+                          <button
+                            onClick={() => handleCancelInvite(invite.id)}
+                            className="h-9 px-4 rounded-lg text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

@@ -1,8 +1,8 @@
 """
-LLM Provider Data CRUD API Routes
+GenAI Provider Data CRUD API Routes
 
-Generic endpoints for managing pricing and subscription data for all LLM providers.
-Uses unified tables (subscriptions, llm_model_pricing) with provider column filtering.
+Generic endpoints for managing pricing and subscription data for all GenAI providers.
+Uses unified tables (subscriptions, genai_model_pricing) with provider column filtering.
 
 URL Structure: /api/v1/integrations/{org_slug}/{provider}/pricing|subscriptions
 """
@@ -40,20 +40,20 @@ settings = get_settings()
 # Unified Table Names (V7 Architecture)
 # ============================================
 UNIFIED_SUBSCRIPTIONS_TABLE = "subscription_plans"
-UNIFIED_PRICING_TABLE = "llm_model_pricing"
+UNIFIED_PRICING_TABLE = "genai_model_pricing"
 
 # Valid providers for filtering (including 'custom' for user-defined)
 VALID_PROVIDERS = {"openai", "anthropic", "gemini", "custom"}
 
 
-def _get_llm_providers_enum():
-    """Build LLMProvider enum including 'custom' for user-defined entries."""
+def _get_genai_providers_enum():
+    """Build GenAIProvider enum including 'custom' for user-defined entries."""
     # Include standard providers plus custom
     providers = list(VALID_PROVIDERS)
-    return Enum('LLMProvider', {p: p for p in providers}, type=str)
+    return Enum('GenAIProvider', {p: p for p in providers}, type=str)
 
 # Create enum for API validation
-LLMProvider = _get_llm_providers_enum()
+GenAIProvider = _get_genai_providers_enum()
 
 
 def validate_provider(provider: str) -> str:
@@ -126,7 +126,7 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 )
 async def list_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     include_custom: bool = Query(True, description="Include custom pricing entries"),
     is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
     limit: int = 500,
@@ -137,7 +137,7 @@ async def list_pricing(
     """
     List all model pricing for an organization and provider.
 
-    Uses unified llm_model_pricing table with provider filtering.
+    Uses unified genai_model_pricing table with provider filtering.
     By default includes both provider-specific and custom entries.
     """
     validate_org_slug(org_slug)
@@ -227,7 +227,7 @@ async def list_pricing(
 )
 async def get_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     model_id: str,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -290,7 +290,7 @@ async def get_pricing(
 )
 async def create_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     pricing: OpenAIPricingCreate,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -415,7 +415,7 @@ async def create_pricing(
 )
 async def update_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     model_id: str,
     pricing: OpenAIPricingUpdate,
     org: Dict = Depends(get_current_org),
@@ -528,7 +528,7 @@ async def update_pricing(
 )
 async def delete_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     model_id: str,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -543,7 +543,7 @@ async def delete_pricing(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
-        # NOTE: llm_model_pricing table does not have org_slug column - tenant isolation is at dataset level
+        # NOTE: genai_model_pricing table does not have org_slug column - tenant isolation is at dataset level
         # Dataset is already org-specific: {org_slug}_prod, so no additional org_slug filter needed
         query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider"
         job_config = bigquery.QueryJobConfig(
@@ -575,7 +575,7 @@ async def delete_pricing(
 )
 async def reset_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -584,8 +584,8 @@ async def reset_pricing(
     check_org_access(org, org_slug)
 
     try:
-        from src.app.routers.integrations import _initialize_llm_pricing
-        result = await _initialize_llm_pricing(org_slug, provider.value, force=True)
+        from src.app.routers.integrations import _initialize_genai_pricing
+        result = await _initialize_genai_pricing(org_slug, provider.value, force=True)
 
         if result.get("status") != "SUCCESS":
             raise HTTPException(status_code=500, detail=result.get("error", "Failed to reset pricing"))
@@ -660,7 +660,7 @@ class BulkPricingUpdateResponse(BaseModel):
 )
 async def bulk_update_pricing(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     request: BulkPricingUpdateRequest,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -688,7 +688,7 @@ async def bulk_update_pricing(
                 validate_model_id(item.model_id)
 
                 update_fields = []
-                # NOTE: llm_model_pricing table does not have org_slug column - tenant isolation is at dataset level
+                # NOTE: genai_model_pricing table does not have org_slug column - tenant isolation is at dataset level
                 query_params = [
                     bigquery.ScalarQueryParameter("model_id", "STRING", item.model_id),
                     bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
@@ -755,7 +755,7 @@ async def bulk_update_pricing(
 
                 update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-                # NOTE: llm_model_pricing does not have org_slug - tenant isolation is at dataset level
+                # NOTE: genai_model_pricing does not have org_slug - tenant isolation is at dataset level
                 query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider"
                 job_config = bigquery.QueryJobConfig(
                     query_parameters=query_params,
@@ -799,7 +799,7 @@ async def bulk_update_pricing(
 )
 async def list_subscriptions(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     include_custom: bool = Query(True, description="Include custom subscription entries"),
     is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
     limit: int = 500,
@@ -902,7 +902,7 @@ async def list_subscriptions(
 )
 async def get_subscription(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     plan_name: str,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -966,7 +966,7 @@ async def get_subscription(
 )
 async def create_subscription(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     subscription: OpenAISubscriptionCreate,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -1101,7 +1101,7 @@ async def create_subscription(
 )
 async def update_subscription(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     plan_name: str,
     subscription: OpenAISubscriptionUpdate,
     org: Dict = Depends(get_current_org),
@@ -1233,7 +1233,7 @@ async def update_subscription(
 )
 async def delete_subscription(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     plan_name: str,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -1282,7 +1282,7 @@ async def delete_subscription(
 )
 async def reset_subscriptions(
     org_slug: str,
-    provider: LLMProvider,
+    provider: GenAIProvider,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):

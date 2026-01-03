@@ -645,7 +645,7 @@ class TestGetTotalCosts:
 
         assert response.status_code == 200
         data = response.json()
-        assert "saas" in data
+        assert "subscription" in data
         assert "cloud" in data
         assert "genai" in data
         assert "total" in data

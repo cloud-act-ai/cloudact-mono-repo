@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer"
+import type { Transporter } from "nodemailer"
 
 // HTML escape function to prevent XSS in email templates
 function escapeHtml(unsafe: string): string {
@@ -10,19 +11,37 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, "&#039;")
 }
 
-// SMTP Configuration
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USERNAME,
-    pass: process.env.SMTP_PASSWORD,
-  },
-})
+// Lazy transporter initialization - created on first use to ensure env vars are loaded
+let _transporter: Transporter | null = null
 
-const fromEmail = process.env.FROM_EMAIL || "support@cloudact.ai"
-const fromName = process.env.FROM_NAME || "CloudAct.ai"
+function getTransporter(): Transporter {
+  if (!_transporter) {
+    console.log("[Email] Creating SMTP transporter...")
+    console.log(`[Email] SMTP_HOST: ${process.env.SMTP_HOST || "smtp.gmail.com"}`)
+    console.log(`[Email] SMTP_PORT: ${process.env.SMTP_PORT || "587"}`)
+    console.log(`[Email] SMTP_USERNAME: ${process.env.SMTP_USERNAME ? "SET" : "NOT SET"}`)
+    console.log(`[Email] SMTP_PASSWORD: ${process.env.SMTP_PASSWORD ? "SET" : "NOT SET"}`)
+
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USERNAME,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    })
+  }
+  return _transporter
+}
+
+function getFromEmail(): string {
+  return process.env.FROM_EMAIL || "support@cloudact.ai"
+}
+
+function getFromName(): string {
+  return process.env.FROM_NAME || "CloudAct.ai"
+}
 
 interface SendEmailOptions {
   to: string
@@ -32,21 +51,41 @@ interface SendEmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions): Promise<boolean> {
+  console.log(`[Email] sendEmail called - to: ${to}, subject: ${subject}`)
+
   if (!process.env.SMTP_USERNAME || !process.env.SMTP_PASSWORD) {
+    console.error("[Email] SMTP not configured: Missing SMTP_USERNAME or SMTP_PASSWORD environment variables")
     return false
   }
 
   try {
-    await transporter.sendMail({
+    // Get transporter lazily to ensure env vars are loaded
+    const transporter = getTransporter()
+    const fromEmail = getFromEmail()
+    const fromName = getFromName()
+
+    console.log(`[Email] Sending from: "${fromName}" <${fromEmail}>`)
+    console.log(`[Email] Attempting to send via SMTP...`)
+
+    const info = await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html,
       text: text || subject,
     })
+    console.log(`[Email] ✅ Sent successfully to ${to}`)
+    console.log(`[Email] MessageId: ${info.messageId}`)
+    console.log(`[Email] Response: ${info.response}`)
+    console.log(`[Email] Accepted: ${JSON.stringify(info.accepted)}`)
+    console.log(`[Email] Rejected: ${JSON.stringify(info.rejected)}`)
     return true
   } catch (emailError) {
-    console.error("[Email] Failed to send email:", emailError instanceof Error ? emailError.message : emailError)
+    console.error("[Email] ❌ Failed to send email to", to)
+    console.error("[Email] Error:", emailError instanceof Error ? emailError.message : emailError)
+    if (emailError instanceof Error && emailError.stack) {
+      console.error("[Email] Stack:", emailError.stack)
+    }
     return false
   }
 }

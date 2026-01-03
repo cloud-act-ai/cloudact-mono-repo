@@ -41,7 +41,7 @@ export function getAppUrl(): string {
 // GenAI Validation Constants
 // ============================================
 // These values MUST match backend enums in:
-// - 02-api-service/src/app/routers/llm_data.py (BillingPeriodEnum, TierTypeEnum, etc.)
+// - 02-api-service/src/app/routers/genai_pricing.py (BillingPeriodEnum, TierTypeEnum, etc.)
 // - 02-api-service/src/app/routers/genai.py
 // If backend adds new values, update these arrays accordingly.
 // TODO: Consider fetching these from a /api/v1/genai/validation-options endpoint

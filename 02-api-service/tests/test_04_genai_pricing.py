@@ -1,5 +1,5 @@
 """
-LLM Data API Tests - Subscription and Pricing CRUD Operations
+GenAI Pricing API Tests - Subscription and Pricing CRUD Operations
 
 Tests for subscription and pricing endpoints with REAL test data (no mocking).
 
@@ -22,10 +22,10 @@ Endpoints Tested:
 Providers: openai, anthropic, gemini
 
 To run integration tests with real BigQuery:
-    pytest tests/test_04_llm_data.py -m integration --run-integration
+    pytest tests/test_04_genai_pricing.py -m integration --run-integration
 
 To run only unit tests (no BigQuery required):
-    pytest tests/test_04_llm_data.py -m "not integration"
+    pytest tests/test_04_genai_pricing.py -m "not integration"
 """
 
 import pytest

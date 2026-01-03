@@ -136,7 +136,7 @@ export default function CostOverviewPage() {
         value: filteredTotalCost,
         percentage: 100,
         count: filteredRecordCount,
-        color: OVERVIEW_CATEGORY_CONFIG.colors.saas,
+        color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       }]
     }
 

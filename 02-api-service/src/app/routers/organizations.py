@@ -1456,8 +1456,8 @@ async def onboard_org(
                             "clustering_fields": ["tenancy_id", "service_name", "compartment_id", "region"]
                         }
                     ],
-                    # LLM tables created empty - customers add custom plans via UI
-                    "seed_llm_data": False,
+                    # GenAI tables created empty - customers add custom plans via UI
+                    "seed_genai_data": False,
                     "default_daily_limit": plan_limits["max_daily"],
                     "default_monthly_limit": plan_limits["max_monthly"],
                     "default_concurrent_limit": plan_limits["max_concurrent"]

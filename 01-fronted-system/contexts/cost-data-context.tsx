@@ -40,7 +40,7 @@ import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import { dateRangeToApiParams, getDefaultDateRange } from "@/components/costs"
 import type { HierarchyEntity } from "@/components/costs"
-// Note: Provider categorization now comes from backend (totalCosts.genai/cloud/saas.providers)
+// Note: Provider categorization now comes from backend (totalCosts.genai/cloud/subscription.providers)
 // No hardcoded provider sets needed!
 
 // ============================================
@@ -461,8 +461,8 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   // Get providers filtered by category - uses dynamic data from backend
   const getFilteredProviders = useCallback(
     (category: "cloud" | "genai" | "subscription"): ProviderBreakdown[] => {
-      // Map category to internal name (saas → subscription)
-      const categoryKey = category === "subscription" ? "subscription" : category
+      // Category key matches backend response directly
+      const categoryKey = category
 
       // Use availableFilters which has category info from backend
       const categoryProviderIds = new Set(
