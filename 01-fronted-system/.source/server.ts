@@ -11,13 +11,13 @@ import * as __fd_glob_11 from "../content/docs/integrations/anthropic.mdx?collec
 import * as __fd_glob_10 from "../content/docs/getting-started/quickstart.mdx?collection=docs"
 import * as __fd_glob_9 from "../content/docs/getting-started/index.mdx?collection=docs"
 import * as __fd_glob_8 from "../content/docs/getting-started/account-setup.mdx?collection=docs"
-import * as __fd_glob_7 from "../content/docs/billing/plans.mdx?collection=docs"
-import * as __fd_glob_6 from "../content/docs/billing/invoices.mdx?collection=docs"
-import * as __fd_glob_5 from "../content/docs/billing/index.mdx?collection=docs"
-import * as __fd_glob_4 from "../content/docs/account/team.mdx?collection=docs"
-import * as __fd_glob_3 from "../content/docs/account/security.mdx?collection=docs"
-import * as __fd_glob_2 from "../content/docs/account/profile.mdx?collection=docs"
-import * as __fd_glob_1 from "../content/docs/account/index.mdx?collection=docs"
+import * as __fd_glob_7 from "../content/docs/account/team.mdx?collection=docs"
+import * as __fd_glob_6 from "../content/docs/account/security.mdx?collection=docs"
+import * as __fd_glob_5 from "../content/docs/account/profile.mdx?collection=docs"
+import * as __fd_glob_4 from "../content/docs/account/index.mdx?collection=docs"
+import * as __fd_glob_3 from "../content/docs/billing/plans.mdx?collection=docs"
+import * as __fd_glob_2 from "../content/docs/billing/invoices.mdx?collection=docs"
+import * as __fd_glob_1 from "../content/docs/billing/index.mdx?collection=docs"
 import * as __fd_glob_0 from "../content/docs/index.mdx?collection=docs"
 import { server } from 'fumadocs-mdx/runtime/server';
 import type * as Config from '../source.config';
@@ -27,6 +27,6 @@ const create = server<typeof Config, import("fumadocs-mdx/runtime/types").Intern
   }
 }>({"doc":{"passthroughs":["extractedReferences"]}});
 
-export const docs = await create.doc("docs", "content/docs", {"index.mdx": __fd_glob_0, "account/index.mdx": __fd_glob_1, "account/profile.mdx": __fd_glob_2, "account/security.mdx": __fd_glob_3, "account/team.mdx": __fd_glob_4, "billing/index.mdx": __fd_glob_5, "billing/invoices.mdx": __fd_glob_6, "billing/plans.mdx": __fd_glob_7, "getting-started/account-setup.mdx": __fd_glob_8, "getting-started/index.mdx": __fd_glob_9, "getting-started/quickstart.mdx": __fd_glob_10, "integrations/anthropic.mdx": __fd_glob_11, "integrations/gcp.mdx": __fd_glob_12, "integrations/index.mdx": __fd_glob_13, "integrations/openai.mdx": __fd_glob_14, });
+export const docs = await create.doc("docs", "content/docs", {"index.mdx": __fd_glob_0, "billing/index.mdx": __fd_glob_1, "billing/invoices.mdx": __fd_glob_2, "billing/plans.mdx": __fd_glob_3, "account/index.mdx": __fd_glob_4, "account/profile.mdx": __fd_glob_5, "account/security.mdx": __fd_glob_6, "account/team.mdx": __fd_glob_7, "getting-started/account-setup.mdx": __fd_glob_8, "getting-started/index.mdx": __fd_glob_9, "getting-started/quickstart.mdx": __fd_glob_10, "integrations/anthropic.mdx": __fd_glob_11, "integrations/gcp.mdx": __fd_glob_12, "integrations/index.mdx": __fd_glob_13, "integrations/openai.mdx": __fd_glob_14, });
 
 export const meta = await create.meta("meta", "content/docs", {"meta.json": __fd_glob_15, "account/meta.json": __fd_glob_16, "billing/meta.json": __fd_glob_17, "getting-started/meta.json": __fd_glob_18, "integrations/meta.json": __fd_glob_19, });

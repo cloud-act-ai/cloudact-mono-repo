@@ -95,7 +95,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 // =============================================
 const BRAND = {
   mint: "#90FCA6",           // Primary buttons, success states
-  mintDark: "#6EE890",       // Hover states
+  mintDark: "#1a7a3a",       // Dark green for text on mint
   obsidian: "#0a0a0b",       // Icon backgrounds, premium dark
   coral: "#FF6C5E",          // Warnings, destructive actions
   black: "#000000",          // Text on mint buttons
@@ -113,9 +113,6 @@ const BRAND = {
   success: "#10b981",        // Green for confirmations
   warning: "#f59e0b",        // Amber for warnings
   error: "#ef4444",          // Red for errors
-  // Assets
-  logoUrl: "https://cloudact.ai/logos/cloudact-logo-black.png",
-  iconUrl: "https://cloudact.ai/logos/cloudact-icon-black.png",
   siteUrl: "https://cloudact.ai",
 } as const
 
@@ -160,24 +157,27 @@ function baseEmailLayout({
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} - CloudAct.AI</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: ${BRAND.gray[100]};">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: ${BRAND.gray[100]};">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
-      <td align="center" style="padding: 40px 0;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: ${BRAND.white}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header with Logo -->
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; background-color: ${BRAND.white}; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);">
+          <!-- Header with Text Logo -->
           <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid ${BRAND.gray[200]};">
+            <td style="padding: 32px 40px 24px 40px; text-align: center; border-bottom: 1px solid ${BRAND.gray[200]};">
               <a href="${BRAND.siteUrl}" style="text-decoration: none;">
-                <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="160" height="40" style="display: inline-block; max-width: 160px; height: auto;" />
+                <span style="display: inline-block; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]}; letter-spacing: -0.5px;">
+                  Cloud<span style="color: ${BRAND.mintDark};">Act</span>.AI
+                </span>
               </a>
-              <h1 style="margin: 24px 0 0 0; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]};">${title}</h1>
+              <h1 style="margin: 20px 0 0 0; font-size: 22px; font-weight: 600; color: ${BRAND.gray[900]}; line-height: 1.3;">${title}</h1>
             </td>
           </tr>
           <!-- Content -->
           <tr>
-            <td style="padding: 40px;">
+            <td style="padding: 32px 40px;">
               ${content}
               ${ctaButton}
             </td>
@@ -187,30 +187,30 @@ function baseEmailLayout({
             <td style="padding: 24px 40px; background-color: ${BRAND.gray[50]}; border-top: 1px solid ${BRAND.gray[200]}; border-radius: 0 0 12px 12px;">
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
-                  <td align="center" style="padding-bottom: 16px;">
-                    <a href="${BRAND.siteUrl}" style="text-decoration: none;">
-                      <img src="${BRAND.iconUrl}" alt="CloudAct" width="32" height="32" style="display: inline-block;" />
-                    </a>
-                  </td>
-                </tr>
-                <tr>
                   <td align="center">
-                    <p style="margin: 0 0 8px 0; font-size: 13px; color: ${BRAND.gray[600]}; font-weight: 500;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[700]}; font-weight: 600;">
                       CloudAct.AI
                     </p>
-                    <p style="margin: 0; font-size: 12px; color: ${BRAND.gray[400]};">
+                    <p style="margin: 0 0 12px 0; font-size: 12px; color: ${BRAND.gray[500]};">
                       Enterprise Cloud Cost Management
                     </p>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding-top: 16px;">
-                    <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]};">
-                      <a href="${BRAND.siteUrl}" style="color: ${BRAND.gray[500]}; text-decoration: none;">cloudact.ai</a>
+                    <p style="margin: 0; font-size: 12px; color: ${BRAND.gray[400]};">
+                      <a href="${BRAND.siteUrl}" style="color: ${BRAND.mintDark}; text-decoration: none;">cloudact.ai</a>
                     </p>
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+        </table>
+        <!-- Unsubscribe / Legal Footer -->
+        <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; margin-top: 16px;">
+          <tr>
+            <td align="center">
+              <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]}; line-height: 1.5;">
+                This email was sent by CloudAct.AI<br>
+                © ${new Date().getFullYear()} CloudAct Inc. All rights reserved.
+              </p>
             </td>
           </tr>
         </table>
