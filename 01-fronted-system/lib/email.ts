@@ -48,10 +48,29 @@ interface SendEmailOptions {
   subject: string
   html: string
   text?: string
+  replyTo?: string           // Reply-To address (defaults to support@cloudact.ai)
+  category?: "transactional" | "notification" | "marketing"  // Email category for tracking
+  preheader?: string         // Preview text shown in email clients
 }
 
-export async function sendEmail({ to, subject, html, text }: SendEmailOptions): Promise<boolean> {
-  console.log(`[Email] sendEmail called - to: ${to}, subject: ${subject}`)
+// Generate RFC 2822 compliant Message-ID
+function generateMessageId(): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 15)
+  const domain = process.env.EMAIL_DOMAIN || "cloudact.ai"
+  return `<${timestamp}.${random}@${domain}>`
+}
+
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  replyTo,
+  category = "transactional",
+  preheader
+}: SendEmailOptions): Promise<boolean> {
+  console.log(`[Email] sendEmail called - to: ${to}, subject: ${subject}, category: ${category}`)
 
   if (!process.env.SMTP_USERNAME || !process.env.SMTP_PASSWORD) {
     console.error("[Email] SMTP not configured: Missing SMTP_USERNAME or SMTP_PASSWORD environment variables")
@@ -63,16 +82,47 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
     const transporter = getTransporter()
     const fromEmail = getFromEmail()
     const fromName = getFromName()
+    const messageId = generateMessageId()
+    const replyToAddress = replyTo || process.env.REPLY_TO_EMAIL || "support@cloudact.ai"
 
     console.log(`[Email] Sending from: "${fromName}" <${fromEmail}>`)
+    console.log(`[Email] Reply-To: ${replyToAddress}`)
+    console.log(`[Email] Message-ID: ${messageId}`)
     console.log(`[Email] Attempting to send via SMTP...`)
+
+    // Inject preheader into HTML if provided
+    let finalHtml = html
+    if (preheader) {
+      // Add hidden preheader text at the start of body
+      const preheaderHtml = `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${preheader}${"&nbsp;&zwnj;".repeat(50)}</div>`
+      finalHtml = html.replace(/<body([^>]*)>/, `<body$1>${preheaderHtml}`)
+    }
 
     const info = await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to,
+      replyTo: replyToAddress,
       subject,
-      html,
+      html: finalHtml,
       text: text || subject,
+      messageId,
+      headers: {
+        // Email authentication headers
+        "X-Mailer": "CloudAct.AI/1.0",
+        "X-Priority": "3", // Normal priority (1=high, 3=normal, 5=low)
+        "X-Entity-Ref-ID": messageId.replace(/[<>]/g, ""), // Unique reference
+        // List-Unsubscribe for transactional/notification emails (helps spam score)
+        ...(category !== "marketing" && {
+          "List-Unsubscribe": `<mailto:unsubscribe@cloudact.ai?subject=Unsubscribe>, <https://cloudact.ai/unsubscribe>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }),
+        // Precedence header for transactional emails
+        "Precedence": category === "transactional" ? "transactional" : "bulk",
+        // Auto-submitted for automated emails (helps with spam filters)
+        "Auto-Submitted": "auto-generated",
+        // Feedback-ID for Gmail postmaster tools (format: campaign:department:mailer:sender)
+        "Feedback-ID": `${category}:cloudact:nodemailer:cloudact.ai`,
+      },
     })
     console.log(`[Email] ✅ Sent successfully to ${to}`)
     console.log(`[Email] MessageId: ${info.messageId}`)
@@ -277,6 +327,8 @@ export async function sendInviteEmail({
     subject: `You're invited to join ${safeOrgName} on CloudAct.AI`,
     html,
     text: `${inviterName} has invited you to join ${orgName} on CloudAct.AI as ${roleDisplay}. Accept your invitation: ${inviteLink}`,
+    category: "transactional",
+    preheader: `${inviterName} invited you to join ${orgName} as ${roleDisplay}`,
   })
 }
 
@@ -316,6 +368,8 @@ export async function sendPasswordResetEmail({
     subject: "Reset Your Password - CloudAct.AI",
     html,
     text: `Reset your CloudAct.AI password: ${resetLink}`,
+    category: "transactional",
+    preheader: "Click the link to reset your password. This link expires in 24 hours.",
   })
 }
 
@@ -368,6 +422,8 @@ export async function sendTrialEndingEmail({
     subject: `Your CloudAct.AI trial ends in ${daysRemaining} days`,
     html,
     text: `Your free trial for ${orgName} on CloudAct.AI will end in ${daysRemaining} days (${formattedDate}). Subscribe now to avoid service interruption: ${billingLink}`,
+    category: "notification",
+    preheader: `Your trial ends ${formattedDate}. Subscribe now to keep your access.`,
   })
 }
 
@@ -412,6 +468,8 @@ export async function sendPaymentFailedEmail({
     subject: `Action Required: Payment failed for ${safeOrgName}`,
     html,
     text: `We were unable to process your payment for ${orgName} on CloudAct.AI. Please update your payment method to avoid service interruption: ${billingLink}`,
+    category: "transactional",
+    preheader: "Payment failed. Update your payment method to avoid service interruption.",
   })
 }
 
@@ -457,6 +515,8 @@ export async function sendWelcomeEmail({
     subject: `Welcome to ${safeOrgName} on CloudAct.AI!`,
     html,
     text: `Welcome to ${orgName} on CloudAct.AI! Go to your dashboard: ${dashboardLink}`,
+    category: "transactional",
+    preheader: `Your account for ${orgName} is ready. Start managing your cloud costs today.`,
   })
 }
 
@@ -509,5 +569,95 @@ export async function sendSubscriptionConfirmedEmail({
     subject: `Subscription confirmed for ${safeOrgName} - CloudAct.AI`,
     html,
     text: `Thank you for subscribing to ${orgName} on CloudAct.AI! Your plan: ${planName}. Go to your dashboard: ${dashboardLink}`,
+    category: "transactional",
+    preheader: `Your ${planName} subscription is now active. Welcome to CloudAct!`,
+  })
+}
+
+// =============================================
+// CONTACT FORM EMAIL (Internal notification)
+// =============================================
+export async function sendContactFormEmail({
+  firstName,
+  lastName,
+  email,
+  company,
+  inquiryType,
+  message,
+}: {
+  firstName: string
+  lastName: string
+  email: string
+  company?: string
+  inquiryType: string
+  message: string
+}): Promise<boolean> {
+  const safeFirstName = escapeHtml(firstName.trim())
+  const safeLastName = escapeHtml(lastName.trim())
+  const safeEmail = escapeHtml(email.trim())
+  const safeCompany = company ? escapeHtml(company.trim()) : "Not provided"
+  const safeMessage = escapeHtml(message.trim())
+
+  // Format inquiry type for display
+  const inquiryLabel = inquiryType.charAt(0).toUpperCase() + inquiryType.slice(1).replace(/_/g, " ")
+
+  const content = `
+              <div style="margin-bottom: 24px; padding: 20px; background-color: ${BRAND.gray[100]}; border-radius: 8px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Inquiry Type</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: ${BRAND.gray[900]};">${inquiryLabel}</p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">From</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">
+                  <strong>${safeFirstName} ${safeLastName}</strong><br />
+                  <a href="mailto:${safeEmail}" style="color: ${BRAND.mintDark}; text-decoration: none;">${safeEmail}</a>
+                </p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Company</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeCompany}</p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Message</p>
+                <div style="padding: 16px; background-color: ${BRAND.gray[50]}; border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
+                  <p style="margin: 0; font-size: 15px; line-height: 1.6; color: ${BRAND.gray[700]}; white-space: pre-wrap;">${safeMessage}</p>
+                </div>
+              </div>`
+
+  const html = baseEmailLayout({
+    title: "New Contact Form Submission",
+    content,
+    ctaText: `Reply to ${safeFirstName}`,
+    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(inquiryLabel + " Inquiry - CloudAct.AI")}`,
+    ctaStyle: "dark",
+  })
+
+  const textContent = `
+New Contact Form Submission
+
+Inquiry Type: ${inquiryLabel}
+
+From: ${firstName} ${lastName}
+Email: ${email}
+Company: ${company || "Not provided"}
+
+Message:
+${message}
+
+---
+Reply to: ${email}
+  `.trim()
+
+  return sendEmail({
+    to: "support@cloudact.ai",
+    subject: `[Contact Form] ${inquiryLabel}: ${firstName} ${lastName}`,
+    html,
+    text: textContent,
+    replyTo: email, // Reply directly to the person who submitted
+    category: "notification",
+    preheader: `${inquiryLabel} inquiry from ${firstName} ${lastName} (${company || "No company"})`,
   })
 }

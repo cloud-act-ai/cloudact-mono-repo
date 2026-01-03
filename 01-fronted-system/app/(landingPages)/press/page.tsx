@@ -1,4 +1,6 @@
-import type { Metadata } from "next"
+"use client"
+
+import { useState, useRef, type FormEvent } from "react"
 import Link from "next/link"
 import {
   Newspaper,
@@ -9,21 +11,30 @@ import {
   FileText,
   Quote,
   Calendar,
+  Send,
+  CheckCircle2,
 } from "lucide-react"
 import "../premium.css"
 
-export const metadata: Metadata = {
-  title: "Press | CloudAct.ai",
-  description: "Press and media resources for CloudAct.ai. Download brand assets, press releases, and contact our communications team.",
-  openGraph: {
-    title: "Press | CloudAct.ai",
-    description: "Press and media resources for CloudAct.ai.",
-    type: "website",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+// Press inquiry types for the form
+const PRESS_INQUIRY_TYPES = [
+  { value: "media", label: "Media Inquiry" },
+  { value: "interview", label: "Interview Request" },
+  { value: "brand-assets", label: "Brand Assets Request" },
+  { value: "press-release", label: "Press Release Information" },
+  { value: "other", label: "Other Press Inquiry" },
+]
+
+interface PressFormData {
+  name: string
+  email: string
+  organization: string
+  inquiryType: string
+  message: string
+}
+
+interface ValidationErrors {
+  [key: string]: string
 }
 
 const PRESS_RELEASES = [
@@ -49,15 +60,15 @@ const MEDIA_RESOURCES = [
     icon: ImageIcon,
     title: "Brand Assets",
     description: "Logos, icons, and brand guidelines",
-    action: "Download Kit",
-    href: "mailto:press@cloudact.ai?subject=Brand Assets Request",
+    action: "Request Kit",
+    inquiryType: "brand-assets",
   },
   {
     icon: FileText,
     title: "Fact Sheet",
     description: "Company overview and key facts",
-    action: "Download PDF",
-    href: "mailto:press@cloudact.ai?subject=Fact Sheet Request",
+    action: "Request PDF",
+    inquiryType: "press-release",
   },
   {
     icon: Quote,
@@ -78,6 +89,80 @@ const COMPANY_FACTS = [
 ]
 
 export default function PressPage() {
+  const formRef = useRef<HTMLDivElement>(null)
+  const [formData, setFormData] = useState<PressFormData>({
+    name: "",
+    email: "",
+    organization: "",
+    inquiryType: "",
+    message: "",
+  })
+  const [errors, setErrors] = useState<ValidationErrors>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+
+  // Scroll to form and pre-select inquiry type
+  const handleCardClick = (inquiryType: string) => {
+    setFormData(prev => ({ ...prev, inquiryType }))
+    setIsSuccess(false)
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {}
+    if (!formData.name.trim()) newErrors.name = "Name is required"
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email"
+    }
+    if (!formData.inquiryType) newErrors.inquiryType = "Please select an inquiry type"
+    if (!formData.message.trim()) newErrors.message = "Message is required"
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.name.split(" ")[0],
+          lastName: formData.name.split(" ").slice(1).join(" ") || "",
+          email: formData.email,
+          company: formData.organization,
+          inquiryType: "press",
+          message: `[${formData.inquiryType}] ${formData.message}`,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        setErrors({ form: data.error || "Something went wrong. Please try again." })
+        return
+      }
+
+      setIsSuccess(true)
+      setFormData({ name: "", email: "", organization: "", inquiryType: "", message: "" })
+    } catch {
+      setErrors({ form: "Network error. Please check your connection and try again." })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleChange = (field: keyof PressFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors[field]; return newErrors })
+    }
+  }
+
   return (
     <div className="ca-landing-page">
       {/* Hero Section */}
@@ -94,14 +179,22 @@ export default function PressPage() {
             Press releases, media resources, and contact information for journalists and analysts.
           </p>
           <div className="ca-hero-cta-group">
-            <a href="mailto:press@cloudact.ai?subject=Media Inquiry" className="ca-btn-hero-primary">
+            <button
+              type="button"
+              onClick={() => handleCardClick("media")}
+              className="ca-btn-hero-primary"
+            >
               Contact Press Team
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            </a>
-            <a href="mailto:press@cloudact.ai?subject=Brand Assets Request" className="ca-btn-hero-secondary">
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCardClick("brand-assets")}
+              className="ca-btn-hero-secondary"
+            >
               <Download className="w-5 h-5" aria-hidden="true" />
               Download Brand Kit
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -126,13 +219,14 @@ export default function PressPage() {
                 </div>
                 <h3 className="ca-press-release-title">{release.title}</h3>
                 <p className="ca-press-release-desc">{release.description}</p>
-                <a
-                  href={`mailto:press@cloudact.ai?subject=Press Release: ${release.title}`}
+                <button
+                  type="button"
+                  onClick={() => handleCardClick("press-release")}
                   className="ca-press-release-link"
                 >
                   Read Full Release
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                </a>
+                </button>
               </div>
             ))}
           </div>
@@ -160,10 +254,21 @@ export default function PressPage() {
                   </div>
                   <h3 className="ca-press-resource-title">{resource.title}</h3>
                   <p className="ca-press-resource-desc">{resource.description}</p>
-                  <a href={resource.href} className="ca-press-resource-link">
-                    {resource.action}
-                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                  </a>
+                  {resource.inquiryType ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCardClick(resource.inquiryType!)}
+                      className="ca-press-resource-link"
+                    >
+                      {resource.action}
+                      <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <Link href={resource.href!} className="ca-press-resource-link">
+                      {resource.action}
+                      <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    </Link>
+                  )}
                 </div>
               )
             })}
@@ -201,22 +306,126 @@ export default function PressPage() {
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section className="ca-section-gray">
-        <div className="ca-section-container">
-          <div className="ca-press-contact">
-            <h2 className="ca-press-contact-title">Media Contact</h2>
-            <p className="ca-press-contact-desc">
-              For press inquiries, interview requests, or media resources, please contact our communications team.
-            </p>
-            <a href="mailto:press@cloudact.ai" className="ca-press-contact-email">
-              <Mail className="w-5 h-5" aria-hidden="true" />
-              press@cloudact.ai
-            </a>
-            <p className="ca-press-contact-note">
-              We typically respond to media inquiries within 24 hours.
+      {/* Contact Form Section */}
+      <section className="ca-contact-form-section" id="press-contact-form">
+        <div className="ca-contact-form-container" ref={formRef}>
+          <div className="ca-contact-form-header">
+            <h2 className="ca-contact-form-title">Media Contact</h2>
+            <p className="ca-contact-form-subtitle">
+              For press inquiries, interview requests, or media resources, please fill out the form below.
+              We typically respond within 24 hours.
             </p>
           </div>
+
+          {isSuccess ? (
+            <div className="ca-contact-form-success">
+              <CheckCircle2 className="w-12 h-12" aria-hidden="true" />
+              <h3>Thank you for reaching out!</h3>
+              <p>We've received your press inquiry and will get back to you within 24 hours.</p>
+              <button
+                type="button"
+                onClick={() => setIsSuccess(false)}
+                className="ca-contact-form-reset-btn"
+              >
+                Send Another Inquiry
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="ca-contact-form">
+              {errors.form && (
+                <div className="ca-contact-form-error-banner" role="alert">
+                  {errors.form}
+                </div>
+              )}
+              <div className="ca-contact-form-row">
+                <div className="ca-contact-form-field">
+                  <label htmlFor="press-name">Your Name *</label>
+                  <input
+                    id="press-name"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    placeholder="Jane Smith"
+                    className={errors.name ? "error" : ""}
+                  />
+                  {errors.name && <span className="ca-contact-form-error">{errors.name}</span>}
+                </div>
+                <div className="ca-contact-form-field">
+                  <label htmlFor="press-email">Email Address *</label>
+                  <input
+                    id="press-email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="jane@publication.com"
+                    className={errors.email ? "error" : ""}
+                  />
+                  {errors.email && <span className="ca-contact-form-error">{errors.email}</span>}
+                </div>
+              </div>
+
+              <div className="ca-contact-form-row">
+                <div className="ca-contact-form-field">
+                  <label htmlFor="press-org">Organization / Publication</label>
+                  <input
+                    id="press-org"
+                    type="text"
+                    value={formData.organization}
+                    onChange={(e) => handleChange("organization", e.target.value)}
+                    placeholder="TechCrunch, Forbes, etc."
+                  />
+                </div>
+                <div className="ca-contact-form-field">
+                  <label htmlFor="press-type">Inquiry Type *</label>
+                  <select
+                    id="press-type"
+                    value={formData.inquiryType}
+                    onChange={(e) => handleChange("inquiryType", e.target.value)}
+                    className={errors.inquiryType ? "error" : ""}
+                  >
+                    <option value="">Select inquiry type</option>
+                    {PRESS_INQUIRY_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.inquiryType && <span className="ca-contact-form-error">{errors.inquiryType}</span>}
+                </div>
+              </div>
+
+              <div className="ca-contact-form-field">
+                <label htmlFor="press-message">Message *</label>
+                <textarea
+                  id="press-message"
+                  value={formData.message}
+                  onChange={(e) => handleChange("message", e.target.value)}
+                  placeholder="Please describe your inquiry, deadline, and any specific information you need..."
+                  rows={5}
+                  className={errors.message ? "error" : ""}
+                />
+                {errors.message && <span className="ca-contact-form-error">{errors.message}</span>}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="ca-contact-form-submit"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="ca-contact-form-spinner" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" aria-hidden="true" />
+                    Submit Inquiry
+                  </>
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </section>
 

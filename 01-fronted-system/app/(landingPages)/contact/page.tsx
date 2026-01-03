@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, useEffect, useRef, type FormEvent } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Mail,
@@ -30,7 +31,7 @@ interface ValidationErrors {
   [key: string]: string
 }
 
-// C3.ai Style Contact Cards
+// C3.ai Style Contact Cards - Now scroll to form with pre-selected inquiry type
 const CONTACT_CARDS = [
   {
     title: "Sales",
@@ -38,14 +39,14 @@ const CONTACT_CARDS = [
     email: "sales@cloudact.ai",
     icon: Users,
     cta: "Contact Sales",
-    href: "mailto:sales@cloudact.ai",
+    inquiryType: "sales",
   },
   {
     title: "Schedule a Demo",
     description: "See CloudAct.ai in action. Book a personalized demo with our product specialists.",
     icon: Calendar,
     cta: "Book Demo",
-    href: "/demo",
+    inquiryType: "demo",
   },
   {
     title: "Technical Support",
@@ -53,7 +54,7 @@ const CONTACT_CARDS = [
     email: "support@cloudact.ai",
     icon: Headphones,
     cta: "Get Support",
-    href: "mailto:support@cloudact.ai",
+    inquiryType: "support",
   },
   {
     title: "Partnerships",
@@ -61,7 +62,7 @@ const CONTACT_CARDS = [
     email: "partners@cloudact.ai",
     icon: Handshake,
     cta: "Partner With Us",
-    href: "mailto:partners@cloudact.ai",
+    inquiryType: "partnership",
   },
 ]
 
@@ -100,6 +101,8 @@ const INQUIRY_TYPES = [
 ]
 
 export default function ContactPage() {
+  const searchParams = useSearchParams()
+  const formRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -111,6 +114,25 @@ export default function ContactPage() {
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+
+  // Handle URL params for pre-selecting inquiry type (e.g., /contact?type=sales)
+  useEffect(() => {
+    const typeParam = searchParams.get("type")
+    if (typeParam && INQUIRY_TYPES.some(t => t.value === typeParam)) {
+      setFormData(prev => ({ ...prev, inquiryType: typeParam }))
+      // Scroll to form after a short delay
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 100)
+    }
+  }, [searchParams])
+
+  // Scroll to form and pre-select inquiry type
+  const handleCardClick = (inquiryType: string) => {
+    setFormData(prev => ({ ...prev, inquiryType }))
+    setIsSuccess(false) // Reset success state if showing
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
 
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {}
@@ -193,14 +215,18 @@ export default function ContactPage() {
                 </div>
                 <p className="ca-contact-card-desc-c3">{card.description}</p>
                 {card.email && (
-                  <a href={`mailto:${card.email}`} className="ca-contact-card-email-c3">
+                  <span className="ca-contact-card-email-c3">
                     {card.email}
-                  </a>
+                  </span>
                 )}
-                <Link href={card.href} className="ca-contact-card-cta-c3">
+                <button
+                  type="button"
+                  onClick={() => handleCardClick(card.inquiryType)}
+                  className="ca-contact-card-cta-c3"
+                >
                   {card.cta}
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                </Link>
+                </button>
               </div>
             )
           })}
@@ -226,8 +252,8 @@ export default function ContactPage() {
       </section>
 
       {/* Contact Form Section */}
-      <section className="ca-contact-form-section">
-        <div className="ca-contact-form-container">
+      <section className="ca-contact-form-section" id="contact-form">
+        <div className="ca-contact-form-container" ref={formRef}>
           <div className="ca-contact-form-header">
             <h2 className="ca-contact-form-title">Send Us a Message</h2>
             <p className="ca-contact-form-subtitle">

@@ -87,10 +87,10 @@ export default function InvestorsPage() {
             We're building the intelligence layer for cloud financial operations.
           </p>
           <div className="ca-hero-cta-group">
-            <a href="mailto:investors@cloudact.ai?subject=Investment Inquiry" className="ca-btn-hero-primary">
+            <Link href="/contact?type=investment" className="ca-btn-hero-primary">
               Contact IR Team
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            </a>
+            </Link>
             <Link href="/about" className="ca-btn-hero-secondary">
               About Us
             </Link>
@@ -176,16 +176,16 @@ export default function InvestorsPage() {
             </div>
             <div className="ca-investors-overview-cta">
               <h3>Investor Resources</h3>
-              <a href="mailto:investors@cloudact.ai?subject=Investor Deck Request" className="ca-investors-resource-link">
+              <Link href="/contact?type=investment" className="ca-investors-resource-link">
                 <FileText className="w-5 h-5" aria-hidden="true" />
                 Request Investor Deck
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
-              </a>
-              <a href="mailto:investors@cloudact.ai?subject=Financial Information Request" className="ca-investors-resource-link">
+              </Link>
+              <Link href="/contact?type=investment" className="ca-investors-resource-link">
                 <BarChart3 className="w-5 h-5" aria-hidden="true" />
                 Financial Information
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -199,10 +199,11 @@ export default function InvestorsPage() {
             <p className="ca-investors-contact-desc">
               For investor inquiries, please contact our investor relations team.
             </p>
-            <a href="mailto:investors@cloudact.ai" className="ca-investors-contact-email">
+            <Link href="/contact?type=investment" className="ca-btn-hero-primary" style={{ display: "inline-flex", gap: "8px", alignItems: "center", marginBottom: "1.5rem" }}>
               <Mail className="w-5 h-5" aria-hidden="true" />
-              investors@cloudact.ai
-            </a>
+              Contact IR Team
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
             <p className="ca-investors-contact-address">
               <strong>CloudAct Inc.</strong><br />
               100 S Murphy Ave, STE 200 PMB4013<br />
@@ -221,10 +222,10 @@ export default function InvestorsPage() {
             Learn more about our mission and growth opportunities.
           </p>
           <div className="ca-final-cta-buttons">
-            <a href="mailto:investors@cloudact.ai?subject=Investment Inquiry" className="ca-btn-cta-primary">
+            <Link href="/contact?type=investment" className="ca-btn-cta-primary">
               Contact IR Team
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            </a>
+            </Link>
             <Link href="/about" className="ca-btn-cta-secondary">
               About Us
             </Link>

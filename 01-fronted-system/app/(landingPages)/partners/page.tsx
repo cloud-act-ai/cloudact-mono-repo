@@ -85,10 +85,10 @@ export default function PartnersPage() {
             Reseller, technology, and consulting partnership opportunities.
           </p>
           <div className="ca-hero-cta-group">
-            <a href="mailto:partners@cloudact.ai?subject=Partnership Inquiry" className="ca-btn-hero-primary">
+            <Link href="/contact?type=partnership" className="ca-btn-hero-primary">
               Become a Partner
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            </a>
+            </Link>
             <Link href="/contact" className="ca-btn-hero-secondary">
               Contact Us
             </Link>
@@ -128,13 +128,13 @@ export default function PartnersPage() {
                       </li>
                     ))}
                   </ul>
-                  <a
-                    href={`mailto:partners@cloudact.ai?subject=${type.title} Inquiry`}
+                  <Link
+                    href="/contact?type=partnership"
                     className="ca-partner-apply-btn"
                   >
                     Apply Now
                     <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                  </a>
+                  </Link>
                 </div>
               )
             })}
@@ -178,10 +178,11 @@ export default function PartnersPage() {
             <p className="ca-partner-contact-desc">
               Get in touch with our partnerships team to discuss how we can work together.
             </p>
-            <a href="mailto:partners@cloudact.ai" className="ca-partner-contact-email">
+            <Link href="/contact?type=partnership" className="ca-btn-hero-primary" style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
               <Mail className="w-5 h-5" aria-hidden="true" />
-              partners@cloudact.ai
-            </a>
+              Contact Partnerships Team
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </section>
@@ -194,10 +195,10 @@ export default function PartnersPage() {
             Partner with the leading FinOps platform and help enterprises optimize their cloud costs.
           </p>
           <div className="ca-final-cta-buttons">
-            <a href="mailto:partners@cloudact.ai?subject=Partnership Inquiry" className="ca-btn-cta-primary">
+            <Link href="/contact?type=partnership" className="ca-btn-cta-primary">
               Become a Partner
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            </a>
+            </Link>
             <Link href="/about" className="ca-btn-cta-secondary">
               Learn About Us
             </Link>

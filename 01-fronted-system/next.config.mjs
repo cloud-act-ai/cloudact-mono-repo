@@ -20,6 +20,18 @@ const nextConfig = {
         hostname: "cdn.simpleicons.org",
         pathname: "/**",
       },
+      // Supabase Storage - Test/Stage project
+      {
+        protocol: "https",
+        hostname: "kwroaccbrxppfiysqlzs.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+      // Supabase Storage - Production project
+      {
+        protocol: "https",
+        hostname: "ovfxswhkkshouhsryzaf.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   onDemandEntries: {
