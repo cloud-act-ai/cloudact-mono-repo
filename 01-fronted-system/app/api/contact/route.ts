@@ -208,6 +208,10 @@ Reply to: ${email}
     `.trim()
 
     // Send email to support
+    console.log("[Contact API] Attempting to send contact form email...")
+    console.log(`[Contact API] From: ${firstName} ${lastName} <${email}>`)
+    console.log(`[Contact API] Inquiry Type: ${inquiryLabel}`)
+
     const emailSent = await sendEmail({
       to: "support@cloudact.ai",
       subject: `[Contact Form] ${inquiryLabel}: ${firstName} ${lastName}`,
@@ -215,9 +219,11 @@ Reply to: ${email}
       text: textContent,
     })
 
+    console.log(`[Contact API] Email send result: ${emailSent ? "SUCCESS" : "FAILED"}`)
+
     if (!emailSent) {
       // Log for monitoring but still return success to user
-      console.error("[Contact API] Failed to send email notification")
+      console.error("[Contact API] Failed to send email notification - check SMTP configuration")
     }
 
     return NextResponse.json({

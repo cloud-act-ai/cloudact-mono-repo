@@ -113,6 +113,8 @@ const BRAND = {
   success: "#10b981",        // Green for confirmations
   warning: "#f59e0b",        // Amber for warnings
   error: "#ef4444",          // Red for errors
+  // Assets - logo with fallback text
+  logoUrl: "https://cloudact.ai/logos/cloudact-logo-black.png",
   siteUrl: "https://cloudact.ai",
 } as const
 
@@ -164,13 +166,19 @@ function baseEmailLayout({
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; background-color: ${BRAND.white}; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);">
-          <!-- Header with Text Logo -->
+          <!-- Header with Logo (fallback to styled text) -->
           <tr>
             <td style="padding: 32px 40px 24px 40px; text-align: center; border-bottom: 1px solid ${BRAND.gray[200]};">
-              <a href="${BRAND.siteUrl}" style="text-decoration: none;">
-                <span style="display: inline-block; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]}; letter-spacing: -0.5px;">
+              <a href="${BRAND.siteUrl}" style="text-decoration: none; display: inline-block;">
+                <!--[if mso]>
+                <span style="font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]};">CloudAct.AI</span>
+                <![endif]-->
+                <!--[if !mso]><!-->
+                <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="160" height="40" style="display: block; max-width: 160px; height: auto; border: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                <span style="display: none; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]}; letter-spacing: -0.5px;">
                   Cloud<span style="color: ${BRAND.mintDark};">Act</span>.AI
                 </span>
+                <!--<![endif]-->
               </a>
               <h1 style="margin: 20px 0 0 0; font-size: 22px; font-weight: 600; color: ${BRAND.gray[900]}; line-height: 1.3;">${title}</h1>
             </td>
@@ -188,13 +196,13 @@ function baseEmailLayout({
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td align="center">
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[700]}; font-weight: 600;">
-                      CloudAct.AI
-                    </p>
-                    <p style="margin: 0 0 12px 0; font-size: 12px; color: ${BRAND.gray[500]};">
+                    <a href="${BRAND.siteUrl}" style="text-decoration: none;">
+                      <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="100" height="25" style="display: inline-block; max-width: 100px; height: auto; border: 0; margin-bottom: 8px;" />
+                    </a>
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: ${BRAND.gray[500]};">
                       Enterprise Cloud Cost Management
                     </p>
-                    <p style="margin: 0; font-size: 12px; color: ${BRAND.gray[400]};">
+                    <p style="margin: 0; font-size: 12px;">
                       <a href="${BRAND.siteUrl}" style="color: ${BRAND.mintDark}; text-decoration: none;">cloudact.ai</a>
                     </p>
                   </td>
@@ -203,13 +211,14 @@ function baseEmailLayout({
             </td>
           </tr>
         </table>
-        <!-- Unsubscribe / Legal Footer -->
+        <!-- Legal Footer -->
         <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; margin-top: 16px;">
           <tr>
             <td align="center">
-              <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]}; line-height: 1.5;">
-                This email was sent by CloudAct.AI<br>
-                © ${new Date().getFullYear()} CloudAct Inc. All rights reserved.
+              <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]}; line-height: 1.6;">
+                This email was sent by CloudAct.AI • <a href="${BRAND.siteUrl}/privacy" style="color: ${BRAND.gray[500]}; text-decoration: none;">Privacy Policy</a> • <a href="${BRAND.siteUrl}/terms" style="color: ${BRAND.gray[500]}; text-decoration: none;">Terms of Service</a><br>
+                © ${new Date().getFullYear()} CloudAct Inc. All rights reserved.<br>
+                CloudAct Inc., San Francisco, CA, USA
               </p>
             </td>
           </tr>
