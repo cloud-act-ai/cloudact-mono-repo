@@ -1,0 +1,107 @@
+---
+title: Cloud Runs
+description: Pipelines for cloud provider billing data
+---
+
+Cloud pipelines fetch and process billing data from your cloud infrastructure providers.
+
+## Supported Providers
+
+| Provider | Data Source |
+|----------|-------------|
+| **AWS** | Cost and Usage Reports (CUR) |
+| **Google Cloud** | BigQuery Billing Export |
+| **Microsoft Azure** | Cost Management API |
+| **Oracle Cloud** | Usage API |
+
+## How It Works
+
+1. **Authenticate** - Use configured credentials
+2. **Fetch billing data** - Query provider APIs/exports
+3. **Normalize** - Convert to FOCUS 1.3 format
+4. **Enrich** - Add hierarchy and metadata
+5. **Store** - Write to BigQuery
+
+## Pipeline Schedule
+
+Cloud pipelines run:
+- **Daily** at 6:00 AM (organization timezone)
+- Process previous day's billing data
+
+<Callout type="info">
+  Cloud providers typically have a 24-48 hour delay in billing data availability.
+</Callout>
+
+## Triggering Manual Runs
+
+1. Go to **Pipelines** → **Cloud Runs**
+2. Select the provider (AWS, GCP, Azure, OCI)
+3. Click **Run Pipeline**
+4. Select date range
+5. Click **Confirm**
+
+## Provider-Specific Details
+
+### AWS
+
+- Requires Cost and Usage Report configuration
+- Supports detailed line-item data
+- Includes Reserved Instance coverage
+
+### Google Cloud
+
+- Requires BigQuery billing export setup
+- Includes committed use discounts
+- Supports detailed SKU breakdown
+
+### Azure
+
+- Uses Cost Management API
+- Includes EA and CSP pricing
+- Supports resource group breakdown
+
+### Oracle Cloud
+
+- Uses Usage API
+- Includes autonomous database costs
+- Supports compartment breakdown
+
+## Run History
+
+View recent cloud pipeline runs:
+
+| Column | Description |
+|--------|-------------|
+| **Provider** | AWS, GCP, Azure, OCI |
+| **Run ID** | Unique identifier |
+| **Date Range** | Dates processed |
+| **Status** | Success/Failed |
+| **Records** | Billing records processed |
+
+## Cost Data Output
+
+Cloud pipelines write to:
+
+| Table | Content |
+|-------|---------|
+| `billing_cost` | Raw billing data per provider |
+| `cost_data_standard_1_3` | FOCUS-formatted costs |
+
+## Troubleshooting
+
+### Authentication Errors
+
+- Re-authenticate in **Integrations** → **Cloud Providers**
+- Verify API permissions are granted
+- Check credential expiration
+
+### Missing Data
+
+- Cloud billing data has 24-48 hour delay
+- Verify billing export is configured in provider console
+- Check date range selected
+
+### Duplicate Data
+
+- Pipelines are idempotent - re-running replaces data
+- Check for overlapping date ranges in manual runs

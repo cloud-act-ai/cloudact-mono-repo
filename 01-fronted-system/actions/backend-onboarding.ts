@@ -16,6 +16,7 @@
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { PipelineBackendClient, OnboardOrgRequest } from "@/lib/api/backend"
 import { createHash } from "crypto"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 
 /**
  * Generate a fingerprint (hash) of an API key for display.
@@ -29,8 +30,9 @@ function generateApiKeyFingerprint(apiKey: string): string {
 // ============================================
 
 // In-memory cache for reveal tokens with expiration
-// Tokens expire after 5 minutes
-const REVEAL_TOKEN_TTL_MS = 5 * 60 * 1000
+// Tokens expire after 30 minutes (extended from 5 min to handle Stripe checkout flow)
+// BUG FIX: Extended TTL because users may take longer than 5 min in Stripe checkout
+const REVEAL_TOKEN_TTL_MS = 30 * 60 * 1000
 const revealTokenCache = new Map<string, { apiKey: string; expiresAt: Date }>()
 
 /**
@@ -142,16 +144,8 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
 // ============================================
 // Input Validation
 // ============================================
-
-/**
- * Validate org slug format.
- * Prevents path traversal and injection attacks.
- */
-// Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
-function isValidOrgSlug(orgSlug: string): boolean {
-  if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
-}
+// Note: isValidOrgSlug is imported from @/lib/utils/validation
+// for consistency across the codebase (matches backend pattern)
 
 // ============================================
 // Helper: Secure API Key Storage (Server-Side Only)

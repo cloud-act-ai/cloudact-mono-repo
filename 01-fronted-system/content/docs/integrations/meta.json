@@ -1,4 +1,4 @@
 {
   "title": "Integrations",
-  "pages": ["index", "openai", "anthropic", "gcp"]
+  "pages": ["index", "cloud-providers", "genai-providers", "subscriptions"]
 }

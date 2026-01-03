@@ -1,0 +1,156 @@
+---
+title: Cloud Providers
+description: Connect your cloud infrastructure providers
+---
+
+Connect your cloud accounts to CloudAct for cost tracking and analytics.
+
+## Supported Providers
+
+| Provider | Status | Data Source |
+|----------|--------|-------------|
+| **AWS** | Supported | Cost and Usage Reports |
+| **Google Cloud** | Supported | BigQuery Billing Export |
+| **Microsoft Azure** | Supported | Cost Management API |
+| **Oracle Cloud** | Supported | Usage API |
+
+## Connecting AWS
+
+### Prerequisites
+
+1. AWS account with billing access
+2. S3 bucket for Cost and Usage Reports
+3. IAM role with required permissions
+
+### Setup Steps
+
+1. Go to **Integrations** → **Cloud Providers**
+2. Click **Connect AWS**
+3. Follow the setup wizard:
+   - Create IAM role (CloudFormation template provided)
+   - Configure Cost and Usage Report
+   - Enter role ARN
+4. Click **Verify Connection**
+5. Connection complete
+
+### Required Permissions
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ce:GetCostAndUsage",
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## Connecting Google Cloud
+
+### Prerequisites
+
+1. GCP project with billing enabled
+2. BigQuery billing export configured
+3. Service account with required roles
+
+### Setup Steps
+
+1. Go to **Integrations** → **Cloud Providers**
+2. Click **Connect GCP**
+3. Follow the setup wizard:
+   - Enable BigQuery billing export in GCP Console
+   - Create service account
+   - Download JSON key
+   - Upload key to CloudAct
+4. Select billing dataset
+5. Click **Verify Connection**
+
+### Required Roles
+
+- `roles/bigquery.dataViewer`
+- `roles/bigquery.jobUser`
+
+## Connecting Azure
+
+### Prerequisites
+
+1. Azure subscription
+2. Cost Management API access
+3. Service principal with required permissions
+
+### Setup Steps
+
+1. Go to **Integrations** → **Cloud Providers**
+2. Click **Connect Azure**
+3. Follow the setup wizard:
+   - Create service principal
+   - Grant Cost Management Reader role
+   - Enter credentials
+4. Click **Verify Connection**
+
+## Connecting Oracle Cloud
+
+### Prerequisites
+
+1. OCI tenancy
+2. API signing key
+3. Usage API access
+
+### Setup Steps
+
+1. Go to **Integrations** → **Cloud Providers**
+2. Click **Connect OCI**
+3. Follow the setup wizard:
+   - Generate API key pair
+   - Add public key to OCI
+   - Enter private key and tenancy details
+4. Click **Verify Connection**
+
+## Managing Connections
+
+### Viewing Status
+
+Each connection shows:
+- **Status**: Connected, Error, Syncing
+- **Last Sync**: When data was last fetched
+- **Data Range**: Available date range
+
+### Refreshing Credentials
+
+1. Click **Edit** on the connection
+2. Update credentials
+3. Click **Save**
+4. Re-verify connection
+
+### Removing Connection
+
+1. Click **Remove** on the connection
+2. Confirm removal
+3. Historical data is retained
+
+<Callout type="warning">
+  Removing a connection stops data collection but doesn't delete historical data.
+</Callout>
+
+## Troubleshooting
+
+### Connection Failed
+
+- Verify credentials are correct
+- Check IAM permissions
+- Ensure billing export is enabled
+- Review error message for specific issues
+
+### No Data Showing
+
+- Cloud billing data has 24-48 hour delay
+- Check date range filter
+- Verify billing export configuration
+- Run manual pipeline to fetch data

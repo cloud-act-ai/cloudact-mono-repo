@@ -19,6 +19,7 @@ gemini,gemini-2.5-pro,gemini-2.5,pro,global,1.25,10.00,0.3125,,0.625,5.00,75,50,
 gemini,gemini-2.0-flash,gemini-2.0,flash,global,0,0,,,,,0,0,standard,0,1500000,1500000,1500,4000000,1000000,8192,true,true,true,99.0,2024-12-01,,preview,2024-12-01,Free experimental
 gemini,gemini-1.5-flash,gemini-1.5,flash,global,0.075,0.30,0.01875,,0.0375,0.15,75,50,standard,0,1000000,1000000,1000,4000000,1000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,<128K context
 gemini,gemini-1.5-pro,gemini-1.5,pro,global,1.25,5.00,0.3125,,0.625,2.50,75,50,standard,0,500000,500000,360,4000000,2000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,<128K context
+gemini,gemini-1.0-pro,gemini-1.0,pro,global,0.50,1.50,,,0.25,0.75,0,50,standard,0,0,0,360,4000000,32000,8192,false,true,true,99.9,2023-12-01,,active,2024-12-01,Original Gemini Pro
 azure_openai,gpt-4o,gpt-4o,latest,eastus,2.50,10.00,1.25,,1.25,5.00,50,50,standard,0,0,0,500,30000,128000,16384,true,true,true,99.95,2024-11-01,,active,2024-12-01,Azure East US
 azure_openai,gpt-4o,gpt-4o,latest,westeurope,2.75,11.00,1.38,,1.38,5.50,50,50,standard,0,0,0,500,30000,128000,16384,true,true,true,99.95,2024-11-01,,active,2024-12-01,Azure West Europe +10%
 azure_openai,gpt-4o-mini,gpt-4o,mini,eastus,0.15,0.60,0.075,,0.075,0.30,50,50,standard,0,0,0,500,200000,128000,16384,true,true,true,99.95,2024-07-01,,active,2024-12-01,Azure East US

@@ -1,0 +1,76 @@
+---
+title: GenAI Costs
+description: Analytics for AI and LLM API usage costs
+---
+
+Track and analyze your organization's spending on Generative AI services.
+
+## Supported Providers
+
+| Provider | Services Tracked |
+|----------|------------------|
+| **OpenAI** | GPT-4, GPT-3.5, DALL-E, Whisper, Embeddings |
+| **Anthropic** | Claude 3 Opus, Sonnet, Haiku |
+| **Google AI** | Gemini Pro, Gemini Ultra |
+
+## Cost Metrics
+
+### Usage Breakdown
+
+| Metric | Description |
+|--------|-------------|
+| **Total Tokens** | Input + output tokens consumed |
+| **Input Tokens** | Tokens sent to the API |
+| **Output Tokens** | Tokens returned from the API |
+| **API Calls** | Number of API requests made |
+
+### Cost Calculation
+
+GenAI costs are calculated based on:
+- Token usage (input and output rates differ)
+- Model tier (GPT-4 vs GPT-3.5, Claude Opus vs Haiku)
+- Special features (vision, embeddings, fine-tuning)
+
+## Analytics Views
+
+### By Model
+
+See costs broken down by specific model:
+- gpt-4-turbo
+- gpt-3.5-turbo
+- claude-3-opus
+- claude-3-sonnet
+- gemini-pro
+
+### By Time Period
+
+- Hourly breakdown (last 24 hours)
+- Daily breakdown (last 30 days)
+- Weekly breakdown (last 12 weeks)
+- Monthly breakdown (last 12 months)
+
+### By Application
+
+If you've tagged your API calls, view costs by:
+- Application name
+- Environment (production, staging, development)
+- Team or project
+
+## Cost Optimization Tips
+
+<Callout type="tip">
+  **Reduce costs by:**
+  - Using smaller models where appropriate (GPT-3.5 vs GPT-4)
+  - Implementing caching for repeated queries
+  - Optimizing prompts to reduce token usage
+  - Setting usage limits per application
+</Callout>
+
+## Setting Alerts
+
+Configure alerts for:
+- Daily spending threshold
+- Monthly budget limit
+- Unusual usage patterns
+
+Navigate to **Notifications** to set up cost alerts.

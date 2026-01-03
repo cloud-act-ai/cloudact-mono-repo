@@ -1,0 +1,146 @@
+---
+title: Team Members
+description: Manage your organization's team members and roles
+---
+
+Invite team members and manage their access to your CloudAct organization.
+
+## Accessing Team Members
+
+Navigate to **Org Settings** → **Team Members** in the sidebar.
+
+## Team Overview
+
+The Team Members page shows:
+
+| Column | Description |
+|--------|-------------|
+| **Member** | Name and email |
+| **Role** | Owner, Admin, or Member |
+| **Status** | Active or Pending |
+| **Joined** | Date added to organization |
+
+## Roles and Permissions
+
+### Role Types
+
+| Role | Description |
+|------|-------------|
+| **Owner** | Full access, can delete organization |
+| **Admin** | Full access except billing and danger zone |
+| **Member** | View-only access to dashboards |
+
+### Permission Matrix
+
+| Feature | Owner | Admin | Member |
+|---------|-------|-------|--------|
+| View dashboards | Yes | Yes | Yes |
+| View cost analytics | Yes | Yes | Yes |
+| Run pipelines | Yes | Yes | No |
+| Manage integrations | Yes | Yes | No |
+| Invite members | Yes | Yes | No |
+| Remove members | Yes | Yes | No |
+| Change roles | Yes | Yes | No |
+| Edit org settings | Yes | No | No |
+| Manage billing | Yes | No | No |
+| Delete organization | Yes | No | No |
+
+## Inviting Team Members
+
+### Sending Invites
+
+1. Click **Invite Member**
+2. Enter their email address
+3. Select their role (Admin or Member)
+4. Click **Send Invite**
+
+<Callout type="info">
+  Invitees receive an email with a link to join your organization.
+</Callout>
+
+### Invite Limits
+
+Based on your plan:
+
+| Plan | Member Limit |
+|------|--------------|
+| Starter | 2 members |
+| Professional | 10 members |
+| Scale | 50 members |
+
+### Pending Invites
+
+View and manage pending invitations:
+
+- **Resend** - Send reminder email
+- **Revoke** - Cancel the invitation
+
+## Managing Members
+
+### Changing Roles
+
+1. Click the role dropdown next to a member
+2. Select new role
+3. Confirm change
+
+<Callout type="warning">
+  You cannot change the owner's role. Transfer ownership first.
+</Callout>
+
+### Removing Members
+
+1. Click the remove icon next to a member
+2. Confirm removal
+3. Member loses access immediately
+
+### Transferring Ownership
+
+To transfer ownership:
+
+1. Ensure new owner is already a member
+2. Go to member list
+3. Click **Transfer Ownership** next to the member
+4. Confirm transfer
+
+<Callout type="error">
+  Ownership transfer is permanent. The previous owner becomes an Admin.
+</Callout>
+
+## Seat Management
+
+### Understanding Seats
+
+- Each member occupies one seat
+- Pending invites count as occupied seats
+- Removing members frees seats
+
+### Seat Usage
+
+| Status | Counts as Seat |
+|--------|----------------|
+| Active member | Yes |
+| Pending invite | Yes |
+| Revoked invite | No |
+| Removed member | No |
+
+## Best Practices
+
+1. **Use appropriate roles** - Give minimum necessary access
+2. **Regular audits** - Review members quarterly
+3. **Remove promptly** - Remove departing employees immediately
+4. **Multiple admins** - Have at least 2 admins for redundancy
+
+## Troubleshooting
+
+### Invite Not Received
+
+- Check spam/junk folder
+- Verify email address spelling
+- Resend invitation
+- Ask recipient to add cloudact.ai to contacts
+
+### Cannot Remove Member
+
+- Cannot remove yourself
+- Cannot remove the owner (transfer ownership first)
+- Check your role permissions

@@ -1,0 +1,124 @@
+---
+title: Usage & Quotas
+description: Monitor your plan usage and limits
+---
+
+Track your organization's usage against your subscription plan limits.
+
+## Accessing Usage & Quotas
+
+Navigate to **Org Settings** → **Usage & Quotas** in the sidebar.
+
+## Plan Limits
+
+Your subscription plan includes limits on:
+
+| Resource | Starter | Professional | Scale |
+|----------|---------|--------------|-------|
+| **Team Members** | 2 | 10 | 50 |
+| **Integrations** | 3 | Unlimited | Unlimited |
+| **Data Retention** | 30 days | 90 days | 1 year |
+| **API Requests** | 1,000/day | 10,000/day | Unlimited |
+
+## Usage Metrics
+
+### Team Members
+
+| Metric | Description |
+|--------|-------------|
+| **Current** | Active team members |
+| **Limit** | Maximum allowed by plan |
+| **Pending Invites** | Outstanding invitations |
+
+<Callout type="info">
+  Pending invites count toward your member limit.
+</Callout>
+
+### Integrations
+
+| Metric | Description |
+|--------|-------------|
+| **Active** | Connected integrations |
+| **Limit** | Maximum allowed by plan |
+| **By Type** | Cloud, GenAI, Subscriptions |
+
+### Data Storage
+
+| Metric | Description |
+|--------|-------------|
+| **Current Storage** | BigQuery data size |
+| **Retention Period** | How long data is kept |
+| **Oldest Data** | Earliest available date |
+
+### API Usage
+
+| Metric | Description |
+|--------|-------------|
+| **Today** | API calls made today |
+| **Daily Limit** | Maximum calls per day |
+| **This Month** | Total calls this billing period |
+
+## Usage Alerts
+
+Get notified when approaching limits:
+
+### Configuring Alerts
+
+1. Click **Configure Alerts**
+2. Set threshold percentages:
+   - **Warning** - e.g., 80% of limit
+   - **Critical** - e.g., 95% of limit
+3. Select notification method
+4. Save settings
+
+### Alert Triggers
+
+| Threshold | Action |
+|-----------|--------|
+| **80%** | Warning notification |
+| **95%** | Critical notification |
+| **100%** | Feature blocked + upgrade prompt |
+
+## Exceeding Limits
+
+### What Happens
+
+When you exceed plan limits:
+
+| Resource | Behavior |
+|----------|----------|
+| **Team Members** | Cannot send new invites |
+| **Integrations** | Cannot add new integrations |
+| **API Requests** | Requests return 429 error |
+
+### Solutions
+
+1. **Remove unused resources** - Delete inactive members/integrations
+2. **Upgrade plan** - Get higher limits
+3. **Contact support** - For temporary limit increases
+
+## Upgrading Your Plan
+
+1. Go to **Org Settings** → **Billing**
+2. Click **Change Plan**
+3. Select new plan
+4. Complete checkout
+
+<Callout type="tip">
+  Upgrading takes effect immediately. Limits increase instantly.
+</Callout>
+
+## Viewing Historical Usage
+
+Track usage over time:
+
+- **Daily breakdown** - Last 30 days
+- **Monthly summary** - Last 12 months
+- **Export data** - CSV download
+
+## Best Practices
+
+1. **Monitor regularly** - Check usage weekly
+2. **Set alerts early** - 70-80% threshold warnings
+3. **Clean up unused** - Remove inactive integrations
+4. **Plan ahead** - Upgrade before hitting limits

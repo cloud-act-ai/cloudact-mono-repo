@@ -1,0 +1,81 @@
+---
+title: Overview
+description: Understanding CloudAct data pipelines
+---
+
+Pipelines are automated processes that fetch, process, and normalize your cost data from various providers.
+
+## How Pipelines Work
+
+1. **Fetch** - Connect to provider APIs and retrieve usage/billing data
+2. **Process** - Transform raw data into standardized format
+3. **Store** - Write processed data to BigQuery
+4. **Notify** - Alert on completion or errors
+
+## Pipeline Types
+
+<Cards>
+  <Card title="Subscription Runs" href="/user-docs/pipelines/subscription-runs" />
+  <Card title="Cloud Runs" href="/user-docs/pipelines/cloud-runs" />
+  <Card title="GenAI Runs" href="/user-docs/pipelines/genai-runs" />
+</Cards>
+
+## Pipeline Status
+
+| Status | Description |
+|--------|-------------|
+| **Queued** | Pipeline scheduled, waiting to run |
+| **Running** | Pipeline currently executing |
+| **Success** | Pipeline completed successfully |
+| **Failed** | Pipeline encountered an error |
+| **Partial** | Some data processed, some errors |
+
+## Scheduling
+
+### Automatic Runs
+
+Pipelines run automatically based on schedule:
+
+| Type | Default Schedule |
+|------|------------------|
+| **Cloud** | Daily at 6:00 AM (org timezone) |
+| **GenAI** | Daily at 6:00 AM (org timezone) |
+| **Subscription** | Daily at midnight (org timezone) |
+
+### Manual Runs
+
+You can trigger pipelines manually:
+
+1. Navigate to **Pipelines** → select type
+2. Click **Run Now** on desired pipeline
+3. Select date range to process
+4. Confirm to start
+
+<Callout type="info">
+  Manual runs do not affect the automatic schedule.
+</Callout>
+
+## Viewing Run History
+
+Each pipeline section shows:
+- **Recent runs** - Last 10 pipeline executions
+- **Status** - Success/failure indicators
+- **Duration** - How long each run took
+- **Records** - Number of records processed
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| **Authentication failed** | Re-authenticate integration credentials |
+| **Rate limited** | Wait and retry; pipelines auto-retry |
+| **No data returned** | Check date range and provider status |
+| **Partial failure** | Check logs for specific errors |
+
+### Viewing Logs
+
+1. Click on a pipeline run
+2. View detailed execution logs
+3. Identify error messages and timestamps

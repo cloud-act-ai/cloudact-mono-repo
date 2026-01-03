@@ -1,0 +1,171 @@
+---
+title: GenAI Providers
+description: Connect your AI API providers
+---
+
+Connect your AI/LLM API accounts to track usage and costs.
+
+## Supported Providers
+
+| Provider | Status | Data Available |
+|----------|--------|----------------|
+| **OpenAI** | Supported | Usage, costs by model |
+| **Anthropic** | Supported | Usage, costs by model |
+| **Google AI** | Supported | Gemini usage and costs |
+
+## Connecting OpenAI
+
+### Prerequisites
+
+1. OpenAI account with API access
+2. API key with usage access
+3. Organization ID (if applicable)
+
+### Setup Steps
+
+1. Go to **Integrations** → **GenAI Providers**
+2. Click **Connect OpenAI**
+3. Enter your API key
+4. (Optional) Enter Organization ID
+5. Click **Verify Connection**
+
+### Getting Your API Key
+
+1. Log in to [platform.openai.com](https://platform.openai.com)
+2. Go to **API Keys**
+3. Click **Create new secret key**
+4. Copy the key (shown only once)
+
+<Callout type="warning">
+  OpenAI API keys are shown only once. Store securely.
+</Callout>
+
+### Supported Models
+
+- GPT-4, GPT-4 Turbo, GPT-4o
+- GPT-3.5 Turbo
+- DALL-E 2, DALL-E 3
+- Whisper
+- Embeddings (ada, text-embedding-3)
+
+## Connecting Anthropic
+
+### Prerequisites
+
+1. Anthropic account
+2. API key with usage access
+
+### Setup Steps
+
+1. Go to **Integrations** → **GenAI Providers**
+2. Click **Connect Anthropic**
+3. Enter your API key
+4. Click **Verify Connection**
+
+### Getting Your API Key
+
+1. Log in to [console.anthropic.com](https://console.anthropic.com)
+2. Go to **API Keys**
+3. Click **Create Key**
+4. Copy the key
+
+### Supported Models
+
+- Claude 3 Opus
+- Claude 3 Sonnet
+- Claude 3 Haiku
+- Claude 2.1
+- Claude Instant
+
+## Connecting Google AI
+
+### Prerequisites
+
+1. Google Cloud account
+2. Vertex AI or AI Studio API key
+3. Project with Gemini API enabled
+
+### Setup Steps
+
+1. Go to **Integrations** → **GenAI Providers**
+2. Click **Connect Google AI**
+3. Choose authentication method:
+   - API key (AI Studio)
+   - Service account (Vertex AI)
+4. Enter credentials
+5. Click **Verify Connection**
+
+### Supported Models
+
+- Gemini Pro
+- Gemini Ultra
+- Gemini Pro Vision
+
+## Pricing Information
+
+### Current Pricing
+
+CloudAct maintains current pricing tables:
+
+| Provider | Update Frequency |
+|----------|------------------|
+| OpenAI | Real-time |
+| Anthropic | Real-time |
+| Google AI | Real-time |
+
+### Custom Pricing
+
+If you have negotiated rates:
+1. Click **Edit Pricing** on the provider
+2. Enter your custom rates
+3. Future costs calculated with custom rates
+
+## Managing Connections
+
+### Viewing Status
+
+Each connection shows:
+- **Status**: Connected, Error
+- **Last Sync**: When usage was last fetched
+- **Models Used**: Which models have usage
+
+### Updating API Key
+
+1. Click **Edit** on the connection
+2. Enter new API key
+3. Click **Save**
+4. Verify connection
+
+### Removing Connection
+
+1. Click **Remove** on the connection
+2. Confirm removal
+3. Historical data is retained
+
+## Security
+
+### API Key Storage
+
+- Keys are encrypted at rest
+- Keys are never displayed after saving
+- Only key fingerprint shown for verification
+
+### Access Control
+
+- Only admins can manage integrations
+- Members can view connection status
+- API keys cannot be retrieved
+
+## Troubleshooting
+
+### Invalid API Key
+
+- Verify key is correct
+- Check key hasn't expired or been revoked
+- Ensure key has usage access permissions
+
+### No Usage Data
+
+- GenAI usage data may have 24 hour delay
+- Verify you have API usage in the date range
+- Check your API key permissions include usage access

@@ -1,0 +1,142 @@
+---
+title: Hierarchy
+description: Manage your organizational structure for cost allocation
+---
+
+The Hierarchy feature lets you organize your company structure for accurate cost allocation and reporting.
+
+## Understanding Hierarchy
+
+CloudAct uses a three-level hierarchy:
+
+```
+Organization
+└── Department
+    └── Project
+        └── Team
+```
+
+### Hierarchy Levels
+
+| Level | Description | Example |
+|-------|-------------|---------|
+| **Department** | Top-level business unit | Engineering, Marketing, Sales |
+| **Project** | Initiative within a department | Platform, Mobile App, Website |
+| **Team** | Group working on a project | Backend, Frontend, DevOps |
+
+## Accessing Hierarchy
+
+Navigate to **Org Settings** → **Hierarchy** in the sidebar.
+
+## Managing Departments
+
+### Creating a Department
+
+1. Click **Add Department**
+2. Enter department details:
+   - **Name** - Department name
+   - **Owner** - Department head (optional)
+   - **Description** - Brief description
+3. Click **Save**
+
+### Editing a Department
+
+1. Click the edit icon next to the department
+2. Update the details
+3. Click **Save**
+
+### Deleting a Department
+
+<Callout type="warning">
+  You cannot delete a department that has projects. Remove all projects first.
+</Callout>
+
+1. Remove all projects from the department
+2. Click the delete icon
+3. Confirm deletion
+
+## Managing Projects
+
+### Creating a Project
+
+1. Click **Add Project** under a department
+2. Enter project details:
+   - **Name** - Project name
+   - **Parent Department** - Select department
+   - **Owner** - Project lead (optional)
+   - **Description** - Brief description
+3. Click **Save**
+
+### Moving Projects
+
+Projects can be moved between departments:
+1. Edit the project
+2. Change the **Parent Department**
+3. Save changes
+
+## Managing Teams
+
+### Creating a Team
+
+1. Click **Add Team** under a project
+2. Enter team details:
+   - **Name** - Team name
+   - **Parent Project** - Select project
+   - **Owner** - Team lead (optional)
+   - **Description** - Brief description
+3. Click **Save**
+
+## Cost Allocation
+
+### Assigning Costs
+
+When creating subscriptions or integrations, assign them to hierarchy:
+
+1. **Department** - Allocate to entire department
+2. **Project** - Allocate to specific project
+3. **Team** - Allocate to individual team
+
+### Viewing Costs by Hierarchy
+
+In **Cost Analytics**, filter by:
+- Department
+- Project
+- Team
+
+This enables:
+- Chargeback reporting
+- Budget tracking by unit
+- Cost center analysis
+
+## Import/Export
+
+### Importing Hierarchy
+
+Bulk import from CSV:
+
+1. Click **Import**
+2. Upload CSV file with format:
+
+```csv
+entity_type,entity_id,entity_name,parent_id,owner_email,description
+department,DEPT-001,Engineering,,,Engineering department
+project,PROJ-001,Platform,DEPT-001,,Platform project
+team,TEAM-001,Backend,PROJ-001,,Backend team
+```
+
+3. Review and confirm
+
+### Exporting Hierarchy
+
+Export your hierarchy structure:
+
+1. Click **Export**
+2. Download CSV file
+3. Use for backup or external reporting
+
+## Best Practices
+
+1. **Mirror your org chart** - Hierarchy should reflect actual business structure
+2. **Assign owners** - Every level should have an accountable owner
+3. **Keep it simple** - Don't over-complicate with too many levels
+4. **Review quarterly** - Update hierarchy as organization changes

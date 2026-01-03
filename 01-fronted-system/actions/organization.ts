@@ -79,12 +79,9 @@ export async function createOrganization(input: CreateOrganizationInput) {
       }
     }
 
-    // Generate slug from first word of name + date (shorter, cleaner)
-    const date = new Date()
-    const mm = String(date.getMonth() + 1).padStart(2, "0")
-    const dd = String(date.getDate()).padStart(2, "0")
-    const yyyy = date.getFullYear()
-    const suffix = `${mm}${dd}${yyyy}`
+    // Generate slug from first word of name + timestamp (ensures uniqueness)
+    // BUG FIX: Changed from date-only suffix to timestamp to prevent same-day collisions
+    const timestamp = Date.now().toString(36)  // Base36 for shorter string
 
     // Extract first word only for shorter slug (e.g., "Genai Community Corp" -> "genai")
     const firstWord = sanitizedName
@@ -92,7 +89,30 @@ export async function createOrganization(input: CreateOrganizationInput) {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "")
       .slice(0, 20)  // Limit first word to 20 chars max
-    const orgSlug = `${firstWord}_${suffix}`
+
+    // Initial slug attempt
+    let orgSlug = `${firstWord}_${timestamp}`
+
+    // Check if slug already exists and add random suffix if needed
+    const adminClientForSlugCheck = createServiceRoleClient()
+    const { data: existingSlug } = await adminClientForSlugCheck
+      .from("organizations")
+      .select("org_slug")
+      .eq("org_slug", orgSlug)
+      .maybeSingle()
+
+    if (existingSlug) {
+      // Add random suffix for uniqueness
+      const randomSuffix = Math.random().toString(36).substring(2, 6)
+      orgSlug = `${firstWord}_${timestamp}_${randomSuffix}`
+    }
+
+    // Validate slug length (max 50 chars per backend requirement)
+    if (orgSlug.length > 50) {
+      const maxFirstWordLen = 50 - timestamp.length - 1  // -1 for underscore
+      const truncatedFirst = firstWord.slice(0, Math.max(3, maxFirstWordLen))
+      orgSlug = `${truncatedFirst}_${timestamp}`
+    }
 
     // Calculate trial end date in UTC
     // Trial end is stored in UTC. Frontend should display in user's local timezone.
@@ -298,7 +318,27 @@ export async function completeOnboarding(sessionId: string) {
     // Use service role client to bypass RLS
     const adminClient = createServiceRoleClient()
 
-    // Check if user already has an organization (idempotency)
+    // IDEMPOTENCY CHECK 1: Check if this Stripe session was already processed
+    // BUG FIX: Prevents duplicate org creation if user refreshes success page or webhook retries
+    const { data: existingOrgBySession } = await adminClient
+      .from("organizations")
+      .select("org_slug, id")
+      .eq("stripe_subscription_id", typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id || "")
+      .maybeSingle()
+
+    if (existingOrgBySession) {
+      // This session was already processed - return existing org
+      return {
+        success: true,
+        orgSlug: existingOrgBySession.org_slug,
+        orgId: existingOrgBySession.id,
+        message: "Organization already created from this checkout session",
+      }
+    }
+
+    // IDEMPOTENCY CHECK 2: Check if user already has an organization
     const { data: existingMember } = await adminClient
       .from("organization_members")
       .select("org_id, organizations(org_slug)")

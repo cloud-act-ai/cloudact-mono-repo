@@ -1,0 +1,145 @@
+---
+title: Organization Settings
+description: Configure your organization's locale, branding, and backend settings
+---
+
+Manage your organization's core settings including locale configuration, branding, and backend connectivity.
+
+## Accessing Organization Settings
+
+Navigate to **Org Settings** → **Organization** in the sidebar, or click on any organization settings link.
+
+![Organization Settings - General Tab](/docs/images/org-settings-general.png)
+
+## General Settings
+
+The General tab contains your organization's core information and locale preferences.
+
+### Organization Details
+
+Configure your organization's identity:
+
+| Field | Description | Editable |
+|-------|-------------|----------|
+| **Organization Name** | Display name shown in sidebar and throughout the app | Yes |
+| **Organization Slug** | Unique identifier used in URLs | No |
+
+<Callout type="info">
+  The organization slug is set during account creation and cannot be changed. It's used in all URLs and API references.
+</Callout>
+
+### Organization Logo
+
+Upload or link your company logo:
+
+**Guidelines:**
+- **Size:** 200×200 pixels (square)
+- **Format:** PNG with transparency recommended
+- **Max file size:** 1MB
+- Supported formats: PNG, JPG, GIF, SVG, WebP
+
+**Upload methods:**
+1. **Upload** - Click or drag-and-drop a file
+2. **URL** - Enter a direct link to your logo image
+
+### Locale Settings
+
+Configure regional preferences for your organization:
+
+| Setting | Description |
+|---------|-------------|
+| **Currency** | Default currency for displaying all costs |
+| **Timezone** | Used for dashboards and pipeline schedules |
+| **Fiscal Year Start** | Auto-suggested based on timezone |
+
+<Callout type="tip">
+  Currency and timezone changes affect how data is displayed across all dashboards. All team members share these locale settings.
+</Callout>
+
+**Supported Currencies:**
+- USD ($), EUR (€), GBP (£), JPY (¥), CNY (¥)
+- INR (₹), AUD (A$), CAD (C$), SGD (S$), AED (د.إ)
+- And more...
+
+## Contact Settings
+
+The Contact tab stores your organization's contact information.
+
+![Organization Settings - Contact Tab](/docs/images/org-settings-contact.png)
+
+### Contact Person
+
+| Field | Description |
+|-------|-------------|
+| **Contact Name** | Primary contact for the organization |
+| **Contact Email** | Business contact email address |
+| **Contact Phone** | Business phone number |
+
+### Address Information
+
+| Field | Description |
+|-------|-------------|
+| **Street Address** | Building/street address |
+| **City** | City name |
+| **State/Province** | State, province, or region |
+| **Postal Code** | ZIP or postal code |
+| **Country** | Country selection |
+
+## Backend Settings
+
+The Backend tab shows your BigQuery connection status and API configuration.
+
+![Organization Settings - Backend Tab](/docs/images/org-settings-backend.png)
+
+### Backend Connection Status
+
+| Indicator | Meaning |
+|-----------|---------|
+| **Connected / Active** | BigQuery dataset is active and synced |
+| **API Key Valid** | Your organization's API key is working |
+
+### Available Actions
+
+| Button | Function |
+|--------|----------|
+| **Resync Connection** | Re-synchronize locale and subscription data with backend |
+| **Sync Billing** | Refresh billing data from Stripe and sync to backend |
+
+<Callout type="warning">
+  Only use these sync actions if you notice data discrepancies. Normal syncing happens automatically.
+</Callout>
+
+## Danger Zone
+
+The Danger Zone tab contains irreversible actions.
+
+![Organization Settings - Danger Zone](/docs/images/org-settings-danger-zone.png)
+
+### Organizations You Own
+
+Lists all organizations where you are the owner. You must transfer ownership or delete organizations before deleting your account.
+
+| Column | Description |
+|--------|-------------|
+| **Organization Name** | Name of the organization |
+| **Members** | Number of team members |
+| **Role** | Your role (Owner) |
+
+### Delete Organization
+
+<Callout type="error">
+  **Warning:** Deleting an organization permanently removes all data, integrations, and team member access. This action cannot be undone.
+</Callout>
+
+To delete an organization:
+
+1. Ensure you have transferred ownership of any organizations you want to preserve
+2. Click the **Delete** button next to the organization
+3. Confirm the deletion when prompted
+
+## Best Practices
+
+1. **Keep locale settings accurate** - Incorrect timezone affects pipeline schedules and dashboard time displays
+2. **Update contact information** - Ensure billing and support can reach you
+3. **Secure your API key** - Never share your API key; use the fingerprint for verification
+4. **Regular logo updates** - Keep branding current across your organization

@@ -49,3 +49,49 @@ export function isValidOrgName(name: string): boolean {
     !/<script|<\/script|javascript:|on\w+=/i.test(trimmed)
   )
 }
+
+/**
+ * Org slug validation pattern (must match backend)
+ *
+ * Backend pattern (02-api-service): ^[a-zA-Z0-9_]{3,50}$
+ * - 3-50 characters
+ * - Alphanumeric and underscores only
+ * - NO hyphens (backend doesn't allow them)
+ *
+ * IMPORTANT: This pattern MUST stay in sync with backend validation.
+ * @see 02-api-service/src/app/routers/organizations.py
+ */
+export const ORG_SLUG_PATTERN = /^[a-zA-Z0-9_]{3,50}$/
+
+/**
+ * Validate organization slug format
+ *
+ * Uses the same pattern as the backend to ensure consistency.
+ * Prevents validation failures when frontend creates slugs that
+ * backend rejects.
+ *
+ * @param slug - Organization slug to validate
+ * @returns true if valid, false otherwise
+ */
+export function isValidOrgSlug(slug: string): boolean {
+  if (!slug || typeof slug !== "string") return false
+  return ORG_SLUG_PATTERN.test(slug)
+}
+
+/**
+ * Sanitize a string to be used as org slug
+ *
+ * Converts to lowercase, replaces spaces/hyphens with underscores,
+ * removes invalid characters, and ensures length limits.
+ *
+ * @param input - Raw input to convert to slug
+ * @returns Sanitized slug (may still need uniqueness check)
+ */
+export function sanitizeToOrgSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[\s-]+/g, "_")  // Replace spaces and hyphens with underscores
+    .replace(/[^a-z0-9_]/g, "")  // Remove invalid chars
+    .slice(0, 50)  // Max length
+}

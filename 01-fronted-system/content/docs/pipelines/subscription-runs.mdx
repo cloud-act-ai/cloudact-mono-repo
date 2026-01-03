@@ -1,0 +1,80 @@
+---
+title: Subscription Runs
+description: Pipelines for SaaS subscription cost processing
+---
+
+Subscription pipelines calculate and process costs from your SaaS subscription plans.
+
+## How It Works
+
+1. **Read subscription plans** - Fetch from your configured subscriptions
+2. **Calculate daily costs** - Prorate monthly/annual costs to daily
+3. **Apply hierarchy** - Assign costs to departments/projects/teams
+4. **Write to BigQuery** - Store in standardized FOCUS format
+
+## Pipeline Schedule
+
+Subscription cost pipelines run:
+- **Daily** at midnight (organization timezone)
+- Process previous day's costs
+
+## Triggering Manual Runs
+
+1. Go to **Pipelines** → **Subscription Runs**
+2. Click **Run Pipeline**
+3. Select the date to process
+4. Click **Confirm**
+
+## Subscription Pipeline Types
+
+### Cost Calculation
+
+Calculates daily costs from subscription plans:
+
+| Plan Type | Calculation |
+|-----------|-------------|
+| **Monthly** | Monthly cost ÷ days in month |
+| **Annual** | Annual cost ÷ 365 |
+| **Per-seat** | Per-seat cost × active seats |
+
+### FOCUS Conversion
+
+Converts subscription costs to FOCUS 1.3 standard:
+- Standardized cost categories
+- Unified resource naming
+- Hierarchy extension fields
+
+## Run History
+
+View recent subscription pipeline runs:
+
+| Column | Description |
+|--------|-------------|
+| **Run ID** | Unique identifier |
+| **Date** | Date processed |
+| **Status** | Success/Failed |
+| **Records** | Subscription plans processed |
+| **Duration** | Execution time |
+
+## Cost Data Output
+
+Subscription pipelines write to:
+
+| Table | Content |
+|-------|---------|
+| `subscription_plan_costs_daily` | Daily cost calculations |
+| `cost_data_standard_1_3` | FOCUS-formatted costs |
+
+## Troubleshooting
+
+### No Costs Showing
+
+- Verify subscriptions are configured in **Integrations** → **Subscriptions**
+- Check subscription start/end dates
+- Ensure billing cycle is set correctly
+
+### Incorrect Amounts
+
+- Verify plan pricing is entered correctly
+- Check currency settings match your organization
+- Review proration calculation for partial months

@@ -1,0 +1,4 @@
+{
+  "title": "Cost Analytics",
+  "pages": ["index", "genai-costs", "cloud-costs", "subscription-costs"]
+}

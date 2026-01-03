@@ -1,0 +1,4 @@
+{
+  "title": "Org Settings",
+  "pages": ["index", "organization", "hierarchy", "quota-usage", "team-members", "billing"]
+}

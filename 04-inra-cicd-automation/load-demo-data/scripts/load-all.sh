@@ -63,6 +63,14 @@ if [[ "$SKIP_VALIDATION" == "false" ]]; then
     echo ""
 fi
 
+# Step 0b: Load pricing seed data (REQUIRED before GenAI cost calculation)
+# This populates genai_payg_pricing table used by payg_cost processor
+if [[ "$LOAD_GENAI" == "true" ]]; then
+    log_info "Step 0b: Loading GenAI pricing seed data..."
+    bash "${SCRIPT_DIR}/00-load-pricing-seed.sh"
+    echo ""
+fi
+
 # Step 1: Load GenAI data
 if [[ "$LOAD_GENAI" == "true" ]]; then
     log_info "Step 1: Loading GenAI usage data..."

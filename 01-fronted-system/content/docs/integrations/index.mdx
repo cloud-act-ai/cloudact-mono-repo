@@ -1,45 +1,100 @@
 ---
 title: Overview
-description: Connect your AI and cloud providers to CloudAct.ai
+description: Connect your cloud, AI, and SaaS providers to CloudAct
 ---
 
-Connect your providers to start tracking costs and usage.
+Connect your providers to start tracking costs and usage across all your services.
+
+## Integration Categories
+
+<Cards>
+  <Card title="Cloud Providers" href="/user-docs/integrations/cloud-providers" />
+  <Card title="GenAI Providers" href="/user-docs/integrations/genai-providers" />
+  <Card title="Subscriptions" href="/user-docs/integrations/subscriptions" />
+</Cards>
 
 ## Supported Providers
 
-| Provider | Type | What You'll See |
-|----------|------|-----------------|
-| **OpenAI** | AI | GPT-4, GPT-3.5 usage and costs |
-| **Anthropic** | AI | Claude usage and costs |
-| **DeepSeek** | AI | DeepSeek usage and costs |
-| **Google Cloud** | Cloud | Compute, storage, and service costs |
+### Cloud Infrastructure
 
-## How to Connect
+| Provider | Data Source | Status |
+|----------|-------------|--------|
+| **AWS** | Cost and Usage Reports | Supported |
+| **Google Cloud** | BigQuery Billing Export | Supported |
+| **Microsoft Azure** | Cost Management API | Supported |
+| **Oracle Cloud** | Usage API | Supported |
 
-1. Go to **Settings** → **Integrations**
-2. Click on the provider you want to connect
-3. Follow the setup instructions
-4. Enter your credentials
-5. Click **Save**
+### GenAI / LLM
 
-Your data will appear on your dashboard within a few minutes.
+| Provider | Data Source | Status |
+|----------|-------------|--------|
+| **OpenAI** | Usage API | Supported |
+| **Anthropic** | Usage API | Supported |
+| **Google AI** | Gemini Usage API | Supported |
+
+### SaaS Subscriptions
+
+Track any SaaS subscription:
+- Use pre-built templates for popular services
+- Add custom subscriptions for any service
+- Track costs by billing cycle
+
+## How Integrations Work
+
+```
+1. Connect → 2. Authenticate → 3. Sync Data → 4. View Analytics
+```
+
+1. **Connect** - Select provider and start setup
+2. **Authenticate** - Enter credentials (API key, service account, etc.)
+3. **Sync Data** - Pipelines fetch your usage and billing data
+4. **View Analytics** - See costs in your dashboard
 
 ## Security
 
-Your credentials are:
+Your credentials are protected:
 
-- **Encrypted** before storage
-- **Never visible** after you save them
-- **Only used** to fetch your usage data
+| Protection | Description |
+|------------|-------------|
+| **Encrypted** | All credentials encrypted at rest |
+| **Hidden** | Never displayed after saving |
+| **Limited Access** | Only used for data fetching |
+| **Audit Logged** | All access is logged |
 
-<Callout type="info">
-  We recommend creating dedicated API keys with read-only access for CloudAct.
+<Callout type="tip">
+  Create dedicated API keys with read-only permissions for CloudAct.
 </Callout>
 
-## Provider Guides
+## Quick Setup
 
-<Cards>
-  <Card title="OpenAI" href="/user-docs/integrations/openai" />
-  <Card title="Anthropic" href="/user-docs/integrations/anthropic" />
-  <Card title="Google Cloud" href="/user-docs/integrations/gcp" />
-</Cards>
+### Adding Your First Integration
+
+1. Go to **Integrations** in the sidebar
+2. Choose category (Cloud, GenAI, or Subscriptions)
+3. Click **Connect** on the provider
+4. Follow the setup wizard
+5. Verify connection
+6. Data appears in dashboard within minutes
+
+## Managing Integrations
+
+### Viewing Status
+
+Each integration shows:
+- Connection status (Connected, Error, Syncing)
+- Last successful sync time
+- Available data range
+
+### Troubleshooting
+
+Common issues:
+- **Invalid credentials** - Re-enter or regenerate
+- **Missing permissions** - Check required roles/scopes
+- **No data** - Allow 24-48 hours for initial sync
+
+## Best Practices
+
+1. **Use dedicated credentials** - Don't share with other services
+2. **Minimal permissions** - Only grant read access
+3. **Regular review** - Check connections monthly
+4. **Remove unused** - Delete integrations you no longer use

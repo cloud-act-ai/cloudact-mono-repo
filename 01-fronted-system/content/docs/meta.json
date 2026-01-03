@@ -3,11 +3,19 @@
   "pages": [
     "---Getting Started---",
     "getting-started",
-    "---Your Account---",
-    "account",
+    "---Dashboard---",
+    "dashboard",
+    "---Cost Analytics---",
+    "cost-analytics",
+    "---Pipelines---",
+    "pipelines",
     "---Integrations---",
     "integrations",
-    "---Billing---",
-    "billing"
+    "---Notifications---",
+    "notifications",
+    "---Org Settings---",
+    "org-settings",
+    "---Personal Settings---",
+    "personal-settings"
   ]
 }
