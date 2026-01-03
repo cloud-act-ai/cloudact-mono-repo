@@ -218,7 +218,7 @@ function baseEmailLayout({
               <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]}; line-height: 1.6;">
                 This email was sent by CloudAct.AI • <a href="${BRAND.siteUrl}/privacy" style="color: ${BRAND.gray[500]}; text-decoration: none;">Privacy Policy</a> • <a href="${BRAND.siteUrl}/terms" style="color: ${BRAND.gray[500]}; text-decoration: none;">Terms of Service</a><br>
                 © ${new Date().getFullYear()} CloudAct Inc. All rights reserved.<br>
-                CloudAct Inc., San Francisco, CA, USA
+                CloudAct Inc., 100 S Murphy Ave, STE 200 PMB4013, Sunnyvale, CA 94086
               </p>
             </td>
           </tr>

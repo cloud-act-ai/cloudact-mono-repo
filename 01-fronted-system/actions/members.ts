@@ -977,6 +977,13 @@ export async function resendInvite(orgSlug: string, inviteId: string) {
     const inviterName = inviterProfile?.full_name || inviterProfile?.email?.split("@")[0] || "A team member"
 
     // Send new invite email
+    console.log(`[resendInvite] Preparing to send email...`)
+    console.log(`[resendInvite] To: ${existingInvite.email}`)
+    console.log(`[resendInvite] Inviter: ${inviterName}`)
+    console.log(`[resendInvite] Org: ${org.org_name}`)
+    console.log(`[resendInvite] Role: ${existingInvite.role}`)
+    console.log(`[resendInvite] Link: ${inviteLink}`)
+
     const emailSent = await sendInviteEmail({
       to: existingInvite.email,
       inviterName,
@@ -984,6 +991,8 @@ export async function resendInvite(orgSlug: string, inviteId: string) {
       role: existingInvite.role,
       inviteLink,
     })
+
+    console.log(`[resendInvite] Email send result: ${emailSent ? "SUCCESS" : "FAILED"}`)
 
     if (!emailSent) {
       console.warn(`[resendInvite] Email failed to send to ${existingInvite.email} for org ${orgSlug}`)
