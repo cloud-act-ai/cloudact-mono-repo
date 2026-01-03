@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Cloud } from "lucide-react"
 import { getOrgSlug } from "@/lib/utils"
@@ -46,8 +46,17 @@ export default function CloudCostsPage() {
     refresh: refreshCostData,
     getFilteredProviders,
     getDailyTrendForRange,
+    fetchCategoryTrend,
+    isCategoryTrendLoaded,
     availableFilters,
   } = useCostData()
+
+  // Lazy-load Cloud trend data on mount (optimization - not fetched on dashboard)
+  useEffect(() => {
+    if (!isCategoryTrendLoaded("cloud")) {
+      fetchCategoryTrend("cloud")
+    }
+  }, [fetchCategoryTrend, isCategoryTrendLoaded])
 
   // Local state - Cloud costs page (category fixed to "cloud")
   const [isRefreshing, setIsRefreshing] = useState(false)

@@ -1,7 +1,6 @@
 "use server"
 
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { getCachedApiKey, requireOrgMembership } from "@/lib/auth-cache"
 import { isValidOrgSlug as isValidOrgSlugHelper } from "@/lib/api/helpers"
 
 // Re-export types from the types file (types can be re-exported from "use server" files)
@@ -267,73 +266,12 @@ function getClientSafeErrorMessage(
 }
 
 // ============================================================================
-// Authorization
+// Authorization (uses shared auth-cache module)
 // ============================================================================
-
-interface AuthResult {
-  user: { id: string; user_metadata?: Record<string, unknown> }
-  orgId: string
-  role: string
-}
 
 function isValidOrgSlug(slug: string): boolean {
   return isValidOrgSlugHelper(slug)
 }
-
-/**
- * Validate that the current user is a member of the specified organization.
- * Security: Prevents unauthorized access to org pricing data.
- */
-async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
-  if (!isValidOrgSlug(orgSlug)) {
-    throw new Error("Invalid organization slug")
-  }
-
-  const supabase = await createClient()
-  const adminClient = createServiceRoleClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error("Not authenticated")
-  }
-
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id")
-    .eq("org_slug", orgSlug)
-    .single()
-
-  if (orgError) {
-    if (orgError.code === "PGRST116") {
-      throw new Error("Organization not found")
-    }
-    throw new Error("Database error")
-  }
-
-  if (!org) {
-    throw new Error("Organization not found")
-  }
-
-  const { data: membership, error: membershipError } = await adminClient
-    .from("organization_members")
-    .select("role")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (membershipError && membershipError.code !== "PGRST116") {
-    throw new Error("Database error")
-  }
-
-  if (!membership) {
-    throw new Error("Not a member of this organization")
-  }
-
-  return { user, orgId: org.id, role: membership.role }
-}
-
-// Types are imported from @/lib/types/genai-pricing
 
 // ============================================================================
 // Helper Functions
@@ -390,7 +328,7 @@ export async function getGenAIPricing(
     // Security: Verify user is member of this org
     await requireOrgMembership(orgSlug)
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "No API key found for organization" }
     }
@@ -455,7 +393,7 @@ export async function getGenAIPricingByFlow<T extends GenAIFlow>(
     // Security: Verify user is member of this org
     await requireOrgMembership(orgSlug)
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "No API key found for organization" }
     }
@@ -637,7 +575,7 @@ export async function addCustomPricing(
       return { success: false, error: "Only admins and owners can add custom pricing" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "No API key found for organization" }
     }
@@ -717,7 +655,7 @@ export async function setPricingOverride(
       return { success: false, error: "Only admins and owners can modify pricing overrides" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "No API key found for organization" }
     }
@@ -767,7 +705,7 @@ export async function deleteCustomPricing(
       return { success: false, error: "Only admins and owners can delete custom pricing" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "No API key found for organization" }
     }
@@ -813,7 +751,7 @@ export async function resetPricingOverride(
       return { success: false, error: "Only admins and owners can reset pricing overrides" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "No API key found for organization" }
     }

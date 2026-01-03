@@ -23,7 +23,7 @@
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getAuthWithApiKey, requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -205,7 +205,7 @@ export async function runCostBackfill(
   try {
     await requireRole(orgSlug, "admin")
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -265,62 +265,10 @@ function validatePlanData(plan: PlanCreate | PlanUpdate): { valid: boolean; erro
 // Use shared helper for subscription ID validation
 const isValidSubscriptionId = isValidSubscriptionIdHelper
 
-interface AuthResult {
-  user: { id: string; user_metadata?: Record<string, unknown> }
-  orgId: string
-  role: string
-}
+// Auth is now handled by shared @/lib/auth-cache module
+// AuthResult type is imported from there
 
-async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
-  if (!isValidOrgSlug(orgSlug)) {
-    throw new Error("Invalid organization slug")
-  }
-
-  const supabase = await createClient()
-  const adminClient = createServiceRoleClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error("Not authenticated")
-  }
-
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id")
-    .eq("org_slug", orgSlug)
-    .single()
-
-  if (orgError) {
-    if (orgError.code === "PGRST116") {
-      throw new Error("Organization not found")
-    }
-    throw new Error(`Database error: ${orgError.message}`)
-  }
-
-  if (!org) {
-    throw new Error("Organization not found")
-  }
-
-  const { data: membership, error: membershipError } = await adminClient
-    .from("organization_members")
-    .select("role")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (membershipError && membershipError.code !== "PGRST116") {
-    throw new Error(`Database error: ${membershipError.message}`)
-  }
-
-  if (!membership) {
-    throw new Error("Not a member of this organization")
-  }
-
-  return { user, orgId: org.id, role: membership.role }
-}
-
-async function requireRole(orgSlug: string, requiredRole: string): Promise<AuthResult> {
+async function requireRole(orgSlug: string, requiredRole: string) {
   const result = await requireOrgMembership(orgSlug)
 
   const roleHierarchy: Record<string, number> = {
@@ -721,7 +669,7 @@ export async function createCustomProviderWithPlan(
     }
 
     // 3. Create the first plan via API service
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -802,7 +750,7 @@ export async function disableProvider(
     const supabase = await createClient()
 
     // Step 1: Get API key FIRST (Issue 2: Race condition - check before Supabase update)
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
 
     // Step 2: Disable provider in Supabase meta table
     const { error: metaError } = await supabase
@@ -932,7 +880,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
     }
 
     // Get plan counts from API if available
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     const planCounts = new Map<string, number>()
 
     if (orgApiKey) {
@@ -1011,7 +959,7 @@ export async function getProviderPlans(
 
     await requireOrgMembership(orgSlug)
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return {
         success: false,
@@ -1100,7 +1048,7 @@ export async function getAllPlansForCostDashboard(orgSlug: string): Promise<{
   try {
     await requireOrgMembership(orgSlug)
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return {
         success: false,
@@ -1396,7 +1344,7 @@ export async function getSaaSSubscriptionCosts(
   try {
     await requireOrgMembership(orgSlug)
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return {
         success: false,
@@ -1636,7 +1584,7 @@ export async function createCustomPlan(
       }
     }
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1738,7 +1686,7 @@ export async function updatePlan(
 
     await requireRole(orgSlug, "admin")
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1816,7 +1764,7 @@ export async function deletePlan(
 
     await requireRole(orgSlug, "admin")
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1863,7 +1811,7 @@ export async function resetProvider(
 
     await requireRole(orgSlug, "admin")
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, plans_seeded: 0, error: "Organization API key not found" }
     }
@@ -1950,7 +1898,7 @@ export async function editPlanWithVersion(
 
     await requireRole(orgSlug, "admin")
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -2053,7 +2001,7 @@ export async function endSubscription(
 
     await requireRole(orgSlug, "admin")
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -2146,7 +2094,7 @@ export async function getAvailablePlans(
 
     await requireOrgMembership(orgSlug)
 
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return {
         success: false,

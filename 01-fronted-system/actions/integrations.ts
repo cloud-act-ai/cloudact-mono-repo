@@ -27,7 +27,7 @@ import {
   SaaSSubscriptionUpdate,
   LLMProvider
 } from "@/lib/api/backend"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getCachedApiKey } from "@/lib/auth-cache"
 
 // ============================================
 // Types
@@ -150,7 +150,7 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
  */
 async function getOrgApiKey(orgSlug: string): Promise<string | null> {
   // Get from secure server-side storage (NOT user_metadata)
-  return await getOrgApiKeySecure(orgSlug)
+  return await getCachedApiKey(orgSlug)
 }
 
 // ============================================
@@ -821,7 +821,7 @@ export async function listLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found. Please complete backend onboarding first." }
     }
@@ -868,7 +868,7 @@ export async function updateLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -913,7 +913,7 @@ export async function createLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -957,7 +957,7 @@ export async function deleteLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -998,7 +998,7 @@ export async function resetLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1049,7 +1049,7 @@ export async function listSaaSSubscriptions(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found. Please complete backend onboarding first." }
     }
@@ -1096,7 +1096,7 @@ export async function updateSaaSSubscription(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1141,7 +1141,7 @@ export async function createSaaSSubscription(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1185,7 +1185,7 @@ export async function deleteSaaSSubscription(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }
@@ -1226,7 +1226,7 @@ export async function resetSaaSSubscriptions(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, type FormEvent } from "react"
+import { useState, useEffect, useRef, useCallback, type FormEvent, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -100,8 +100,31 @@ const INQUIRY_TYPES = [
   { value: "other", label: "Other" },
 ]
 
-export default function ContactPage() {
+// Component to handle search params (must be wrapped in Suspense)
+function SearchParamsHandler({
+  onTypeFound,
+  formRef
+}: {
+  onTypeFound: (type: string) => void
+  formRef: React.RefObject<HTMLDivElement | null>
+}) {
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const typeParam = searchParams.get("type")
+    if (typeParam && INQUIRY_TYPES.some(t => t.value === typeParam)) {
+      onTypeFound(typeParam)
+      // Scroll to form after a short delay
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 100)
+    }
+  }, [searchParams, onTypeFound, formRef])
+
+  return null
+}
+
+export default function ContactPage() {
   const formRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
@@ -115,17 +138,10 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  // Handle URL params for pre-selecting inquiry type (e.g., /contact?type=sales)
-  useEffect(() => {
-    const typeParam = searchParams.get("type")
-    if (typeParam && INQUIRY_TYPES.some(t => t.value === typeParam)) {
-      setFormData(prev => ({ ...prev, inquiryType: typeParam }))
-      // Scroll to form after a short delay
-      setTimeout(() => {
-        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-      }, 100)
-    }
-  }, [searchParams])
+  // Callback for search params handler (memoized to avoid re-renders)
+  const handleTypeFromParams = useCallback((type: string) => {
+    setFormData(prev => ({ ...prev, inquiryType: type }))
+  }, [])
 
   // Scroll to form and pre-select inquiry type
   const handleCardClick = (inquiryType: string) => {
@@ -190,6 +206,11 @@ export default function ContactPage() {
 
   return (
     <div className="ca-landing-page">
+      {/* Handle search params (e.g., /contact?type=sales) */}
+      <Suspense fallback={null}>
+        <SearchParamsHandler onTypeFound={handleTypeFromParams} formRef={formRef} />
+      </Suspense>
+
       {/* Hero Section - C3.ai Style */}
       <section className="ca-contact-hero-c3">
         <div className="ca-contact-hero-content-c3">

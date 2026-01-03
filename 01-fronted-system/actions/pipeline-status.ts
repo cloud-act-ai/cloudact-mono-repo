@@ -17,7 +17,7 @@
  * - #9: Use shared helpers from lib/api/helpers.ts
  */
 
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getCachedApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -73,7 +73,7 @@ export async function getPipelineStatus(
   orgSlug: string
 ): Promise<PipelineStatusResponse | null> {
   try {
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       
       return null
@@ -132,7 +132,7 @@ export async function triggerPipelineViaApi(
   endDate?: string
 ): Promise<PipelineTriggerResult> {
   try {
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const orgApiKey = await getCachedApiKey(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "No API key for organization" }
     }

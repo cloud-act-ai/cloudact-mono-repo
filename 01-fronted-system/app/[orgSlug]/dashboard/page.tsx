@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
-import { createClient } from "@/lib/supabase/client"
+// Removed: createClient import - currency now comes from CostDataContext
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import type { PipelineRunSummary } from "@/lib/api/backend"
 import {
@@ -91,7 +91,6 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
-  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
 
   // Get daily trend data from context (real data from backend)
@@ -111,18 +110,13 @@ export default function DashboardPage() {
   const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange), [timeRange])
 
   // Load non-cost data (pipelines, integrations)
+  // OPTIMIZATION: Removed redundant Supabase query for default_currency
+  // Currency is already provided by CostDataContext from the cost API
   const loadNonCostData = useCallback(async () => {
     try {
-      const supabase = createClient()
-
-      const [pipelinesResult, integrationsResult, orgResult] = await Promise.all([
+      const [pipelinesResult, integrationsResult] = await Promise.all([
         getPipelineRuns(orgSlug, { limit: 5 }),
         getIntegrations(orgSlug),
-        supabase
-          .from("organizations")
-          .select("default_currency")
-          .eq("org_slug", orgSlug)
-          .single(),
       ])
 
       if (pipelinesResult.success && pipelinesResult.data?.runs) {
@@ -170,10 +164,6 @@ export default function DashboardPage() {
 
         setIntegrations(integrationList.slice(0, 4))
       }
-
-      if (orgResult.data?.default_currency) {
-        setOrgCurrency(orgResult.data.default_currency)
-      }
     } catch (err) {
       console.error("[Dashboard] Failed to load data:", err instanceof Error ? err.message : "Unknown error")
     } finally {
@@ -191,7 +181,8 @@ export default function DashboardPage() {
   }, [loadNonCostData])
 
   // Use context currency if available
-  const displayCurrency = contextCurrency || orgCurrency
+  // Use currency from cost context, fallback to default
+  const displayCurrency = contextCurrency || DEFAULT_CURRENCY
 
   const handleRefresh = async () => {
     setIsRefreshing(true)

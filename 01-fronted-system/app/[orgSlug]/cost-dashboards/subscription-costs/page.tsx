@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Wallet } from "lucide-react"
 import { getOrgSlug } from "@/lib/utils"
@@ -46,8 +46,17 @@ export default function SubscriptionCostsPage() {
     refresh: refreshCostData,
     getFilteredProviders,
     getDailyTrendForRange,
+    fetchCategoryTrend,
+    isCategoryTrendLoaded,
     availableFilters,
   } = useCostData()
+
+  // Lazy-load Subscription trend data on mount (optimization - not fetched on dashboard)
+  useEffect(() => {
+    if (!isCategoryTrendLoaded("subscription")) {
+      fetchCategoryTrend("subscription")
+    }
+  }, [fetchCategoryTrend, isCategoryTrendLoaded])
 
   // Local state - Subscription costs page (category fixed to "subscription")
   const [isRefreshing, setIsRefreshing] = useState(false)

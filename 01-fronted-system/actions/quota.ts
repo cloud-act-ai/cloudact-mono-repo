@@ -8,7 +8,7 @@
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getCachedApiKey } from "@/lib/auth-cache"
 
 export interface QuotaUsage {
   // Pipeline quotas
@@ -120,7 +120,7 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     const concurrentRunning = 0
 
     try {
-      const apiKey = await getOrgApiKeySecure(orgSlug)
+      const apiKey = await getCachedApiKey(orgSlug)
       if (apiKey) {
         // Try to get quota info from backend
         // This would require an endpoint on the backend - for now use defaults

@@ -35,7 +35,7 @@ import {
   FreeTierResetFrequency,
   DiscountReason,
 } from "@/lib/api/backend"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getCachedApiKey } from "@/lib/auth-cache"
 import {
   VALID_BILLING_PERIODS,
   VALID_TIER_TYPES,
@@ -275,7 +275,7 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
 }
 
 async function getOrgApiKey(orgSlug: string): Promise<string | null> {
-  return await getOrgApiKeySecure(orgSlug)
+  return await getCachedApiKey(orgSlug)
 }
 
 // ============================================

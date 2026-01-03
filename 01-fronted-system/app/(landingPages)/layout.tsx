@@ -330,7 +330,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <Link href="/pricing" className="ca-nav-link">
               Pricing
             </Link>
-            <MegaMenuDropdown menu={RESOURCES_MENU} />
+            <Link href="/user-docs" className="ca-nav-link">
+              Docs
+            </Link>
             <MegaMenuDropdown menu={COMPANY_MENU} />
           </nav>
 
@@ -393,12 +395,13 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             >
               Pricing
             </Link>
-            <MobileAccordion
-              menu={RESOURCES_MENU}
-              isOpen={openAccordion === "resources"}
-              onToggle={() => setOpenAccordion(openAccordion === "resources" ? null : "resources")}
-              onLinkClick={handleMobileLinkClick}
-            />
+            <Link
+              href="/user-docs"
+              className="ca-mobile-nav-link"
+              onClick={handleMobileLinkClick}
+            >
+              Docs
+            </Link>
             <MobileAccordion
               menu={COMPANY_MENU}
               isOpen={openAccordion === "company"}
@@ -446,7 +449,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 />
               </Link>
               <p className="ca-footer-tagline">
-                The enterprise standard for GenAI and cloud cost intelligence. Track, analyze, and optimize your spending in one unified platform.
+                Enterprise GenAI, Cloud & Subscription Cost Management
               </p>
 
               {/* Contact Info */}

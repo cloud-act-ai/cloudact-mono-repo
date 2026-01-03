@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Brain } from "lucide-react"
 import { getOrgSlug } from "@/lib/utils"
@@ -46,8 +46,17 @@ export default function GenAICostsPage() {
     refresh: refreshCostData,
     getFilteredProviders,
     getDailyTrendForRange,
+    fetchCategoryTrend,
+    isCategoryTrendLoaded,
     availableFilters,
   } = useCostData()
+
+  // Lazy-load GenAI trend data on mount (optimization - not fetched on dashboard)
+  useEffect(() => {
+    if (!isCategoryTrendLoaded("genai")) {
+      fetchCategoryTrend("genai")
+    }
+  }, [fetchCategoryTrend, isCategoryTrendLoaded])
 
   // Local state - GenAI costs page (category fixed to "genai")
   const [isRefreshing, setIsRefreshing] = useState(false)

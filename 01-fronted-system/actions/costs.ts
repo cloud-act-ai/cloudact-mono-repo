@@ -7,6 +7,9 @@
  * Uses Polars-powered API endpoints from the backend cost service.
  *
  * All cost data comes from cost_data_standard_1_3 (FOCUS 1.3 format).
+ *
+ * PERFORMANCE: Uses request-level caching for auth/API key to avoid
+ * redundant Supabase queries when multiple cost actions run in parallel.
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
@@ -19,6 +22,76 @@ import {
   extractErrorMessage,
   isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
+// Note: unstable_cache was considered for cost trend caching but skipped
+// to avoid stale data issues. Client-side caching via CostDataContext is sufficient.
+
+// ============================================
+// Request-Level Auth Cache (Performance Fix)
+// ============================================
+
+interface CachedAuth {
+  userId: string
+  orgId: string
+  role: string
+  apiKey: string
+  cachedAt: number
+}
+
+// Short-lived cache (5 seconds) - enough for parallel requests, expires quickly for security
+const AUTH_CACHE_TTL_MS = 5000
+const authCache = new Map<string, CachedAuth>()
+
+/**
+ * Get cached auth context for an org.
+ * This dramatically reduces Supabase queries when multiple cost actions run in parallel.
+ * Cache is invalidated after 5 seconds to ensure fresh auth checks.
+ */
+async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
+  const cacheKey = orgSlug
+  const cached = authCache.get(cacheKey)
+  const now = Date.now()
+
+  // Return cached if still valid
+  if (cached && (now - cached.cachedAt) < AUTH_CACHE_TTL_MS) {
+    return {
+      auth: { user: { id: cached.userId }, orgId: cached.orgId, role: cached.role },
+      apiKey: cached.apiKey,
+    }
+  }
+
+  // Fetch fresh auth + API key
+  try {
+    const auth = await requireOrgMembershipInternal(orgSlug)
+    const apiKey = await getOrgApiKeySecure(orgSlug)
+
+    if (!apiKey) {
+      return null
+    }
+
+    // Cache the result
+    authCache.set(cacheKey, {
+      userId: auth.user.id,
+      orgId: auth.orgId,
+      role: auth.role,
+      apiKey,
+      cachedAt: now,
+    })
+
+    // Cleanup old entries (max 50 orgs cached)
+    if (authCache.size > 50) {
+      const entries = Array.from(authCache.entries())
+      for (const [key, value] of entries) {
+        if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {
+          authCache.delete(key)
+        }
+      }
+    }
+
+    return { auth, apiKey }
+  } catch {
+    return null
+  }
+}
 
 // ============================================
 // Types
@@ -166,7 +239,11 @@ interface AuthResult {
   role: string
 }
 
-async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
+/**
+ * Internal auth check - makes actual Supabase queries.
+ * Use getCachedAuthContext() for cached version in parallel requests.
+ */
+async function requireOrgMembershipInternal(orgSlug: string): Promise<AuthResult> {
   if (!isValidOrgSlug(orgSlug)) {
     throw new Error("Invalid organization slug")
   }
@@ -215,6 +292,27 @@ async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
   return { user, orgId: org.id, role: membership.role }
 }
 
+/**
+ * Cached version of requireOrgMembership.
+ * Uses 5-second request-level cache to avoid redundant Supabase queries.
+ */
+async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
+  const cached = await getCachedAuthContext(orgSlug)
+  if (cached) {
+    return cached.auth
+  }
+  // Fallback to direct call if caching fails
+  return requireOrgMembershipInternal(orgSlug)
+}
+
+/**
+ * Get cached auth + API key in a single call.
+ * PERFORMANCE: Use this instead of separate requireOrgMembership + getOrgApiKeySecure calls.
+ */
+async function getAuthWithApiKey(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
+  return getCachedAuthContext(orgSlug)
+}
+
 // ============================================
 // GenAI/LLM Costs
 // ============================================
@@ -230,10 +328,9 @@ export async function getGenAICosts(
   filters?: CostFilterParams
 ): Promise<CostDataResponse> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return {
         success: false,
         data: [],
@@ -244,6 +341,7 @@ export async function getGenAICosts(
         error: "Organization API key not found. Please complete organization onboarding.",
       }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     let url = `${apiUrl}/api/v1/costs/${orgSlug}/genai`
@@ -379,10 +477,9 @@ export async function getCloudCosts(
   filters?: CostFilterParams
 ): Promise<CostDataResponse> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return {
         success: false,
         data: [],
@@ -393,6 +490,7 @@ export async function getCloudCosts(
         error: "Organization API key not found. Please complete organization onboarding.",
       }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     let url = `${apiUrl}/api/v1/costs/${orgSlug}/cloud`
@@ -532,16 +630,16 @@ export async function getTotalCosts(
   error?: string
 }> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key to avoid redundant Supabase queries
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return {
         success: false,
         data: null,
         error: "Organization API key not found. Please complete organization onboarding.",
       }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     let url = `${apiUrl}/api/v1/costs/${orgSlug}/total`
@@ -651,10 +749,9 @@ export async function getCostTrend(
   error?: string
 }> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return {
         success: false,
         data: [],
@@ -662,6 +759,7 @@ export async function getCostTrend(
         error: "Organization API key not found.",
       }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const params = new URLSearchParams({
@@ -789,10 +887,9 @@ export async function getCostByProvider(
   error?: string
 }> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return {
         success: false,
         data: [],
@@ -800,6 +897,7 @@ export async function getCostByProvider(
         error: "Organization API key not found.",
       }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     let url = `${apiUrl}/api/v1/costs/${orgSlug}/by-provider`
@@ -951,10 +1049,9 @@ export async function getCostByService(
   error?: string
 }> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return {
         success: false,
         data: [],
@@ -962,6 +1059,7 @@ export async function getCostByService(
         error: "Organization API key not found.",
       }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     let url = `${apiUrl}/api/v1/costs/${orgSlug}/by-service`

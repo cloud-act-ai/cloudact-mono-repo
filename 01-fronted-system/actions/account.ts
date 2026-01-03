@@ -622,28 +622,12 @@ export async function requestAccountDeletion(): Promise<{
     }
     const deleteLink = `${appUrl}/api/account/delete?token=${token}`
 
-    // Try to send email
+    // Try to send email using standard template
     try {
-      const { sendEmail } = await import("@/lib/email")
-      await sendEmail({
-        to: user.email,
-        subject: "Confirm Account Deletion - CloudAct.ai",
-        html: `
-          <h2>Account Deletion Request</h2>
-          <p>You have requested to delete your CloudAct.ai account.</p>
-          <p><strong>This action is permanent and cannot be undone.</strong></p>
-          <p>All your data will be permanently deleted including:</p>
-          <ul>
-            <li>Your profile information</li>
-            <li>Organization memberships</li>
-            <li>Activity history</li>
-          </ul>
-          <p>If you want to proceed, click the link below within 30 minutes:</p>
-          <p><a href="${deleteLink}">Confirm Account Deletion</a></p>
-          <p>If you did not request this, you can safely ignore this email.</p>
-          <p>- The CloudAct.ai Team</p>
-        `,
-        text: `Account Deletion Request\n\nYou have requested to delete your CloudAct.ai account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
+      const { sendAccountDeletionEmail } = await import("@/lib/email")
+      await sendAccountDeletionEmail({
+        to: user.email!,
+        deleteLink,
       })
     } catch (emailError) {
       // Email send failed - non-critical, user can still access deletion link from logs

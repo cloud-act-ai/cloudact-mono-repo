@@ -10,7 +10,7 @@
  */
 
 import { logError } from "@/lib/utils"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getCachedApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -170,7 +170,7 @@ export async function getHierarchy(
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -218,7 +218,7 @@ export async function getHierarchyTree(
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -271,7 +271,7 @@ export async function createDepartment(
       return { success: false, error: "Invalid entity ID format" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -317,7 +317,7 @@ export async function createProject(
       return { success: false, error: "Invalid department ID format" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -363,7 +363,7 @@ export async function createTeam(
       return { success: false, error: "Invalid project ID format" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -412,7 +412,7 @@ export async function updateEntity(
       return { success: false, error: "Invalid entity ID format" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -463,7 +463,7 @@ export async function checkCanDelete(
       return { success: false, error: "Invalid entity ID format" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -510,7 +510,7 @@ export async function deleteEntity(
       return { success: false, error: "Invalid entity ID format" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -556,7 +556,7 @@ export async function importHierarchy(
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -610,7 +610,7 @@ export async function exportHierarchy(
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -647,7 +647,7 @@ export async function getHierarchyTemplate(
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const apiKey = await getCachedApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }

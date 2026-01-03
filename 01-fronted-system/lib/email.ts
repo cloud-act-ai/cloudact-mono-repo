@@ -249,11 +249,8 @@ function baseEmailLayout({
                     <a href="${BRAND.siteUrl}" style="text-decoration: none;">
                       <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="100" height="25" style="display: inline-block; max-width: 100px; height: auto; border: 0; margin-bottom: 8px;" />
                     </a>
-                    <p style="margin: 0 0 4px 0; font-size: 12px; color: ${BRAND.gray[500]};">
-                      Enterprise Cloud Cost Management
-                    </p>
-                    <p style="margin: 0; font-size: 12px;">
-                      <a href="${BRAND.siteUrl}" style="color: ${BRAND.mintDark}; text-decoration: none;">cloudact.ai</a>
+                    <p style="margin: 0; font-size: 12px; color: ${BRAND.gray[500]};">
+                      Enterprise GenAI, Cloud & Subscription Cost Management
                     </p>
                   </td>
                 </tr>
@@ -659,5 +656,434 @@ Reply to: ${email}
     replyTo: email, // Reply directly to the person who submitted
     category: "notification",
     preheader: `${inquiryLabel} inquiry from ${firstName} ${lastName} (${company || "No company"})`,
+  })
+}
+
+// =============================================
+// ACCOUNT DELETION EMAIL
+// =============================================
+export async function sendAccountDeletionEmail({
+  to,
+  deleteLink,
+}: {
+  to: string
+  deleteLink: string
+}): Promise<boolean> {
+  const content = `
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
+                You have requested to delete your CloudAct.AI account.
+              </p>
+              <div style="margin: 0 0 24px 0; padding: 20px; background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.error};">
+                <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #991b1b;">
+                  ⚠️ This action is permanent and cannot be undone.
+                </p>
+                <p style="margin: 0; font-size: 14px; color: #991b1b;">
+                  All your data will be permanently deleted including:
+                </p>
+                <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 14px; color: #991b1b;">
+                  <li>Your profile information</li>
+                  <li>Organization memberships</li>
+                  <li>Activity history</li>
+                </ul>
+              </div>
+              <p style="margin: 24px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
+                This link expires in 30 minutes. If you did not request this, you can safely ignore this email.
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Account Deletion Request",
+    content,
+    ctaText: "Confirm Account Deletion",
+    ctaLink: deleteLink,
+    ctaStyle: "coral",
+  })
+
+  return sendEmail({
+    to,
+    subject: "Confirm Account Deletion - CloudAct.AI",
+    html,
+    text: `Account Deletion Request\n\nYou have requested to delete your CloudAct.AI account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
+    category: "transactional",
+    preheader: "Confirm your account deletion request. This action cannot be undone.",
+  })
+}
+
+// =============================================
+// DEMO REQUEST EMAIL (Internal notification)
+// =============================================
+export async function sendDemoRequestEmail({
+  firstName,
+  lastName,
+  email,
+  company,
+  companySize,
+  role,
+  interests,
+  message,
+}: {
+  firstName: string
+  lastName: string
+  email: string
+  company: string
+  companySize?: string
+  role?: string
+  interests?: string[]
+  message?: string
+}): Promise<boolean> {
+  const safeFirstName = escapeHtml(firstName.trim())
+  const safeLastName = escapeHtml(lastName.trim())
+  const safeEmail = escapeHtml(email.trim())
+  const safeCompany = escapeHtml(company.trim())
+  const safeCompanySize = companySize ? escapeHtml(companySize) : "Not specified"
+  const safeRole = role ? escapeHtml(role) : "Not specified"
+  const safeInterests = interests?.map(i => escapeHtml(i)).join(", ") || "Not specified"
+  const safeMessage = message ? escapeHtml(message.trim()) : "No additional message"
+
+  const content = `
+              <div style="margin-bottom: 20px; padding: 16px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
+                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #92400e;">
+                  🔥 HIGH PRIORITY - Schedule within 24 hours
+                </p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Contact</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">
+                  <strong>${safeFirstName} ${safeLastName}</strong><br />
+                  <a href="mailto:${safeEmail}" style="color: ${BRAND.mintDark}; text-decoration: none;">${safeEmail}</a>
+                </p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Company</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeCompany}</p>
+              </div>
+
+              <div style="display: flex; gap: 24px; margin-bottom: 24px;">
+                <div style="flex: 1;">
+                  <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Company Size</p>
+                  <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeCompanySize}</p>
+                </div>
+                <div style="flex: 1;">
+                  <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Role</p>
+                  <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeRole}</p>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Areas of Interest</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeInterests}</p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Additional Notes</p>
+                <div style="padding: 16px; background-color: ${BRAND.gray[50]}; border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
+                  <p style="margin: 0; font-size: 15px; line-height: 1.6; color: ${BRAND.gray[700]}; white-space: pre-wrap;">${safeMessage}</p>
+                </div>
+              </div>`
+
+  const html = baseEmailLayout({
+    title: "New Demo Request",
+    content,
+    ctaText: `Schedule Demo with ${safeFirstName}`,
+    ctaLink: `mailto:${safeEmail}?subject=Your CloudAct.AI Demo - Let's Schedule!`,
+    ctaStyle: "mint",
+  })
+
+  const textContent = `
+New Demo Request - HIGH PRIORITY
+
+Contact: ${firstName} ${lastName}
+Email: ${email}
+Company: ${company}
+Company Size: ${companySize || "Not specified"}
+Role: ${role || "Not specified"}
+Areas of Interest: ${interests?.join(", ") || "Not specified"}
+
+Additional Notes:
+${message || "No additional message"}
+
+---
+Action: Schedule demo within 24 hours
+Reply to: ${email}
+  `.trim()
+
+  return sendEmail({
+    to: "sales@cloudact.ai",
+    subject: `[Demo Request] ${company} - ${firstName} ${lastName}`,
+    html,
+    text: textContent,
+    replyTo: email,
+    category: "notification",
+    preheader: `Demo request from ${firstName} ${lastName} at ${company}`,
+  })
+}
+
+// =============================================
+// JOB APPLICATION EMAIL (Internal notification)
+// =============================================
+export async function sendJobApplicationEmail({
+  firstName,
+  lastName,
+  email,
+  phone,
+  position,
+  linkedin,
+  github,
+  portfolio,
+  resumeFileName,
+  coverLetter,
+}: {
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  position: string
+  linkedin?: string
+  github?: string
+  portfolio?: string
+  resumeFileName?: string
+  coverLetter?: string
+}): Promise<boolean> {
+  const safeFirstName = escapeHtml(firstName.trim())
+  const safeLastName = escapeHtml(lastName.trim())
+  const safeEmail = escapeHtml(email.trim())
+  const safePhone = phone ? escapeHtml(phone) : "Not provided"
+  const safePosition = escapeHtml(position)
+  const safeLinkedin = linkedin ? escapeHtml(linkedin) : null
+  const safeGithub = github ? escapeHtml(github) : null
+  const safePortfolio = portfolio ? escapeHtml(portfolio) : null
+  const safeResume = resumeFileName ? escapeHtml(resumeFileName) : "Not attached"
+  const safeCoverLetter = coverLetter ? escapeHtml(coverLetter.trim()) : "Not provided"
+
+  const content = `
+              <div style="margin-bottom: 24px; padding: 20px; background-color: ${BRAND.gray[100]}; border-radius: 8px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Position</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: ${BRAND.gray[900]};">${safePosition}</p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Candidate</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">
+                  <strong>${safeFirstName} ${safeLastName}</strong><br />
+                  <a href="mailto:${safeEmail}" style="color: ${BRAND.mintDark}; text-decoration: none;">${safeEmail}</a><br />
+                  ${safePhone}
+                </p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Online Profiles</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.8; color: ${BRAND.gray[700]};">
+                  ${safeLinkedin ? `<a href="${safeLinkedin}" style="color: ${BRAND.mintDark};">LinkedIn</a>` : "LinkedIn: Not provided"}<br />
+                  ${safeGithub ? `<a href="${safeGithub}" style="color: ${BRAND.mintDark};">GitHub</a>` : "GitHub: Not provided"}<br />
+                  ${safePortfolio ? `<a href="${safePortfolio}" style="color: ${BRAND.mintDark};">Portfolio</a>` : "Portfolio: Not provided"}
+                </p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Resume</p>
+                <p style="margin: 0; font-size: 15px; color: ${BRAND.gray[700]};">${safeResume}</p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Cover Letter</p>
+                <div style="padding: 16px; background-color: ${BRAND.gray[50]}; border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
+                  <p style="margin: 0; font-size: 15px; line-height: 1.6; color: ${BRAND.gray[700]}; white-space: pre-wrap;">${safeCoverLetter}</p>
+                </div>
+              </div>`
+
+  const html = baseEmailLayout({
+    title: "New Job Application",
+    content,
+    ctaText: `Reply to ${safeFirstName}`,
+    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(position + " Application - CloudAct.AI")}`,
+    ctaStyle: "dark",
+  })
+
+  const textContent = `
+New Job Application
+
+Position: ${position}
+
+CANDIDATE INFORMATION
+---------------------
+Name: ${firstName} ${lastName}
+Email: ${email}
+Phone: ${phone || "Not provided"}
+
+ONLINE PROFILES
+---------------
+LinkedIn: ${linkedin || "Not provided"}
+GitHub: ${github || "Not provided"}
+Portfolio: ${portfolio || "Not provided"}
+
+RESUME
+------
+${resumeFileName || "Not attached"}
+
+COVER LETTER
+------------
+${coverLetter || "Not provided"}
+
+---
+Reply to: ${email}
+  `.trim()
+
+  return sendEmail({
+    to: "careers@cloudact.ai",
+    subject: `[Application] ${position}: ${firstName} ${lastName}`,
+    html,
+    text: textContent,
+    replyTo: email,
+    category: "notification",
+    preheader: `${position} application from ${firstName} ${lastName}`,
+  })
+}
+
+// =============================================
+// APPLICATION CONFIRMATION EMAIL
+// =============================================
+export async function sendApplicationConfirmationEmail({
+  to,
+  firstName,
+  position,
+}: {
+  to: string
+  firstName: string
+  position: string
+}): Promise<boolean> {
+  const safeFirstName = escapeHtml(firstName.trim())
+  const safePosition = escapeHtml(position)
+
+  const content = `
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
+                Hi ${safeFirstName},
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
+                Thank you for applying for the <strong>${safePosition}</strong> position at CloudAct.AI! We've received your application and our hiring team will review it carefully.
+              </p>
+
+              <div style="margin: 0 0 24px 0; padding: 20px; background-color: ${BRAND.gray[100]}; border-radius: 8px;">
+                <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: ${BRAND.gray[900]};">What's next?</p>
+                <ul style="margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: ${BRAND.gray[700]};">
+                  <li>We'll review your application within 48 hours</li>
+                  <li>If there's a good fit, we'll reach out to schedule an interview</li>
+                  <li>Either way, you'll hear back from us</li>
+                </ul>
+              </div>
+
+              <p style="margin: 0; font-size: 14px; color: ${BRAND.gray[500]};">
+                If you have any questions, reach out to us at <a href="mailto:careers@cloudact.ai" style="color: ${BRAND.mintDark}; text-decoration: none;">careers@cloudact.ai</a>.
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Application Received!",
+    content,
+    ctaText: "Explore Our Culture",
+    ctaLink: "https://cloudact.ai/about",
+    ctaStyle: "mint",
+  })
+
+  return sendEmail({
+    to,
+    subject: `Application Received: ${position} at CloudAct.AI`,
+    html,
+    text: `Hi ${firstName}, Thank you for applying for the ${position} position at CloudAct.AI! We've received your application and our hiring team will review it within 48 hours. You'll hear back from us either way.`,
+    category: "transactional",
+    preheader: `We received your application for ${position}. Here's what happens next.`,
+  })
+}
+
+// =============================================
+// NEWSLETTER NOTIFICATION EMAIL (Internal)
+// =============================================
+export async function sendNewsletterNotificationEmail({
+  email,
+  source,
+}: {
+  email: string
+  source?: string
+}): Promise<boolean> {
+  const safeEmail = escapeHtml(email.trim())
+  const safeSource = source ? escapeHtml(source) : "Website"
+
+  const content = `
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Email</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">
+                  <a href="mailto:${safeEmail}" style="color: ${BRAND.mintDark}; text-decoration: none;">${safeEmail}</a>
+                </p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Source</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeSource}</p>
+              </div>
+
+              <div style="margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Subscribed At</p>
+                <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${new Date().toISOString()}</p>
+              </div>
+
+              <div style="padding: 16px; background-color: rgba(144, 252, 166, 0.15); border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
+                <p style="margin: 0; font-size: 14px; color: #047857;">
+                  <strong>Action:</strong> Add to newsletter list in your email marketing platform.
+                </p>
+              </div>`
+
+  const html = baseEmailLayout({
+    title: "New Newsletter Subscriber",
+    content,
+  })
+
+  return sendEmail({
+    to: "marketing@cloudact.ai",
+    subject: `[Newsletter] New Subscriber: ${email}`,
+    html,
+    text: `New Newsletter Subscriber\n\nEmail: ${email}\nSource: ${source || "Website"}\nSubscribed At: ${new Date().toISOString()}\n\nAction: Add to newsletter list.`,
+    category: "notification",
+    preheader: `New subscriber: ${email}`,
+  })
+}
+
+// =============================================
+// NEWSLETTER WELCOME EMAIL
+// =============================================
+export async function sendNewsletterWelcomeEmail({
+  to,
+}: {
+  to: string
+}): Promise<boolean> {
+  const content = `
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
+                Thanks for subscribing to our newsletter! You'll receive weekly insights on:
+              </p>
+
+              <ul style="margin: 0 0 24px 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: ${BRAND.gray[700]};">
+                <li>Cloud cost optimization strategies</li>
+                <li>GenAI spending best practices</li>
+                <li>FinOps industry trends</li>
+                <li>Product updates and new features</li>
+              </ul>
+
+              <p style="margin: 24px 0 0 0; font-size: 14px; color: ${BRAND.gray[500]};">
+                You can unsubscribe at any time by clicking the link at the bottom of any email.
+              </p>`
+
+  const html = baseEmailLayout({
+    title: "Welcome to CloudAct.AI!",
+    content,
+    ctaText: "Explore Our Resources",
+    ctaLink: "https://cloudact.ai/resources",
+    ctaStyle: "mint",
+  })
+
+  return sendEmail({
+    to,
+    subject: "Welcome to CloudAct.AI Newsletter!",
+    html,
+    text: "Thanks for subscribing to the CloudAct.AI newsletter! You'll receive weekly insights on cloud cost optimization, GenAI spending, and FinOps best practices.",
+    category: "marketing",
+    preheader: "Welcome! Get weekly insights on cloud cost optimization and FinOps.",
   })
 }

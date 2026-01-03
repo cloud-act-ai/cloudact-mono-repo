@@ -27,7 +27,7 @@ from typing import Dict, List, Any, Optional
 from calendar import monthrange
 
 # Configuration
-ORG_SLUG = "india_inc_01022026"
+ORG_SLUG = "acme_inc_01022026"
 RANDOM_SEED = 42  # For reproducibility
 
 # Output directories
@@ -101,32 +101,33 @@ SUMMER_DIP_MULTIPLIER = 0.6  # Lower usage during vacation week
 # GenAI Provider Configurations
 # =============================================================================
 
+# INCREASED 50x for realistic enterprise GenAI spend (~$30-50K/year)
 GENAI_PROVIDERS = {
     "openai": {
         "models": [
-            {"model": "gpt-4o", "model_family": "gpt-4o", "input_base": 2000000, "output_base": 400000, "cached_ratio": 0.3},
-            {"model": "gpt-4o-mini", "model_family": "gpt-4o", "input_base": 3000000, "output_base": 600000, "cached_ratio": 0.25},
-            {"model": "gpt-4-turbo", "model_family": "gpt-4", "input_base": 1000000, "output_base": 200000, "cached_ratio": 0.2},
-            {"model": "gpt-3.5-turbo", "model_family": "gpt-3.5", "input_base": 5000000, "output_base": 1000000, "cached_ratio": 0.1},
-            {"model": "text-embedding-3-large", "model_family": "embedding", "input_base": 8000000, "output_base": 0, "cached_ratio": 0},
+            {"model": "gpt-4o", "model_family": "gpt-4o", "input_base": 100000000, "output_base": 20000000, "cached_ratio": 0.3},  # 50x
+            {"model": "gpt-4o-mini", "model_family": "gpt-4o", "input_base": 150000000, "output_base": 30000000, "cached_ratio": 0.25},  # 50x
+            {"model": "gpt-4-turbo", "model_family": "gpt-4", "input_base": 50000000, "output_base": 10000000, "cached_ratio": 0.2},  # 50x
+            {"model": "gpt-3.5-turbo", "model_family": "gpt-3.5", "input_base": 250000000, "output_base": 50000000, "cached_ratio": 0.1},  # 50x
+            {"model": "text-embedding-3-large", "model_family": "embedding", "input_base": 400000000, "output_base": 0, "cached_ratio": 0},  # 50x
         ],
         "credential_id": "cred_openai_demo_001",
         "pipeline_id": "genai_payg_openai",
     },
     "anthropic": {
         "models": [
-            {"model": "claude-3-5-sonnet-20241022", "model_family": "claude-3.5", "input_base": 2500000, "output_base": 500000, "cached_ratio": 0.35},
-            {"model": "claude-3-opus-20240229", "model_family": "claude-3", "input_base": 800000, "output_base": 150000, "cached_ratio": 0.25},
-            {"model": "claude-3-haiku-20240307", "model_family": "claude-3", "input_base": 4000000, "output_base": 800000, "cached_ratio": 0.2},
+            {"model": "claude-3-5-sonnet-20241022", "model_family": "claude-3.5", "input_base": 125000000, "output_base": 25000000, "cached_ratio": 0.35},  # 50x
+            {"model": "claude-3-opus-20240229", "model_family": "claude-3", "input_base": 40000000, "output_base": 7500000, "cached_ratio": 0.25},  # 50x
+            {"model": "claude-3-haiku-20240307", "model_family": "claude-3", "input_base": 200000000, "output_base": 40000000, "cached_ratio": 0.2},  # 50x
         ],
         "credential_id": "cred_anthropic_demo_001",
         "pipeline_id": "genai_payg_anthropic",
     },
     "gemini": {
         "models": [
-            {"model": "gemini-1.5-pro", "model_family": "gemini-1.5", "input_base": 1500000, "output_base": 300000, "cached_ratio": 0.2},
-            {"model": "gemini-1.5-flash", "model_family": "gemini-1.5", "input_base": 3500000, "output_base": 700000, "cached_ratio": 0.15},
-            {"model": "gemini-1.0-pro", "model_family": "gemini-1.0", "input_base": 1000000, "output_base": 200000, "cached_ratio": 0.1},
+            {"model": "gemini-1.5-pro", "model_family": "gemini-1.5", "input_base": 75000000, "output_base": 15000000, "cached_ratio": 0.2},  # 50x
+            {"model": "gemini-1.5-flash", "model_family": "gemini-1.5", "input_base": 175000000, "output_base": 35000000, "cached_ratio": 0.15},  # 50x
+            {"model": "gemini-1.0-pro", "model_family": "gemini-1.0", "input_base": 50000000, "output_base": 10000000, "cached_ratio": 0.1},  # 50x
         ],
         "credential_id": "cred_gemini_demo_001",
         "pipeline_id": "genai_payg_gemini",

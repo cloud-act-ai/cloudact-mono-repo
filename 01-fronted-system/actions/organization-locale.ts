@@ -255,9 +255,9 @@ async function syncLocaleToBackend(
     return { success: true } // Skip if no backend configured
   }
 
-  // Get org API key
-  const { getOrgApiKeySecure } = await import("./backend-onboarding")
-  const orgApiKey = await getOrgApiKeySecure(orgSlug)
+  // Get org API key (cached)
+  const { getCachedApiKey } = await import("@/lib/auth-cache")
+  const orgApiKey = await getCachedApiKey(orgSlug)
 
   if (!orgApiKey) {
     return {
@@ -387,8 +387,8 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
       return { inSync: true, supabase: supabaseLocale } // No backend to check
     }
 
-    const { getOrgApiKeySecure } = await import("./backend-onboarding")
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    const { getCachedApiKey } = await import("@/lib/auth-cache")
+    const orgApiKey = await getCachedApiKey(orgSlug)
 
     if (!orgApiKey) {
       return { inSync: true, supabase: supabaseLocale } // No API key, can't check backend

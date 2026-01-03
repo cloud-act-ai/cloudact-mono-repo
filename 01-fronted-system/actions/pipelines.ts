@@ -15,7 +15,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { BackendClient, PipelineConfig, PipelineRunsResponse, PipelineRunDetail } from "@/lib/api/backend"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getCachedApiKey } from "@/lib/auth-cache"
 import { pipelineRunParamsSchema, pipelineRunWithDateSchema, validateInput } from "@/lib/validation/schemas"
 
 // ============================================
@@ -393,7 +393,7 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
  */
 async function getOrgApiKey(orgSlug: string): Promise<string | null> {
   // Get from secure server-side storage (NOT user_metadata)
-  return await getOrgApiKeySecure(orgSlug)
+  return await getCachedApiKey(orgSlug)
 }
 
 // ============================================

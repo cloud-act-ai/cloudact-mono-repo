@@ -7,15 +7,13 @@
  * Uses the notification settings API endpoints from the backend.
  */
 
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getAuthWithApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
   safeJsonParse,
   extractErrorMessage,
-  isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
 
 // ============================================
@@ -293,66 +291,7 @@ export interface ActionResponse<T> {
   error?: string
 }
 
-// ============================================
-// Auth Helpers
-// ============================================
-
-const isValidOrgSlug = isValidOrgSlugHelper
-
-interface AuthResult {
-  user: { id: string; user_metadata?: Record<string, unknown> }
-  orgId: string
-  role: string
-}
-
-async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
-  if (!isValidOrgSlug(orgSlug)) {
-    throw new Error("Invalid organization slug")
-  }
-
-  const supabase = await createClient()
-  const adminClient = createServiceRoleClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error("Not authenticated")
-  }
-
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id")
-    .eq("org_slug", orgSlug)
-    .single()
-
-  if (orgError) {
-    if (orgError.code === "PGRST116") {
-      throw new Error("Organization not found")
-    }
-    throw new Error(`Database error: ${orgError.message}`)
-  }
-
-  if (!org) {
-    throw new Error("Organization not found")
-  }
-
-  const { data: membership, error: membershipError } = await adminClient
-    .from("organization_members")
-    .select("role")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (membershipError && membershipError.code !== "PGRST116") {
-    throw new Error(`Database error: ${membershipError.message}`)
-  }
-
-  if (!membership) {
-    throw new Error("Not a member of this organization")
-  }
-
-  return { user, orgId: org.id, role: membership.role }
-}
+// Auth is now handled by shared @/lib/auth-cache module
 
 // ============================================
 // Channel Actions
@@ -364,12 +303,12 @@ export async function listNotificationChannels(
   activeOnly?: boolean
 ): Promise<ActionResponse<NotificationChannel[]>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const params = new URLSearchParams()
@@ -399,12 +338,12 @@ export async function createNotificationChannel(
   channel: NotificationChannelCreate
 ): Promise<ActionResponse<NotificationChannel>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -437,12 +376,12 @@ export async function updateNotificationChannel(
   update: NotificationChannelUpdate
 ): Promise<ActionResponse<NotificationChannel>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -474,12 +413,12 @@ export async function deleteNotificationChannel(
   channelId: string
 ): Promise<ActionResponse<void>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -506,12 +445,12 @@ export async function testNotificationChannel(
   channelId: string
 ): Promise<ActionResponse<{ message: string }>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -545,12 +484,12 @@ export async function listNotificationRules(
   activeOnly?: boolean
 ): Promise<ActionResponse<NotificationRule[]>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const params = new URLSearchParams()
@@ -581,12 +520,12 @@ export async function createNotificationRule(
   rule: NotificationRuleCreate
 ): Promise<ActionResponse<NotificationRule>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -619,12 +558,12 @@ export async function updateNotificationRule(
   update: NotificationRuleUpdate
 ): Promise<ActionResponse<NotificationRule>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -656,12 +595,12 @@ export async function deleteNotificationRule(
   ruleId: string
 ): Promise<ActionResponse<void>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -688,12 +627,12 @@ export async function pauseNotificationRule(
   ruleId: string
 ): Promise<ActionResponse<NotificationRule>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -721,12 +660,12 @@ export async function resumeNotificationRule(
   ruleId: string
 ): Promise<ActionResponse<NotificationRule>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -759,12 +698,12 @@ export async function listNotificationSummaries(
   activeOnly?: boolean
 ): Promise<ActionResponse<NotificationSummary[]>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const params = new URLSearchParams()
@@ -794,12 +733,12 @@ export async function createNotificationSummary(
   summary: NotificationSummaryCreate
 ): Promise<ActionResponse<NotificationSummary>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -832,12 +771,12 @@ export async function updateNotificationSummary(
   update: NotificationSummaryUpdate
 ): Promise<ActionResponse<NotificationSummary>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -869,12 +808,12 @@ export async function deleteNotificationSummary(
   summaryId: string
 ): Promise<ActionResponse<void>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -901,12 +840,12 @@ export async function sendNotificationSummaryNow(
   summaryId: string
 ): Promise<ActionResponse<{ message: string }>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -945,12 +884,12 @@ export async function listNotificationHistory(
   }
 ): Promise<ActionResponse<NotificationHistoryEntry[]>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const params = new URLSearchParams()
@@ -984,12 +923,12 @@ export async function acknowledgeNotification(
   notificationId: string
 ): Promise<ActionResponse<NotificationHistoryEntry>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(
@@ -1020,12 +959,12 @@ export async function getNotificationStats(
   orgSlug: string
 ): Promise<ActionResponse<NotificationStats>> {
   try {
-    await requireOrgMembership(orgSlug)
-
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
+    const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
     const response = await fetchWithTimeout(

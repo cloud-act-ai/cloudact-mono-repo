@@ -3,6 +3,8 @@ price_openai_gpt4o,openai,gpt-4o,GPT-4o,false,0.0025,0.01,2024-11-01,,true,Lates
 price_openai_gpt4o_mini,openai,gpt-4o-mini,GPT-4o Mini,false,0.00015,0.0006,2024-11-01,,true,Smaller GPT-4o variant,,,,0.000075,0.0003,standard,,,,,,,
 price_openai_gpt4_turbo,openai,gpt-4-turbo,GPT-4 Turbo,false,0.01,0.03,2024-11-01,,true,GPT-4 Turbo with vision,,,,0.005,0.015,standard,,,,,,,
 price_openai_gpt35_turbo,openai,gpt-3.5-turbo,GPT-3.5 Turbo,false,0.0005,0.0015,2024-11-01,,true,Fast and efficient,,,,0.00025,0.00075,standard,,,,,,,
+price_openai_text_embed_3_large,openai,text-embedding-3-large,Text Embedding 3 Large,false,0.00013,0.0,2024-11-01,,true,Large embedding model,,,,,0.0,standard,,,,,,,
+price_openai_text_embed_3_small,openai,text-embedding-3-small,Text Embedding 3 Small,false,0.00002,0.0,2024-11-01,,true,Small embedding model,,,,,0.0,standard,,,,,,,
 price_openai_o1,openai,o1,O1,false,0.015,0.06,2024-11-01,,true,Advanced reasoning model,,,,0.0075,0.03,standard,,,,,,,
 price_openai_o1_mini,openai,o1-mini,O1 Mini,false,0.003,0.012,2024-11-01,,true,Smaller O1 variant,,,,0.0015,0.006,standard,,,,,,,
 price_openai_o3_mini,openai,o3-mini,O3 Mini,false,0.00115,0.0044,2024-11-01,,true,Latest O3 mini model,,,,0.000575,0.0022,standard,,,,,,,
@@ -16,3 +18,4 @@ price_gemini_20_flash_lite,gemini,gemini-2.0-flash-lite,Gemini 2.0 Flash Lite,fa
 price_gemini_15_pro,gemini,gemini-1.5-pro,Gemini 1.5 Pro,false,0.00125,0.005,2024-11-01,,true,Most capable Gemini 1.5,2M,,,,standard,50000000,50000000,daily,,,,
 price_gemini_15_flash,gemini,gemini-1.5-flash,Gemini 1.5 Flash,false,0.000075,0.0003,2024-11-01,,true,Fast Gemini 1.5,1M,,,,standard,1000000000,1000000000,daily,,,,
 price_gemini_15_flash_8b,gemini,gemini-1.5-flash-8b,Gemini 1.5 Flash 8B,false,0.0000375,0.00015,2024-11-01,,true,Smallest Gemini 1.5,1M,,,,standard,1000000000,1000000000,daily,,,,
+price_gemini_10_pro,gemini,gemini-1.0-pro,Gemini 1.0 Pro,false,0.0005,0.0015,2024-11-01,,true,Original Gemini Pro model,32K,,,,standard,,,,,,,,
