@@ -191,6 +191,91 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("KMS validation failed - encryption may not work properly (DEV/STAGING only)")
 
+    # Auto-sync stored procedures on startup (if enabled)
+    # Creates/updates procedures in organizations dataset from SQL files
+    if settings.auto_sync_procedures:
+        try:
+            from pathlib import Path
+            from google.cloud import bigquery
+
+            bq_client = get_bigquery_client()
+            project_id = settings.gcp_project_id
+
+            # Check if organizations dataset exists
+            dataset_id = f"{project_id}.organizations"
+            try:
+                bq_client.client.get_dataset(dataset_id)
+            except Exception:
+                logger.info("Auto-sync procedures skipped: organizations dataset not found (bootstrap not run yet)")
+            else:
+                # Discover procedure files
+                procedures_dir = Path(__file__).parent.parent.parent / "configs" / "system" / "procedures"
+
+                if procedures_dir.exists():
+                    procedures_synced = []
+                    procedures_created = []
+                    procedures_failed = []
+
+                    # Find all SQL files in subdirectories (skip migrations/)
+                    for subdir in procedures_dir.iterdir():
+                        if not subdir.is_dir() or subdir.name == "migrations":
+                            continue
+
+                        for sql_file in subdir.glob("*.sql"):
+                            proc_name = sql_file.stem
+
+                            try:
+                                # Load SQL and replace {project_id}
+                                with open(sql_file, 'r') as f:
+                                    sql = f.read().replace("{project_id}", project_id)
+
+                                # Check if procedure exists
+                                check_query = f"""
+                                SELECT routine_name
+                                FROM `{project_id}.organizations.INFORMATION_SCHEMA.ROUTINES`
+                                WHERE routine_name = '{proc_name}' AND routine_type = 'PROCEDURE'
+                                """
+                                results = list(bq_client.client.query(check_query).result())
+                                exists = len(results) > 0
+
+                                if not exists:
+                                    # Create procedure
+                                    bq_client.client.query(sql).result()
+                                    procedures_created.append(proc_name)
+                                    logger.debug(f"Created procedure: {proc_name}")
+                                else:
+                                    procedures_synced.append(proc_name)
+
+                            except Exception as e:
+                                procedures_failed.append({"name": proc_name, "error": str(e)[:100]})
+                                logger.warning(f"Auto-sync procedures: Failed to sync {proc_name}: {e}")
+
+                    # Log summary
+                    if procedures_created:
+                        logger.info(
+                            f"Auto-sync procedures: Created {len(procedures_created)} new procedures",
+                            extra={"procedures_created": procedures_created}
+                        )
+                        for proc in procedures_created:
+                            logger.info(f"  + {proc}")
+
+                    if procedures_synced:
+                        logger.info(f"Auto-sync procedures: {len(procedures_synced)} procedures already exist")
+
+                    if procedures_failed:
+                        logger.warning(f"Auto-sync procedures: {len(procedures_failed)} procedures failed to sync")
+
+                    if not procedures_created and not procedures_failed:
+                        logger.info("Auto-sync procedures: All procedures in sync")
+                else:
+                    logger.debug("Auto-sync procedures: Procedures directory not found")
+
+        except Exception as e:
+            logger.error(f"Auto-sync procedures failed: {e}", exc_info=True)
+            logger.warning("Continuing startup despite auto-sync procedures failure")
+    else:
+        logger.info("Auto-sync procedures disabled (AUTO_SYNC_PROCEDURES=false)")
+
     # Initialize OpenTelemetry if enabled
     # Check both settings and environment variable
     enable_tracing = settings.enable_tracing and os.getenv("ENABLE_TRACING", "true").lower() == "true"

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { getOrgSlug } from "@/lib/utils"
@@ -69,7 +69,16 @@ export default function CostOverviewPage() {
     setUnifiedFilters,
     getFilteredTimeSeries,
     getFilteredProviderBreakdown,
+    getFilteredCategoryBreakdown,
+    getFilteredGranularData,
   } = useCostData()
+
+  // CROSS-PAGE-FIX: Reset provider/category filters on unmount to prevent cross-page persistence
+  useEffect(() => {
+    return () => {
+      setUnifiedFilters({ providers: undefined, categories: undefined })
+    }
+  }, [setUnifiedFilters])
 
   // Extract time range from unified filters
   const timeRange = contextFilters.timeRange
@@ -116,10 +125,16 @@ export default function CostOverviewPage() {
     return cachedProviders.map(p => p.provider)
   }, [cachedProviders])
 
-  // Handle filter changes - triggers data reload via loadData dependency
+  // Handle filter changes - sync to unified context for provider/category filters
+  // FILTER-008 FIX: Sync local filters to context for consistent filtering
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
-  }, [])
+    // Sync provider and category filters to unified context
+    setUnifiedFilters({
+      providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
+      categories: newFilters.categories.length > 0 ? newFilters.categories as ("genai" | "cloud" | "subscription")[] : undefined,
+    })
+  }, [setUnifiedFilters])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -270,8 +285,8 @@ export default function CostOverviewPage() {
     })
   }, [providers])
 
-  // Ring chart segments - shows filtered providers when filter active, otherwise category breakdown
-  // Uses centralized design tokens for consistent colors
+  // Ring chart segments - uses TIME-FILTERED category breakdown
+  // BUG-001 FIX: Use getFilteredCategoryBreakdown() to respect time range filter
   const ringSegments = useMemo(() => {
     // When provider filter is active, show filtered providers in ring
     if (hasProviderFilter && filteredProviders.length > 0) {
@@ -286,19 +301,19 @@ export default function CostOverviewPage() {
         }))
     }
 
-    // No filter - show category breakdown using actual billed costs
-    const genaiCost = totalSummary?.genai?.total_billed_cost ?? 0
-    const cloudCost = totalSummary?.cloud?.total_billed_cost ?? 0
-    const subscriptionCost = totalSummary?.subscription?.total_billed_cost ?? 0
+    // BUG-001 FIX: Use time-filtered category breakdown instead of 365-day totals
+    const categoryBreakdown = getFilteredCategoryBreakdown()
+    const categoryMap = new Map(categoryBreakdown.map(c => [c.category.toLowerCase(), c.total_cost]))
 
     return [
-      { key: "genai", name: "GenAI", value: genaiCost, color: CATEGORY_COLORS.genai },
-      { key: "cloud", name: "Cloud", value: cloudCost, color: CATEGORY_COLORS.cloud },
-      { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: CATEGORY_COLORS.subscription },
+      { key: "genai", name: "GenAI", value: categoryMap.get("genai") ?? 0, color: CATEGORY_COLORS.genai },
+      { key: "cloud", name: "Cloud", value: categoryMap.get("cloud") ?? 0, color: CATEGORY_COLORS.cloud },
+      { key: "subscription", name: "Subscriptions", value: categoryMap.get("subscription") ?? 0, color: CATEGORY_COLORS.subscription },
     ].filter(s => s.value > 0)
-  }, [totalSummary, hasProviderFilter, filteredProviders])
+  }, [getFilteredCategoryBreakdown, hasProviderFilter, filteredProviders])
 
   // Helper to filter providers by category using availableFilters
+  // FILTER-008 FIX: Use filteredProviders (respects provider filter) instead of cachedProviders
   const getProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
     // Use availableFilters to get category info from backend
     const categoryProviderIds = new Set(
@@ -306,11 +321,13 @@ export default function CostOverviewPage() {
         .filter(p => p.category === category)
         .map(p => p.id.toLowerCase())
     )
-    // Filter cachedProviders by category
-    return cachedProviders.filter(p =>
+    // FILTER-008 FIX: Use filteredProviders to respect provider filter selection
+    // When provider filter is active, only show providers that match BOTH the category AND the filter
+    const sourceProviders = hasProviderFilter ? filteredProviders : cachedProviders
+    return sourceProviders.filter(p =>
       categoryProviderIds.has(p.provider.toLowerCase())
     )
-  }, [availableFilters.providers, cachedProviders])
+  }, [availableFilters.providers, cachedProviders, filteredProviders, hasProviderFilter])
 
   // Top 5 Cost Drivers by Category (using unified filter data)
   const top5GenAI = useMemo(() => {

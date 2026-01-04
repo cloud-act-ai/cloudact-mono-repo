@@ -439,7 +439,9 @@ export function CostFilters({
           <PopoverContent className="w-56 p-2" align="start">
             <div className="space-y-1 max-h-64 overflow-y-auto">
               {availableProviders.map((provider) => {
-                const isSelected = value.providers.includes(provider)
+                // FILTER-007 FIX: Use case-insensitive matching for consistency with toggle
+                const providerLower = provider.toLowerCase()
+                const isSelected = value.providers.some(p => p.toLowerCase() === providerLower)
                 return (
                   <button
                     key={provider}

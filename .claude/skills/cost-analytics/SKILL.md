@@ -402,6 +402,183 @@ GROUP BY x_source_system;
 | Charts show NaN | Division by zero | Fixed with `Number.isFinite()` guards |
 | Custom range slow | Beyond 365-day cache | Expected - requires new API call |
 
+---
+
+## Bug Fixes Applied (2026-01-04)
+
+Production-ready bug fixes applied to cost analytics system. All fixes verified with TypeScript build passing.
+
+### CRITICAL Fixes
+
+#### CTX-002: Category Filter Persistence Across Pages
+**Files:** `genai-costs/page.tsx`, `cloud-costs/page.tsx`, `subscription-costs/page.tsx`
+**Issue:** Category filter (e.g., `["genai"]`) persisted after navigating away from category-specific pages, causing Overview page to show only that category's data.
+**Fix:** Added cleanup function in `useEffect` to reset categories on unmount.
+
+```typescript
+// genai-costs/page.tsx (and other category pages)
+useEffect(() => {
+  setUnifiedFilters({ categories: ["genai"] })
+  // CTX-002 FIX: Cleanup resets categories on unmount
+  return () => {
+    setUnifiedFilters({ categories: undefined })
+  }
+}, [setUnifiedFilters])
+```
+
+#### AUTH-001: Cross-User Auth Cache Leakage
+**File:** `actions/costs.ts`
+**Issue:** Module-level auth cache used only `orgSlug` as key. If User A fetched data for "acme", User B could get User A's auth context if they also accessed "acme" within 5 seconds.
+**Fix:** Changed cache key from `orgSlug` to `userId:orgSlug`.
+
+```typescript
+// actions/costs.ts
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    return user?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+async function getCachedAuthContext(orgSlug: string) {
+  const currentUserId = await getCurrentUserId()
+  if (!currentUserId) return null
+  // AUTH-001 FIX: Cache key includes userId
+  const cacheKey = `${currentUserId}:${orgSlug}`
+  // ...rest of function
+}
+```
+
+### HIGH Severity Fixes
+
+#### CTX-005: Stale Closure in setUnifiedFilters
+**File:** `contexts/cost-data-context.tsx`
+**Issue:** When L1_NO_CACHE path called `fetchCostData()`, it read OLD `state.filters` due to JavaScript closure semantics. Hierarchy filters weren't sent to API.
+**Fix:** Added `filtersOverride` parameter to `fetchCostData()` to pass updated filters directly.
+
+```typescript
+// cost-data-context.tsx
+const fetchCostData = useCallback(async (
+  clearBackendCache: boolean = false,
+  filtersOverride?: UnifiedFilters  // CTX-005 FIX
+) => {
+  // Use override if provided to avoid stale closure
+  const effectiveFilters = filtersOverride ?? state.filters
+  const { departmentId, projectId, teamId } = effectiveFilters
+  // ...
+}, [orgSlug, state.filters])
+
+// In setUnifiedFilters:
+const decision = getL1CacheDecision(updatedFilters, cachedDateRange, hasGranularData)
+if (decision === "L1_NO_CACHE") {
+  // CTX-005 FIX: Pass updatedFilters directly
+  await fetchCostData(false, updatedFilters)
+}
+```
+
+#### DATE-001: Timezone Boundary Issues in filterGranularByDateRange
+**File:** `lib/costs/filters.ts`
+**Issue:** Date comparison using `new Date()` objects caused timezone-dependent filtering. User in IST selecting "Jan 5" might get different results than user in PST.
+**Fix:** Changed to string comparison (YYYY-MM-DD format) which is timezone-agnostic.
+
+```typescript
+// lib/costs/filters.ts
+export function filterGranularByDateRange(data: GranularCostRow[], range: DateRange): GranularCostRow[] {
+  if (!data?.length || !range?.start || !range?.end) return data ?? []
+  // DATE-001 FIX: String comparison for timezone safety
+  const startDateStr = range.start.toISOString().split("T")[0]
+  const endDateStr = range.end.toISOString().split("T")[0]
+  return data.filter(row => {
+    if (!row.date) return false
+    return row.date >= startDateStr && row.date <= endDateStr
+  })
+}
+```
+
+### MEDIUM Severity Fixes
+
+#### DATE-002: CostRecord Date Filtering Timezone Issue
+**File:** `lib/costs/filters.ts`
+**Issue:** `filterByDateRange` for `CostRecord[]` used Date object comparison, causing same timezone issues as DATE-001.
+**Fix:** Changed to string-based comparison for `ChargePeriodStart`.
+
+```typescript
+// lib/costs/filters.ts
+export function filterByDateRange(records: CostRecord[], range: DateRange): CostRecord[] {
+  if (!records || !Array.isArray(records)) return []
+  if (!range || !range.start || !range.end) return records
+  // DATE-002 FIX: String comparison for consistent timezone behavior
+  const startDateStr = range.start.toISOString().split("T")[0]
+  const endDateStr = range.end.toISOString().split("T")[0]
+  return records.filter((r) => {
+    if (!r.ChargePeriodStart) return false
+    const recordDateStr = r.ChargePeriodStart.split("T")[0]
+    return recordDateStr >= startDateStr && recordDateStr <= endDateStr
+  })
+}
+```
+
+### LOW Severity Fixes
+
+#### FILTER-007: Provider Selection Case Sensitivity
+**File:** `components/costs/cost-filters.tsx`
+**Issue:** Provider `isSelected` check was case-sensitive (`includes(provider)`) but toggle used lowercase. "OpenAI" in dropdown wouldn't match "openai" in state.
+**Fix:** Changed to case-insensitive matching using `.some()`.
+
+```typescript
+// cost-filters.tsx
+{availableProviders.map((provider) => {
+  // FILTER-007 FIX: Case-insensitive matching
+  const providerLower = provider.toLowerCase()
+  const isSelected = value.providers.some(p => p.toLowerCase() === providerLower)
+  return (
+    <DropdownMenuCheckboxItem
+      key={provider}
+      checked={isSelected}
+      onCheckedChange={(checked) => handleProviderToggle(provider, checked)}
+    >
+      {provider}
+    </DropdownMenuCheckboxItem>
+  )
+})}
+```
+
+---
+
+## Validation Checklist
+
+After bug fixes, verify:
+
+- [ ] Navigate GenAI → Overview: Overview shows ALL categories (not just GenAI)
+- [ ] Navigate Cloud → Subscription: Each page shows only its category
+- [ ] Switch users in same browser: Each user gets their own auth context
+- [ ] Change hierarchy filter: API call includes correct dept/project/team IDs
+- [ ] Select date range across timezones: Same dates filter same data
+- [ ] Toggle provider with mixed case: Selection state syncs correctly
+
+---
+
+## Bug Fix Verification Commands
+
+```bash
+# 1. TypeScript build must pass
+cd 01-fronted-system && npm run build
+
+# 2. Run frontend tests
+cd 01-fronted-system && npm run test
+
+# 3. Check for console errors
+# Open browser DevTools → Console, navigate through all 4 cost pages
+
+# 4. Test category persistence
+# 1. Go to /[org]/cost-dashboards/genai-costs
+# 2. Navigate to /[org]/cost-dashboards/overview
+# 3. Verify Overview shows ALL cost types (not just GenAI)
+```
+
 ## Performance Characteristics
 
 | Operation | Latency | Cache Layer |

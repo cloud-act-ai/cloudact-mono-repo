@@ -346,10 +346,44 @@ trend = "up" if change > 0.01 else "down" if change < -0.01 else "flat"
 - X-API-Key header required
 - Org API key validates against `org_api_keys` table
 - Rate limiting: 60 requests/min per org per endpoint
+- **AUTH-001 FIX:** Auth cache key includes `userId:orgSlug` to prevent cross-user leakage
 
 ### Injection Prevention
 - All queries use parameterized values
 - org_slug validated: `^[a-zA-Z0-9_]{3,50}$`
+
+---
+
+## Bug Fixes Applied (2026-01-04)
+
+Production-critical fixes for cost analytics. All fixes verified with TypeScript build passing.
+
+| Bug ID | Severity | File | Issue | Fix |
+|--------|----------|------|-------|-----|
+| CTX-002 | CRITICAL | `*-costs/page.tsx` | Category filter persisted across pages | Added useEffect cleanup |
+| AUTH-001 | CRITICAL | `actions/costs.ts` | Cross-user auth cache leakage | Cache key = `userId:orgSlug` |
+| CTX-005 | HIGH | `cost-data-context.tsx` | Stale closure in setUnifiedFilters | Added `filtersOverride` param |
+| DATE-001 | HIGH | `lib/costs/filters.ts` | Timezone issues in filterGranularByDateRange | String comparison |
+| DATE-002 | MEDIUM | `lib/costs/filters.ts` | Timezone issues in filterByDateRange | String comparison |
+| FILTER-007 | LOW | `cost-filters.tsx` | Provider selection case sensitivity | Case-insensitive `.some()` |
+
+### Key Architecture Changes
+
+1. **Category Filter Cleanup (CTX-002)**
+   - Category-specific pages (`genai-costs`, `cloud-costs`, `subscription-costs`) now reset filters on unmount
+   - Overview page correctly shows ALL categories after navigation
+
+2. **Secure Auth Caching (AUTH-001)**
+   - Auth context cache key changed from `orgSlug` to `userId:orgSlug`
+   - Prevents User B from getting User A's auth context
+
+3. **Stale Closure Prevention (CTX-005)**
+   - `fetchCostData()` accepts optional `filtersOverride` parameter
+   - Ensures hierarchy filters are sent to API on L1_NO_CACHE decisions
+
+4. **Timezone-Safe Date Filtering (DATE-001, DATE-002)**
+   - All date filtering uses YYYY-MM-DD string comparison
+   - Same results regardless of user's timezone
 
 ---
 
@@ -359,6 +393,8 @@ trend = "up" if change > 0.01 else "down" if change < -0.01 else "flat"
 |------|--------|--------|
 | 2025-12-30 | Initial documentation | Claude |
 | 2025-12-30 | Added lib/costs helper library | Claude |
+| 2026-01-04 | Bug fixes: CTX-002, AUTH-001, CTX-005, DATE-001, DATE-002, FILTER-007 | Claude |
+| 2026-01-04 | Added unified filter architecture section | Claude |
 
 ---
 
@@ -366,3 +402,4 @@ trend = "up" if change > 0.01 else "down" if change < -0.01 else "flat"
 - `02-api-service/CLAUDE.md` - API service details
 - `03-data-pipeline-service/CLAUDE.md` - Pipeline details
 - `01-fronted-system/CLAUDE.md` - Frontend patterns
+- `.claude/skills/cost-analytics/SKILL.md` - Detailed troubleshooting & architecture

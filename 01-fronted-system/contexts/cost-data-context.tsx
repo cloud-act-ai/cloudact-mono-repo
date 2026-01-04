@@ -499,9 +499,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
    * applied client-side via getFilteredGranularData().
    *
    * @param clearBackendCache - If true, bypasses backend Polars LRU cache
+   * @param filtersOverride - Optional filters to use instead of state.filters (CTX-005 fix)
    */
   const fetchCostData = useCallback(async (
-    clearBackendCache: boolean = false
+    clearBackendCache: boolean = false,
+    filtersOverride?: UnifiedFilters
   ) => {
     if (!orgSlug) return
 
@@ -526,8 +528,13 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       const endDate = today.toISOString().split("T")[0]
       const startDate = startOfRange.toISOString().split("T")[0]
 
+      // CTX-005 FIX: Use filtersOverride if provided to avoid stale closure
+      // When setUnifiedFilters calls fetchCostData, React hasn't committed
+      // the state update yet, so state.filters would be stale.
+      const effectiveFilters = filtersOverride ?? state.filters
+
       // Build hierarchy filters from unified filters for API calls
-      const { departmentId, projectId, teamId } = state.filters
+      const { departmentId, projectId, teamId } = effectiveFilters
       const apiFilters = (departmentId || projectId || teamId)
         ? { departmentId, projectId, teamId }
         : undefined
@@ -808,8 +815,9 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       console.log(`[CostData] L1_NO_CACHE: Fetching new data for filters`, updatedFilters)
     }
 
-    // Fetch new data (will use the updated filters from state)
-    fetchCostData()
+    // CTX-005 FIX: Pass updatedFilters directly to avoid stale closure
+    // React batches state updates, so state.filters would still be old when fetchCostData runs
+    fetchCostData(false, updatedFilters)
   }, [state.filters, state.cachedDateRange, state.granularData.length, fetchCostData])
 
   /**

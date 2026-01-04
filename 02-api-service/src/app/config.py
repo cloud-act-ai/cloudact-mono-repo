@@ -167,7 +167,22 @@ class Settings(BaseSettings):
     # Any issues caught in staging before reaching production.
     auto_sync_schema: bool = Field(
         default=True,
-        description="Auto-sync missing schema columns on startup. Set AUTO_SYNC_SCHEMA=false to disable."
+        description="Auto-sync bootstrap schema columns on startup. Set AUTO_SYNC_SCHEMA=false to disable."
+    )
+
+    # Org schema sync - disabled by default (can be slow with many orgs)
+    # Enable temporarily after schema changes: AUTO_SYNC_ORG_SCHEMA=true
+    auto_sync_org_schema: bool = Field(
+        default=False,
+        description="Auto-sync org dataset schemas on startup. Disabled by default - enable temporarily when needed."
+    )
+
+    # Maximum orgs to sync per startup (prevents long startup times)
+    auto_sync_org_limit: int = Field(
+        default=50,
+        ge=1,
+        le=1000,
+        description="Max orgs to sync when AUTO_SYNC_ORG_SCHEMA=true. Set higher for full sync."
     )
 
     # ============================================

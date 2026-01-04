@@ -13,16 +13,25 @@ import type { DateRange, GroupedCostData, TimeSeriesPoint, CostFilterOptions } f
 
 /**
  * Filter records by date range
+ *
+ * DATE-002 FIX: Use string comparison for date boundaries to avoid timezone issues.
+ * ChargePeriodStart is in ISO format (YYYY-MM-DDTHH:mm:ss), so we extract the date
+ * portion and compare as strings for consistent behavior across timezones.
  */
 export function filterByDateRange(records: CostRecord[], range: DateRange): CostRecord[] {
   if (!records || !Array.isArray(records)) return []
   if (!range || !range.start || !range.end) return records
 
+  // DATE-002 FIX: Convert Date objects to YYYY-MM-DD strings for consistent comparison
+  const startDateStr = range.start.toISOString().split("T")[0]
+  const endDateStr = range.end.toISOString().split("T")[0]
+
   return records.filter((r) => {
     if (!r.ChargePeriodStart) return false
-    const date = new Date(r.ChargePeriodStart)
-    if (isNaN(date.getTime())) return false
-    return date >= range.start && date <= range.end
+    // Extract date portion (YYYY-MM-DD) from ISO string
+    const recordDateStr = r.ChargePeriodStart.split("T")[0]
+    // String comparison is timezone-agnostic for YYYY-MM-DD format
+    return recordDateStr >= startDateStr && recordDateStr <= endDateStr
   })
 }
 
@@ -459,6 +468,10 @@ export interface GranularFilterOptions {
 
 /**
  * Filter granular data by date range
+ *
+ * DATE-001 FIX: Use string comparison for date boundaries to avoid timezone issues.
+ * Row dates are in "YYYY-MM-DD" format, so we compare against range boundaries
+ * also formatted as "YYYY-MM-DD" strings to ensure consistent behavior across timezones.
  */
 export function filterGranularByDateRange(
   data: GranularCostRow[],
@@ -466,11 +479,16 @@ export function filterGranularByDateRange(
 ): GranularCostRow[] {
   if (!data || !Array.isArray(data) || !range) return data || []
 
+  // DATE-001 FIX: Convert Date objects to YYYY-MM-DD strings for consistent comparison
+  // This avoids timezone boundary issues where new Date("2024-01-15") could be
+  // interpreted as a different day depending on local timezone
+  const startDateStr = range.start.toISOString().split("T")[0]
+  const endDateStr = range.end.toISOString().split("T")[0]
+
   return data.filter(row => {
     if (!row.date) return false
-    const date = new Date(row.date)
-    if (isNaN(date.getTime())) return false
-    return date >= range.start && date <= range.end
+    // String comparison is timezone-agnostic for YYYY-MM-DD format
+    return row.date >= startDateStr && row.date <= endDateStr
   })
 }
 

@@ -312,6 +312,14 @@ class Settings(BaseSettings):
     )
 
     # ============================================
+    # Auto-Sync Configuration
+    # ============================================
+    auto_sync_procedures: bool = Field(
+        default=True,
+        description="Auto-sync stored procedures on startup. Set AUTO_SYNC_PROCEDURES=false to disable."
+    )
+
+    # ============================================
     # Notification Configuration
     # ============================================
     notifications_enabled: bool = Field(

@@ -274,8 +274,8 @@ async def lifespan(app: FastAPI):
         logger.info("Auto-sync schema disabled (AUTO_SYNC_SCHEMA=false)")
 
     # Auto-sync organization schemas (per-org tables)
-    # Only runs if bootstrap auto-sync is enabled
-    if settings.auto_sync_schema:
+    # Disabled by default - enable with AUTO_SYNC_ORG_SCHEMA=true when needed
+    if settings.auto_sync_org_schema:
         try:
             from pathlib import Path
             import yaml
@@ -292,7 +292,7 @@ async def lifespan(app: FastAPI):
                 # Get list of active orgs from org_profiles
                 org_query = f"""
                 SELECT org_slug FROM `{settings.gcp_project_id}.organizations.org_profiles`
-                WHERE is_active = TRUE
+                WHERE status = 'ACTIVE'
                 """
                 try:
                     org_results = list(bq_client.client.query(org_query).result())
@@ -309,8 +309,9 @@ async def lifespan(app: FastAPI):
                             with open(schema_file, 'r') as f:
                                 org_schema_files[table_name] = json.load(f)
 
-                        # Sync each org's tables (limit to first 5 to avoid long startups)
-                        for org_slug in org_slugs[:5]:
+                        # Sync each org's tables (limit configurable via AUTO_SYNC_ORG_LIMIT)
+                        sync_limit = settings.auto_sync_org_limit
+                        for org_slug in org_slugs[:sync_limit]:
                             dataset_suffix = "_prod" if settings.environment == "production" else "_prod"
                             org_dataset_id = f"{settings.gcp_project_id}.{org_slug}{dataset_suffix}"
 
@@ -353,23 +354,62 @@ async def lifespan(app: FastAPI):
                                 except Exception as e:
                                     logger.warning(f"Auto-sync org: Failed to sync {org_slug}.{table_name}: {e}")
 
+                            # Check and create missing materialized views
+                            org_views_dir = org_config_dir / "views"
+                            if org_views_dir.exists():
+                                # Get existing views in org dataset
+                                try:
+                                    views_query = f"""
+                                    SELECT table_name FROM `{org_dataset_id}.INFORMATION_SCHEMA.TABLES`
+                                    WHERE table_type = 'MATERIALIZED VIEW'
+                                    """
+                                    existing_views = {row.table_name for row in bq_client.client.query(views_query).result()}
+
+                                    for view_file in org_views_dir.glob("*.sql"):
+                                        view_name = view_file.stem  # e.g., x_org_hierarchy_mv -> x_org_hierarchy
+                                        # Remove _mv suffix for actual view name
+                                        actual_view_name = view_name.replace("_mv", "")
+
+                                        if actual_view_name not in existing_views:
+                                            try:
+                                                with open(view_file, 'r') as f:
+                                                    view_sql = f.read()
+
+                                                # Replace placeholders
+                                                dataset_name = f"{org_slug}_prod"
+                                                view_sql = view_sql.replace("{project_id}", settings.gcp_project_id)
+                                                view_sql = view_sql.replace("{dataset_id}", dataset_name)
+                                                view_sql = view_sql.replace("{org_slug}", org_slug)
+
+                                                bq_client.client.query(view_sql).result()
+
+                                                key = f"{org_slug}.views"
+                                                if key not in org_columns_added:
+                                                    org_columns_added[key] = []
+                                                org_columns_added[key].append(actual_view_name)
+                                                logger.info(f"Auto-sync org: Created view {org_slug}.{actual_view_name}")
+                                            except Exception as ve:
+                                                logger.warning(f"Auto-sync org: Failed to create view {org_slug}.{actual_view_name}: {ve}")
+                                except Exception as ve:
+                                    logger.warning(f"Auto-sync org: Could not check views for {org_slug}: {ve}")
+
                             total_orgs_synced += 1
 
                         # Log summary
                         if org_columns_added:
-                            total_cols = sum(len(v) for v in org_columns_added.values())
+                            total_items = sum(len(v) for v in org_columns_added.values())
                             logger.info(
-                                f"Auto-sync org: Added {total_cols} columns across {len(org_columns_added)} tables in {total_orgs_synced} orgs",
-                                extra={"org_columns_added": org_columns_added}
+                                f"Auto-sync org: Added {total_items} columns/views across {len(org_columns_added)} tables in {total_orgs_synced} orgs",
+                                extra={"org_changes": org_columns_added}
                             )
-                            for table, cols in org_columns_added.items():
-                                logger.info(f"  - {table}: {', '.join(cols)}")
+                            for table, items in org_columns_added.items():
+                                logger.info(f"  - {table}: {', '.join(items)}")
                         else:
                             logger.info(f"Auto-sync org: {total_orgs_synced} orgs checked, all schemas in sync")
 
-                        if len(org_slugs) > 5:
-                            logger.info(f"Auto-sync org: Checked first 5 orgs (of {len(org_slugs)} total). "
-                                       f"Run /api/v1/organizations/{{org}}/sync for remaining orgs.")
+                        if len(org_slugs) > sync_limit:
+                            logger.info(f"Auto-sync org: Checked {sync_limit} orgs (of {len(org_slugs)} total). "
+                                       f"Increase AUTO_SYNC_ORG_LIMIT or run /api/v1/organizations/{{org}}/sync for remaining.")
                     else:
                         logger.info("Auto-sync org: No active organizations found")
 
@@ -381,6 +421,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Auto-sync org failed: {e}", exc_info=True)
             logger.warning("Continuing startup despite auto-sync org failure")
+    else:
+        logger.debug("Auto-sync org schema disabled (default). Set AUTO_SYNC_ORG_SCHEMA=true to enable.")
 
     # Initialize Auth Metrics Aggregator background task
     try:

@@ -129,10 +129,15 @@ export default function SubscriptionCostsPage() {
     return saasProviders.map(p => p.provider)
   }, [saasProviders])
 
-  // Handle filter changes
+  // Handle filter changes - sync to unified context for provider filters
+  // FILTER-008 FIX: Sync local filters to context for consistent filtering
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
-  }, [])
+    // Sync provider filter to unified context (category is fixed for this page)
+    setUnifiedFilters({
+      providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
+    })
+  }, [setUnifiedFilters])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
