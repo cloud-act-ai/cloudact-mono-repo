@@ -9,6 +9,8 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+# But NOT the CICD build scripts
+!04-inra-cicd-automation/CICD/build/
 develop-eggs/
 dist/
 downloads/
