@@ -39,6 +39,11 @@ steps:
       - '02-api-service'
 
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-api-service'
+    args: ['push', '--all-tags', 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}']
+    waitFor: ['build-api-service']
+
+  - name: 'gcr.io/cloud-builders/docker'
     id: 'build-pipeline-service'
     args:
       - 'build'
@@ -58,6 +63,11 @@ steps:
       - '03-data-pipeline-service'
 
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-pipeline-service'
+    args: ['push', '--all-tags', 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}']
+    waitFor: ['build-pipeline-service']
+
+  - name: 'gcr.io/cloud-builders/docker'
     id: 'build-frontend'
     args:
       - 'build'
@@ -75,6 +85,11 @@ steps:
       - '-f'
       - '01-fronted-system/Dockerfile'
       - '01-fronted-system'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-frontend'
+    args: ['push', '--all-tags', 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}']
+    waitFor: ['build-frontend']
 
   # ============================================
   # Deploy API Service
@@ -101,7 +116,7 @@ steps:
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
           --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=staging,PIPELINE_SERVICE_URL=$$PIPELINE_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
           --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
-    waitFor: ['build-api-service']
+    waitFor: ['push-api-service']
 
   # ============================================
   # Deploy Pipeline Service
@@ -128,7 +143,7 @@ steps:
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
           --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=staging,API_SERVICE_URL=$$API_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
           --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
-    waitFor: ['build-pipeline-service']
+    waitFor: ['push-pipeline-service']
 
   # ============================================
   # Deploy Frontend
@@ -157,7 +172,7 @@ steps:
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
           --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},ENVIRONMENT=staging,NODE_ENV=production,NEXT_PUBLIC_API_SERVICE_URL=$$API_URL,API_SERVICE_URL=$$API_URL,NEXT_PUBLIC_PIPELINE_SERVICE_URL=$$PIPELINE_URL,PIPELINE_SERVICE_URL=$$PIPELINE_URL,NEXT_PUBLIC_APP_URL=$$APP_URL,NEXT_PUBLIC_SUPABASE_URL=${_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY},NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${_STRIPE_PUBLISHABLE_KEY},NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${_STRIPE_STARTER_PRICE_ID},NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${_STRIPE_PROFESSIONAL_PRICE_ID},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${_STRIPE_SCALE_PRICE_ID},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14" \
           --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${_ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
-    waitFor: ['build-frontend', 'deploy-api-service', 'deploy-pipeline-service']
+    waitFor: ['push-frontend', 'deploy-api-service', 'deploy-pipeline-service']
 
 # Push all images
 images:
