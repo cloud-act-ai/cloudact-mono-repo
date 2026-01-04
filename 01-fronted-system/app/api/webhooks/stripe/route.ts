@@ -21,6 +21,9 @@
  * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
 
+// Force dynamic to prevent pre-rendering (Stripe client needs runtime env vars)
+export const dynamic = 'force-dynamic'
+
 import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";

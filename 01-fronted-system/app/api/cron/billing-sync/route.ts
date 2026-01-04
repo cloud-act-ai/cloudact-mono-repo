@@ -14,6 +14,9 @@
  * - action=stats: Get queue statistics (for monitoring)
  */
 
+// Force dynamic to prevent pre-rendering (Stripe client needs runtime env vars)
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from "next/server"
 import { processPendingSyncs, getSyncQueueStats, syncSubscriptionToBackend } from "@/actions/backend-onboarding"
 import { createServiceRoleClient } from "@/lib/supabase/server"

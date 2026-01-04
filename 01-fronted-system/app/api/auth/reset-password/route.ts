@@ -1,3 +1,6 @@
+// Force dynamic to prevent pre-rendering (Supabase admin client needs runtime env vars)
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { sendPasswordResetEmail } from "@/lib/email"
