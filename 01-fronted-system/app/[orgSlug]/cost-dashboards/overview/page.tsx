@@ -100,16 +100,22 @@ export default function CostOverviewPage() {
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
 
-  // Client-side filtered providers (instant, no backend call)
-  const filteredProviders = useMemo(() => {
-    if (!hasProviderFilter) return cachedProviders
+  // FILTER-FIX: Use time-filtered providers from context (respects time range)
+  // This filters the 365-day cache by the selected time range
+  const timeFilteredProviders = useMemo(() => {
+    return getFilteredProviderBreakdown()
+  }, [getFilteredProviderBreakdown])
 
-    // Filter cached providers by selected providers (instant client-side)
+  // Client-side filtered providers - apply additional provider selection filter
+  const filteredProviders = useMemo(() => {
+    if (!hasProviderFilter) return timeFilteredProviders
+
+    // Filter time-filtered providers by selected provider names
     const selectedProviders = new Set(filters.providers.map(p => p.toLowerCase()))
-    return cachedProviders.filter(p =>
+    return timeFilteredProviders.filter(p =>
       selectedProviders.has(p.provider.toLowerCase())
     )
-  }, [cachedProviders, filters.providers, hasProviderFilter])
+  }, [timeFilteredProviders, filters.providers, hasProviderFilter])
 
   // Use cached or client-side filtered data
   const totalSummary = cachedTotalCosts
@@ -175,7 +181,7 @@ export default function CostOverviewPage() {
     })
   }, [getFilteredTimeSeries])
 
-  // Build category breakdown from total costs data
+  // FILTER-FIX: Build category breakdown from TIME-FILTERED data
   const categories = useMemo<BreakdownItem[]>(() => {
     if (hasProviderFilter && filteredProviders && filteredProviders.length > 0) {
       const filteredTotalCost = filteredProviders.reduce((sum, p) => sum + p.total_cost, 0)
@@ -190,10 +196,13 @@ export default function CostOverviewPage() {
       }]
     }
 
-    // Use total_billed_cost for actual totals (NOT total_monthly_cost which is a forecast!)
-    const genaiCost = totalSummary?.genai?.total_billed_cost ?? 0
-    const cloudCost = totalSummary?.cloud?.total_billed_cost ?? 0
-    const subscriptionCost = totalSummary?.subscription?.total_billed_cost ?? 0
+    // FILTER-FIX: Use time-filtered category breakdown
+    const categoryBreakdown = getFilteredCategoryBreakdown()
+    const categoryMap = new Map(categoryBreakdown.map(c => [c.category.toLowerCase(), c.total_cost]))
+
+    const genaiCost = categoryMap.get("genai") ?? 0
+    const cloudCost = categoryMap.get("cloud") ?? 0
+    const subscriptionCost = categoryMap.get("subscription") ?? 0
     const totalCost = genaiCost + cloudCost + subscriptionCost
 
     if (totalCost === 0) return []
@@ -221,49 +230,37 @@ export default function CostOverviewPage() {
         color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       },
     ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
-  }, [totalSummary, hasProviderFilter, filteredProviders, filters.providers])
+  }, [getFilteredCategoryBreakdown, hasProviderFilter, filteredProviders, filters.providers])
 
-  // Calculate summary data - uses filtered providers when filter is active
+  // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
-    // When provider filter is active, calculate from filtered providers
-    if (hasProviderFilter && filteredProviders.length > 0) {
-      const filteredTotal = filteredProviders.reduce((sum, p) => sum + p.total_cost, 0)
-      // Use FinOps standard calculations (data is 365-day total)
-      const { dailyRate, monthlyForecast, annualForecast } = calculateAllForecasts(
-        filteredTotal,
-        FINOPS.DAYS_PER_YEAR
-      )
-      return {
-        mtd: filteredTotal,
-        dailyRate,
-        forecast: monthlyForecast,
-        ytd: annualForecast,
-        currency: orgCurrency,
-      }
-    }
+    // Calculate totals from time-filtered daily data (respects time range filter)
+    const filteredTotal = dailyTrendData.reduce((sum, d) => sum + d.value, 0)
+    const daysInPeriod = dailyTrendData.length || 1
 
-    // No filter - use full totals from context
-    const mtdFromPeriod = periodCosts?.mtd ?? 0
-    const ytdFromPeriod = periodCosts?.ytd ?? 0
+    // Calculate daily rate from filtered data
+    const dailyRate = filteredTotal / daysInPeriod
 
-    const subscriptionMtd = getSafeValue(totalSummary?.subscription, "mtd_cost")
-    const cloudMtd = getSafeValue(totalSummary?.cloud, "mtd_cost")
-    const genaiMtd = getSafeValue(totalSummary?.genai, "mtd_cost")
-    const combinedMTD = mtdFromPeriod || subscriptionMtd + cloudMtd + genaiMtd || (totalSummary?.total?.total_monthly_cost ?? 0)
+    // Use FinOps standard calculations for forecasts
+    const { monthlyForecast, annualForecast } = calculateAllForecasts(
+      filteredTotal,
+      daysInPeriod
+    )
 
-    const subscriptionYtd = getSafeValue(totalSummary?.subscription, "ytd_cost")
-    const cloudYtd = getSafeValue(totalSummary?.cloud, "ytd_cost")
-    const genaiYtd = getSafeValue(totalSummary?.genai, "ytd_cost")
-    const combinedYTD = ytdFromPeriod || subscriptionYtd + cloudYtd + genaiYtd || (totalSummary?.total?.total_annual_cost ?? 0)
+    // For YTD, use the filtered total for ytd range, otherwise calculate
+    const dateInfo = getDateInfo()
+    const ytdValue = timeRange === "ytd"
+      ? filteredTotal
+      : dailyRate * dateInfo.daysElapsed
 
     return {
-      mtd: combinedMTD,
-      dailyRate: totalSummary?.total?.total_daily_cost ?? 0,
-      forecast: totalSummary?.total?.total_monthly_cost ?? 0,
-      ytd: combinedYTD,
+      mtd: filteredTotal,       // Period spend (from filtered data)
+      dailyRate: dailyRate,     // Daily average (from filtered data)
+      forecast: monthlyForecast,
+      ytd: ytdValue,
       currency: orgCurrency,
     }
-  }, [totalSummary, periodCosts, orgCurrency, hasProviderFilter, filteredProviders])
+  }, [dailyTrendData, timeRange, orgCurrency])
 
   // Convert providers to breakdown items using centralized helper
   const providerBreakdownItems = useMemo(() =>
@@ -313,7 +310,7 @@ export default function CostOverviewPage() {
   }, [getFilteredCategoryBreakdown, hasProviderFilter, filteredProviders])
 
   // Helper to filter providers by category using availableFilters
-  // FILTER-008 FIX: Use filteredProviders (respects provider filter) instead of cachedProviders
+  // FILTER-FIX: Use timeFilteredProviders (respects time range) as base, then apply provider filter
   const getProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
     // Use availableFilters to get category info from backend
     const categoryProviderIds = new Set(
@@ -321,13 +318,11 @@ export default function CostOverviewPage() {
         .filter(p => p.category === category)
         .map(p => p.id.toLowerCase())
     )
-    // FILTER-008 FIX: Use filteredProviders to respect provider filter selection
-    // When provider filter is active, only show providers that match BOTH the category AND the filter
-    const sourceProviders = hasProviderFilter ? filteredProviders : cachedProviders
-    return sourceProviders.filter(p =>
+    // FILTER-FIX: Use filteredProviders which is already time-filtered + optional provider filter
+    return filteredProviders.filter(p =>
       categoryProviderIds.has(p.provider.toLowerCase())
     )
-  }, [availableFilters.providers, cachedProviders, filteredProviders, hasProviderFilter])
+  }, [availableFilters.providers, filteredProviders])
 
   // Top 5 Cost Drivers by Category (using unified filter data)
   const top5GenAI = useMemo(() => {

@@ -80,7 +80,6 @@ export default function DashboardPage() {
   // Use unified filters from context (all client-side, instant)
   const {
     totalCosts: costSummary,
-    providerBreakdown: cachedProviders,
     periodCosts,
     currency: contextCurrency,
     isLoading: isCostLoading,
@@ -89,7 +88,8 @@ export default function DashboardPage() {
     filters: contextFilters,
     setUnifiedFilters,
     getFilteredTimeSeries,
-    granularData,
+    getFilteredCategoryBreakdown,
+    getFilteredProviderBreakdown,
   } = useCostData()
 
   // Use chart config - ensure context is active
@@ -198,19 +198,20 @@ export default function DashboardPage() {
     (costSummary.subscription?.total_monthly_cost ?? 0) > 0
   )
 
-  // Helper to filter providers by category using availableFilters
-  // FILTER-008 FIX: Dashboard doesn't have provider filter UI, but respects context filters
+  // Helper to filter providers by category using TIME-FILTERED data from context
+  // FILTER-008 FIX: Use getFilteredProviderBreakdown for time-filtered provider data
   const getProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
     const categoryProviderIds = new Set(
       availableFilters.providers
         .filter(p => p.category === category)
         .map(p => p.id.toLowerCase())
     )
-    // Use cachedProviders (dashboard doesn't have local provider filter)
-    return cachedProviders.filter(p =>
+    // Use time-filtered providers instead of 365-day cached data
+    const filteredProviders = getFilteredProviderBreakdown()
+    return filteredProviders.filter(p =>
       categoryProviderIds.has(p.provider.toLowerCase())
     )
-  }, [availableFilters.providers, cachedProviders])
+  }, [availableFilters.providers, getFilteredProviderBreakdown])
 
   // Get filtered time series data (all categories)
   const filteredDailyData = useMemo(() => {
@@ -228,41 +229,27 @@ export default function DashboardPage() {
       value: point.total,
       rollingAvg: Math.round(rollingAvg * 100) / 100,
     }))
-  }, [getFilteredTimeSeries])
+  }, [getFilteredTimeSeries, timeRange])
 
   // BUG-002 FIX: Get category-specific totals from TIME-FILTERED granular data
-  // Compute category totals directly from granular data to respect time range filter
+  // Use context's getFilteredCategoryBreakdown() for actual time-filtered values
   const categoryTotals = useMemo(() => {
-    const granular = granularData || []
     const totals = { genai: 0, cloud: 0, subscription: 0 }
 
-    // Build provider-to-category map from availableFilters
-    const providerCategoryMap = new Map<string, string>()
-    for (const p of availableFilters.providers) {
-      providerCategoryMap.set(p.id.toLowerCase(), p.category)
-    }
+    // Get time-filtered category breakdown from context
+    const categoryBreakdown = getFilteredCategoryBreakdown()
 
-    // Aggregate by category from time-filtered data
-    const timeSeries = getFilteredTimeSeries()
-    if (timeSeries && timeSeries.length > 0) {
-      // If we have filtered time series, use that total and distribute by category ratio from granular
-      const timeFilteredTotal = timeSeries.reduce((sum, d) => sum + (d.total || 0), 0)
-
-      // Get category ratios from cached providers (365-day)
-      const cachedGenai = cachedProviders.filter(p => providerCategoryMap.get(p.provider.toLowerCase()) === "genai").reduce((s, p) => s + p.total_cost, 0)
-      const cachedCloud = cachedProviders.filter(p => providerCategoryMap.get(p.provider.toLowerCase()) === "cloud").reduce((s, p) => s + p.total_cost, 0)
-      const cachedSub = cachedProviders.filter(p => providerCategoryMap.get(p.provider.toLowerCase()) === "subscription").reduce((s, p) => s + p.total_cost, 0)
-      const cachedTotal = cachedGenai + cachedCloud + cachedSub
-
-      if (cachedTotal > 0) {
-        totals.genai = timeFilteredTotal * (cachedGenai / cachedTotal)
-        totals.cloud = timeFilteredTotal * (cachedCloud / cachedTotal)
-        totals.subscription = timeFilteredTotal * (cachedSub / cachedTotal)
+    if (categoryBreakdown && categoryBreakdown.length > 0) {
+      for (const cat of categoryBreakdown) {
+        const key = cat.category.toLowerCase() as keyof typeof totals
+        if (key in totals) {
+          totals[key] = cat.total_cost
+        }
       }
     }
 
     return totals
-  }, [granularData, availableFilters.providers, cachedProviders, getFilteredTimeSeries])
+  }, [getFilteredCategoryBreakdown, timeRange])
 
   // Legacy compatibility values (used by ringSegments and categoryBreakdown)
   const genaiCost = categoryTotals.genai
@@ -340,9 +327,7 @@ export default function DashboardPage() {
   }, [genaiCost, cloudCost, subscriptionCost, costSummary])
 
   // BUG-003/004/005 FIX: Top 5 Cost Drivers - use time-filtered data
-  // For now, use getProvidersByCategory which uses cachedProviders (365-day)
-  // The time filtering is applied through the ratio in categoryTotals above
-  // This avoids infinite loop issues with unstable function references
+  // Uses getFilteredProviderBreakdown() from context for actual time-filtered provider costs
 
   const top5GenAI = useMemo(() => {
     const genaiProviders = getProvidersByCategory("genai")

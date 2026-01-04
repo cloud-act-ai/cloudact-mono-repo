@@ -521,7 +521,7 @@ class TestGetCostTrendEndpoint:
 # ============================================
 
 class TestGetSaaSSubscriptionCosts:
-    """Tests for GET /{org_slug}/saas-subscriptions endpoint."""
+    """Tests for GET /{org_slug}/subscriptions endpoint."""
 
     @pytest.mark.asyncio
     async def test_get_subscription_costs_success(self, test_client, mock_cost_service):
@@ -543,7 +543,7 @@ class TestGetSaaSSubscriptionCosts:
             error=None
         ))
 
-        response = await test_client.get("/api/v1/costs/test_org/saas-subscriptions")
+        response = await test_client.get("/api/v1/costs/test_org/subscriptions")
 
         assert response.status_code == 200
         data = response.json()

@@ -55,6 +55,7 @@ export default function SubscriptionCostsPage() {
     filters: contextFilters,
     setUnifiedFilters,
     getFilteredTimeSeries,
+    getFilteredProviderBreakdown,
   } = useCostData()
 
   // Extract time range from unified filters
@@ -94,17 +95,23 @@ export default function SubscriptionCostsPage() {
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
 
-  // Get SaaS providers from availableFilters (using unified filter data)
+  // FILTER-FIX: Use time-filtered providers from context (respects time range)
+  const timeFilteredProviders = useMemo(() => {
+    return getFilteredProviderBreakdown()
+  }, [getFilteredProviderBreakdown])
+
+  // Get SaaS providers from TIME-FILTERED data (using unified filter data)
   const saasProviders = useMemo(() => {
     const categoryProviderIds = new Set(
       availableFilters.providers
         .filter(p => p.category === "subscription")
         .map(p => p.id.toLowerCase())
     )
-    return cachedProviders.filter(p =>
+    // FILTER-FIX: Use timeFilteredProviders instead of cachedProviders
+    return timeFilteredProviders.filter(p =>
       categoryProviderIds.has(p.provider.toLowerCase())
     )
-  }, [availableFilters.providers, cachedProviders])
+  }, [availableFilters.providers, timeFilteredProviders])
 
   // Client-side filtered providers (instant, no backend call)
   const filteredProviders = useMemo(() => {
@@ -176,35 +183,35 @@ export default function SubscriptionCostsPage() {
     })
   }, [getFilteredTimeSeries])
 
-  // Prepare summary data - uses filtered providers when filter is active
+  // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
-    // When provider filter is active, calculate from filtered providers
-    if (hasProviderFilter && providers.length > 0) {
-      const filteredTotal = providers.reduce((sum, p) => sum + p.total_cost, 0)
-      // Use FinOps standard calculations (data is 365-day total)
-      const { dailyRate, monthlyForecast, annualForecast } = calculateAllForecasts(
-        filteredTotal,
-        FINOPS.DAYS_PER_YEAR
-      )
-      return {
-        mtd: filteredTotal,
-        dailyRate,
-        forecast: monthlyForecast,
-        ytd: annualForecast,
-        currency: orgCurrency,
-      }
-    }
+    // Calculate totals from time-filtered daily data (respects time range filter)
+    const filteredTotal = dailyTrendData.reduce((sum, d) => sum + d.value, 0)
+    const daysInPeriod = dailyTrendData.length || 1
 
-    // No filter - use subscription-specific metrics from totalCosts
-    const subscriptionCosts = totalCosts?.subscription
+    // Calculate daily rate from filtered data
+    const dailyRate = filteredTotal / daysInPeriod
+
+    // Use FinOps standard calculations for forecasts
+    const { monthlyForecast, annualForecast } = calculateAllForecasts(
+      filteredTotal,
+      daysInPeriod
+    )
+
+    // For YTD, use the filtered total for ytd range, otherwise calculate
+    const dateInfo = getDateInfo()
+    const ytdValue = timeRange === "ytd"
+      ? filteredTotal
+      : dailyRate * dateInfo.daysElapsed
+
     return {
-      mtd: subscriptionCosts?.mtd_cost ?? subscriptionCosts?.total_monthly_cost ?? 0,
-      dailyRate: subscriptionCosts?.total_daily_cost ?? 0,
-      forecast: subscriptionCosts?.total_monthly_cost ?? 0,
-      ytd: subscriptionCosts?.total_annual_cost ?? 0,
+      mtd: filteredTotal,       // Period spend (from filtered data)
+      dailyRate: dailyRate,     // Daily average (from filtered data)
+      forecast: monthlyForecast,
+      ytd: ytdValue,
       currency: orgCurrency,
     }
-  }, [totalCosts, orgCurrency, hasProviderFilter, providers])
+  }, [dailyTrendData, timeRange, orgCurrency])
 
   // Convert providers to breakdown items using centralized helper
   const providerBreakdownItems = useMemo(() =>

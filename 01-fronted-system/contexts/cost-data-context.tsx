@@ -825,13 +825,18 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
    * Returns the filtered data for charts/tables.
    */
   const getFilteredGranularData = useCallback((): GranularCostRow[] => {
-    if (!state.granularData || state.granularData.length === 0) return []
+    if (!state.granularData || state.granularData.length === 0) {
+      console.log(`[CostData] getFilteredGranularData: No granular data (${state.granularData?.length || 0} rows)`)
+      return []
+    }
 
     // Convert TimeRange to DateRange for filtering
     const dateRange = timeRangeToDateRange(state.filters.timeRange, state.filters.customRange)
+    const startStr = dateRange.start.toISOString().split("T")[0]
+    const endStr = dateRange.end.toISOString().split("T")[0]
 
     // Apply all filters
-    return applyGranularFilters(state.granularData, {
+    const filtered = applyGranularFilters(state.granularData, {
       dateRange: { start: dateRange.start, end: dateRange.end, label: "" },
       providers: state.filters.providers,
       categories: state.filters.categories,
@@ -839,6 +844,10 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       projectId: state.filters.projectId,
       teamId: state.filters.teamId,
     })
+
+    console.log(`[CostData] getFilteredGranularData: timeRange=${state.filters.timeRange}, date=${startStr} to ${endStr}, input=${state.granularData.length}, output=${filtered.length}`)
+
+    return filtered
   }, [state.granularData, state.filters])
 
   /**
