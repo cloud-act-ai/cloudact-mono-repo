@@ -85,6 +85,7 @@ export default function DashboardPage() {
     isLoading: isCostLoading,
     refresh: refreshCostData,
     selectedTimeRange,
+    selectedCustomRange,
     setTimeRange: setContextTimeRange,
     getFilteredProviders,
   } = useCostData()
@@ -100,6 +101,7 @@ export default function DashboardPage() {
 
   // Use context time range for sync with zoom
   const timeRange = selectedTimeRange
+  const customRange = selectedCustomRange
 
   // Load non-cost data (pipelines, integrations)
   const loadNonCostData = useCallback(async () => {
@@ -188,15 +190,15 @@ export default function DashboardPage() {
   // Get filtered daily trend data for the selected time range
   const { getDailyTrendForRange, fetchCategoryTrend, categoryTrendData } = useCostData()
 
-  // Get filtered daily data for all categories
+  // Get filtered daily data for all categories (pass customRange for custom date range)
   const filteredDailyData = useMemo(() => {
-    return getDailyTrendForRange(timeRange)
-  }, [getDailyTrendForRange, timeRange])
+    return getDailyTrendForRange(timeRange, undefined, customRange)
+  }, [getDailyTrendForRange, timeRange, customRange])
 
-  // Get filtered daily data per category (for ring chart)
-  const filteredGenaiData = useMemo(() => getDailyTrendForRange(timeRange, "genai"), [getDailyTrendForRange, timeRange])
-  const filteredCloudData = useMemo(() => getDailyTrendForRange(timeRange, "cloud"), [getDailyTrendForRange, timeRange])
-  const filteredSubscriptionData = useMemo(() => getDailyTrendForRange(timeRange, "subscription"), [getDailyTrendForRange, timeRange])
+  // Get filtered daily data per category (for ring chart) - pass customRange
+  const filteredGenaiData = useMemo(() => getDailyTrendForRange(timeRange, "genai", customRange), [getDailyTrendForRange, timeRange, customRange])
+  const filteredCloudData = useMemo(() => getDailyTrendForRange(timeRange, "cloud", customRange), [getDailyTrendForRange, timeRange, customRange])
+  const filteredSubscriptionData = useMemo(() => getDailyTrendForRange(timeRange, "subscription", customRange), [getDailyTrendForRange, timeRange, customRange])
 
   // Lazy-load category trend data if needed
   React.useEffect(() => {
@@ -437,6 +439,7 @@ export default function DashboardPage() {
           title="Daily Cost Trend"
           subtitle="Daily spend with period average"
           timeRange={timeRange}
+          customRange={customRange}
           showBars={true}
           showLine={true}
           barColor="#90FCA6"
