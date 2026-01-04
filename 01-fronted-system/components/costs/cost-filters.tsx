@@ -783,13 +783,13 @@ export function getRollingAverageWindow(
 }
 
 /**
- * Get label for the rolling average based on time range
- * For custom ranges, calculate based on number of days
+ * Get label for the average overlay based on time range
+ * Shows "Daily Avg" as an overall average for the selected period
  */
 export function getRollingAverageLabel(
   timeRange: TimeRange,
   customRange?: CustomDateRange
 ): string {
-  const window = getRollingAverageWindow(timeRange, customRange)
-  return `${window}-Day Avg`
+  // User preference: Show simple "Daily Avg" label for overall period average
+  return "Daily Avg"
 }

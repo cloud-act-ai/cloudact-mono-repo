@@ -272,7 +272,7 @@ export default function SubscriptionCostsPage() {
       )}
 
       {/* Provider Breakdown with Ring Chart */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-200">
         {/* Ring Chart - Provider Breakdown */}
         {ringSegments.length > 0 && (
           <CostRingChart
@@ -280,10 +280,10 @@ export default function SubscriptionCostsPage() {
             segments={ringSegments}
             centerLabel="MTD"
             insight={`${subscriptionCount} subscription${subscriptionCount !== 1 ? "s" : ""} across ${ringSegments.length} provider${ringSegments.length > 1 ? "s" : ""}.`}
-            compact
-            size={96}
-            thickness={12}
+            size={200}
+            thickness={22}
             titleColor="#FF6C5E"
+            className="premium-card"
           />
         )}
 
@@ -293,7 +293,8 @@ export default function SubscriptionCostsPage() {
             title="Cost by Provider"
             items={providerBreakdownItems}
             countLabel="subscriptions"
-            maxItems={4}
+            maxItems={5}
+            className="premium-card"
           />
         )}
       </div>

@@ -350,8 +350,8 @@ export default function CostOverviewPage() {
             segments={ringSegments}
             centerLabel="MTD"
             insight={`Spending across ${ringSegments.length} cost categories this month.`}
-            size={160}
-            thickness={18}
+            size={200}
+            thickness={22}
             titleColor="#1a7a3a"
             className="premium-card"
           />

@@ -106,12 +106,33 @@ export function ChartTooltip({
         }}
       />
 
-      {/* Label */}
-      {!hideLabel && displayLabel && (
+      {/* Label - show date from payload if available */}
+      {!hideLabel && (
         <div className="relative mb-2 pb-2 border-b border-slate-100/80">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            {displayLabel}
-          </span>
+          {/* Try to get full date from payload for better formatting */}
+          {(() => {
+            const firstPayload = uniquePayload[0]?.payload
+            const dateValue = firstPayload?.date as string | undefined
+            if (dateValue) {
+              const date = new Date(dateValue)
+              const formattedDate = date.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+              })
+              return (
+                <span className="text-[12px] font-semibold text-slate-700">
+                  {formattedDate}
+                </span>
+              )
+            }
+            return displayLabel ? (
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {displayLabel}
+              </span>
+            ) : null
+          })()}
         </div>
       )}
 

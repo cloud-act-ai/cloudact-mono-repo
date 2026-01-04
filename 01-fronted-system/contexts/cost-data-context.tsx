@@ -643,26 +643,21 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       )
       if (filteredData.length === 0) return []
 
-      // Calculate rolling average window based on number of days
-      // 365+ days → 30-day rolling avg
-      // 90+ days → 14-day rolling avg
-      // 30+ days → 7-day rolling avg
-      // <30 days → 3-day rolling avg
-      const avgWindow = days >= 365 ? 30 : days >= 90 ? 14 : days >= 30 ? 7 : 3
+      // Calculate overall daily average for the entire period (not rolling window)
+      // This gives a flat reference line showing the average daily cost
+      const totalCost = filteredData.reduce(
+        (sum, d) => sum + (d.total_billed_cost || d.total_effective_cost || 0),
+        0
+      )
+      const overallDailyAvg = filteredData.length > 0 ? totalCost / filteredData.length : 0
 
-      // Transform and calculate rolling averages
+      // Transform data with overall average (flat line)
       return filteredData.map((point, index, arr) => {
         const date = new Date(point.period)
         const cost = point.total_billed_cost || point.total_effective_cost || 0
 
-        // Calculate rolling average
-        const windowStart = Math.max(0, index - avgWindow + 1)
-        const windowData = arr.slice(windowStart, index + 1)
-        const rollingAvg =
-          windowData.reduce(
-            (sum, d) => sum + (d.total_billed_cost || d.total_effective_cost || 0),
-            0
-          ) / windowData.length
+        // Use overall period average (flat reference line)
+        const rollingAvg = overallDailyAvg
 
         // Format label based on number of days in range
         let label: string

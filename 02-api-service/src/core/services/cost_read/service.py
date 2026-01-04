@@ -135,10 +135,11 @@ class CostReadService:
         resolved_start, resolved_end = query.resolve_dates()
 
         # Build parameterized query
-        where_conditions = ["SubAccountId = @org_slug"]
-        query_params = [
-            bigquery.ScalarQueryParameter("org_slug", "STRING", query.org_slug)
-        ]
+        # Note: Multi-tenancy is enforced via dataset isolation ({org_slug}_{env})
+        # SubAccountId contains cloud account IDs (AWS account, Azure subscription, etc.)
+        # NOT org_slug, so we don't filter by it here
+        where_conditions = []
+        query_params = []
 
         # Date filters always applied
         where_conditions.append("DATE(ChargePeriodStart) >= @start_date")

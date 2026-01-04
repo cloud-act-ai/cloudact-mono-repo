@@ -421,8 +421,8 @@ export default function DashboardPage() {
           }
           showChevron
           onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
-          size={160}
-          thickness={18}
+          size={200}
+          thickness={22}
           titleColor="#1a7a3a"
           className="premium-card"
         />

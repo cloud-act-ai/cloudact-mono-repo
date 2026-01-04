@@ -195,11 +195,11 @@ export function CostRingChart({
       </CardHeader>
       <CardContent>
         <div className={cn(
-          "flex",
-          compact ? "flex-row items-center gap-4" : "flex-col items-center gap-4"
+          "flex items-center gap-6",
+          compact ? "flex-row" : "flex-row"
         )}>
-          {/* Ring chart */}
-          <div className="relative" style={{ width: size, height: size }}>
+          {/* Ring chart - larger, takes 50% */}
+          <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
             <BasePieChart
               data={pieData}
               innerRadius={innerRadius}
@@ -225,12 +225,9 @@ export function CostRingChart({
             </div>
           </div>
 
-          {/* Breakdown list */}
+          {/* Breakdown list - takes remaining 50% on right */}
           {showBreakdown && (
-            <div className={cn(
-              "space-y-2",
-              compact ? "flex-1" : "w-full"
-            )}>
+            <div className="flex-1 space-y-2.5 min-w-0">
               {segments.map((segment) => {
                 const percent = total > 0 ? (segment.value / total) * 100 : 0
 
