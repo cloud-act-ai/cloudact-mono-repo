@@ -161,6 +161,34 @@ git push origin v3.0.6
 
 ## Troubleshooting
 
+### Build Fails: "supabaseKey is required" or "Neither apiKey nor config.authenticator provided"
+
+**Cause**: Next.js pre-renders API routes at build time. Routes that create Stripe/Supabase clients at module level fail because secrets aren't available during build.
+
+**Fix**: Use lazy initialization for runtime clients:
+
+```typescript
+// BAD - client created at module load
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+
+// GOOD - lazy initialization
+let stripeInstance: Stripe | null = null
+function getStripe(): Stripe {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY!, { ... })
+  }
+  return stripeInstance
+}
+```
+
+Also add `export const dynamic = 'force-dynamic'` to API routes using secrets.
+
+**Files Fixed**:
+- `lib/stripe.ts` - Uses lazy init via proxy
+- `app/api/auth/reset-password/route.ts` - Uses `getSupabaseAdmin()`
+- `app/api/webhooks/stripe/route.ts` - Has `dynamic = 'force-dynamic'`
+- `app/api/cron/billing-sync/route.ts` - Has `dynamic = 'force-dynamic'`
+
 ### Build Fails: "Image not found"
 
 **Cause**: Deploy step started before image was pushed.
