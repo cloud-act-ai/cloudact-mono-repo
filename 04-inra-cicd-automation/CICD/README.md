@@ -19,6 +19,60 @@ Production-ready build, push, and deploy scripts for CloudAct services on Google
 | `stage` | `cloudact-stage` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
 | `prod` | `cloudact-prod` | Prod (ovfxswhkkshouhsryzaf) | LIVE keys (pk_live_*) |
 
+## Automatic Deployments (Cloud Build Triggers)
+
+### Overview
+
+CloudAct uses Google Cloud Build for **automatic deployments**:
+
+| Trigger | Event | Deploys To |
+|---------|-------|------------|
+| `cloudact-deploy-stage` | Push to `main` | cloudact-stage |
+| `cloudact-deploy-prod` | Tag `v*` (e.g., v3.0.5) | cloudact-prod |
+
+### Deploy to Stage (Automatic)
+
+Every push to `main` automatically deploys to stage:
+
+```bash
+git add .
+git commit -m "feat: your changes"
+git push origin main
+# → Triggers automatic stage deployment
+```
+
+### Deploy to Prod (Manual Tag)
+
+Create and push a version tag to deploy to production:
+
+```bash
+# Check current version
+git tag -l "v*" | tail -5
+
+# Create new version tag
+git tag v3.0.6
+
+# Push tag to trigger prod deployment
+git push origin v3.0.6
+# → Triggers automatic prod deployment
+```
+
+### Monitor Builds
+
+```bash
+# List recent builds
+gcloud builds list --project=cloudact-prod --region=global --limit=5
+
+# Stream build logs
+gcloud builds log BUILD_ID --project=cloudact-prod --region=global --stream
+```
+
+**Console:** https://console.cloud.google.com/cloud-build/builds?project=cloudact-prod
+
+**See also:** [`triggers/README.md`](triggers/README.md) for detailed trigger documentation.
+
+---
+
 ## Release Workflow (Production)
 
 ### Recommended Production Flow
