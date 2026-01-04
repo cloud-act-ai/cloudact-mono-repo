@@ -41,8 +41,11 @@ WORKDIR /app
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /home/appuser/.local
 
-# Build arg for target environment: local, test, stage, prod
+# Build args
 ARG TARGET_ENV=local
+ARG VERSION=unknown
+ARG BUILD_DATE=unknown
+ARG GIT_COMMIT=unknown
 
 # Copy application code and env files
 COPY --chown=appuser:appuser src/ ./src/
@@ -77,6 +80,9 @@ USER appuser
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV RELEASE_VERSION=${VERSION}
+ENV BUILD_DATE=${BUILD_DATE}
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

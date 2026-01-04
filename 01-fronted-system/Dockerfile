@@ -21,8 +21,11 @@ COPY . .
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build arg for target environment: local, test, stage, prod
+# Build args
 ARG TARGET_ENV=local
+ARG VERSION=unknown
+ARG BUILD_DATE=unknown
+ARG GIT_COMMIT=unknown
 
 # Copy the appropriate environment file based on TARGET_ENV
 # Mapping: local -> .env.local, test -> .env.test, stage -> .env.stage, prod -> .env.production
@@ -41,6 +44,11 @@ RUN ENV_FILE=".env.local" && \
     else \
       echo "Warning: ${ENV_FILE} not found, using existing .env.local"; \
     fi
+
+# Set version info for build
+ENV NEXT_PUBLIC_RELEASE_VERSION=${VERSION}
+ENV NEXT_PUBLIC_BUILD_DATE=${BUILD_DATE}
+ENV NEXT_PUBLIC_GIT_COMMIT=${GIT_COMMIT}
 
 # Build the application
 RUN npm run build

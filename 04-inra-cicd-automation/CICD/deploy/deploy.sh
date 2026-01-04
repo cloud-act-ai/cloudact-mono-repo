@@ -218,10 +218,45 @@ echo ""
 echo -e "${BLUE}Service URL: $SERVICE_URL${NC}"
 echo ""
 
-# Health check
-echo -e "${YELLOW}Running health check...${NC}"
-if curl -sf "${SERVICE_URL}/health" > /dev/null 2>&1; then
+# Health check with version validation
+echo -e "${YELLOW}Running health check and version validation...${NC}"
+
+# Wait for service to be ready (max 60 seconds)
+MAX_RETRIES=12
+RETRY_INTERVAL=5
+HEALTH_OK=false
+
+for i in $(seq 1 $MAX_RETRIES); do
+    HEALTH_RESPONSE=$(curl -sf "${SERVICE_URL}/health" 2>/dev/null || echo "")
+    if [ -n "$HEALTH_RESPONSE" ]; then
+        HEALTH_OK=true
+        break
+    fi
+    echo -e "${YELLOW}  Waiting for service... (attempt $i/$MAX_RETRIES)${NC}"
+    sleep $RETRY_INTERVAL
+done
+
+if [ "$HEALTH_OK" = true ]; then
     echo -e "${GREEN}✓ Health check passed${NC}"
+
+    # Validate deployed version
+    DEPLOYED_VERSION=$(echo "$HEALTH_RESPONSE" | grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' 2>/dev/null || echo "unknown")
+
+    echo ""
+    echo -e "${BLUE}Version Validation:${NC}"
+    echo "  Expected: $IMAGE_TAG"
+    echo "  Deployed: $DEPLOYED_VERSION"
+
+    if [ "$DEPLOYED_VERSION" = "$IMAGE_TAG" ]; then
+        echo -e "${GREEN}✓ Version matches - deployment verified!${NC}"
+    elif [ "$DEPLOYED_VERSION" = "unknown" ]; then
+        echo -e "${YELLOW}! Could not verify version (health endpoint may not include version)${NC}"
+    else
+        echo -e "${RED}✗ Version mismatch! Expected '$IMAGE_TAG' but got '$DEPLOYED_VERSION'${NC}"
+        echo -e "${YELLOW}  This may indicate a caching issue or incorrect image tag${NC}"
+    fi
 else
-    echo -e "${YELLOW}! Health check pending (service may still be starting)${NC}"
+    echo -e "${RED}✗ Health check failed after ${MAX_RETRIES} attempts${NC}"
+    echo "  Check logs at: https://console.cloud.google.com/run/detail/${REGION}/${SERVICE_NAME}/logs?project=${PROJECT_ID}"
+    exit 1
 fi

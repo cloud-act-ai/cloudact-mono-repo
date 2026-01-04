@@ -15,8 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Build arg for target environment: local, test, stage, prod
+# Build args
 ARG TARGET_ENV=local
+ARG VERSION=unknown
+ARG BUILD_DATE=unknown
+ARG GIT_COMMIT=unknown
 
 # Copy the appropriate environment file based on TARGET_ENV
 # Mapping: local -> .env.local, test -> .env.test, stage -> .env.stage, prod -> .env.production
@@ -38,6 +41,9 @@ RUN ENV_FILE=".env.local" && \
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV RELEASE_VERSION=${VERSION}
+ENV BUILD_DATE=${BUILD_DATE}
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 # Expose port
 EXPOSE 8000
