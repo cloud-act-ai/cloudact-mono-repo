@@ -104,6 +104,7 @@ steps:
         PIPELINE_URL="https://pipeline.cloudact.ai"
         
         gcloud run deploy cloudact-api-service-${_ENV} \
+          --project=${_PROJECT_ID} \
           --image=gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${TAG_NAME} \
           --region=${_REGION} \
           --platform=managed \
@@ -131,6 +132,7 @@ steps:
         API_URL="https://api.cloudact.ai"
         
         gcloud run deploy cloudact-pipeline-service-${_ENV} \
+          --project=${_PROJECT_ID} \
           --image=gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${TAG_NAME} \
           --region=${_REGION} \
           --platform=managed \
@@ -160,6 +162,7 @@ steps:
         APP_URL="https://cloudact.ai"
         
         gcloud run deploy cloudact-frontend-${_ENV} \
+          --project=${_PROJECT_ID} \
           --image=gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${TAG_NAME} \
           --region=${_REGION} \
           --platform=managed \
