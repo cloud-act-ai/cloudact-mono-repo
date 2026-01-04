@@ -174,7 +174,6 @@ export {
   type EntityConfig,
   type PeriodDateRange,
   type ExtendedPeriodMetrics,
-  type DailyTrendDataPoint,
   // Date utilities
   getDateInfo,
   isInCurrentMonth,
@@ -232,8 +231,6 @@ export {
   getSpecificMonthRange,
   getNovemberRange,
   getDecemberRange,
-  // Daily trend data generation
-  generateDailyTrendData,
 } from "./dashboard-calculators"
 
 // ============================================

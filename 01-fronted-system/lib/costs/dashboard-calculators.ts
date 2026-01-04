@@ -981,68 +981,6 @@ export function getDecemberRange(): PeriodDateRange {
   }
 }
 
-// ============================================
-// Daily Trend Data Generation (DEPRECATED)
-// ============================================
-
-export interface DailyTrendDataPoint {
-  /** Label for X-axis (day number) */
-  label: string
-  /** Cost value for the day */
-  value: number
-  /** Full date string (YYYY-MM-DD) */
-  date: string
-}
-
-/**
- * @deprecated Use `useCostData().getDailyTrendForRange(timeRange)` instead.
- * This function generates fake deterministic data based on MTD cost.
- * The context-based approach uses real daily cost data from the backend.
- *
- * Generate deterministic daily trend data for charts
- * Uses a seeded variance function to ensure consistent rendering
- * across re-renders and page navigations.
- *
- * @param mtdCost - Month-to-date cost total
- * @param days - Number of days to generate (default: 14)
- * @returns Array of daily trend data points
- */
-export function generateDailyTrendData(
-  mtdCost: number,
-  days: number = 14
-): DailyTrendDataPoint[] {
-  const today = new Date()
-  const currentDayOfMonth = today.getDate()
-  const dailyAvg = currentDayOfMonth > 0 ? mtdCost / currentDayOfMonth : 0
-
-  // Deterministic seed function based on date
-  // Produces consistent values for the same day
-  const seededVariance = (dayOffset: number): number => {
-    const seed = currentDayOfMonth * 31 + dayOffset * 7
-    const x = Math.sin(seed) * 10000
-    return 0.7 + (x - Math.floor(x)) * 0.6
-  }
-
-  const trendData: DailyTrendDataPoint[] = []
-
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dayLabel = date.getDate().toString()
-    const variance = seededVariance(i)
-    // Today uses actual daily average, past days use variance
-    const dayValue = i === 0 ? dailyAvg : dailyAvg * variance
-
-    trendData.push({
-      label: dayLabel,
-      value: Math.round(dayValue * 100) / 100,
-      date: date.toISOString().split("T")[0],
-    })
-  }
-
-  return trendData
-}
-
 /**
  * Extended period metrics for comprehensive dashboard display
  */
