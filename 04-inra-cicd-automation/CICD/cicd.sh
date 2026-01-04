@@ -54,8 +54,9 @@ $SCRIPT_DIR/push/push.sh $SERVICE $ENV $PROJECT_ID $TAG
 echo ""
 
 # Step 3: Deploy
+# Note: push.sh strips env prefix from tag, so deploy uses clean version tag
 echo -e "${BLUE}[3/3] DEPLOY${NC}"
-$SCRIPT_DIR/deploy/deploy.sh $SERVICE $ENV $PROJECT_ID "${ENV}-${TAG}"
+$SCRIPT_DIR/deploy/deploy.sh $SERVICE $ENV $PROJECT_ID "$TAG"
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"

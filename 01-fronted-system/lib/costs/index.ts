@@ -12,6 +12,8 @@
  *   calculateSummary,
  *   monthOverMonth,
  *   formatCost,
+ *   FINOPS,
+ *   getProviderColor,
  * } from "@/lib/costs"
  *
  * // Fetch wide range once
@@ -24,6 +26,13 @@
  *
  * // Format for display
  * const formatted = formatCost(summary.total, "USD")
+ *
+ * // Use FinOps standards
+ * const dailyRate = totalCost / FINOPS.DAYS_PER_YEAR
+ * const monthlyForecast = dailyRate * FINOPS.DAYS_PER_MONTH
+ *
+ * // Get provider colors
+ * const color = getProviderColor("openai") // "#10A37F"
  * ```
  */
 
@@ -211,3 +220,68 @@ export {
   // Daily trend data generation
   generateDailyTrendData,
 } from "./dashboard-calculators"
+
+// ============================================
+// FinOps Constants
+// ============================================
+
+export {
+  // Constants
+  FINOPS,
+  TIME_RANGES,
+  ROLLING_AVERAGE,
+  // Validation helpers
+  isValidNumber,
+  safeNumber,
+  // Rate calculations
+  calculateDailyRate,
+  calculateMonthlyForecast as calculateMonthlyForecastFromRate,
+  calculateAnnualForecast as calculateAnnualForecastFromMonthly,
+  calculateAnnualFromDaily,
+  calculateAllForecasts,
+  // YTD calculations
+  calculateYTDForecast,
+  getDaysElapsedInYear,
+  // Time range helpers
+  getDaysForTimeRange,
+  getDaysBetween,
+  getRollingAverageWindow,
+  // Types
+  type Forecasts,
+} from "./constants"
+
+// ============================================
+// Design Tokens
+// ============================================
+
+export {
+  // Provider color maps
+  GENAI_PROVIDER_COLORS,
+  CLOUD_PROVIDER_COLORS,
+  SAAS_PROVIDER_COLORS,
+  PROVIDER_COLORS,
+  // Category colors
+  CATEGORY_COLORS,
+  // Chart palettes
+  DEFAULT_CHART_PALETTE,
+  GENAI_CHART_PALETTE,
+  CLOUD_CHART_PALETTE,
+  SUBSCRIPTION_CHART_PALETTE,
+  OVERVIEW_CHART_PALETTE,
+  CHART_PALETTES,
+  // Default color
+  DEFAULT_COLOR,
+  // Color helpers
+  getProviderColor,
+  getCategoryColor,
+  getChartColors,
+  getChartColorAtIndex,
+  assignRingChartColors,
+  // Trend colors
+  TREND_COLORS,
+  getTrendColor,
+  // Status colors
+  STATUS_COLORS,
+  // Types
+  type ChartPaletteType,
+} from "./design-tokens"

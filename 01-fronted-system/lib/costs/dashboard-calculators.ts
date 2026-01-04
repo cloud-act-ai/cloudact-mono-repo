@@ -3,6 +3,7 @@
  *
  * Centralized calculation helpers for cost dashboard pages.
  * Eliminates hardcoded calculations from individual dashboard components.
+ * Uses FinOps standard 30-day months for all forecasts.
  *
  * @example
  * ```typescript
@@ -12,6 +13,7 @@
  *   calculateBreakdownItem,
  *   PROVIDER_CONFIG,
  *   CATEGORY_CONFIG,
+ *   FINOPS,
  * } from "@/lib/costs/dashboard-calculators"
  *
  * // Get date info once for all calculations
@@ -22,10 +24,14 @@
  *
  * // Transform to breakdown item for charts
  * const item = calculateBreakdownItem(category, CATEGORY_CONFIG)
+ *
+ * // Use FinOps constants
+ * const dailyRate = totalCost / FINOPS.DAYS_PER_YEAR
  * ```
  */
 
 import type { BreakdownItem, CostTableRow } from "@/components/charts"
+import { FINOPS, isValidNumber, calculateAllForecasts as calculateFinOpsForecasts } from "./constants"
 
 // ============================================
 // Types
@@ -239,35 +245,42 @@ export function isInCurrentMonth(dateStr: string | null | undefined, dateInfo: D
 }
 
 // ============================================
-// Rate & Forecast Calculations
+// Rate & Forecast Calculations (FinOps Standard)
 // ============================================
 
 /**
- * Calculate daily rate from MTD cost
+ * Calculate daily rate from MTD cost.
+ * Uses actual days elapsed for accurate daily rate.
  */
 export function calculateDailyRateFromMTD(mtdCost: number, daysElapsed: number): number {
-  if (!Number.isFinite(mtdCost) || daysElapsed <= 0) return 0
+  if (!isValidNumber(mtdCost) || !isValidNumber(daysElapsed) || daysElapsed <= 0) return 0
   return mtdCost / daysElapsed
 }
 
 /**
- * Calculate monthly forecast from daily rate
+ * Calculate monthly forecast from daily rate.
+ * Uses FinOps standard 30-day month for consistency.
+ *
+ * Note: daysInMonth parameter is IGNORED - we always use FINOPS.DAYS_PER_MONTH (30)
+ * for standardized forecasting. Parameter kept for backward compatibility.
  */
-export function calculateMonthlyForecast(dailyRate: number, daysInMonth: number): number {
-  if (!Number.isFinite(dailyRate) || daysInMonth <= 0) return 0
-  return dailyRate * daysInMonth
+export function calculateMonthlyForecast(dailyRate: number, _daysInMonth?: number): number {
+  if (!isValidNumber(dailyRate)) return 0
+  return dailyRate * FINOPS.DAYS_PER_MONTH
 }
 
 /**
- * Calculate annual forecast from monthly forecast
+ * Calculate annual forecast from monthly forecast.
+ * Uses 12 months per year.
  */
 export function calculateAnnualForecast(monthlyForecast: number): number {
-  if (!Number.isFinite(monthlyForecast)) return 0
-  return monthlyForecast * 12
+  if (!isValidNumber(monthlyForecast)) return 0
+  return monthlyForecast * FINOPS.MONTHS_PER_YEAR
 }
 
 /**
- * Calculate all forecast values from MTD cost
+ * Calculate all forecast values from MTD cost.
+ * Uses FinOps standard 30-day month for monthly forecasts.
  */
 export function calculateForecasts(
   mtdCost: number,
@@ -278,7 +291,8 @@ export function calculateForecasts(
   annualForecast: number
 } {
   const dailyRate = calculateDailyRateFromMTD(mtdCost, dateInfo.daysElapsed)
-  const monthlyForecast = calculateMonthlyForecast(dailyRate, dateInfo.daysInMonth)
+  // Use FinOps 30-day standard, not actual days in month
+  const monthlyForecast = calculateMonthlyForecast(dailyRate)
   const annualForecast = calculateAnnualForecast(monthlyForecast)
 
   return { dailyRate, monthlyForecast, annualForecast }
@@ -311,19 +325,25 @@ export function getEntityColor(key: string | null | undefined, config: EntityCon
 // ============================================
 
 /**
- * Transform provider data to cost table row with forecasts
+ * Transform provider data to cost table row with forecasts.
+ * Uses FinOps standard 30-day months for all forecasts.
+ *
+ * @param provider - Provider data from API
+ * @param _dateInfo - Date info (kept for backward compatibility, not used)
+ * @param config - Entity configuration for names/colors
+ * @param daysInPeriod - Days in the data period (default: 365)
  */
 export function calculateProviderTableRow(
   provider: ProviderData,
-  dateInfo: DateInfo,
-  config: EntityConfig
+  _dateInfo: DateInfo,
+  config: EntityConfig,
+  daysInPeriod: number = FINOPS.DAYS_PER_YEAR
 ): CostTableRow {
-  // FIX: Provider data contains 365-day totals, not MTD costs
-  // Calculate forecasts from total cost over 365 days
-  const DAYS_IN_RANGE = 365
-  const dailyRate = provider.total_cost / DAYS_IN_RANGE
-  const monthlyForecast = dailyRate * 30
-  const annualForecast = dailyRate * 365
+  // Calculate forecasts using FinOps standards
+  const { dailyRate, monthlyForecast, annualForecast } = calculateFinOpsForecasts(
+    provider.total_cost,
+    daysInPeriod
+  )
 
   return {
     id: provider.provider,
@@ -338,19 +358,25 @@ export function calculateProviderTableRow(
 }
 
 /**
- * Transform category data to cost table row with forecasts
+ * Transform category data to cost table row with forecasts.
+ * Uses FinOps standard 30-day months for all forecasts.
+ *
+ * @param category - Category data from API
+ * @param _dateInfo - Date info (kept for backward compatibility, not used)
+ * @param config - Entity configuration for names/colors
+ * @param daysInPeriod - Days in the data period (default: 365)
  */
 export function calculateCategoryTableRow(
   category: CategoryData,
-  dateInfo: DateInfo,
-  config: EntityConfig = CATEGORY_CONFIG
+  _dateInfo: DateInfo,
+  config: EntityConfig = CATEGORY_CONFIG,
+  daysInPeriod: number = FINOPS.DAYS_PER_YEAR
 ): CostTableRow {
-  // FIX: Category data contains 365-day totals, not MTD costs
-  // Calculate forecasts from total cost over 365 days
-  const DAYS_IN_RANGE = 365
-  const dailyRate = category.total_cost / DAYS_IN_RANGE
-  const monthlyForecast = dailyRate * 30
-  const annualForecast = dailyRate * 365
+  // Calculate forecasts using FinOps standards
+  const { dailyRate, monthlyForecast, annualForecast } = calculateFinOpsForecasts(
+    category.total_cost,
+    daysInPeriod
+  )
 
   return {
     id: category.category,
