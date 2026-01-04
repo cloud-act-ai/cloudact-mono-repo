@@ -841,11 +841,12 @@ async def get_total_costs(
         team_id=team_id
     )
 
-    # Fetch all cost types in parallel
-    subscription_result, cloud_result, genai_result = await asyncio.gather(
+    # Fetch all cost types in parallel + currency (single lookup, not 4)
+    subscription_result, cloud_result, genai_result, currency = await asyncio.gather(
         cost_service.get_subscription_costs(query),
         cost_service.get_cloud_costs(query),
-        cost_service.get_genai_costs(query)
+        cost_service.get_genai_costs(query),
+        _get_org_currency(org_slug, bq_client)
     )
 
     # Validate date ranges match across cost types
@@ -928,8 +929,7 @@ async def get_total_costs(
             date_range = result.summary["date_range"]
             break
 
-    # Fetch org currency
-    currency = await _get_org_currency(org_slug, bq_client)
+    # Currency already fetched in parallel above
 
     return TotalCostSummary(
         subscription=subscription_summary,

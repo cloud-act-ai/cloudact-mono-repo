@@ -89,7 +89,7 @@ export async function loginAndGetOrgSlug(page: Page): Promise<string> {
     if (currentUrl.includes('/login')) {
       // Try clicking submit again
       await page.waitForTimeout(1000)
-      const errorText = await page.locator('[role="alert"], .error, text=Invalid').isVisible()
+      const errorText = await page.locator('[role="alert"]').or(page.locator('.error')).or(page.locator('text=Invalid')).isVisible()
       if (errorText) {
         throw new Error('Login failed - invalid credentials or error shown')
       }
@@ -150,24 +150,29 @@ export async function navigateToIntegrations(page: Page, orgSlug: string, type: 
  * Helper to wait for loading states to complete
  */
 export async function waitForLoadingToComplete(page: Page, timeout = 30000) {
-  try {
-    // Wait for any loading text that contains "Loading" to disappear
-    const loadingLocator = page.locator('text=/Loading.*/')
-    const startTime = Date.now()
+  const startTime = Date.now()
 
-    while (Date.now() - startTime < timeout) {
-      const isLoading = await loadingLocator.isVisible({ timeout: 1000 }).catch(() => false)
-      if (!isLoading) {
+  // Wait for any loading text to disappear
+  while (Date.now() - startTime < timeout) {
+    try {
+      // Check for common loading indicators
+      const loadingVisible = await page.locator('text=/Loading|Rendering|Please wait/i').first().isVisible({ timeout: 500 })
+
+      if (!loadingVisible) {
+        // No loading indicator found, we're good
         break
       }
+
       // Wait a bit before checking again
-      await page.waitForTimeout(500)
+      await page.waitForTimeout(1000)
+    } catch {
+      // Selector not found or timeout, continue
+      break
     }
-  } catch {
-    // No loading state found or timeout, continue
   }
+
   // Give the content a moment to render
-  await page.waitForTimeout(2000)
+  await page.waitForTimeout(1500)
 }
 
 /**

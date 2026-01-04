@@ -62,8 +62,10 @@ export interface CostTrendChartProps {
   budgetLabel?: string
   /** Enable zoom/brush */
   enableZoom?: boolean
-  /** Chart height */
+  /** Chart height (desktop) */
   height?: number
+  /** Chart height for mobile (optional, defaults to height - 80) */
+  mobileHeight?: number
   /** Show legend */
   showLegend?: boolean
   /** Loading state override */
@@ -94,10 +96,13 @@ export function CostTrendChart({
   budgetLabel = "Budget",
   enableZoom = false,
   height = 320,
+  mobileHeight,
   showLegend = true,
   loading: propLoading,
   className,
 }: CostTrendChartProps) {
+  // Responsive height - use CSS media query approach
+  const responsiveHeight = mobileHeight ?? Math.max(height - 80, 200)
   const { theme, timeRange: contextTimeRange, customRange: contextCustomRange } = useChartConfig()
   const costData = useCostData()
 
@@ -156,28 +161,48 @@ export function CostTrendChart({
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-[17px] font-bold text-slate-900">
+        <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">
           {title}
         </CardTitle>
         {subtitle && (
-          <p className="text-sm text-slate-500">{subtitle}</p>
+          <p className="text-xs sm:text-sm text-slate-500">{subtitle}</p>
         )}
       </CardHeader>
       <CardContent className="pt-0">
-        <BaseComboChart
-          data={chartData}
-          xAxisKey="label"
-          series={series}
-          height={height}
-          showGrid={true}
-          showLegend={showLegend}
-          compactLegend={true}
-          referenceLine={budgetLine}
-          referenceLineLabel={budgetLabel}
-          enableZoom={enableZoom}
-          loading={isLoading}
-          emptyMessage="No cost data available for this period"
-        />
+        {/* Mobile-responsive chart wrapper */}
+        <div className="block sm:hidden">
+          <BaseComboChart
+            data={chartData}
+            xAxisKey="label"
+            series={series}
+            height={responsiveHeight}
+            showGrid={true}
+            showLegend={showLegend}
+            compactLegend={true}
+            referenceLine={budgetLine}
+            referenceLineLabel={budgetLabel}
+            enableZoom={enableZoom}
+            loading={isLoading}
+            emptyMessage="No cost data available for this period"
+          />
+        </div>
+        {/* Desktop chart */}
+        <div className="hidden sm:block">
+          <BaseComboChart
+            data={chartData}
+            xAxisKey="label"
+            series={series}
+            height={height}
+            showGrid={true}
+            showLegend={showLegend}
+            compactLegend={true}
+            referenceLine={budgetLine}
+            referenceLineLabel={budgetLabel}
+            enableZoom={enableZoom}
+            loading={isLoading}
+            emptyMessage="No cost data available for this period"
+          />
+        </div>
       </CardContent>
     </Card>
   )

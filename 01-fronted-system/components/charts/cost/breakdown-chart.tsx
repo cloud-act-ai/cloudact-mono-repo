@@ -163,26 +163,26 @@ export function CostBreakdownChart({
     )}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[17px] font-bold text-slate-900">
+          <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">
             {title}
           </CardTitle>
-          <span className="text-sm font-medium text-slate-900 tabular-nums">
+          <span className="text-xs sm:text-sm font-medium text-slate-900 tabular-nums">
             {compact ? formatValueCompact(total) : formatValue(total)}
           </span>
         </div>
       </CardHeader>
       <CardContent>
         {/* Custom horizontal bar rendering for better control */}
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {isLoading ? (
-            // Loading skeleton
+            // Loading skeleton - responsive
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="animate-pulse">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="h-3 w-24 bg-slate-200 rounded" />
-                  <div className="h-3 w-16 bg-slate-200 rounded" />
+                  <div className="h-2.5 sm:h-3 w-20 sm:w-24 bg-slate-200 rounded" />
+                  <div className="h-2.5 sm:h-3 w-12 sm:w-16 bg-slate-200 rounded" />
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full">
+                <div className="h-1.5 sm:h-2 bg-slate-100 rounded-full">
                   <div
                     className="h-full bg-slate-200 rounded-full"
                     style={{ width: `${60 - i * 20}%` }}
@@ -204,34 +204,34 @@ export function CostBreakdownChart({
                 )}
                 onClick={() => onItemClick?.(item)}
               >
-                {/* Label row */}
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
+                {/* Label row - responsive */}
+                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                     <div
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-sm text-slate-700 group-hover:text-slate-900 truncate max-w-[150px]">
+                    <span className="text-xs sm:text-sm text-slate-700 group-hover:text-slate-900 truncate">
                       {item.name}
                     </span>
                     {item.count !== undefined && (
-                      <span className="text-xs text-slate-400">
+                      <span className="hidden sm:inline text-xs text-slate-400">
                         {item.count} {item.count === 1 ? countLabel.slice(0, -1) : countLabel}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-900 tabular-nums">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <span className="text-xs sm:text-sm font-medium text-slate-900 tabular-nums">
                       {compact ? formatValueCompact(item.value) : formatValue(item.value)}
                     </span>
-                    <span className="text-xs text-slate-400 tabular-nums w-10 text-right">
+                    <span className="text-[10px] sm:text-xs text-slate-400 tabular-nums w-8 sm:w-10 text-right">
                       {item.percentage?.toFixed(0)}%
                     </span>
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                {/* Progress bar - slightly smaller on mobile */}
+                <div className="h-1.5 sm:h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out"
                     style={{

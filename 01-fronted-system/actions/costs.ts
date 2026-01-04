@@ -660,9 +660,10 @@ export async function getTotalCosts(
     }
     if (params.toString()) url += `?${params.toString()}`
 
+    // Use longer timeout for /total endpoint - it makes 3 parallel BigQuery calls internally
     const response = await fetchWithTimeout(url, {
       headers: { "X-API-Key": orgApiKey },
-    })
+    }, 60000)  // 60s timeout for heavy aggregation endpoint
 
     if (!response.ok) {
       // 404 means no data found - this is NOT an error

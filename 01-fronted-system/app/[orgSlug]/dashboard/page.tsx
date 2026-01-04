@@ -185,41 +185,80 @@ export default function DashboardPage() {
     (costSummary.subscription?.total_monthly_cost ?? 0) > 0
   )
 
-  // Prepare summary data
+  // Get filtered daily trend data for the selected time range
+  const { getDailyTrendForRange, fetchCategoryTrend, categoryTrendData } = useCostData()
+
+  // Get filtered daily data for all categories
+  const filteredDailyData = useMemo(() => {
+    return getDailyTrendForRange(timeRange)
+  }, [getDailyTrendForRange, timeRange])
+
+  // Get filtered daily data per category (for ring chart)
+  const filteredGenaiData = useMemo(() => getDailyTrendForRange(timeRange, "genai"), [getDailyTrendForRange, timeRange])
+  const filteredCloudData = useMemo(() => getDailyTrendForRange(timeRange, "cloud"), [getDailyTrendForRange, timeRange])
+  const filteredSubscriptionData = useMemo(() => getDailyTrendForRange(timeRange, "subscription"), [getDailyTrendForRange, timeRange])
+
+  // Lazy-load category trend data if needed
+  React.useEffect(() => {
+    if (categoryTrendData.genai.length === 0) fetchCategoryTrend("genai")
+    if (categoryTrendData.cloud.length === 0) fetchCategoryTrend("cloud")
+    if (categoryTrendData.subscription.length === 0) fetchCategoryTrend("subscription")
+  }, [categoryTrendData, fetchCategoryTrend])
+
+  // Prepare summary data from FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
     const dateInfo = getDateInfo()
-    const totalMtd = periodCosts?.mtd ?? costSummary?.total?.total_monthly_cost ?? 0
-    const dailyRate = costSummary?.total?.total_daily_cost ?? 0
+
+    // Calculate totals from filtered daily data
+    const filteredTotal = filteredDailyData.reduce((sum, d) => sum + d.value, 0)
+    const filteredDailyAvg = filteredDailyData.length > 0 ? filteredTotal / filteredDailyData.length : 0
+
+    // For MTD: use filtered total if time range is mtd, otherwise show filtered period total
+    const totalMtd = timeRange === "mtd"
+      ? filteredTotal
+      : (periodCosts?.mtd ?? filteredTotal)
+
+    // Daily rate from filtered data
+    const dailyRate = filteredDailyAvg
+
+    // Forecast: current spend + (daily rate * remaining days)
     const daysRemaining = dateInfo.daysInMonth - dateInfo.daysElapsed
-    const forecast = totalMtd + (dailyRate * daysRemaining)
+    const forecast = (periodCosts?.mtd ?? filteredTotal) + (dailyRate * daysRemaining)
+
+    // YTD: use filtered total for ytd range, otherwise show period ytd
+    const ytd = timeRange === "ytd"
+      ? filteredTotal
+      : (periodCosts?.ytd ?? costSummary?.total?.total_annual_cost ?? filteredTotal)
 
     return {
-      mtd: totalMtd,
+      mtd: filteredTotal, // Show filtered period total as "Period Spend"
       dailyRate: dailyRate,
       forecast: forecast,
-      ytd: periodCosts?.ytd ?? costSummary?.total?.total_annual_cost ?? totalMtd,
+      ytd: ytd,
       currency: contextCurrency,
     }
-  }, [costSummary, periodCosts, contextCurrency])
+  }, [filteredDailyData, timeRange, costSummary, periodCosts, contextCurrency])
 
-  // Prepare ring chart segments
+  // Prepare ring chart segments from FILTERED category data
   const ringSegments = useMemo(() => {
-    const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
-    const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
-    const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
+    // Aggregate filtered daily data per category
+    const genaiCost = filteredGenaiData.reduce((sum, d) => sum + d.value, 0)
+    const cloudCost = filteredCloudData.reduce((sum, d) => sum + d.value, 0)
+    const subscriptionCost = filteredSubscriptionData.reduce((sum, d) => sum + d.value, 0)
 
     return [
       { key: "genai", name: OVERVIEW_CATEGORY_CONFIG.names.genai, value: genaiCost, color: OVERVIEW_CATEGORY_CONFIG.colors.genai },
       { key: "cloud", name: OVERVIEW_CATEGORY_CONFIG.names.cloud, value: cloudCost, color: OVERVIEW_CATEGORY_CONFIG.colors.cloud },
       { key: "subscription", name: OVERVIEW_CATEGORY_CONFIG.names.subscription, value: subscriptionCost, color: OVERVIEW_CATEGORY_CONFIG.colors.subscription },
     ]
-  }, [costSummary])
+  }, [filteredGenaiData, filteredCloudData, filteredSubscriptionData])
 
-  // Prepare breakdown items for category chart
+  // Prepare breakdown items for category chart from FILTERED data
   const categoryBreakdown = useMemo(() => {
-    const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
-    const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
-    const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
+    // Use filtered category totals
+    const genaiCost = filteredGenaiData.reduce((sum, d) => sum + d.value, 0)
+    const cloudCost = filteredCloudData.reduce((sum, d) => sum + d.value, 0)
+    const subscriptionCost = filteredSubscriptionData.reduce((sum, d) => sum + d.value, 0)
 
     return [
       {
@@ -244,7 +283,7 @@ export default function DashboardPage() {
         color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       },
     ].sort((a, b) => b.value - a.value)
-  }, [costSummary])
+  }, [filteredGenaiData, filteredCloudData, filteredSubscriptionData, costSummary])
 
   // Top 5 Cost Drivers by Category
   const top5GenAI = useMemo(() => {
@@ -396,12 +435,13 @@ export default function DashboardPage() {
       <div className="animate-fade-up animation-delay-100">
         <CostTrendChart
           title="Daily Cost Trend"
-          subtitle="Daily spend with rolling average"
+          subtitle="Daily spend with period average"
           timeRange={timeRange}
           showBars={true}
           showLine={true}
           barColor="#90FCA6"
           lineColor="#FF6C5E"
+          lineLabel={`${filteredDailyData.length}-day Avg`}
           enableZoom={true}
           height={320}
           loading={isLoading}
@@ -438,10 +478,10 @@ export default function DashboardPage() {
             className="premium-card"
           />
         ) : (
-          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
             <div className="text-center">
-              <Brain className="h-8 w-8 text-[#10A37F]/40 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No GenAI costs yet</p>
+              <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-[#10A37F]/40 mx-auto mb-1.5 sm:mb-2" />
+              <p className="text-xs sm:text-sm text-slate-500">No GenAI costs yet</p>
             </div>
           </div>
         )}
@@ -460,10 +500,10 @@ export default function DashboardPage() {
             className="premium-card"
           />
         ) : (
-          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
             <div className="text-center">
-              <Cloud className="h-8 w-8 text-[#4285F4]/40 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No cloud costs yet</p>
+              <Cloud className="h-6 w-6 sm:h-8 sm:w-8 text-[#4285F4]/40 mx-auto mb-1.5 sm:mb-2" />
+              <p className="text-xs sm:text-sm text-slate-500">No cloud costs yet</p>
             </div>
           </div>
         )}
@@ -479,10 +519,10 @@ export default function DashboardPage() {
             className="premium-card"
           />
         ) : (
-          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
             <div className="text-center">
-              <Wallet className="h-8 w-8 text-[#FF6C5E]/40 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No subscription costs yet</p>
+              <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-[#FF6C5E]/40 mx-auto mb-1.5 sm:mb-2" />
+              <p className="text-xs sm:text-sm text-slate-500">No subscription costs yet</p>
             </div>
           </div>
         )}
@@ -490,34 +530,34 @@ export default function DashboardPage() {
 
       {/* Integration Status */}
       <Card>
-        <CardHeader className="border-b border-border">
+        <CardHeader className="border-b border-border pb-3 sm:pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-[17px] font-bold text-slate-900">Connected Integrations</CardTitle>
+            <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">Connected Integrations</CardTitle>
             <Link href={`/${orgSlug}/integrations`}>
-              <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
+              <button className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-slate-900 hover:text-black transition-colors">
                 Manage
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </Link>
           </div>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="p-3 sm:p-6">
+          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {integrations.length > 0 ? (
               integrations.map((integration) => (
                 <div
                   key={integration.provider}
-                  className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
+                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#90FCA6]/10">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md sm:rounded-lg bg-[#90FCA6]/10 shrink-0">
                       {integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") ? (
-                        <Cloud className="h-4 w-4 text-[#1a7a3a]" />
+                        <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
                       ) : (
-                        <Zap className="h-4 w-4 text-[#1a7a3a]" />
+                        <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
                       )}
                     </div>
-                    <span className="text-sm font-semibold text-slate-900">
+                    <span className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
                       {integration.name}
                     </span>
                   </div>
@@ -529,7 +569,7 @@ export default function DashboardPage() {
                         ? "warning"
                         : "outline"
                     }
-                    className="text-[11px]"
+                    className="text-[10px] sm:text-[11px] shrink-0"
                   >
                     {integration.status === "connected"
                       ? "Connected"
@@ -540,11 +580,11 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="col-span-full text-center py-6">
-                <Zap className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No integrations configured</p>
+              <div className="col-span-full text-center py-4 sm:py-6">
+                <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-slate-300 mx-auto mb-1.5 sm:mb-2" />
+                <p className="text-xs sm:text-sm text-slate-500">No integrations configured</p>
                 <Link href={`/${orgSlug}/integrations`} className="inline-block mt-2">
-                  <button className="inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors">
+                  <button className="inline-flex items-center gap-2 h-8 sm:h-9 px-3 sm:px-4 bg-[#90FCA6] text-slate-900 text-xs sm:text-[13px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors">
                     Add Integration
                   </button>
                 </Link>
@@ -556,23 +596,23 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Quick Actions</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <h2 className="text-[11px] sm:text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3 sm:mb-4">Quick Actions</h2>
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
               <Card
                 className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${QUICK_ACTION_COLOR_CLASSES[action.color]} hover:-translate-y-1`}
               >
-                <CardContent className="p-6">
-                  <div className="space-y-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 sm:space-y-4">
                     <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-lg transition-transform duration-200 group-hover:scale-110`}
+                      className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-lg transition-transform duration-200 group-hover:scale-110 shrink-0`}
                     >
                       {action.icon}
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="text-[16px] font-bold text-slate-900">{action.title}</h3>
-                      <p className="text-sm text-muted-foreground">{action.description}</p>
+                    <div className="space-y-0.5 sm:space-y-1">
+                      <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900">{action.title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{action.description}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -584,7 +624,7 @@ export default function DashboardPage() {
 
       {/* Recent Pipeline Runs */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Recent Pipeline Runs</h2>
+        <h2 className="text-[11px] sm:text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3 sm:mb-4">Recent Pipeline Runs</h2>
         <Card>
           <CardContent className="p-0">
             {recentPipelines.length > 0 ? (
@@ -592,18 +632,18 @@ export default function DashboardPage() {
                 {recentPipelines.map((pipeline) => (
                   <div
                     key={pipeline.pipeline_logging_id}
-                    className="flex items-start gap-4 p-4 hover:bg-[#90FCA6]/5 transition-colors"
+                    className="flex items-start gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-[#90FCA6]/5 transition-colors"
                   >
                     <div
-                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${getStatusColor(pipeline.status)}`}
+                      className={`flex h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-lg sm:rounded-xl border ${getStatusColor(pipeline.status)}`}
                     >
                       {getPipelineIcon(pipeline.pipeline_id)}
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <p className="text-[15px] font-semibold text-slate-900">{pipeline.pipeline_id}</p>
-                          <p className="text-sm text-muted-foreground">
+                    <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
+                        <div className="space-y-0.5 min-w-0">
+                          <p className="text-[13px] sm:text-[15px] font-semibold text-slate-900 truncate">{pipeline.pipeline_id}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {pipeline.duration_ms
                               ? `Duration: ${(pipeline.duration_ms / 1000).toFixed(1)}s`
                               : pipeline.error_message
@@ -617,16 +657,16 @@ export default function DashboardPage() {
                             : pipeline.status === "FAILED" ? "destructive"
                             : "outline"
                           }
-                          className="text-[10px] flex-shrink-0"
+                          className="text-[9px] sm:text-[10px] flex-shrink-0"
                         >
-                          {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                          {pipeline.status === "FAILED" && <AlertCircle className="h-3 w-3 mr-1" />}
-                          {pipeline.status === "RUNNING" && <Activity className="h-3 w-3 mr-1 animate-pulse" />}
+                          {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />}
+                          {pipeline.status === "FAILED" && <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />}
+                          {pipeline.status === "RUNNING" && <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 animate-pulse" />}
                           {pipeline.status}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
+                      <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
+                        <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         {formatTimeAgo(pipeline.start_time)}
                       </div>
                     </div>
@@ -634,17 +674,17 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center">
-                <Database className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-900">No pipeline runs yet</p>
-                <p className="text-xs text-slate-500 mt-1">Run a pipeline to see activity here</p>
+              <div className="p-6 sm:p-8 text-center">
+                <Database className="h-8 w-8 sm:h-10 sm:w-10 text-slate-300 mx-auto mb-2 sm:mb-3" />
+                <p className="text-xs sm:text-sm font-medium text-slate-900">No pipeline runs yet</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-1">Run a pipeline to see activity here</p>
               </div>
             )}
-            <div className="border-t border-border p-4 bg-[#90FCA6]/5">
+            <div className="border-t border-border p-3 sm:p-4 bg-[#90FCA6]/5">
               <Link href={`/${orgSlug}/pipelines`}>
-                <button className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
+                <button className="w-full inline-flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-slate-900 hover:text-black transition-colors">
                   View All Pipelines
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </Link>
             </div>
@@ -654,20 +694,20 @@ export default function DashboardPage() {
 
       {/* Bottom CTA Section */}
       <Card className="relative overflow-hidden border-2 border-[#90FCA6]/20 bg-gradient-to-br from-[#90FCA6]/5 via-white to-[#FF6C5E]/5">
-        <CardContent className="p-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 text-center sm:text-left">
-              <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <Users className="h-5 w-5 text-[#1a7a3a]" />
-                <h3 className="text-[17px] font-bold text-slate-900">Invite Your Team</h3>
+        <CardContent className="p-4 sm:p-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+            <div className="space-y-1 sm:space-y-2 text-center sm:text-left">
+              <div className="flex items-center gap-1.5 sm:gap-2 justify-center sm:justify-start">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
+                <h3 className="text-[15px] sm:text-[17px] font-bold text-slate-900">Invite Your Team</h3>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Collaborate on cost optimization with your team members
               </p>
             </div>
             <Link href={`/${orgSlug}/settings/members`}>
-              <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
-                <Users className="h-5 w-5" />
+              <button className="inline-flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-4 sm:px-6 bg-[#90FCA6] text-slate-900 text-xs sm:text-[13px] font-semibold rounded-lg sm:rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                 Manage Team
               </button>
             </Link>

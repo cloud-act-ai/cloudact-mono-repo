@@ -368,10 +368,10 @@ export default function CostOverviewPage() {
             className="premium-card"
           />
         ) : (
-          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
             <div className="text-center">
-              <Brain className="h-8 w-8 text-[#10A37F]/40 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No GenAI costs yet</p>
+              <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-[#10A37F]/40 mx-auto mb-1.5 sm:mb-2" />
+              <p className="text-xs sm:text-sm text-slate-500">No GenAI costs yet</p>
             </div>
           </div>
         )}
@@ -390,10 +390,10 @@ export default function CostOverviewPage() {
             className="premium-card"
           />
         ) : (
-          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
             <div className="text-center">
-              <Cloud className="h-8 w-8 text-[#4285F4]/40 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No cloud costs yet</p>
+              <Cloud className="h-6 w-6 sm:h-8 sm:w-8 text-[#4285F4]/40 mx-auto mb-1.5 sm:mb-2" />
+              <p className="text-xs sm:text-sm text-slate-500">No cloud costs yet</p>
             </div>
           </div>
         )}
@@ -409,10 +409,10 @@ export default function CostOverviewPage() {
             className="premium-card"
           />
         ) : (
-          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
             <div className="text-center">
-              <Wallet className="h-8 w-8 text-[#FF6C5E]/40 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No subscription costs yet</p>
+              <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-[#FF6C5E]/40 mx-auto mb-1.5 sm:mb-2" />
+              <p className="text-xs sm:text-sm text-slate-500">No subscription costs yet</p>
             </div>
           </div>
         )}
@@ -437,61 +437,61 @@ export default function CostOverviewPage() {
       )}
 
       {/* Quick Access Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 animate-fade-up animation-delay-400">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 animate-fade-up animation-delay-400">
         <Link
           href={`/${orgSlug}/cost-dashboards/genai-costs`}
-          className="premium-card bg-white rounded-2xl border border-slate-200 p-5 group"
+          className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 group"
           aria-label="View GenAI costs dashboard"
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#10A37F]/10">
-                <Brain className="h-5 w-5 text-[#10A37F]" aria-hidden="true" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#10A37F]/10">
+                <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-[#10A37F]" aria-hidden="true" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">GenAI Costs</h3>
-                <p className="text-xs text-slate-500">LLM API usage</p>
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-900">GenAI Costs</h3>
+                <p className="text-[10px] sm:text-xs text-slate-500">LLM API usage</p>
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
           </div>
         </Link>
 
         <Link
           href={`/${orgSlug}/cost-dashboards/cloud-costs`}
-          className="premium-card bg-white rounded-2xl border border-slate-200 p-5 group"
+          className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 group"
           aria-label="View cloud costs dashboard"
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#4285F4]/10">
-                <Cloud className="h-5 w-5 text-[#4285F4]" aria-hidden="true" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#4285F4]/10">
+                <Cloud className="h-4 w-4 sm:h-5 sm:w-5 text-[#4285F4]" aria-hidden="true" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Cloud Costs</h3>
-                <p className="text-xs text-slate-500">GCP, AWS, Azure</p>
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-900">Cloud Costs</h3>
+                <p className="text-[10px] sm:text-xs text-slate-500">GCP, AWS, Azure</p>
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
           </div>
         </Link>
 
         <Link
           href={`/${orgSlug}/cost-dashboards/subscription-costs`}
-          className="premium-card bg-white rounded-2xl border border-slate-200 p-5 group"
+          className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3.5 sm:p-5 group"
           aria-label="View subscription costs dashboard"
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#FF6C5E]/10">
-                <Wallet className="h-5 w-5 text-[#FF6C5E]" aria-hidden="true" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#FF6C5E]/10">
+                <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-[#FF6C5E]" aria-hidden="true" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Subscription Costs</h3>
-                <p className="text-xs text-slate-500">SaaS & software</p>
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-900">Subscription Costs</h3>
+                <p className="text-[10px] sm:text-xs text-slate-500">SaaS & software</p>
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
           </div>
         </Link>
       </div>

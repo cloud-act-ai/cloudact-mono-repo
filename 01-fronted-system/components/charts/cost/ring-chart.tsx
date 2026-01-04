@@ -183,23 +183,33 @@ export function CostRingChart({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle
-            className="text-[17px] font-bold"
+            className="text-[15px] sm:text-[17px] font-bold"
             style={{ color: titleColor || theme.text }}
           >
             {title}
           </CardTitle>
           {showChevron && (
-            <ChevronRight className="h-5 w-5 text-slate-400" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
           )}
         </div>
       </CardHeader>
       <CardContent>
         <div className={cn(
-          "flex items-center gap-6",
-          compact ? "flex-row" : "flex-row"
+          "flex gap-4 sm:gap-6",
+          // Mobile: stack vertically, center the chart
+          // Desktop: horizontal layout with chart on left
+          "flex-col items-center sm:flex-row sm:items-center"
         )}>
-          {/* Ring chart - larger, takes 50% */}
-          <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+          {/* Ring chart - responsive size */}
+          <div
+            className="relative flex-shrink-0"
+            style={{
+              width: `min(${size}px, 50vw)`,
+              height: `min(${size}px, 50vw)`,
+              maxWidth: size,
+              maxHeight: size,
+            }}
+          >
             <BasePieChart
               data={pieData}
               innerRadius={innerRadius}
@@ -214,20 +224,20 @@ export function CostRingChart({
               } : undefined}
             />
 
-            {/* Center content */}
+            {/* Center content - responsive text sizes */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-slate-900">
+              <span className="text-lg sm:text-xl font-bold text-slate-900">
                 {displayCenterValue}
               </span>
               {centerLabel && (
-                <span className="text-xs text-slate-500">{centerLabel}</span>
+                <span className="text-[10px] sm:text-xs text-slate-500">{centerLabel}</span>
               )}
             </div>
           </div>
 
-          {/* Breakdown list - takes remaining 50% on right */}
+          {/* Breakdown list - responsive layout */}
           {showBreakdown && (
-            <div className="flex-1 space-y-2.5 min-w-0">
+            <div className="flex-1 space-y-2 sm:space-y-2.5 min-w-0 w-full sm:w-auto">
               {segments.map((segment) => {
                 const percent = total > 0 ? (segment.value / total) * 100 : 0
 
@@ -235,7 +245,7 @@ export function CostRingChart({
                   <div
                     key={segment.key}
                     className={cn(
-                      "flex items-center justify-between text-sm",
+                      "flex items-center justify-between text-xs sm:text-sm",
                       onSegmentClick && "cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1 rounded"
                     )}
                     onClick={onSegmentClick ? (e) => {
@@ -243,18 +253,18 @@ export function CostRingChart({
                       onSegmentClick(segment)
                     } : undefined}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                       <div
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: segment.color }}
                       />
-                      <span className="text-slate-600">{segment.name}</span>
+                      <span className="text-slate-600 truncate">{segment.name}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       <span className="font-medium text-slate-900 tabular-nums">
                         {compact ? formatValueCompact(segment.value) : formatValue(segment.value)}
                       </span>
-                      <span className="text-slate-400 text-xs tabular-nums w-10 text-right">
+                      <span className="text-slate-400 text-[10px] sm:text-xs tabular-nums w-8 sm:w-10 text-right">
                         {percent.toFixed(0)}%
                       </span>
                     </div>
@@ -265,9 +275,9 @@ export function CostRingChart({
           )}
         </div>
 
-        {/* Insight text */}
+        {/* Insight text - responsive */}
         {insight && (
-          <p className="mt-3 text-xs text-slate-500 text-center">
+          <p className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-500 text-center">
             {insight}
           </p>
         )}

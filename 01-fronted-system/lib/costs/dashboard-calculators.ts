@@ -318,16 +318,19 @@ export function calculateProviderTableRow(
   dateInfo: DateInfo,
   config: EntityConfig
 ): CostTableRow {
-  const { dailyRate, monthlyForecast, annualForecast } = calculateForecasts(
-    provider.total_cost,
-    dateInfo
-  )
+  // FIX: Provider data contains 365-day totals, not MTD costs
+  // Calculate forecasts from total cost over 365 days
+  const DAYS_IN_RANGE = 365
+  const dailyRate = provider.total_cost / DAYS_IN_RANGE
+  const monthlyForecast = dailyRate * 30
+  const annualForecast = dailyRate * 365
 
   return {
     id: provider.provider,
     name: getEntityName(provider.provider, config),
     type: config.defaultType,
     count: provider.record_count,
+    value: provider.total_cost, // Show actual total in Amount column
     dailyCost: dailyRate,
     monthlyCost: monthlyForecast,
     annualCost: annualForecast,
@@ -342,15 +345,18 @@ export function calculateCategoryTableRow(
   dateInfo: DateInfo,
   config: EntityConfig = CATEGORY_CONFIG
 ): CostTableRow {
-  const { dailyRate, monthlyForecast, annualForecast } = calculateForecasts(
-    category.total_cost,
-    dateInfo
-  )
+  // FIX: Category data contains 365-day totals, not MTD costs
+  // Calculate forecasts from total cost over 365 days
+  const DAYS_IN_RANGE = 365
+  const dailyRate = category.total_cost / DAYS_IN_RANGE
+  const monthlyForecast = dailyRate * 30
+  const annualForecast = dailyRate * 365
 
   return {
     id: category.category,
     name: getEntityName(category.category, config),
     count: category.count,
+    value: category.total_cost, // Show actual total in Amount column
     dailyCost: dailyRate,
     monthlyCost: monthlyForecast,
     annualCost: annualForecast,
