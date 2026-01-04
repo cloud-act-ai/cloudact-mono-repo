@@ -62,8 +62,14 @@ export default function SubscriptionCostsPage() {
   const customRange = contextFilters.customRange
 
   // Set category filter on mount (subscription page is fixed to subscription category)
+  // CTX-002 FIX: Add cleanup to reset categories on unmount
   useEffect(() => {
     setUnifiedFilters({ categories: ["subscription"] })
+
+    // Cleanup: reset categories when leaving this page
+    return () => {
+      setUnifiedFilters({ categories: undefined })
+    }
   }, [setUnifiedFilters])
 
   // Local state - Subscription costs page (category fixed to "subscription")

@@ -273,6 +273,115 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Auto-sync schema disabled (AUTO_SYNC_SCHEMA=false)")
 
+    # Auto-sync organization schemas (per-org tables)
+    # Only runs if bootstrap auto-sync is enabled
+    if settings.auto_sync_schema:
+        try:
+            from pathlib import Path
+            import yaml
+            import json
+            from google.cloud import bigquery
+
+            bq_client = get_bigquery_client()
+
+            # Load org onboarding config
+            org_config_dir = Path(__file__).parent.parent.parent / "configs" / "setup" / "organizations" / "onboarding"
+            org_schemas_dir = org_config_dir / "schemas"
+
+            if org_schemas_dir.exists():
+                # Get list of active orgs from org_profiles
+                org_query = f"""
+                SELECT org_slug FROM `{settings.gcp_project_id}.organizations.org_profiles`
+                WHERE is_active = TRUE
+                """
+                try:
+                    org_results = list(bq_client.client.query(org_query).result())
+                    org_slugs = [row.org_slug for row in org_results]
+
+                    if org_slugs:
+                        org_columns_added = {}
+                        total_orgs_synced = 0
+
+                        # Load org schema files
+                        org_schema_files = {}
+                        for schema_file in org_schemas_dir.glob("*.json"):
+                            table_name = schema_file.stem
+                            with open(schema_file, 'r') as f:
+                                org_schema_files[table_name] = json.load(f)
+
+                        # Sync each org's tables (limit to first 5 to avoid long startups)
+                        for org_slug in org_slugs[:5]:
+                            dataset_suffix = "_prod" if settings.environment == "production" else "_prod"
+                            org_dataset_id = f"{settings.gcp_project_id}.{org_slug}{dataset_suffix}"
+
+                            try:
+                                bq_client.client.get_dataset(org_dataset_id)
+                            except Exception:
+                                # Org dataset doesn't exist yet - skip
+                                continue
+
+                            # Get existing tables in org dataset
+                            org_existing_tables = {t.table_id for t in bq_client.client.list_tables(org_dataset_id)}
+
+                            for table_name, schema_json in org_schema_files.items():
+                                if table_name not in org_existing_tables:
+                                    continue
+
+                                table_id = f"{org_dataset_id}.{table_name}"
+                                try:
+                                    existing_table = bq_client.client.get_table(table_id)
+                                    existing_columns = {field.name for field in existing_table.schema}
+                                    expected_columns = {field['name'] for field in schema_json}
+
+                                    missing_columns = expected_columns - existing_columns
+
+                                    if missing_columns:
+                                        for col_name in missing_columns:
+                                            col_def = next((f for f in schema_json if f['name'] == col_name), None)
+                                            if col_def:
+                                                col_type = col_def['type']
+                                                alter_sql = f"""
+                                                ALTER TABLE `{table_id}`
+                                                ADD COLUMN IF NOT EXISTS {col_name} {col_type}
+                                                """
+                                                bq_client.client.query(alter_sql).result()
+
+                                                key = f"{org_slug}.{table_name}"
+                                                if key not in org_columns_added:
+                                                    org_columns_added[key] = []
+                                                org_columns_added[key].append(col_name)
+                                except Exception as e:
+                                    logger.warning(f"Auto-sync org: Failed to sync {org_slug}.{table_name}: {e}")
+
+                            total_orgs_synced += 1
+
+                        # Log summary
+                        if org_columns_added:
+                            total_cols = sum(len(v) for v in org_columns_added.values())
+                            logger.info(
+                                f"Auto-sync org: Added {total_cols} columns across {len(org_columns_added)} tables in {total_orgs_synced} orgs",
+                                extra={"org_columns_added": org_columns_added}
+                            )
+                            for table, cols in org_columns_added.items():
+                                logger.info(f"  - {table}: {', '.join(cols)}")
+                        else:
+                            logger.info(f"Auto-sync org: {total_orgs_synced} orgs checked, all schemas in sync")
+
+                        if len(org_slugs) > 5:
+                            logger.info(f"Auto-sync org: Checked first 5 orgs (of {len(org_slugs)} total). "
+                                       f"Run /api/v1/organizations/{{org}}/sync for remaining orgs.")
+                    else:
+                        logger.info("Auto-sync org: No active organizations found")
+
+                except Exception as e:
+                    logger.warning(f"Auto-sync org: Could not query org_profiles: {e}")
+            else:
+                logger.debug("Auto-sync org: Org schemas directory not found")
+
+        except Exception as e:
+            logger.error(f"Auto-sync org failed: {e}", exc_info=True)
+            logger.warning("Continuing startup despite auto-sync org failure")
+
     # Initialize Auth Metrics Aggregator background task
     try:
         auth_aggregator = get_auth_aggregator()

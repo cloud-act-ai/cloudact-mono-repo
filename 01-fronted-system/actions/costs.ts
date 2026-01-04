@@ -42,17 +42,44 @@ const AUTH_CACHE_TTL_MS = 5000
 const authCache = new Map<string, CachedAuth>()
 
 /**
+ * Get current user ID from Supabase auth (fast, no DB query).
+ * Returns null if not authenticated.
+ *
+ * AUTH-001 FIX: Used to include userId in cache key to prevent cross-user auth leakage.
+ */
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    return user?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Get cached auth context for an org.
  * This dramatically reduces Supabase queries when multiple cost actions run in parallel.
  * Cache is invalidated after 5 seconds to ensure fresh auth checks.
+ *
+ * AUTH-001 FIX: Cache key now includes userId to prevent cross-user auth context leakage.
+ * Previously, User A (admin) could have their auth cached, and User B (member) accessing
+ * the same org within 5 seconds would incorrectly get User A's admin role.
  */
 async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
-  const cacheKey = orgSlug
+  // AUTH-001 FIX: Get current user ID first to include in cache key
+  const currentUserId = await getCurrentUserId()
+  if (!currentUserId) {
+    return null // Not authenticated
+  }
+
+  // AUTH-001 FIX: Cache key includes userId to prevent cross-user leakage
+  const cacheKey = `${currentUserId}:${orgSlug}`
   const cached = authCache.get(cacheKey)
   const now = Date.now()
 
-  // Return cached if still valid
-  if (cached && (now - cached.cachedAt) < AUTH_CACHE_TTL_MS) {
+  // Return cached if still valid AND matches current user
+  if (cached && (now - cached.cachedAt) < AUTH_CACHE_TTL_MS && cached.userId === currentUserId) {
     return {
       auth: { user: { id: cached.userId }, orgId: cached.orgId, role: cached.role },
       apiKey: cached.apiKey,
@@ -68,7 +95,7 @@ async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult
       return null
     }
 
-    // Cache the result
+    // Cache the result with user-specific key
     authCache.set(cacheKey, {
       userId: auth.user.id,
       orgId: auth.orgId,
@@ -77,8 +104,8 @@ async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult
       cachedAt: now,
     })
 
-    // Cleanup old entries (max 50 orgs cached)
-    if (authCache.size > 50) {
+    // Cleanup old entries (max 100 user:org combinations cached)
+    if (authCache.size > 100) {
       const entries = Array.from(authCache.entries())
       for (const [key, value] of entries) {
         if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {

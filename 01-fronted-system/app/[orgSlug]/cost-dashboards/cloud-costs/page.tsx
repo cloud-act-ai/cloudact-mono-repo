@@ -62,8 +62,14 @@ export default function CloudCostsPage() {
   const customRange = contextFilters.customRange
 
   // Set category filter on mount (cloud page is fixed to cloud category)
+  // CTX-002 FIX: Add cleanup to reset categories on unmount
   useEffect(() => {
     setUnifiedFilters({ categories: ["cloud"] })
+
+    // Cleanup: reset categories when leaving this page
+    return () => {
+      setUnifiedFilters({ categories: undefined })
+    }
   }, [setUnifiedFilters])
 
   // Local state - Cloud costs page (category fixed to "cloud")

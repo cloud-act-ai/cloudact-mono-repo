@@ -62,8 +62,14 @@ export default function GenAICostsPage() {
   const customRange = contextFilters.customRange
 
   // Set category filter on mount (genai page is fixed to genai category)
+  // CTX-002 FIX: Add cleanup to reset categories on unmount
   useEffect(() => {
     setUnifiedFilters({ categories: ["genai"] })
+
+    // Cleanup: reset categories when leaving this page
+    return () => {
+      setUnifiedFilters({ categories: undefined })
+    }
   }, [setUnifiedFilters])
 
   // Local state - GenAI costs page (category fixed to "genai")

@@ -210,20 +210,31 @@ const trend = formatTrend(comparison, "USD")
 // { text, arrow, colorClass, bgClass }
 ```
 
-### Usage Pattern (Fetch Once, Filter Many)
-```typescript
-// Fetch wide range once
-const { data } = await getCosts(orgSlug, dateRanges.last12Months())
+### Usage Pattern (Unified Filter Architecture)
 
-// Filter client-side (instant, no API call)
+CloudAct uses a **unified filter architecture** for cost analytics:
+- ONE fetch (365 days of granular data on initial load)
+- ALL filter operations are instant (client-side)
+- See `cost-analytics` skill for caching details
+
+```typescript
+// Using the CostDataContext (preferred for dashboard pages)
+import { useCostData } from "@/contexts/cost-data-context"
+
+const { setUnifiedFilters, getFilteredTimeSeries, getFilteredGranularData } = useCostData()
+
+// Change filters - INSTANT (no API call for preset ranges)
+setUnifiedFilters({ timeRange: "30" })
+setUnifiedFilters({ selectedProviders: ["openai", "gcp"] })
+
+// Get filtered data for charts
+const timeSeries = getFilteredTimeSeries()  // { date, total }[]
+const granularData = getFilteredGranularData()  // Full FOCUS 1.3 rows
+
+// Using helpers directly (for server actions or custom analysis)
 const mtdCosts = filterByDateRange(data, dateRanges.mtd())
 const summary = calculateSummary(data, dateRanges.thisMonth())
 const comparison = monthOverMonth(data)
-
-// Chart interactions are instant
-const handleRangeChange = (key) => {
-  setFilteredData(filterByDateRange(data, dateRanges[key]()))
-}
 ```
 
 ## API Endpoints
@@ -396,6 +407,7 @@ ORDER BY month DESC;
 ```
 
 ## Related Skills
+- `cost-analytics` - **Unified filter architecture, caching, troubleshooting** (see this for cache/filter flows)
 - `subscription-costs` - SaaS subscription cost pipelines
 - `pipeline-ops` - Run cost pipelines
 - `hierarchy-ops` - Cost allocation setup
