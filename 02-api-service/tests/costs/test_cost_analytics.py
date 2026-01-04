@@ -21,7 +21,7 @@ NOTE: Tests work with latest SaaS subscription schema changes:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch, AsyncMock, PropertyMock
 from datetime import date
 from httpx import AsyncClient, ASGITransport
 
@@ -661,13 +661,19 @@ class TestCacheEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_cache_stats(self, test_client, mock_cost_service):
-        """Test cache statistics retrieval."""
-        mock_cost_service.get_cache_stats = MagicMock(return_value={
+        """Test cache statistics retrieval with memory tracking."""
+        # Mock cache_stats property (not get_cache_stats method)
+        type(mock_cost_service).cache_stats = PropertyMock(return_value={
             "hits": 100,
             "misses": 25,
             "evictions": 5,
+            "memory_evictions": 2,
             "size": 50,
             "max_size": 100,
+            "memory_bytes": 52428800,
+            "memory_mb": 50.0,
+            "max_memory_mb": 512,
+            "memory_utilization": 0.0977,
             "hit_rate": 0.8
         })
 
@@ -676,6 +682,8 @@ class TestCacheEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["hit_rate"] == 0.8
+        assert data["memory_mb"] == 50.0
+        assert data["memory_evictions"] == 2
 
     @pytest.mark.asyncio
     async def test_invalidate_cache(self, test_client, mock_cost_service):

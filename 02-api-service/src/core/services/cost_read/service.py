@@ -6,12 +6,18 @@ For dashboard reads only - pipeline writes cost data.
 
 Features:
 - Polars lazy evaluation for optimal query performance
-- L1 LRU cache for raw DataFrames (TTL: 300s)
-- L2 Aggregation cache for pre-computed results (TTL: 300s)
+- L1 LRU cache for raw DataFrames
+- L2 Aggregation cache for pre-computed results
 - Multi-tenant isolation via org_slug
 - Zero-copy data sharing via Arrow format
 - Centralized aggregations via lib/costs/
 - Category filtering pushed to SQL WHERE for efficiency
+
+Cache TTL Strategy (Daily Cost Data):
+- Cost data is daily (pipelines run once per day)
+- Historical data: Cache until midnight UTC (no changes until new day)
+- Today's data: 60s TTL (pipeline might still be running)
+- Minimum TTL: 300s (avoid edge cases near midnight)
 
 Hybrid Cache Strategy:
 - Frontend: 365-day data cached, filtered client-side for instant UI
@@ -24,7 +30,7 @@ import logging
 import asyncio
 import time
 import threading
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional, List, Dict, Any
 
 from google.cloud import bigquery
@@ -48,6 +54,7 @@ from src.lib.costs import (
     aggregate_by_category,
     aggregate_by_date,
     aggregate_by_hierarchy,
+    aggregate_granular,
     # Calculations
     calculate_forecasts,
     calculate_percentage_change,
@@ -62,6 +69,48 @@ from src.lib.costs import (
 )
 
 logger = logging.getLogger(__name__)
+
+# TTL Constants
+TTL_TODAY_DATA = 60  # 60 seconds for today's data (pipeline might still run)
+TTL_MIN_HISTORICAL = 300  # Minimum 5 min even if midnight is very close
+
+
+def _seconds_until_midnight_utc() -> int:
+    """
+    Calculate seconds until midnight UTC.
+
+    Cost data is daily (pipelines run once per day), so historical data
+    should be cached until midnight UTC when new data might be available.
+    This reduces unnecessary BigQuery calls compared to fixed 300s TTL.
+
+    Returns:
+        Seconds until midnight UTC (minimum TTL_MIN_HISTORICAL)
+    """
+    now = datetime.now(timezone.utc)
+    midnight = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=timezone.utc)
+    # Move to next midnight
+    from datetime import timedelta
+    next_midnight = midnight + timedelta(days=1)
+    seconds = int((next_midnight - now).total_seconds())
+    # Ensure minimum TTL to avoid edge cases near midnight
+    return max(seconds, TTL_MIN_HISTORICAL)
+
+
+def _get_cache_ttl(includes_today: bool) -> int:
+    """
+    Get appropriate cache TTL based on whether data includes today.
+
+    Args:
+        includes_today: True if the data range includes today's date
+
+    Returns:
+        TTL in seconds:
+        - For today's data: TTL_TODAY_DATA (60s) since pipeline might still be running
+        - For historical data: Seconds until midnight UTC (data won't change until new day)
+    """
+    if includes_today:
+        return TTL_TODAY_DATA
+    return _seconds_until_midnight_utc()
 
 
 def _safe_unique_list(df: pl.DataFrame, column: str) -> List[str]:
@@ -81,17 +130,32 @@ class CostReadService:
     Features:
     - Lazy evaluation for optimal query execution
     - Two-level caching:
-      - L1: Raw DataFrames (TTL: 300s)
-      - L2: Pre-computed aggregations (TTL: 300s)
+      - L1: Raw DataFrames
+      - L2: Pre-computed aggregations
+    - Smart TTL: Until midnight UTC for historical data (daily data doesn't change)
+    - Short TTL (60s) for today's data (pipeline might still run)
     - Multi-tenant isolation
     - Centralized aggregations via lib/costs/
     """
 
     def __init__(self, cache: Optional[LRUCache] = None, agg_cache: Optional[LRUCache] = None):
-        # L1 Cache: Raw DataFrames
-        self._cache = cache or create_cache("COST_L1", max_size=1000, default_ttl=300)
-        # L2 Cache: Pre-computed aggregations (smaller values, same TTL)
-        self._agg_cache = agg_cache or create_cache("COST_L2", max_size=500, default_ttl=300)
+        # L1 Cache: Raw DataFrames (large - can be millions of rows per org)
+        # Memory limit: 512MB, max 50 entries (each query could be 50-100MB)
+        # This allows caching ~5-10 large queries across all orgs
+        self._cache = cache or create_cache(
+            "COST_L1",
+            max_size=50,  # Reduced from 1000 - memory is the real constraint
+            default_ttl=300,
+            max_memory_mb=512  # 512MB limit for DataFrames
+        )
+        # L2 Cache: Pre-computed aggregations (smaller - dicts with totals)
+        # Memory limit: 128MB, max 200 entries (each ~1KB-100KB)
+        self._agg_cache = agg_cache or create_cache(
+            "COST_L2",
+            max_size=200,  # Reduced from 500
+            default_ttl=300,
+            max_memory_mb=128  # 128MB for aggregation dicts
+        )
         self._bq_client = None
         self._project_id = settings.gcp_project_id
 
@@ -325,10 +389,12 @@ class CostReadService:
         try:
             df = await self._fetch_cost_data(query)
 
-            # Cache with appropriate TTL (shorter for recent data)
+            # Cache with appropriate TTL
+            # - Today's data: 60s (pipeline might still run)
+            # - Historical data: Until midnight UTC (daily data won't change)
             resolved_start, resolved_end = query.resolve_dates()
             date_info = get_date_info()
-            ttl = 60 if resolved_end >= date_info.today else 300
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
             self._cache.set(cache_key, df, ttl=ttl)
 
             query_time = (time.time() - start_time) * 1000
@@ -404,7 +470,10 @@ class CostReadService:
                 "service_categories": _safe_unique_list(df, "ServiceCategory"),
             }
 
-            self._cache.set(cache_key, summary, ttl=300)
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, summary, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -441,7 +510,11 @@ class CostReadService:
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_provider(df, include_percentage=True)
 
-            self._cache.set(cache_key, breakdown, ttl=300)
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, breakdown, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -478,7 +551,11 @@ class CostReadService:
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_service(df, include_percentage=True)
 
-            self._cache.set(cache_key, breakdown, ttl=300)
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, breakdown, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -515,7 +592,11 @@ class CostReadService:
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_category(df, include_percentage=True)
 
-            self._cache.set(cache_key, breakdown, ttl=300)
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, breakdown, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -568,8 +649,12 @@ class CostReadService:
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_date(df, granularity=granularity)
 
-            self._cache.set(cache_key, breakdown, ttl=300)
-            logger.debug(f"[L1 Cache SET] trend:{query.org_slug}:{category or 'all'}")
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, breakdown, ttl=ttl)
+            logger.debug(f"[L1 Cache SET] trend:{query.org_slug}:{category or 'all'} ttl={ttl}s")
 
             return CostResponse(
                 success=True,
@@ -614,7 +699,11 @@ class CostReadService:
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_hierarchy(df, level=level, include_percentage=True)
 
-            self._cache.set(cache_key, breakdown, ttl=300)
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, breakdown, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -655,7 +744,11 @@ class CostReadService:
                 "total_cost": round(df["BilledCost"].sum() or 0, 2),
             }
 
-            self._cache.set(cache_key, rollup, ttl=300)
+            # Cache until midnight UTC (daily data)
+            resolved_start, resolved_end = query.resolve_dates()
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, rollup, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -848,7 +941,11 @@ class CostReadService:
                 "by_provider": provider_comparison,
             }
 
-            self._cache.set(cache_key, result, ttl=300)
+            # Cache until midnight UTC (daily data)
+            date_info = get_date_info()
+            includes_today = comparison.current.end_date >= date_info.today
+            ttl = _get_cache_ttl(includes_today=includes_today)
+            self._cache.set(cache_key, result, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -949,7 +1046,9 @@ class CostReadService:
                 "date_range": {"start": str(resolved_start), "end": str(resolved_end)},
             }
 
-            self._cache.set(cache_key, {"data": data, "summary": summary}, ttl=60)
+            # Cache until midnight UTC (daily data)
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, {"data": data, "summary": summary}, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -1046,7 +1145,9 @@ class CostReadService:
                 "date_range": {"start": str(resolved_start), "end": str(resolved_end)},
             }
 
-            self._cache.set(cache_key, {"data": data, "summary": summary}, ttl=60)
+            # Cache until midnight UTC (daily data)
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, {"data": data, "summary": summary}, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -1144,7 +1245,9 @@ class CostReadService:
                 "date_range": {"start": str(resolved_start), "end": str(resolved_end)},
             }
 
-            self._cache.set(cache_key, {"data": data, "summary": summary}, ttl=60)
+            # Cache until midnight UTC (daily data)
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, {"data": data, "summary": summary}, ttl=ttl)
 
             return CostResponse(
                 success=True,
@@ -1165,6 +1268,159 @@ class CostReadService:
     async def get_llm_costs(self, query: CostQuery) -> CostResponse:
         """Get LLM API costs (deprecated - use get_genai_costs instead)."""
         return await self.get_genai_costs(query)
+
+    # ==========================================================================
+    # Granular Trend Data (for Client-Side Filtering)
+    # ==========================================================================
+
+    async def get_granular_trend(self, query: CostQuery, clear_cache: bool = False) -> CostResponse:
+        """
+        Get granular cost trend data for client-side filtering.
+
+        Returns aggregated data by date + provider + hierarchy, enabling:
+        - ONE API call for 365 days of data
+        - ALL filters applied client-side (instant UI)
+        - No new API calls for time range, provider, category, or hierarchy changes
+
+        Data structure per row:
+        {
+            "date": "2024-01-15",
+            "provider": "openai",
+            "category": "genai",  # genai | cloud | subscription | other
+            "dept_id": "DEPT001",
+            "project_id": "PROJ001",
+            "team_id": "TEAM001",
+            "total_cost": 150.50,
+            "record_count": 25
+        }
+
+        Typical response size: ~365 days × ~50 unique combos = ~18,250 rows (~500KB)
+        Much smaller than raw data (millions of rows)
+
+        Args:
+            query: CostQuery with org_slug and date range
+            clear_cache: If True, bypass L1/L2 cache and fetch fresh data from BigQuery
+        """
+        start_time = time.time()
+        # Cache key includes only org + date range (NO hierarchy filters)
+        # This ensures one cached dataset can serve ALL filter combinations
+        resolved_start, resolved_end = query.resolve_dates()
+        cache_key = f"granular_trend:{query.org_slug}:{resolved_start}:{resolved_end}"
+
+        # If clear_cache is requested, remove from cache first
+        if clear_cache:
+            logger.info(f"[L1 Cache CLEAR] granular_trend:{query.org_slug} (clear_cache=True)")
+            self._cache.invalidate(cache_key)
+        else:
+            cached = self._cache.get(cache_key)
+            if cached is not None:
+                logger.debug(f"[L1 Cache HIT] granular_trend:{query.org_slug}")
+                return CostResponse(
+                    success=True,
+                    data=cached["data"],
+                    summary=cached["summary"],
+                    cache_hit=True,
+                    query_time_ms=round((time.time() - start_time) * 1000, 2)
+                )
+
+        try:
+            # Fetch ALL data for date range (no hierarchy filter in SQL)
+            # This is the KEY difference - we get everything to filter client-side
+            base_query = CostQuery(
+                org_slug=query.org_slug,
+                start_date=resolved_start,
+                end_date=resolved_end,
+                # NO hierarchy filters - fetch ALL data
+            )
+            df = await self._fetch_cost_data(base_query)
+
+            if df.is_empty():
+                return CostResponse(
+                    success=True,
+                    data=[],
+                    summary={
+                        "total_cost": 0,
+                        "record_count": 0,
+                        "granular_rows": 0,
+                        "date_range": {"start": str(resolved_start), "end": str(resolved_end)},
+                        "available_filters": {
+                            "providers": [],
+                            "categories": [],
+                            "departments": [],
+                            "projects": [],
+                            "teams": [],
+                        }
+                    },
+                    cache_hit=False,
+                    query_time_ms=round((time.time() - start_time) * 1000, 2)
+                )
+
+            # Aggregate using lib/costs/aggregate_granular
+            # This groups by date + provider + hierarchy, significantly reducing data size
+            granular_data = aggregate_granular(df)
+
+            # Build summary with available filter options
+            total_cost = df["BilledCost"].sum() or 0
+            summary = {
+                "total_cost": round(total_cost, 2),
+                "record_count": len(df),
+                "granular_rows": len(granular_data),
+                "date_range": {"start": str(resolved_start), "end": str(resolved_end)},
+                "available_filters": {
+                    "providers": _safe_unique_list(df, "ServiceProviderName"),
+                    "categories": list(set(row.get("category", "other") for row in granular_data)),
+                    "departments": [
+                        {"id": d, "name": n}
+                        for d, n in set(
+                            (row.get("x_hierarchy_dept_id"), row.get("x_hierarchy_dept_name"))
+                            for row in df.select(["x_hierarchy_dept_id", "x_hierarchy_dept_name"]).unique().to_dicts()
+                            if row.get("x_hierarchy_dept_id")
+                        )
+                    ] if "x_hierarchy_dept_id" in df.columns else [],
+                    "projects": [
+                        {"id": p, "name": n}
+                        for p, n in set(
+                            (row.get("x_hierarchy_project_id"), row.get("x_hierarchy_project_name"))
+                            for row in df.select(["x_hierarchy_project_id", "x_hierarchy_project_name"]).unique().to_dicts()
+                            if row.get("x_hierarchy_project_id")
+                        )
+                    ] if "x_hierarchy_project_id" in df.columns else [],
+                    "teams": [
+                        {"id": t, "name": n}
+                        for t, n in set(
+                            (row.get("x_hierarchy_team_id"), row.get("x_hierarchy_team_name"))
+                            for row in df.select(["x_hierarchy_team_id", "x_hierarchy_team_name"]).unique().to_dicts()
+                            if row.get("x_hierarchy_team_id")
+                        )
+                    ] if "x_hierarchy_team_id" in df.columns else [],
+                },
+            }
+
+            # Cache until midnight UTC (daily data)
+            date_info = get_date_info()
+            ttl = _get_cache_ttl(includes_today=resolved_end >= date_info.today)
+            self._cache.set(cache_key, {"data": granular_data, "summary": summary}, ttl=ttl)
+
+            logger.info(
+                f"[Granular Trend] org={query.org_slug} raw_rows={len(df)} "
+                f"granular_rows={len(granular_data)} reduction={100 - (len(granular_data)/max(1,len(df))*100):.1f}%"
+            )
+
+            return CostResponse(
+                success=True,
+                data=granular_data,
+                summary=summary,
+                cache_hit=False,
+                query_time_ms=round((time.time() - start_time) * 1000, 2)
+            )
+
+        except Exception as e:
+            logger.error(f"Granular trend query failed for {query.org_slug}: {e}", exc_info=True)
+            return CostResponse(
+                success=False,
+                error=str(e),
+                query_time_ms=(time.time() - start_time) * 1000
+            )
 
     # ==========================================================================
     # Cache Management

@@ -165,12 +165,17 @@ class CostDataResponse(BaseModel):
 
 
 class CacheStat(BaseModel):
-    """Cache statistics response."""
+    """Cache statistics response with memory tracking."""
     hits: int
     misses: int
     evictions: int
+    memory_evictions: int = 0  # Evictions due to memory limit
     size: int
     max_size: int
+    memory_bytes: int = 0  # Current memory usage in bytes
+    memory_mb: float = 0.0  # Current memory usage in MB
+    max_memory_mb: int = 512  # Memory limit in MB
+    memory_utilization: float = 0.0  # Percentage of memory limit used
     hit_rate: float
 
 
@@ -559,6 +564,98 @@ async def get_cost_trend(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=result.error or "Failed to retrieve cost trend"
+        )
+
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
+
+
+# ==============================================================================
+# Granular Trend Endpoint (Client-Side Filtering)
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/trend-granular",
+    response_model=CostDataResponse,
+    summary="Get Granular Cost Trend (365-Day Cache)",
+    description="Get 365 days of granular cost data for client-side filtering. Returns aggregated data by date+provider+hierarchy. ONE API call enables ALL filter combinations client-side."
+)
+async def get_granular_trend(
+    org_slug: str,
+    request: Request,
+    days: int = Query(365, ge=1, le=730, description="Number of days (default 365)"),
+    clear_cache: bool = Query(False, description="Force backend to clear L1/L2 cache and fetch fresh data from BigQuery"),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: CostReadService = Depends(get_cost_read_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get granular cost trend data optimized for client-side filtering.
+
+    This endpoint returns pre-aggregated data by date + provider + hierarchy,
+    enabling the frontend to perform ALL filtering client-side without new API calls.
+
+    **Use Case:** Dashboard initialization - one call, all filters instant.
+
+    **Response includes:**
+    - `data`: Array of granular rows (date, provider, category, dept_id, project_id, team_id, total_cost)
+    - `summary.available_filters`: All unique values for each filter dimension
+    - `summary.granular_rows`: Number of aggregated rows (typically ~18K for 365 days)
+    - `summary.record_count`: Original row count before aggregation
+
+    **Client-side filtering enables:**
+    - Time range changes (instant)
+    - Provider filter (instant)
+    - Category filter (instant)
+    - Hierarchy filter (instant)
+
+    **New API call only when:**
+    - Custom range exceeds 365 days
+    - Explicit refresh requested
+    - Organization changed
+    """
+    from datetime import timedelta
+    from src.core.services._shared import DatePeriod
+
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    # Apply rate limiting (30 req/min - this endpoint returns large payloads)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=30,
+        endpoint_name="get_granular_trend"
+    )
+
+    # FIX: VAL-001 - Validate days parameter
+    if days < 1 or days > 730:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="days must be between 1 and 730"
+        )
+
+    # Build query for last N days
+    today = date.today()
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=today - timedelta(days=days),
+        end_date=today
+    )
+
+    # Log clear_cache request in dev mode
+    if clear_cache:
+        import logging
+        logging.info(f"[CostRouter] clear_cache=True for {org_slug}, bypassing L1/L2 cache")
+
+    result = await cost_service.get_granular_trend(query, clear_cache=clear_cache)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve granular trend data"
         )
 
     # Fetch org currency
