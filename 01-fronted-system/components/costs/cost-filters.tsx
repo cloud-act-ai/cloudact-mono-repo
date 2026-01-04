@@ -233,8 +233,14 @@ export function CostFilters({
 
   const handleProviderToggle = useCallback(
     (provider: string) => {
-      const newProviders = value.providers.includes(provider)
-        ? value.providers.filter((p) => p !== provider)
+      // FILTER-006 fix: Case-insensitive provider matching
+      const providerLower = provider.toLowerCase()
+      const existingIndex = value.providers.findIndex(
+        p => p.toLowerCase() === providerLower
+      )
+
+      const newProviders = existingIndex >= 0
+        ? value.providers.filter((_, i) => i !== existingIndex)
         : [...value.providers, provider]
       onChange({ ...value, providers: newProviders })
     },
@@ -618,14 +624,41 @@ export function TimeRangeFilter({
     }
   }
 
-  // Apply custom range
+  // Apply custom range with validation (FILTER-008 fix)
   const handleApplyCustom = () => {
-    if (tempStartDate && tempEndDate && onCustomRangeChange) {
-      onCustomRangeChange({ startDate: tempStartDate, endDate: tempEndDate })
-      onChange("custom")
-      setOpen(false)
-      setShowCustomPicker(false)
+    if (!tempStartDate || !tempEndDate || !onCustomRangeChange) {
+      return
     }
+
+    // Validate dates are valid
+    const startDate = new Date(tempStartDate)
+    const endDate = new Date(tempEndDate)
+    const today = new Date()
+    today.setHours(23, 59, 59, 999) // End of today
+
+    // Check for invalid dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.warn("[TimeRangeFilter] Invalid date format")
+      return
+    }
+
+    // Ensure start <= end
+    if (startDate > endDate) {
+      console.warn("[TimeRangeFilter] Start date must be before end date")
+      return
+    }
+
+    // Ensure end date is not in the future
+    if (endDate > today) {
+      console.warn("[TimeRangeFilter] End date cannot be in the future")
+      return
+    }
+
+    // Apply the validated range
+    onCustomRangeChange({ startDate: tempStartDate, endDate: tempEndDate })
+    onChange("custom")
+    setOpen(false)
+    setShowCustomPicker(false)
   }
 
   // Cancel custom picker

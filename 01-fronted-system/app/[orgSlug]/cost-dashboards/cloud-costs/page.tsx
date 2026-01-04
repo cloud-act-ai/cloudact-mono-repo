@@ -34,6 +34,7 @@ import {
   // Design tokens
   CLOUD_CHART_PALETTE,
   getProviderColor,
+  DEFAULT_COLOR,
 } from "@/lib/costs"
 
 export default function CloudCostsPage() {
@@ -207,7 +208,8 @@ export default function CloudCostsPage() {
         name: CLOUD_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
         value: p.total_cost,
         // Use provider-specific color or fall back to chart palette
-        color: getProviderColor(p.provider, "cloud") !== "#94a3b8"
+        // COLOR-001 fix: Use DEFAULT_COLOR constant instead of magic string
+        color: getProviderColor(p.provider, "cloud") !== DEFAULT_COLOR
           ? getProviderColor(p.provider, "cloud")
           : CLOUD_CHART_PALETTE[index % CLOUD_CHART_PALETTE.length],
       }))

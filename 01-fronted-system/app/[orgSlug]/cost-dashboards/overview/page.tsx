@@ -45,6 +45,7 @@ import {
   OVERVIEW_CHART_PALETTE,
   DEFAULT_CHART_PALETTE,
   CATEGORY_COLORS,
+  DEFAULT_COLOR,
 } from "@/lib/costs"
 import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 
@@ -236,7 +237,7 @@ export default function CostOverviewPage() {
     transformProvidersToBreakdownItems(providers as ProviderData[], {
       names: {},
       colors: {},
-      defaultColor: "#94a3b8",
+      defaultColor: DEFAULT_COLOR, // COLOR-001 fix
     }),
     [providers]
   )
@@ -247,7 +248,7 @@ export default function CostOverviewPage() {
     return transformProvidersToTableRows(providers as ProviderData[], dateInfo, {
       names: {},
       colors: {},
-      defaultColor: "#94a3b8",
+      defaultColor: DEFAULT_COLOR, // COLOR-001 fix
     })
   }, [providers])
 

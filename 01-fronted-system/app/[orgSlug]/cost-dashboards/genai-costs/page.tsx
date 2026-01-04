@@ -34,6 +34,7 @@ import {
   // Design tokens
   GENAI_CHART_PALETTE,
   getProviderColor,
+  DEFAULT_COLOR,
 } from "@/lib/costs"
 
 export default function GenAICostsPage() {
@@ -207,7 +208,8 @@ export default function GenAICostsPage() {
         name: GENAI_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
         value: p.total_cost,
         // Use provider-specific color or fall back to chart palette
-        color: getProviderColor(p.provider, "genai") !== "#94a3b8"
+        // COLOR-001 fix: Use DEFAULT_COLOR constant instead of magic string
+        color: getProviderColor(p.provider, "genai") !== DEFAULT_COLOR
           ? getProviderColor(p.provider, "genai")
           : GENAI_CHART_PALETTE[index % GENAI_CHART_PALETTE.length],
       }))

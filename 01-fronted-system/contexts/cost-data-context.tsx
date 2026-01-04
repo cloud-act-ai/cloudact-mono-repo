@@ -118,6 +118,13 @@ export interface CategoryTrendData {
   subscription: CostTrendPoint[]
 }
 
+/** Hierarchy filter state for server-side filtering */
+export interface HierarchyFilters {
+  departmentId?: string
+  projectId?: string
+  teamId?: string
+}
+
 export interface CostDataState {
   // Core cost data
   totalCosts: TotalCostSummary | null
@@ -135,6 +142,10 @@ export interface CostDataState {
   // Current time range selection (for chart zoom sync)
   selectedTimeRange: TimeRange
   selectedCustomRange: CustomDateRange | undefined
+
+  // Hierarchy filters (server-side - triggers API call)
+  // FILTER-001 fix: Track hierarchy filters that need server-side filtering
+  hierarchyFilters: HierarchyFilters
 
   // Metadata
   currency: string
@@ -158,6 +169,9 @@ export interface CostDataContextValue extends CostDataState {
   fetchIfNeeded: () => Promise<void>
   invalidateCache: () => void
   setTimeRange: (range: TimeRange, customRange?: CustomDateRange) => void
+  // Hierarchy filter setter (triggers API call for server-side filtering)
+  // FILTER-001 fix: Method to update hierarchy filters
+  setHierarchyFilters: (filters: HierarchyFilters) => void
 
   // Filter application (client-side)
   getFilteredData: (filters: CostFilterParams) => {
@@ -275,8 +289,17 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   const categoryTrendLoadingRef = useRef<Set<string>>(new Set())
   const isFetchingRef = useRef(false)
 
-  // AbortController for cancelling stale requests
+  // Track mounted state to prevent setState after unmount (CRITICAL: STATE-001 fix)
+  const isMountedRef = useRef(true)
+
+  // Track loaded categories with ref for synchronous access (CRITICAL: STATE-002 fix)
+  const loadedCategoriesRef = useRef<Set<string>>(new Set())
+
+  // AbortController for cancelling stale requests (CRITICAL: CACHE-001 fix)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Track previous orgSlug to detect org changes (CACHE-004 fix)
+  const prevOrgSlugRef = useRef<string>(orgSlug)
 
   // State
   const [state, setState] = useState<CostDataState>({
@@ -298,6 +321,8 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     },
     selectedTimeRange: "365",
     selectedCustomRange: undefined,
+    // FILTER-001 fix: Track hierarchy filters
+    hierarchyFilters: {},
     currency: DEFAULT_CURRENCY,
     lastFetchedAt: null,
     dataAsOf: null,
@@ -499,6 +524,41 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     setState((prev) => ({ ...prev, isStale: true }))
   }, [])
 
+  // Set hierarchy filters (triggers API call for server-side filtering)
+  // FILTER-001 fix: Hierarchy changes require server-side filtering
+  const setHierarchyFilters = useCallback((filters: HierarchyFilters) => {
+    // Check if filters actually changed
+    const currentFilters = state.hierarchyFilters
+    const filtersChanged =
+      filters.departmentId !== currentFilters.departmentId ||
+      filters.projectId !== currentFilters.projectId ||
+      filters.teamId !== currentFilters.teamId
+
+    if (!filtersChanged) {
+      // No change, skip API call
+      return
+    }
+
+    // Update state with new filters
+    setState((prev) => ({
+      ...prev,
+      hierarchyFilters: filters,
+      isStale: true, // Mark as stale to show loading indicator
+    }))
+
+    // Clear loaded categories since data will change
+    loadedCategoriesRef.current.clear()
+
+    // Log in dev mode
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[CostData] Hierarchy filters changed, refetching...`, filters)
+    }
+
+    // Trigger data refetch with new hierarchy filters
+    // Note: fetchCostData will use the updated state.hierarchyFilters
+    fetchCostData()
+  }, [state.hierarchyFilters, fetchCostData])
+
   // Set time range with hybrid cache logic
   // - Standard ranges (7/30/90/365/mtd/ytd) → instant filter, no API call
   // - Custom range within 365 days → instant filter, no API call
@@ -554,23 +614,20 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   // OPTIMIZATION: Reduces initial dashboard load from 8 to 5 API calls
   // Uses ref to prevent race conditions when multiple components request same category
   // AbortController ensures stale requests are cancelled on component unmount
+  // CRITICAL FIXES: CACHE-001, STATE-001, STATE-002
   const fetchCategoryTrend = useCallback(async (category: "genai" | "cloud" | "subscription") => {
-    // Skip if already loaded or if request is already in flight
-    if (categoryTrendLoadingRef.current.has(category)) return
+    // Skip if already loaded (use ref for synchronous check - STATE-002 fix)
+    if (loadedCategoriesRef.current.has(category)) return
 
-    // Check if already loaded using setState to get current state
-    let alreadyLoaded = false
-    setState((prev) => {
-      alreadyLoaded = prev.categoryTrendData[category].length > 0
-      return prev // No state change, just reading
-    })
-    if (alreadyLoaded) return
+    // Skip if request is already in flight
+    if (categoryTrendLoadingRef.current.has(category)) return
 
     // Mark as loading
     categoryTrendLoadingRef.current.add(category)
 
-    // Create AbortController for this request
+    // Create new AbortController and store reference (CACHE-001 fix)
     const controller = new AbortController()
+    abortControllerRef.current = controller
 
     try {
       // Log in dev mode
@@ -580,22 +637,28 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
 
       const trendResult = await getCostTrend(orgSlug, "daily", 365, category)
 
-      // Check if request was aborted
-      if (controller.signal.aborted) {
+      // Check if request was aborted or component unmounted (CACHE-001 & STATE-001 fix)
+      if (controller.signal.aborted || !isMountedRef.current) {
         if (process.env.NODE_ENV === "development") {
-          console.log(`[CostData] ${category} trend request aborted`)
+          console.log(`[CostData] ${category} trend request aborted or unmounted`)
         }
         return
       }
 
       if (trendResult.success && trendResult.data) {
-        setState((prev) => ({
-          ...prev,
-          categoryTrendData: {
-            ...prev.categoryTrendData,
-            [category]: trendResult.data || [],
-          },
-        }))
+        // Mark as loaded in ref before setState (STATE-002 fix)
+        loadedCategoriesRef.current.add(category)
+
+        // Only update state if still mounted (STATE-001 fix)
+        if (isMountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            categoryTrendData: {
+              ...prev.categoryTrendData,
+              [category]: trendResult.data || [],
+            },
+          }))
+        }
 
         if (process.env.NODE_ENV === "development") {
           console.log(`[CostData] ${category} trend loaded: ${trendResult.data.length} points`)
@@ -614,9 +677,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   }, [orgSlug])
 
   // Check if category trend data is loaded
+  // Uses ref for immediate synchronous check (STATE-002 fix)
   const isCategoryTrendLoaded = useCallback(
     (category: "genai" | "cloud" | "subscription"): boolean => {
-      return state.categoryTrendData[category].length > 0
+      // Check ref first for immediate response, then state as fallback
+      return loadedCategoriesRef.current.has(category) || state.categoryTrendData[category].length > 0
     },
     [state.categoryTrendData]
   )
@@ -787,16 +852,25 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
 
       // Calculate overall daily average for the entire period (not rolling window)
       // This gives a flat reference line showing the average daily cost
+      // CRITICAL: EDGE-001 fix - use safe number handling to prevent NaN/Infinity
       const totalCost = filteredData.reduce(
-        (sum, d) => sum + (d.total_billed_cost || d.total_effective_cost || 0),
+        (sum, d) => {
+          const cost = d.total_billed_cost || d.total_effective_cost || 0
+          // Ensure cost is a valid number
+          return sum + (Number.isFinite(cost) ? cost : 0)
+        },
         0
       )
-      const overallDailyAvg = filteredData.length > 0 ? totalCost / filteredData.length : 0
+      // Safe division with NaN/Infinity protection (EDGE-001 fix)
+      const rawAvg = filteredData.length > 0 ? totalCost / filteredData.length : 0
+      const overallDailyAvg = Number.isFinite(rawAvg) ? rawAvg : 0
 
       // Transform data with overall average (flat line)
       return filteredData.map((point, index, arr) => {
         const date = new Date(point.period)
-        const cost = point.total_billed_cost || point.total_effective_cost || 0
+        const rawCost = point.total_billed_cost || point.total_effective_cost || 0
+        // EDGE-001 fix: ensure cost is valid number
+        const cost = Number.isFinite(rawCost) ? rawCost : 0
 
         // Use overall period average (flat reference line)
         const rollingAvg = overallDailyAvg
@@ -846,12 +920,66 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     [state.cachedDateRange]
   )
 
+  // Detect org slug changes and reset cache (CACHE-004 fix)
+  // This ensures data for wrong org is not shown when switching orgs
+  useEffect(() => {
+    if (orgSlug !== prevOrgSlugRef.current) {
+      // Org changed - clear all cached data
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Org changed from ${prevOrgSlugRef.current} to ${orgSlug}, resetting cache`)
+      }
+
+      // Clear loaded categories ref
+      loadedCategoriesRef.current.clear()
+
+      // Reset state to initial values
+      setState({
+        totalCosts: null,
+        providerBreakdown: [],
+        periodCosts: null,
+        hierarchy: [],
+        dailyTrendData: [],
+        categoryTrendData: { all: [], genai: [], cloud: [], subscription: [] },
+        availableFilters: { categories: [], providers: [], hierarchy: [] },
+        selectedTimeRange: "365",
+        selectedCustomRange: undefined,
+        hierarchyFilters: {},
+        currency: DEFAULT_CURRENCY,
+        lastFetchedAt: null,
+        dataAsOf: null,
+        cachedDateRange: null,
+        cacheVersion: 0,
+        isStale: false,
+        isLoading: false,
+        isInitialized: false,
+        error: null,
+      })
+
+      // Update previous org slug
+      prevOrgSlugRef.current = orgSlug
+    }
+  }, [orgSlug])
+
   // Auto-fetch on mount if not initialized
   useEffect(() => {
     if (orgSlug && !state.isInitialized && !state.isLoading) {
       fetchCostData()
     }
   }, [orgSlug, state.isInitialized, state.isLoading, fetchCostData])
+
+  // Cleanup on unmount: set mounted flag, abort pending requests
+  // CRITICAL: STATE-001 & CACHE-001 fix
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+      // Abort any pending category trend requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   // Context value
   const value = useMemo<CostDataContextValue>(
@@ -862,6 +990,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       fetchIfNeeded,
       invalidateCache,
       setTimeRange,
+      setHierarchyFilters, // FILTER-001 fix
       getFilteredData,
       getFilteredProviders,
       getDailyTrendForRange,
@@ -869,7 +998,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       isCategoryTrendLoaded,
       isCachedForDateRange,
     }),
-    [state, orgSlug, refresh, fetchIfNeeded, invalidateCache, setTimeRange, getFilteredData, getFilteredProviders, getDailyTrendForRange, fetchCategoryTrend, isCategoryTrendLoaded, isCachedForDateRange]
+    [state, orgSlug, refresh, fetchIfNeeded, invalidateCache, setTimeRange, setHierarchyFilters, getFilteredData, getFilteredProviders, getDailyTrendForRange, fetchCategoryTrend, isCategoryTrendLoaded, isCachedForDateRange]
   )
 
   return (

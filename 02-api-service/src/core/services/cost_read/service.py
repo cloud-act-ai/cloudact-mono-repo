@@ -544,6 +544,7 @@ class CostReadService:
             query: Cost query with org_slug and date range
             granularity: "daily", "weekly", or "monthly"
             category: Optional category filter ("genai", "cloud", "subscription")
+                     Now pushed to SQL WHERE for efficiency (reduces BQ data transfer)
         """
         start_time = time.time()
         # Include category in cache key for proper isolation
@@ -551,6 +552,7 @@ class CostReadService:
 
         cached = self._cache.get(cache_key)
         if cached is not None:
+            logger.debug(f"[L1 Cache HIT] trend:{query.org_slug}:{category or 'all'}")
             return CostResponse(
                 success=True,
                 data=cached,
@@ -559,15 +561,15 @@ class CostReadService:
             )
 
         try:
-            df = await self._fetch_cost_data(query)
-
-            # Apply category filter if specified
-            df = self._filter_by_category(df, category)
+            # Pass category to _fetch_cost_data for SQL WHERE push-down
+            # This filters at BigQuery level, reducing data transfer
+            df = await self._fetch_cost_data(query, category=category)
 
             # Use lib/costs/ aggregation
             breakdown = aggregate_by_date(df, granularity=granularity)
 
             self._cache.set(cache_key, breakdown, ttl=300)
+            logger.debug(f"[L1 Cache SET] trend:{query.org_slug}:{category or 'all'}")
 
             return CostResponse(
                 success=True,
@@ -868,12 +870,16 @@ class CostReadService:
     # ==========================================================================
 
     async def get_subscription_costs(self, query: CostQuery) -> CostResponse:
-        """Get subscription costs from cost_data_standard_1_3."""
+        """Get subscription costs from cost_data_standard_1_3.
+
+        Uses SQL WHERE push-down for category filtering (more efficient than Polars).
+        """
         start_time = time.time()
         cache_key = f"subscription_costs:{query.cache_key()}"
 
         cached = self._cache.get(cache_key)
         if cached is not None:
+            logger.debug(f"[L1 Cache HIT] subscription_costs:{query.org_slug}")
             return CostResponse(
                 success=True,
                 data=cached["data"],
@@ -883,13 +889,9 @@ class CostReadService:
             )
 
         try:
-            df = await self._fetch_cost_data(query)
-
-            # Filter to Subscription source system (handle nulls safely)
-            if "x_source_system" in df.columns and not df.is_empty():
-                df = df.filter(
-                    pl.col("x_source_system").fill_null("").eq("subscription_costs_daily")
-                )
+            # Use SQL WHERE push-down for subscription filtering
+            # This filters at BigQuery level: x_source_system = 'subscription_costs_daily'
+            df = await self._fetch_cost_data(query, category="subscription")
 
             if df.is_empty():
                 return CostResponse(
@@ -966,12 +968,16 @@ class CostReadService:
             )
 
     async def get_cloud_costs(self, query: CostQuery) -> CostResponse:
-        """Get cloud costs (GCP, AWS, Azure)."""
+        """Get cloud costs (GCP, AWS, Azure).
+
+        Uses SQL WHERE push-down for category filtering (more efficient than Polars).
+        """
         start_time = time.time()
         cache_key = f"cloud_costs:{query.cache_key()}"
 
         cached = self._cache.get(cache_key)
         if cached is not None:
+            logger.debug(f"[L1 Cache HIT] cloud_costs:{query.org_slug}")
             return CostResponse(
                 success=True,
                 data=cached["data"],
@@ -981,15 +987,9 @@ class CostReadService:
             )
 
         try:
-            df = await self._fetch_cost_data(query)
-
-            # Filter to cloud providers (handle nulls safely)
-            cloud_providers = ["gcp", "aws", "azure", "google", "amazon", "microsoft"]
-            if "ServiceProviderName" in df.columns and not df.is_empty():
-                # Use fill_null to safely handle null values before string operations
-                provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(cloud_providers)
-                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("cloud|gcp|aws|azure")
-                df = df.filter(provider_match | source_match)
+            # Use SQL WHERE push-down for cloud filtering
+            # This filters at BigQuery level: LOWER(ServiceProviderName) IN (gcp, aws, azure, ...)
+            df = await self._fetch_cost_data(query, category="cloud")
 
             if df.is_empty():
                 resolved_start, resolved_end = query.resolve_dates()
@@ -1065,12 +1065,16 @@ class CostReadService:
             )
 
     async def get_genai_costs(self, query: CostQuery) -> CostResponse:
-        """Get GenAI API costs (OpenAI, Anthropic, etc.)."""
+        """Get GenAI API costs (OpenAI, Anthropic, etc.).
+
+        Uses SQL WHERE push-down for category filtering (more efficient than Polars).
+        """
         start_time = time.time()
         cache_key = f"genai_costs:{query.cache_key()}"
 
         cached = self._cache.get(cache_key)
         if cached is not None:
+            logger.debug(f"[L1 Cache HIT] genai_costs:{query.org_slug}")
             return CostResponse(
                 success=True,
                 data=cached["data"],
@@ -1080,20 +1084,10 @@ class CostReadService:
             )
 
         try:
-            df = await self._fetch_cost_data(query)
-
-            # Filter to GenAI providers (handle nulls safely)
-            genai_providers = ["openai", "anthropic", "google", "google ai", "cohere", "mistral", "gemini", "claude", "azure openai", "aws bedrock", "vertex ai"]
-            if "ServiceProviderName" in df.columns and "ServiceCategory" in df.columns and not df.is_empty():
-                # Use fill_null to safely handle null values before string operations
-                provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(genai_providers)
-                category_match = pl.col("ServiceCategory").fill_null("").str.to_lowercase().is_in(["genai", "llm", "ai and machine learning"])
-                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("genai|llm|openai|anthropic|gemini")
-                not_saas = pl.col("x_source_system").fill_null("").ne("subscription_costs_daily")
-
-                df = df.filter(
-                    (provider_match | category_match | source_match) & not_saas
-                )
+            # Use SQL WHERE push-down for GenAI filtering
+            # This filters at BigQuery level: LOWER(ServiceProviderName) IN (openai, anthropic, ...)
+            # AND NOT x_source_system = 'subscription_costs_daily'
+            df = await self._fetch_cost_data(query, category="genai")
 
             if df.is_empty():
                 resolved_start, resolved_end = query.resolve_dates()
@@ -1177,13 +1171,18 @@ class CostReadService:
     # ==========================================================================
 
     def invalidate_org_cache(self, org_slug: str) -> int:
-        """Invalidate all cached data for an organization."""
-        return self._cache.invalidate_org(org_slug)
+        """Invalidate all cached data for an organization (both L1 and L2)."""
+        l1_cleared = self._cache.invalidate_org(org_slug)
+        l2_cleared = self._agg_cache.invalidate_org(org_slug)
+        return l1_cleared + l2_cleared
 
     @property
     def cache_stats(self) -> Dict[str, Any]:
-        """Get cache statistics."""
-        return self._cache.stats
+        """Get cache statistics for both L1 and L2 caches."""
+        return {
+            "l1_cache": self._cache.stats,
+            "l2_agg_cache": self._agg_cache.stats,
+        }
 
 
 # Thread-safe singleton instance

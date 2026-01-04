@@ -34,6 +34,7 @@ import {
   // Design tokens
   SUBSCRIPTION_CHART_PALETTE,
   getProviderColor,
+  DEFAULT_COLOR,
 } from "@/lib/costs"
 
 export default function SubscriptionCostsPage() {
@@ -207,7 +208,8 @@ export default function SubscriptionCostsPage() {
         name: p.provider,
         value: p.total_cost,
         // Use provider-specific color or fall back to chart palette
-        color: getProviderColor(p.provider, "subscription") !== "#94a3b8"
+        // COLOR-001 fix: Use DEFAULT_COLOR constant instead of magic string
+        color: getProviderColor(p.provider, "subscription") !== DEFAULT_COLOR
           ? getProviderColor(p.provider, "subscription")
           : SUBSCRIPTION_CHART_PALETTE[index % SUBSCRIPTION_CHART_PALETTE.length],
       }))
