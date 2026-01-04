@@ -968,8 +968,18 @@ class CostReadService:
             mtd_df = filter_date_range(df, start_date=date_info.month_start, end_date=date_info.today)
             mtd_cost = mtd_df["BilledCost"].sum() if not mtd_df.is_empty() else 0
 
-            forecasts = calculate_forecasts(mtd_cost or 0)
+            # If no MTD data, calculate forecasts from available data in requested range
             resolved_start, resolved_end = query.resolve_dates()
+            if mtd_cost == 0 and total_cost > 0:
+                days_in_range = max(1, (resolved_end - resolved_start).days + 1)
+                daily_rate = total_cost / days_in_range
+                forecasts = {
+                    "daily_rate": round(daily_rate, 2),
+                    "monthly_forecast": round(daily_rate * 30, 2),
+                    "annual_forecast": round(daily_rate * 365, 2),
+                }
+            else:
+                forecasts = calculate_forecasts(mtd_cost or 0)
 
             summary = {
                 "total_cost": round(total_cost, 2),

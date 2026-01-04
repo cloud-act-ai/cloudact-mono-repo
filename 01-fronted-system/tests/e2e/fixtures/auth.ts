@@ -111,4 +111,49 @@ export async function navigateToIntegrations(page: Page, orgSlug: string, type: 
   await page.waitForLoadState('domcontentloaded')
   // Give the page a moment to hydrate
   await page.waitForTimeout(2000)
+  // Wait for any loading spinners to disappear
+  await waitForLoadingToComplete(page)
+}
+
+/**
+ * Helper to wait for loading states to complete
+ */
+export async function waitForLoadingToComplete(page: Page, timeout = 30000) {
+  try {
+    // Wait for any loading text that contains "Loading" to disappear
+    const loadingLocator = page.locator('text=/Loading.*/')
+    const startTime = Date.now()
+
+    while (Date.now() - startTime < timeout) {
+      const isLoading = await loadingLocator.isVisible({ timeout: 1000 }).catch(() => false)
+      if (!isLoading) {
+        break
+      }
+      // Wait a bit before checking again
+      await page.waitForTimeout(500)
+    }
+  } catch {
+    // No loading state found or timeout, continue
+  }
+  // Give the content a moment to render
+  await page.waitForTimeout(2000)
+}
+
+/**
+ * Helper to wait for provider cards to load
+ */
+export async function waitForProviderCards(page: Page, timeout = 60000) {
+  try {
+    // First wait for loading to complete
+    await waitForLoadingToComplete(page, timeout)
+
+    // Then wait for provider cards or links to appear
+    await page.waitForSelector('a[href*="/genai/"], a[href*="/cloud-providers/"], a[href*="/subscriptions/"]', {
+      timeout,
+      state: 'visible'
+    })
+  } catch {
+    // Cards may not exist if no providers configured
+    console.log('Provider cards not found, may be empty state')
+  }
 }
