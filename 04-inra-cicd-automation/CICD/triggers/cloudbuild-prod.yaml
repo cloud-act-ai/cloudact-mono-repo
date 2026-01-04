@@ -1,0 +1,178 @@
+# Cloud Build Trigger: Deploy to Production
+# Triggered on: Tag matching v* (e.g., v3.0.5, v1.0.0)
+# Deploys: All services (api-service, pipeline-service, frontend) to prod
+
+substitutions:
+  _ENV: prod
+  _PROJECT_ID: cloudact-prod
+  _REGION: us-central1
+  # Supabase (production instance)
+  _SUPABASE_URL: https://ovfxswhkkshouhsryzaf.supabase.co
+  _SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92Znhzd2hra3Nob3Voc3J5emFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMjk4NDEsImV4cCI6MjA3OTYwNTg0MX0.qj1X5HDM7DckMtQH8ktlWrKCVFqqiZMeshiRp8tX_z4
+  # Stripe (LIVE keys for production)
+  _STRIPE_PUBLISHABLE_KEY: pk_live_51STncwDoxINmrJKYoK1MKkwIHBDchc7HvXXDgvnruaXpHEOc1e2LH8FuDiqzo313P9FrjbitcUzQGS4x5VAixt5u00IRZy5m8g
+  _STRIPE_STARTER_PRICE_ID: price_1SWJMfDoxINmrJKY7tOoJUIs
+  _STRIPE_PROFESSIONAL_PRICE_ID: price_1SWJOYDoxINmrJKY8jEZwVuU
+  _STRIPE_SCALE_PRICE_ID: price_1SWJP8DoxINmrJKYfg0jmeLv
+
+steps:
+  # ============================================
+  # Build All Services in Parallel
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-api-service'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${TAG_NAME}'
+      - '--build-arg=BUILD_DATE=$BUILD_ID'
+      - '--build-arg=GIT_COMMIT=${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '02-api-service/Dockerfile'
+      - '02-api-service'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-pipeline-service'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${TAG_NAME}'
+      - '--build-arg=BUILD_DATE=$BUILD_ID'
+      - '--build-arg=GIT_COMMIT=${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '03-data-pipeline-service/Dockerfile'
+      - '03-data-pipeline-service'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-frontend'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${TAG_NAME}'
+      - '--build-arg=BUILD_DATE=$BUILD_ID'
+      - '--build-arg=GIT_COMMIT=${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '01-fronted-system/Dockerfile'
+      - '01-fronted-system'
+
+  # ============================================
+  # Deploy API Service
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-api-service'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get pipeline service URL (use custom domain for prod)
+        PIPELINE_URL="https://pipeline.cloudact.ai"
+        
+        gcloud run deploy cloudact-api-service-${_ENV} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${TAG_NAME} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=2Gi \
+          --cpu=2 \
+          --timeout=300 \
+          --max-instances=10 \
+          --port=8000 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=production,PIPELINE_SERVICE_URL=$$PIPELINE_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
+    waitFor: ['build-api-service']
+
+  # ============================================
+  # Deploy Pipeline Service
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-pipeline-service'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get API service URL (use custom domain for prod)
+        API_URL="https://api.cloudact.ai"
+        
+        gcloud run deploy cloudact-pipeline-service-${_ENV} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${TAG_NAME} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=2Gi \
+          --cpu=2 \
+          --timeout=300 \
+          --max-instances=10 \
+          --port=8001 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=production,API_SERVICE_URL=$$API_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
+    waitFor: ['build-pipeline-service']
+
+  # ============================================
+  # Deploy Frontend
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-frontend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Use custom domains for prod
+        API_URL="https://api.cloudact.ai"
+        PIPELINE_URL="https://pipeline.cloudact.ai"
+        APP_URL="https://cloudact.ai"
+        
+        gcloud run deploy cloudact-frontend-${_ENV} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${TAG_NAME} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=1Gi \
+          --cpu=1 \
+          --timeout=60 \
+          --max-instances=20 \
+          --port=3000 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},ENVIRONMENT=production,NODE_ENV=production,NEXT_PUBLIC_API_SERVICE_URL=$$API_URL,API_SERVICE_URL=$$API_URL,NEXT_PUBLIC_PIPELINE_SERVICE_URL=$$PIPELINE_URL,PIPELINE_SERVICE_URL=$$PIPELINE_URL,NEXT_PUBLIC_APP_URL=$$APP_URL,NEXT_PUBLIC_SUPABASE_URL=${_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY},NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${_STRIPE_PUBLISHABLE_KEY},NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${_STRIPE_STARTER_PRICE_ID},NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${_STRIPE_PROFESSIONAL_PRICE_ID},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${_STRIPE_SCALE_PRICE_ID},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${_ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
+    waitFor: ['build-frontend', 'deploy-api-service', 'deploy-pipeline-service']
+
+# Push all images
+images:
+  - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${TAG_NAME}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${TAG_NAME}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${TAG_NAME}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${_ENV}-latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '3600s'

@@ -1,0 +1,178 @@
+# Cloud Build Trigger: Deploy to Stage
+# Triggered on: Push to main branch
+# Deploys: All services (api-service, pipeline-service, frontend) to stage
+
+substitutions:
+  _ENV: stage
+  _PROJECT_ID: cloudact-stage
+  _REGION: us-central1
+  # Supabase (using test instance for stage)
+  _SUPABASE_URL: https://kwroaccbrxppfiysqlzs.supabase.co
+  _SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cm9hY2NicnhwcGZpeXNxbHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMzUzOTAsImV4cCI6MjA3OTYxMTM5MH0.2NTsyuaovE1M8xQDtoZ2vyWeT0ZmtiMnJvbh_UCC1hE
+  # Stripe (test keys for stage)
+  _STRIPE_PUBLISHABLE_KEY: pk_test_51STnd4DXGNX5XqKaoVFdJC7eOpG3Hcu7lMAzqduDWbg7SKZ9NKXvLGCZXwNF9NWWp4RlpBviiNd3vuLqpEcbMuby00Oh0B0JGv
+  _STRIPE_STARTER_PRICE_ID: price_1SWBiDDXGNX5XqKayCBUng4Y
+  _STRIPE_PROFESSIONAL_PRICE_ID: price_1SWBiiDXGNX5XqKawojFxG99
+  _STRIPE_SCALE_PRICE_ID: price_1SWBiiDXGNX5XqKawojFxG99
+
+steps:
+  # ============================================
+  # Build All Services in Parallel
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-api-service'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${SHORT_SHA}'
+      - '--build-arg=BUILD_DATE=$BUILD_ID'
+      - '--build-arg=GIT_COMMIT=${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '02-api-service/Dockerfile'
+      - '02-api-service'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-pipeline-service'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${SHORT_SHA}'
+      - '--build-arg=BUILD_DATE=$BUILD_ID'
+      - '--build-arg=GIT_COMMIT=${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '03-data-pipeline-service/Dockerfile'
+      - '03-data-pipeline-service'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-frontend'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${SHORT_SHA}'
+      - '--build-arg=BUILD_DATE=$BUILD_ID'
+      - '--build-arg=GIT_COMMIT=${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '01-fronted-system/Dockerfile'
+      - '01-fronted-system'
+
+  # ============================================
+  # Deploy API Service
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-api-service'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get pipeline service URL
+        PIPELINE_URL=$$(gcloud run services describe cloudact-pipeline-service-${_ENV} --project=${_PROJECT_ID} --region=${_REGION} --format="value(status.url)" 2>/dev/null || echo "https://cloudact-pipeline-service-${_ENV}.${_REGION}.run.app")
+        
+        gcloud run deploy cloudact-api-service-${_ENV} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=2Gi \
+          --cpu=2 \
+          --timeout=300 \
+          --max-instances=10 \
+          --port=8000 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=staging,PIPELINE_SERVICE_URL=$$PIPELINE_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
+    waitFor: ['build-api-service']
+
+  # ============================================
+  # Deploy Pipeline Service
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-pipeline-service'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get API service URL
+        API_URL=$$(gcloud run services describe cloudact-api-service-${_ENV} --project=${_PROJECT_ID} --region=${_REGION} --format="value(status.url)" 2>/dev/null || echo "https://cloudact-api-service-${_ENV}.${_REGION}.run.app")
+        
+        gcloud run deploy cloudact-pipeline-service-${_ENV} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=2Gi \
+          --cpu=2 \
+          --timeout=300 \
+          --max-instances=10 \
+          --port=8001 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=staging,API_SERVICE_URL=$$API_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
+    waitFor: ['build-pipeline-service']
+
+  # ============================================
+  # Deploy Frontend
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-frontend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get service URLs
+        API_URL=$$(gcloud run services describe cloudact-api-service-${_ENV} --project=${_PROJECT_ID} --region=${_REGION} --format="value(status.url)" 2>/dev/null || echo "https://cloudact-api-service-${_ENV}.${_REGION}.run.app")
+        PIPELINE_URL=$$(gcloud run services describe cloudact-pipeline-service-${_ENV} --project=${_PROJECT_ID} --region=${_REGION} --format="value(status.url)" 2>/dev/null || echo "https://cloudact-pipeline-service-${_ENV}.${_REGION}.run.app")
+        APP_URL=$$(gcloud run services describe cloudact-frontend-${_ENV} --project=${_PROJECT_ID} --region=${_REGION} --format="value(status.url)" 2>/dev/null || echo "https://cloudact-frontend-${_ENV}.${_REGION}.run.app")
+        
+        gcloud run deploy cloudact-frontend-${_ENV} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=1Gi \
+          --cpu=1 \
+          --timeout=60 \
+          --max-instances=20 \
+          --port=3000 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},ENVIRONMENT=staging,NODE_ENV=production,NEXT_PUBLIC_API_SERVICE_URL=$$API_URL,API_SERVICE_URL=$$API_URL,NEXT_PUBLIC_PIPELINE_SERVICE_URL=$$PIPELINE_URL,PIPELINE_SERVICE_URL=$$PIPELINE_URL,NEXT_PUBLIC_APP_URL=$$APP_URL,NEXT_PUBLIC_SUPABASE_URL=${_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY},NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${_STRIPE_PUBLISHABLE_KEY},NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${_STRIPE_STARTER_PRICE_ID},NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${_STRIPE_PROFESSIONAL_PRICE_ID},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${_STRIPE_SCALE_PRICE_ID},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${_ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
+    waitFor: ['build-frontend', 'deploy-api-service', 'deploy-pipeline-service']
+
+# Push all images
+images:
+  - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${_ENV}-latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '3600s'
