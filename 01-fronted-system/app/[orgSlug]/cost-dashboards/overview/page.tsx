@@ -38,6 +38,13 @@ import {
   calculatePercentage,
   OVERVIEW_CATEGORY_CONFIG,
   type ProviderData,
+  // FinOps constants
+  FINOPS,
+  calculateAllForecasts,
+  // Design tokens
+  OVERVIEW_CHART_PALETTE,
+  DEFAULT_CHART_PALETTE,
+  CATEGORY_COLORS,
 } from "@/lib/costs"
 import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 
@@ -187,13 +194,16 @@ export default function CostOverviewPage() {
     // When provider filter is active, calculate from filtered providers
     if (hasProviderFilter && filteredProviders.length > 0) {
       const filteredTotal = filteredProviders.reduce((sum, p) => sum + p.total_cost, 0)
-      // Estimate daily rate from total (assuming 30-day month)
-      const estimatedDailyRate = filteredTotal / 30
+      // Use FinOps standard calculations (data is 365-day total)
+      const { dailyRate, monthlyForecast, annualForecast } = calculateAllForecasts(
+        filteredTotal,
+        FINOPS.DAYS_PER_YEAR
+      )
       return {
         mtd: filteredTotal,
-        dailyRate: estimatedDailyRate,
-        forecast: filteredTotal,
-        ytd: filteredTotal * 12, // Annualized estimate
+        dailyRate,
+        forecast: monthlyForecast,
+        ytd: annualForecast,
         currency: orgCurrency,
       }
     }
@@ -242,10 +252,10 @@ export default function CostOverviewPage() {
   }, [providers])
 
   // Ring chart segments - shows filtered providers when filter active, otherwise category breakdown
+  // Uses centralized design tokens for consistent colors
   const ringSegments = useMemo(() => {
     // When provider filter is active, show filtered providers in ring
     if (hasProviderFilter && filteredProviders.length > 0) {
-      const colors = ["#10A37F", "#4285F4", "#FF6C5E", "#7C3AED", "#F59E0B", "#06B6D4"]
       return filteredProviders
         .filter(p => p.total_cost > 0)
         .slice(0, 6)
@@ -253,7 +263,7 @@ export default function CostOverviewPage() {
           key: p.provider,
           name: p.provider,
           value: p.total_cost,
-          color: colors[i % colors.length],
+          color: DEFAULT_CHART_PALETTE[i % DEFAULT_CHART_PALETTE.length],
         }))
     }
 
@@ -263,9 +273,9 @@ export default function CostOverviewPage() {
     const subscriptionCost = totalSummary?.subscription?.total_billed_cost ?? 0
 
     return [
-      { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
-      { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
-      { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: "#FF6C5E" },
+      { key: "genai", name: "GenAI", value: genaiCost, color: CATEGORY_COLORS.genai },
+      { key: "cloud", name: "Cloud", value: cloudCost, color: CATEGORY_COLORS.cloud },
+      { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: CATEGORY_COLORS.subscription },
     ].filter(s => s.value > 0)
   }, [totalSummary, hasProviderFilter, filteredProviders])
 

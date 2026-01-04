@@ -28,6 +28,12 @@ import {
   transformProvidersToTableRows,
   SAAS_PROVIDER_CONFIG,
   type ProviderData,
+  // FinOps constants
+  FINOPS,
+  calculateAllForecasts,
+  // Design tokens
+  SUBSCRIPTION_CHART_PALETTE,
+  getProviderColor,
 } from "@/lib/costs"
 
 export default function SubscriptionCostsPage() {
@@ -145,12 +151,16 @@ export default function SubscriptionCostsPage() {
     // When provider filter is active, calculate from filtered providers
     if (hasProviderFilter && providers.length > 0) {
       const filteredTotal = providers.reduce((sum, p) => sum + p.total_cost, 0)
-      const estimatedDailyRate = filteredTotal / 30
+      // Use FinOps standard calculations (data is 365-day total)
+      const { dailyRate, monthlyForecast, annualForecast } = calculateAllForecasts(
+        filteredTotal,
+        FINOPS.DAYS_PER_YEAR
+      )
       return {
         mtd: filteredTotal,
-        dailyRate: estimatedDailyRate,
-        forecast: filteredTotal,
-        ytd: filteredTotal * 12,
+        dailyRate,
+        forecast: monthlyForecast,
+        ytd: annualForecast,
         currency: orgCurrency,
       }
     }
@@ -187,8 +197,8 @@ export default function SubscriptionCostsPage() {
 
   // Ring chart segments for provider breakdown
   // Filter first to avoid showing empty segments, then slice for top 6
+  // Uses centralized design tokens for consistent colors
   const ringSegments = useMemo(() => {
-    const fallbackColors = ["#FF6C5E", "#10A37F", "#4285F4", "#7C3AED", "#F24E1E", "#FBBC04", "#00CED1", "#FF69B4"]
     return providers
       .filter(p => p.total_cost > 0)
       .slice(0, 6)
@@ -196,7 +206,10 @@ export default function SubscriptionCostsPage() {
         key: p.provider,
         name: p.provider,
         value: p.total_cost,
-        color: SAAS_PROVIDER_CONFIG.colors[p.provider.toLowerCase()] || fallbackColors[index % fallbackColors.length],
+        // Use provider-specific color or fall back to chart palette
+        color: getProviderColor(p.provider, "subscription") !== "#94a3b8"
+          ? getProviderColor(p.provider, "subscription")
+          : SUBSCRIPTION_CHART_PALETTE[index % SUBSCRIPTION_CHART_PALETTE.length],
       }))
   }, [providers])
 

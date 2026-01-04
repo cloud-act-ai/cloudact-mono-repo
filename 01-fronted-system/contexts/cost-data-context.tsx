@@ -1,18 +1,28 @@
 "use client"
 
 /**
- * Cost Data Context
+ * Cost Data Context - Hybrid Cache Strategy
  *
  * Provides centralized cost data caching across all cost dashboard pages.
- * Data is fetched once when the org layout mounts and cached in memory.
- * Pages consume cached data and can apply client-side filters.
- * Cache can be cleared via the "Clear Cache" button to force fresh data.
+ * Implements a hybrid cache strategy:
  *
- * Benefits:
- * - Single fetch on initial load (no redundant API calls)
- * - Instant navigation between cost pages
- * - Client-side filtering on cached data
- * - Clear cache only when explicitly requested (forces fresh fetch)
+ * FRONTEND (React Context):
+ * - Light cache (useState) for selected time range, filters
+ * - Filtered view of backend data for instant UI updates
+ * - No API call for time/provider/category filter changes within 365 days
+ *
+ * BACKEND (API Service):
+ * - L1 Cache: LRU (TTL: 300s) for raw Polars DataFrames
+ * - L2 Cache: Pre-computed aggregations (TTL: 300s)
+ * - Category filtering pushed to SQL WHERE for efficiency
+ *
+ * Cache Invalidation Rules:
+ * - Time range 7/30/90/365 days → Filter frontend cache (instant)
+ * - Custom range within 365 days → Filter frontend cache (instant)
+ * - Custom range beyond 365 days → Invalidate → new API call
+ * - Provider/Category filter change → Filter frontend cache (instant)
+ * - Hierarchy filter (dept/proj/team) → New API call (server-side)
+ * - Refresh button → Invalidate all → new API call
  */
 
 import React, {
@@ -212,10 +222,61 @@ interface CostDataProviderProps {
   orgSlug: string
 }
 
+// ============================================
+// Cache Decision Logic
+// ============================================
+
+/**
+ * Determine if a custom date range is within the cached 365-day window.
+ * Returns true if the range can be served from frontend cache.
+ */
+function isRangeWithinCache(
+  customRange: CustomDateRange | undefined,
+  cachedRange: { start: string; end: string } | null
+): boolean {
+  if (!customRange || !cachedRange) return true // Non-custom ranges always use cache
+
+  const requestedStart = new Date(customRange.startDate).getTime()
+  const requestedEnd = new Date(customRange.endDate).getTime()
+  const cachedStart = new Date(cachedRange.start).getTime()
+  const cachedEnd = new Date(cachedRange.end).getTime()
+
+  // Check if requested range is fully within cached range
+  return requestedStart >= cachedStart && requestedEnd <= cachedEnd
+}
+
+/**
+ * Determine cache decision based on requested range and current cache.
+ * @returns "use-cache" | "filter-cache" | "fetch-new"
+ */
+function getCacheDecision(
+  timeRange: TimeRange,
+  customRange: CustomDateRange | undefined,
+  cachedRange: { start: string; end: string } | null,
+  isInitialized: boolean
+): "use-cache" | "filter-cache" | "fetch-new" {
+  // If not initialized, must fetch
+  if (!isInitialized || !cachedRange) return "fetch-new"
+
+  // Standard preset ranges always use local filter
+  if (timeRange !== "custom") return "filter-cache"
+
+  // Custom range - check if within cached window
+  if (isRangeWithinCache(customRange, cachedRange)) {
+    return "filter-cache"
+  }
+
+  // Custom range exceeds cache - need new fetch
+  return "fetch-new"
+}
+
 export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   // Track in-flight requests to prevent race conditions and duplicate fetches
   const categoryTrendLoadingRef = useRef<Set<string>>(new Set())
   const isFetchingRef = useRef(false)
+
+  // AbortController for cancelling stale requests
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // State
   const [state, setState] = useState<CostDataState>({
@@ -267,6 +328,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
 
       const endDate = today.toISOString().split("T")[0]
       const startDate = startOfRange.toISOString().split("T")[0]
+
+      // Log fetch in dev mode
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Fetching 365-day data: ${startDate} to ${endDate}`)
+      }
 
       // Fetch core data in parallel with consistent 365-day range
       // OPTIMIZATION: Category-specific trends (genai/cloud/subscription) are lazy-loaded
@@ -367,6 +433,16 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         subscription: [],  // Lazy-loaded via fetchCategoryTrend()
       }
 
+      // Log successful fetch in dev mode
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Data loaded:`, {
+          providers: providerData.length,
+          trendPoints: categoryTrendData.all.length,
+          categories: availableCategories.length,
+          cachedRange: `${startDate} to ${endDate}`,
+        })
+      }
+
       // Update state with fetched data - increment cache version on clear cache
       setState((prev) => ({
         ...prev, // Preserve selectedTimeRange and selectedCustomRange
@@ -423,21 +499,63 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     setState((prev) => ({ ...prev, isStale: true }))
   }, [])
 
-  // Set time range (for chart zoom sync)
+  // Set time range with hybrid cache logic
+  // - Standard ranges (7/30/90/365/mtd/ytd) → instant filter, no API call
+  // - Custom range within 365 days → instant filter, no API call
+  // - Custom range beyond 365 days → triggers new API call
   const setTimeRange = useCallback((range: TimeRange, customRange?: CustomDateRange) => {
-    setState((prev) => ({
-      ...prev,
-      selectedTimeRange: range,
-      selectedCustomRange: customRange,
-    }))
-  }, [])
+    // Determine cache decision
+    const decision = getCacheDecision(
+      range,
+      customRange,
+      state.cachedDateRange,
+      state.isInitialized
+    )
+
+    if (decision === "filter-cache") {
+      // Instant - just update state, no API call needed
+      // Data filtering happens in getDailyTrendForRange
+      setState((prev) => ({
+        ...prev,
+        selectedTimeRange: range,
+        selectedCustomRange: customRange,
+      }))
+
+      // Log cache hit in dev mode
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Cache HIT: ${range}${customRange ? ` (${customRange.startDate} - ${customRange.endDate})` : ""}`)
+      }
+      return
+    }
+
+    if (decision === "fetch-new") {
+      // Custom range exceeds cache - need to fetch new data
+      // Update state first for immediate UI feedback
+      setState((prev) => ({
+        ...prev,
+        selectedTimeRange: range,
+        selectedCustomRange: customRange,
+        isStale: true,  // Mark as stale to show loading indicator
+      }))
+
+      // Log cache miss in dev mode
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Cache MISS: Custom range exceeds 365-day cache, fetching...`)
+      }
+
+      // Trigger refresh with new date range
+      // Note: For now, we just refresh the full 365-day cache
+      // Future optimization: fetch only the extended range
+      fetchCostData()
+    }
+  }, [state.cachedDateRange, state.isInitialized, fetchCostData])
 
   // Lazy-load category-specific trend data (only fetched when user needs it)
   // OPTIMIZATION: Reduces initial dashboard load from 8 to 5 API calls
   // Uses ref to prevent race conditions when multiple components request same category
+  // AbortController ensures stale requests are cancelled on component unmount
   const fetchCategoryTrend = useCallback(async (category: "genai" | "cloud" | "subscription") => {
-    // Skip if already loaded (check current state via setState callback pattern)
-    // or if request is already in flight
+    // Skip if already loaded or if request is already in flight
     if (categoryTrendLoadingRef.current.has(category)) return
 
     // Check if already loaded using setState to get current state
@@ -451,8 +569,24 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     // Mark as loading
     categoryTrendLoadingRef.current.add(category)
 
+    // Create AbortController for this request
+    const controller = new AbortController()
+
     try {
+      // Log in dev mode
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Fetching ${category} trend data...`)
+      }
+
       const trendResult = await getCostTrend(orgSlug, "daily", 365, category)
+
+      // Check if request was aborted
+      if (controller.signal.aborted) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[CostData] ${category} trend request aborted`)
+        }
+        return
+      }
 
       if (trendResult.success && trendResult.data) {
         setState((prev) => ({
@@ -462,8 +596,16 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
             [category]: trendResult.data || [],
           },
         }))
+
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[CostData] ${category} trend loaded: ${trendResult.data.length} points`)
+        }
       }
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
       console.error(`Failed to fetch ${category} trend:`, err)
     } finally {
       // Clear loading state

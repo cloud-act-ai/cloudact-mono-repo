@@ -6,10 +6,17 @@ For dashboard reads only - pipeline writes cost data.
 
 Features:
 - Polars lazy evaluation for optimal query performance
-- LRU cache with TTL for hot data
+- L1 LRU cache for raw DataFrames (TTL: 300s)
+- L2 Aggregation cache for pre-computed results (TTL: 300s)
 - Multi-tenant isolation via org_slug
 - Zero-copy data sharing via Arrow format
 - Centralized aggregations via lib/costs/
+- Category filtering pushed to SQL WHERE for efficiency
+
+Hybrid Cache Strategy:
+- Frontend: 365-day data cached, filtered client-side for instant UI
+- Backend L1: Raw Polars DataFrames (key: org + date_range + hierarchy)
+- Backend L2: Pre-computed aggregations (key: org + date_range + agg_type)
 """
 
 import polars as pl
@@ -73,13 +80,18 @@ class CostReadService:
 
     Features:
     - Lazy evaluation for optimal query execution
-    - Aggressive caching with multi-level TTL
+    - Two-level caching:
+      - L1: Raw DataFrames (TTL: 300s)
+      - L2: Pre-computed aggregations (TTL: 300s)
     - Multi-tenant isolation
     - Centralized aggregations via lib/costs/
     """
 
-    def __init__(self, cache: Optional[LRUCache] = None):
-        self._cache = cache or create_cache("COST", max_size=1000, default_ttl=300)
+    def __init__(self, cache: Optional[LRUCache] = None, agg_cache: Optional[LRUCache] = None):
+        # L1 Cache: Raw DataFrames
+        self._cache = cache or create_cache("COST_L1", max_size=1000, default_ttl=300)
+        # L2 Cache: Pre-computed aggregations (smaller values, same TTL)
+        self._agg_cache = agg_cache or create_cache("COST_L2", max_size=500, default_ttl=300)
         self._bq_client = None
         self._project_id = settings.gcp_project_id
 
@@ -120,12 +132,22 @@ class CostReadService:
 
         return await loop.run_in_executor(None, run_query)
 
-    async def _fetch_cost_data(self, query: CostQuery) -> pl.DataFrame:
+    async def _fetch_cost_data(
+        self,
+        query: CostQuery,
+        category: Optional[str] = None
+    ) -> pl.DataFrame:
         """
         Fetch raw cost data from BigQuery.
 
         Uses resolve_dates() to handle period/fiscal_year/custom dates.
+        Category filtering is pushed to SQL WHERE for efficiency.
         Returns raw DataFrame for Polars aggregations.
+
+        Args:
+            query: CostQuery with org_slug and date range
+            category: Optional category filter ("genai", "cloud", "subscription")
+                     When provided, filtering happens in SQL (more efficient)
         """
         validate_org_slug(query.org_slug)
         dataset_id = self._get_dataset_id(query.org_slug)
@@ -153,10 +175,40 @@ class CostReadService:
             where_conditions.append("ServiceProviderName IN UNNEST(@providers)")
             query_params.append(bigquery.ArrayQueryParameter("providers", "STRING", query.providers))
 
-        # Optional category filter
+        # Optional category filter (ServiceCategory from data)
         if query.service_categories:
             where_conditions.append("ServiceCategory IN UNNEST(@service_categories)")
             query_params.append(bigquery.ArrayQueryParameter("service_categories", "STRING", query.service_categories))
+
+        # Push category filter to SQL WHERE for efficiency
+        # This reduces data transfer from BigQuery significantly
+        if category:
+            category_lower = category.lower()
+            if category_lower in ("subscription", "saas"):
+                # Filter to Subscription source system
+                where_conditions.append("x_source_system = 'subscription_costs_daily'")
+            elif category_lower == "cloud":
+                # Filter to cloud providers (case-insensitive)
+                cloud_providers = ["gcp", "aws", "azure", "google", "amazon", "microsoft", "oci", "oracle"]
+                where_conditions.append(
+                    "(LOWER(ServiceProviderName) IN UNNEST(@cloud_providers) OR "
+                    "LOWER(x_source_system) LIKE '%cloud%' OR "
+                    "LOWER(x_source_system) LIKE '%gcp%' OR "
+                    "LOWER(x_source_system) LIKE '%aws%' OR "
+                    "LOWER(x_source_system) LIKE '%azure%')"
+                )
+                query_params.append(bigquery.ArrayQueryParameter("cloud_providers", "STRING", cloud_providers))
+            elif category_lower == "genai":
+                # Filter to GenAI providers (case-insensitive)
+                genai_providers = ["openai", "anthropic", "google ai", "cohere", "mistral", "gemini", "claude", "azure openai", "aws bedrock", "vertex ai"]
+                where_conditions.append(
+                    "((LOWER(ServiceProviderName) IN UNNEST(@genai_providers) OR "
+                    "LOWER(ServiceCategory) IN ('genai', 'llm', 'ai and machine learning') OR "
+                    "LOWER(x_source_system) LIKE '%genai%' OR "
+                    "LOWER(x_source_system) LIKE '%llm%') AND "
+                    "x_source_system != 'subscription_costs_daily')"
+                )
+                query_params.append(bigquery.ArrayQueryParameter("genai_providers", "STRING", genai_providers))
 
         # Hierarchy filters
         if query.department_id:
