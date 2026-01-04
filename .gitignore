@@ -221,7 +221,8 @@ __marimo__/
 **/__screenshots__/
 *.webp
 .playwright-mcp/
-01-fronted-system/playwright-report/data/
+01-fronted-system/playwright-report/
+01-fronted-system/test-results/
 
 mcp.json
 .agent/
