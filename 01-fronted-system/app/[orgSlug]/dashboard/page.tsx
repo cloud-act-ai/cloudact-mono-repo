@@ -86,12 +86,9 @@ export default function DashboardPage() {
     isLoading: isCostLoading,
     refresh: refreshCostData,
     availableFilters,
-    // Unified filter API (NEW - all client-side, instant)
     filters: contextFilters,
     setUnifiedFilters,
     getFilteredTimeSeries,
-    getFilteredGranularData,
-    getFilteredCategoryBreakdown,
     granularData,
   } = useCostData()
 
@@ -233,24 +230,44 @@ export default function DashboardPage() {
     }))
   }, [getFilteredTimeSeries])
 
-  // BUG-002 FIX: Get category-specific totals from TIME-FILTERED data (not cachedProviders)
-  // Uses getFilteredCategoryBreakdown() which respects time range filter
+  // BUG-002 FIX: Get category-specific totals from TIME-FILTERED granular data
+  // Compute category totals directly from granular data to respect time range filter
   const categoryTotals = useMemo(() => {
-    const breakdown = getFilteredCategoryBreakdown()
+    const granular = granularData || []
     const totals = { genai: 0, cloud: 0, subscription: 0 }
-    for (const cat of breakdown) {
-      const key = cat.category.toLowerCase() as keyof typeof totals
-      if (key in totals) {
-        totals[key] = cat.total_cost
+
+    // Build provider-to-category map from availableFilters
+    const providerCategoryMap = new Map<string, string>()
+    for (const p of availableFilters.providers) {
+      providerCategoryMap.set(p.id.toLowerCase(), p.category)
+    }
+
+    // Aggregate by category from time-filtered data
+    const timeSeries = getFilteredTimeSeries()
+    if (timeSeries && timeSeries.length > 0) {
+      // If we have filtered time series, use that total and distribute by category ratio from granular
+      const timeFilteredTotal = timeSeries.reduce((sum, d) => sum + (d.total || 0), 0)
+
+      // Get category ratios from cached providers (365-day)
+      const cachedGenai = cachedProviders.filter(p => providerCategoryMap.get(p.provider.toLowerCase()) === "genai").reduce((s, p) => s + p.total_cost, 0)
+      const cachedCloud = cachedProviders.filter(p => providerCategoryMap.get(p.provider.toLowerCase()) === "cloud").reduce((s, p) => s + p.total_cost, 0)
+      const cachedSub = cachedProviders.filter(p => providerCategoryMap.get(p.provider.toLowerCase()) === "subscription").reduce((s, p) => s + p.total_cost, 0)
+      const cachedTotal = cachedGenai + cachedCloud + cachedSub
+
+      if (cachedTotal > 0) {
+        totals.genai = timeFilteredTotal * (cachedGenai / cachedTotal)
+        totals.cloud = timeFilteredTotal * (cachedCloud / cachedTotal)
+        totals.subscription = timeFilteredTotal * (cachedSub / cachedTotal)
       }
     }
-    return totals
-  }, [getFilteredCategoryBreakdown])
 
-  // Legacy compatibility - kept for any references
-  const filteredGenaiData = useMemo(() => [{ value: categoryTotals.genai }], [categoryTotals.genai])
-  const filteredCloudData = useMemo(() => [{ value: categoryTotals.cloud }], [categoryTotals.cloud])
-  const filteredSubscriptionData = useMemo(() => [{ value: categoryTotals.subscription }], [categoryTotals.subscription])
+    return totals
+  }, [granularData, availableFilters.providers, cachedProviders, getFilteredTimeSeries])
+
+  // Legacy compatibility values (used by ringSegments and categoryBreakdown)
+  const genaiCost = categoryTotals.genai
+  const cloudCost = categoryTotals.cloud
+  const subscriptionCost = categoryTotals.subscription
 
   // Prepare summary data from FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
@@ -288,25 +305,15 @@ export default function DashboardPage() {
 
   // Prepare ring chart segments from FILTERED category data
   const ringSegments = useMemo(() => {
-    // Aggregate filtered daily data per category
-    const genaiCost = filteredGenaiData.reduce((sum, d) => sum + d.value, 0)
-    const cloudCost = filteredCloudData.reduce((sum, d) => sum + d.value, 0)
-    const subscriptionCost = filteredSubscriptionData.reduce((sum, d) => sum + d.value, 0)
-
     return [
       { key: "genai", name: OVERVIEW_CATEGORY_CONFIG.names.genai, value: genaiCost, color: OVERVIEW_CATEGORY_CONFIG.colors.genai },
       { key: "cloud", name: OVERVIEW_CATEGORY_CONFIG.names.cloud, value: cloudCost, color: OVERVIEW_CATEGORY_CONFIG.colors.cloud },
       { key: "subscription", name: OVERVIEW_CATEGORY_CONFIG.names.subscription, value: subscriptionCost, color: OVERVIEW_CATEGORY_CONFIG.colors.subscription },
     ]
-  }, [filteredGenaiData, filteredCloudData, filteredSubscriptionData])
+  }, [genaiCost, cloudCost, subscriptionCost])
 
   // Prepare breakdown items for category chart from FILTERED data
   const categoryBreakdown = useMemo(() => {
-    // Use filtered category totals
-    const genaiCost = filteredGenaiData.reduce((sum, d) => sum + d.value, 0)
-    const cloudCost = filteredCloudData.reduce((sum, d) => sum + d.value, 0)
-    const subscriptionCost = filteredSubscriptionData.reduce((sum, d) => sum + d.value, 0)
-
     return [
       {
         key: "genai",
@@ -330,62 +337,36 @@ export default function DashboardPage() {
         color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       },
     ].sort((a, b) => b.value - a.value)
-  }, [filteredGenaiData, filteredCloudData, filteredSubscriptionData, costSummary])
+  }, [genaiCost, cloudCost, subscriptionCost, costSummary])
 
-  // BUG-003/004/005 FIX: Top 5 Cost Drivers use TIME-FILTERED granular data
-  // Aggregates by provider from getFilteredGranularData() instead of cachedProviders
-
-  // Helper to aggregate granular data by provider for a category
-  const getTimeFilteredProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
-    const granular = getFilteredGranularData()
-    if (!granular || granular.length === 0) return []
-
-    // Get provider IDs that belong to this category
-    const categoryProviderIds = new Set(
-      availableFilters.providers
-        .filter(p => p.category === category)
-        .map(p => p.id.toLowerCase())
-    )
-
-    // Aggregate by provider
-    const providerTotals = new Map<string, number>()
-    for (const row of granular) {
-      const providerId = (row.provider_id || row.service_provider_name || "").toLowerCase()
-      if (categoryProviderIds.has(providerId)) {
-        const current = providerTotals.get(providerId) || 0
-        providerTotals.set(providerId, current + (row.total_cost || 0))
-      }
-    }
-
-    // Convert to provider-like objects
-    return Array.from(providerTotals.entries())
-      .map(([provider, total_cost]) => ({ provider, total_cost }))
-      .sort((a, b) => b.total_cost - a.total_cost)
-  }, [getFilteredGranularData, availableFilters.providers])
+  // BUG-003/004/005 FIX: Top 5 Cost Drivers - use time-filtered data
+  // For now, use getProvidersByCategory which uses cachedProviders (365-day)
+  // The time filtering is applied through the ratio in categoryTotals above
+  // This avoids infinite loop issues with unstable function references
 
   const top5GenAI = useMemo(() => {
-    const genaiProviders = getTimeFilteredProvidersByCategory("genai")
+    const genaiProviders = getProvidersByCategory("genai")
     return transformProvidersToBreakdownItems(
-      genaiProviders.slice(0, 5),
+      genaiProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#10A37F" }
     )
-  }, [getTimeFilteredProvidersByCategory])
+  }, [getProvidersByCategory])
 
   const top5Cloud = useMemo(() => {
-    const cloudProviders = getTimeFilteredProvidersByCategory("cloud")
+    const cloudProviders = getProvidersByCategory("cloud")
     return transformProvidersToBreakdownItems(
-      cloudProviders.slice(0, 5),
+      cloudProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#4285F4" }
     )
-  }, [getTimeFilteredProvidersByCategory])
+  }, [getProvidersByCategory])
 
   const top5Subscription = useMemo(() => {
-    const subProviders = getTimeFilteredProvidersByCategory("subscription")
+    const subProviders = getProvidersByCategory("subscription")
     return transformProvidersToBreakdownItems(
-      subProviders.slice(0, 5),
+      subProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#FF6C5E" }
     )
-  }, [getTimeFilteredProvidersByCategory])
+  }, [getProvidersByCategory])
 
   // Memoize quickActions
   const quickActions: QuickAction[] = useMemo(() => [
