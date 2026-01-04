@@ -28,6 +28,8 @@ from src.core.services._shared.date_utils import (
     get_comparison_ranges,
     get_custom_comparison,
     get_same_period_last_year,
+    # Cache TTL utilities
+    get_seconds_until_midnight,
 )
 
 __all__ = [
@@ -59,4 +61,6 @@ __all__ = [
     "get_comparison_ranges",
     "get_custom_comparison",
     "get_same_period_last_year",
+    # Cache TTL utilities
+    "get_seconds_until_midnight",
 ]

@@ -737,12 +737,14 @@ export async function getTotalCosts(
 
 /**
  * Get cost trend over time
+ * Supports optional hierarchy filters for department/project/team filtering
  */
 export async function getCostTrend(
   orgSlug: string,
   granularity: "daily" | "weekly" | "monthly" = "daily",
   days: number = 30,
-  category?: "genai" | "cloud" | "subscription"
+  category?: "genai" | "cloud" | "subscription",
+  filters?: CostFilterParams
 ): Promise<{
   success: boolean
   data: CostTrendPoint[]
@@ -769,6 +771,17 @@ export async function getCostTrend(
     })
     if (category) {
       params.set("category", category)
+    }
+    // Hierarchy filters - server-side filtering
+    if (filters?.departmentId) params.set("department_id", filters.departmentId)
+    if (filters?.projectId) params.set("project_id", filters.projectId)
+    if (filters?.teamId) params.set("team_id", filters.teamId)
+    // Provider and category filters
+    if (filters?.providers && filters.providers.length > 0) {
+      params.set("providers", filters.providers.join(","))
+    }
+    if (filters?.categories && filters.categories.length > 0) {
+      params.set("service_categories", filters.categories.join(","))
     }
     const url = `${apiUrl}/api/v1/costs/${orgSlug}/trend?${params.toString()}`
 
@@ -865,6 +878,127 @@ export async function getCostTrend(
       data: [],
       currency: "USD",
       error: logError("getCostTrend", error),
+    }
+  }
+}
+
+// ============================================
+// Granular Trend Data (Client-Side Filtering)
+// ============================================
+
+/**
+ * Granular cost row - pre-aggregated by date + provider + hierarchy
+ * Used for client-side filtering without new API calls
+ */
+export interface GranularCostRow {
+  date: string
+  provider: string
+  category: "genai" | "cloud" | "subscription" | "other"
+  dept_id: string | null
+  project_id: string | null
+  team_id: string | null
+  total_cost: number
+  record_count: number
+}
+
+/**
+ * Available filter options from granular data
+ */
+export interface GranularFiltersAvailable {
+  providers: string[]
+  categories: string[]
+  departments: { id: string; name: string }[]
+  projects: { id: string; name: string }[]
+  teams: { id: string; name: string }[]
+}
+
+/**
+ * Get granular cost trend data for client-side filtering.
+ *
+ * This endpoint returns pre-aggregated data by date + provider + hierarchy,
+ * enabling the frontend to perform ALL filtering client-side without new API calls.
+ *
+ * @param orgSlug - Organization slug
+ * @param days - Number of days (default 365)
+ * @param clearCache - Force backend to clear Polars LRU cache and fetch fresh data from BigQuery
+ * @returns Granular data with available filter options
+ */
+export async function getCostTrendGranular(
+  orgSlug: string,
+  days: number = 365,
+  clearCache: boolean = false
+): Promise<{
+  success: boolean
+  data: GranularCostRow[]
+  summary: {
+    total_cost: number
+    record_count: number
+    granular_rows: number
+    date_range: { start: string; end: string }
+    available_filters: GranularFiltersAvailable
+  } | null
+  currency: string
+  cache_hit: boolean
+  error?: string
+}> {
+  try {
+    // PERFORMANCE: Use cached auth + API key
+    const authContext = await getAuthWithApiKey(orgSlug)
+    if (!authContext) {
+      return {
+        success: false,
+        data: [],
+        summary: null,
+        currency: "USD",
+        cache_hit: false,
+        error: "Organization API key not found.",
+      }
+    }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const params = new URLSearchParams({ days: days.toString() })
+
+    // Add clear_cache parameter if requested (forces backend to bypass cache)
+    if (clearCache) {
+      params.append("clear_cache", "true")
+    }
+
+    const url = `${apiUrl}/api/v1/costs/${orgSlug}/trend-granular?${params.toString()}`
+
+    const response = await fetchWithTimeout(url, {
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return {
+        success: false,
+        data: [],
+        summary: null,
+        currency: "USD",
+        cache_hit: false,
+        error: `API error: ${response.status} - ${errorText}`,
+      }
+    }
+
+    const result = await response.json()
+
+    return {
+      success: result.success,
+      data: result.data || [],
+      summary: result.summary || null,
+      currency: result.currency || "USD",
+      cache_hit: result.cache_hit || false,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      summary: null,
+      currency: "USD",
+      cache_hit: false,
+      error: logError("getCostTrendGranular", error),
     }
   }
 }

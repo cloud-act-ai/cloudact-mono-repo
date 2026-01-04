@@ -425,3 +425,227 @@ export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null
     label: `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`,
   }
 }
+
+// ============================================
+// Granular Data Filters (for trend-granular endpoint)
+// ============================================
+
+/**
+ * Granular cost data row from /costs/{org}/trend-granular endpoint.
+ * Pre-aggregated by date + provider + hierarchy for client-side filtering.
+ */
+export interface GranularCostRow {
+  date: string  // "2024-01-15"
+  provider: string  // "openai"
+  category: "genai" | "cloud" | "subscription" | "other"
+  dept_id: string | null
+  project_id: string | null
+  team_id: string | null
+  total_cost: number
+  record_count: number
+}
+
+/**
+ * Filter options for granular data
+ */
+export interface GranularFilterOptions {
+  dateRange?: DateRange
+  providers?: string[]
+  categories?: ("genai" | "cloud" | "subscription" | "other")[]
+  departmentId?: string
+  projectId?: string
+  teamId?: string
+}
+
+/**
+ * Filter granular data by date range
+ */
+export function filterGranularByDateRange(
+  data: GranularCostRow[],
+  range: DateRange
+): GranularCostRow[] {
+  if (!data || !Array.isArray(data) || !range) return data || []
+
+  return data.filter(row => {
+    if (!row.date) return false
+    const date = new Date(row.date)
+    if (isNaN(date.getTime())) return false
+    return date >= range.start && date <= range.end
+  })
+}
+
+/**
+ * Filter granular data by providers
+ */
+export function filterGranularByProvider(
+  data: GranularCostRow[],
+  providers: string[]
+): GranularCostRow[] {
+  if (!data || !providers || providers.length === 0) return data || []
+
+  const lowerProviders = new Set(providers.map(p => p.toLowerCase()))
+  return data.filter(row => lowerProviders.has(row.provider?.toLowerCase() || ""))
+}
+
+/**
+ * Filter granular data by category (genai, cloud, subscription, other)
+ */
+export function filterGranularByCategory(
+  data: GranularCostRow[],
+  categories: ("genai" | "cloud" | "subscription" | "other")[]
+): GranularCostRow[] {
+  if (!data || !categories || categories.length === 0) return data || []
+
+  const categorySet = new Set(categories)
+  return data.filter(row => categorySet.has(row.category))
+}
+
+/**
+ * Filter granular data by department ID
+ */
+export function filterGranularByDepartment(
+  data: GranularCostRow[],
+  departmentId: string
+): GranularCostRow[] {
+  if (!data || !departmentId) return data || []
+  return data.filter(row => row.dept_id === departmentId)
+}
+
+/**
+ * Filter granular data by project ID
+ */
+export function filterGranularByProject(
+  data: GranularCostRow[],
+  projectId: string
+): GranularCostRow[] {
+  if (!data || !projectId) return data || []
+  return data.filter(row => row.project_id === projectId)
+}
+
+/**
+ * Filter granular data by team ID
+ */
+export function filterGranularByTeam(
+  data: GranularCostRow[],
+  teamId: string
+): GranularCostRow[] {
+  if (!data || !teamId) return data || []
+  return data.filter(row => row.team_id === teamId)
+}
+
+/**
+ * Apply all granular filters at once
+ * This is the main function for client-side filtering of granular data
+ */
+export function applyGranularFilters(
+  data: GranularCostRow[],
+  options: GranularFilterOptions
+): GranularCostRow[] {
+  let filtered = data || []
+
+  if (options.dateRange) {
+    filtered = filterGranularByDateRange(filtered, options.dateRange)
+  }
+
+  if (options.providers && options.providers.length > 0) {
+    filtered = filterGranularByProvider(filtered, options.providers)
+  }
+
+  if (options.categories && options.categories.length > 0) {
+    filtered = filterGranularByCategory(filtered, options.categories)
+  }
+
+  if (options.departmentId) {
+    filtered = filterGranularByDepartment(filtered, options.departmentId)
+  }
+
+  if (options.projectId) {
+    filtered = filterGranularByProject(filtered, options.projectId)
+  }
+
+  if (options.teamId) {
+    filtered = filterGranularByTeam(filtered, options.teamId)
+  }
+
+  return filtered
+}
+
+/**
+ * Aggregate granular data to time series (sum by date)
+ */
+export function granularToTimeSeries(data: GranularCostRow[]): { date: string; total: number }[] {
+  if (!data || !Array.isArray(data)) return []
+
+  const byDate = new Map<string, number>()
+
+  for (const row of data) {
+    const current = byDate.get(row.date) || 0
+    byDate.set(row.date, current + (row.total_cost || 0))
+  }
+
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, total]) => ({ date, total }))
+}
+
+/**
+ * Aggregate granular data to provider breakdown
+ */
+export function granularToProviderBreakdown(
+  data: GranularCostRow[]
+): { provider: string; total_cost: number; percentage: number }[] {
+  if (!data || !Array.isArray(data)) return []
+
+  const byProvider = new Map<string, number>()
+  let grandTotal = 0
+
+  for (const row of data) {
+    const cost = row.total_cost || 0
+    const current = byProvider.get(row.provider) || 0
+    byProvider.set(row.provider, current + cost)
+    grandTotal += cost
+  }
+
+  return Array.from(byProvider.entries())
+    .sort(([, a], [, b]) => b - a)
+    .map(([provider, total_cost]) => ({
+      provider,
+      total_cost,
+      percentage: grandTotal > 0 ? Math.round((total_cost / grandTotal) * 1000) / 10 : 0,
+    }))
+}
+
+/**
+ * Aggregate granular data to category breakdown
+ */
+export function granularToCategoryBreakdown(
+  data: GranularCostRow[]
+): { category: string; total_cost: number; percentage: number }[] {
+  if (!data || !Array.isArray(data)) return []
+
+  const byCategory = new Map<string, number>()
+  let grandTotal = 0
+
+  for (const row of data) {
+    const cost = row.total_cost || 0
+    const current = byCategory.get(row.category) || 0
+    byCategory.set(row.category, current + cost)
+    grandTotal += cost
+  }
+
+  return Array.from(byCategory.entries())
+    .sort(([, a], [, b]) => b - a)
+    .map(([category, total_cost]) => ({
+      category,
+      total_cost,
+      percentage: grandTotal > 0 ? Math.round((total_cost / grandTotal) * 1000) / 10 : 0,
+    }))
+}
+
+/**
+ * Calculate total cost from granular data
+ */
+export function granularTotalCost(data: GranularCostRow[]): number {
+  if (!data || !Array.isArray(data)) return 0
+  return data.reduce((sum, row) => sum + (row.total_cost || 0), 0)
+}

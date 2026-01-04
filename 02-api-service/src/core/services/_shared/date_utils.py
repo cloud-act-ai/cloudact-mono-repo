@@ -651,3 +651,45 @@ def get_same_period_last_year(
         previous=DateRange(start_date=prev_start, end_date=prev_end, period=DatePeriod.CUSTOM),
         comparison_type=ComparisonType.YEAR_OVER_YEAR
     )
+
+
+# ==============================================================================
+# Cache TTL Utilities
+# ==============================================================================
+
+def get_seconds_until_midnight(timezone: str = "UTC") -> int:
+    """
+    Calculate seconds remaining until midnight in the specified timezone.
+
+    Cost data only changes daily (pipeline runs overnight), so cache should
+    be valid until midnight in the org's timezone.
+
+    Args:
+        timezone: IANA timezone string (e.g., "America/New_York", "Asia/Kolkata")
+                  Defaults to "UTC" if invalid/missing
+
+    Returns:
+        Seconds until midnight (minimum 60 seconds to avoid edge cases)
+
+    Example:
+        >>> get_seconds_until_midnight("America/New_York")  # At 10pm ET
+        7200  # 2 hours until midnight
+    """
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        # Python < 3.9 fallback
+        from backports.zoneinfo import ZoneInfo  # type: ignore
+
+    try:
+        tz = ZoneInfo(timezone)
+    except Exception:
+        # Invalid timezone - fallback to UTC
+        tz = ZoneInfo("UTC")
+
+    now = datetime.now(tz)
+    midnight = datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=tz) + timedelta(seconds=1)
+    seconds = int((midnight - now).total_seconds())
+
+    # Minimum 60 seconds to avoid edge cases near midnight
+    return max(seconds, 60)

@@ -586,7 +586,7 @@ async def get_granular_trend(
     org_slug: str,
     request: Request,
     days: int = Query(365, ge=1, le=730, description="Number of days (default 365)"),
-    clear_cache: bool = Query(False, description="Force backend to clear L1/L2 cache and fetch fresh data from BigQuery"),
+    clear_cache: bool = Query(False, description="Force backend to clear Polars LRU cache and fetch fresh data from BigQuery"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -648,7 +648,7 @@ async def get_granular_trend(
     # Log clear_cache request in dev mode
     if clear_cache:
         import logging
-        logging.info(f"[CostRouter] clear_cache=True for {org_slug}, bypassing L1/L2 cache")
+        logging.info(f"[CostRouter] clear_cache=True for {org_slug}, bypassing Polars LRU cache")
 
     result = await cost_service.get_granular_trend(query, clear_cache=clear_cache)
 

@@ -44,7 +44,7 @@ import {
 } from "@/components/costs"
 
 import { getDateInfo, OVERVIEW_CATEGORY_CONFIG, transformProvidersToBreakdownItems } from "@/lib/costs"
-import { useCostData } from "@/contexts/cost-data-context"
+import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 
 interface QuickAction {
   title: string
@@ -77,17 +77,20 @@ export default function DashboardPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
-  // Use cached cost data from context
+  // Use unified filters from context (all client-side, instant)
   const {
     totalCosts: costSummary,
+    providerBreakdown: cachedProviders,
     periodCosts,
     currency: contextCurrency,
     isLoading: isCostLoading,
     refresh: refreshCostData,
-    selectedTimeRange,
-    selectedCustomRange,
-    setTimeRange: setContextTimeRange,
-    getFilteredProviders,
+    availableFilters,
+    // Unified filter API (NEW - all client-side, instant)
+    filters: contextFilters,
+    setUnifiedFilters,
+    getFilteredTimeSeries,
+    granularData,
   } = useCostData()
 
   // Use chart config - ensure context is active
@@ -99,9 +102,18 @@ export default function DashboardPage() {
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
 
-  // Use context time range for sync with zoom
-  const timeRange = selectedTimeRange
-  const customRange = selectedCustomRange
+  // Extract time range from unified filters
+  const timeRange = contextFilters.timeRange
+  const customRange = contextFilters.customRange
+
+  // Time range handlers using unified filters (instant, no API call)
+  const handleTimeRangeChange = useCallback((range: TimeRange) => {
+    setUnifiedFilters({ timeRange: range, customRange: range === "custom" ? customRange : undefined })
+  }, [setUnifiedFilters, customRange])
+
+  const handleCustomRangeChange = useCallback((range: CustomDateRange | undefined) => {
+    setUnifiedFilters({ customRange: range })
+  }, [setUnifiedFilters])
 
   // Load non-cost data (pipelines, integrations)
   const loadNonCostData = useCallback(async () => {
@@ -187,25 +199,52 @@ export default function DashboardPage() {
     (costSummary.subscription?.total_monthly_cost ?? 0) > 0
   )
 
-  // Get filtered daily trend data for the selected time range
-  const { getDailyTrendForRange, fetchCategoryTrend, categoryTrendData } = useCostData()
+  // Helper to filter providers by category using availableFilters
+  const getProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
+    const categoryProviderIds = new Set(
+      availableFilters.providers
+        .filter(p => p.category === category)
+        .map(p => p.id.toLowerCase())
+    )
+    return cachedProviders.filter(p =>
+      categoryProviderIds.has(p.provider.toLowerCase())
+    )
+  }, [availableFilters.providers, cachedProviders])
 
-  // Get filtered daily data for all categories (pass customRange for custom date range)
+  // Get filtered time series data (all categories)
   const filteredDailyData = useMemo(() => {
-    return getDailyTrendForRange(timeRange, undefined, customRange)
-  }, [getDailyTrendForRange, timeRange, customRange])
+    const timeSeries = getFilteredTimeSeries()
+    if (!timeSeries || timeSeries.length === 0) return []
 
-  // Get filtered daily data per category (for ring chart) - pass customRange
-  const filteredGenaiData = useMemo(() => getDailyTrendForRange(timeRange, "genai", customRange), [getDailyTrendForRange, timeRange, customRange])
-  const filteredCloudData = useMemo(() => getDailyTrendForRange(timeRange, "cloud", customRange), [getDailyTrendForRange, timeRange, customRange])
-  const filteredSubscriptionData = useMemo(() => getDailyTrendForRange(timeRange, "subscription", customRange), [getDailyTrendForRange, timeRange, customRange])
+    // Calculate overall average
+    const totalCost = timeSeries.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0)
+    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
+    const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
 
-  // Lazy-load category trend data if needed
-  React.useEffect(() => {
-    if (categoryTrendData.genai.length === 0) fetchCategoryTrend("genai")
-    if (categoryTrendData.cloud.length === 0) fetchCategoryTrend("cloud")
-    if (categoryTrendData.subscription.length === 0) fetchCategoryTrend("subscription")
-  }, [categoryTrendData, fetchCategoryTrend])
+    return timeSeries.map((point) => ({
+      date: point.date,
+      label: new Date(point.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      value: point.total,
+      rollingAvg: Math.round(rollingAvg * 100) / 100,
+    }))
+  }, [getFilteredTimeSeries])
+
+  // Get category-specific totals from granular data for ring chart
+  // Note: With unified filters, we filter granularData directly by category
+  const filteredGenaiData = useMemo(() => {
+    const genaiProviders = getProvidersByCategory("genai")
+    return genaiProviders.map(p => ({ value: p.total_cost }))
+  }, [getProvidersByCategory])
+
+  const filteredCloudData = useMemo(() => {
+    const cloudProviders = getProvidersByCategory("cloud")
+    return cloudProviders.map(p => ({ value: p.total_cost }))
+  }, [getProvidersByCategory])
+
+  const filteredSubscriptionData = useMemo(() => {
+    const subProviders = getProvidersByCategory("subscription")
+    return subProviders.map(p => ({ value: p.total_cost }))
+  }, [getProvidersByCategory])
 
   // Prepare summary data from FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
@@ -287,30 +326,30 @@ export default function DashboardPage() {
     ].sort((a, b) => b.value - a.value)
   }, [filteredGenaiData, filteredCloudData, filteredSubscriptionData, costSummary])
 
-  // Top 5 Cost Drivers by Category
+  // Top 5 Cost Drivers by Category (using unified filter data)
   const top5GenAI = useMemo(() => {
-    const genaiProviders = getFilteredProviders("genai")
+    const genaiProviders = getProvidersByCategory("genai")
     return transformProvidersToBreakdownItems(
       genaiProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#10A37F" }
     )
-  }, [getFilteredProviders])
+  }, [getProvidersByCategory])
 
   const top5Cloud = useMemo(() => {
-    const cloudProviders = getFilteredProviders("cloud")
+    const cloudProviders = getProvidersByCategory("cloud")
     return transformProvidersToBreakdownItems(
       cloudProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#4285F4" }
     )
-  }, [getFilteredProviders])
+  }, [getProvidersByCategory])
 
   const top5Subscription = useMemo(() => {
-    const subProviders = getFilteredProviders("subscription")
+    const subProviders = getProvidersByCategory("subscription")
     return transformProvidersToBreakdownItems(
       subProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#FF6C5E" }
     )
-  }, [getFilteredProviders])
+  }, [getProvidersByCategory])
 
   // Memoize quickActions
   const quickActions: QuickAction[] = useMemo(() => [
@@ -411,7 +450,9 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 sm:gap-3">
           <TimeRangeFilter
             value={timeRange}
-            onChange={setContextTimeRange}
+            onChange={handleTimeRangeChange}
+            customRange={customRange}
+            onCustomRangeChange={handleCustomRangeChange}
             size="sm"
           />
           <Button
@@ -434,22 +475,28 @@ export default function DashboardPage() {
       </div>
 
       {/* Daily Cost Trend Chart */}
-      <div className="animate-fade-up animation-delay-100">
-        <CostTrendChart
-          title="Daily Cost Trend"
-          subtitle="Daily spend with period average"
-          timeRange={timeRange}
-          customRange={customRange}
-          showBars={true}
-          showLine={true}
-          barColor="#90FCA6"
-          lineColor="#FF6C5E"
-          lineLabel={`${filteredDailyData.length}-day Avg`}
-          enableZoom={true}
-          height={320}
-          loading={isLoading}
-        />
-      </div>
+      {filteredDailyData.length > 0 && (
+        <div className="animate-fade-up animation-delay-100">
+          <CostTrendChart
+            title="Daily Cost Trend"
+            subtitle="Daily spend with period average"
+            data={filteredDailyData.map(d => ({
+              date: d.date,
+              label: d.label,
+              value: d.value,
+              rollingAvg: d.rollingAvg,
+            }))}
+            showBars={true}
+            showLine={true}
+            barColor="#90FCA6"
+            lineColor="#FF6C5E"
+            lineLabel={`${filteredDailyData.length}-day Avg`}
+            enableZoom={true}
+            height={320}
+            loading={isLoading}
+          />
+        </div>
+      )}
 
       {/* Row 1: Total Spend (Pie) + Top 5 GenAI */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-200">

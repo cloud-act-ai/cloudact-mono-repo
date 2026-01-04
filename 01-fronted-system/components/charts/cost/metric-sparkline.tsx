@@ -86,11 +86,10 @@ export function MetricSparkline({
       }
     }
 
-    // Get trend data using context API
+    // Get trend data using context's unified filters
     if (category) {
-      const categoryFilter = category === "total" ? undefined : category
-      const trend = costData.getDailyTrendForRange(timeRange, categoryFilter)
-      const values = trend.map((d) => d.value || 0)
+      const timeSeries = costData.getFilteredTimeSeries()
+      const values = timeSeries.map((d: { date: string; total: number }) => d.total || 0)
 
       const current = values[values.length - 1] || 0
       const previous = values[0] || 0

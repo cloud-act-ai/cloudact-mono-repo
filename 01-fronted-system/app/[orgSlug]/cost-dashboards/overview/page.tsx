@@ -53,7 +53,7 @@ export default function CostOverviewPage() {
   const params = useParams()
   const orgSlug = getOrgSlug(params as { orgSlug?: string | string[] })
 
-  // Use cached cost data from context (including time range for zoom sync)
+  // Use unified filters from context
   const {
     totalCosts: cachedTotalCosts,
     providerBreakdown: cachedProviders,
@@ -63,26 +63,30 @@ export default function CostOverviewPage() {
     isLoading: isCostLoading,
     error: contextError,
     refresh: refreshCostData,
-    getDailyTrendForRange,
-    getFilteredProviders,
     availableFilters,
-    selectedTimeRange: timeRange,
-    selectedCustomRange: customRange,
-    setTimeRange: contextSetTimeRange,
+    // Unified filter API (NEW - all client-side, instant)
+    filters: contextFilters,
+    setUnifiedFilters,
+    getFilteredTimeSeries,
+    getFilteredProviderBreakdown,
   } = useCostData()
+
+  // Extract time range from unified filters
+  const timeRange = contextFilters.timeRange
+  const customRange = contextFilters.customRange
 
   // Local state
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [filters, setFilters] = useState<CostFiltersState>(getDefaultFilters)
 
-  // Time range handlers that sync with context (for zoom integration)
+  // Time range handlers using unified filters (instant, no API call)
   const handleTimeRangeChange = useCallback((range: TimeRange) => {
-    contextSetTimeRange(range, range === "custom" ? customRange : undefined)
-  }, [contextSetTimeRange, customRange])
+    setUnifiedFilters({ timeRange: range, customRange: range === "custom" ? customRange : undefined })
+  }, [setUnifiedFilters, customRange])
 
   const handleCustomRangeChange = useCallback((range: CustomDateRange | undefined) => {
-    contextSetTimeRange(timeRange, range)
-  }, [contextSetTimeRange, timeRange])
+    setUnifiedFilters({ customRange: range })
+  }, [setUnifiedFilters])
 
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
@@ -129,18 +133,32 @@ export default function CostOverviewPage() {
   // Get rolling average label based on selected time range
   const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
 
-  // Get daily trend data from context (real data from backend)
+  // Get daily trend data from unified filters (instant client-side filtering)
   const dailyTrendData = useMemo(() => {
-    const trendData = getDailyTrendForRange(timeRange, undefined, customRange)
+    const timeSeries = getFilteredTimeSeries()
+    if (!timeSeries || timeSeries.length === 0) return []
 
-    // Transform to chart format with lineValue for rolling average
-    return trendData.map((point) => ({
-      label: point.label,
-      value: point.value,
-      lineValue: point.rollingAvg,
-      date: point.date,
-    }))
-  }, [getDailyTrendForRange, timeRange, customRange])
+    // Calculate rolling average (overall period average as flat reference line)
+    const totalCost = timeSeries.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0)
+    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
+    const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
+
+    // Transform to chart format
+    return timeSeries.map((point) => {
+      const date = new Date(point.date)
+      // Format label based on data length
+      const label = timeSeries.length >= 60
+        ? date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        : date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+
+      return {
+        label,
+        value: point.total,
+        lineValue: Math.round(rollingAvg * 100) / 100,
+        date: point.date,
+      }
+    })
+  }, [getFilteredTimeSeries])
 
   // Build category breakdown from total costs data
   const categories = useMemo<BreakdownItem[]>(() => {
@@ -280,30 +298,44 @@ export default function CostOverviewPage() {
     ].filter(s => s.value > 0)
   }, [totalSummary, hasProviderFilter, filteredProviders])
 
-  // Top 5 Cost Drivers by Category
+  // Helper to filter providers by category using availableFilters
+  const getProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
+    // Use availableFilters to get category info from backend
+    const categoryProviderIds = new Set(
+      availableFilters.providers
+        .filter(p => p.category === category)
+        .map(p => p.id.toLowerCase())
+    )
+    // Filter cachedProviders by category
+    return cachedProviders.filter(p =>
+      categoryProviderIds.has(p.provider.toLowerCase())
+    )
+  }, [availableFilters.providers, cachedProviders])
+
+  // Top 5 Cost Drivers by Category (using unified filter data)
   const top5GenAI = useMemo(() => {
-    const genaiProviders = getFilteredProviders("genai")
+    const genaiProviders = getProvidersByCategory("genai")
     return transformProvidersToBreakdownItems(
       genaiProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#10A37F" }
     )
-  }, [getFilteredProviders])
+  }, [getProvidersByCategory])
 
   const top5Cloud = useMemo(() => {
-    const cloudProviders = getFilteredProviders("cloud")
+    const cloudProviders = getProvidersByCategory("cloud")
     return transformProvidersToBreakdownItems(
       cloudProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#4285F4" }
     )
-  }, [getFilteredProviders])
+  }, [getProvidersByCategory])
 
   const top5Subscription = useMemo(() => {
-    const subProviders = getFilteredProviders("subscription")
+    const subProviders = getProvidersByCategory("subscription")
     return transformProvidersToBreakdownItems(
       subProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
       { names: {}, colors: {}, defaultColor: "#FF6C5E" }
     )
-  }, [getFilteredProviders])
+  }, [getProvidersByCategory])
 
   // Check if data is truly empty (not just loading)
   const isEmpty = !isLoading && !totalSummary && providers.length === 0
@@ -435,7 +467,12 @@ export default function CostOverviewPage() {
           <CostTrendChart
             title="Daily Cost Trend"
             subtitle={`${rollingAvgLabel} overlay on daily spend`}
-            timeRange={timeRange}
+            data={dailyTrendData.map(d => ({
+              date: d.date,
+              label: d.label,
+              value: d.value,
+              rollingAvg: d.lineValue,
+            }))}
             showBars={true}
             showLine={true}
             barColor="#90FCA6"

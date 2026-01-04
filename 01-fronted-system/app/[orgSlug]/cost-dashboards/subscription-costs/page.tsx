@@ -41,30 +41,30 @@ export default function SubscriptionCostsPage() {
   const params = useParams()
   const orgSlug = getOrgSlug(params as { orgSlug?: string | string[] })
 
-  // Use cached cost data from context (including time range for zoom sync)
+  // Use unified filters from context (all client-side, instant)
   const {
     totalCosts,
+    providerBreakdown: cachedProviders,
     hierarchy: cachedHierarchy,
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
     refresh: refreshCostData,
-    getFilteredProviders,
-    getDailyTrendForRange,
-    fetchCategoryTrend,
-    isCategoryTrendLoaded,
-    availableFilters: _availableFilters,
-    selectedTimeRange: timeRange,
-    selectedCustomRange: customRange,
-    setTimeRange: contextSetTimeRange,
+    availableFilters,
+    // Unified filter API (NEW - all client-side, instant)
+    filters: contextFilters,
+    setUnifiedFilters,
+    getFilteredTimeSeries,
   } = useCostData()
 
-  // Lazy-load Subscription trend data on mount (optimization - not fetched on dashboard)
+  // Extract time range from unified filters
+  const timeRange = contextFilters.timeRange
+  const customRange = contextFilters.customRange
+
+  // Set category filter on mount (subscription page is fixed to subscription category)
   useEffect(() => {
-    if (!isCategoryTrendLoaded("subscription")) {
-      fetchCategoryTrend("subscription")
-    }
-  }, [fetchCategoryTrend, isCategoryTrendLoaded])
+    setUnifiedFilters({ categories: ["subscription"] })
+  }, [setUnifiedFilters])
 
   // Local state - Subscription costs page (category fixed to "subscription")
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -76,22 +76,29 @@ export default function SubscriptionCostsPage() {
     categories: [], // Category fixed by page, not user-filterable
   })
 
-  // Time range handlers that sync with context (for zoom integration)
+  // Time range handlers using unified filters (instant, no API call)
   const handleTimeRangeChange = useCallback((range: TimeRange) => {
-    contextSetTimeRange(range, range === "custom" ? customRange : undefined)
-  }, [contextSetTimeRange, customRange])
+    setUnifiedFilters({ timeRange: range, customRange: range === "custom" ? customRange : undefined })
+  }, [setUnifiedFilters, customRange])
 
   const handleCustomRangeChange = useCallback((range: CustomDateRange | undefined) => {
-    contextSetTimeRange(timeRange, range)
-  }, [contextSetTimeRange, timeRange])
+    setUnifiedFilters({ customRange: range })
+  }, [setUnifiedFilters])
 
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
 
-  // Get SaaS providers from cached data (instant, no backend call)
+  // Get SaaS providers from availableFilters (using unified filter data)
   const saasProviders = useMemo(() => {
-    return getFilteredProviders('subscription')
-  }, [getFilteredProviders])
+    const categoryProviderIds = new Set(
+      availableFilters.providers
+        .filter(p => p.category === "subscription")
+        .map(p => p.id.toLowerCase())
+    )
+    return cachedProviders.filter(p =>
+      categoryProviderIds.has(p.provider.toLowerCase())
+    )
+  }, [availableFilters.providers, cachedProviders])
 
   // Client-side filtered providers (instant, no backend call)
   const filteredProviders = useMemo(() => {
@@ -133,19 +140,30 @@ export default function SubscriptionCostsPage() {
   // Get rolling average label based on selected time range
   const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
 
-  // Get daily trend data from context (real data from backend)
-  // Pass "subscription" category to get Subscription-specific trend data
+  // Get daily trend data from unified filters (instant client-side filtering)
+  // Category is already set to "subscription" via setUnifiedFilters on mount
   const dailyTrendData = useMemo(() => {
-    const trendData = getDailyTrendForRange(timeRange, "subscription", customRange)
+    const timeSeries = getFilteredTimeSeries()
+    if (!timeSeries || timeSeries.length === 0) return []
 
-    // Transform to chart format with lineValue for rolling average
-    return trendData.map((point) => ({
-      label: point.label,
-      value: point.value,
-      lineValue: point.rollingAvg,
-      date: point.date,
-    }))
-  }, [getDailyTrendForRange, timeRange, customRange])
+    // Calculate rolling average (overall period average as flat reference line)
+    const totalCost = timeSeries.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0)
+    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
+    const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
+
+    // Transform to chart format
+    return timeSeries.map((point) => {
+      const date = new Date(point.date)
+      const label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+
+      return {
+        label,
+        value: point.total,
+        lineValue: Math.round(rollingAvg * 100) / 100,
+        date: point.date,
+      }
+    })
+  }, [getFilteredTimeSeries])
 
   // Prepare summary data - uses filtered providers when filter is active
   const summaryData: CostSummaryData = useMemo(() => {
@@ -274,8 +292,12 @@ export default function SubscriptionCostsPage() {
         <CostTrendChart
           title="Subscription Daily Cost Trend"
           subtitle={`${rollingAvgLabel} overlay on daily spend`}
-          category="subscription"
-          timeRange={timeRange}
+          data={dailyTrendData.map(d => ({
+            date: d.date,
+            label: d.label,
+            value: d.value,
+            rollingAvg: d.lineValue,
+          }))}
           showBars={true}
           showLine={true}
           barColor="#FF6C5E"

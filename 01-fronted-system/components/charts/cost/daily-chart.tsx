@@ -89,13 +89,23 @@ export function DailyCostChart({
   const chartData = useMemo(() => {
     if (propData) return propData
 
-    // Get from context
-    const trendData = costData.getDailyTrendForRange(timeRange, category, customRange)
+    // Get from context using unified filters
+    const timeSeries = costData.getFilteredTimeSeries()
+
+    // Transform to chart format
+    const trendData = timeSeries.map((point: { date: string; total: number }) => {
+      const date = new Date(point.date)
+      return {
+        date: point.date,
+        label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        value: point.total,
+      }
+    })
 
     // If stacked, we need category breakdown per day
     // Note: If the context data doesn't have category breakdown, stacked mode falls back to single bar
     if (stacked) {
-      return trendData.map((point) => ({
+      return trendData.map((point: { date: string; label: string; value: number }) => ({
         date: point.date,
         label: point.label,
         value: point.value,
@@ -106,12 +116,8 @@ export function DailyCostChart({
       }))
     }
 
-    return trendData.map((point) => ({
-      date: point.date,
-      label: point.label,
-      value: point.value,
-    }))
-  }, [propData, costData, timeRange, category, customRange, stacked])
+    return trendData
+  }, [propData, costData, stacked])
 
   // Determine loading state
   const isLoading = propLoading ?? costData.isLoading

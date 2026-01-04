@@ -178,6 +178,101 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("KMS validation failed - encryption may not work properly (DEV/STAGING only)")
 
+    # Auto-sync bootstrap schema on startup (if enabled)
+    # Safe because BigQuery only adds columns, never deletes them
+    if settings.auto_sync_schema:
+        try:
+            from pathlib import Path
+            import yaml
+            import json
+            from google.cloud import bigquery
+
+            bq_client = get_bigquery_client()
+
+            # Load bootstrap config
+            config_dir = Path(__file__).parent.parent.parent / "configs" / "setup" / "bootstrap"
+            config_file = config_dir / "config.yml"
+            schemas_dir = config_dir / "schemas"
+
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    config = yaml.safe_load(f)
+
+                dataset_name = config.get('dataset', {}).get('name', 'organizations')
+                dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
+
+                # Check if dataset exists
+                try:
+                    bq_client.client.get_dataset(dataset_id)
+                except Exception:
+                    # Dataset doesn't exist - skip auto-sync, bootstrap hasn't run
+                    logger.info("Auto-sync skipped: organizations dataset not found (bootstrap not run yet)")
+                else:
+                    # Get existing tables
+                    existing_tables = {table.table_id for table in bq_client.client.list_tables(dataset_id)}
+
+                    columns_added = {}
+                    tables_created = []
+
+                    # Process each table in config
+                    for table_name, table_config in config.get('tables', {}).items():
+                        schema_file = schemas_dir / f"{table_name}.json"
+
+                        if not schema_file.exists():
+                            continue
+
+                        with open(schema_file, 'r') as f:
+                            schema_json = json.load(f)
+
+                        table_id = f"{dataset_id}.{table_name}"
+
+                        if table_name in existing_tables:
+                            # Check for missing columns
+                            try:
+                                existing_table = bq_client.client.get_table(table_id)
+                                existing_columns = {field.name for field in existing_table.schema}
+                                expected_columns = {field['name'] for field in schema_json}
+
+                                missing_columns = expected_columns - existing_columns
+
+                                if missing_columns:
+                                    for col_name in missing_columns:
+                                        col_def = next((f for f in schema_json if f['name'] == col_name), None)
+                                        if col_def:
+                                            col_type = col_def['type']
+                                            alter_sql = f"""
+                                            ALTER TABLE `{table_id}`
+                                            ADD COLUMN IF NOT EXISTS {col_name} {col_type}
+                                            """
+                                            bq_client.client.query(alter_sql).result()
+
+                                            if table_name not in columns_added:
+                                                columns_added[table_name] = []
+                                            columns_added[table_name].append(col_name)
+                            except Exception as e:
+                                logger.warning(f"Auto-sync: Failed to check/add columns for {table_name}: {e}")
+
+                    # Log summary
+                    if columns_added:
+                        total_cols = sum(len(v) for v in columns_added.values())
+                        logger.info(
+                            f"Auto-sync completed: Added {total_cols} columns to {len(columns_added)} tables",
+                            extra={"columns_added": columns_added}
+                        )
+                        for table, cols in columns_added.items():
+                            logger.info(f"  - {table}: {', '.join(cols)}")
+                    else:
+                        logger.info("Auto-sync: Schema already in sync, no changes needed")
+            else:
+                logger.warning("Auto-sync skipped: Bootstrap config file not found")
+
+        except Exception as e:
+            logger.error(f"Auto-sync schema failed: {e}", exc_info=True)
+            # Don't fail startup - just warn and continue
+            logger.warning("Continuing startup despite auto-sync failure")
+    else:
+        logger.info("Auto-sync schema disabled (AUTO_SYNC_SCHEMA=false)")
+
     # Initialize Auth Metrics Aggregator background task
     try:
         auth_aggregator = get_auth_aggregator()

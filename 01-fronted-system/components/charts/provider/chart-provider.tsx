@@ -218,9 +218,9 @@ export function ChartProvider({
   // Currency priority: prop > context > default
   const currency = overrideCurrency || costData?.currency || DEFAULT_CURRENCY
 
-  // Time range: use context values if available, otherwise use defaults
-  const timeRange = costData?.selectedTimeRange ?? "30"
-  const customRange = costData?.selectedCustomRange
+  // Time range: use unified filters from context if available, otherwise use defaults
+  const timeRange = costData?.filters?.timeRange ?? "30"
+  const customRange = costData?.filters?.customRange
 
   // Merge theme with overrides
   const theme = useMemo<ChartTheme>(() => ({
@@ -243,11 +243,11 @@ export function ChartProvider({
     [currency]
   )
 
-  // Time range setter that syncs with CostDataContext
+  // Time range setter that syncs with CostDataContext via unified filters
   const setTimeRange = useCallback((range: TimeRange, custom?: CustomDateRange) => {
-    // Sync with CostDataContext's time range if available
-    if (costData?.setTimeRange) {
-      costData.setTimeRange(range, custom)
+    // Sync with CostDataContext's unified filters if available
+    if (costData?.setUnifiedFilters) {
+      costData.setUnifiedFilters({ timeRange: range, customRange: custom })
     }
   }, [costData])
 

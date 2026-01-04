@@ -114,16 +114,24 @@ export function CostTrendChart({
   const chartData = useMemo(() => {
     if (propData) return propData
 
-    // Get from context
-    const trendData = costData.getDailyTrendForRange(timeRange, category, customRange)
+    // Get from context using unified filters
+    const timeSeries = costData.getFilteredTimeSeries()
 
-    return trendData.map((point) => ({
-      date: point.date,
-      label: point.label,
-      value: point.value,
-      rollingAvg: point.rollingAvg,
-    }))
-  }, [propData, costData, timeRange, category, customRange])
+    // Calculate rolling average (period average as flat reference line)
+    const totalCost = timeSeries.reduce((sum: number, d: { date: string; total: number }) => sum + (d.total || 0), 0)
+    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
+    const rollingAvg = Math.round(avgDaily * 100) / 100
+
+    return timeSeries.map((point: { date: string; total: number }) => {
+      const date = new Date(point.date)
+      return {
+        date: point.date,
+        label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        value: point.total,
+        rollingAvg,
+      }
+    })
+  }, [propData, costData])
 
   // Determine loading state
   const isLoading = propLoading ?? costData.isLoading

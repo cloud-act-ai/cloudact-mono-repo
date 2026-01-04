@@ -160,6 +160,17 @@ class Settings(BaseSettings):
     )
 
     # ============================================
+    # Schema Auto-Sync Configuration
+    # ============================================
+    # On startup, automatically sync missing columns in bootstrap tables.
+    # Safe because BigQuery only allows adding columns (never delete).
+    # Any issues caught in staging before reaching production.
+    auto_sync_schema: bool = Field(
+        default=True,
+        description="Auto-sync missing schema columns on startup. Set AUTO_SYNC_SCHEMA=false to disable."
+    )
+
+    # ============================================
     # API Configuration
     # ============================================
     api_host: str = Field(default="0.0.0.0")

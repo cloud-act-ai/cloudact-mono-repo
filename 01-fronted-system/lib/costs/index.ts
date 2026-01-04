@@ -82,7 +82,7 @@ export {
 // ============================================
 
 export {
-  // Core filters
+  // Core filters (CostRecord[])
   filterByDateRange,
   filterByProvider,
   filterByCategory,
@@ -107,6 +107,21 @@ export {
   getUniqueCategories,
   getUniqueServices,
   getDateRangeFromRecords,
+  // Granular filters (GranularCostRow[] - for trend-granular endpoint)
+  type GranularCostRow,
+  type GranularFilterOptions,
+  filterGranularByDateRange,
+  filterGranularByProvider,
+  filterGranularByCategory,
+  filterGranularByDepartment,
+  filterGranularByProject,
+  filterGranularByTeam,
+  applyGranularFilters,
+  // Granular aggregations
+  granularToTimeSeries,
+  granularToProviderBreakdown,
+  granularToCategoryBreakdown,
+  granularTotalCost,
 } from "./filters"
 
 // ============================================

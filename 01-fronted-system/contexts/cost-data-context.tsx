@@ -1,28 +1,26 @@
 "use client"
 
 /**
- * Cost Data Context - Hybrid Cache Strategy
+ * Cost Data Context - Unified Filter Architecture
  *
- * Provides centralized cost data caching across all cost dashboard pages.
- * Implements a hybrid cache strategy:
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  ONE FETCH, ALL FILTERS CLIENT-SIDE                                      │
+ * ├──────────────────────────────────────────────────────────────────────────┤
+ * │  FRONTEND: granularData (365 days) → ALL filters client-side (instant)  │
+ * │  BACKEND:  Polars cache (until midnight org TZ) → BigQuery              │
+ * └──────────────────────────────────────────────────────────────────────────┘
  *
- * FRONTEND (React Context):
- * - Light cache (useState) for selected time range, filters
- * - Filtered view of backend data for instant UI updates
- * - No API call for time/provider/category filter changes within 365 days
+ * USE CACHE (instant):           NEW API (fetch):
+ * - Time: 7d/30d/90d/365d/etc    - Initial load
+ * - Provider filter              - Custom range > 365 days
+ * - Category filter              - clearBackendCache()
+ * - Hierarchy filter             - Org changed
+ * - Custom ≤ 365 days
  *
- * BACKEND (API Service):
- * - L1 Cache: LRU (TTL: 300s) for raw Polars DataFrames
- * - L2 Cache: Pre-computed aggregations (TTL: 300s)
- * - Category filtering pushed to SQL WHERE for efficiency
- *
- * Cache Invalidation Rules:
- * - Time range 7/30/90/365 days → Filter frontend cache (instant)
- * - Custom range within 365 days → Filter frontend cache (instant)
- * - Custom range beyond 365 days → Invalidate → new API call
- * - Provider/Category filter change → Filter frontend cache (instant)
- * - Hierarchy filter (dept/proj/team) → New API call (server-side)
- * - Refresh button → Invalidate all → new API call
+ * KEY FUNCTIONS:
+ * - setUnifiedFilters()    → All filter changes (instant)
+ * - getFilteredGranularData()  → Filtered data for charts/tables
+ * - clearBackendCache()    → Force fresh from BigQuery
  */
 
 import React, {
@@ -40,17 +38,23 @@ import {
   getTotalCosts,
   getCostByProvider,
   getExtendedPeriodCosts,
-  getCostTrend,
+  getCostTrendGranular,
   type TotalCostSummary,
   type ProviderBreakdown,
   type PeriodCostsData,
-  type CostFilterParams,
-  type CostTrendPoint,
+  type GranularCostRow,
+  type GranularFiltersAvailable,
 } from "@/actions/costs"
 import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
-import { dateRangeToApiParams, getDefaultDateRange } from "@/components/costs"
 import type { HierarchyEntity } from "@/components/costs"
+import {
+  applyGranularFilters,
+  granularToTimeSeries,
+  granularToProviderBreakdown,
+  granularToCategoryBreakdown,
+  granularTotalCost,
+} from "@/lib/costs"
 // Note: Provider categorization now comes from backend (totalCosts.genai/cloud/subscription.providers)
 // No hardcoded provider sets needed!
 
@@ -110,50 +114,46 @@ export interface AvailableFilters {
   hierarchy: HierarchyEntity[]
 }
 
-/** Category-specific trend data storage */
-export interface CategoryTrendData {
-  all: CostTrendPoint[]
-  genai: CostTrendPoint[]
-  cloud: CostTrendPoint[]
-  subscription: CostTrendPoint[]
-}
 
-/** Hierarchy filter state for server-side filtering */
-export interface HierarchyFilters {
+/**
+ * Unified filters - ALL filters are client-side on granular data.
+ * No distinction between "hierarchy filters" and "other filters".
+ * Time range, provider, category, hierarchy - all the same.
+ */
+export interface UnifiedFilters {
+  // Time filters
+  timeRange: TimeRange
+  customRange?: CustomDateRange
+  // Provider/Category filters
+  providers?: string[]
+  categories?: ("genai" | "cloud" | "subscription" | "other")[]
+  // Hierarchy filters (same as above - just another filter dimension)
   departmentId?: string
   projectId?: string
   teamId?: string
 }
 
+
 export interface CostDataState {
-  // Core cost data
+  // SOURCE OF TRUTH: 365 days of granular data
+  granularData: GranularCostRow[]
+  granularFiltersAvailable: GranularFiltersAvailable | null
+
+  // UNIFIED FILTERS (all client-side, instant)
+  filters: UnifiedFilters
+
+  // Aggregated data (derived from granularData)
   totalCosts: TotalCostSummary | null
   providerBreakdown: ProviderBreakdown[]
   periodCosts: PeriodCostsData | null
   hierarchy: HierarchyEntity[]
-
-  // Daily trend data (365 days) - by category
-  dailyTrendData: CostTrendPoint[]  // Legacy: all categories
-  categoryTrendData: CategoryTrendData  // New: per-category data
-
-  // Available filters (derived from backend data)
   availableFilters: AvailableFilters
-
-  // Current time range selection (for chart zoom sync)
-  selectedTimeRange: TimeRange
-  selectedCustomRange: CustomDateRange | undefined
-
-  // Hierarchy filters (server-side - triggers API call)
-  // FILTER-001 fix: Track hierarchy filters that need server-side filtering
-  hierarchyFilters: HierarchyFilters
 
   // Metadata
   currency: string
   lastFetchedAt: Date | null
   dataAsOf: string | null
   cachedDateRange: { start: string; end: string } | null
-
-  // Cache tracking
   cacheVersion: number
   isStale: boolean
 
@@ -164,41 +164,78 @@ export interface CostDataState {
 }
 
 export interface CostDataContextValue extends CostDataState {
-  // Actions
+  // ============================================
+  // UNIFIED FILTER ACTIONS (ALL client-side, instant)
+  // ============================================
+
+  /**
+   * Set unified filters - ALL filter types in one call.
+   * NO API calls. Instant client-side filtering.
+   *
+   * @example
+   * setUnifiedFilters({
+   *   timeRange: "30",
+   *   providers: ["openai"],
+   *   categories: ["genai"],
+   *   departmentId: "DEPT001",
+   * })
+   */
+  setUnifiedFilters: (filters: Partial<UnifiedFilters>) => void
+
+  /**
+   * Get filtered granular data based on current unified filters.
+   * Returns the filtered data for charts/tables.
+   */
+  getFilteredGranularData: () => GranularCostRow[]
+
+  /**
+   * Get time series from filtered granular data.
+   * Aggregates by date for trend charts.
+   */
+  getFilteredTimeSeries: () => { date: string; total: number }[]
+
+  /**
+   * Get provider breakdown from filtered granular data.
+   */
+  getFilteredProviderBreakdown: () => { provider: string; total_cost: number; percentage: number }[]
+
+  /**
+   * Get category breakdown from filtered granular data.
+   */
+  getFilteredCategoryBreakdown: () => { category: string; total_cost: number; percentage: number }[]
+
+  /**
+   * Get total cost from filtered granular data.
+   */
+  getFilteredTotalCost: () => number
+
+  // ============================================
+  // CORE ACTIONS
+  // ============================================
   refresh: () => Promise<void>
   fetchIfNeeded: () => Promise<void>
   invalidateCache: () => void
-  setTimeRange: (range: TimeRange, customRange?: CustomDateRange) => void
-  // Hierarchy filter setter (triggers API call for server-side filtering)
-  // FILTER-001 fix: Method to update hierarchy filters
-  setHierarchyFilters: (filters: HierarchyFilters) => void
 
-  // Filter application (client-side)
-  getFilteredData: (filters: CostFilterParams) => {
-    totalCosts: TotalCostSummary | null
-    providerBreakdown: ProviderBreakdown[]
-  }
+  /**
+   * Clear backend Polars LRU cache and fetch fresh data from BigQuery.
+   * Use this when:
+   * - Backend data has changed (new pipeline run, schema changes)
+   * - User explicitly requests fresh data via "Clear Cache" button
+   * - Debugging data inconsistencies between dashboard and BigQuery
+   *
+   * This is MORE expensive than refresh() as it bypasses backend Polars caching.
+   */
+  clearBackendCache: () => Promise<void>
 
-  // Get providers filtered by category (uses backend categorization)
+  // ============================================
+  // CHART HELPERS (used by chart library components)
+  // ============================================
+
+  /**
+   * Get providers filtered by category.
+   * Used by CostBreakdownChart and CostDataTable.
+   */
   getFilteredProviders: (category: "cloud" | "genai" | "subscription") => ProviderBreakdown[]
-
-  // Get daily trend data filtered by time range with rolling average
-  // Optional category parameter filters to specific cost category
-  // Optional customRange for when timeRange is "custom"
-  getDailyTrendForRange: (
-    timeRange: TimeRange,
-    category?: "genai" | "cloud" | "subscription",
-    customRange?: CustomDateRange
-  ) => DailyTrendDataPoint[]
-
-  // Lazy-load category-specific trend data (only fetched when needed)
-  fetchCategoryTrend: (category: "genai" | "cloud" | "subscription") => Promise<void>
-
-  // Check if category trend data is loaded
-  isCategoryTrendLoaded: (category: "genai" | "cloud" | "subscription") => boolean
-
-  // Check if cached data covers a date range
-  isCachedForDateRange: (start: string, end: string) => boolean
 
   // Current org
   orgSlug: string
@@ -237,92 +274,212 @@ interface CostDataProviderProps {
 }
 
 // ============================================
-// Cache Decision Logic
+// L1 Cache Decision Logic
 // ============================================
+//
+// L1 CACHE = granularData (365 days, all dimensions)
+//
+// ┌─────────────────────────────────────────────────────────────────┐
+// │  L1-USE-CACHE (instant, no API call):                          │
+// │  ├── Time range: 7d, 14d, 30d, 90d, 365d, mtd, qtd, ytd       │
+// │  ├── Provider filter change                                    │
+// │  ├── Category filter change                                    │
+// │  ├── Hierarchy filter change (dept/proj/team)                 │
+// │  └── Custom range WITHIN 365 days                             │
+// ├─────────────────────────────────────────────────────────────────┤
+// │  L1-NO-CACHE (requires new API call):                          │
+// │  ├── Initial load (no data yet)                               │
+// │  ├── Custom range BEYOND 365 days                             │
+// │  ├── Explicit refresh requested                               │
+// │  └── Organization changed                                      │
+// └─────────────────────────────────────────────────────────────────┘
+
+type L1CacheDecision = "L1_USE_CACHE" | "L1_NO_CACHE"
 
 /**
- * Determine if a custom date range is within the cached 365-day window.
- * Returns true if the range can be served from frontend cache.
+ * Determine if a custom date range is within the L1 cached 365-day window.
  */
-function isRangeWithinCache(
+function isRangeWithinL1Cache(
   customRange: CustomDateRange | undefined,
   cachedRange: { start: string; end: string } | null
 ): boolean {
-  if (!customRange || !cachedRange) return true // Non-custom ranges always use cache
+  if (!customRange || !cachedRange) return true // Non-custom ranges always use L1 cache
 
   const requestedStart = new Date(customRange.startDate).getTime()
   const requestedEnd = new Date(customRange.endDate).getTime()
   const cachedStart = new Date(cachedRange.start).getTime()
   const cachedEnd = new Date(cachedRange.end).getTime()
 
-  // Check if requested range is fully within cached range
+  // Check if requested range is fully within L1 cached range
   return requestedStart >= cachedStart && requestedEnd <= cachedEnd
 }
 
 /**
- * Determine cache decision based on requested range and current cache.
- * @returns "use-cache" | "filter-cache" | "fetch-new"
+ * Determine L1 cache decision.
+ *
+ * @returns
+ * - "L1_USE_CACHE" → Filter existing granularData (instant, no API call)
+ * - "L1_NO_CACHE" → Fetch new granularData from backend
  */
-function getCacheDecision(
-  timeRange: TimeRange,
-  customRange: CustomDateRange | undefined,
+function getL1CacheDecision(
+  filters: UnifiedFilters,
   cachedRange: { start: string; end: string } | null,
-  isInitialized: boolean
-): "use-cache" | "filter-cache" | "fetch-new" {
-  // If not initialized, must fetch
-  if (!isInitialized || !cachedRange) return "fetch-new"
-
-  // Standard preset ranges always use local filter
-  if (timeRange !== "custom") return "filter-cache"
-
-  // Custom range - check if within cached window
-  if (isRangeWithinCache(customRange, cachedRange)) {
-    return "filter-cache"
+  hasGranularData: boolean
+): L1CacheDecision {
+  // L1-NO-CACHE: Initial load (no data yet)
+  if (!hasGranularData || !cachedRange) {
+    return "L1_NO_CACHE"
   }
 
-  // Custom range exceeds cache - need new fetch
-  return "fetch-new"
+  // L1-USE-CACHE: Standard preset ranges (7d, 30d, 90d, 365d, mtd, ytd, etc.)
+  if (filters.timeRange !== "custom") {
+    return "L1_USE_CACHE"
+  }
+
+  // L1-USE-CACHE: Custom range WITHIN 365-day cached window
+  if (isRangeWithinL1Cache(filters.customRange, cachedRange)) {
+    return "L1_USE_CACHE"
+  }
+
+  // L1-NO-CACHE: Custom range BEYOND 365 days
+  return "L1_NO_CACHE"
+}
+
+
+// ============================================
+// Time Range to DateRange Conversion
+// ============================================
+
+/**
+ * Check if a time range is within last 365 days (L1 cache boundary).
+ * Returns true for all preset ranges (7d, 30d, 90d, mtd, ytd, etc.)
+ * and custom ranges that fall within 365 days from today.
+ */
+function isWithin365Days(
+  timeRange: TimeRange,
+  customRange?: CustomDateRange
+): boolean {
+  // All preset ranges (7, 14, 30, 90, 365, mtd, ytd, qtd, last_month)
+  // are by definition within the last 365 days
+  if (timeRange !== "custom") {
+    return true
+  }
+
+  // Custom range - check if within 365-day window
+  if (!customRange) return true
+
+  const today = new Date()
+  const startOf365 = new Date(today)
+  startOf365.setDate(startOf365.getDate() - 365)
+
+  const requestedStart = new Date(customRange.startDate)
+  return requestedStart >= startOf365
+}
+
+/**
+ * Convert TimeRange + CustomDateRange to a DateRange object for filtering.
+ * Used by granular filter functions.
+ */
+function timeRangeToDateRange(
+  timeRange: TimeRange,
+  customRange?: CustomDateRange
+): { start: Date; end: Date } {
+  const today = new Date()
+  today.setHours(23, 59, 59, 999) // End of today
+
+  let startDate: Date
+  let endDate: Date = today
+
+  switch (timeRange) {
+    case "custom":
+      if (customRange?.startDate && customRange?.endDate) {
+        startDate = new Date(customRange.startDate)
+        startDate.setHours(0, 0, 0, 0)
+        endDate = new Date(customRange.endDate)
+        endDate.setHours(23, 59, 59, 999)
+      } else {
+        // Fallback to 30 days if no custom range
+        startDate = new Date(today)
+        startDate.setDate(startDate.getDate() - 30)
+        startDate.setHours(0, 0, 0, 0)
+      }
+      break
+    case "mtd":
+      // Month to date
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+      startDate.setHours(0, 0, 0, 0)
+      break
+    case "ytd":
+      // Year to date
+      startDate = new Date(today.getFullYear(), 0, 1)
+      startDate.setHours(0, 0, 0, 0)
+      break
+    case "qtd":
+      // Quarter to date
+      const quarterMonth = Math.floor(today.getMonth() / 3) * 3
+      startDate = new Date(today.getFullYear(), quarterMonth, 1)
+      startDate.setHours(0, 0, 0, 0)
+      break
+    case "last_month":
+      // Last full month
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(today.getFullYear(), today.getMonth(), 0)
+      endDate.setHours(23, 59, 59, 999)
+      break
+    default:
+      // Numeric days (365, 90, 30, 14, 7)
+      const days = parseInt(timeRange, 10) || 30
+      startDate = new Date(today)
+      startDate.setDate(startDate.getDate() - days + 1)
+      startDate.setHours(0, 0, 0, 0)
+  }
+
+  return { start: startDate, end: endDate }
 }
 
 export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
-  // Track in-flight requests to prevent race conditions and duplicate fetches
-  const categoryTrendLoadingRef = useRef<Set<string>>(new Set())
+  // Track in-flight requests to prevent duplicate fetches
   const isFetchingRef = useRef(false)
 
   // Track mounted state to prevent setState after unmount (CRITICAL: STATE-001 fix)
   const isMountedRef = useRef(true)
 
-  // Track loaded categories with ref for synchronous access (CRITICAL: STATE-002 fix)
-  const loadedCategoriesRef = useRef<Set<string>>(new Set())
-
-  // AbortController for cancelling stale requests (CRITICAL: CACHE-001 fix)
-  const abortControllerRef = useRef<AbortController | null>(null)
+  // AbortController for main fetchCostData (CACHE-005 fix)
+  const mainFetchAbortRef = useRef<AbortController | null>(null)
 
   // Track previous orgSlug to detect org changes (CACHE-004 fix)
   const prevOrgSlugRef = useRef<string>(orgSlug)
 
   // State
   const [state, setState] = useState<CostDataState>({
+    // L1 CACHE: Granular Data (365 days, all dimensions)
+    granularData: [],
+    granularFiltersAvailable: null,
+
+    // UNIFIED FILTERS (all client-side, instant)
+    filters: {
+      timeRange: "365",
+      customRange: undefined,
+      providers: undefined,
+      categories: undefined,
+      departmentId: undefined,
+      projectId: undefined,
+      teamId: undefined,
+    },
+
+    // Aggregated data (populated from backend, filtered client-side)
     totalCosts: null,
     providerBreakdown: [],
     periodCosts: null,
     hierarchy: [],
-    dailyTrendData: [],
-    categoryTrendData: {
-      all: [],
-      genai: [],
-      cloud: [],
-      subscription: [],
-    },
     availableFilters: {
       categories: [],
       providers: [],
       hierarchy: [],
     },
-    selectedTimeRange: "365",
-    selectedCustomRange: undefined,
-    // FILTER-001 fix: Track hierarchy filters
-    hierarchyFilters: {},
+
+    // Metadata
     currency: DEFAULT_CURRENCY,
     lastFetchedAt: null,
     dataAsOf: null,
@@ -334,14 +491,29 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     error: null,
   })
 
-  // Fetch all cost data
-  // Uses ref to prevent duplicate concurrent fetches
-  const fetchCostData = useCallback(async () => {
+  /**
+   * Fetch all cost data from backend (365 days of granular data).
+   *
+   * This is the primary data fetch that populates the L1 cache (granularData).
+   * After this fetch, ALL filters (time, provider, category, hierarchy) are
+   * applied client-side via getFilteredGranularData().
+   *
+   * @param clearBackendCache - If true, bypasses backend Polars LRU cache
+   */
+  const fetchCostData = useCallback(async (
+    clearBackendCache: boolean = false
+  ) => {
     if (!orgSlug) return
 
     // Prevent duplicate fetches if already in progress
     if (isFetchingRef.current) return
     isFetchingRef.current = true
+
+    // Cancel any in-flight request (CACHE-005 fix)
+    if (mainFetchAbortRef.current) {
+      mainFetchAbortRef.current.abort()
+    }
+    mainFetchAbortRef.current = new AbortController()
 
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
@@ -354,28 +526,43 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       const endDate = today.toISOString().split("T")[0]
       const startDate = startOfRange.toISOString().split("T")[0]
 
+      // Build hierarchy filters from unified filters for API calls
+      const { departmentId, projectId, teamId } = state.filters
+      const apiFilters = (departmentId || projectId || teamId)
+        ? { departmentId, projectId, teamId }
+        : undefined
+
       // Log fetch in dev mode
       if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Fetching 365-day data: ${startDate} to ${endDate}`)
+        console.log(`[CostData] Fetching 365-day data: ${startDate} to ${endDate}`, {
+          filters: apiFilters,
+          clearBackendCache,
+        })
       }
 
       // Fetch core data in parallel with consistent 365-day range
-      // OPTIMIZATION: Category-specific trends (genai/cloud/subscription) are lazy-loaded
-      // only when user navigates to those specific pages. This reduces initial API calls
-      // from 8 to 5 (~40% reduction in dashboard load time).
+      // Granular data is the L1 cache source for client-side filtering
       const [
         totalCostsResult,
         providerResult,
         periodCostsResult,
         hierarchyResult,
-        dailyTrendResult,
+        granularResult,
       ] = await Promise.all([
-        getTotalCosts(orgSlug, startDate, endDate),
-        getCostByProvider(orgSlug, startDate, endDate),
-        getExtendedPeriodCosts(orgSlug, "total"),
+        getTotalCosts(orgSlug, startDate, endDate, apiFilters),
+        getCostByProvider(orgSlug, startDate, endDate, apiFilters),
+        getExtendedPeriodCosts(orgSlug, "total", apiFilters),
         getHierarchy(orgSlug),
-        getCostTrend(orgSlug, "daily", 365),  // All categories only - dashboard view
+        getCostTrendGranular(orgSlug, 365, clearBackendCache),
       ])
+
+      // Check if request was cancelled while waiting for API (CACHE-005 fix)
+      if (mainFetchAbortRef.current?.signal.aborted || !isMountedRef.current) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[CostData] Fetch aborted or unmounted, skipping state update`)
+        }
+        return
+      }
 
       // Extract hierarchy entities
       const hierarchyEntities: HierarchyEntity[] =
@@ -449,34 +636,34 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         hierarchy: hierarchyEntities,
       }
 
-      // Build category trend data object
-      // OPTIMIZATION: Category-specific trends are lazy-loaded, initialized empty
-      const categoryTrendData: CategoryTrendData = {
-        all: dailyTrendResult.success && dailyTrendResult.data ? dailyTrendResult.data : [],
-        genai: [],  // Lazy-loaded via fetchCategoryTrend()
-        cloud: [],  // Lazy-loaded via fetchCategoryTrend()
-        subscription: [],  // Lazy-loaded via fetchCategoryTrend()
-      }
+      // Extract granular data for L1 cache
+      const granularData = granularResult.success && granularResult.data ? granularResult.data : []
+      const granularFiltersAvailable = granularResult.success && granularResult.summary?.available_filters
+        ? granularResult.summary.available_filters
+        : null
 
       // Log successful fetch in dev mode
       if (process.env.NODE_ENV === "development") {
         console.log(`[CostData] Data loaded:`, {
           providers: providerData.length,
-          trendPoints: categoryTrendData.all.length,
           categories: availableCategories.length,
+          granularRows: granularData.length,
+          granularCacheHit: granularResult.cache_hit,
           cachedRange: `${startDate} to ${endDate}`,
         })
       }
 
-      // Update state with fetched data - increment cache version on clear cache
+      // Update state with fetched data
       setState((prev) => ({
-        ...prev, // Preserve selectedTimeRange and selectedCustomRange
+        ...prev,
+        // L1 Cache: Granular data for client-side filtering
+        granularData,
+        granularFiltersAvailable,
+        // Aggregated data from backend
         totalCosts,
         providerBreakdown: providerData,
         periodCosts: periodCostsResult.success ? periodCostsResult.data : null,
         hierarchy: hierarchyEntities,
-        dailyTrendData: categoryTrendData.all,  // Legacy: all categories
-        categoryTrendData,  // New: per-category data
         availableFilters,
         currency:
           totalCosts?.currency ||
@@ -485,11 +672,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         lastFetchedAt: new Date(),
         dataAsOf: periodCostsResult.data?.dataAsOf || null,
         cachedDateRange: { start: startDate, end: endDate },
-        cacheVersion: prev.cacheVersion + 1, // Increment on each fetch
-        isStale: false, // Fresh data
+        cacheVersion: prev.cacheVersion + 1,
+        isStale: false,
         isLoading: false,
         isInitialized: true,
-        error: totalCostsResult.error || providerResult.error || null,
+        error: totalCostsResult.error || providerResult.error || granularResult.error || null,
       }))
     } catch (err) {
       console.error("Cost data fetch error:", err)
@@ -503,7 +690,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       // Clear fetching flag to allow future fetches (e.g., clear cache)
       isFetchingRef.current = false
     }
-  }, [orgSlug])
+  }, [orgSlug, state.filters])
 
   // Fetch if not initialized
   const fetchIfNeeded = useCallback(async () => {
@@ -519,231 +706,36 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     await fetchCostData()
   }, [fetchCostData])
 
+  /**
+   * Clear backend Polars LRU cache and fetch fresh data from BigQuery.
+   *
+   * Use this when:
+   * - Backend data has changed (new pipeline run, schema changes)
+   * - User explicitly requests fresh data via "Clear Cache" button
+   * - Debugging data inconsistencies between dashboard and BigQuery
+   *
+   * This passes clear_cache=true to the API, which invalidates the
+   * backend Polars LRU cache (TTL: 300s) and queries BigQuery directly.
+   */
+  const clearBackendCache = useCallback(async () => {
+    // Mark as stale first for immediate UI feedback
+    setState((prev) => ({ ...prev, isStale: true }))
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[CostData] Clearing backend Polars cache and fetching fresh data`)
+    }
+
+    // Pass clearBackendCache=true to tell backend to bypass its cache
+    await fetchCostData(true)
+  }, [fetchCostData])
+
   // Invalidate cache (marks data as stale without fetching)
   const invalidateCache = useCallback(() => {
     setState((prev) => ({ ...prev, isStale: true }))
   }, [])
 
-  // Set hierarchy filters (triggers API call for server-side filtering)
-  // FILTER-001 fix: Hierarchy changes require server-side filtering
-  const setHierarchyFilters = useCallback((filters: HierarchyFilters) => {
-    // Check if filters actually changed
-    const currentFilters = state.hierarchyFilters
-    const filtersChanged =
-      filters.departmentId !== currentFilters.departmentId ||
-      filters.projectId !== currentFilters.projectId ||
-      filters.teamId !== currentFilters.teamId
 
-    if (!filtersChanged) {
-      // No change, skip API call
-      return
-    }
 
-    // Update state with new filters
-    setState((prev) => ({
-      ...prev,
-      hierarchyFilters: filters,
-      isStale: true, // Mark as stale to show loading indicator
-    }))
-
-    // Clear loaded categories since data will change
-    loadedCategoriesRef.current.clear()
-
-    // Log in dev mode
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[CostData] Hierarchy filters changed, refetching...`, filters)
-    }
-
-    // Trigger data refetch with new hierarchy filters
-    // Note: fetchCostData will use the updated state.hierarchyFilters
-    fetchCostData()
-  }, [state.hierarchyFilters, fetchCostData])
-
-  // Set time range with hybrid cache logic
-  // - Standard ranges (7/30/90/365/mtd/ytd) → instant filter, no API call
-  // - Custom range within 365 days → instant filter, no API call
-  // - Custom range beyond 365 days → triggers new API call
-  const setTimeRange = useCallback((range: TimeRange, customRange?: CustomDateRange) => {
-    // Determine cache decision
-    const decision = getCacheDecision(
-      range,
-      customRange,
-      state.cachedDateRange,
-      state.isInitialized
-    )
-
-    if (decision === "filter-cache") {
-      // Instant - just update state, no API call needed
-      // Data filtering happens in getDailyTrendForRange
-      setState((prev) => ({
-        ...prev,
-        selectedTimeRange: range,
-        selectedCustomRange: customRange,
-      }))
-
-      // Log cache hit in dev mode
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Cache HIT: ${range}${customRange ? ` (${customRange.startDate} - ${customRange.endDate})` : ""}`)
-      }
-      return
-    }
-
-    if (decision === "fetch-new") {
-      // Custom range exceeds cache - need to fetch new data
-      // Update state first for immediate UI feedback
-      setState((prev) => ({
-        ...prev,
-        selectedTimeRange: range,
-        selectedCustomRange: customRange,
-        isStale: true,  // Mark as stale to show loading indicator
-      }))
-
-      // Log cache miss in dev mode
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Cache MISS: Custom range exceeds 365-day cache, fetching...`)
-      }
-
-      // Trigger refresh with new date range
-      // Note: For now, we just refresh the full 365-day cache
-      // Future optimization: fetch only the extended range
-      fetchCostData()
-    }
-  }, [state.cachedDateRange, state.isInitialized, fetchCostData])
-
-  // Lazy-load category-specific trend data (only fetched when user needs it)
-  // OPTIMIZATION: Reduces initial dashboard load from 8 to 5 API calls
-  // Uses ref to prevent race conditions when multiple components request same category
-  // AbortController ensures stale requests are cancelled on component unmount
-  // CRITICAL FIXES: CACHE-001, STATE-001, STATE-002
-  const fetchCategoryTrend = useCallback(async (category: "genai" | "cloud" | "subscription") => {
-    // Skip if already loaded (use ref for synchronous check - STATE-002 fix)
-    if (loadedCategoriesRef.current.has(category)) return
-
-    // Skip if request is already in flight
-    if (categoryTrendLoadingRef.current.has(category)) return
-
-    // Mark as loading
-    categoryTrendLoadingRef.current.add(category)
-
-    // Create new AbortController and store reference (CACHE-001 fix)
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-
-    try {
-      // Log in dev mode
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Fetching ${category} trend data...`)
-      }
-
-      const trendResult = await getCostTrend(orgSlug, "daily", 365, category)
-
-      // Check if request was aborted or component unmounted (CACHE-001 & STATE-001 fix)
-      if (controller.signal.aborted || !isMountedRef.current) {
-        if (process.env.NODE_ENV === "development") {
-          console.log(`[CostData] ${category} trend request aborted or unmounted`)
-        }
-        return
-      }
-
-      if (trendResult.success && trendResult.data) {
-        // Mark as loaded in ref before setState (STATE-002 fix)
-        loadedCategoriesRef.current.add(category)
-
-        // Only update state if still mounted (STATE-001 fix)
-        if (isMountedRef.current) {
-          setState((prev) => ({
-            ...prev,
-            categoryTrendData: {
-              ...prev.categoryTrendData,
-              [category]: trendResult.data || [],
-            },
-          }))
-        }
-
-        if (process.env.NODE_ENV === "development") {
-          console.log(`[CostData] ${category} trend loaded: ${trendResult.data.length} points`)
-        }
-      }
-    } catch (err) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === "AbortError") {
-        return
-      }
-      console.error(`Failed to fetch ${category} trend:`, err)
-    } finally {
-      // Clear loading state
-      categoryTrendLoadingRef.current.delete(category)
-    }
-  }, [orgSlug])
-
-  // Check if category trend data is loaded
-  // Uses ref for immediate synchronous check (STATE-002 fix)
-  const isCategoryTrendLoaded = useCallback(
-    (category: "genai" | "cloud" | "subscription"): boolean => {
-      // Check ref first for immediate response, then state as fallback
-      return loadedCategoriesRef.current.has(category) || state.categoryTrendData[category].length > 0
-    },
-    [state.categoryTrendData]
-  )
-
-  // Client-side filter application
-  const getFilteredData = useCallback(
-    (filters: CostFilterParams) => {
-      let filteredProviders = [...state.providerBreakdown]
-
-      // Apply provider filter
-      if (filters.providers && filters.providers.length > 0) {
-        const providerSet = new Set(
-          filters.providers.map((p) => p.toLowerCase())
-        )
-        filteredProviders = filteredProviders.filter((p) =>
-          providerSet.has(p.provider.toLowerCase())
-        )
-      }
-
-      // Recalculate totals based on filtered providers
-      if (filters.providers && filters.providers.length > 0) {
-        const filteredTotal = filteredProviders.reduce(
-          (sum, p) => sum + p.total_cost,
-          0
-        )
-
-        // Create filtered summary (approximation based on provider filter)
-        if (state.totalCosts) {
-          const ratio =
-            state.totalCosts.total.total_monthly_cost > 0
-              ? filteredTotal / state.totalCosts.total.total_monthly_cost
-              : 0
-
-          const filteredTotalCosts: TotalCostSummary = {
-            ...state.totalCosts,
-            total: {
-              ...state.totalCosts.total,
-              total_daily_cost:
-                state.totalCosts.total.total_daily_cost * ratio,
-              total_monthly_cost:
-                state.totalCosts.total.total_monthly_cost * ratio,
-              total_annual_cost:
-                state.totalCosts.total.total_annual_cost * ratio,
-              total_billed_cost:
-                (state.totalCosts.total.total_billed_cost || 0) * ratio,
-            },
-          }
-
-          return {
-            totalCosts: filteredTotalCosts,
-            providerBreakdown: filteredProviders,
-          }
-        }
-      }
-
-      return {
-        totalCosts: state.totalCosts,
-        providerBreakdown: filteredProviders,
-      }
-    },
-    [state.totalCosts, state.providerBreakdown]
-  )
 
   // Get providers filtered by category - uses dynamic data from backend
   const getFilteredProviders = useCallback(
@@ -766,159 +758,113 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     [state.providerBreakdown, state.availableFilters.providers]
   )
 
-  // Get daily trend data filtered by time range with rolling average
-  // Optional category parameter selects category-specific data from backend
-  // Optional customRange for when timeRange is "custom"
-  const getDailyTrendForRange = useCallback(
-    (
-      timeRange: TimeRange,
-      category?: "genai" | "cloud" | "subscription",
-      customRange?: CustomDateRange
-    ): DailyTrendDataPoint[] => {
-      // Select appropriate dataset based on category
-      const trendData = category
-        ? state.categoryTrendData[category]
-        : state.categoryTrendData.all
-      if (!trendData || trendData.length === 0) return []
 
-      // Filter out any items with missing period and sort by date (ascending)
-      const validData = trendData.filter((d) => d && d.period)
-      if (validData.length === 0) return []
+  // ============================================
+  // UNIFIED FILTER FUNCTIONS (ALL client-side, instant)
+  // ============================================
 
-      const sortedData = [...validData].sort((a, b) =>
-        (a.period || "").localeCompare(b.period || "")
-      )
+  /**
+   * Set unified filters - ALL filter types in one call.
+   * NO API calls for filter changes within 365 days.
+   *
+   * L1_USE_CACHE: Time range, provider, category, hierarchy filters
+   * L1_NO_CACHE: Initial load, custom range > 365 days, explicit refresh
+   */
+  const setUnifiedFilters = useCallback((newFilters: Partial<UnifiedFilters>) => {
+    // Merge with current filters
+    const updatedFilters: UnifiedFilters = {
+      ...state.filters,
+      ...newFilters,
+    }
 
-      // Calculate date range based on time range type
-      const today = new Date()
-      let startDate: Date
-      let endDate: Date = today
-      let days: number
+    // Check cache decision
+    const decision = getL1CacheDecision(
+      updatedFilters,
+      state.cachedDateRange,
+      state.granularData.length > 0
+    )
 
-      switch (timeRange) {
-        case "custom":
-          // Custom date range - use provided start/end dates
-          if (customRange?.startDate && customRange?.endDate) {
-            startDate = new Date(customRange.startDate)
-            endDate = new Date(customRange.endDate)
-            days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          } else {
-            // Fallback to 30 days if no custom range provided
-            days = 30
-            startDate = new Date(today)
-            startDate.setDate(startDate.getDate() - days + 1)
-          }
-          break
-        case "mtd":
-          // Month to date - from 1st of current month
-          startDate = new Date(today.getFullYear(), today.getMonth(), 1)
-          days = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          break
-        case "ytd":
-          // Year to date - from Jan 1st
-          startDate = new Date(today.getFullYear(), 0, 1)
-          days = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          break
-        case "qtd":
-          // Quarter to date - from start of current quarter
-          const quarterMonth = Math.floor(today.getMonth() / 3) * 3
-          startDate = new Date(today.getFullYear(), quarterMonth, 1)
-          days = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          break
-        case "last_month":
-          // Last full month
-          const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-          const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
-          startDate = lastMonthStart
-          endDate = lastMonthEnd
-          days = lastMonthEnd.getDate()
-          break
-        default:
-          // Numeric days (365, 90, 30, 14, 7)
-          days = parseInt(timeRange, 10) || 30
-          startDate = new Date(today)
-          startDate.setDate(startDate.getDate() - days + 1)
+    if (decision === "L1_USE_CACHE") {
+      // Instant - just update filters, no API call
+      setState((prev) => ({
+        ...prev,
+        filters: updatedFilters,
+      }))
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] L1_USE_CACHE: Filters updated (instant)`, updatedFilters)
       }
+      return
+    }
 
-      // Format dates as YYYY-MM-DD for comparison
-      const startDateStr = startDate.toISOString().split("T")[0]
-      const endDateStr = endDate.toISOString().split("T")[0]
+    // L1_NO_CACHE - need to fetch new data
+    setState((prev) => ({
+      ...prev,
+      filters: updatedFilters,
+      isStale: true,
+    }))
 
-      // Filter data by date range (inclusive of both start and end)
-      const filteredData = sortedData.filter(
-        (d) => d.period >= startDateStr && d.period <= endDateStr
-      )
-      if (filteredData.length === 0) return []
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[CostData] L1_NO_CACHE: Fetching new data for filters`, updatedFilters)
+    }
 
-      // Calculate overall daily average for the entire period (not rolling window)
-      // This gives a flat reference line showing the average daily cost
-      // CRITICAL: EDGE-001 fix - use safe number handling to prevent NaN/Infinity
-      const totalCost = filteredData.reduce(
-        (sum, d) => {
-          const cost = d.total_billed_cost || d.total_effective_cost || 0
-          // Ensure cost is a valid number
-          return sum + (Number.isFinite(cost) ? cost : 0)
-        },
-        0
-      )
-      // Safe division with NaN/Infinity protection (EDGE-001 fix)
-      const rawAvg = filteredData.length > 0 ? totalCost / filteredData.length : 0
-      const overallDailyAvg = Number.isFinite(rawAvg) ? rawAvg : 0
+    // Fetch new data (will use the updated filters from state)
+    fetchCostData()
+  }, [state.filters, state.cachedDateRange, state.granularData.length, fetchCostData])
 
-      // Transform data with overall average (flat line)
-      return filteredData.map((point, index, arr) => {
-        const date = new Date(point.period)
-        const rawCost = point.total_billed_cost || point.total_effective_cost || 0
-        // EDGE-001 fix: ensure cost is valid number
-        const cost = Number.isFinite(rawCost) ? rawCost : 0
+  /**
+   * Get filtered granular data based on current unified filters.
+   * Returns the filtered data for charts/tables.
+   */
+  const getFilteredGranularData = useCallback((): GranularCostRow[] => {
+    if (!state.granularData || state.granularData.length === 0) return []
 
-        // Use overall period average (flat reference line)
-        const rollingAvg = overallDailyAvg
+    // Convert TimeRange to DateRange for filtering
+    const dateRange = timeRangeToDateRange(state.filters.timeRange, state.filters.customRange)
 
-        // Format label based on number of days in range
-        let label: string
-        if (days >= 180) {
-          // For long ranges, show month abbreviation
-          label = date.toLocaleDateString("en-US", { month: "short" })
-          // Only show month label on first day of each month or first data point
-          const prevDate = index > 0 ? new Date(arr[index - 1].period) : null
-          if (prevDate && prevDate.getMonth() === date.getMonth()) {
-            label = date.getDate().toString()
-          }
-        } else if (days >= 60) {
-          // For medium ranges, show "Mon D" on week starts
-          const dayOfWeek = date.getDay()
-          if (dayOfWeek === 0 || index === 0) {
-            label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-          } else {
-            label = date.getDate().toString()
-          }
-        } else {
-          // For shorter ranges, show day of month
-          label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-        }
+    // Apply all filters
+    return applyGranularFilters(state.granularData, {
+      dateRange: { start: dateRange.start, end: dateRange.end, label: "" },
+      providers: state.filters.providers,
+      categories: state.filters.categories,
+      departmentId: state.filters.departmentId,
+      projectId: state.filters.projectId,
+      teamId: state.filters.teamId,
+    })
+  }, [state.granularData, state.filters])
 
-        return {
-          date: point.period,
-          label,
-          value: cost,
-          rollingAvg: Math.round(rollingAvg * 100) / 100,
-        }
-      })
-    },
-    [state.categoryTrendData]
-  )
+  /**
+   * Get time series from filtered granular data.
+   * Aggregates by date for trend charts.
+   */
+  const getFilteredTimeSeries = useCallback((): { date: string; total: number }[] => {
+    const filtered = getFilteredGranularData()
+    return granularToTimeSeries(filtered)
+  }, [getFilteredGranularData])
 
-  // Check if cached data covers a date range
-  const isCachedForDateRange = useCallback(
-    (start: string, end: string): boolean => {
-      if (!state.cachedDateRange) return false
-      return (
-        state.cachedDateRange.start <= start && state.cachedDateRange.end >= end
-      )
-    },
-    [state.cachedDateRange]
-  )
+  /**
+   * Get provider breakdown from filtered granular data.
+   */
+  const getFilteredProviderBreakdown = useCallback((): { provider: string; total_cost: number; percentage: number }[] => {
+    const filtered = getFilteredGranularData()
+    return granularToProviderBreakdown(filtered)
+  }, [getFilteredGranularData])
+
+  /**
+   * Get category breakdown from filtered granular data.
+   */
+  const getFilteredCategoryBreakdown = useCallback((): { category: string; total_cost: number; percentage: number }[] => {
+    const filtered = getFilteredGranularData()
+    return granularToCategoryBreakdown(filtered)
+  }, [getFilteredGranularData])
+
+  /**
+   * Get total cost from filtered granular data.
+   */
+  const getFilteredTotalCost = useCallback((): number => {
+    const filtered = getFilteredGranularData()
+    return granularTotalCost(filtered)
+  }, [getFilteredGranularData])
 
   // Detect org slug changes and reset cache (CACHE-004 fix)
   // This ensures data for wrong org is not shown when switching orgs
@@ -929,21 +875,28 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         console.log(`[CostData] Org changed from ${prevOrgSlugRef.current} to ${orgSlug}, resetting cache`)
       }
 
-      // Clear loaded categories ref
-      loadedCategoriesRef.current.clear()
-
-      // Reset state to initial values
+      // Reset state to initial values (including granularData and filters)
       setState({
+        // L1 Cache (granular data)
+        granularData: [],
+        granularFiltersAvailable: null,
+        // Unified filters
+        filters: {
+          timeRange: "365",
+          customRange: undefined,
+          providers: undefined,
+          categories: undefined,
+          departmentId: undefined,
+          projectId: undefined,
+          teamId: undefined,
+        },
+        // Aggregated data
         totalCosts: null,
         providerBreakdown: [],
         periodCosts: null,
         hierarchy: [],
-        dailyTrendData: [],
-        categoryTrendData: { all: [], genai: [], cloud: [], subscription: [] },
         availableFilters: { categories: [], providers: [], hierarchy: [] },
-        selectedTimeRange: "365",
-        selectedCustomRange: undefined,
-        hierarchyFilters: {},
+        // Metadata
         currency: DEFAULT_CURRENCY,
         lastFetchedAt: null,
         dataAsOf: null,
@@ -968,15 +921,15 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   }, [orgSlug, state.isInitialized, state.isLoading, fetchCostData])
 
   // Cleanup on unmount: set mounted flag, abort pending requests
-  // CRITICAL: STATE-001 & CACHE-001 fix
+  // CRITICAL: STATE-001 & CACHE-005 fix
   useEffect(() => {
     isMountedRef.current = true
 
     return () => {
       isMountedRef.current = false
-      // Abort any pending category trend requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
+      // Abort any pending main fetch requests (CACHE-005 fix)
+      if (mainFetchAbortRef.current) {
+        mainFetchAbortRef.current.abort()
       }
     }
   }, [])
@@ -986,19 +939,36 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     () => ({
       ...state,
       orgSlug,
+      // Core actions
       refresh,
       fetchIfNeeded,
       invalidateCache,
-      setTimeRange,
-      setHierarchyFilters, // FILTER-001 fix
-      getFilteredData,
+      clearBackendCache,  // Force backend Polars cache clear
+      // Unified filter actions (ALL client-side, instant)
+      setUnifiedFilters,
+      getFilteredGranularData,
+      getFilteredTimeSeries,
+      getFilteredProviderBreakdown,
+      getFilteredCategoryBreakdown,
+      getFilteredTotalCost,
+      // Chart component helpers (still used by chart library)
       getFilteredProviders,
-      getDailyTrendForRange,
-      fetchCategoryTrend,
-      isCategoryTrendLoaded,
-      isCachedForDateRange,
     }),
-    [state, orgSlug, refresh, fetchIfNeeded, invalidateCache, setTimeRange, setHierarchyFilters, getFilteredData, getFilteredProviders, getDailyTrendForRange, fetchCategoryTrend, isCategoryTrendLoaded, isCachedForDateRange]
+    [
+      state,
+      orgSlug,
+      refresh,
+      fetchIfNeeded,
+      invalidateCache,
+      clearBackendCache,
+      setUnifiedFilters,
+      getFilteredGranularData,
+      getFilteredTimeSeries,
+      getFilteredProviderBreakdown,
+      getFilteredCategoryBreakdown,
+      getFilteredTotalCost,
+      getFilteredProviders,
+    ]
   )
 
   return (
@@ -1045,26 +1015,37 @@ export function useHierarchy() {
 }
 
 /**
- * Hook to get daily trend data for a specific time range
- * Optionally filtered by category (genai, cloud, subscription)
- * Optional customRange for when timeRange is "custom"
+ * Hook to get daily trend data using unified filters.
+ * Uses getFilteredTimeSeries() which applies current unified filters.
+ *
+ * To change the time range or other filters, use setUnifiedFilters() from useCostData().
  */
-export function useDailyTrend(
-  timeRange: TimeRange = "30",
-  category?: "genai" | "cloud" | "subscription",
-  customRange?: CustomDateRange
-) {
-  const { getDailyTrendForRange, dailyTrendData, isLoading, error, currency } = useCostData()
-  const trendData = getDailyTrendForRange(timeRange, category, customRange)
+export function useDailyTrend() {
+  const { getFilteredTimeSeries, granularData, isLoading, error, currency } = useCostData()
+  const timeSeries = getFilteredTimeSeries()
+
+  // Transform to DailyTrendDataPoint format with labels
+  const trendData: DailyTrendDataPoint[] = timeSeries.map((point) => {
+    const date = new Date(point.date)
+    return {
+      date: point.date,
+      label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      value: point.total,
+      rollingAvg: 0, // Calculated below
+    }
+  })
+
+  // Calculate rolling average
+  const totalCost = trendData.reduce((sum, d) => sum + d.value, 0)
+  const avgDaily = trendData.length > 0 ? totalCost / trendData.length : 0
+  trendData.forEach(d => { d.rollingAvg = Math.round(avgDaily * 100) / 100 })
 
   // Calculate summary stats for the selected range
   const summary = {
-    totalCost: trendData.reduce((sum, d) => sum + d.value, 0),
-    averageDailyCost: trendData.length > 0
-      ? trendData.reduce((sum, d) => sum + d.value, 0) / trendData.length
-      : 0,
+    totalCost,
+    averageDailyCost: avgDaily,
     dataPoints: trendData.length,
-    hasData: dailyTrendData.length > 0,
+    hasData: granularData.length > 0,
   }
 
   return { trendData, summary, isLoading, error, currency }

@@ -4,25 +4,14 @@ Cost Read Service
 High-performance, read-only cost data service using Polars DataFrames.
 For dashboard reads only - pipeline writes cost data.
 
-Features:
-- Polars lazy evaluation for optimal query performance
-- L1 LRU cache for raw DataFrames
-- L2 Aggregation cache for pre-computed results
-- Multi-tenant isolation via org_slug
-- Zero-copy data sharing via Arrow format
-- Centralized aggregations via lib/costs/
-- Category filtering pushed to SQL WHERE for efficiency
+Cache Strategy:
+- Cost data updates DAILY (pipelines run overnight)
+- Cache valid UNTIL MIDNIGHT in org's timezone
+- clear_cache=true bypasses cache for fresh BigQuery data
 
-Cache TTL Strategy (Daily Cost Data):
-- Cost data is daily (pipelines run once per day)
-- Historical data: Cache until midnight UTC (no changes until new day)
-- Today's data: 60s TTL (pipeline might still be running)
-- Minimum TTL: 300s (avoid edge cases near midnight)
-
-Hybrid Cache Strategy:
-- Frontend: 365-day data cached, filtered client-side for instant UI
-- Backend L1: Raw Polars DataFrames (key: org + date_range + hierarchy)
-- Backend L2: Pre-computed aggregations (key: org + date_range + agg_type)
+Architecture:
+- Frontend: 365-day granularData → all filters client-side (instant)
+- Backend: Polars LRU cache → BigQuery (until midnight TTL)
 """
 
 import polars as pl
@@ -43,6 +32,7 @@ from src.core.services._shared import (
     DatePeriod,
     ComparisonType,
     get_comparison_ranges,
+    get_seconds_until_midnight,
 )
 from src.core.services.cost_read.models import CostQuery, CostResponse
 
@@ -72,45 +62,25 @@ logger = logging.getLogger(__name__)
 
 # TTL Constants
 TTL_TODAY_DATA = 60  # 60 seconds for today's data (pipeline might still run)
-TTL_MIN_HISTORICAL = 300  # Minimum 5 min even if midnight is very close
 
 
-def _seconds_until_midnight_utc() -> int:
+def _get_cache_ttl(includes_today: bool, timezone: str = "UTC") -> int:
     """
-    Calculate seconds until midnight UTC.
+    Get cache TTL - until midnight in specified timezone.
 
-    Cost data is daily (pipelines run once per day), so historical data
-    should be cached until midnight UTC when new data might be available.
-    This reduces unnecessary BigQuery calls compared to fixed 300s TTL.
-
-    Returns:
-        Seconds until midnight UTC (minimum TTL_MIN_HISTORICAL)
-    """
-    now = datetime.now(timezone.utc)
-    midnight = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=timezone.utc)
-    # Move to next midnight
-    from datetime import timedelta
-    next_midnight = midnight + timedelta(days=1)
-    seconds = int((next_midnight - now).total_seconds())
-    # Ensure minimum TTL to avoid edge cases near midnight
-    return max(seconds, TTL_MIN_HISTORICAL)
-
-
-def _get_cache_ttl(includes_today: bool) -> int:
-    """
-    Get appropriate cache TTL based on whether data includes today.
+    Cost data updates DAILY (pipelines run overnight), so cache is valid
+    until midnight when new data arrives.
 
     Args:
-        includes_today: True if the data range includes today's date
+        includes_today: True if data includes today's date
+        timezone: IANA timezone (default UTC, can be org's timezone)
 
     Returns:
-        TTL in seconds:
-        - For today's data: TTL_TODAY_DATA (60s) since pipeline might still be running
-        - For historical data: Seconds until midnight UTC (data won't change until new day)
+        TTL in seconds (min 60s to avoid edge cases)
     """
     if includes_today:
-        return TTL_TODAY_DATA
-    return _seconds_until_midnight_utc()
+        return TTL_TODAY_DATA  # 60s if today's data might still be updating
+    return get_seconds_until_midnight(timezone)
 
 
 def _safe_unique_list(df: pl.DataFrame, column: str) -> List[str]:
@@ -132,29 +102,25 @@ class CostReadService:
     - Two-level caching:
       - L1: Raw DataFrames
       - L2: Pre-computed aggregations
-    - Smart TTL: Until midnight UTC for historical data (daily data doesn't change)
-    - Short TTL (60s) for today's data (pipeline might still run)
-    - Multi-tenant isolation
-    - Centralized aggregations via lib/costs/
+    - TTL: Until midnight in org's timezone (cost data updates daily)
+    - Multi-tenant isolation via org_slug
     """
 
     def __init__(self, cache: Optional[LRUCache] = None, agg_cache: Optional[LRUCache] = None):
-        # L1 Cache: Raw DataFrames (large - can be millions of rows per org)
-        # Memory limit: 512MB, max 50 entries (each query could be 50-100MB)
-        # This allows caching ~5-10 large queries across all orgs
+        # Polars LRU Cache: DataFrames from BigQuery
+        # TTL is dynamic - calculated per-org based on timezone (until midnight)
         self._cache = cache or create_cache(
             "COST_L1",
-            max_size=50,  # Reduced from 1000 - memory is the real constraint
-            default_ttl=300,
-            max_memory_mb=512  # 512MB limit for DataFrames
+            max_size=50,
+            default_ttl=86400,  # 24h default (overridden per-org)
+            max_memory_mb=512
         )
-        # L2 Cache: Pre-computed aggregations (smaller - dicts with totals)
-        # Memory limit: 128MB, max 200 entries (each ~1KB-100KB)
+        # Aggregation cache for pre-computed results
         self._agg_cache = agg_cache or create_cache(
             "COST_L2",
-            max_size=200,  # Reduced from 500
-            default_ttl=300,
-            max_memory_mb=128  # 128MB for aggregation dicts
+            max_size=200,
+            default_ttl=86400,  # 24h default (overridden per request)
+            max_memory_mb=128
         )
         self._bq_client = None
         self._project_id = settings.gcp_project_id
@@ -1299,7 +1265,7 @@ class CostReadService:
 
         Args:
             query: CostQuery with org_slug and date range
-            clear_cache: If True, bypass L1/L2 cache and fetch fresh data from BigQuery
+            clear_cache: If True, bypass Polars LRU cache and fetch fresh data from BigQuery
         """
         start_time = time.time()
         # Cache key includes only org + date range (NO hierarchy filters)
