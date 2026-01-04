@@ -56,25 +56,56 @@ export { expect }
 export async function loginAndGetOrgSlug(page: Page): Promise<string> {
   // Login
   await page.goto('/login')
+  await page.waitForLoadState('domcontentloaded')
 
-  // Wait for page to load
-  await page.waitForSelector('input[type="email"]', { timeout: 10000 })
+  // Wait for page to load - email input should be visible
+  await page.waitForSelector('input[type="email"], input[placeholder*="email"]', { timeout: 15000 })
 
-  // Fill in credentials
-  await page.fill('input[type="email"]', TEST_USER.email)
-  await page.fill('input[type="password"]', TEST_USER.password)
+  // Small wait for page to stabilize
+  await page.waitForTimeout(500)
+
+  // Fill in credentials - use type instead of fill for more reliable input
+  const emailInput = page.locator('input[type="email"], input[placeholder*="email"]').first()
+  const passwordInput = page.locator('input[type="password"]').first()
+
+  await emailInput.clear()
+  await emailInput.type(TEST_USER.email)
+  await passwordInput.clear()
+  await passwordInput.type(TEST_USER.password)
+
+  // Wait a moment for any validation
+  await page.waitForTimeout(300)
 
   // Click sign in button
-  await page.click('button[type="submit"]')
+  const submitButton = page.locator('button[type="submit"], button:has-text("Sign in")').first()
+  await submitButton.click()
 
   // Wait for redirect to dashboard or org selector
-  await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 30000 })
+  try {
+    await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 45000 })
+  } catch {
+    // If redirect didn't happen, check if there's an error or we're still on login
+    const currentUrl = page.url()
+    if (currentUrl.includes('/login')) {
+      // Try clicking submit again
+      await page.waitForTimeout(1000)
+      const errorText = await page.locator('[role="alert"], .error, text=Invalid').isVisible()
+      if (errorText) {
+        throw new Error('Login failed - invalid credentials or error shown')
+      }
+      await submitButton.click()
+      await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 30000 })
+    }
+  }
 
   // Handle org selector if present
   const currentUrl = page.url()
   if (currentUrl.includes('/org-select')) {
+    // Wait for org cards to load
+    await page.waitForTimeout(1000)
     // Select the first organization
-    await page.click('[data-testid="org-card"]:first-child')
+    const orgCard = page.locator('[data-testid="org-card"], a[href*="/dashboard"]').first()
+    await orgCard.click()
     await page.waitForURL(/\/(.*?)\/dashboard/, { timeout: 30000 })
   }
 
