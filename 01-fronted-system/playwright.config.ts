@@ -15,17 +15,17 @@ dotenv.config({ path: '.env.local' })
 export default defineConfig({
   testDir: './tests/e2e',
 
-  // Run tests in parallel
-  fullyParallel: true,
+  // Run tests serially to avoid session conflicts
+  fullyParallel: false,
 
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only
-  retries: process.env.CI ? 2 : 0,
+  // Retry failed tests
+  retries: 1,
 
-  // Opt out of parallel tests on CI
-  workers: process.env.CI ? 1 : undefined,
+  // Use single worker to avoid auth conflicts
+  workers: 1,
 
   // Reporter to use
   reporter: [
