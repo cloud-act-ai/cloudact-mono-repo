@@ -27,8 +27,20 @@ ARG VERSION=unknown
 ARG BUILD_DATE=unknown
 ARG GIT_COMMIT=unknown
 
+# Environment variables passed as build args (for Cloud Build)
+ARG NEXT_PUBLIC_SUPABASE_URL=""
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=""
+ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=""
+ARG NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=""
+ARG NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=""
+ARG NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=""
+ARG NEXT_PUBLIC_API_SERVICE_URL=""
+ARG NEXT_PUBLIC_PIPELINE_SERVICE_URL=""
+ARG NEXT_PUBLIC_APP_URL=""
+ARG NEXT_PUBLIC_DEFAULT_TRIAL_DAYS="14"
+
 # Copy the appropriate environment file based on TARGET_ENV
-# Mapping: local -> .env.local, test -> .env.test, stage -> .env.stage, prod -> .env.production
+# OR use build args if passed (Cloud Build passes these)
 RUN ENV_FILE=".env.local" && \
     case "${TARGET_ENV}" in \
       test) ENV_FILE=".env.test" ;; \
@@ -36,10 +48,24 @@ RUN ENV_FILE=".env.local" && \
       prod) ENV_FILE=".env.production" ;; \
       local) ENV_FILE=".env.local" ;; \
     esac && \
-    echo "Building with environment: ${TARGET_ENV} using ${ENV_FILE}" && \
-    if [ -f "${ENV_FILE}" ]; then \
-      cp "${ENV_FILE}" .env.local && \
+    echo "Building with environment: ${TARGET_ENV}" && \
+    if [ -n "${NEXT_PUBLIC_SUPABASE_URL}" ]; then \
+      echo "Using build args for environment variables" && \
+      echo "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" > .env.local && \
+      echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" >> .env.local && \
+      echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}" >> .env.local && \
+      echo "NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID}" >> .env.local && \
+      echo "NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID}" >> .env.local && \
+      echo "NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID}" >> .env.local && \
+      echo "NEXT_PUBLIC_API_SERVICE_URL=${NEXT_PUBLIC_API_SERVICE_URL}" >> .env.local && \
+      echo "NEXT_PUBLIC_PIPELINE_SERVICE_URL=${NEXT_PUBLIC_PIPELINE_SERVICE_URL}" >> .env.local && \
+      echo "NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" >> .env.local && \
+      echo "NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=${NEXT_PUBLIC_DEFAULT_TRIAL_DAYS}" >> .env.local && \
       echo "Environment variables (NEXT_PUBLIC_*):" && \
+      cat .env.local; \
+    elif [ -f "${ENV_FILE}" ]; then \
+      cp "${ENV_FILE}" .env.local && \
+      echo "Using ${ENV_FILE}" && \
       grep -E "^NEXT_PUBLIC_" .env.local || true; \
     else \
       echo "Warning: ${ENV_FILE} not found, using existing .env.local"; \

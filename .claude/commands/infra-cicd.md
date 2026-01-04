@@ -10,6 +10,22 @@ Deploy services to test/stage/prod, manage versioned releases, backups, rollback
 
 ## Actions
 
+### Automatic Deployments (Cloud Build Triggers) - RECOMMENDED
+```
+# Deploy to Stage (automatic on push to main)
+git push origin main
+
+# Deploy to Prod (create and push version tag)
+git tag v3.0.8
+git push origin v3.0.8
+
+# Monitor builds
+gcloud builds list --project=cloudact-prod --region=global --limit=5
+```
+
+> **Note:** Cloud Build triggers are hosted in `cloudact-prod` project. Stage trigger deploys to `cloudact-stage`.
+> See: `04-inra-cicd-automation/CICD/triggers/README.md` for full trigger documentation.
+
 ### Quick Release (ONE COMMAND - Recommended)
 ```
 /infra-cicd quick v1.0.11                     # Full release: update version + test + build + deploy + verify
