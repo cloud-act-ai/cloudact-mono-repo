@@ -2,15 +2,23 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { sendPasswordResetEmail } from "@/lib/email"
 
-// Use admin client to generate password reset link
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+// Lazy initialization - client created on first use, not at module load
+// This prevents build-time errors when env vars aren't available
+let supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!supabaseAdmin) {
+    supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return supabaseAdmin
+}
 
 // Simple in-memory rate limiting for password reset (per IP)
 // NOTE: This is per-instance only. In serverless/multi-instance deployments,
@@ -86,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // Generate password reset link using admin API
     // Redirect directly to reset-password page - it handles the implicit flow hash tokens
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    const { data, error } = await getSupabaseAdmin().auth.admin.generateLink({
       type: "recovery",
       email,
       options: {
