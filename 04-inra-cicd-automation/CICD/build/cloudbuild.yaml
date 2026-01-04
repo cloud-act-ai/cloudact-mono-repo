@@ -11,6 +11,7 @@ steps:
       - '--build-arg=TARGET_ENV=${_TARGET_ENV}'
       - '--build-arg=VERSION=${_VERSION}'
       - '--build-arg=BUILD_DATE=${_BUILD_DATE}'
+      - '--build-arg=GIT_COMMIT=${_GIT_COMMIT}'
       - '-t'
       - '${_IMAGE_VERSION}'
       - '-t'
