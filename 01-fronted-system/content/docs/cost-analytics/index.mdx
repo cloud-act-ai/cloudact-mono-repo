@@ -1,9 +1,9 @@
 ---
-title: Overview
-description: Unified view of all your cost analytics
+title: Cost Analytics Overview
+description: Unified view of all your cost analytics across cloud, AI, and SaaS
 ---
 
-Cost Analytics provides detailed insights into your organization's spending across cloud providers, GenAI services, and SaaS subscriptions.
+Cost Analytics provides comprehensive insights into your organization's spending across cloud infrastructure, GenAI services, and SaaS subscriptions in one unified dashboard.
 
 ## Accessing Cost Analytics
 
@@ -17,58 +17,327 @@ Navigate to **Cost Analytics** in the sidebar to access the analytics dashboard.
   <Card title="Subscription Costs" href="/user-docs/cost-analytics/subscription-costs" />
 </Cards>
 
+---
+
 ## Overview Dashboard
 
-The Cost Analytics Overview shows:
+The Cost Analytics Overview provides a consolidated view of all spending:
 
-### Total Spending
+### Total Spending Summary
 
-- Combined costs across all categories
-- Period-over-period change percentage
-- Trend indicators (up/down arrows)
+| Metric | Description |
+|--------|-------------|
+| **Total Spend** | Combined costs across all categories |
+| **Cloud Spend** | AWS, GCP, Azure, OCI infrastructure |
+| **GenAI Spend** | OpenAI, Anthropic, Google AI API usage |
+| **Subscription Spend** | SaaS tools and services |
+| **Period Change** | Percentage change from previous period |
+| **Daily Average** | Average spend per day |
+| **Projected Monthly** | Estimated month-end total |
 
-### Cost Breakdown
+### Cost Breakdown by Category
 
-| Category | Description |
-|----------|-------------|
-| **Cloud** | AWS, GCP, Azure, OCI infrastructure costs |
-| **GenAI** | API usage for AI models (OpenAI, Anthropic, Google) |
-| **Subscriptions** | SaaS tools and services |
+| Category | Includes |
+|----------|----------|
+| **Compute** | VMs, containers, serverless, AI inference |
+| **Storage** | Object storage, block storage, databases |
+| **Network** | Data transfer, CDN, load balancers |
+| **AI/ML** | Model training, inference, embeddings |
+| **SaaS** | Software subscriptions |
+| **Other** | Miscellaneous services |
 
-### Charts and Visualizations
+---
 
-- **Stacked bar charts** - Daily/weekly cost breakdown
-- **Pie charts** - Cost distribution by category
-- **Line charts** - Cost trends over time
+## Data Visualization
 
-## Filtering and Analysis
+### Chart Types
 
-### Date Range
+| Chart | Best For |
+|-------|----------|
+| **Stacked Bar** | Daily breakdown by category |
+| **Line Chart** | Trend comparison over time |
+| **Pie/Donut** | Proportional distribution |
+| **Heat Map** | Usage patterns by hour/day |
+| **Waterfall** | Period-over-period changes |
 
-Select your analysis period:
-- Last 7 days
-- Last 30 days
-- Last 90 days
-- Custom range
+### Time Aggregations
+
+| View | Description |
+|------|-------------|
+| **Hourly** | Last 48 hours, hour by hour |
+| **Daily** | Last 90 days, day by day |
+| **Weekly** | Last 52 weeks |
+| **Monthly** | Last 24 months |
+
+---
+
+## Filtering & Grouping
+
+### Date Range Selection
+
+| Option | Description |
+|--------|-------------|
+| **Today** | Current day (partial) |
+| **Yesterday** | Previous complete day |
+| **Last 7 days** | Rolling week |
+| **Last 30 days** | Rolling month |
+| **This month** | Current calendar month |
+| **Last month** | Previous calendar month |
+| **This quarter** | Current calendar quarter |
+| **Last quarter** | Previous calendar quarter |
+| **This year** | Current calendar year |
+| **Custom** | Select start and end dates |
 
 ### Grouping Options
 
-Group costs by:
-- **Provider** - AWS, GCP, OpenAI, etc.
-- **Service** - Compute, Storage, API calls
-- **Department** - Based on hierarchy assignments
-- **Project** - Based on hierarchy assignments
-- **Team** - Based on hierarchy assignments
+Group costs by multiple dimensions:
+
+| Dimension | Description |
+|-----------|-------------|
+| **Provider** | AWS, GCP, Azure, OpenAI, etc. |
+| **Service** | EC2, BigQuery, GPT-4, Slack, etc. |
+| **Category** | Compute, Storage, AI, SaaS |
+| **Region** | Geographic region |
+| **Department** | Organizational department |
+| **Project** | Assigned project |
+| **Team** | Assigned team |
+| **Tags/Labels** | Cloud resource tags |
+
+### Applying Filters
+
+1. Click **Filters** in the analytics toolbar
+2. Select dimension (Provider, Service, etc.)
+3. Choose values to include/exclude
+4. Click **Apply**
+5. Filters persist until cleared
+
+---
+
+## Currency & Localization
+
+### Supported Currencies
+
+All costs are displayed in your organization's configured currency:
+
+| Currency | Code |
+|----------|------|
+| US Dollar | USD |
+| Euro | EUR |
+| British Pound | GBP |
+| Indian Rupee | INR |
+| Japanese Yen | JPY |
+| Chinese Yuan | CNY |
+| Australian Dollar | AUD |
+| Canadian Dollar | CAD |
+| Singapore Dollar | SGD |
+| UAE Dirham | AED |
+| + 6 more | ... |
+
+### Currency Conversion
+
+- Costs are converted using daily exchange rates
+- Original currency preserved for accuracy
+- Conversion rates updated daily
+
+To change currency: **Org Settings** → **Organization** → **Locale Settings**
+
+### Timezone
+
+All timestamps displayed in organization timezone (configurable in Org Settings).
+
+---
+
+## Comparison & Trends
+
+### Period Comparison
+
+Compare costs across time periods:
+
+| Comparison | Shows |
+|------------|-------|
+| **vs Previous Period** | This week vs last week |
+| **vs Same Period Last Month** | This week vs same week last month |
+| **vs Same Period Last Year** | This month vs same month last year |
+
+### Trend Indicators
+
+| Indicator | Meaning |
+|-----------|---------|
+| **↑ Red** | Costs increased (negative) |
+| **↓ Green** | Costs decreased (positive) |
+| **→ Gray** | No significant change |
+
+### Forecasting
+
+Based on historical patterns, CloudAct projects:
+
+- **End of Month** - Projected monthly total
+- **End of Quarter** - Projected quarterly total
+- **End of Year** - Projected annual total
+- **Confidence Range** - Upper and lower bounds
+
+<Callout type="info">
+  Forecasts improve with more historical data. Allow 30+ days of data for accurate projections.
+</Callout>
+
+---
+
+## Cost Allocation
+
+### Hierarchy Integration
+
+Costs flow through your organizational hierarchy:
+
+```
+Organization
+└── Department (Engineering, Marketing, Sales)
+    └── Project (Platform, Website, Mobile App)
+        └── Team (Backend, Frontend, DevOps)
+```
+
+### Allocation Rules
+
+| Source | Allocation |
+|--------|------------|
+| **Cloud resources** | By tags/labels |
+| **GenAI usage** | By API key or project |
+| **Subscriptions** | By explicit assignment |
+
+### Unallocated Costs
+
+Costs without hierarchy assignment:
+- Shown as "Unassigned"
+- Can be manually allocated
+- Highlighted for attention
+
+---
+
+## Export & Reporting
+
+### Export Formats
+
+| Format | Best For |
+|--------|----------|
+| **CSV** | Spreadsheet analysis, further processing |
+| **PDF** | Reports, presentations, sharing |
+| **Excel** | Financial modeling, pivot tables |
 
 ### Export Options
 
-Export your analytics data:
-- **CSV** - Spreadsheet format
-- **PDF** - Report format
+| Option | Description |
+|--------|-------------|
+| **Date Range** | Specific period to export |
+| **Grouping** | How to aggregate data |
+| **Columns** | Which fields to include |
+| **Detail Level** | Summary or line-item detail |
+
+### Scheduled Reports
+
+Set up automated reports:
+
+1. Go to **Notifications**
+2. Create **Scheduled Report**
+3. Configure:
+   - Report type
+   - Date range (rolling)
+   - Recipients
+   - Frequency (daily, weekly, monthly)
+4. Save
+
+---
+
+## Anomaly Detection
+
+### Automatic Detection
+
+CloudAct identifies unusual spending patterns:
+
+| Anomaly Type | Description |
+|--------------|-------------|
+| **Spike** | Sudden increase above normal |
+| **Sustained Increase** | Gradual but consistent rise |
+| **New Service** | Costs from previously unused service |
+| **Unusual Pattern** | Deviation from typical usage |
+
+### Anomaly Alerts
+
+When anomalies are detected:
+- Highlighted in dashboard
+- Optional notification sent
+- Investigation notes can be added
+
+### Setting Thresholds
+
+Configure anomaly sensitivity:
+
+1. Go to **Notifications**
+2. Select **Anomaly Detection**
+3. Set threshold (e.g., 20% above average)
+4. Choose notification method
+
+---
 
 ## Best Practices
 
-1. **Regular reviews** - Check analytics weekly for trends
-2. **Set budgets** - Use data to inform budget allocation
-3. **Identify anomalies** - Look for unexpected spikes
-4. **Compare periods** - Use historical data for planning
+### 1. Regular Review
+
+- Check analytics daily for unexpected changes
+- Review weekly for trends
+- Deep dive monthly for optimization
+
+### 2. Set Budgets
+
+- Define budgets per category/department
+- Set alerts at 80% and 100% of budget
+- Review and adjust quarterly
+
+### 3. Tag Everything
+
+- Apply consistent tagging across cloud resources
+- Assign hierarchy to all subscriptions
+- Use project codes for cost allocation
+
+### 4. Optimize Proactively
+
+- Address anomalies immediately
+- Review top spending services monthly
+- Negotiate renewals using historical data
+
+### 5. Share Insights
+
+- Export reports for stakeholders
+- Schedule regular cost reviews
+- Empower teams with their cost data
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `D` | Open date range picker |
+| `F` | Open filters panel |
+| `G` | Change grouping |
+| `E` | Export current view |
+| `R` | Refresh data |
+| `←` | Previous period |
+| `→` | Next period |
+
+---
+
+## Frequently Asked Questions
+
+**Q: How often is cost data updated?**
+A: Daily for most providers. Cloud data has 24-48 hour delay from providers.
+
+**Q: Can I drill down to individual resources?**
+A: Yes, for cloud costs. Click any service to see resource-level details.
+
+**Q: How accurate are forecasts?**
+A: Forecasts are based on historical trends. Accuracy improves with more data.
+
+**Q: Can I create custom dashboards?**
+A: Custom views coming soon. Use export for custom analysis.
+
+**Q: How far back is historical data available?**
+A: Typically 3 months of backfill, then ongoing from connection date.

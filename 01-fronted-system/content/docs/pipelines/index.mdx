@@ -1,16 +1,19 @@
 ---
-title: Overview
-description: Understanding CloudAct data pipelines
+title: Pipelines Overview
+description: Understanding CloudAct data pipelines and automation
 ---
 
-Pipelines are automated processes that fetch, process, and normalize your cost data from various providers.
+Pipelines are automated processes that fetch, process, and normalize your cost data from various providers into a unified format for analysis.
 
-## How Pipelines Work
+## What Are Pipelines?
 
-1. **Fetch** - Connect to provider APIs and retrieve usage/billing data
-2. **Process** - Transform raw data into standardized format
-3. **Store** - Write processed data to BigQuery
-4. **Notify** - Alert on completion or errors
+Pipelines are the engine that powers CloudAct's cost analytics. They:
+
+- **Fetch** raw data from provider APIs and exports
+- **Transform** data into standardized formats
+- **Enrich** with hierarchy and metadata
+- **Store** in BigQuery for analysis
+- **Calculate** costs using current pricing
 
 ## Pipeline Types
 
@@ -20,62 +23,354 @@ Pipelines are automated processes that fetch, process, and normalize your cost d
   <Card title="GenAI Runs" href="/user-docs/pipelines/genai-runs" />
 </Cards>
 
+---
+
+## How Pipelines Work
+
+### Data Flow
+
+```
+Provider API/Export
+       ↓
+  ┌─────────────┐
+  │   FETCH     │  Authenticate & retrieve raw data
+  └─────────────┘
+       ↓
+  ┌─────────────┐
+  │  TRANSFORM  │  Normalize to standard schema
+  └─────────────┘
+       ↓
+  ┌─────────────┐
+  │   ENRICH    │  Add hierarchy, apply pricing
+  └─────────────┘
+       ↓
+  ┌─────────────┐
+  │   STORE     │  Write to BigQuery tables
+  └─────────────┘
+       ↓
+  ┌─────────────┐
+  │  CONVERT    │  Generate FOCUS 1.3 format
+  └─────────────┘
+```
+
+### Pipeline Characteristics
+
+| Feature | Description |
+|---------|-------------|
+| **Idempotent** | Re-running replaces data (no duplicates) |
+| **Incremental** | Processes one day at a time |
+| **Retry-enabled** | Auto-retries on transient failures |
+| **Auditable** | Complete run history with logs |
+
+---
+
 ## Pipeline Status
 
-| Status | Description |
-|--------|-------------|
-| **Queued** | Pipeline scheduled, waiting to run |
-| **Running** | Pipeline currently executing |
-| **Success** | Pipeline completed successfully |
-| **Failed** | Pipeline encountered an error |
-| **Partial** | Some data processed, some errors |
+Each pipeline run has a status:
+
+| Status | Icon | Description |
+|--------|------|-------------|
+| **Queued** | 🕐 | Scheduled, waiting to execute |
+| **Running** | 🔄 | Currently processing data |
+| **Success** | ✓ | Completed successfully |
+| **Failed** | ✗ | Encountered an error |
+| **Partial** | ⚠ | Some records processed, some errors |
+
+---
 
 ## Scheduling
 
-### Automatic Runs
+### Automatic Schedule
 
-Pipelines run automatically based on schedule:
+Pipelines run automatically based on type:
 
-| Type | Default Schedule |
-|------|------------------|
-| **Cloud** | Daily at 6:00 AM (org timezone) |
-| **GenAI** | Daily at 6:00 AM (org timezone) |
-| **Subscription** | Daily at midnight (org timezone) |
+| Pipeline Type | Schedule | Timezone |
+|---------------|----------|----------|
+| **Subscription** | Daily at 12:00 AM | Organization |
+| **Cloud** | Daily at 6:00 AM | Organization |
+| **GenAI** | Daily at 6:00 AM | Organization |
+
+### Processing Windows
+
+| Type | Data Processed | Typical Delay |
+|------|----------------|---------------|
+| **Subscription** | Previous day | None (calculated) |
+| **Cloud** | 2 days ago | 24-48 hours |
+| **GenAI** | Previous day | 24 hours |
+
+<Callout type="info">
+  Cloud providers have billing data delays. Pipelines account for this by processing data from 2 days prior.
+</Callout>
 
 ### Manual Runs
 
-You can trigger pipelines manually:
+Trigger pipelines on-demand:
 
 1. Navigate to **Pipelines** → select type
-2. Click **Run Now** on desired pipeline
+2. Click **Run Now**
 3. Select date range to process
 4. Confirm to start
 
-<Callout type="info">
-  Manual runs do not affect the automatic schedule.
-</Callout>
+**Use cases for manual runs:**
+- Backfill historical data
+- Re-process after fixing credentials
+- Immediate refresh after integration setup
 
-## Viewing Run History
+---
 
-Each pipeline section shows:
-- **Recent runs** - Last 10 pipeline executions
-- **Status** - Success/failure indicators
-- **Duration** - How long each run took
-- **Records** - Number of records processed
+## Run History
+
+### Viewing History
+
+Each pipeline section shows recent runs:
+
+| Column | Description |
+|--------|-------------|
+| **Run ID** | Unique identifier for the run |
+| **Pipeline** | Type of pipeline executed |
+| **Date Range** | Dates that were processed |
+| **Status** | Success/Failed/Partial |
+| **Records** | Number of records processed |
+| **Duration** | How long execution took |
+| **Started** | When the run began |
+| **Completed** | When the run finished |
+
+### Run Details
+
+Click a run to view:
+
+- **Execution logs** - Step-by-step processing output
+- **Error messages** - Specific failure reasons
+- **Records breakdown** - What was processed
+- **Duration analysis** - Time spent in each phase
+
+---
+
+## Data Output
+
+### BigQuery Tables
+
+Pipelines write to specific tables per type:
+
+**Subscription Pipelines:**
+
+| Table | Description |
+|-------|-------------|
+| `subscription_plans` | Source subscription configuration |
+| `subscription_plan_costs_daily` | Calculated daily costs |
+| `cost_data_standard_1_3` | FOCUS-formatted output |
+
+**Cloud Pipelines:**
+
+| Table | Description |
+|-------|-------------|
+| `{provider}_billing_raw` | Raw billing data |
+| `billing_cost` | Normalized cloud costs |
+| `cost_data_standard_1_3` | FOCUS-formatted output |
+
+**GenAI Pipelines:**
+
+| Table | Description |
+|-------|-------------|
+| `{provider}_usage_raw` | Raw usage data |
+| `genai_costs_daily` | Calculated daily costs |
+| `cost_data_standard_1_3` | FOCUS-formatted output |
+
+### FOCUS 1.3 Standard
+
+All pipelines convert data to FOCUS 1.3 for unified analytics:
+
+| FOCUS Field | Description |
+|-------------|-------------|
+| `BilledCost` | Actual billed amount |
+| `EffectiveCost` | Cost after discounts |
+| `ListCost` | List/retail pricing |
+| `ProviderName` | Cloud/SaaS provider |
+| `ServiceName` | Specific service |
+| `ServiceCategory` | Compute, Storage, AI, etc. |
+| `ResourceId` | Unique resource identifier |
+| `Region` | Geographic region |
+| `UsageDate` | Date of usage |
+
+**CloudAct Extensions:**
+
+| Field | Description |
+|-------|-------------|
+| `x_hierarchy_dept_id` | Department ID |
+| `x_hierarchy_dept_name` | Department name |
+| `x_hierarchy_project_id` | Project ID |
+| `x_hierarchy_project_name` | Project name |
+| `x_hierarchy_team_id` | Team ID |
+| `x_hierarchy_team_name` | Team name |
+
+---
+
+## Pipeline Dependencies
+
+### Execution Order
+
+Some pipelines depend on others:
+
+```
+1. Subscription Plans (stored procedures)
+   ↓
+2. Subscription Cost Calculation
+   ↓
+3. FOCUS Conversion
+
+1. Cloud Data Fetch (per provider)
+   ↓
+2. Billing Normalization
+   ↓
+3. FOCUS Conversion
+
+1. GenAI Usage Fetch (per provider)
+   ↓
+2. Cost Calculation (with pricing)
+   ↓
+3. FOCUS Conversion
+```
+
+### Dependency Handling
+
+- Pipelines wait for dependencies to complete
+- Failures in upstream pipelines block downstream
+- Status propagates through dependency chain
+
+---
+
+## Error Handling
+
+### Automatic Retries
+
+Transient failures are automatically retried:
+
+| Failure Type | Retry Count | Backoff |
+|--------------|-------------|---------|
+| **Network timeout** | 3 | Exponential |
+| **Rate limit** | 5 | Provider-specific |
+| **Auth token expired** | 1 | Refresh + retry |
+
+### Manual Recovery
+
+For persistent failures:
+
+1. Check **Run Details** for error message
+2. Fix the underlying issue:
+   - Re-authenticate integration
+   - Update credentials
+   - Verify provider access
+3. Trigger a **Manual Run**
+
+---
 
 ## Troubleshooting
 
 ### Common Issues
 
-| Issue | Solution |
-|-------|----------|
-| **Authentication failed** | Re-authenticate integration credentials |
-| **Rate limited** | Wait and retry; pipelines auto-retry |
-| **No data returned** | Check date range and provider status |
-| **Partial failure** | Check logs for specific errors |
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| **Authentication failed** | Expired credentials | Re-authenticate in Integrations |
+| **Rate limited** | Too many API calls | Wait and auto-retry |
+| **No data returned** | Wrong date range | Check provider data availability |
+| **Partial failure** | Some records failed | Check logs for specific errors |
+| **Timeout** | Large data volume | Pipeline auto-continues |
+
+### Checking Pipeline Health
+
+1. Go to **Pipelines** in the sidebar
+2. Review recent runs for each type
+3. Look for:
+   - Failed runs (red status)
+   - Partial completions (yellow status)
+   - Long durations (potential issues)
 
 ### Viewing Logs
 
-1. Click on a pipeline run
-2. View detailed execution logs
-3. Identify error messages and timestamps
+1. Click on a specific run
+2. Expand **Execution Logs**
+3. Search for:
+   - `ERROR` - Critical failures
+   - `WARNING` - Non-fatal issues
+   - `INFO` - Normal processing
+
+---
+
+## Best Practices
+
+### 1. Monitor Regularly
+
+- Check pipeline status daily
+- Set up notifications for failures
+- Review run history weekly
+
+### 2. Keep Credentials Current
+
+- Rotate API keys before expiration
+- Update credentials promptly
+- Test connections after updates
+
+### 3. Understand Data Delays
+
+- Cloud data: 24-48 hours delayed
+- GenAI data: 24 hours delayed
+- Subscription data: Calculated, no delay
+
+### 4. Use Manual Runs Appropriately
+
+- Backfill missing data
+- Re-process after fixes
+- Don't spam manual runs (rate limits)
+
+### 5. Review Errors Promptly
+
+- Address failures within 24 hours
+- Prevent data gaps
+- Document recurring issues
+
+---
+
+## Pipeline Notifications
+
+### Setting Up Alerts
+
+Get notified of pipeline events:
+
+1. Go to **Notifications**
+2. Enable **Pipeline Alerts**
+3. Configure:
+
+| Setting | Options |
+|---------|---------|
+| **Trigger** | On failure, On success, On completion |
+| **Pipelines** | All, or specific types |
+| **Method** | Email, Slack, Webhook |
+| **Recipients** | Users or channels |
+
+### Alert Types
+
+| Alert | Description |
+|-------|-------------|
+| **Failure** | Pipeline failed completely |
+| **Partial** | Some records failed |
+| **Recovery** | Previously failed now succeeded |
+| **Long-running** | Execution exceeds threshold |
+
+---
+
+## Frequently Asked Questions
+
+**Q: How often do pipelines run?**
+A: Daily at scheduled times per type. See Scheduling section.
+
+**Q: Can I run pipelines more frequently?**
+A: Manual runs are available anytime, but provider data refreshes daily.
+
+**Q: What happens if a pipeline fails?**
+A: It retries automatically. Check run history for details.
+
+**Q: How far back can I backfill?**
+A: Typically 3 months for cloud/GenAI, unlimited for subscriptions.
+
+**Q: Do pipelines affect my provider API limits?**
+A: CloudAct uses minimal API calls and respects rate limits.

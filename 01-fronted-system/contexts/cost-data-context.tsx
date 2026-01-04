@@ -6,13 +6,13 @@
  * Provides centralized cost data caching across all cost dashboard pages.
  * Data is fetched once when the org layout mounts and cached in memory.
  * Pages consume cached data and can apply client-side filters.
- * Manual refresh is available via the refresh button.
+ * Cache can be cleared via the "Clear Cache" button to force fresh data.
  *
  * Benefits:
  * - Single fetch on initial load (no redundant API calls)
  * - Instant navigation between cost pages
  * - Client-side filtering on cached data
- * - Refresh only when explicitly requested
+ * - Clear cache only when explicitly requested (forces fresh fetch)
  */
 
 import React, {
@@ -22,6 +22,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react"
 
@@ -121,6 +122,10 @@ export interface CostDataState {
   // Available filters (derived from backend data)
   availableFilters: AvailableFilters
 
+  // Current time range selection (for chart zoom sync)
+  selectedTimeRange: TimeRange
+  selectedCustomRange: CustomDateRange | undefined
+
   // Metadata
   currency: string
   lastFetchedAt: Date | null
@@ -142,6 +147,7 @@ export interface CostDataContextValue extends CostDataState {
   refresh: () => Promise<void>
   fetchIfNeeded: () => Promise<void>
   invalidateCache: () => void
+  setTimeRange: (range: TimeRange, customRange?: CustomDateRange) => void
 
   // Filter application (client-side)
   getFilteredData: (filters: CostFilterParams) => {
@@ -207,6 +213,10 @@ interface CostDataProviderProps {
 }
 
 export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
+  // Track in-flight requests to prevent race conditions and duplicate fetches
+  const categoryTrendLoadingRef = useRef<Set<string>>(new Set())
+  const isFetchingRef = useRef(false)
+
   // State
   const [state, setState] = useState<CostDataState>({
     totalCosts: null,
@@ -225,6 +235,8 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       providers: [],
       hierarchy: [],
     },
+    selectedTimeRange: "365",
+    selectedCustomRange: undefined,
     currency: DEFAULT_CURRENCY,
     lastFetchedAt: null,
     dataAsOf: null,
@@ -237,8 +249,13 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   })
 
   // Fetch all cost data
+  // Uses ref to prevent duplicate concurrent fetches
   const fetchCostData = useCallback(async () => {
     if (!orgSlug) return
+
+    // Prevent duplicate fetches if already in progress
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
 
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
@@ -350,8 +367,9 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         subscription: [],  // Lazy-loaded via fetchCategoryTrend()
       }
 
-      // Update state with fetched data - increment cache version on refresh
+      // Update state with fetched data - increment cache version on clear cache
       setState((prev) => ({
+        ...prev, // Preserve selectedTimeRange and selectedCustomRange
         totalCosts,
         providerBreakdown: providerData,
         periodCosts: periodCostsResult.success ? periodCostsResult.data : null,
@@ -380,6 +398,9 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         isInitialized: true,
         error: err instanceof Error ? err.message : "Failed to load cost data",
       }))
+    } finally {
+      // Clear fetching flag to allow future fetches (e.g., clear cache)
+      isFetchingRef.current = false
     }
   }, [orgSlug])
 
@@ -390,7 +411,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     }
   }, [state.isInitialized, state.isLoading, fetchCostData])
 
-  // Refresh (always fetches fresh data - invalidates cache)
+  // Clear cache and fetch fresh data (used by "Clear Cache" button)
   const refresh = useCallback(async () => {
     // Mark as stale first for immediate UI feedback
     setState((prev) => ({ ...prev, isStale: true }))
@@ -402,11 +423,33 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     setState((prev) => ({ ...prev, isStale: true }))
   }, [])
 
+  // Set time range (for chart zoom sync)
+  const setTimeRange = useCallback((range: TimeRange, customRange?: CustomDateRange) => {
+    setState((prev) => ({
+      ...prev,
+      selectedTimeRange: range,
+      selectedCustomRange: customRange,
+    }))
+  }, [])
+
   // Lazy-load category-specific trend data (only fetched when user needs it)
   // OPTIMIZATION: Reduces initial dashboard load from 8 to 5 API calls
+  // Uses ref to prevent race conditions when multiple components request same category
   const fetchCategoryTrend = useCallback(async (category: "genai" | "cloud" | "subscription") => {
-    // Skip if already loaded
-    if (state.categoryTrendData[category].length > 0) return
+    // Skip if already loaded (check current state via setState callback pattern)
+    // or if request is already in flight
+    if (categoryTrendLoadingRef.current.has(category)) return
+
+    // Check if already loaded using setState to get current state
+    let alreadyLoaded = false
+    setState((prev) => {
+      alreadyLoaded = prev.categoryTrendData[category].length > 0
+      return prev // No state change, just reading
+    })
+    if (alreadyLoaded) return
+
+    // Mark as loading
+    categoryTrendLoadingRef.current.add(category)
 
     try {
       const trendResult = await getCostTrend(orgSlug, "daily", 365, category)
@@ -422,8 +465,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       }
     } catch (err) {
       console.error(`Failed to fetch ${category} trend:`, err)
+    } finally {
+      // Clear loading state
+      categoryTrendLoadingRef.current.delete(category)
     }
-  }, [orgSlug, state.categoryTrendData])
+  }, [orgSlug])
 
   // Check if category trend data is loaded
   const isCategoryTrendLoaded = useCallback(
@@ -678,6 +724,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       refresh,
       fetchIfNeeded,
       invalidateCache,
+      setTimeRange,
       getFilteredData,
       getFilteredProviders,
       getDailyTrendForRange,
@@ -685,7 +732,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       isCategoryTrendLoaded,
       isCachedForDateRange,
     }),
-    [state, orgSlug, refresh, fetchIfNeeded, invalidateCache, getFilteredData, getFilteredProviders, getDailyTrendForRange, fetchCategoryTrend, isCategoryTrendLoaded, isCachedForDateRange]
+    [state, orgSlug, refresh, fetchIfNeeded, invalidateCache, setTimeRange, getFilteredData, getFilteredProviders, getDailyTrendForRange, fetchCategoryTrend, isCategoryTrendLoaded, isCachedForDateRange]
   )
 
   return (

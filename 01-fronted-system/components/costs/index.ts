@@ -6,10 +6,12 @@
  * @example
  * ```tsx
  * import {
- *   CostDashboardShell,
- *   CostSummaryGrid,
  *   CostBreakdownChart,
  *   CostDataTable,
+ * } from "@/components/charts"
+ * import {
+ *   CostDashboardShell,
+ *   CostSummaryGrid,
  * } from "@/components/costs"
  *
  * export default function CostDashboard() {
@@ -17,7 +19,7 @@
  *     <CostDashboardShell
  *       title="Cost Overview"
  *       icon={DollarSign}
- *       onRefresh={handleRefresh}
+ *       onRefresh={handleClearCache}
  *     >
  *       <CostSummaryGrid data={summaryData} comparison={comparison} />
  *       <CostBreakdownChart title="By Provider" items={providers} />
@@ -45,18 +47,9 @@ export {
 } from "./cost-metric-card"
 
 // ============================================
-// Breakdown Charts
+// DEPRECATED: Breakdown Chart
+// Use @/components/charts CostBreakdownChart instead
 // ============================================
-
-export {
-  CostBreakdownChart,
-  ProviderBreakdownChart,
-  CategoryBreakdownChart,
-  SubscriptionCategoryChart,
-  type BreakdownItem,
-  type CostBreakdownChartProps,
-  type PresetBreakdownProps,
-} from "./cost-breakdown-chart"
 
 // ============================================
 // Summary Grid
@@ -73,16 +66,9 @@ export {
 } from "./cost-summary-grid"
 
 // ============================================
-// Data Table
+// DEPRECATED: Data Table
+// Use @/components/charts CostDataTable instead
 // ============================================
-
-export {
-  CostDataTable,
-  type CostTableRow,
-  type CostDataTableProps,
-  type SortField,
-  type SortDirection,
-} from "./cost-data-table"
 
 // ============================================
 // Dashboard Shell
@@ -134,44 +120,12 @@ export {
 } from "./cost-filters"
 
 // ============================================
-// Score Ring (Apple Health style)
+// DEPRECATED: Old Chart Components
+// Use @/components/charts instead for:
+// - CostScoreRing → CostRingChart
+// - CostDailyBarChart → DailyCostChart
+// - CostInsightsCard → MetricSparkline
 // ============================================
-
-export {
-  CostScoreRing,
-  CostCategoryRing,
-  type ScoreRingSegment,
-  type CostScoreRingProps,
-  type CostCategoryRingProps,
-} from "./cost-score-ring"
-
-// ============================================
-// Daily Bar Chart (Apple Health Activity style)
-// ============================================
-
-export {
-  CostDailyBarChart,
-  WeeklyCostChart,
-  MonthlyTrendChart,
-  type DailyBarData,
-  type CostDailyBarChartProps,
-  type WeeklyCostChartProps,
-  type MonthlyTrendChartProps,
-} from "./cost-daily-bar-chart"
-
-// ============================================
-// Insights Card (Apple Health Highlights style)
-// ============================================
-
-export {
-  CostInsightsCard,
-  SpendComparisonCard,
-  PeriodComparisonCard,
-  type TrendDataPoint,
-  type CostInsightsCardProps,
-  type SpendComparisonCardProps,
-  type PeriodComparisonCardProps,
-} from "./cost-insights-card"
 
 // ============================================
 // Period Selector (D/W/M/6M/Y)
@@ -204,17 +158,6 @@ export {
 } from "./cost-period-metrics-grid"
 
 // ============================================
-// Combo Chart (Bar + Line overlay)
+// DEPRECATED: Combo Chart
+// Use @/components/charts CostTrendChart instead
 // ============================================
-
-export {
-  CostComboChart,
-  MonthlyCostTrendChart,
-  ProviderCostComparisonChart,
-  WeekComparisonChart,
-  type ComboDataPoint,
-  type CostComboChartProps,
-  type MonthlyCostTrendProps,
-  type ProviderCostComparisonProps,
-  type WeekComparisonProps,
-} from "./cost-combo-chart"

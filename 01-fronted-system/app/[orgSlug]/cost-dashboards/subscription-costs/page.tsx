@@ -6,24 +6,22 @@ import { Wallet } from "lucide-react"
 import { getOrgSlug } from "@/lib/utils"
 
 import {
-  CostDashboardShell,
-  CostSummaryGrid,
+  CostTrendChart,
+  CostRingChart,
   CostBreakdownChart,
   CostDataTable,
+} from "@/components/charts"
+import {
+  CostDashboardShell,
+  CostSummaryGrid,
   TimeRangeFilter,
   CostFilters,
-  CostScoreRing,
-  CostComboChart,
   getRollingAverageLabel,
-  DEFAULT_TIME_RANGE,
   type CostSummaryData,
   type CostFiltersState,
-  type ScoreRingSegment,
-  type ComboDataPoint,
-  type CustomDateRange,
 } from "@/components/costs"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
-import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
+import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 import {
   getDateInfo,
   transformProvidersToBreakdownItems,
@@ -36,7 +34,7 @@ export default function SubscriptionCostsPage() {
   const params = useParams()
   const orgSlug = getOrgSlug(params as { orgSlug?: string | string[] })
 
-  // Use cached cost data from context
+  // Use cached cost data from context (including time range for zoom sync)
   const {
     totalCosts,
     hierarchy: cachedHierarchy,
@@ -48,7 +46,10 @@ export default function SubscriptionCostsPage() {
     getDailyTrendForRange,
     fetchCategoryTrend,
     isCategoryTrendLoaded,
-    availableFilters,
+    availableFilters: _availableFilters,
+    selectedTimeRange: timeRange,
+    selectedCustomRange: customRange,
+    setTimeRange: contextSetTimeRange,
   } = useCostData()
 
   // Lazy-load Subscription trend data on mount (optimization - not fetched on dashboard)
@@ -60,8 +61,6 @@ export default function SubscriptionCostsPage() {
 
   // Local state - Subscription costs page (category fixed to "subscription")
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
-  const [customRange, setCustomRange] = useState<CustomDateRange | undefined>(undefined)
   const [filters, setFilters] = useState<CostFiltersState>({
     department: undefined,
     project: undefined,
@@ -69,6 +68,15 @@ export default function SubscriptionCostsPage() {
     providers: [],
     categories: [], // Category fixed by page, not user-filterable
   })
+
+  // Time range handlers that sync with context (for zoom integration)
+  const handleTimeRangeChange = useCallback((range: TimeRange) => {
+    contextSetTimeRange(range, range === "custom" ? customRange : undefined)
+  }, [contextSetTimeRange, customRange])
+
+  const handleCustomRangeChange = useCallback((range: CustomDateRange | undefined) => {
+    contextSetTimeRange(timeRange, range)
+  }, [contextSetTimeRange, timeRange])
 
   // Determine if provider filter is active (for client-side filtering)
   const hasProviderFilter = filters.providers.length > 0
@@ -120,10 +128,10 @@ export default function SubscriptionCostsPage() {
 
   // Get daily trend data from context (real data from backend)
   // Pass "subscription" category to get Subscription-specific trend data
-  const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
+  const dailyTrendData = useMemo(() => {
     const trendData = getDailyTrendForRange(timeRange, "subscription", customRange)
 
-    // Transform to ComboDataPoint format with lineValue for rolling average
+    // Transform to chart format with lineValue for rolling average
     return trendData.map((point) => ({
       label: point.label,
       value: point.value,
@@ -132,9 +140,22 @@ export default function SubscriptionCostsPage() {
     }))
   }, [getDailyTrendForRange, timeRange, customRange])
 
-  // Prepare summary data from cached totalCosts.subscription
+  // Prepare summary data - uses filtered providers when filter is active
   const summaryData: CostSummaryData = useMemo(() => {
-    // Use subscription-specific metrics from totalCosts
+    // When provider filter is active, calculate from filtered providers
+    if (hasProviderFilter && providers.length > 0) {
+      const filteredTotal = providers.reduce((sum, p) => sum + p.total_cost, 0)
+      const estimatedDailyRate = filteredTotal / 30
+      return {
+        mtd: filteredTotal,
+        dailyRate: estimatedDailyRate,
+        forecast: filteredTotal,
+        ytd: filteredTotal * 12,
+        currency: orgCurrency,
+      }
+    }
+
+    // No filter - use subscription-specific metrics from totalCosts
     const subscriptionCosts = totalCosts?.subscription
     return {
       mtd: subscriptionCosts?.mtd_cost ?? subscriptionCosts?.total_monthly_cost ?? 0,
@@ -143,7 +164,7 @@ export default function SubscriptionCostsPage() {
       ytd: subscriptionCosts?.total_annual_cost ?? 0,
       currency: orgCurrency,
     }
-  }, [totalCosts, orgCurrency])
+  }, [totalCosts, orgCurrency, hasProviderFilter, providers])
 
   // Convert providers to breakdown items using centralized helper
   const providerBreakdownItems = useMemo(() =>
@@ -164,9 +185,9 @@ export default function SubscriptionCostsPage() {
     )
   }, [providers])
 
-  // Score ring segments for provider breakdown
+  // Ring chart segments for provider breakdown
   // Filter first to avoid showing empty segments, then slice for top 6
-  const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
+  const ringSegments = useMemo(() => {
     const fallbackColors = ["#FF6C5E", "#10A37F", "#4285F4", "#7C3AED", "#F24E1E", "#FBBC04", "#00CED1", "#FF69B4"]
     return providers
       .filter(p => p.total_cost > 0)
@@ -222,9 +243,9 @@ export default function SubscriptionCostsPage() {
           />
           <TimeRangeFilter
             value={timeRange}
-            onChange={setTimeRange}
+            onChange={handleTimeRangeChange}
             customRange={customRange}
-            onCustomRangeChange={setCustomRange}
+            onCustomRangeChange={handleCustomRangeChange}
             size="sm"
           />
         </div>
@@ -235,33 +256,33 @@ export default function SubscriptionCostsPage() {
 
       {/* Daily Cost Trend Chart - Bar with Moving Average Line */}
       {dailyTrendData.length > 0 && (
-        <CostComboChart
+        <CostTrendChart
           title="Subscription Daily Cost Trend"
           subtitle={`${rollingAvgLabel} overlay on daily spend`}
-          data={dailyTrendData}
-          currency={orgCurrency}
+          category="subscription"
+          timeRange={timeRange}
+          showBars={true}
+          showLine={true}
           barColor="#FF6C5E"
           lineColor="#10A37F"
-          barLabel="Daily Cost"
-          lineLabel={rollingAvgLabel}
+          enableZoom={true}
           height={320}
-          showAreaFill
           loading={isLoading}
         />
       )}
 
-      {/* Provider Breakdown with Score Ring */}
+      {/* Provider Breakdown with Ring Chart */}
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        {/* Score Ring - Provider Breakdown */}
-        {scoreRingSegments.length > 0 && (
-          <CostScoreRing
+        {/* Ring Chart - Provider Breakdown */}
+        {ringSegments.length > 0 && (
+          <CostRingChart
             title="SaaS Spend"
-            segments={scoreRingSegments}
-            currency={orgCurrency}
-            insight={`${subscriptionCount} subscription${subscriptionCount !== 1 ? "s" : ""} across ${scoreRingSegments.length} provider${scoreRingSegments.length > 1 ? "s" : ""}.`}
+            segments={ringSegments}
+            centerLabel="MTD"
+            insight={`${subscriptionCount} subscription${subscriptionCount !== 1 ? "s" : ""} across ${ringSegments.length} provider${ringSegments.length > 1 ? "s" : ""}.`}
             compact
-            ringSize={96}
-            strokeWidth={12}
+            size={96}
+            thickness={12}
             titleColor="#FF6C5E"
           />
         )}
@@ -271,7 +292,6 @@ export default function SubscriptionCostsPage() {
           <CostBreakdownChart
             title="Cost by Provider"
             items={providerBreakdownItems}
-            currency={orgCurrency}
             countLabel="subscriptions"
             maxItems={4}
           />
@@ -284,8 +304,7 @@ export default function SubscriptionCostsPage() {
           title="Cost Details"
           subtitle={`${subscriptionCount} subscriptions tracked`}
           rows={tableRows}
-          currency={orgCurrency}
-          showCount={true}
+          showCount
           countLabel="subscriptions"
           maxRows={10}
         />

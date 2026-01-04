@@ -2,6 +2,11 @@
  * Demo Account Configuration
  *
  * Configuration for setting up demo accounts via browser automation
+ *
+ * ALWAYS use:
+ *   - Email: john@example.com
+ *   - Password: acme1234
+ *   - Company: Acme Inc
  */
 
 export interface DemoAccountConfig {
@@ -18,7 +23,28 @@ export interface DemoAccountConfig {
     plan: 'starter' | 'professional' | 'scale'
 }
 
-// Default demo account configuration
+/**
+ * Get today's date in MMDDYYYY format
+ * Example: "01032026" for January 3, 2026
+ */
+export function getDateSuffix(): string {
+    const now = new Date()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const year = now.getFullYear()
+    return `${month}${day}${year}`
+}
+
+/**
+ * Get the expected org slug (backend adds date suffix automatically)
+ * Example: "acme_inc_01032026"
+ */
+export function getExpectedOrgSlug(): string {
+    return `acme_inc_${getDateSuffix()}`
+}
+
+// Default demo account configuration - ALWAYS use these credentials
+// NOTE: Company name is "Acme Inc" - backend automatically adds date suffix to org_slug
 export const DEFAULT_DEMO_ACCOUNT: DemoAccountConfig = {
     firstName: 'John',
     lastName: 'Doe',
@@ -26,11 +52,11 @@ export const DEFAULT_DEMO_ACCOUNT: DemoAccountConfig = {
     password: 'acme1234',
     phone: '5551234567',
     countryCode: '+1',
-    companyName: 'Acme Inc',
+    companyName: 'Acme Inc',  // Backend creates org_slug as acme_inc_{MMDDYYYY}
     companyType: 'Company',
     currency: '$ USD',
     timezone: 'PST/PDT - Los Angeles, USA',
-    plan: 'starter',
+    plan: 'scale',  // Scale plan - Start trial, no credit card required
 }
 
 // Test environment configuration
@@ -56,4 +82,43 @@ export const PLAN_SELECTORS = {
     starter: 'button:has-text("Select Plan"):first-of-type',
     professional: 'button:has-text("Select Plan"):nth-of-type(2)',
     scale: 'button:has-text("Select Plan"):last-of-type',
+}
+
+/**
+ * Generate org slug from company name
+ * Format: company_name_lowercase (spaces → underscores)
+ * Example: "Acme Inc" → "acme_inc"
+ */
+export function generateOrgSlug(companyName: string): string {
+    return companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '') // Remove special chars
+        .replace(/\s+/g, '_')         // Spaces to underscores
+        .replace(/_+/g, '_')          // Multiple underscores to single
+        .replace(/^_|_$/g, '')        // Trim underscores
+}
+
+/**
+ * Get the default org slug for demo account
+ * Returns: "acme_inc"
+ */
+export function getDefaultOrgSlug(): string {
+    return generateOrgSlug(DEFAULT_DEMO_ACCOUNT.companyName)
+}
+
+// Environment configuration
+export const ENV_CONFIG = {
+    gcpProjectId: process.env.GCP_PROJECT_ID || 'cloudact-testing-1',
+    environment: process.env.ENVIRONMENT || 'local',
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kwroaccbrxppfiysqlzs.supabase.co',
+    caRootApiKey: process.env.CA_ROOT_API_KEY || 'test-ca-root-key-dev-32chars',
+}
+
+/**
+ * Get the BigQuery dataset name for an org
+ * Format: {org_slug}_{environment}
+ * Example: "acme_inc_local"
+ */
+export function getDatasetName(orgSlug: string): string {
+    return `${orgSlug}_${ENV_CONFIG.environment}`
 }

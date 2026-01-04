@@ -91,7 +91,6 @@ mcp__plugin_supabase_supabase__execute_sql
     TRUNCATE TABLE public.subscription_providers_meta CASCADE;
     TRUNCATE TABLE public.organization_members CASCADE;
     TRUNCATE TABLE public.profiles CASCADE;
-    TRUNCATE TABLE public.cloud_provider_integrations CASCADE;
     TRUNCATE TABLE public.organizations CASCADE;
 ```
 
@@ -129,7 +128,7 @@ Report summary:
 
 | Schema | Tables |
 |--------|--------|
-| `public` | organizations, organization_members, profiles, org_api_keys_secure, invites, activity_logs, usage_tracking, rate_limits, account_deletion_tokens, stripe_webhook_events, billing_sync_queue, plan_change_audit, subscription_meta, subscription_providers_meta, cloud_provider_integrations |
+| `public` | organizations, organization_members, profiles, org_api_keys_secure, invites, activity_logs, usage_tracking, rate_limits, account_deletion_tokens, stripe_webhook_events, billing_sync_queue, plan_change_audit, subscription_meta, subscription_providers_meta |
 | `auth` | users (and cascades to identities, sessions, etc.) |
 
 ## Safety Notes

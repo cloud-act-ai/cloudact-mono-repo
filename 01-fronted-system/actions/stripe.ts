@@ -874,7 +874,14 @@ export async function changeSubscriptionPlan(
     const periodStart = subscriptionItem?.current_period_start ?? Math.floor(Date.now() / 1000)
     const periodEnd = subscriptionItem?.current_period_end ?? Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60
 
-    const { error: _updateError } = await adminClient
+    // Calculate weekly/monthly limits from daily (same as webhook handler)
+    const fullLimits = {
+      ...limits,
+      pipelines_per_week_limit: limits.pipelines_per_day_limit * 7,
+      pipelines_per_month_limit: limits.pipelines_per_day_limit * 30,
+    }
+
+    const { error: supabaseUpdateError } = await adminClient
       .from("organizations")
       .update({
         plan: planId,
@@ -882,11 +889,16 @@ export async function changeSubscriptionPlan(
         billing_status: updatedSubscription.status,
         current_period_start: new Date(periodStart * 1000).toISOString(),
         current_period_end: new Date(periodEnd * 1000).toISOString(),
-        ...limits,
+        ...fullLimits,
       })
       .eq("id", org.id)
 
-    // Note: if _updateError, don't fail - Stripe is updated, webhook will sync
+    // Track Supabase update failure - don't block but include in warning
+    let supabaseUpdateFailed = false
+    if (supabaseUpdateError) {
+      supabaseUpdateFailed = true
+      console.error("[changeSubscriptionPlan] Supabase update failed:", supabaseUpdateError.message)
+    }
 
     // Get the old price from current subscription for comparison
     const oldPriceItem = currentSubscription.items.data[0]?.price
@@ -971,6 +983,13 @@ export async function changeSubscriptionPlan(
       // Non-blocking - don't fail the plan change if backend sync fails
     }
 
+    // Combine warnings from Supabase update and BigQuery sync
+    let finalSyncWarning = syncWarning
+    if (supabaseUpdateFailed) {
+      const supabaseMsg = "Database limits update failed - will sync on next webhook"
+      finalSyncWarning = syncWarning ? `${supabaseMsg}. ${syncWarning}` : supabaseMsg
+    }
+
     return {
       success: true,
       subscription: {
@@ -985,9 +1004,9 @@ export async function changeSubscriptionPlan(
         currentPeriodEnd: new Date(periodEnd * 1000),
       },
       error: null,
-      // NEW: Include sync warning so UI can show appropriate message
-      syncWarning: syncWarning,
-      syncQueued: syncQueued,
+      // Include sync warning so UI can show appropriate message
+      syncWarning: finalSyncWarning,
+      syncQueued: syncQueued || supabaseUpdateFailed,
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to change plan"

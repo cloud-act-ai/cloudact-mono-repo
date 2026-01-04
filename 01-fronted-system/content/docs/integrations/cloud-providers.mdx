@@ -1,39 +1,223 @@
 ---
 title: Cloud Providers
-description: Connect your cloud infrastructure providers
+description: Connect your cloud infrastructure providers for cost tracking
 ---
 
-Connect your cloud accounts to CloudAct for cost tracking and analytics.
+Connect your cloud accounts to CloudAct for comprehensive cost tracking and analytics.
 
 ## Supported Providers
 
-| Provider | Status | Data Source |
-|----------|--------|-------------|
-| **AWS** | Supported | Cost and Usage Reports |
-| **Google Cloud** | Supported | BigQuery Billing Export |
-| **Microsoft Azure** | Supported | Cost Management API |
-| **Oracle Cloud** | Supported | Usage API |
+| Provider | Status | Data Source | Data Delay |
+|----------|--------|-------------|------------|
+| **AWS** | Supported | Cost and Usage Reports (CUR) | 24-48 hours |
+| **Google Cloud** | Supported | BigQuery Billing Export | 24 hours |
+| **Microsoft Azure** | Supported | Cost Management API | 24-48 hours |
+| **Oracle Cloud** | Supported | Usage API | 24 hours |
 
-## Connecting AWS
+---
+
+## Google Cloud (GCP) Setup
 
 ### Prerequisites
 
-1. AWS account with billing access
-2. S3 bucket for Cost and Usage Reports
-3. IAM role with required permissions
+Before connecting GCP to CloudAct, ensure you have:
 
-### Setup Steps
+1. **GCP Project** with billing enabled
+2. **BigQuery** enabled in your project
+3. **Billing export** configured to BigQuery
+4. **Service account** with required permissions
+5. **Owner or Billing Admin** role to configure export
 
-1. Go to **Integrations** → **Cloud Providers**
-2. Click **Connect AWS**
-3. Follow the setup wizard:
-   - Create IAM role (CloudFormation template provided)
-   - Configure Cost and Usage Report
-   - Enter role ARN
-4. Click **Verify Connection**
-5. Connection complete
+### Step 1: Enable BigQuery Billing Export
 
-### Required Permissions
+<Callout type="warning">
+  Billing export must be enabled before CloudAct can fetch cost data. This may take up to 24 hours to populate initial data.
+</Callout>
+
+1. Go to **Google Cloud Console** → [Billing](https://console.cloud.google.com/billing)
+2. Select your billing account
+3. Click **Billing export** in the left sidebar
+4. Under **BigQuery export**, click **Edit settings**
+5. Configure export:
+
+| Setting | Value |
+|---------|-------|
+| **Project** | Select your GCP project |
+| **Dataset** | Create new: `billing_export` |
+| **Export type** | Standard usage cost |
+
+6. Click **Save**
+
+### Step 2: Create Service Account
+
+1. Go to **IAM & Admin** → [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
+2. Click **Create Service Account**
+3. Enter details:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `cloudact-billing-reader` |
+| **ID** | `cloudact-billing-reader` |
+| **Description** | Service account for CloudAct billing data access |
+
+4. Click **Create and Continue**
+
+### Step 3: Assign Required Roles
+
+Grant the following roles to the service account:
+
+| Role | Purpose |
+|------|---------|
+| `roles/bigquery.dataViewer` | Read billing export data |
+| `roles/bigquery.jobUser` | Execute BigQuery queries |
+
+**To assign roles:**
+
+1. Click **Grant Access**
+2. Add principal: `cloudact-billing-reader@YOUR_PROJECT.iam.gserviceaccount.com`
+3. Select roles as listed above
+4. Click **Save**
+
+### Step 4: Create and Download JSON Key
+
+1. Click on the service account you created
+2. Go to **Keys** tab
+3. Click **Add Key** → **Create new key**
+4. Select **JSON** format
+5. Click **Create**
+6. Save the downloaded JSON file securely
+
+<Callout type="warning">
+  Store the JSON key securely. It provides access to your billing data. Never commit it to version control.
+</Callout>
+
+### Step 5: Connect in CloudAct
+
+1. Navigate to **Integrations** → **Cloud Providers**
+2. Click **Connect GCP**
+3. Upload the JSON key file
+4. Enter your BigQuery details:
+
+| Field | Description |
+|-------|-------------|
+| **Project ID** | Your GCP project ID |
+| **Dataset ID** | `billing_export` (or your custom name) |
+| **Table ID** | Usually `gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX` |
+
+5. Click **Verify Connection**
+6. If successful, click **Save**
+
+### Finding Your Table ID
+
+To find the exact table name:
+
+1. Go to [BigQuery Console](https://console.cloud.google.com/bigquery)
+2. Expand your project
+3. Expand the `billing_export` dataset
+4. Copy the table name (starts with `gcp_billing_export_v1_`)
+
+### GCP Data Available
+
+Once connected, CloudAct syncs:
+
+| Data | Description |
+|------|-------------|
+| **Service costs** | Compute Engine, Cloud Storage, BigQuery, etc. |
+| **SKU details** | Specific resource usage |
+| **Project breakdown** | Costs by GCP project |
+| **Labels** | Cost allocation by labels |
+| **Credits** | Discounts, promotions, committed use |
+| **Tax** | Tax charges by region |
+
+---
+
+## Amazon Web Services (AWS) Setup
+
+### Prerequisites
+
+1. **AWS Account** with billing access
+2. **S3 bucket** for Cost and Usage Reports
+3. **IAM role** with required permissions
+4. **Administrator or Billing** access
+
+### Step 1: Enable Cost and Usage Reports (CUR)
+
+1. Sign in to [AWS Billing Console](https://console.aws.amazon.com/billing/)
+2. Navigate to **Cost & Usage Reports**
+3. Click **Create report**
+4. Configure report settings:
+
+| Setting | Value |
+|---------|-------|
+| **Report name** | `cloudact-cur` |
+| **Include resource IDs** | ✅ Enabled |
+| **Split cost allocation data** | ✅ Enabled |
+| **Time granularity** | Daily |
+| **Report versioning** | Overwrite existing report |
+| **Data integration** | Amazon Athena (recommended) |
+
+5. Click **Next**
+
+### Step 2: Configure S3 Bucket
+
+1. Create or select an S3 bucket:
+
+| Setting | Value |
+|---------|-------|
+| **Bucket name** | `your-company-cloudact-cur` |
+| **Region** | Same as your primary workloads |
+| **Versioning** | Enabled (recommended) |
+
+2. Configure bucket policy (applied automatically by AWS)
+
+3. Set the report path prefix: `cur-reports/`
+
+4. Click **Next** and **Create report**
+
+<Callout type="info">
+  CUR reports take 24-48 hours to generate initially. Historical data is backfilled for the current month.
+</Callout>
+
+### Step 3: Create IAM Role for CloudAct
+
+Create an IAM role with cross-account access:
+
+**Option A: Use CloudFormation (Recommended)**
+
+CloudAct provides a CloudFormation template:
+
+1. In CloudAct, go to **Integrations** → **Cloud Providers** → **Connect AWS**
+2. Click **Download CloudFormation Template**
+3. Deploy the template in your AWS account
+4. Copy the Role ARN from the stack outputs
+
+**Option B: Manual IAM Role Creation**
+
+1. Go to **IAM** → **Roles** → **Create role**
+2. Select **Custom trust policy**
+3. Enter trust policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::CLOUDACT_ACCOUNT_ID:root"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "YOUR_EXTERNAL_ID"
+        }
+      }
+    }
+  ]
+}
+```
+
+4. Create policy with required permissions:
 
 ```json
 {
@@ -43,114 +227,321 @@ Connect your cloud accounts to CloudAct for cost tracking and analytics.
       "Effect": "Allow",
       "Action": [
         "ce:GetCostAndUsage",
+        "ce:GetCostForecast",
+        "ce:GetReservationUtilization",
+        "ce:GetSavingsPlansUtilization"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "s3:GetObject",
         "s3:ListBucket"
       ],
-      "Resource": "*"
+      "Resource": [
+        "arn:aws:s3:::your-company-cloudact-cur",
+        "arn:aws:s3:::your-company-cloudact-cur/*"
+      ]
     }
   ]
 }
 ```
 
-## Connecting Google Cloud
+5. Attach policy to role
+6. Name role: `CloudActCostReader`
+
+### Step 4: Connect in CloudAct
+
+1. Navigate to **Integrations** → **Cloud Providers**
+2. Click **Connect AWS**
+3. Enter credentials:
+
+| Field | Value |
+|-------|-------|
+| **Role ARN** | `arn:aws:iam::YOUR_ACCOUNT_ID:role/CloudActCostReader` |
+| **External ID** | From CloudAct setup wizard |
+| **S3 Bucket** | `your-company-cloudact-cur` |
+| **Report Path Prefix** | `cur-reports/cloudact-cur/` |
+
+4. Click **Verify Connection**
+5. If successful, click **Save**
+
+### AWS Data Available
+
+| Data | Description |
+|------|-------------|
+| **Service costs** | EC2, S3, RDS, Lambda, 200+ services |
+| **Resource IDs** | Individual resource cost tracking |
+| **Tags** | Cost allocation tags |
+| **Reserved Instances** | Reservation usage and savings |
+| **Savings Plans** | Savings plan coverage |
+| **Regions** | Costs by AWS region |
+| **Accounts** | Linked account breakdown (Organizations) |
+
+---
+
+## Microsoft Azure Setup
 
 ### Prerequisites
 
-1. GCP project with billing enabled
-2. BigQuery billing export configured
-3. Service account with required roles
+1. **Azure subscription** with billing access
+2. **Cost Management** access enabled
+3. **Service principal** (app registration)
+4. **Global Administrator** or **Billing Reader** role
 
-### Setup Steps
+### Step 1: Create App Registration
 
-1. Go to **Integrations** → **Cloud Providers**
-2. Click **Connect GCP**
-3. Follow the setup wizard:
-   - Enable BigQuery billing export in GCP Console
-   - Create service account
-   - Download JSON key
-   - Upload key to CloudAct
-4. Select billing dataset
-5. Click **Verify Connection**
+1. Go to [Azure Portal](https://portal.azure.com)
+2. Navigate to **Azure Active Directory** → **App registrations**
+3. Click **New registration**
+4. Configure:
 
-### Required Roles
+| Field | Value |
+|-------|-------|
+| **Name** | `CloudAct Cost Reader` |
+| **Supported account types** | Single tenant |
+| **Redirect URI** | Leave blank |
 
-- `roles/bigquery.dataViewer`
-- `roles/bigquery.jobUser`
+5. Click **Register**
+6. Note the **Application (client) ID** and **Directory (tenant) ID**
 
-## Connecting Azure
+### Step 2: Create Client Secret
 
-### Prerequisites
+1. In your app registration, go to **Certificates & secrets**
+2. Click **New client secret**
+3. Configure:
 
-1. Azure subscription
-2. Cost Management API access
-3. Service principal with required permissions
+| Field | Value |
+|-------|-------|
+| **Description** | `CloudAct access` |
+| **Expires** | 24 months (recommended) |
 
-### Setup Steps
+4. Click **Add**
+5. **Copy the secret value immediately** (shown only once)
 
-1. Go to **Integrations** → **Cloud Providers**
+<Callout type="warning">
+  The client secret is shown only once. Copy it immediately and store securely.
+</Callout>
+
+### Step 3: Assign Cost Management Reader Role
+
+1. Go to **Subscriptions**
+2. Select your subscription
+3. Click **Access control (IAM)**
+4. Click **Add role assignment**
+5. Configure:
+
+| Field | Value |
+|-------|-------|
+| **Role** | Cost Management Reader |
+| **Members** | Select your app registration |
+
+6. Click **Review + assign**
+
+For multiple subscriptions, repeat for each or assign at Management Group level.
+
+### Step 4: Connect in CloudAct
+
+1. Navigate to **Integrations** → **Cloud Providers**
 2. Click **Connect Azure**
-3. Follow the setup wizard:
-   - Create service principal
-   - Grant Cost Management Reader role
-   - Enter credentials
-4. Click **Verify Connection**
+3. Enter credentials:
 
-## Connecting Oracle Cloud
+| Field | Value |
+|-------|-------|
+| **Tenant ID** | From app registration overview |
+| **Client ID** | Application (client) ID |
+| **Client Secret** | The secret value you copied |
+| **Subscription ID** | Your Azure subscription ID |
+
+4. Click **Verify Connection**
+5. If successful, click **Save**
+
+### Azure Data Available
+
+| Data | Description |
+|------|-------------|
+| **Service costs** | Virtual Machines, Storage, SQL, etc. |
+| **Resource groups** | Costs by resource group |
+| **Tags** | Cost allocation tags |
+| **Subscriptions** | Multi-subscription breakdown |
+| **Reservations** | Reserved instance usage |
+| **Regions** | Costs by Azure region |
+
+---
+
+## Oracle Cloud (OCI) Setup
 
 ### Prerequisites
 
-1. OCI tenancy
-2. API signing key
-3. Usage API access
+1. **OCI tenancy** with billing access
+2. **API key pair** generated
+3. **Administrator** access to configure API keys
 
-### Setup Steps
+### Step 1: Generate API Key Pair
 
-1. Go to **Integrations** → **Cloud Providers**
+1. Go to [OCI Console](https://cloud.oracle.com/)
+2. Click your profile → **User Settings**
+3. Navigate to **API Keys** → **Add API Key**
+4. Select **Generate API Key Pair**
+5. Download both keys:
+   - **Private key** (keep secure)
+   - **Public key** (uploaded to OCI)
+6. Click **Add**
+
+### Step 2: Note Configuration Values
+
+After adding the key, OCI displays configuration values:
+
+```ini
+[DEFAULT]
+user=ocid1.user.oc1..xxxxx
+fingerprint=xx:xx:xx:xx:xx:xx
+tenancy=ocid1.tenancy.oc1..xxxxx
+region=us-ashburn-1
+key_file=~/.oci/oci_api_key.pem
+```
+
+Copy these values for CloudAct setup.
+
+### Step 3: Ensure Usage API Access
+
+Verify your user has access to usage data:
+
+1. Go to **Identity** → **Policies**
+2. Create policy (or verify existing):
+
+```
+Allow group CostReaders to read usage-reports in tenancy
+```
+
+### Step 4: Connect in CloudAct
+
+1. Navigate to **Integrations** → **Cloud Providers**
 2. Click **Connect OCI**
-3. Follow the setup wizard:
-   - Generate API key pair
-   - Add public key to OCI
-   - Enter private key and tenancy details
+3. Enter credentials:
+
+| Field | Value |
+|-------|-------|
+| **Tenancy OCID** | `ocid1.tenancy.oc1..xxxxx` |
+| **User OCID** | `ocid1.user.oc1..xxxxx` |
+| **Fingerprint** | `xx:xx:xx:xx:xx:xx` |
+| **Region** | `us-ashburn-1` |
+| **Private Key** | Paste or upload private key |
+
 4. Click **Verify Connection**
+5. If successful, click **Save**
+
+### OCI Data Available
+
+| Data | Description |
+|------|-------------|
+| **Service costs** | Compute, Storage, Database, etc. |
+| **Compartments** | Costs by compartment |
+| **Resource usage** | Detailed resource consumption |
+| **Regions** | Costs by OCI region |
+
+---
 
 ## Managing Connections
 
-### Viewing Status
+### Viewing Connection Status
 
-Each connection shows:
-- **Status**: Connected, Error, Syncing
-- **Last Sync**: When data was last fetched
-- **Data Range**: Available date range
+Each connection displays:
 
-### Refreshing Credentials
+| Status | Meaning |
+|--------|---------|
+| **Connected** | Active and syncing data |
+| **Syncing** | Currently fetching data |
+| **Error** | Connection issue - action required |
+| **Paused** | Manually paused |
 
-1. Click **Edit** on the connection
-2. Update credentials
-3. Click **Save**
-4. Re-verify connection
+### Updating Credentials
 
-### Removing Connection
+When credentials expire or rotate:
 
-1. Click **Remove** on the connection
+1. Click **Edit** on the provider connection
+2. Enter new credentials
+3. Click **Verify Connection**
+4. Click **Save**
+
+### Removing a Connection
+
+1. Click **Remove** on the provider
 2. Confirm removal
-3. Historical data is retained
+3. Historical data is retained for analysis
 
-<Callout type="warning">
-  Removing a connection stops data collection but doesn't delete historical data.
+<Callout type="info">
+  Removing a connection stops future data collection but preserves historical cost data.
 </Callout>
+
+---
+
+## Data Synchronization
+
+### Initial Sync
+
+After connecting, CloudAct performs an initial sync:
+
+| Provider | Initial Data | Time to Complete |
+|----------|--------------|------------------|
+| **AWS** | Current month + 3 months history | 15-30 minutes |
+| **GCP** | Current month + 3 months history | 10-20 minutes |
+| **Azure** | Current month + 3 months history | 15-30 minutes |
+| **OCI** | Current month + 3 months history | 10-20 minutes |
+
+### Ongoing Sync Schedule
+
+| Provider | Frequency | Typical Time |
+|----------|-----------|--------------|
+| All providers | Daily | 6:00 AM (org timezone) |
+
+### Manual Sync
+
+To trigger an immediate sync:
+
+1. Go to **Pipelines** → **Cloud Runs**
+2. Select the provider
+3. Click **Run Now**
+4. Select date range
+5. Confirm
+
+---
 
 ## Troubleshooting
 
 ### Connection Failed
 
-- Verify credentials are correct
-- Check IAM permissions
-- Ensure billing export is enabled
-- Review error message for specific issues
+| Error | Cause | Solution |
+|-------|-------|----------|
+| **Invalid credentials** | Expired or incorrect keys | Regenerate and re-enter credentials |
+| **Permission denied** | Missing IAM roles | Verify role assignments |
+| **Resource not found** | Wrong bucket/dataset name | Check resource names |
+| **Rate limited** | Too many API calls | Wait 15 minutes and retry |
 
-### No Data Showing
+### No Data Appearing
 
-- Cloud billing data has 24-48 hour delay
-- Check date range filter
-- Verify billing export configuration
-- Run manual pipeline to fetch data
+1. **Check billing export** - Ensure export is enabled and running
+2. **Wait for initial sync** - First data takes 24-48 hours
+3. **Verify date range** - Select dates with known spending
+4. **Check pipeline status** - View Pipelines for errors
+
+### Partial Data
+
+- **Missing services** - Some services have delayed billing
+- **Missing regions** - Verify regional access permissions
+- **Missing accounts** - For Organizations, ensure linked account access
+
+---
+
+## Security Best Practices
+
+1. **Use dedicated credentials** - Create accounts specifically for CloudAct
+2. **Minimal permissions** - Grant only read access to billing data
+3. **Rotate credentials** - Rotate API keys/secrets annually
+4. **Monitor access** - Review CloudAct access in cloud audit logs
+5. **Use secure storage** - Never commit credentials to version control
+
+<Callout type="tip">
+  Create a dedicated service account with read-only billing access. Never share credentials used by other applications.
+</Callout>

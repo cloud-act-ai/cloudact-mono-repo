@@ -1,192 +1,536 @@
 ---
-title: Subscriptions
-description: Track your SaaS subscription costs
+title: SaaS Subscriptions
+description: Track and manage your SaaS subscription costs
 ---
 
-Add and manage your SaaS subscriptions for comprehensive cost tracking.
+Add and manage your SaaS subscriptions for comprehensive cost tracking across all your software tools and services.
+
+## Overview
+
+CloudAct allows you to track subscription costs for any SaaS tool:
+
+| Feature | Description |
+|---------|-------------|
+| **Templates** | Pre-built templates for 100+ popular services |
+| **Custom** | Add any subscription manually |
+| **Hierarchy** | Assign to Department/Project/Team |
+| **Versioning** | Track plan changes over time |
+| **Renewals** | Get alerted before renewal dates |
+
+---
 
 ## Adding Subscriptions
 
 ### From Templates
 
-CloudAct includes templates for popular services:
+CloudAct includes templates for popular services organized by category:
 
-| Category | Examples |
-|----------|----------|
-| **Productivity** | Slack, Microsoft 365, Google Workspace, Notion |
-| **Development** | GitHub, GitLab, Jira, Linear, Vercel |
-| **Design** | Figma, Adobe Creative Cloud, Canva |
-| **Marketing** | HubSpot, Mailchimp, Intercom |
-| **Security** | Okta, 1Password, Snyk |
-| **Infrastructure** | Datadog, PagerDuty, Cloudflare |
+#### Productivity & Communication
+
+| Service | Template Fields |
+|---------|-----------------|
+| **Slack** | Plan tier, seats, billing cycle |
+| **Microsoft 365** | Plan (Business, Enterprise), users |
+| **Google Workspace** | Edition, users, add-ons |
+| **Notion** | Plan, members, billing |
+| **Zoom** | Plan, hosts, add-ons |
+| **Asana** | Plan tier, seats |
+| **Monday.com** | Plan, seats, products |
+
+#### Development & DevOps
+
+| Service | Template Fields |
+|---------|-----------------|
+| **GitHub** | Plan (Team, Enterprise), seats |
+| **GitLab** | Plan tier, users, storage |
+| **Jira** | Plan, users, products |
+| **Linear** | Plan, members |
+| **Vercel** | Plan, team members, bandwidth |
+| **Netlify** | Plan, team size, bandwidth |
+| **Datadog** | Products, hosts, logs volume |
+| **PagerDuty** | Plan, users, add-ons |
+| **CircleCI** | Plan, credits/month |
+| **AWS (non-usage)** | Support plans, reserved capacity |
+
+#### Design & Creative
+
+| Service | Template Fields |
+|---------|-----------------|
+| **Figma** | Plan, editors, viewers |
+| **Adobe Creative Cloud** | Plan, seats, apps |
+| **Canva** | Plan, team size |
+| **Miro** | Plan, members |
+| **InVision** | Plan, collaborators |
+
+#### Marketing & Sales
+
+| Service | Template Fields |
+|---------|-----------------|
+| **HubSpot** | Hub, tier, contacts |
+| **Salesforce** | Edition, users, add-ons |
+| **Mailchimp** | Plan, contacts |
+| **Intercom** | Plan, seats, add-ons |
+| **Zendesk** | Plan, agents |
+| **Segment** | Plan, MTUs |
+
+#### Security & IT
+
+| Service | Template Fields |
+|---------|-----------------|
+| **Okta** | Plan, users, MFA |
+| **1Password** | Plan, members |
+| **Snyk** | Plan, developers |
+| **Cloudflare** | Plan, domains, add-ons |
+| **Tailscale** | Plan, users |
 
 ### Adding from Template
 
-1. Go to **Integrations** → **Subscriptions**
+1. Navigate to **Integrations** → **Subscriptions**
 2. Click **Add Subscription**
-3. Search for the service
-4. Select from templates
-5. Enter your plan details
+3. Search for the service (e.g., "Slack")
+4. Select the template
+5. Fill in your plan details:
+
+| Field | Example |
+|-------|---------|
+| **Plan Name** | Pro |
+| **Billing Cycle** | Monthly |
+| **Cost** | $8.75 per user |
+| **Seats** | 50 |
+| **Start Date** | 2024-01-15 |
+
 6. Click **Save**
 
-### Custom Subscription
+### Adding Custom Subscription
 
 For services not in templates:
 
-1. Click **Add Custom**
-2. Enter subscription details:
-   - Provider name
-   - Plan name
-   - Billing cycle
-   - Cost
-   - Start date
+1. Click **Add Custom Subscription**
+2. Enter details:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Provider Name** | Yes | e.g., "Acme Software" |
+| **Plan Name** | Yes | e.g., "Enterprise" |
+| **Billing Cycle** | Yes | Monthly, Quarterly, Annual, Custom |
+| **Cost** | Yes | Amount per billing cycle |
+| **Currency** | Yes | USD, EUR, GBP, etc. |
+| **Start Date** | Yes | When subscription started |
+| **End Date** | No | Contract end date |
+| **Seats/Licenses** | No | Number of users |
+| **Auto-Renew** | No | Whether it auto-renews |
+
 3. Click **Save**
+
+---
 
 ## Subscription Details
 
-### Required Information
+### Required Fields
 
-| Field | Description |
-|-------|-------------|
-| **Provider** | Service name (e.g., Slack) |
-| **Plan Name** | Your plan tier |
-| **Billing Cycle** | Monthly, Annual, or Custom |
-| **Cost** | Price per billing cycle |
-| **Currency** | Payment currency |
-| **Start Date** | When subscription started |
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Provider** | Service/vendor name | Slack |
+| **Plan Name** | Your subscription tier | Pro |
+| **Billing Cycle** | Payment frequency | Monthly |
+| **Cost** | Amount per cycle | $437.50 |
+| **Currency** | Payment currency | USD |
+| **Start Date** | Subscription start | 2024-01-15 |
 
-### Optional Information
+### Optional Fields
 
-| Field | Description |
-|-------|-------------|
-| **End Date** | Contract end date |
-| **Seats/Licenses** | Number of user licenses |
-| **Auto-Renew** | Whether it auto-renews |
-| **Hierarchy** | Department/Project/Team assignment |
-| **Notes** | Additional information |
+| Field | Description | Example |
+|-------|-------------|---------|
+| **End Date** | Contract expiration | 2025-01-14 |
+| **Seats** | User licenses | 50 |
+| **Per-Seat Cost** | Cost per user | $8.75 |
+| **Auto-Renew** | Auto-renewal status | Yes |
+| **Notes** | Additional info | "Annual contract, 10% discount" |
+| **Contract ID** | Internal reference | CONT-2024-001 |
+| **Owner** | Subscription owner | john@company.com |
+
+### Hierarchy Assignment
+
+Assign subscriptions to your organizational structure:
+
+| Level | Description | Example |
+|-------|-------------|---------|
+| **Department** | Top-level division | Engineering |
+| **Project** | Project within department | Platform |
+| **Team** | Team within project | Backend |
+
+<Callout type="tip">
+  Assign to the most specific level possible for accurate cost allocation reporting.
+</Callout>
+
+---
 
 ## Cost Calculation
 
-### How Costs Are Calculated
+### How Costs Are Prorated
 
-| Billing Cycle | Daily Cost |
-|---------------|------------|
-| Monthly | Cost ÷ Days in month |
-| Annual | Cost ÷ 365 |
-| Custom | Cost ÷ Days in period |
+CloudAct calculates daily costs based on billing cycle:
+
+| Billing Cycle | Daily Cost Formula |
+|---------------|-------------------|
+| **Monthly** | Cost ÷ Days in month |
+| **Quarterly** | Cost ÷ 90 days |
+| **Annual** | Cost ÷ 365 days |
+| **Custom** | Cost ÷ Days in period |
+
+### Example Calculations
+
+**Monthly Subscription:**
+- Plan cost: $500/month
+- January daily cost: $500 ÷ 31 = $16.13/day
+- February daily cost: $500 ÷ 28 = $17.86/day
+
+**Annual Subscription:**
+- Plan cost: $5,000/year
+- Daily cost: $5,000 ÷ 365 = $13.70/day
 
 ### Per-Seat Pricing
 
 For subscriptions with per-user pricing:
-- Enter per-seat cost
-- Enter number of seats
-- Total = Per-seat × Seats
 
-## Hierarchy Assignment
+```
+Total Monthly Cost = Per-Seat Cost × Number of Seats
+```
 
-Assign subscriptions to your org structure:
+| Field | Value |
+|-------|-------|
+| Per-seat cost | $8.75 |
+| Seats | 50 |
+| **Monthly total** | **$437.50** |
 
-### Assigning to Hierarchy
+When seats change, costs are prorated from the change date.
 
-1. Edit the subscription
-2. Select **Department** (optional)
-3. Select **Project** (optional)
-4. Select **Team** (optional)
-5. Save changes
-
-### Cost Allocation
-
-Assigned subscriptions appear in:
-- Department cost reports
-- Project cost reports
-- Team cost reports
-
-<Callout type="tip">
-  Assign subscriptions to the lowest appropriate level for accurate cost allocation.
-</Callout>
+---
 
 ## Managing Subscriptions
 
 ### Editing Subscriptions
 
+1. Find the subscription in the list
+2. Click **Edit**
+3. Update fields as needed
+4. Click **Save**
+
+Changes take effect immediately for future cost calculations.
+
+### Plan Changes (Versioning)
+
+When your plan changes (upgrade, downgrade, price change):
+
 1. Click **Edit** on the subscription
-2. Update details
+2. Click **Record Plan Change**
+3. Enter:
+
+| Field | Description |
+|-------|-------------|
+| **Effective Date** | When the change takes effect |
+| **New Plan Name** | Updated plan tier |
+| **New Cost** | Updated pricing |
+| **New Seats** | Updated seat count (if applicable) |
+| **Reason** | Optional note about the change |
+
+4. Click **Save**
+
+CloudAct maintains a complete history:
+- Historical costs use the pricing active at that time
+- Reports show accurate point-in-time costs
+- Audit trail of all plan changes
+
+### Canceling a Subscription
+
+When you cancel (but want to keep history):
+
+1. Click **Edit** on the subscription
+2. Set **End Date** to the cancellation date
 3. Click **Save**
 
-Changes apply to future cost calculations.
+The subscription:
+- Stops contributing to future costs
+- Remains visible in historical reports
+- Shows "Cancelled" status
 
-### Plan Changes
+### Deleting a Subscription
 
-When your plan changes:
-
-1. Edit the subscription
-2. Update plan name and cost
-3. Set the effective date
-4. Save as a new version
-
-Historical costs use the pricing active at that time.
-
-### Canceling Subscriptions
-
-When you cancel a subscription:
-
-1. Edit the subscription
-2. Set an **End Date**
-3. Save changes
-
-The subscription stops appearing in future costs.
-
-### Deleting Subscriptions
-
-To remove entirely:
+To remove completely (including history):
 
 1. Click **Delete** on the subscription
 2. Confirm deletion
-3. Historical data is removed
+3. All data is permanently removed
 
 <Callout type="warning">
-  Deleting removes all historical cost data. Use End Date to preserve history.
+  Deleting removes all historical data. Use End Date instead to preserve history.
 </Callout>
+
+---
+
+## Hierarchy Assignment
+
+### Assigning to Hierarchy
+
+Connect subscriptions to your org structure for cost allocation:
+
+1. Edit the subscription
+2. In the Hierarchy section:
+   - Select **Department** (optional)
+   - Select **Project** (optional)
+   - Select **Team** (optional)
+3. Click **Save**
+
+### Cascading Selection
+
+Hierarchy levels cascade:
+
+```
+Department → Project → Team
+```
+
+- Selecting Department filters available Projects
+- Selecting Project filters available Teams
+- You can assign at any level
+
+### Cost Allocation Reports
+
+Once assigned, subscriptions appear in:
+
+- **Department Reports** - All subscriptions in the department
+- **Project Reports** - Subscriptions assigned to project or lower
+- **Team Reports** - Subscriptions assigned to the team
+
+### Changing Assignment
+
+To reassign a subscription:
+
+1. Edit the subscription
+2. Change hierarchy selections
+3. Optionally set an effective date
+4. Click **Save**
+
+---
 
 ## Renewal Tracking
 
-### Upcoming Renewals
+### Viewing Upcoming Renewals
 
-View subscriptions renewing soon:
-- Next 30 days
-- Next 60 days
-- Next 90 days
+Monitor subscriptions due for renewal:
 
-### Renewal Alerts
+1. Go to **Integrations** → **Subscriptions**
+2. View the **Upcoming Renewals** section
+3. Filter by timeframe:
+   - Next 30 days
+   - Next 60 days
+   - Next 90 days
 
-Set up notifications:
+### Renewal Information
+
+Each renewal shows:
+
+| Field | Description |
+|-------|-------------|
+| **Subscription** | Provider and plan |
+| **Renewal Date** | When renewal occurs |
+| **Current Cost** | Current pricing |
+| **Auto-Renew** | Whether it auto-renews |
+| **Days Until** | Countdown to renewal |
+
+### Renewal Notifications
+
+Set up alerts for upcoming renewals:
+
 1. Go to **Notifications**
-2. Enable subscription renewal alerts
-3. Choose advance notice period
+2. Enable **Subscription Renewal Alerts**
+3. Configure:
+
+| Setting | Options |
+|---------|---------|
+| **Advance Notice** | 7, 14, 30, 60, 90 days |
+| **Notification Method** | Email, Slack, webhook |
+| **Recipients** | Users or channels |
+
+---
+
+## Bulk Operations
+
+### Import from CSV
+
+Import multiple subscriptions at once:
+
+1. Go to **Integrations** → **Subscriptions**
+2. Click **Import**
+3. Download the CSV template
+4. Fill in your subscriptions
+5. Upload the completed CSV
+6. Review and confirm import
+
+**CSV Format:**
+
+```csv
+provider_name,plan_name,billing_cycle,cost,currency,start_date,end_date,seats,hierarchy_dept,hierarchy_project,hierarchy_team
+Slack,Pro,monthly,437.50,USD,2024-01-15,,50,Engineering,Platform,Backend
+GitHub,Team,monthly,400.00,USD,2024-02-01,,100,Engineering,,
+Adobe CC,Enterprise,annual,7200.00,USD,2024-01-01,2024-12-31,12,Design,,
+```
+
+### Export Subscriptions
+
+Export your subscription data:
+
+1. Click **Export**
+2. Select format:
+   - **CSV** - For spreadsheets
+   - **PDF** - For reports
+3. Choose date range
+4. Click **Download**
+
+---
 
 ## Reporting
 
-### Subscription Reports
+### Subscription Cost Reports
 
-View subscription costs by:
-- Provider
-- Category
-- Department
-- Project
-- Team
-- Time period
+View subscription costs by various dimensions:
 
-### Export Data
+| Dimension | Description |
+|-----------|-------------|
+| **By Provider** | Costs grouped by vendor |
+| **By Category** | Development, Productivity, etc. |
+| **By Department** | Costs per department |
+| **By Project** | Costs per project |
+| **By Team** | Costs per team |
+| **By Time** | Daily, weekly, monthly trends |
 
-Export subscription data:
-- CSV format
-- PDF report
-- Include historical changes
+### Cost Analytics
+
+Access detailed analytics:
+
+1. Go to **Cost Analytics** → **Subscription Costs**
+2. View:
+   - Total subscription spend
+   - Top subscriptions by cost
+   - Trend charts
+   - Cost forecasts
+
+### FOCUS Standard
+
+Subscription costs are normalized to FOCUS 1.3 standard:
+
+| FOCUS Field | Subscription Mapping |
+|-------------|---------------------|
+| `BilledCost` | Prorated daily cost |
+| `ProviderName` | Subscription provider |
+| `ServiceName` | Plan name |
+| `x_hierarchy_dept_*` | Department assignment |
+| `x_hierarchy_project_*` | Project assignment |
+| `x_hierarchy_team_*` | Team assignment |
+
+---
+
+## Cost Optimization
+
+### Identifying Opportunities
+
+Use subscription data to optimize costs:
+
+1. **Unused licenses** - Seats paid but not used
+2. **Duplicate tools** - Multiple tools for same purpose
+3. **Upgrade opportunities** - Annual vs monthly savings
+4. **Rightsizing** - Over-provisioned plans
+
+### Annual vs Monthly Comparison
+
+Many services offer annual discounts:
+
+| Service | Monthly | Annual | Savings |
+|---------|---------|--------|---------|
+| Example | $100/mo | $1,000/yr | 17% |
+
+CloudAct highlights potential savings when adding subscriptions.
+
+---
 
 ## Best Practices
 
-1. **Add all subscriptions** - Even small ones add up
-2. **Keep details current** - Update when plans change
-3. **Assign hierarchy** - Enable accurate cost allocation
-4. **Track renewals** - Review before auto-renewal
-5. **Consolidate tools** - Identify duplicate functionality
+### 1. Track Everything
+
+Include all subscriptions, even small ones:
+- Free tiers that may upgrade
+- Personal accounts used for work
+- Trial subscriptions
+
+### 2. Keep Information Current
+
+Update subscriptions when:
+- Plans change
+- Pricing updates
+- Seats are added/removed
+- Contracts renew
+
+### 3. Assign Hierarchy
+
+Always assign subscriptions to:
+- At least a Department
+- Project if applicable
+- Team for granular tracking
+
+### 4. Monitor Renewals
+
+- Enable renewal alerts
+- Review 30 days before renewal
+- Negotiate pricing annually
+
+### 5. Consolidate Tools
+
+Regularly review for:
+- Duplicate functionality
+- Underutilized subscriptions
+- Opportunities to consolidate
+
+### 6. Document Context
+
+Use the Notes field for:
+- Contract terms
+- Discount information
+- Owner contact
+- Renewal negotiation notes
+
+---
+
+## Troubleshooting
+
+### Subscription Not Appearing
+
+1. Check filters (date range, hierarchy)
+2. Verify start date is in range
+3. Ensure subscription is not cancelled
+
+### Incorrect Costs
+
+1. Verify billing cycle is correct
+2. Check cost amount and currency
+3. Review plan change history
+
+### Missing from Reports
+
+1. Verify hierarchy assignment
+2. Check date range in report
+3. Ensure subscription is active
+
+---
+
+## Frequently Asked Questions
+
+**Q: Can I track usage-based subscriptions?**
+A: For usage-based services (AWS, GCP, etc.), use the Cloud Provider integrations instead. Subscriptions are for fixed-cost SaaS tools.
+
+**Q: How do I handle multi-year contracts?**
+A: Enter the annual cost and billing cycle as "Annual". CloudAct prorates to daily costs automatically.
+
+**Q: Can I import from my accounting system?**
+A: Use CSV import with data exported from your accounting software. Map fields to CloudAct format.
+
+**Q: What happens to costs when I change plans?**
+A: Plan changes create a version history. Historical reports use the pricing active at that time.

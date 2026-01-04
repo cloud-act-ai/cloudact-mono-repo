@@ -44,6 +44,7 @@
     "@stripe/stripe-js": "latest",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@tanstack/react-table": "^8.21.3",
     "@types/debug": "latest",
     "@types/mdx": "^2.0.13",
     "@vercel/analytics": "latest",

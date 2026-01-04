@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { BreakdownItem, CostTableRow } from "@/components/costs"
+import type { BreakdownItem, CostTableRow } from "@/components/charts"
 
 // ============================================
 // Types

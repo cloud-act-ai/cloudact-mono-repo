@@ -26,24 +26,25 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
-// Removed: createClient import - currency now comes from CostDataContext
-import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import type { PipelineRunSummary } from "@/lib/api/backend"
+
+// New unified chart library
+import {
+  CostTrendChart,
+  CostRingChart,
+  CostBreakdownChart,
+  useChartConfig,
+} from "@/components/charts"
+
+// Non-chart components from costs
 import {
   CostSummaryGrid,
-  CostBreakdownChart,
-  CostScoreRing,
-  CostComboChart,
   TimeRangeFilter,
-  getRollingAverageLabel,
-  DEFAULT_TIME_RANGE,
   type CostSummaryData,
-  type BreakdownItem,
-  type ScoreRingSegment,
-  type ComboDataPoint,
 } from "@/components/costs"
-import { getDateInfo, calculatePercentage, OVERVIEW_CATEGORY_CONFIG } from "@/lib/costs"
-import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
+
+import { getDateInfo, OVERVIEW_CATEGORY_CONFIG, transformProvidersToBreakdownItems } from "@/lib/costs"
+import { useCostData } from "@/contexts/cost-data-context"
 
 interface QuickAction {
   title: string
@@ -83,35 +84,24 @@ export default function DashboardPage() {
     currency: contextCurrency,
     isLoading: isCostLoading,
     refresh: refreshCostData,
-    getDailyTrendForRange,
+    selectedTimeRange,
+    setTimeRange: setContextTimeRange,
+    getFilteredProviders,
   } = useCostData()
+
+  // Use chart config - ensure context is active
+  useChartConfig()
 
   const [greeting, setGreeting] = useState("")
   const [isLocalLoading, setIsLocalLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
-  const [timeRange, setTimeRange] = useState<TimeRange>(DEFAULT_TIME_RANGE)
 
-  // Get daily trend data from context (real data from backend)
-  const dailyTrendData = useMemo<ComboDataPoint[]>(() => {
-    const trendData = getDailyTrendForRange(timeRange)
-
-    // Transform to ComboDataPoint format with lineValue for rolling average
-    return trendData.map((point) => ({
-      label: point.label,
-      value: point.value,
-      lineValue: point.rollingAvg,
-      date: point.date,
-    }))
-  }, [getDailyTrendForRange, timeRange])
-
-  // Get rolling average label based on selected time range
-  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange), [timeRange])
+  // Use context time range for sync with zoom
+  const timeRange = selectedTimeRange
 
   // Load non-cost data (pipelines, integrations)
-  // OPTIMIZATION: Removed redundant Supabase query for default_currency
-  // Currency is already provided by CostDataContext from the cost API
   const loadNonCostData = useCallback(async () => {
     try {
       const [pipelinesResult, integrationsResult] = await Promise.all([
@@ -180,10 +170,6 @@ export default function DashboardPage() {
     loadNonCostData()
   }, [loadNonCostData])
 
-  // Use context currency if available
-  // Use currency from cost context, fallback to default
-  const displayCurrency = contextCurrency || DEFAULT_CURRENCY
-
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await Promise.all([refreshCostData(), loadNonCostData()])
@@ -199,10 +185,9 @@ export default function DashboardPage() {
     (costSummary.subscription?.total_monthly_cost ?? 0) > 0
   )
 
-  // Prepare summary data - always show real data (zeros if no data)
+  // Prepare summary data
   const summaryData: CostSummaryData = useMemo(() => {
     const dateInfo = getDateInfo()
-    // Use periodCosts for accurate MTD if available
     const totalMtd = periodCosts?.mtd ?? costSummary?.total?.total_monthly_cost ?? 0
     const dailyRate = costSummary?.total?.total_daily_cost ?? 0
     const daysRemaining = dateInfo.daysInMonth - dateInfo.daysElapsed
@@ -213,24 +198,34 @@ export default function DashboardPage() {
       dailyRate: dailyRate,
       forecast: forecast,
       ytd: periodCosts?.ytd ?? costSummary?.total?.total_annual_cost ?? totalMtd,
-      currency: displayCurrency,
+      currency: contextCurrency,
     }
-  }, [costSummary, periodCosts, displayCurrency])
+  }, [costSummary, periodCosts, contextCurrency])
 
-  // Prepare category breakdown - always show real data
-  const categoryBreakdown: BreakdownItem[] = useMemo(() => {
+  // Prepare ring chart segments
+  const ringSegments = useMemo(() => {
     const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
     const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
     const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
-    const totalCost = genaiCost + cloudCost + subscriptionCost
 
-    // Show all categories even if zero (for consistent UI)
+    return [
+      { key: "genai", name: OVERVIEW_CATEGORY_CONFIG.names.genai, value: genaiCost, color: OVERVIEW_CATEGORY_CONFIG.colors.genai },
+      { key: "cloud", name: OVERVIEW_CATEGORY_CONFIG.names.cloud, value: cloudCost, color: OVERVIEW_CATEGORY_CONFIG.colors.cloud },
+      { key: "subscription", name: OVERVIEW_CATEGORY_CONFIG.names.subscription, value: subscriptionCost, color: OVERVIEW_CATEGORY_CONFIG.colors.subscription },
+    ]
+  }, [costSummary])
+
+  // Prepare breakdown items for category chart
+  const categoryBreakdown = useMemo(() => {
+    const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
+    const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
+    const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
+
     return [
       {
         key: "genai",
         name: OVERVIEW_CATEGORY_CONFIG.names.genai,
         value: genaiCost,
-        percentage: totalCost > 0 ? calculatePercentage(genaiCost, totalCost) : 0,
         count: costSummary?.genai?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
       },
@@ -238,7 +233,6 @@ export default function DashboardPage() {
         key: "cloud",
         name: OVERVIEW_CATEGORY_CONFIG.names.cloud,
         value: cloudCost,
-        percentage: totalCost > 0 ? calculatePercentage(cloudCost, totalCost) : 0,
         count: costSummary?.cloud?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
       },
@@ -246,28 +240,38 @@ export default function DashboardPage() {
         key: "subscription",
         name: OVERVIEW_CATEGORY_CONFIG.names.subscription,
         value: subscriptionCost,
-        percentage: totalCost > 0 ? calculatePercentage(subscriptionCost, totalCost) : 0,
         count: costSummary?.subscription?.providers?.length ?? 0,
         color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
       },
     ].sort((a, b) => b.value - a.value)
   }, [costSummary])
 
-  // Score ring segments - always show real data
-  const scoreRingSegments: ScoreRingSegment[] = useMemo(() => {
-    const genaiCost = costSummary?.genai?.total_monthly_cost ?? 0
-    const cloudCost = costSummary?.cloud?.total_monthly_cost ?? 0
-    const subscriptionCost = costSummary?.subscription?.total_monthly_cost ?? 0
+  // Top 5 Cost Drivers by Category
+  const top5GenAI = useMemo(() => {
+    const genaiProviders = getFilteredProviders("genai")
+    return transformProvidersToBreakdownItems(
+      genaiProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
+      { names: {}, colors: {}, defaultColor: "#10A37F" }
+    )
+  }, [getFilteredProviders])
 
-    // Show all segments even if zero
-    return [
-      { key: "genai", name: "GenAI", value: genaiCost, color: "#10A37F" },
-      { key: "cloud", name: "Cloud", value: cloudCost, color: "#4285F4" },
-      { key: "subscription", name: "Subscriptions", value: subscriptionCost, color: "#FF6C5E" },
-    ]
-  }, [costSummary])
+  const top5Cloud = useMemo(() => {
+    const cloudProviders = getFilteredProviders("cloud")
+    return transformProvidersToBreakdownItems(
+      cloudProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
+      { names: {}, colors: {}, defaultColor: "#4285F4" }
+    )
+  }, [getFilteredProviders])
 
-  // Memoize quickActions to prevent recreation on every render
+  const top5Subscription = useMemo(() => {
+    const subProviders = getFilteredProviders("subscription")
+    return transformProvidersToBreakdownItems(
+      subProviders.sort((a, b) => b.total_cost - a.total_cost).slice(0, 5),
+      { names: {}, colors: {}, defaultColor: "#FF6C5E" }
+    )
+  }, [getFilteredProviders])
+
+  // Memoize quickActions
   const quickActions: QuickAction[] = useMemo(() => [
     {
       title: "Run Pipeline",
@@ -329,7 +333,6 @@ export default function DashboardPage() {
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
 
-    // Handle future dates
     if (diffMs < 0) return "Just now"
 
     const diffMins = Math.floor(diffMs / 60000)
@@ -353,8 +356,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Welcome Header - Mobile optimized */}
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
+      {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
@@ -367,7 +370,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 sm:gap-3">
           <TimeRangeFilter
             value={timeRange}
-            onChange={setTimeRange}
+            onChange={setContextTimeRange}
             size="sm"
           />
           <Button
@@ -376,59 +379,113 @@ export default function DashboardPage() {
             variant="outline"
             size="sm"
             className="h-8 sm:h-9 px-3 flex-shrink-0"
+            aria-label={isRefreshing ? "Clearing cache..." : "Clear cache and reload data"}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
+            {isRefreshing ? "Clearing..." : "Clear Cache"}
           </Button>
         </div>
       </div>
 
-      {/* Summary Metrics - Using shared CostSummaryGrid component */}
-      <CostSummaryGrid data={summaryData} />
+      {/* Summary Metrics */}
+      <div className="animate-fade-up">
+        <CostSummaryGrid data={summaryData} />
+      </div>
 
       {/* Daily Cost Trend Chart */}
-      <CostComboChart
-        title="Daily Cost Trend"
-        subtitle={`${rollingAvgLabel} overlay on daily spend`}
-        data={dailyTrendData}
-        currency={displayCurrency}
-        barColor="#90FCA6"
-        lineColor="#FF6C5E"
-        barLabel="Daily Cost"
-        lineLabel={rollingAvgLabel}
-        height={320}
-        showAreaFill
-        loading={isLoading}
-        showLegend={true}
-      />
+      <div className="animate-fade-up animation-delay-100">
+        <CostTrendChart
+          title="Daily Cost Trend"
+          subtitle="Daily spend with rolling average"
+          timeRange={timeRange}
+          showBars={true}
+          showLine={true}
+          barColor="#90FCA6"
+          lineColor="#FF6C5E"
+          enableZoom={true}
+          height={320}
+          loading={isLoading}
+        />
+      </div>
 
-      {/* Score Ring with Category Breakdown */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        {/* Score Ring - Total Spend Breakdown */}
-        <CostScoreRing
+      {/* Row 1: Total Spend (Pie) + Top 5 GenAI */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-200">
+        {/* Total Spend Ring Chart */}
+        <CostRingChart
           title="Total Spend"
-          segments={scoreRingSegments}
-          currency={displayCurrency}
+          segments={ringSegments}
+          centerLabel="MTD"
           insight={!hasData
             ? "No cost data yet. Connect providers and run pipelines."
-            : `Spending across ${scoreRingSegments.filter(s => s.value > 0).length} cost categories.`
+            : `Spending across ${ringSegments.filter(s => s.value > 0).length} cost categories.`
           }
           showChevron
           onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
-          compact
-          ringSize={96}
-          strokeWidth={12}
+          size={160}
+          thickness={18}
           titleColor="#1a7a3a"
+          className="premium-card"
         />
 
-        {/* Category Breakdown */}
-        <CostBreakdownChart
-          title="Spend by Category"
-          items={categoryBreakdown}
-          currency={displayCurrency}
-          countLabel="providers"
-          maxItems={3}
-        />
+        {/* Top 5 GenAI Cost Drivers */}
+        {top5GenAI.length > 0 ? (
+          <CostBreakdownChart
+            title="Top 5 GenAI Cost Drivers"
+            items={top5GenAI}
+            countLabel="providers"
+            maxItems={5}
+            showOthers={false}
+            className="premium-card"
+          />
+        ) : (
+          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+            <div className="text-center">
+              <Brain className="h-8 w-8 text-[#10A37F]/40 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">No GenAI costs yet</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Row 2: Top 5 Cloud + Top 5 Subscriptions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-300">
+        {/* Top 5 Cloud Cost Drivers */}
+        {top5Cloud.length > 0 ? (
+          <CostBreakdownChart
+            title="Top 5 Cloud Cost Drivers"
+            items={top5Cloud}
+            countLabel="services"
+            maxItems={5}
+            showOthers={false}
+            className="premium-card"
+          />
+        ) : (
+          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+            <div className="text-center">
+              <Cloud className="h-8 w-8 text-[#4285F4]/40 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">No cloud costs yet</p>
+            </div>
+          </div>
+        )}
+
+        {/* Top 5 Subscription Cost Drivers */}
+        {top5Subscription.length > 0 ? (
+          <CostBreakdownChart
+            title="Top 5 Subscription Cost Drivers"
+            items={top5Subscription}
+            countLabel="subscriptions"
+            maxItems={5}
+            showOthers={false}
+            className="premium-card"
+          />
+        ) : (
+          <div className="premium-card bg-white rounded-2xl border border-slate-200 p-6 flex items-center justify-center">
+            <div className="text-center">
+              <Wallet className="h-8 w-8 text-[#FF6C5E]/40 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">No subscription costs yet</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Integration Status */}

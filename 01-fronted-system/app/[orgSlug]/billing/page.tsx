@@ -426,11 +426,8 @@ export default function BillingPage() {
       }
 
       if (result.syncWarning) {
-        const warningMessage = result.syncQueued
-          ? `Plan changed to ${planName}. Backend sync is queued and will complete shortly.`
-          : `Plan changed to ${planName}. Note: Pipeline limits may take a few minutes to update.`
-        setPlanChangeSuccess(warningMessage)
-        toast.warning("Plan changed, but backend sync delayed. Limits will update shortly.")
+        setPlanChangeSuccess(`Plan changed to ${planName}. Limits sync failed - click "Sync" to retry.`)
+        toast.warning("Plan changed successfully. Click 'Sync' button above to update limits.")
       } else {
         setPlanChangeSuccess(`Successfully switched to ${planName} plan!`)
       }
@@ -444,8 +441,11 @@ export default function BillingPage() {
     }
   }
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("en-US", {
+  const formatDate = (date: Date | string | number | null | undefined) => {
+    if (!date) return "—"
+    const parsed = new Date(date)
+    if (isNaN(parsed.getTime())) return "—"
+    return parsed.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -960,9 +960,9 @@ export default function BillingPage() {
           </p>
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}?subject=Enterprise Pricing Inquiry`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-[14px] font-semibold rounded-xl hover:bg-slate-800 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#90FCA6] text-slate-900 text-[14px] font-semibold rounded-xl hover:bg-[#6EE890] transition-colors shadow-sm hover:shadow-md"
           >
-            Contact {process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}
+            Contact Sales
           </a>
         </div>
 

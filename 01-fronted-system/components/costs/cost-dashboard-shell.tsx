@@ -7,7 +7,7 @@
  * - Consistent header with title, icon, and actions
  * - Bounded max-width (Apple Health pattern)
  * - Mint gradient background accent
- * - Refresh button with loading state
+ * - Clear Cache button with loading state (forces fresh data fetch)
  * - Breadcrumb navigation support
  */
 
@@ -55,9 +55,9 @@ export interface CostDashboardShellProps {
       onClick?: () => void
     }
   }
-  /** Refresh handler */
+  /** Clear cache handler (forces fresh data fetch) */
   onRefresh?: () => void
-  /** Refreshing state */
+  /** Clearing cache state */
   isRefreshing?: boolean
   /** Additional header actions */
   headerActions?: React.ReactNode
@@ -195,8 +195,8 @@ export function CostDashboardShell({
       role="main"
       aria-label={`${title} dashboard`}
     >
-      <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6">
-        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="max-w-7xl mx-auto py-6 sm:py-8 lg:py-10 px-4 sm:px-6">
+        <div className="space-y-6 sm:space-y-8 lg:space-y-10">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -223,7 +223,7 @@ export function CostDashboardShell({
                   onClick={onRefresh}
                   disabled={isRefreshing}
                   className="gap-2"
-                  aria-label={isRefreshing ? "Refreshing data" : "Refresh data"}
+                  aria-label={isRefreshing ? "Clearing cache..." : "Clear cache and reload data"}
                 >
                   <RefreshCw
                     className={cn(
@@ -233,7 +233,7 @@ export function CostDashboardShell({
                     aria-hidden="true"
                   />
                   <span className="hidden sm:inline">
-                    {isRefreshing ? "Refreshing..." : "Refresh"}
+                    {isRefreshing ? "Clearing..." : "Clear Cache"}
                   </span>
                 </Button>
               )}

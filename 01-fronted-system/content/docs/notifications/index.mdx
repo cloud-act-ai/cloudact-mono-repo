@@ -1,13 +1,15 @@
 ---
 title: Notifications
-description: Configure alerts and notification preferences
+description: Configure alerts and notification preferences for cost monitoring
 ---
 
-Manage your notification settings to stay informed about important events and cost alerts.
+Manage your notification settings to stay informed about important events, cost alerts, and system status.
 
 ## Accessing Notifications
 
 Click **Notifications** in the sidebar to view and configure your alerts.
+
+---
 
 ## Notification Types
 
@@ -15,22 +17,37 @@ Click **Notifications** in the sidebar to view and configure your alerts.
 
 Get notified when spending exceeds thresholds:
 
-| Alert Type | Description |
-|------------|-------------|
-| **Daily Threshold** | When daily spend exceeds limit |
-| **Weekly Threshold** | When weekly spend exceeds limit |
-| **Monthly Budget** | When monthly budget is reached |
-| **Anomaly Detection** | Unusual spending patterns detected |
+| Alert Type | Description | Best For |
+|------------|-------------|----------|
+| **Daily Threshold** | When daily spend exceeds limit | Catching runaway costs quickly |
+| **Weekly Threshold** | When weekly spend exceeds limit | Monitoring budget pacing |
+| **Monthly Budget** | When monthly budget is reached | Budget management |
+| **Percentage Alert** | At 50%, 80%, 100% of budget | Progressive warnings |
+| **Anomaly Detection** | Unusual spending patterns | Unexpected cost spikes |
+| **Forecast Alert** | Projected to exceed budget | Proactive planning |
 
 ### Pipeline Notifications
 
 Stay informed about data processing:
 
-| Alert Type | Description |
-|------------|-------------|
-| **Pipeline Failed** | When a pipeline encounters an error |
-| **Pipeline Success** | Confirmation of successful runs |
-| **Data Delay** | When expected data is delayed |
+| Alert Type | Description | Trigger |
+|------------|-------------|---------|
+| **Pipeline Failed** | Pipeline encountered an error | On failure |
+| **Pipeline Partial** | Some records failed | On partial completion |
+| **Pipeline Success** | Confirmation of successful runs | On success (optional) |
+| **Pipeline Delayed** | Run took longer than expected | >2x normal duration |
+| **Data Gap** | Missing data for expected period | Missing days detected |
+
+### Integration Notifications
+
+Updates about your connected providers:
+
+| Alert Type | Description | Action |
+|------------|-------------|--------|
+| **Connection Error** | Integration lost connection | Re-authenticate |
+| **Credentials Expiring** | API key/token expiring soon | Rotate credentials |
+| **Rate Limited** | Provider rate limit reached | Automatic retry |
+| **Data Sync Complete** | Initial sync finished | View data |
 
 ### Team Notifications
 
@@ -41,86 +58,345 @@ Updates about your organization:
 | **Member Joined** | New team member added |
 | **Member Left** | Team member removed |
 | **Role Changed** | Member permissions updated |
+| **Invite Sent** | New invite created |
 | **Invite Accepted** | Pending invite was accepted |
+| **Invite Expired** | Invite expired without acceptance |
+
+### Subscription Notifications
+
+SaaS subscription alerts:
+
+| Alert Type | Description |
+|------------|-------------|
+| **Renewal Upcoming** | Subscription renewing soon (7/14/30 days) |
+| **Price Change** | Subscription price updated |
+| **Plan Expiring** | Subscription ending |
+| **License Alert** | Unused or over-utilized licenses |
 
 ### Billing Notifications
 
-Payment and subscription updates:
+CloudAct payment and subscription updates:
 
 | Alert Type | Description |
 |------------|-------------|
 | **Payment Due** | Upcoming payment reminder |
+| **Payment Processed** | Successful payment confirmation |
 | **Payment Failed** | Payment processing issue |
-| **Plan Changed** | Subscription plan updated |
-| **Trial Ending** | Trial period expiring soon |
+| **Plan Changed** | CloudAct subscription plan updated |
+| **Trial Ending** | Trial period expiring (7 days) |
+| **Invoice Ready** | New invoice available |
+
+---
 
 ## Setting Up Alerts
 
-### Cost Threshold Alert
+### Creating a Cost Alert
 
 1. Go to **Notifications**
 2. Click **Add Alert**
 3. Select **Cost Threshold**
-4. Configure:
-   - Threshold amount
-   - Time period (daily/weekly/monthly)
-   - Cost category (all, cloud, genai, subscriptions)
+4. Configure settings:
+
+| Setting | Options |
+|---------|---------|
+| **Alert Name** | Custom name for this alert |
+| **Threshold Type** | Fixed amount or percentage |
+| **Amount** | Dollar/currency value |
+| **Time Period** | Daily, Weekly, Monthly |
+| **Cost Category** | All, Cloud, GenAI, Subscriptions |
+| **Provider** | All or specific (AWS, GCP, etc.) |
+| **Hierarchy** | Department, Project, Team |
+
 5. Choose notification channels
 6. Click **Save**
+
+### Budget Alerts
+
+Set up progressive budget alerts:
+
+```
+Budget: $10,000/month
+
+Alerts:
+├── 50% reached ($5,000)  → Info notification
+├── 80% reached ($8,000)  → Warning notification
+├── 100% reached ($10,000) → Critical notification
+└── 120% exceeded ($12,000) → Urgent notification
+```
+
+**To configure:**
+
+1. Go to **Notifications** → **Budget Alerts**
+2. Set your monthly budget
+3. Enable alert thresholds (50%, 80%, 100%, etc.)
+4. Choose channels for each severity
 
 ### Anomaly Detection
 
 Enable automatic detection of unusual spending:
 
-1. Go to **Notifications**
-2. Enable **Anomaly Detection**
-3. Set sensitivity level:
-   - **Low** - Only major anomalies
-   - **Medium** - Moderate deviations
-   - **High** - Minor variations
+1. Go to **Notifications** → **Anomaly Detection**
+2. Toggle **Enable Anomaly Detection**
+3. Configure sensitivity:
+
+| Sensitivity | Detection Threshold | Use Case |
+|-------------|---------------------|----------|
+| **Low** | >50% above average | Major spikes only |
+| **Medium** | >25% above average | Significant changes |
+| **High** | >10% above average | Subtle variations |
+
+4. Select categories to monitor
+5. Click **Save**
+
+### Subscription Renewal Alerts
+
+Never miss a renewal:
+
+1. Go to **Notifications** → **Subscription Alerts**
+2. Enable **Renewal Reminders**
+3. Set advance notice period:
+   - 7 days before
+   - 14 days before
+   - 30 days before
+   - 60 days before
+4. Choose notification channel
+
+---
 
 ## Notification Channels
 
 ### Email
 
-- Sent to your account email
-- Includes detailed information
-- Links to relevant dashboard
+| Feature | Description |
+|---------|-------------|
+| **Recipients** | Account email + additional addresses |
+| **Format** | HTML with detailed information |
+| **Includes** | Charts, links to dashboard |
+| **Frequency** | Real-time or digest (daily/weekly) |
 
-### In-App
+**Adding email recipients:**
 
-- Badge on notification icon
-- Notification center in sidebar
-- Click to view details
+1. Click **Add Recipient** in alert settings
+2. Enter email address
+3. Confirm subscription
 
-### Slack (Coming Soon)
+### In-App Notifications
 
-- Direct messages
-- Channel notifications
-- Interactive alerts
+| Feature | Description |
+|---------|-------------|
+| **Badge** | Red dot on notification icon |
+| **Center** | Sidebar notification panel |
+| **Details** | Click to expand and view |
+| **Actions** | Mark read, dismiss, take action |
+
+### Slack Integration
+
+Connect CloudAct to your Slack workspace:
+
+1. Go to **Notifications** → **Channels** → **Slack**
+2. Click **Connect Slack**
+3. Authorize CloudAct
+4. Select default channel
+5. Configure per-alert channels
+
+| Configuration | Options |
+|---------------|---------|
+| **Workspace** | Your Slack workspace |
+| **Default Channel** | #cloud-costs, #alerts |
+| **Direct Messages** | Send to specific users |
+| **Alert Routing** | Different channels by type |
+
+### Webhook
+
+Send notifications to custom endpoints:
+
+1. Go to **Notifications** → **Channels** → **Webhooks**
+2. Click **Add Webhook**
+3. Enter URL and configure:
+
+| Setting | Description |
+|---------|-------------|
+| **URL** | Your webhook endpoint |
+| **Method** | POST (default) |
+| **Headers** | Custom headers (auth tokens) |
+| **Payload Format** | JSON template |
+| **Events** | Which events to send |
+
+**Sample payload:**
+
+```json
+{
+  "event": "cost_threshold_exceeded",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "organization": "acme-corp",
+  "alert": {
+    "name": "Daily Cloud Spend",
+    "threshold": 1000,
+    "actual": 1250,
+    "category": "cloud",
+    "period": "daily"
+  }
+}
+```
+
+---
 
 ## Managing Notifications
 
-### View History
+### Notification Center
 
-See all past notifications:
-- Filter by type
-- Filter by date range
-- Mark as read/unread
+Access your notification history:
+
+1. Click the bell icon in the header
+2. View recent notifications
+3. Filter by:
+   - Type (Cost, Pipeline, Team, Billing)
+   - Status (Read, Unread)
+   - Date range
 
 ### Bulk Actions
 
-- Mark all as read
-- Delete old notifications
-- Export notification history
+| Action | Description |
+|--------|-------------|
+| **Mark All Read** | Clear unread count |
+| **Delete Old** | Remove notifications older than X days |
+| **Export** | Download notification history |
+| **Mute Temporarily** | Pause notifications for a period |
+
+### Alert Management
+
+| Action | Steps |
+|--------|-------|
+| **Edit** | Click alert → Modify settings → Save |
+| **Disable** | Toggle off without deleting |
+| **Delete** | Click delete → Confirm |
+| **Duplicate** | Create copy with modifications |
+
+---
+
+## Notification Preferences
+
+### Personal Settings
+
+Configure your notification preferences:
+
+1. Go to **Personal Settings** → **Notifications**
+2. Set preferences:
+
+| Preference | Options |
+|------------|---------|
+| **Email Frequency** | Real-time, Daily digest, Weekly digest |
+| **Quiet Hours** | Don't send between X-Y hours |
+| **Mobile Push** | Enable/disable (coming soon) |
+| **Desktop Alerts** | Browser notifications |
+
+### Organization Defaults
+
+Admins can set organization-wide defaults:
+
+1. Go to **Org Settings** → **Notifications**
+2. Configure:
+   - Default alert thresholds
+   - Required notifications
+   - Channel restrictions
+
+---
+
+## Alert Rules
+
+### Severity Levels
+
+| Level | Color | Use Case |
+|-------|-------|----------|
+| **Info** | Blue | FYI, no action needed |
+| **Warning** | Yellow | Attention recommended |
+| **Critical** | Orange | Action required |
+| **Urgent** | Red | Immediate action needed |
+
+### Escalation
+
+Set up alert escalation:
+
+1. **Initial** → Email to owner
+2. **After 1 hour** → Email to team
+3. **After 4 hours** → Slack to admin
+4. **After 24 hours** → Email to all admins
+
+### Aggregation
+
+Reduce alert noise:
+
+| Setting | Description |
+|---------|-------------|
+| **Batch Window** | Group alerts within 5/15/30 minutes |
+| **Deduplicate** | Skip duplicate alerts |
+| **Rate Limit** | Max X alerts per hour |
+
+---
 
 ## Best Practices
 
-1. **Set realistic thresholds** - Start higher and adjust based on patterns
-2. **Enable anomaly detection** - Catch unexpected spending early
-3. **Review regularly** - Check notification settings monthly
-4. **Don't over-alert** - Too many notifications leads to alert fatigue
+### 1. Start Conservative
+
+- Begin with higher thresholds
+- Adjust based on patterns
+- Avoid alert fatigue
+
+### 2. Layer Your Alerts
+
+```
+Critical budget: $10,000
+├── 80% warning ($8,000)
+├── 100% alert ($10,000)
+└── 120% escalation ($12,000)
+```
+
+### 3. Use Appropriate Channels
+
+| Urgency | Channel |
+|---------|---------|
+| **Informational** | Email digest |
+| **Warning** | Email immediate |
+| **Critical** | Email + Slack |
+| **Urgent** | All channels |
+
+### 4. Regular Review
+
+- Review alerts monthly
+- Adjust thresholds quarterly
+- Remove obsolete alerts
+
+### 5. Document Actions
+
+- Note actions taken
+- Track resolution time
+- Improve based on patterns
+
+---
+
+## Troubleshooting
+
+### Not Receiving Notifications
+
+1. **Check spam folder** - Emails may be filtered
+2. **Verify email** - Correct address in settings
+3. **Check channel** - Slack/webhook configured correctly
+4. **Check alert status** - Alert is enabled
+5. **Check threshold** - Threshold hasn't been reached
+
+### Too Many Notifications
+
+1. **Increase thresholds** - Raise alert amounts
+2. **Use digests** - Switch to daily/weekly
+3. **Enable aggregation** - Batch similar alerts
+4. **Reduce sensitivity** - Lower anomaly detection
+
+### Slack Not Working
+
+1. **Re-authorize** - Reconnect integration
+2. **Check channel** - Bot has access to channel
+3. **Check permissions** - Bot can post messages
 
 <Callout type="tip">
-  Start with weekly budget alerts and add daily alerts for critical services.
+  Start with weekly budget alerts at 80% and add more specific alerts as you understand your spending patterns.
 </Callout>
