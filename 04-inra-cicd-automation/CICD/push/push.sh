@@ -63,8 +63,11 @@ echo ""
 # Artifact Registry repository (using GCR for simpler setup)
 GCR_REPO="gcr.io/${PROJECT_ID}/cloudact-${SERVICE}-${ENV}"
 LOCAL_IMAGE="cloudact-${SERVICE}:${TAG}"
-REMOTE_IMAGE="${GCR_REPO}:${TAG}"
+# Extract version from tag (remove env prefix if present)
+VERSION_ONLY="${TAG#${ENV}-}"
+REMOTE_IMAGE="${GCR_REPO}:${VERSION_ONLY}"
 REMOTE_LATEST="${GCR_REPO}:latest"
+REMOTE_ENV_LATEST="${GCR_REPO}:${ENV}-latest"
 
 # Configure Docker authentication for GCR
 echo -e "${YELLOW}Configuring Docker authentication...${NC}"
@@ -74,11 +77,13 @@ gcloud auth configure-docker gcr.io --quiet
 echo -e "${YELLOW}Tagging image for GCR...${NC}"
 docker tag $LOCAL_IMAGE $REMOTE_IMAGE
 docker tag $LOCAL_IMAGE $REMOTE_LATEST
+docker tag $LOCAL_IMAGE $REMOTE_ENV_LATEST
 
 # Push to GCR
 echo -e "${YELLOW}Pushing to GCR...${NC}"
 docker push $REMOTE_IMAGE
 docker push $REMOTE_LATEST
+docker push $REMOTE_ENV_LATEST
 
 echo ""
 echo -e "${GREEN}✓ Push complete!${NC}"
@@ -86,6 +91,7 @@ echo ""
 echo "Images pushed:"
 echo "  - $REMOTE_IMAGE"
 echo "  - $REMOTE_LATEST"
+echo "  - $REMOTE_ENV_LATEST"
 echo ""
 echo "Next: Run deploy.sh to deploy to Cloud Run"
 
