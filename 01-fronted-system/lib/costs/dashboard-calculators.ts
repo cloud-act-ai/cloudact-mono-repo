@@ -213,8 +213,16 @@ export function getDateInfo(): DateInfo {
   // Days in current month
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-  // Days elapsed (min 1 to avoid division by zero)
-  const daysElapsed = Math.max(1, now.getDate())
+  // CALC-001 & CALC-002 FIX: Use fractional days for accurate early-month forecasts
+  // On day 1 at 12:00 noon, daysElapsed = 0.5 (not 1)
+  // This prevents wildly inaccurate forecasts in the first hours of the month
+  const dayOfMonth = now.getDate()
+  const hoursElapsed = now.getHours() + now.getMinutes() / 60
+  const fractionalDay = hoursElapsed / 24
+
+  // daysElapsed = completed days + partial current day
+  // Minimum 0.25 (6 hours) to prevent extreme forecasts in first hours
+  const daysElapsed = Math.max(0.25, dayOfMonth - 1 + fractionalDay)
 
   // Month boundaries (UTC)
   const monthStart = new Date(Date.UTC(year, month, 1))

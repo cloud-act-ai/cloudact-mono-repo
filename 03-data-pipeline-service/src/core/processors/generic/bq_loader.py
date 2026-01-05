@@ -363,12 +363,14 @@ class BQLoader:
         ingested_at = datetime.utcnow().isoformat()
 
         for row in rows:
-            row["org_slug"] = row.get("org_slug", org_slug)
-            row["x_pipeline_id"] = row.get("x_pipeline_id", pipeline_id)
-            row["x_credential_id"] = row.get("x_credential_id", credential_id)
+            # PIPE-004 FIX: Always force org_slug from context for multi-tenant isolation
+            # Never trust row data - always override with authenticated context value
+            row["org_slug"] = org_slug  # Forced from context, not row.get()
+            row["x_pipeline_id"] = pipeline_id  # Forced from context
+            row["x_credential_id"] = credential_id  # Forced from context
             row["x_pipeline_run_date"] = row.get("x_pipeline_run_date", run_date)
-            row["x_run_id"] = row.get("x_run_id", run_id)
-            row["x_ingested_at"] = row.get("x_ingested_at", ingested_at)
+            row["x_run_id"] = run_id  # Forced from context
+            row["x_ingested_at"] = ingested_at  # Always current timestamp
 
         try:
             client = self.bq_client.client

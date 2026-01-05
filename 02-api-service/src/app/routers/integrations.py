@@ -86,6 +86,43 @@ def enforce_credential_size_limit(credential: str, org_slug: str) -> None:
         )
 
 
+# INT-003 FIX: Add metadata size validation
+MAX_METADATA_SIZE_BYTES = 50 * 1024  # 50KB limit for metadata
+
+
+def enforce_metadata_size_limit(metadata: dict, org_slug: str) -> None:
+    """
+    INT-003 FIX: Enforce metadata size limit to prevent DoS via large metadata payloads.
+
+    Args:
+        metadata: The metadata dict to check
+        org_slug: Organization slug for logging
+
+    Raises:
+        HTTPException: 413 if metadata exceeds size limit
+    """
+    if not metadata:
+        return
+
+    import json
+    metadata_json = json.dumps(metadata)
+    metadata_size = len(metadata_json.encode('utf-8'))
+
+    if metadata_size > MAX_METADATA_SIZE_BYTES:
+        logger.warning(
+            f"Metadata size exceeds limit for {org_slug}",
+            extra={
+                "org_slug": org_slug,
+                "metadata_size": metadata_size,
+                "max_size": MAX_METADATA_SIZE_BYTES
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Metadata size ({metadata_size} bytes) exceeds maximum allowed ({MAX_METADATA_SIZE_BYTES} bytes)"
+        )
+
+
 # ============================================
 # Request/Response Models
 # ============================================
@@ -241,8 +278,9 @@ async def setup_gcp_integration(
             detail=f"Credential size ({credential_size} bytes) exceeds maximum allowed ({settings.max_credential_size_bytes} bytes)"
         )
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # INT-001 FIX: Always validate org ownership, even in dev mode
+    # The auth dependency already provides the authenticated org - we must verify it matches
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -323,8 +361,8 @@ async def setup_openai_integration(
     # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
     await safe_rate_limit(request, org_slug, 10, "setup_openai_integration")
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # INT-001 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -360,8 +398,8 @@ async def setup_anthropic_integration(
     # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
     await safe_rate_limit(request, org_slug, 10, "setup_anthropic_integration")
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # INT-001 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -397,8 +435,8 @@ async def setup_gemini_integration(
     # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
     await safe_rate_limit(request, org_slug, 10, "setup_gemini_integration")
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # INT-001 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -434,8 +472,8 @@ async def setup_deepseek_integration(
     # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
     await safe_rate_limit(request, org_slug, 10, "setup_deepseek_integration")
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # INT-001 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"

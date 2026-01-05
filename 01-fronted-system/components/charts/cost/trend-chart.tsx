@@ -90,7 +90,7 @@ export function CostTrendChart({
   barLabel = "Daily Cost",
   showLine = true,
   lineColor,
-  lineLabel = "7-day Avg",
+  lineLabel = "Avg Daily",
   showAreaFill = true,
   budgetLine,
   budgetLabel = "Budget",
@@ -104,37 +104,44 @@ export function CostTrendChart({
   // Responsive height - use CSS media query approach
   const responsiveHeight = mobileHeight ?? Math.max(height - 80, 200)
   const { theme, timeRange: contextTimeRange, customRange: contextCustomRange } = useChartConfig()
-  const costData = useCostData()
+  // PERF-001 FIX: Destructure only needed values to prevent unnecessary re-renders
+  const { getFilteredTimeSeries, cacheVersion, isLoading: contextLoading } = useCostData()
 
   // Determine time range
   const timeRange = propTimeRange || contextTimeRange
   const customRange = propCustomRange || contextCustomRange
 
   // Get data from context or use provided data
+  // PERF-001 FIX: Depend on cacheVersion instead of entire costData object
   const chartData = useMemo(() => {
     if (propData) return propData
 
     // Get from context using unified filters
-    const timeSeries = costData.getFilteredTimeSeries()
+    const timeSeries = getFilteredTimeSeries()
 
     // Calculate rolling average (period average as flat reference line)
-    const totalCost = timeSeries.reduce((sum: number, d: { date: string; total: number }) => sum + (d.total || 0), 0)
+    const totalCost = timeSeries.reduce((sum: number, d: { date: string; total: number }) => {
+      // DATA-001 FIX: Validate number before adding
+      const value = d.total
+      return sum + (Number.isFinite(value) ? value : 0)
+    }, 0)
     const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
-    const rollingAvg = Math.round(avgDaily * 100) / 100
+    const rollingAvg = Number.isFinite(avgDaily) ? Math.round(avgDaily * 100) / 100 : 0
 
     return timeSeries.map((point: { date: string; total: number }) => {
       const date = new Date(point.date)
+      const value = Number.isFinite(point.total) ? point.total : 0
       return {
         date: point.date,
         label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        value: point.total,
+        value,
         rollingAvg,
       }
     })
-  }, [propData, costData])
+  }, [propData, getFilteredTimeSeries, cacheVersion])
 
   // Determine loading state
-  const isLoading = propLoading ?? costData.isLoading
+  const isLoading = propLoading ?? contextLoading
 
   // Build series config
   const series = useMemo<SeriesConfig[]>(() => {
@@ -221,7 +228,7 @@ export function CostTrendChart({
 // ============================================
 
 /**
- * Monthly cost trend with 7-day rolling average
+ * Monthly cost trend with average daily line
  */
 export function MonthlyCostTrend(
   props: Omit<CostTrendChartProps, "title" | "timeRange">
@@ -229,7 +236,7 @@ export function MonthlyCostTrend(
   return (
     <CostTrendChart
       title="Monthly Cost Trend"
-      subtitle="Daily spend with 7-day rolling average"
+      subtitle="Daily spend with average daily reference"
       timeRange="30"
       {...props}
     />
@@ -237,34 +244,32 @@ export function MonthlyCostTrend(
 }
 
 /**
- * Quarterly cost trend with 14-day rolling average
+ * Quarterly cost trend with average daily line
  */
 export function QuarterlyCostTrend(
-  props: Omit<CostTrendChartProps, "title" | "timeRange" | "lineLabel">
+  props: Omit<CostTrendChartProps, "title" | "timeRange">
 ) {
   return (
     <CostTrendChart
       title="Quarterly Cost Trend"
-      subtitle="Daily spend with 14-day rolling average"
+      subtitle="Daily spend with average daily reference"
       timeRange="90"
-      lineLabel="14-day Avg"
       {...props}
     />
   )
 }
 
 /**
- * Year-to-date cost trend with 30-day rolling average
+ * Year-to-date cost trend with average daily line
  */
 export function YearCostTrend(
-  props: Omit<CostTrendChartProps, "title" | "timeRange" | "lineLabel">
+  props: Omit<CostTrendChartProps, "title" | "timeRange">
 ) {
   return (
     <CostTrendChart
       title="Annual Cost Trend"
-      subtitle="Daily spend with 30-day rolling average"
+      subtitle="Daily spend with average daily reference"
       timeRange="365"
-      lineLabel="30-day Avg"
       enableZoom={true}
       {...props}
     />

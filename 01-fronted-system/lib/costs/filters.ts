@@ -607,29 +607,51 @@ export function granularToTimeSeries(data: GranularCostRow[]): { date: string; t
 }
 
 /**
+ * DATA-001 FIX: Safe number extraction that handles NaN/Infinity
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+/**
+ * ROUND-001 FIX: Consistent percentage calculation (0.1% precision)
+ */
+function calculatePercentage(value: number, total: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) return 0
+  return Math.round((value / total) * 1000) / 10
+}
+
+/**
  * Aggregate granular data to provider breakdown
  */
 export function granularToProviderBreakdown(
   data: GranularCostRow[]
-): { provider: string; total_cost: number; percentage: number }[] {
+): { provider: string; total_cost: number; percentage: number; record_count: number }[] {
   if (!data || !Array.isArray(data)) return []
 
-  const byProvider = new Map<string, number>()
+  const byProvider = new Map<string, { total_cost: number; record_count: number }>()
   let grandTotal = 0
 
   for (const row of data) {
-    const cost = row.total_cost || 0
-    const current = byProvider.get(row.provider) || 0
-    byProvider.set(row.provider, current + cost)
+    // DATA-001 FIX: Use safeNumber to handle NaN/Infinity
+    const cost = safeNumber(row.total_cost)
+    const current = byProvider.get(row.provider) || { total_cost: 0, record_count: 0 }
+    byProvider.set(row.provider, {
+      total_cost: current.total_cost + cost,
+      record_count: current.record_count + 1,
+    })
     grandTotal += cost
   }
 
   return Array.from(byProvider.entries())
-    .sort(([, a], [, b]) => b - a)
-    .map(([provider, total_cost]) => ({
+    .sort(([, a], [, b]) => b.total_cost - a.total_cost)
+    .map(([provider, { total_cost, record_count }]) => ({
       provider,
       total_cost,
-      percentage: grandTotal > 0 ? Math.round((total_cost / grandTotal) * 1000) / 10 : 0,
+      // ROUND-001 FIX: Use consistent percentage calculation
+      percentage: calculatePercentage(total_cost, grandTotal),
+      record_count,
     }))
 }
 
@@ -645,7 +667,8 @@ export function granularToCategoryBreakdown(
   let grandTotal = 0
 
   for (const row of data) {
-    const cost = row.total_cost || 0
+    // DATA-001 FIX: Use safeNumber to handle NaN/Infinity
+    const cost = safeNumber(row.total_cost)
     const current = byCategory.get(row.category) || 0
     byCategory.set(row.category, current + cost)
     grandTotal += cost
@@ -656,7 +679,8 @@ export function granularToCategoryBreakdown(
     .map(([category, total_cost]) => ({
       category,
       total_cost,
-      percentage: grandTotal > 0 ? Math.round((total_cost / grandTotal) * 1000) / 10 : 0,
+      // ROUND-001 FIX: Use consistent percentage calculation
+      percentage: calculatePercentage(total_cost, grandTotal),
     }))
 }
 
@@ -665,5 +689,6 @@ export function granularToCategoryBreakdown(
  */
 export function granularTotalCost(data: GranularCostRow[]): number {
   if (!data || !Array.isArray(data)) return 0
-  return data.reduce((sum, row) => sum + (row.total_cost || 0), 0)
+  // DATA-001 FIX: Use safeNumber to handle NaN/Infinity
+  return data.reduce((sum, row) => sum + safeNumber(row.total_cost), 0)
 }

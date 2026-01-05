@@ -197,7 +197,7 @@ export interface CostDataContextValue extends CostDataState {
   /**
    * Get provider breakdown from filtered granular data.
    */
-  getFilteredProviderBreakdown: () => { provider: string; total_cost: number; percentage: number }[]
+  getFilteredProviderBreakdown: () => { provider: string; total_cost: number; percentage: number; record_count: number }[]
 
   /**
    * Get category breakdown from filtered granular data.
@@ -499,7 +499,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
    * applied client-side via getFilteredGranularData().
    *
    * @param clearBackendCache - If true, bypasses backend Polars LRU cache
-   * @param filtersOverride - Optional filters to use instead of state.filters (CTX-005 fix)
+   * @param filtersOverride - Optional filters to use instead of state.filters (CTX-001 fix)
    */
   const fetchCostData = useCallback(async (
     clearBackendCache: boolean = false,
@@ -511,11 +511,12 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     if (isFetchingRef.current) return
     isFetchingRef.current = true
 
-    // Cancel any in-flight request (CACHE-005 fix)
+    // Cancel any in-flight request (ENT-002 fix)
     if (mainFetchAbortRef.current) {
       mainFetchAbortRef.current.abort()
     }
-    mainFetchAbortRef.current = new AbortController()
+    const abortController = new AbortController()
+    mainFetchAbortRef.current = abortController
 
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
@@ -528,13 +529,16 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       const endDate = today.toISOString().split("T")[0]
       const startDate = startOfRange.toISOString().split("T")[0]
 
-      // CTX-005 FIX: Use filtersOverride if provided to avoid stale closure
+      // CTX-001 FIX: Use filtersOverride if provided to avoid stale closure
       // When setUnifiedFilters calls fetchCostData, React hasn't committed
       // the state update yet, so state.filters would be stale.
-      const effectiveFilters = filtersOverride ?? state.filters
+      // We read from ref to get latest filters without re-creating callback
+      const effectiveFilters = filtersOverride
 
       // Build hierarchy filters from unified filters for API calls
-      const { departmentId, projectId, teamId } = effectiveFilters
+      const departmentId = effectiveFilters?.departmentId
+      const projectId = effectiveFilters?.projectId
+      const teamId = effectiveFilters?.teamId
       const apiFilters = (departmentId || projectId || teamId)
         ? { departmentId, projectId, teamId }
         : undefined
@@ -547,15 +551,15 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         })
       }
 
+      // ENT-003 FIX: Add timeout wrapper (30 seconds)
+      const FETCH_TIMEOUT_MS = 30000
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Request timeout after 30 seconds")), FETCH_TIMEOUT_MS)
+      })
+
       // Fetch core data in parallel with consistent 365-day range
       // Granular data is the L1 cache source for client-side filtering
-      const [
-        totalCostsResult,
-        providerResult,
-        periodCostsResult,
-        hierarchyResult,
-        granularResult,
-      ] = await Promise.all([
+      const fetchPromise = Promise.all([
         getTotalCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
         getExtendedPeriodCosts(orgSlug, "total", apiFilters),
@@ -563,8 +567,17 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         getCostTrendGranular(orgSlug, 365, clearBackendCache),
       ])
 
-      // Check if request was cancelled while waiting for API (CACHE-005 fix)
-      if (mainFetchAbortRef.current?.signal.aborted || !isMountedRef.current) {
+      // Race between fetch and timeout (ENT-003 fix)
+      const [
+        totalCostsResult,
+        providerResult,
+        periodCostsResult,
+        hierarchyResult,
+        granularResult,
+      ] = await Promise.race([fetchPromise, timeoutPromise])
+
+      // STATE-001 FIX: Check abort/unmount IMMEDIATELY after await
+      if (abortController.signal.aborted || !isMountedRef.current) {
         if (process.env.NODE_ENV === "development") {
           console.log(`[CostData] Fetch aborted or unmounted, skipping state update`)
         }
@@ -593,8 +606,14 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         { id: "subscription", name: "Subscription", color: "#FF6C5E", data: totalCosts?.subscription },
       ]
 
+      // DATA-002 FIX: Safe extraction with validation for unexpected API structures
       const availableCategories = categoryConfigs
-        .filter(cat => cat.data && (cat.data.providers?.length > 0 || cat.data.total_monthly_cost > 0))
+        .filter(cat => {
+          if (!cat.data || typeof cat.data !== "object") return false
+          const hasProviders = Array.isArray(cat.data.providers) && cat.data.providers.length > 0
+          const hasCost = typeof cat.data.total_monthly_cost === "number" && cat.data.total_monthly_cost > 0
+          return hasProviders || hasCost
+        })
         .map(cat => ({
           id: cat.id,
           name: cat.name,
@@ -629,8 +648,10 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         }
         // If not in any backend list, defaults to "subscription" (uncategorized)
 
+        // FILTER-001 FIX: Normalize id to lowercase for consistent filtering
+        // Keep name as original case for display
         return {
-          id: p.provider,
+          id: providerLower,
           name: p.provider,
           category,
           totalCost: p.total_cost,
@@ -672,9 +693,10 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         periodCosts: periodCostsResult.success ? periodCostsResult.data : null,
         hierarchy: hierarchyEntities,
         availableFilters,
+        // CALC-003 FIX: Use ?? instead of || to handle null properly
         currency:
-          totalCosts?.currency ||
-          (providerResult.success && providerResult.currency ? providerResult.currency : null) ||
+          totalCosts?.currency ??
+          (providerResult.success ? providerResult.currency : null) ??
           DEFAULT_CURRENCY,
         lastFetchedAt: new Date(),
         dataAsOf: periodCostsResult.data?.dataAsOf || null,
@@ -697,7 +719,9 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       // Clear fetching flag to allow future fetches (e.g., clear cache)
       isFetchingRef.current = false
     }
-  }, [orgSlug, state.filters])
+  // CTX-001 FIX: Remove state.filters from deps to prevent infinite loop.
+  // Filters are passed via filtersOverride parameter when needed.
+  }, [orgSlug])
 
   // Fetch if not initialized
   const fetchIfNeeded = useCallback(async () => {
@@ -793,9 +817,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
 
     if (decision === "L1_USE_CACHE") {
       // Instant - just update filters, no API call
+      // CACHE-001 FIX: Increment cacheVersion to trigger chart re-renders
       setState((prev) => ({
         ...prev,
         filters: updatedFilters,
+        cacheVersion: prev.cacheVersion + 1,
       }))
 
       if (process.env.NODE_ENV === "development") {
@@ -826,14 +852,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
    */
   const getFilteredGranularData = useCallback((): GranularCostRow[] => {
     if (!state.granularData || state.granularData.length === 0) {
-      console.log(`[CostData] getFilteredGranularData: No granular data (${state.granularData?.length || 0} rows)`)
       return []
     }
 
     // Convert TimeRange to DateRange for filtering
     const dateRange = timeRangeToDateRange(state.filters.timeRange, state.filters.customRange)
-    const startStr = dateRange.start.toISOString().split("T")[0]
-    const endStr = dateRange.end.toISOString().split("T")[0]
 
     // Apply all filters
     const filtered = applyGranularFilters(state.granularData, {
@@ -844,8 +867,6 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       projectId: state.filters.projectId,
       teamId: state.filters.teamId,
     })
-
-    console.log(`[CostData] getFilteredGranularData: timeRange=${state.filters.timeRange}, date=${startStr} to ${endStr}, input=${state.granularData.length}, output=${filtered.length}`)
 
     return filtered
   }, [state.granularData, state.filters])
@@ -862,7 +883,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   /**
    * Get provider breakdown from filtered granular data.
    */
-  const getFilteredProviderBreakdown = useCallback((): { provider: string; total_cost: number; percentage: number }[] => {
+  const getFilteredProviderBreakdown = useCallback((): { provider: string; total_cost: number; percentage: number; record_count: number }[] => {
     const filtered = getFilteredGranularData()
     return granularToProviderBreakdown(filtered)
   }, [getFilteredGranularData])

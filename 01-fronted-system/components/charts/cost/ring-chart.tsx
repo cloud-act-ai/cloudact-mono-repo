@@ -88,37 +88,32 @@ export function CostRingChart({
   className,
 }: CostRingChartProps) {
   const { formatValue, formatValueCompact, theme, isLoading: contextLoading } = useChartConfig()
-  const costData = useCostData()
+  const { getFilteredCategoryBreakdown } = useCostData()
 
-  // Get segments from context if useCategories
+  // Category display name mapping
+  const categoryNames: Record<string, string> = {
+    genai: "GenAI",
+    cloud: "Cloud",
+    subscription: "Subscriptions",
+  }
+
+  // Get segments from context if useCategories (uses time-filtered data)
   const segments = useMemo<RingSegment[]>(() => {
     if (propSegments) return propSegments
 
-    if (useCategories && costData.totalCosts) {
-      return [
-        {
-          key: "genai",
-          name: "GenAI",
-          value: costData.totalCosts.genai?.total_monthly_cost ?? 0,
-          color: getCategoryColor("genai", theme),
-        },
-        {
-          key: "cloud",
-          name: "Cloud",
-          value: costData.totalCosts.cloud?.total_monthly_cost ?? 0,
-          color: getCategoryColor("cloud", theme),
-        },
-        {
-          key: "subscription",
-          name: "Subscriptions",
-          value: costData.totalCosts.subscription?.total_monthly_cost ?? 0,
-          color: getCategoryColor("subscription", theme),
-        },
-      ].filter((s) => s.value > 0)
+    if (useCategories) {
+      // Use time-filtered category breakdown from context
+      const breakdown = getFilteredCategoryBreakdown()
+      return breakdown.map((item) => ({
+        key: item.category,
+        name: categoryNames[item.category] || item.category,
+        value: item.total_cost,
+        color: getCategoryColor(item.category as "genai" | "cloud" | "subscription", theme),
+      })).filter((s) => s.value > 0)
     }
 
     return []
-  }, [propSegments, useCategories, costData.totalCosts, theme])
+  }, [propSegments, useCategories, getFilteredCategoryBreakdown, theme])
 
   // Calculate total
   const total = useMemo(

@@ -360,6 +360,9 @@ async def get_org_dataset_status(
     - **tables_missing**: Tables in config but not in BigQuery
     - **schema_diffs**: Columns that differ between config and BigQuery
     """
+    # ORG-001 FIX: Validate org_slug format for path parameter
+    validate_org_slug(org_slug)
+
     try:
         import json
 
@@ -744,18 +747,30 @@ async def onboard_org(
             if check_result:
                 # Key already used - return cached response
                 cached = check_result[0]
-                logger.info(f"Idempotency key hit - returning cached response for org: {cached['org_slug']}")
+                cached_org_slug = cached['org_slug']
+
+                # ORG-002 FIX: Validate cached org_slug matches request org_slug
+                if cached_org_slug != org_slug:
+                    logger.warning(
+                        f"Idempotency key reused with different org_slug: cached={cached_org_slug}, requested={org_slug}"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Idempotency key was already used for organization '{cached_org_slug}'. Use a different idempotency key for '{org_slug}'."
+                    )
+
+                logger.info(f"Idempotency key hit - returning cached response for org: {cached_org_slug}")
                 import json
                 cached_response = json.loads(cached["response_data"]) if cached.get("response_data") else {}
                 return OnboardOrgResponse(
-                    org_slug=cached["org_slug"],
+                    org_slug=cached_org_slug,
                     api_key=cached_response.get("api_key", "[cached - key not returned]"),
                     subscription_plan=cached_response.get("subscription_plan", "STARTER"),
                     dataset_location=cached_response.get("dataset_location", settings.bigquery_location),  # (#49)
                     dataset_created=cached_response.get("dataset_created", True),
                     tables_created=cached_response.get("tables_created", []),
                     dryrun_status=cached_response.get("dryrun_status", "CACHED"),
-                    message=f"Organization '{cached['org_slug']}' already onboarded (idempotent request)"
+                    message=f"Organization '{cached_org_slug}' already onboarded (idempotent request)"
                 )
 
         except Exception as e:
@@ -1605,6 +1620,9 @@ async def rotate_api_key(
     4. Stores the new API key (encrypted with KMS)
     5. Returns the new API key (shown ONCE - save immediately!)
     """
+    # ORG-001 FIX: Validate org_slug format for path parameter
+    validate_org_slug(org_slug)
+
     # Security check: if using org key, must match the org in URL
     if not auth.is_admin and auth.org_slug != org_slug:
         raise HTTPException(
@@ -2348,6 +2366,9 @@ async def delete_organization(
     WARNING: This is destructive and cannot be undone. The org_slug must be confirmed
     in the request body to prevent accidental deletions.
     """
+    # ORG-001 FIX: Validate org_slug format for path parameter
+    validate_org_slug(org_slug)
+
     # Security: confirm org_slug matches
     if request.confirm_org_slug != org_slug:
         raise HTTPException(
@@ -2506,6 +2527,9 @@ async def get_subscription(
     - Organization API Key (X-API-Key header) - self-service access
     - Root API Key (X-CA-Root-Key header) - admin can access any org
     """
+    # ORG-001 FIX: Validate org_slug format for path parameter
+    validate_org_slug(org_slug)
+
     # Security check: if using org key, must match the org in URL
     if not auth.is_admin and auth.org_slug != org_slug:
         raise HTTPException(
@@ -2605,6 +2629,9 @@ async def get_org_locale(
     - Organization API Key (X-API-Key header) - self-service access
     - Root API Key (X-CA-Root-Key header) - admin can access any org
     """
+    # ORG-001 FIX: Validate org_slug format for path parameter
+    validate_org_slug(org_slug)
+
     # Security check: if using org key, must match the org in URL
     if not auth.is_admin and auth.org_slug != org_slug:
         raise HTTPException(
@@ -2693,6 +2720,9 @@ async def update_org_locale(
     - Organization API Key (X-API-Key header) - self-service update
     - Root API Key (X-CA-Root-Key header) - admin can update any org
     """
+    # ORG-001 FIX: Validate org_slug format for path parameter
+    validate_org_slug(org_slug)
+
     # Security check: if using org key, must match the org in URL
     if not auth.is_admin and auth.org_slug != org_slug:
         raise HTTPException(

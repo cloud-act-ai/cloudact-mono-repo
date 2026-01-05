@@ -28,9 +28,10 @@ def generate_request_id() -> str:
 # Validation Rules Configuration
 # ============================================
 
-# Organization slug validation: alphanumeric, underscores, hyphens only (3-64 chars)
+# ORG-005 FIX: Organization slug validation aligned with model validators
+# Pattern: alphanumeric and underscores only, 3-50 chars (NO hyphens - matches Pydantic models)
 # Prevents SQL injection, path traversal, and invalid dataset names
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{3,64}$')
+ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
 
 # Date format validation: YYYY-MM-DD
 DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')

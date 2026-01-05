@@ -167,9 +167,9 @@ export default function CostOverviewPage() {
     // Transform to chart format
     return timeSeries.map((point) => {
       const date = new Date(point.date)
-      // Format label based on data length
-      const label = timeSeries.length >= 60
-        ? date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      // BUG-001 FIX: Format label based on data length - short format for large datasets
+      const label = timeSeries.length >= 90
+        ? date.toLocaleDateString("en-US", { day: "numeric" })  // Just day number for 90+ days
         : date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 
       return {
@@ -403,8 +403,8 @@ export default function CostOverviewPage() {
           <CostRingChart
             title="Total Spend"
             segments={ringSegments}
-            centerLabel="MTD"
-            insight={`Spending across ${ringSegments.length} cost categories this month.`}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
+            insight={`Spending across ${ringSegments.length} cost ${ringSegments.length > 1 ? "categories" : "category"} in selected period.`}
             size={200}
             thickness={22}
             titleColor="#1a7a3a"
@@ -563,7 +563,7 @@ export default function CostOverviewPage() {
             title="Provider Details"
             rows={tableRows}
             showCount
-            countLabel="subscriptions"
+            countLabel="providers"
             maxRows={10}
           />
         </div>

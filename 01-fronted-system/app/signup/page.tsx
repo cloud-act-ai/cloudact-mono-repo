@@ -171,8 +171,8 @@ function SignupForm() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setServerError(null) // AUTH-001 FIX: Clear error before validation
     setIsLoading(true)
-    setServerError(null)
 
     if (!isInviteFlow && !isValidOrgName(companyName)) {
       setServerError("Please enter a valid company name (2-100 characters)")
@@ -219,21 +219,35 @@ function SignupForm() {
       if (signupError) throw new Error(signupError.message)
       if (!authData.user) throw new Error("Signup failed")
 
-      const { error: signinError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      })
+      // AUTH-002 FIX: Wrap signin in try-catch to handle partial auth state gracefully
+      try {
+        const { error: signinError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        })
 
-      if (signinError) {
-        const loginUrl = `/login?redirect=${encodeURIComponent(finalRedirect)}&message=Please sign in to continue`
+        if (signinError) {
+          // Signup succeeded but signin failed - redirect to login with helpful message
+          const loginUrl = `/login?redirect=${encodeURIComponent(finalRedirect)}&message=Account created! Please sign in to continue`
+          setIsLoading(false)
+          if (typeof window !== "undefined") {
+            window.location.href = loginUrl
+          }
+          return
+        }
+      } catch (signinErr) {
+        // Signin threw exception - still redirect to login since account was created
+        console.warn("[Signup] Auto-signin failed after signup:", signinErr)
+        const loginUrl = `/login?redirect=${encodeURIComponent(finalRedirect)}&message=Account created! Please sign in to continue`
         setIsLoading(false)
-        // Use window.location for reliable navigation after auth state change
         if (typeof window !== "undefined") {
           window.location.href = loginUrl
         }
         return
       }
 
+      // AUTH-003 FIX: Reset loading state before navigation
+      setIsLoading(false)
       // Use window.location for full page navigation after auth
       if (typeof window !== "undefined") window.location.href = finalRedirect
     } catch (error: unknown) {

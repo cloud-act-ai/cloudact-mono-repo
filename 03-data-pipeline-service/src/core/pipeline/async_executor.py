@@ -126,8 +126,9 @@ class AsyncPipelineExecutor:
     - Support for 100+ concurrent pipelines
     """
 
-    # org_slug validation pattern: alphanumeric, underscore, 3-50 chars
-    ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
+    # PIPE-001 FIX: org_slug validation pattern aligned with API service
+    # Pattern: alphanumeric (mixed case) + underscore, 3-50 chars (matches middleware/validators)
+    ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
 
     @staticmethod
     def _validate_org_slug(org_slug: str) -> None:
@@ -152,7 +153,7 @@ class AsyncPipelineExecutor:
         if not AsyncPipelineExecutor.ORG_SLUG_PATTERN.match(org_slug):
             raise ValueError(
                 f"Invalid org_slug format: '{org_slug}'. "
-                "Must be 3-50 lowercase alphanumeric characters or underscores."
+                "Must be 3-50 alphanumeric characters or underscores."
             )
 
     def __init__(
@@ -1588,6 +1589,18 @@ class AsyncPipelineExecutor:
             context["pipeline_id"] = self.pipeline_id
             context["step_id"] = step_id
             context["run_id"] = self.pipeline_logging_id  # For lineage tracking (x_run_id)
+
+            # PIPE-002 FIX: Add x_* metadata fields required by BQ loader
+            # These are used for pipeline lineage tracking in cost tables
+            context["x_pipeline_id"] = self.pipeline_id
+            context["x_run_id"] = self.pipeline_logging_id
+            # x_credential_id comes from step config or default
+            if "credential_id" not in context:
+                context["credential_id"] = context.get("x_credential_id", "default")
+            # x_pipeline_run_date from parameters or current date
+            if "x_pipeline_run_date" not in context:
+                from datetime import datetime
+                context["x_pipeline_run_date"] = context.get("start_date") or datetime.utcnow().date().isoformat()
 
             result = await engine.execute(step_config, context)
 
