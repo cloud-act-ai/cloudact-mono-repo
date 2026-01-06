@@ -71,7 +71,7 @@ import {
   type PlanCreate,
   type BillingCycle,
 } from "@/actions/subscription-providers"
-import { getDepartments, getProjects, getTeams, type HierarchyEntity } from "@/actions/hierarchy"
+import { getEntitiesByLevel, type HierarchyEntity } from "@/actions/hierarchy"
 import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
@@ -336,10 +336,11 @@ export default function ProviderDetailPage() {
   const loadHierarchy = useCallback(async () => {
     setLoadingHierarchy(true)
     try {
+      // Use N-level hierarchy API: getEntitiesByLevel(orgSlug, levelCode)
       const [deptsResult, projsResult, teamsResult] = await Promise.all([
-        getDepartments(orgSlug),
-        getProjects(orgSlug),
-        getTeams(orgSlug),
+        getEntitiesByLevel(orgSlug, "department"),
+        getEntitiesByLevel(orgSlug, "project"),
+        getEntitiesByLevel(orgSlug, "team"),
       ])
 
       if (deptsResult.success && deptsResult.data) {

@@ -750,6 +750,8 @@ async def validate_hierarchy_ids(
     Reads from x_org_hierarchy view (preferred) or falls back to central table.
     The view is pre-filtered by org_slug and end_date IS NULL.
 
+    Uses N-level hierarchy schema with level_code field (not entity_type).
+
     Raises HTTPException 400 if any provided hierarchy ID is not found.
     Only validates IDs that are provided (non-None).
     """
@@ -789,20 +791,20 @@ async def validate_hierarchy_ids(
 
     table_ref = view_ref if uses_view else central_ref
 
-    for entity_type, entity_id in ids_to_validate:
+    for level_code, entity_id in ids_to_validate:
         # View is already filtered by org_slug and end_date IS NULL
         if uses_view:
             query = f"""
             SELECT entity_id FROM `{table_ref}`
             WHERE entity_id = @entity_id
-              AND entity_type = @entity_type
+              AND level_code = @level_code
               AND is_active = TRUE
             LIMIT 1
             """
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
-                    bigquery.ScalarQueryParameter("entity_type", "STRING", entity_type),
+                    bigquery.ScalarQueryParameter("level_code", "STRING", level_code),
                 ],
                 job_timeout_ms=30000
             )
@@ -811,7 +813,7 @@ async def validate_hierarchy_ids(
             SELECT entity_id FROM `{table_ref}`
             WHERE org_slug = @org_slug
               AND entity_id = @entity_id
-              AND entity_type = @entity_type
+              AND level_code = @level_code
               AND end_date IS NULL
               AND is_active = TRUE
             LIMIT 1
@@ -820,7 +822,7 @@ async def validate_hierarchy_ids(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
-                    bigquery.ScalarQueryParameter("entity_type", "STRING", entity_type),
+                    bigquery.ScalarQueryParameter("level_code", "STRING", level_code),
                 ],
                 job_timeout_ms=30000
             )
@@ -835,12 +837,12 @@ async def validate_hierarchy_ids(
             if not found:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid hierarchy_{entity_type}_id: '{entity_id}' not found in org_hierarchy"
+                    detail=f"Invalid hierarchy_{level_code}_id: '{entity_id}' not found in org_hierarchy"
                 )
         except HTTPException:
             raise
         except Exception as e:
-            logger.warning(f"Failed to validate hierarchy {entity_type} ID {entity_id}: {e}")
+            logger.warning(f"Failed to validate hierarchy {level_code} ID {entity_id}: {e}")
             # Don't block on validation failures - the view/table may not exist yet
             # for new organizations. The ID will just be stored as-is.
 

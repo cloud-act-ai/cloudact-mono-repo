@@ -38,7 +38,7 @@ import {
 export interface HierarchyEntity {
   entity_id: string
   entity_name: string
-  entity_type: "department" | "project" | "team"
+  level_code: string // N-level: "department", "project", "team", or custom levels
   parent_id?: string | null
 }
 
@@ -189,10 +189,10 @@ export function CostFilters({
   const [providerOpen, setProviderOpen] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
 
-  // Parse hierarchy into nested structure
-  const departments = hierarchy.filter((h) => h.entity_type === "department")
-  const projects = hierarchy.filter((h) => h.entity_type === "project")
-  const teams = hierarchy.filter((h) => h.entity_type === "team")
+  // Parse hierarchy into nested structure (N-level: uses level_code)
+  const departments = hierarchy.filter((h) => h.level_code === "department")
+  const projects = hierarchy.filter((h) => h.level_code === "project")
+  const teams = hierarchy.filter((h) => h.level_code === "team")
 
   // Filter projects/teams based on selected parent
   const filteredProjects = value.department

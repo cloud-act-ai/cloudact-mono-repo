@@ -140,13 +140,17 @@ tables:
     clustering: ["org_slug", "notification_type", "status"]
 
   # ============================================
-  # Organizational Hierarchy
-  # Central management for Dept → Project → Team structure
+  # Organizational Hierarchy (N-Level Configurable)
+  # Flexible hierarchy structure with configurable levels
   # ============================================
 
+  hierarchy_levels:
+    description: "Hierarchy level configuration (defines structure: e.g., Dept → Project → Team)"
+    clustering: ["org_slug", "level", "is_active"]
+
   org_hierarchy:
-    description: "Organizational hierarchy (Dept → Project → Team) for cost allocation"
+    description: "Organizational hierarchy entities (N-level configurable for cost allocation)"
     partition:
       type: "DAY"
       field: "created_at"
-    clustering: ["org_slug", "entity_type", "is_active"]
+    clustering: ["org_slug", "level", "level_code", "is_active"]

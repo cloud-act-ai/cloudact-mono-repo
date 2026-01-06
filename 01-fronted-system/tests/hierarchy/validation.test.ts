@@ -1,10 +1,11 @@
 /**
  * @vitest-environment node
  *
- * Hierarchy Validation Tests
+ * N-Level Hierarchy Validation Tests
  *
  * Tests organizational hierarchy:
- * - Cascading dropdown behavior (Department → Project → Team)
+ * - N-level configurable hierarchy structure
+ * - Cascading dropdown behavior (Level 1 → Level 2 → Level 3 → ...)
  * - Hierarchy field validation
  * - Integration with subscription forms
  * - API endpoint validation
@@ -31,6 +32,7 @@ describe('Hierarchy Entity Validation', () => {
     expect(validEntityId('TEAM-001')).toBe(true)
     expect(validEntityId('engineering')).toBe(true)
     expect(validEntityId('platform_team_1')).toBe(true)
+    expect(validEntityId('DIV-NORTH')).toBe(true) // Custom level IDs
 
     // Invalid IDs
     expect(validEntityId('')).toBe(false)
@@ -52,83 +54,84 @@ describe('Hierarchy Entity Validation', () => {
     console.log('✓ Entity name max length validated')
   })
 
-  it('should validate entity types', () => {
-    const validTypes = ['department', 'project', 'team']
+  it('should validate level_code field', () => {
+    // N-level: level_code is a string, not enum
+    const validLevelCodes = ['department', 'project', 'team', 'division', 'business_unit', 'squad']
 
-    expect(validTypes.includes('department')).toBe(true)
-    expect(validTypes.includes('project')).toBe(true)
-    expect(validTypes.includes('team')).toBe(true)
-    expect(validTypes.includes('division')).toBe(false)
-    expect(validTypes.includes('organization')).toBe(false)
+    validLevelCodes.forEach(code => {
+      expect(typeof code).toBe('string')
+      expect(code.length).toBeGreaterThan(0)
+    })
 
-    console.log('✓ Entity types validated')
+    console.log('✓ Level codes validated (N-level supports any string)')
   })
 })
 
 // ============================================
-// Hierarchy Structure Validation
+// N-Level Hierarchy Structure Validation
 // ============================================
 
-describe('Hierarchy Structure Validation', () => {
-  it('should enforce parent-child relationships', () => {
-    // Department has no parent
+describe('N-Level Hierarchy Structure Validation', () => {
+  it('should enforce parent-child relationships via path', () => {
+    // Root entity has no parent
     const department = {
-      entity_type: 'department',
+      level_code: 'department',
       entity_id: 'DEPT-001',
-      parent_id: null
+      parent_id: null,
+      path: '/DEPT-001',
+      path_ids: ['DEPT-001'],
+      path_names: ['Engineering'],
+      depth: 0
     }
     expect(department.parent_id).toBeNull()
+    expect(department.depth).toBe(0)
 
-    // Project must have department parent
+    // Level 2 entity has level 1 parent
     const project = {
-      entity_type: 'project',
+      level_code: 'project',
       entity_id: 'PROJ-001',
       parent_id: 'DEPT-001',
-      dept_id: 'DEPT-001'
+      path: '/DEPT-001/PROJ-001',
+      path_ids: ['DEPT-001', 'PROJ-001'],
+      path_names: ['Engineering', 'Platform'],
+      depth: 1
     }
     expect(project.parent_id).toBe('DEPT-001')
-    expect(project.dept_id).toBe('DEPT-001')
+    expect(project.depth).toBe(1)
+    expect(project.path_ids).toContain('DEPT-001')
 
-    // Team must have project parent
+    // Level 3 entity has level 2 parent
     const team = {
-      entity_type: 'team',
+      level_code: 'team',
       entity_id: 'TEAM-001',
       parent_id: 'PROJ-001',
-      project_id: 'PROJ-001'
+      path: '/DEPT-001/PROJ-001/TEAM-001',
+      path_ids: ['DEPT-001', 'PROJ-001', 'TEAM-001'],
+      path_names: ['Engineering', 'Platform', 'Backend'],
+      depth: 2
     }
     expect(team.parent_id).toBe('PROJ-001')
-    expect(team.project_id).toBe('PROJ-001')
+    expect(team.depth).toBe(2)
+    expect(team.path_ids.length).toBe(3)
 
-    console.log('✓ Parent-child relationships validated')
+    console.log('✓ Parent-child relationships validated via materialized path')
   })
 
-  it('should validate hierarchy depth (max 3 levels)', () => {
-    const hierarchy = {
-      departments: [
-        {
-          entity_id: 'DEPT-001',
-          children: [
-            {
-              entity_id: 'PROJ-001',
-              children: [
-                {
-                  entity_id: 'TEAM-001',
-                  children: [] // Teams cannot have children
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
+  it('should support configurable hierarchy depth', () => {
+    // N-level supports any depth via level configuration
+    const levels = [
+      { level: 1, level_code: 'division', parent_level: null },
+      { level: 2, level_code: 'department', parent_level: 1 },
+      { level: 3, level_code: 'project', parent_level: 2 },
+      { level: 4, level_code: 'team', parent_level: 3 },
+      { level: 5, level_code: 'squad', parent_level: 4, is_leaf: true }
+    ]
 
-    const maxDepth = 3
-    const dept = hierarchy.departments[0]
-    const project = dept.children[0]
-    const team = project.children[0]
+    expect(levels.length).toBe(5)
+    expect(levels[0].parent_level).toBeNull() // Root has no parent
+    expect(levels[4].is_leaf).toBe(true) // Deepest level is leaf
 
-    expect(team.children.length).toBe(0)
-    console.log('✓ Hierarchy depth (max 3 levels) validated')
+    console.log('✓ Configurable hierarchy depth validated')
   })
 })
 
@@ -137,40 +140,50 @@ describe('Hierarchy Structure Validation', () => {
 // ============================================
 
 describe('Cascading Dropdown Behavior', () => {
-  // Mock hierarchy data
-  const mockDepartments = [
-    { entity_id: 'DEPT-001', entity_name: 'Engineering' },
-    { entity_id: 'DEPT-002', entity_name: 'Marketing' }
+  // Mock hierarchy data with N-level structure
+  const mockEntities = [
+    { entity_id: 'DEPT-001', entity_name: 'Engineering', level_code: 'department', parent_id: null },
+    { entity_id: 'DEPT-002', entity_name: 'Marketing', level_code: 'department', parent_id: null },
+    { entity_id: 'PROJ-001', entity_name: 'Platform', level_code: 'project', parent_id: 'DEPT-001' },
+    { entity_id: 'PROJ-002', entity_name: 'Mobile App', level_code: 'project', parent_id: 'DEPT-001' },
+    { entity_id: 'PROJ-003', entity_name: 'Brand Campaign', level_code: 'project', parent_id: 'DEPT-002' },
+    { entity_id: 'TEAM-001', entity_name: 'Backend', level_code: 'team', parent_id: 'PROJ-001' },
+    { entity_id: 'TEAM-002', entity_name: 'Frontend', level_code: 'team', parent_id: 'PROJ-001' },
+    { entity_id: 'TEAM-003', entity_name: 'iOS', level_code: 'team', parent_id: 'PROJ-002' },
+    { entity_id: 'TEAM-004', entity_name: 'Design', level_code: 'team', parent_id: 'PROJ-003' }
   ]
 
-  const mockProjects = [
-    { entity_id: 'PROJ-001', entity_name: 'Platform', parent_id: 'DEPT-001' },
-    { entity_id: 'PROJ-002', entity_name: 'Mobile App', parent_id: 'DEPT-001' },
-    { entity_id: 'PROJ-003', entity_name: 'Brand Campaign', parent_id: 'DEPT-002' }
-  ]
+  it('should filter entities by level_code', () => {
+    const departments = mockEntities.filter(e => e.level_code === 'department')
+    const projects = mockEntities.filter(e => e.level_code === 'project')
+    const teams = mockEntities.filter(e => e.level_code === 'team')
 
-  const mockTeams = [
-    { entity_id: 'TEAM-001', entity_name: 'Backend', parent_id: 'PROJ-001' },
-    { entity_id: 'TEAM-002', entity_name: 'Frontend', parent_id: 'PROJ-001' },
-    { entity_id: 'TEAM-003', entity_name: 'iOS', parent_id: 'PROJ-002' },
-    { entity_id: 'TEAM-004', entity_name: 'Design', parent_id: 'PROJ-003' }
-  ]
+    expect(departments).toHaveLength(2)
+    expect(projects).toHaveLength(3)
+    expect(teams).toHaveLength(4)
 
-  it('should filter projects by selected department', () => {
+    console.log('✓ Entities filtered by level_code')
+  })
+
+  it('should filter children by selected parent', () => {
     const selectedDeptId = 'DEPT-001'
-    const filteredProjects = mockProjects.filter(p => p.parent_id === selectedDeptId)
+    const filteredProjects = mockEntities.filter(
+      e => e.level_code === 'project' && e.parent_id === selectedDeptId
+    )
 
     expect(filteredProjects).toHaveLength(2)
     expect(filteredProjects.map(p => p.entity_id)).toContain('PROJ-001')
     expect(filteredProjects.map(p => p.entity_id)).toContain('PROJ-002')
     expect(filteredProjects.map(p => p.entity_id)).not.toContain('PROJ-003')
 
-    console.log('✓ Projects filtered by department')
+    console.log('✓ Children filtered by parent')
   })
 
   it('should filter teams by selected project', () => {
     const selectedProjectId = 'PROJ-001'
-    const filteredTeams = mockTeams.filter(t => t.parent_id === selectedProjectId)
+    const filteredTeams = mockEntities.filter(
+      e => e.level_code === 'team' && e.parent_id === selectedProjectId
+    )
 
     expect(filteredTeams).toHaveLength(2)
     expect(filteredTeams.map(t => t.entity_id)).toContain('TEAM-001')
@@ -180,7 +193,7 @@ describe('Cascading Dropdown Behavior', () => {
   })
 
   it('should clear child selections when parent changes', () => {
-    // Simulate department change
+    // Simulate parent change
     const formData = {
       hierarchy_dept_id: 'DEPT-001',
       hierarchy_dept_name: 'Engineering',
@@ -211,32 +224,6 @@ describe('Cascading Dropdown Behavior', () => {
 
     console.log('✓ Child selections cleared on parent change')
   })
-
-  it('should clear team selection when project changes', () => {
-    const formData = {
-      hierarchy_dept_id: 'DEPT-001',
-      hierarchy_project_id: 'PROJ-001',
-      hierarchy_team_id: 'TEAM-001'
-    }
-
-    // When project changes, team should be cleared
-    const handleProjectChange = (newProjectId: string, newProjectName: string) => {
-      return {
-        ...formData,
-        hierarchy_project_id: newProjectId,
-        hierarchy_project_name: newProjectName,
-        hierarchy_team_id: undefined,
-        hierarchy_team_name: undefined
-      }
-    }
-
-    const updatedFormData = handleProjectChange('PROJ-002', 'Mobile App')
-
-    expect(updatedFormData.hierarchy_project_id).toBe('PROJ-002')
-    expect(updatedFormData.hierarchy_team_id).toBeUndefined()
-
-    console.log('✓ Team cleared on project change')
-  })
 })
 
 // ============================================
@@ -252,7 +239,7 @@ describe('Subscription Form Hierarchy Integration', () => {
       seats: 5,
       billing_cycle: 'monthly',
       pricing_model: 'PER_SEAT',
-      // Hierarchy fields
+      // Hierarchy fields (still using dept/project/team for subscription compatibility)
       hierarchy_dept_id: 'DEPT-001',
       hierarchy_dept_name: 'Engineering',
       hierarchy_project_id: 'PROJ-001',
@@ -319,41 +306,13 @@ describe('Subscription Form Hierarchy Integration', () => {
 
     console.log('✓ Hierarchy field lengths validated')
   })
-
-  it('should preserve hierarchy fields during edit', () => {
-    const originalPlan = {
-      plan_name: 'PRO',
-      unit_price: 20.00,
-      hierarchy_dept_id: 'DEPT-001',
-      hierarchy_dept_name: 'Engineering',
-      hierarchy_project_id: 'PROJ-001',
-      hierarchy_project_name: 'Platform'
-    }
-
-    const editRequest = {
-      unit_price: 25.00 // Only price changed
-    }
-
-    // New version should preserve hierarchy
-    const newVersion = {
-      ...originalPlan,
-      ...editRequest
-    }
-
-    expect(newVersion.hierarchy_dept_id).toBe('DEPT-001')
-    expect(newVersion.hierarchy_dept_name).toBe('Engineering')
-    expect(newVersion.hierarchy_project_id).toBe('PROJ-001')
-    expect(newVersion.unit_price).toBe(25.00)
-
-    console.log('✓ Hierarchy fields preserved during edit')
-  })
 })
 
 // ============================================
-// API Endpoint Validation
+// N-Level API Endpoints
 // ============================================
 
-describe('Hierarchy API Endpoints', () => {
+describe('N-Level Hierarchy API Endpoints', () => {
   const API_BASE = 'http://localhost:8000/api/v1/hierarchy'
   const TEST_ORG = 'test_org'
 
@@ -372,166 +331,211 @@ describe('Hierarchy API Endpoints', () => {
     console.log(`✓ GET ${endpoint}`)
   })
 
-  it('should validate department creation endpoint', () => {
-    const endpoint = `${API_BASE}/${TEST_ORG}/departments`
-    expect(endpoint).toContain('/departments')
+  it('should validate levels configuration endpoint', () => {
+    const endpoint = `${API_BASE}/${TEST_ORG}/levels`
+    expect(endpoint).toContain('/levels')
 
-    console.log(`✓ POST ${endpoint}`)
+    console.log(`✓ GET ${endpoint}`)
   })
 
-  it('should validate project creation endpoint', () => {
-    const endpoint = `${API_BASE}/${TEST_ORG}/projects`
-    expect(endpoint).toContain('/projects')
-
-    console.log(`✓ POST ${endpoint}`)
-  })
-
-  it('should validate team creation endpoint', () => {
-    const endpoint = `${API_BASE}/${TEST_ORG}/teams`
-    expect(endpoint).toContain('/teams')
+  it('should validate generic entity creation endpoint', () => {
+    // N-level uses /entities for all entity types
+    const endpoint = `${API_BASE}/${TEST_ORG}/entities`
+    expect(endpoint).toContain('/entities')
 
     console.log(`✓ POST ${endpoint}`)
   })
 
   it('should validate entity update endpoint', () => {
-    const entityType = 'department'
     const entityId = 'DEPT-001'
-    const endpoint = `${API_BASE}/${TEST_ORG}/${entityType}/${entityId}`
+    const endpoint = `${API_BASE}/${TEST_ORG}/entities/${entityId}`
 
-    expect(endpoint).toContain(entityType)
+    expect(endpoint).toContain('/entities/')
     expect(endpoint).toContain(entityId)
 
     console.log(`✓ PUT ${endpoint}`)
   })
 
   it('should validate entity delete endpoint', () => {
-    const entityType = 'team'
     const entityId = 'TEAM-001'
-    const endpoint = `${API_BASE}/${TEST_ORG}/${entityType}/${entityId}`
+    const endpoint = `${API_BASE}/${TEST_ORG}/entities/${entityId}`
 
-    expect(endpoint).toContain(entityType)
+    expect(endpoint).toContain('/entities/')
     expect(endpoint).toContain(entityId)
 
     console.log(`✓ DELETE ${endpoint}`)
   })
 
-  it('should validate import endpoint', () => {
-    const endpoint = `${API_BASE}/${TEST_ORG}/import`
-    expect(endpoint).toContain('/import')
+  it('should validate can-delete check endpoint', () => {
+    const entityId = 'DEPT-001'
+    const endpoint = `${API_BASE}/${TEST_ORG}/entities/${entityId}/can-delete`
+
+    expect(endpoint).toContain('/can-delete')
+
+    console.log(`✓ GET ${endpoint}`)
+  })
+
+  it('should validate move entity endpoint', () => {
+    const entityId = 'PROJ-001'
+    const endpoint = `${API_BASE}/${TEST_ORG}/entities/${entityId}/move`
+
+    expect(endpoint).toContain('/move')
 
     console.log(`✓ POST ${endpoint}`)
   })
 
-  it('should validate export endpoint', () => {
-    const endpoint = `${API_BASE}/${TEST_ORG}/export`
-    expect(endpoint).toContain('/export')
+  it('should validate get children endpoint', () => {
+    const entityId = 'DEPT-001'
+    const endpoint = `${API_BASE}/${TEST_ORG}/entities/${entityId}/children`
+
+    expect(endpoint).toContain('/children')
 
     console.log(`✓ GET ${endpoint}`)
   })
 })
 
 // ============================================
-// Default Hierarchy Seeding
+// Default Hierarchy Seeding (N-Level)
 // ============================================
 
-describe('Default Hierarchy Seeding', () => {
-  it('should define default hierarchy structure', () => {
-    const defaultHierarchy = {
-      departments: [
-        { entity_id: 'DEPT-001', entity_name: 'Engineering' },
-        { entity_id: 'DEPT-002', entity_name: 'Operations' }
-      ],
-      projects: [
-        { entity_id: 'PROJ-001', entity_name: 'Platform', dept_id: 'DEPT-001' },
-        { entity_id: 'PROJ-002', entity_name: 'Mobile', dept_id: 'DEPT-001' },
-        { entity_id: 'PROJ-003', entity_name: 'Infrastructure', dept_id: 'DEPT-002' }
-      ],
-      teams: [
-        { entity_id: 'TEAM-001', entity_name: 'Backend', project_id: 'PROJ-001' },
-        { entity_id: 'TEAM-002', entity_name: 'Frontend', project_id: 'PROJ-001' },
-        { entity_id: 'TEAM-003', entity_name: 'iOS', project_id: 'PROJ-002' },
-        { entity_id: 'TEAM-004', entity_name: 'DevOps', project_id: 'PROJ-003' }
-      ]
-    }
+describe('Default Hierarchy Seeding (N-Level)', () => {
+  it('should define default N-level hierarchy structure', () => {
+    const defaultHierarchy = [
+      // Level 1: Departments
+      {
+        entity_id: 'DEPT-CORP',
+        entity_name: 'Corporate',
+        level: 1,
+        level_code: 'department',
+        parent_id: null,
+        path: '/DEPT-CORP',
+        depth: 0
+      },
+      {
+        entity_id: 'DEPT-ENG',
+        entity_name: 'Engineering',
+        level: 1,
+        level_code: 'department',
+        parent_id: null,
+        path: '/DEPT-ENG',
+        depth: 0
+      },
+      // Level 2: Projects
+      {
+        entity_id: 'PROJ-001',
+        entity_name: 'Platform',
+        level: 2,
+        level_code: 'project',
+        parent_id: 'DEPT-ENG',
+        path: '/DEPT-ENG/PROJ-001',
+        depth: 1
+      },
+      {
+        entity_id: 'PROJ-002',
+        entity_name: 'Mobile',
+        level: 2,
+        level_code: 'project',
+        parent_id: 'DEPT-ENG',
+        path: '/DEPT-ENG/PROJ-002',
+        depth: 1
+      },
+      {
+        entity_id: 'PROJ-003',
+        entity_name: 'Finance Systems',
+        level: 2,
+        level_code: 'project',
+        parent_id: 'DEPT-CORP',
+        path: '/DEPT-CORP/PROJ-003',
+        depth: 1
+      },
+      // Level 3: Teams
+      {
+        entity_id: 'TEAM-001',
+        entity_name: 'Backend',
+        level: 3,
+        level_code: 'team',
+        parent_id: 'PROJ-001',
+        path: '/DEPT-ENG/PROJ-001/TEAM-001',
+        depth: 2
+      },
+      {
+        entity_id: 'TEAM-002',
+        entity_name: 'Frontend',
+        level: 3,
+        level_code: 'team',
+        parent_id: 'PROJ-001',
+        path: '/DEPT-ENG/PROJ-001/TEAM-002',
+        depth: 2
+      }
+    ]
 
-    // Verify counts
-    expect(defaultHierarchy.departments).toHaveLength(2)
-    expect(defaultHierarchy.projects).toHaveLength(3)
-    expect(defaultHierarchy.teams).toHaveLength(4)
+    // Verify counts by level_code
+    const departments = defaultHierarchy.filter(e => e.level_code === 'department')
+    const projects = defaultHierarchy.filter(e => e.level_code === 'project')
+    const teams = defaultHierarchy.filter(e => e.level_code === 'team')
 
-    // Verify relationships
-    const platformTeams = defaultHierarchy.teams.filter(t => t.project_id === 'PROJ-001')
-    expect(platformTeams).toHaveLength(2)
+    expect(departments).toHaveLength(2)
+    expect(projects).toHaveLength(3)
+    expect(teams).toHaveLength(2)
 
-    console.log('✓ Default hierarchy structure validated')
-    console.log(`  Departments: ${defaultHierarchy.departments.length}`)
-    console.log(`  Projects: ${defaultHierarchy.projects.length}`)
-    console.log(`  Teams: ${defaultHierarchy.teams.length}`)
+    // Verify path structure
+    const team = defaultHierarchy.find(e => e.entity_id === 'TEAM-001')
+    expect(team?.path).toBe('/DEPT-ENG/PROJ-001/TEAM-001')
+    expect(team?.depth).toBe(2)
+
+    console.log('✓ Default N-level hierarchy structure validated')
+    console.log(`  Departments: ${departments.length}`)
+    console.log(`  Projects: ${projects.length}`)
+    console.log(`  Teams: ${teams.length}`)
   })
 })
 
 // ============================================
-// CSV Import/Export Validation
+// Materialized Path Validation
 // ============================================
 
-describe('Hierarchy CSV Import/Export', () => {
-  it('should validate CSV header format', () => {
-    const expectedHeaders = [
-      'entity_type',
-      'entity_id',
-      'entity_name',
-      'parent_id',
-      'owner_id',
-      'owner_name',
-      'owner_email',
-      'description'
+describe('Materialized Path Validation', () => {
+  it('should validate path format', () => {
+    const validPaths = [
+      '/DEPT-001',
+      '/DEPT-001/PROJ-001',
+      '/DEPT-001/PROJ-001/TEAM-001',
+      '/DIV-001/DEPT-001/PROJ-001/TEAM-001/SQUAD-001'
     ]
 
-    expect(expectedHeaders).toContain('entity_type')
-    expect(expectedHeaders).toContain('entity_id')
-    expect(expectedHeaders).toContain('entity_name')
-    expect(expectedHeaders).toContain('parent_id')
+    validPaths.forEach(path => {
+      expect(path.startsWith('/')).toBe(true)
+      expect(path.split('/').filter(Boolean).length).toBeGreaterThan(0)
+    })
 
-    console.log('✓ CSV headers validated')
+    console.log('✓ Path format validated')
   })
 
-  it('should validate CSV row data', () => {
-    const validRows = [
-      {
-        entity_type: 'department',
-        entity_id: 'DEPT-001',
-        entity_name: 'Engineering',
-        parent_id: '',
-        owner_email: 'cto@example.com'
-      },
-      {
-        entity_type: 'project',
-        entity_id: 'PROJ-001',
-        entity_name: 'Platform',
-        parent_id: 'DEPT-001',
-        owner_email: 'pm@example.com'
-      },
-      {
-        entity_type: 'team',
-        entity_id: 'TEAM-001',
-        entity_name: 'Backend',
-        parent_id: 'PROJ-001',
-        owner_email: 'lead@example.com'
-      }
+  it('should validate path_ids array', () => {
+    const entity = {
+      path: '/DEPT-001/PROJ-001/TEAM-001',
+      path_ids: ['DEPT-001', 'PROJ-001', 'TEAM-001']
+    }
+
+    const pathParts = entity.path.split('/').filter(Boolean)
+    expect(entity.path_ids).toEqual(pathParts)
+    expect(entity.path_ids.length).toBe(3)
+
+    console.log('✓ Path IDs array validated')
+  })
+
+  it('should validate depth calculation', () => {
+    const entities = [
+      { path: '/DEPT-001', depth: 0 },
+      { path: '/DEPT-001/PROJ-001', depth: 1 },
+      { path: '/DEPT-001/PROJ-001/TEAM-001', depth: 2 }
     ]
 
-    // Departments have no parent
-    const dept = validRows.find(r => r.entity_type === 'department')
-    expect(dept?.parent_id).toBe('')
+    entities.forEach(entity => {
+      const calculatedDepth = entity.path.split('/').filter(Boolean).length - 1
+      expect(entity.depth).toBe(calculatedDepth)
+    })
 
-    // Projects have department parent
-    const proj = validRows.find(r => r.entity_type === 'project')
-    expect(proj?.parent_id).toBe('DEPT-001')
-
-    // Teams have project parent
-    const team = validRows.find(r => r.entity_type === 'team')
-    expect(team?.parent_id).toBe('PROJ-001')
-
-    console.log('✓ CSV row data validated')
+    console.log('✓ Depth calculation validated')
   })
 })

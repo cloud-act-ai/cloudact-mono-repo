@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-// Badge available if needed: import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -34,41 +33,47 @@ import {
   Building2,
   FolderKanban,
   Users,
-  Download,
-  Upload,
   ChevronRight,
   ChevronDown,
   Network,
-  FileDown,
-  FileSpreadsheet,
+  Layers,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
 import {
   getHierarchyTree,
-  getDepartments,
-  getProjects,
-  getTeams,
-  createDepartment,
-  createProject,
-  createTeam,
+  getHierarchy,
+  getHierarchyLevels,
+  createEntity,
   deleteEntity,
   checkCanDelete,
-  exportHierarchy,
-  importHierarchy,
   type HierarchyEntity,
   type HierarchyTreeNode,
   type HierarchyTreeResponse,
-  type HierarchyEntityType,
-  type HierarchyCSVRow,
+  type HierarchyLevel,
+  type CreateEntityInput,
 } from "@/actions/hierarchy"
 
-// Premium components - same as dashboard/pipeline pages
+// Premium components
 import { StatRow } from "@/components/ui/stat-row"
 import { LoadingState } from "@/components/ui/loading-state"
+
+// Level icons mapping
+const LEVEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  department: Building2,
+  project: FolderKanban,
+  team: Users,
+}
+
+const LEVEL_COLORS: Record<string, { icon: string; bg: string; badge: string }> = {
+  department: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
+  project: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
+  team: { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" },
+}
 
 interface CreateFormData {
   entity_id: string
   entity_name: string
+  level_code: string
   parent_id: string
   owner_name: string
   owner_email: string
@@ -78,6 +83,7 @@ interface CreateFormData {
 const initialFormData: CreateFormData = {
   entity_id: "",
   entity_name: "",
+  level_code: "",
   parent_id: "",
   owner_name: "",
   owner_email: "",
@@ -94,34 +100,23 @@ export default function HierarchySettingsPage() {
 
   // Data states
   const [treeData, setTreeData] = useState<HierarchyTreeResponse | null>(null)
-  const [departments, setDepartments] = useState<HierarchyEntity[]>([])
-  const [projects, setProjects] = useState<HierarchyEntity[]>([])
-  const [teams, setTeams] = useState<HierarchyEntity[]>([])
+  const [allEntities, setAllEntities] = useState<HierarchyEntity[]>([])
+  const [levels, setLevels] = useState<HierarchyLevel[]>([])
 
   // UI states
-  const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set())
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState("tree")
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [createType, setCreateType] = useState<HierarchyEntityType>("department")
   const [formData, setFormData] = useState<CreateFormData>(initialFormData)
   const [isSaving, setIsSaving] = useState(false)
 
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<{ type: HierarchyEntityType; id: string; name: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ entityId: string; name: string; levelCode: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null)
-
-  // Import/Export states
-  const [showImportSection, setShowImportSection] = useState(false)
-  const [importData, setImportData] = useState<string>("")
-  const [importFileName, setImportFileName] = useState<string>("")
-  const [isImporting, setIsImporting] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     document.title = "Hierarchy Settings | CloudAct.ai"
@@ -131,24 +126,20 @@ export default function HierarchySettingsPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const [treeResult, deptsResult, projsResult, teamsResult] = await Promise.all([
+      const [treeResult, entitiesResult, levelsResult] = await Promise.all([
         getHierarchyTree(orgSlug),
-        getDepartments(orgSlug),
-        getProjects(orgSlug),
-        getTeams(orgSlug),
+        getHierarchy(orgSlug),
+        getHierarchyLevels(orgSlug),
       ])
 
       if (treeResult.success && treeResult.data) {
         setTreeData(treeResult.data)
       }
-      if (deptsResult.success && deptsResult.data) {
-        setDepartments(deptsResult.data)
+      if (entitiesResult.success && entitiesResult.data) {
+        setAllEntities(entitiesResult.data.entities)
       }
-      if (projsResult.success && projsResult.data) {
-        setProjects(projsResult.data)
-      }
-      if (teamsResult.success && teamsResult.data) {
-        setTeams(teamsResult.data)
+      if (levelsResult.success && levelsResult.data) {
+        setLevels(levelsResult.data.levels)
       }
     } catch (err) {
       const errorMessage = logError("HierarchySettingsPage:loadData", err)
@@ -162,30 +153,42 @@ export default function HierarchySettingsPage() {
     loadData()
   }, [loadData])
 
-  const toggleDeptExpand = (deptId: string) => {
-    const newExpanded = new Set(expandedDepts)
-    if (newExpanded.has(deptId)) {
-      newExpanded.delete(deptId)
-    } else {
-      newExpanded.add(deptId)
+  // Get entities by level_code
+  const entitiesByLevel = useMemo(() => {
+    const byLevel: Record<string, HierarchyEntity[]> = {}
+    for (const entity of allEntities) {
+      if (!byLevel[entity.level_code]) {
+        byLevel[entity.level_code] = []
+      }
+      byLevel[entity.level_code].push(entity)
     }
-    setExpandedDepts(newExpanded)
+    return byLevel
+  }, [allEntities])
+
+  // Get potential parents for a given level
+  const getParentsForLevel = useCallback((levelCode: string): HierarchyEntity[] => {
+    const targetLevel = levels.find(l => l.level_code === levelCode)
+    if (!targetLevel || targetLevel.parent_level === null) return []
+
+    const parentLevelConfig = levels.find(l => l.level === targetLevel.parent_level)
+    if (!parentLevelConfig) return []
+
+    return entitiesByLevel[parentLevelConfig.level_code] || []
+  }, [levels, entitiesByLevel])
+
+  const toggleNodeExpand = (entityId: string) => {
+    const newExpanded = new Set(expandedNodes)
+    if (newExpanded.has(entityId)) {
+      newExpanded.delete(entityId)
+    } else {
+      newExpanded.add(entityId)
+    }
+    setExpandedNodes(newExpanded)
   }
 
-  const toggleProjectExpand = (projectId: string) => {
-    const newExpanded = new Set(expandedProjects)
-    if (newExpanded.has(projectId)) {
-      newExpanded.delete(projectId)
-    } else {
-      newExpanded.add(projectId)
-    }
-    setExpandedProjects(newExpanded)
-  }
-
-  const openCreateDialog = (type: HierarchyEntityType, parentId?: string) => {
-    setCreateType(type)
-    setFormData({ ...initialFormData, parent_id: parentId || "" })
-    setError(null) // Clear any previous errors when opening dialog
+  const openCreateDialog = (levelCode: string, parentId?: string) => {
+    setFormData({ ...initialFormData, level_code: levelCode, parent_id: parentId || "" })
+    setError(null)
     setCreateDialogOpen(true)
   }
 
@@ -194,57 +197,40 @@ export default function HierarchySettingsPage() {
     setError(null)
 
     try {
-      let result
-      if (createType === "department") {
-        result = await createDepartment(orgSlug, {
-          entity_id: formData.entity_id,
-          entity_name: formData.entity_name,
-          owner_name: formData.owner_name || undefined,
-          owner_email: formData.owner_email || undefined,
-          description: formData.description || undefined,
-        })
-      } else if (createType === "project") {
-        result = await createProject(orgSlug, {
-          entity_id: formData.entity_id,
-          entity_name: formData.entity_name,
-          dept_id: formData.parent_id,
-          owner_name: formData.owner_name || undefined,
-          owner_email: formData.owner_email || undefined,
-          description: formData.description || undefined,
-        })
-      } else {
-        result = await createTeam(orgSlug, {
-          entity_id: formData.entity_id,
-          entity_name: formData.entity_name,
-          project_id: formData.parent_id,
-          owner_name: formData.owner_name || undefined,
-          owner_email: formData.owner_email || undefined,
-          description: formData.description || undefined,
-        })
+      const input: CreateEntityInput = {
+        entity_id: formData.entity_id || undefined,
+        entity_name: formData.entity_name,
+        level_code: formData.level_code,
+        parent_id: formData.parent_id || null,
+        owner_name: formData.owner_name || undefined,
+        owner_email: formData.owner_email || undefined,
+        description: formData.description || undefined,
       }
 
+      const result = await createEntity(orgSlug, input)
+
       if (result.success) {
-        setSuccess(`${createType.charAt(0).toUpperCase() + createType.slice(1)} created successfully!`)
+        const levelConfig = levels.find(l => l.level_code === formData.level_code)
+        setSuccess(`${levelConfig?.level_name || formData.level_code} created successfully!`)
         setCreateDialogOpen(false)
         setFormData(initialFormData)
         await loadData()
         setTimeout(() => setSuccess(null), 4000)
       } else {
-        setError(result.error || `Failed to create ${createType}`)
+        setError(result.error || "Failed to create entity")
       }
     } catch {
-      setError(`Failed to create ${createType}`)
+      setError("Failed to create entity")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const openDeleteDialog = async (type: HierarchyEntityType, id: string, name: string) => {
-    setDeleteTarget({ type, id, name })
+  const openDeleteDialog = async (entityId: string, name: string, levelCode: string) => {
+    setDeleteTarget({ entityId, name, levelCode })
     setDeleteBlocked(null)
 
-    // Check if deletion is blocked
-    const result = await checkCanDelete(orgSlug, type, id)
+    const result = await checkCanDelete(orgSlug, entityId)
     if (result.success && result.data && result.data.blocked) {
       setDeleteBlocked(result.data.reason)
     }
@@ -259,249 +245,48 @@ export default function HierarchySettingsPage() {
     setError(null)
 
     try {
-      const result = await deleteEntity(orgSlug, deleteTarget.type, deleteTarget.id)
+      const result = await deleteEntity(orgSlug, deleteTarget.entityId)
       if (result.success) {
-        setSuccess(`${deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1)} deleted successfully!`)
+        const levelConfig = levels.find(l => l.level_code === deleteTarget.levelCode)
+        setSuccess(`${levelConfig?.level_name || deleteTarget.levelCode} deleted successfully!`)
         setDeleteDialogOpen(false)
         setDeleteTarget(null)
         await loadData()
         setTimeout(() => setSuccess(null), 4000)
       } else {
-        setError(result.error || `Failed to delete ${deleteTarget.type}`)
+        setError(result.error || "Failed to delete entity")
       }
     } catch {
-      setError(`Failed to delete ${deleteTarget.type}`)
+      setError("Failed to delete entity")
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const handleExport = async () => {
-    setIsExporting(true)
-    try {
-      const result = await exportHierarchy(orgSlug)
-      if (result.success && result.data) {
-        // Download as CSV
-        const blob = new Blob([result.data], { type: "text/csv" })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `${orgSlug}_hierarchy.csv`
-        a.click()
-        window.URL.revokeObjectURL(url)
-        setSuccess("Hierarchy exported successfully!")
-        setTimeout(() => setSuccess(null), 4000)
-      } else {
-        setError(result.error || "Failed to export hierarchy")
-      }
-    } catch {
-      setError("Failed to export hierarchy")
-    } finally {
-      setIsExporting(false)
-    }
+  const getLevelIcon = (levelCode: string) => {
+    const IconComponent = LEVEL_ICONS[levelCode] || Layers
+    const colors = LEVEL_COLORS[levelCode] || { icon: "text-slate-600", bg: "bg-slate-100" }
+    return { IconComponent, colors }
   }
 
-  const handleDownloadTemplate = () => {
-    const sampleTemplate = `entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
-department,DEPT-ENG,Engineering,,,John Smith,john.smith@example.com,Engineering and product development
-department,DEPT-SALES,Sales & Marketing,,,Jane Doe,jane.doe@example.com,Sales and marketing operations
-project,PROJ-PLATFORM,Platform Team,DEPT-ENG,,Alice Johnson,alice@example.com,Core platform infrastructure
-project,PROJ-MOBILE,Mobile Apps,DEPT-ENG,,Bob Williams,bob@example.com,iOS and Android applications
-project,PROJ-CAMPAIGNS,Marketing Campaigns,DEPT-SALES,,Carol Brown,carol@example.com,Marketing campaign management
-team,TEAM-BACKEND,Backend Engineers,PROJ-PLATFORM,,David Lee,david@example.com,Backend API development
-team,TEAM-FRONTEND,Frontend Engineers,PROJ-PLATFORM,,Emma Wilson,emma@example.com,Frontend web development
-team,TEAM-IOS,iOS Team,PROJ-MOBILE,,Frank Miller,frank@example.com,iOS app development
-team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android app development`
-
-    const blob = new Blob([sampleTemplate], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "hierarchy_import_template.csv"
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!file.name.endsWith(".csv")) {
-      setError("Please upload a CSV file")
-      return
-    }
-
-    setImportFileName(file.name)
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const content = e.target?.result as string
-      setImportData(content)
-    }
-    reader.onerror = () => {
-      setError("Failed to read file")
-    }
-    reader.readAsText(file)
-  }
-
-  const clearImportData = () => {
-    setImportData("")
-    setImportFileName("")
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }
-
-  const handleImport = async () => {
-    if (!importData.trim()) {
-      setError("Please paste CSV data to import")
-      return
-    }
-
-    setIsImporting(true)
-    setError(null)
-
-    try {
-      // VAL-001 FIX: Proper CSV parsing with quoted field support
-      // Parse CSV line respecting quoted fields (commas inside quotes)
-      const parseCSVLine = (line: string): string[] => {
-        const result: string[] = []
-        let current = ""
-        let inQuotes = false
-
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i]
-          const nextChar = line[i + 1]
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              // Escaped quote
-              current += '"'
-              i++
-            } else {
-              // Toggle quote mode
-              inQuotes = !inQuotes
-            }
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim())
-            current = ""
-          } else {
-            current += char
-          }
-        }
-        result.push(current.trim())
-        return result
-      }
-
-      // Sanitize value to prevent XSS (strip HTML tags)
-      const sanitizeValue = (value: string): string => {
-        if (!value) return ""
-        // Remove HTML tags and trim
-        return value.replace(/<[^>]*>/g, "").trim().slice(0, 500)
-      }
-
-      // Validate entity_type
-      const validEntityTypes = ["department", "project", "team"]
-      const validateEntityType = (type: string): HierarchyEntityType | null => {
-        const normalized = type.toLowerCase().trim()
-        return validEntityTypes.includes(normalized) ? normalized as HierarchyEntityType : null
-      }
-
-      // Parse CSV
-      const lines = importData.trim().split("\n")
-      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z_]/g, ""))
-      const rows: HierarchyCSVRow[] = []
-
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim()
-        if (!line) continue // Skip empty lines
-
-        const values = parseCSVLine(line)
-        const row: Record<string, string> = {}
-        headers.forEach((h, idx) => {
-          row[h] = sanitizeValue(values[idx] || "")
-        })
-
-        // Validate entity_type
-        const entityType = validateEntityType(row.entity_type)
-        if (!entityType) {
-          setError(`Invalid entity_type on line ${i + 1}: "${row.entity_type}". Must be department, project, or team.`)
-          return
-        }
-
-        // Validate required fields
-        if (!row.entity_id || !row.entity_name) {
-          setError(`Missing required field (entity_id or entity_name) on line ${i + 1}`)
-          return
-        }
-
-        rows.push({
-          entity_type: entityType,
-          entity_id: row.entity_id,
-          entity_name: row.entity_name,
-          parent_id: row.parent_id || undefined,
-          owner_id: row.owner_id || undefined,
-          owner_name: row.owner_name || undefined,
-          owner_email: row.owner_email || undefined,
-          description: row.description || undefined,
-        })
-      }
-
-      const result = await importHierarchy(orgSlug, rows, "merge")
-      if (result.success && result.data) {
-        setSuccess(`Import completed: ${result.data.created} created, ${result.data.updated} updated`)
-        setShowImportSection(false)
-        clearImportData()
-        await loadData()
-        setTimeout(() => setSuccess(null), 4000)
-      } else {
-        setError(result.error || "Failed to import hierarchy")
-      }
-    } catch {
-      setError("Failed to parse CSV data")
-    } finally {
-      setIsImporting(false)
-    }
-  }
-
-  const renderTreeNode = (node: HierarchyTreeNode, level: number = 0) => {
-    const isExpanded = node.entity_type === "department"
-      ? expandedDepts.has(node.entity_id)
-      : expandedProjects.has(node.entity_id)
+  const renderTreeNode = (node: HierarchyTreeNode, depth: number = 0) => {
+    const isExpanded = expandedNodes.has(node.entity_id)
     const hasChildren = node.children && node.children.length > 0
+    const { IconComponent, colors } = getLevelIcon(node.level_code)
 
-    const getIcon = () => {
-      switch (node.entity_type) {
-        case "department": return <Building2 className="h-4 w-4 text-[#1a7a3a]" />
-        case "project": return <FolderKanban className="h-4 w-4 text-[#FF6C5E]" />
-        case "team": return <Users className="h-4 w-4 text-slate-600" />
-      }
-    }
-
-    const getIconBg = () => {
-      switch (node.entity_type) {
-        case "department": return "bg-[#90FCA6]/15"
-        case "project": return "bg-[#FF6C5E]/10"
-        case "team": return "bg-slate-100"
-      }
-    }
-
-    const toggleExpand = () => {
-      if (node.entity_type === "department") {
-        toggleDeptExpand(node.entity_id)
-      } else if (node.entity_type === "project") {
-        toggleProjectExpand(node.entity_id)
-      }
-    }
+    // Find the child level for this node
+    const currentLevelConfig = levels.find(l => l.level_code === node.level_code)
+    const childLevel = currentLevelConfig ? levels.find(l => l.parent_level === currentLevelConfig.level) : null
 
     return (
       <div key={node.entity_id} className="select-none group/item">
         <div
           className="flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-[#90FCA6]/5 cursor-pointer transition-all duration-150"
-          style={{ paddingLeft: `${level * 28 + 12}px` }}
+          style={{ paddingLeft: `${depth * 28 + 12}px` }}
         >
           {hasChildren ? (
             <button
-              onClick={toggleExpand}
+              onClick={() => toggleNodeExpand(node.entity_id)}
               className="h-6 w-6 rounded-md flex items-center justify-center hover:bg-slate-100 transition-colors"
             >
               {isExpanded ? (
@@ -513,12 +298,15 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
           ) : (
             <div className="w-6" />
           )}
-          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${getIconBg()}`}>
-            {getIcon()}
+          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${colors.bg}`}>
+            <IconComponent className={`h-4 w-4 ${colors.icon}`} />
           </div>
           <span className="font-semibold text-[14px] text-slate-900">{node.entity_name}</span>
           <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
             {node.entity_id}
+          </span>
+          <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded">
+            {node.level_name}
           </span>
           {node.owner_name && (
             <span className="text-[12px] text-slate-500 ml-auto mr-2">
@@ -526,28 +314,16 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
             </span>
           )}
           <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-            {node.entity_type === "department" && (
+            {childLevel && !currentLevelConfig?.is_leaf && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 rounded-lg hover:bg-[#90FCA6]/15 hover:text-[#1a7a3a] transition-colors"
                 onClick={(e) => {
                   e.stopPropagation()
-                  openCreateDialog("project", node.entity_id)
+                  openCreateDialog(childLevel.level_code, node.entity_id)
                 }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            {node.entity_type === "project" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-lg hover:bg-[#90FCA6]/15 hover:text-[#1a7a3a] transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openCreateDialog("team", node.entity_id)
-                }}
+                title={`Add ${childLevel.level_name}`}
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
@@ -558,7 +334,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
               className="h-7 w-7 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
               onClick={(e) => {
                 e.stopPropagation()
-                openDeleteDialog(node.entity_type, node.entity_id, node.entity_name)
+                openDeleteDialog(node.entity_id, node.entity_name, node.level_code)
               }}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -569,26 +345,45 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
           <div className="relative">
             <div
               className="absolute top-0 bottom-2 w-px bg-slate-200"
-              style={{ left: `${level * 28 + 24}px` }}
+              style={{ left: `${depth * 28 + 24}px` }}
             />
-            {node.children.map(child => renderTreeNode(child, level + 1))}
+            {node.children.map(child => renderTreeNode(child, depth + 1))}
           </div>
         )}
       </div>
     )
   }
 
-  // Stats for StatRow component - same pattern as dashboard/pipelines
-  const stats = [
-    { icon: Building2, value: treeData?.total_departments || 0, label: "Departments", color: "mint" as const },
-    { icon: FolderKanban, value: treeData?.total_projects || 0, label: "Projects", color: "coral" as const },
-    { icon: Users, value: treeData?.total_teams || 0, label: "Teams", color: "blue" as const },
-  ]
+  // Build stats dynamically from treeData.stats
+  const stats = useMemo(() => {
+    if (!treeData?.stats) return []
+    return levels
+      .filter(l => l.is_active)
+      .sort((a, b) => a.level - b.level)
+      .map(level => {
+        const { IconComponent } = getLevelIcon(level.level_code)
+        const count = treeData.stats[level.level_code] || 0
+        return {
+          icon: IconComponent,
+          value: count,
+          label: level.level_name_plural,
+          color: level.level_code === "department" ? "mint" as const :
+                 level.level_code === "project" ? "coral" as const : "blue" as const
+        }
+      })
+  }, [treeData, levels])
+
+  // Get the root level for the "Add" button
+  const rootLevel = levels.find(l => l.parent_level === null)
+
+  // Current selected level for create dialog
+  const selectedLevelConfig = levels.find(l => l.level_code === formData.level_code)
+  const requiresParent = selectedLevelConfig ? selectedLevelConfig.parent_level !== null : false
+  const parentOptions = requiresParent ? getParentsForLevel(formData.level_code) : []
 
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-        {/* Header - Same pattern as dashboard */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-start gap-3 sm:gap-4">
             <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -599,7 +394,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                 Organizational Hierarchy
               </h1>
               <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
-                Manage departments, projects, and teams
+                Manage your organizational structure
               </p>
             </div>
           </div>
@@ -611,7 +406,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Header - Same pattern as dashboard */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="flex items-start gap-3 sm:gap-4">
           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -622,16 +417,18 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
               Organizational Hierarchy
             </h1>
             <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
-              Manage departments, projects, and teams
+              Manage your organizational structure
             </p>
           </div>
         </div>
       </div>
 
-      {/* Stats Row - Using StatRow component like pipelines */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
-        <StatRow stats={stats} size="md" />
-      </div>
+      {/* Stats Row */}
+      {stats.length > 0 && (
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+          <StatRow stats={stats} size="md" />
+        </div>
+      )}
 
       {error && (
         <Alert variant="destructive" className="border-coral/30 bg-coral/5 animate-in slide-in-from-top-2 duration-300">
@@ -649,209 +446,19 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
 
       {/* Action Bar */}
       <div className="flex flex-wrap gap-2 sm:gap-3">
-        <Button
-          onClick={() => openCreateDialog("department")}
-          className="console-button-primary h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
-        >
-          <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
-          <span className="hidden sm:inline">Add Department</span>
-          <span className="sm:hidden">Add Dept</span>
-        </Button>
-        <Button
-          onClick={handleExport}
-          disabled={isExporting}
-          variant="outline"
-          className="console-button-secondary h-10 sm:h-11 px-3 sm:px-5 text-[13px] touch-manipulation"
-        >
-          {isExporting ? (
-            <Loader2 className="mr-1.5 sm:mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-1.5 sm:mr-2 h-4 w-4" />
-          )}
-          <span className="hidden sm:inline">Export CSV</span>
-          <span className="sm:hidden">Export</span>
-        </Button>
-        <Button
-          variant={showImportSection ? "default" : "outline"}
-          className={showImportSection
-            ? "h-10 sm:h-11 px-3 sm:px-5 text-[13px] bg-[#90FCA6] text-slate-900 hover:bg-[#6EE890] touch-manipulation"
-            : "console-button-secondary h-10 sm:h-11 px-3 sm:px-5 text-[13px] touch-manipulation"
-          }
-          onClick={() => setShowImportSection(!showImportSection)}
-        >
-          <Upload className="mr-1.5 sm:mr-2 h-4 w-4" />
-          <span className="hidden sm:inline">{showImportSection ? "Hide Import" : "Import CSV"}</span>
-          <span className="sm:hidden">Import</span>
-        </Button>
+        {rootLevel && (
+          <Button
+            onClick={() => openCreateDialog(rootLevel.level_code)}
+            className="console-button-primary h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
+          >
+            <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Add {rootLevel.level_name}</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+        )}
       </div>
 
-      {/* Import Section - Inline */}
-      {showImportSection && (
-        <div className="console-table-card p-6 border-[#90FCA6]/30 bg-[#90FCA6]/5 animate-in slide-in-from-top-2 duration-300">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6]/30 to-[#B8FDCA]/30 flex items-center justify-center flex-shrink-0">
-              <Upload className="h-6 w-6 text-[#1a7a3a]" />
-            </div>
-            <div>
-              <h3 className="text-[18px] font-bold text-slate-900">Import Hierarchy from CSV</h3>
-              <p className="text-[14px] text-slate-600 mt-1">
-                Bulk import departments, projects, and teams. Upload a CSV file or paste data directly.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Upload & Template */}
-            <div className="space-y-4">
-              {/* Download Template */}
-              <div className="p-4 rounded-xl bg-white border border-[#90FCA6]/20">
-                <div className="flex items-start gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
-                    <FileSpreadsheet className="h-4 w-4 text-[#1a7a3a]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-[14px] font-semibold text-slate-900 mb-1">Start with a Template</h4>
-                    <p className="text-[12px] text-slate-500 mb-3">
-                      Download sample CSV with example hierarchy structure.
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadTemplate}
-                      className="h-8 px-3 border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/10 rounded-lg text-[13px]"
-                    >
-                      <FileDown className="h-3.5 w-3.5 mr-1.5" />
-                      Download Template
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* File Upload */}
-              <div className="p-4 rounded-xl bg-white border border-slate-200">
-                <Label className="text-[13px] font-semibold text-slate-700 mb-3 block">
-                  Upload CSV File
-                </Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="csv-file-input"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center cursor-pointer hover:border-[#90FCA6] hover:bg-[#90FCA6]/5 transition-colors"
-                >
-                  {importFileName ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <FileSpreadsheet className="h-5 w-5 text-[#1a7a3a]" />
-                      <span className="text-[14px] font-medium text-slate-900">{importFileName}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          clearImportData()
-                        }}
-                        className="h-6 w-6 p-0 ml-2 hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E]"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-[13px] text-slate-500">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-1">CSV files only</p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* CSV Format Reference */}
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <p className="text-[11px] font-semibold text-slate-600 mb-2">CSV Format:</p>
-                <code className="text-[10px] font-mono text-slate-500 break-all block mb-2">
-                  entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
-                </code>
-                <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-3 w-3 text-[#90FCA6]" />
-                    <strong>department</strong>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FolderKanban className="h-3 w-3 text-[#FF6C5E]" />
-                    <strong>project</strong> → parent_id = dept
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3 text-slate-600" />
-                    <strong>team</strong> → parent_id = project
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Preview & Import */}
-            <div className="space-y-4">
-              <div>
-                <Label className="text-[13px] font-semibold text-slate-700 mb-2 block">
-                  CSV Data Preview
-                </Label>
-                <textarea
-                  value={importData}
-                  onChange={(e) => setImportData(e.target.value)}
-                  placeholder="Upload a file or paste CSV data here..."
-                  className="w-full h-[240px] p-3 text-[12px] font-mono border border-slate-200 rounded-xl bg-white focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 resize-none transition-colors"
-                />
-              </div>
-
-              {/* Import Actions */}
-              <div className="flex items-center justify-between">
-                <p className="text-[12px] text-slate-500">
-                  {importData ? `${importData.split("\n").length - 1} rows to import` : "No data loaded"}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowImportSection(false)
-                      clearImportData()
-                    }}
-                    className="h-9 px-4 rounded-lg"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleImport}
-                    disabled={isImporting || !importData.trim()}
-                    className="h-9 px-4 bg-[#90FCA6] text-slate-900 hover:bg-[#6EE890] rounded-lg font-semibold"
-                  >
-                    {isImporting ? (
-                      <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        Importing...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-3.5 w-3.5" />
-                        Import Hierarchy
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Content Tabs - Premium border-bottom tabs (genai-runs pattern) */}
+      {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="border-b border-slate-200">
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
@@ -863,36 +470,28 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
               <span className="hidden sm:inline">Tree View</span>
               <span className="sm:hidden">Tree</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="departments"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
-            >
-              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Departments</span>
-              <span className="sm:hidden">Depts</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="projects"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
-            >
-              <FolderKanban className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              Projects
-            </TabsTrigger>
-            <TabsTrigger
-              value="teams"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
-            >
-              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              Teams
-            </TabsTrigger>
+            {levels.filter(l => l.is_active).sort((a, b) => a.level - b.level).map(level => {
+              const { IconComponent } = getLevelIcon(level.level_code)
+              return (
+                <TabsTrigger
+                  key={level.level_code}
+                  value={level.level_code}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+                >
+                  <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">{level.level_name_plural}</span>
+                  <span className="sm:hidden">{level.level_name}</span>
+                </TabsTrigger>
+              )
+            })}
           </TabsList>
         </div>
 
         <TabsContent value="tree" className="mt-6">
           <div className="console-table-card p-4">
-            {treeData && treeData.departments.length > 0 ? (
+            {treeData && treeData.roots.length > 0 ? (
               <div className="space-y-0.5">
-                {treeData.departments.map(dept => renderTreeNode(dept))}
+                {treeData.roots.map(root => renderTreeNode(root))}
               </div>
             ) : (
               <div className="text-center py-16 text-slate-400">
@@ -900,190 +499,99 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                   <Network className="h-8 w-8 text-[#90FCA6]" />
                 </div>
                 <p className="text-[15px] font-semibold text-slate-600">No hierarchy defined yet</p>
-                <p className="text-[13px] mt-1">Start by adding a department to organize your teams</p>
+                <p className="text-[13px] mt-1">Start by adding {rootLevel?.level_name.toLowerCase() || "an entity"}</p>
               </div>
             )}
           </div>
         </TabsContent>
 
-        <TabsContent value="departments" className="mt-6">
-          <div className="console-table-card">
-            <Table>
-              <TableHeader>
-                <TableRow className="console-table-header-row">
-                  <TableHead className="console-table-header">ID</TableHead>
-                  <TableHead className="console-table-header">Name</TableHead>
-                  <TableHead className="console-table-header">Owner</TableHead>
-                  <TableHead className="console-table-header">Projects</TableHead>
-                  <TableHead className="console-table-header w-24">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {departments.length > 0 ? departments.map(dept => (
-                  <TableRow key={dept.entity_id} className="console-table-row">
-                    <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">{dept.entity_id}</TableCell>
-                    <TableCell className="console-table-cell font-semibold text-slate-900">{dept.entity_name}</TableCell>
-                    <TableCell className="console-table-cell text-slate-600">{dept.owner_name || "—"}</TableCell>
-                    <TableCell className="console-table-cell">
-                      <span className="inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full bg-[#90FCA6]/15 text-[12px] font-semibold text-[#1a7a3a]">
-                        {projects.filter(p => p.parent_id === dept.entity_id).length}
-                      </span>
-                    </TableCell>
-                    <TableCell className="console-table-cell">
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-lg hover:bg-[#90FCA6]/10 hover:text-[#1a7a3a] transition-colors"
-                          onClick={() => openCreateDialog("project", dept.entity_id)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
-                          onClick={() => openDeleteDialog("department", dept.entity_id, dept.entity_name)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-slate-400">
-                      <Building2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                      <p className="text-[14px] font-medium">No departments yet</p>
-                      <p className="text-[12px] mt-1">Add your first department to get started</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
+        {levels.filter(l => l.is_active).sort((a, b) => a.level - b.level).map(level => {
+          const levelEntities = entitiesByLevel[level.level_code] || []
+          const { IconComponent, colors } = getLevelIcon(level.level_code)
+          const childLevel = levels.find(l => l.parent_level === level.level)
 
-        <TabsContent value="projects" className="mt-6">
-          <div className="console-table-card">
-            <Table>
-              <TableHeader>
-                <TableRow className="console-table-header-row">
-                  <TableHead className="console-table-header">ID</TableHead>
-                  <TableHead className="console-table-header">Name</TableHead>
-                  <TableHead className="console-table-header">Department</TableHead>
-                  <TableHead className="console-table-header">Owner</TableHead>
-                  <TableHead className="console-table-header">Teams</TableHead>
-                  <TableHead className="console-table-header w-24">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projects.length > 0 ? projects.map(proj => (
-                  <TableRow key={proj.entity_id} className="console-table-row">
-                    <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">{proj.entity_id}</TableCell>
-                    <TableCell className="console-table-cell font-semibold text-slate-900">{proj.entity_name}</TableCell>
-                    <TableCell className="console-table-cell">
-                      <span className="inline-flex items-center gap-1.5 text-slate-600">
-                        <Building2 className="h-3.5 w-3.5 text-[#90FCA6]" />
-                        {proj.dept_name || proj.parent_id}
-                      </span>
-                    </TableCell>
-                    <TableCell className="console-table-cell text-slate-600">{proj.owner_name || "—"}</TableCell>
-                    <TableCell className="console-table-cell">
-                      <span className="inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full bg-[#FF6C5E]/10 text-[12px] font-semibold text-[#FF6C5E]">
-                        {teams.filter(t => t.parent_id === proj.entity_id).length}
-                      </span>
-                    </TableCell>
-                    <TableCell className="console-table-cell">
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-lg hover:bg-[#90FCA6]/10 hover:text-[#1a7a3a] transition-colors"
-                          onClick={() => openCreateDialog("team", proj.entity_id)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
-                          onClick={() => openDeleteDialog("project", proj.entity_id, proj.entity_name)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-400">
-                      <FolderKanban className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                      <p className="text-[14px] font-medium">No projects yet</p>
-                      <p className="text-[12px] mt-1">Create departments first, then add projects</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="teams" className="mt-6">
-          <div className="console-table-card">
-            <Table>
-              <TableHeader>
-                <TableRow className="console-table-header-row">
-                  <TableHead className="console-table-header">ID</TableHead>
-                  <TableHead className="console-table-header">Name</TableHead>
-                  <TableHead className="console-table-header">Project</TableHead>
-                  <TableHead className="console-table-header">Department</TableHead>
-                  <TableHead className="console-table-header">Owner</TableHead>
-                  <TableHead className="console-table-header w-16">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {teams.length > 0 ? teams.map(team => (
-                  <TableRow key={team.entity_id} className="console-table-row">
-                    <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">{team.entity_id}</TableCell>
-                    <TableCell className="console-table-cell font-semibold text-slate-900">{team.entity_name}</TableCell>
-                    <TableCell className="console-table-cell">
-                      <span className="inline-flex items-center gap-1.5 text-slate-600">
-                        <FolderKanban className="h-3.5 w-3.5 text-[#FF6C5E]" />
-                        {team.project_name || team.parent_id}
-                      </span>
-                    </TableCell>
-                    <TableCell className="console-table-cell">
-                      <span className="inline-flex items-center gap-1.5 text-slate-600">
-                        <Building2 className="h-3.5 w-3.5 text-[#90FCA6]" />
-                        {team.dept_name || "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="console-table-cell text-slate-600">{team.owner_name || "—"}</TableCell>
-                    <TableCell className="console-table-cell">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
-                        onClick={() => openDeleteDialog("team", team.entity_id, team.entity_name)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-400">
-                      <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                      <p className="text-[14px] font-medium">No teams yet</p>
-                      <p className="text-[12px] mt-1">Create projects first, then add teams</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
+          return (
+            <TabsContent key={level.level_code} value={level.level_code} className="mt-6">
+              <div className="console-table-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="console-table-header-row">
+                      <TableHead className="console-table-header">ID</TableHead>
+                      <TableHead className="console-table-header">Name</TableHead>
+                      <TableHead className="console-table-header">Path</TableHead>
+                      <TableHead className="console-table-header">Owner</TableHead>
+                      {childLevel && (
+                        <TableHead className="console-table-header">{childLevel.level_name_plural}</TableHead>
+                      )}
+                      <TableHead className="console-table-header w-24">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {levelEntities.length > 0 ? levelEntities.map(entity => {
+                      const childCount = allEntities.filter(e => e.parent_id === entity.entity_id).length
+                      return (
+                        <TableRow key={entity.entity_id} className="console-table-row">
+                          <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">
+                            {entity.entity_id}
+                          </TableCell>
+                          <TableCell className="console-table-cell font-semibold text-slate-900">
+                            {entity.entity_name}
+                          </TableCell>
+                          <TableCell className="console-table-cell text-[12px] text-slate-500 font-mono">
+                            {entity.path_names.join(" → ")}
+                          </TableCell>
+                          <TableCell className="console-table-cell text-slate-600">
+                            {entity.owner_name || "—"}
+                          </TableCell>
+                          {childLevel && (
+                            <TableCell className="console-table-cell">
+                              <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full ${colors.badge} text-[12px] font-semibold`}>
+                                {childCount}
+                              </span>
+                            </TableCell>
+                          )}
+                          <TableCell className="console-table-cell">
+                            <div className="flex gap-1">
+                              {childLevel && !level.is_leaf && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg hover:bg-[#90FCA6]/10 hover:text-[#1a7a3a] transition-colors"
+                                  onClick={() => openCreateDialog(childLevel.level_code, entity.entity_id)}
+                                  title={`Add ${childLevel.level_name}`}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
+                                onClick={() => openDeleteDialog(entity.entity_id, entity.entity_name, entity.level_code)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    }) : (
+                      <TableRow>
+                        <TableCell colSpan={childLevel ? 6 : 5} className="text-center py-12 text-slate-400">
+                          <IconComponent className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                          <p className="text-[14px] font-medium">No {level.level_name_plural.toLowerCase()} yet</p>
+                          <p className="text-[12px] mt-1">
+                            {level.parent_level ? `Add a ${levels.find(l => l.level === level.parent_level)?.level_name.toLowerCase() || "parent"} first` : `Add your first ${level.level_name.toLowerCase()}`}
+                          </p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          )
+        })}
       </Tabs>
 
       {/* Create Dialog */}
@@ -1091,23 +599,43 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Create {createType.charAt(0).toUpperCase() + createType.slice(1)}
+              Create {selectedLevelConfig?.level_name || "Entity"}
             </DialogTitle>
             <DialogDescription>
-              {createType === "department" && "Add a new department to your organization"}
-              {createType === "project" && "Add a new project under the selected department"}
-              {createType === "team" && "Add a new team under the selected project"}
+              Add a new {selectedLevelConfig?.level_name.toLowerCase() || "entity"} to your organization
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Level selector if no level_code preset */}
+            {!formData.level_code && (
+              <div className="space-y-2">
+                <Label htmlFor="level_code">Type *</Label>
+                <Select
+                  value={formData.level_code}
+                  onValueChange={(val) => setFormData({ ...formData, level_code: val, parent_id: "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {levels.filter(l => l.is_active).map(level => (
+                      <SelectItem key={level.level_code} value={level.level_code}>
+                        {level.level_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="entity_id">ID *</Label>
+                <Label htmlFor="entity_id">ID (optional)</Label>
                 <Input
                   id="entity_id"
                   value={formData.entity_id}
                   onChange={(e) => setFormData({ ...formData, entity_id: e.target.value.toUpperCase() })}
-                  placeholder={`${createType.toUpperCase().slice(0, 4)}-001`}
+                  placeholder={selectedLevelConfig?.id_prefix ? `${selectedLevelConfig.id_prefix}001` : "Auto-generated"}
                 />
               </div>
               <div className="space-y-2">
@@ -1120,28 +648,30 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                 />
               </div>
             </div>
-            {createType !== "department" && (
+
+            {requiresParent && (
               <div className="space-y-2">
                 <Label htmlFor="parent_id">
-                  {createType === "project" ? "Department" : "Project"} *
+                  {levels.find(l => l.level === selectedLevelConfig?.parent_level)?.level_name || "Parent"} *
                 </Label>
                 <Select
                   value={formData.parent_id}
                   onValueChange={(val) => setFormData({ ...formData, parent_id: val })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={`Select ${createType === "project" ? "department" : "project"}`} />
+                    <SelectValue placeholder="Select parent" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(createType === "project" ? departments : projects).map(item => (
-                      <SelectItem key={item.entity_id} value={item.entity_id}>
-                        {item.entity_name} ({item.entity_id})
+                    {parentOptions.map(parent => (
+                      <SelectItem key={parent.entity_id} value={parent.entity_id}>
+                        {parent.entity_name} ({parent.entity_id})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="owner_name">Owner Name</Label>
@@ -1163,6 +693,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                 />
               </div>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Input
@@ -1179,7 +710,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={isSaving || !formData.entity_id || !formData.entity_name || (createType !== "department" && !formData.parent_id)}
+              disabled={isSaving || !formData.entity_name || !formData.level_code || (requiresParent && !formData.parent_id)}
               className="console-button-primary"
             >
               {isSaving ? (
@@ -1202,7 +733,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-coral">Delete {deleteTarget?.type}</DialogTitle>
+            <DialogTitle className="text-coral">Delete {levels.find(l => l.level_code === deleteTarget?.levelCode)?.level_name || "Entity"}</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
             </DialogDescription>
@@ -1238,7 +769,6 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }

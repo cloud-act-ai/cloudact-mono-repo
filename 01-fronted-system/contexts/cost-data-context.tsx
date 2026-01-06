@@ -688,13 +688,13 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         return
       }
 
-      // Extract hierarchy entities
+      // Extract hierarchy entities (N-level: uses level_code)
       const hierarchyEntities: HierarchyEntity[] =
         hierarchyResult.success && hierarchyResult.data?.entities
           ? hierarchyResult.data.entities.map((h) => ({
               entity_id: h.entity_id,
               entity_name: h.entity_name,
-              entity_type: h.entity_type as "department" | "project" | "team",
+              level_code: h.level_code, // N-level hierarchy
               parent_id: h.parent_id,
             }))
           : []

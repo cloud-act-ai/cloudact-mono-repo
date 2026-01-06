@@ -1,523 +1,348 @@
-# Organizational Hierarchy
+# N-Level Configurable Organizational Hierarchy
 
-**Status**: IMPLEMENTED (v1.0) | **Updated**: 2025-12-25 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v2.0) | **Updated**: 2026-01-06 | **Single Source of Truth**
 
-> Cost allocation hierarchy for departments, projects, and teams
-> Stored per-org in BigQuery (`{org_slug}_prod.org_hierarchy`)
-> CSV import/export for bulk operations
-
----
-
-## Notation
-
-| Placeholder | Meaning | Example |
-|-------------|---------|---------|
-| `{org_slug}` | Organization identifier | `acme_corp` |
-| `{entity_type}` | Hierarchy level | `department`, `project`, `team` |
-| `{entity_id}` | Unique entity identifier | `DEPT-001`, `PROJ-001`, `TEAM-001` |
-| `{dept_id}` | Department identifier | `DEPT-001` |
-| `{project_id}` | Project identifier | `PROJ-001` |
-| `{team_id}` | Team identifier | `TEAM-001` |
+> Configurable cost allocation hierarchy with N-level support
+> Default: Department -> Project -> Team (extensible to any structure)
+> Stored centrally in BigQuery (`organizations.org_hierarchy`)
 
 ---
 
-## Terminology
+## Overview
 
-| Term | Definition | Example | Storage |
-|------|------------|---------|---------|
-| **Department** | Top-level organizational unit | Engineering, Sales | BigQuery `org_hierarchy` |
-| **Project** | Work unit under a department | Platform, Mobile App | BigQuery `org_hierarchy` |
-| **Team** | Group under a project | Backend, Frontend | BigQuery `org_hierarchy` |
-| **Owner** | Person responsible for entity | John Doe | `owner_id`, `owner_name`, `owner_email` |
-| **Hierarchy Path** | Full path from dept to team | Engineering > Platform > Backend | Computed |
+The hierarchy system supports **configurable levels** - organizations can define their own structure beyond the default 3 levels. Each level is configured in `hierarchy_levels` and entities are stored in `org_hierarchy`.
+
+**Key Features:**
+- Configurable hierarchy depth (1-10 levels)
+- Materialized path for fast subtree queries
+- Level configuration per organization
+- Move entities between parents
+- Version history for audit trail
 
 ---
 
 ## Hierarchy Structure
 
-```
-                    STRICT HIERARCHY
+### Default Configuration (3 Levels)
 
-    Organization (implicit - org_slug)
+```
+Organization (implicit via org_slug)
+    │
+    ├── Level 1: Department (DEPT-001: Engineering)
+    │       │
+    │       ├── Level 2: Project (PROJ-001: Platform)
+    │       │       │
+    │       │       ├── Level 3: Team (TEAM-001: Backend)
+    │       │       └── Level 3: Team (TEAM-002: Frontend)
+    │       │
+    │       └── Level 2: Project (PROJ-002: Mobile)
+    │               │
+    │               └── Level 3: Team (TEAM-003: iOS)
+    │
+    └── Level 1: Department (DEPT-002: Sales)
             │
-            ├── Department (DEPT-001: Engineering)
-            │       │
-            │       ├── Project (PROJ-001: Platform)
-            │       │       │
-            │       │       ├── Team (TEAM-001: Backend)
-            │       │       └── Team (TEAM-002: Frontend)
-            │       │
-            │       └── Project (PROJ-002: Mobile)
-            │               │
-            │               └── Team (TEAM-003: iOS)
-            │
-            └── Department (DEPT-002: Sales)
+            └── Level 2: Project (PROJ-003: Enterprise)
                     │
-                    └── Project (PROJ-003: Enterprise)
-                            │
-                            └── Team (TEAM-004: APAC)
+                    └── Level 3: Team (TEAM-004: APAC)
 ```
 
-**Rules:**
-- Every Project MUST belong to a Department
-- Every Team MUST belong to a Project
-- Departments have no parent (top-level)
-- Deletion blocked if entity has children or subscription references
-
----
-
-## Where Data Lives
-
-| Storage | Table | What |
-|---------|-------|------|
-| BigQuery | `{org_slug}_prod.org_hierarchy` | All hierarchy entities |
-| BigQuery | `{org_slug}_prod.subscription_plans` | References via `hierarchy_dept_id`, `hierarchy_project_id`, `hierarchy_team_id` |
-
----
-
-## BigQuery Schema
-
-**Table:** `org_hierarchy`
-
-| Field | Type | Mode | Description |
-|-------|------|------|-------------|
-| `org_slug` | STRING | REQUIRED | Organization identifier |
-| `entity_type` | STRING | REQUIRED | `department`, `project`, `team` |
-| `entity_id` | STRING | REQUIRED | Unique ID (e.g., DEPT-001) |
-| `entity_name` | STRING | REQUIRED | Display name |
-| `parent_id` | STRING | NULLABLE | Parent entity ID |
-| `parent_type` | STRING | NULLABLE | Parent entity type |
-| `dept_id` | STRING | NULLABLE | Department ID (denormalized) |
-| `dept_name` | STRING | NULLABLE | Department name (denormalized) |
-| `project_id` | STRING | NULLABLE | Project ID (denormalized) |
-| `project_name` | STRING | NULLABLE | Project name (denormalized) |
-| `team_id` | STRING | NULLABLE | Team ID (denormalized) |
-| `team_name` | STRING | NULLABLE | Team name (denormalized) |
-| `owner_id` | STRING | NULLABLE | Owner user ID |
-| `owner_name` | STRING | NULLABLE | Owner display name |
-| `owner_email` | STRING | NULLABLE | Owner email |
-| `description` | STRING | NULLABLE | Entity description |
-| `metadata` | JSON | NULLABLE | Custom metadata |
-| `is_active` | BOOLEAN | REQUIRED | Active status |
-| `created_at` | TIMESTAMP | REQUIRED | Creation timestamp |
-| `created_by` | STRING | REQUIRED | Creator user ID |
-| `updated_at` | TIMESTAMP | NULLABLE | Last update timestamp |
-| `updated_by` | STRING | NULLABLE | Last updater user ID |
-| `version` | INTEGER | REQUIRED | Version number |
-| `end_date` | TIMESTAMP | NULLABLE | Soft delete timestamp |
-
-**Schema Location:** `02-api-service/configs/setup/organizations/onboarding/schemas/org_hierarchy.json`
-
----
-
-## Lifecycle
-
-| Stage | What Happens | State |
-|-------|--------------|-------|
-| **Table Created** | Org onboarding creates `org_hierarchy` table | Table ready |
-| **Default Seeding** | Onboarding seeds default hierarchy (2 depts, 3 projects, 4 teams) | 9 entities |
-| **Dept Created** | User creates department via UI or CSV | Additional departments |
-| **Project Created** | User creates project under a dept | Additional projects |
-| **Team Created** | User creates team under a project | Additional teams |
-| **Entity Updated** | Edit creates new version, old gets `end_date` | Version incremented |
-| **Entity Deleted** | Soft delete sets `is_active=false`, `end_date=now` | Inactive |
-| **CSV Import** | Bulk create/update entities | Multiple entities |
-| **CSV Export** | Download all active hierarchy | CSV file |
-
----
-
-## Default Hierarchy (Seeded on Onboarding)
-
-New organizations get a default hierarchy seeded during onboarding:
+### Custom Configuration Example (4 Levels)
 
 ```
 Organization
-├── Corporate (DEPT-CORP)
-│   └── Operations (PROJ-OPS)
-│       ├── Finance (TEAM-FIN)
-│       └── HR (TEAM-HR)
-│
-└── Engineering (DEPT-ENG)
-    ├── Platform (PROJ-PLAT)
-    │   ├── Backend (TEAM-BE)
-    │   └── Frontend (TEAM-FE)
     │
-    └── Product (PROJ-PROD)
+    ├── Level 1: Division (DIV-001: Technology)
+    │       │
+    │       ├── Level 2: Department (DEPT-001: Engineering)
+    │       │       │
+    │       │       ├── Level 3: Project (PROJ-001: Platform)
+    │       │       │       │
+    │       │       │       └── Level 4: Team (TEAM-001: Backend)
 ```
 
-**Implementation:** `02-api-service/src/core/processors/setup/organizations/onboarding.py` → `_seed_default_hierarchy()`
+---
 
-**Note:** For existing orgs without hierarchy, seed via API:
+## Data Architecture
 
-```bash
-# Create departments
-curl -X POST "http://localhost:8000/api/v1/hierarchy/{org}/departments" \
-  -H "X-API-Key: $ORG_API_KEY" -H "Content-Type: application/json" \
-  -d '{"entity_id":"DEPT-CORP","entity_name":"Corporate","description":"Corporate departments"}'
-
-# ... (continue with projects and teams)
 ```
+CONFIGURATION → organizations.hierarchy_levels (level definitions)
+ENTITIES      → organizations.org_hierarchy (all entities)
+PER-ORG VIEW  → {org_slug}_prod.x_org_hierarchy (filtered MV)
+```
+
+| Storage | Table | Purpose |
+|---------|-------|---------|
+| Central | `organizations.hierarchy_levels` | Level configuration per org |
+| Central | `organizations.org_hierarchy` | All hierarchy entities (all orgs) |
+| Per-Org | `{org_slug}_prod.x_org_hierarchy` | Materialized view (filtered, 15min refresh) |
+
+---
+
+## BigQuery Schemas
+
+### `hierarchy_levels` (Level Configuration)
+
+| Field | Type | Mode | Description |
+|-------|------|------|-------------|
+| `id` | STRING | REQUIRED | UUID primary key |
+| `org_slug` | STRING | REQUIRED | Organization identifier |
+| `level` | INTEGER | REQUIRED | Level number (1=root, 2, 3, etc.) |
+| `level_code` | STRING | REQUIRED | Machine name (e.g., 'department') |
+| `level_name` | STRING | REQUIRED | Display name singular ('Department') |
+| `level_name_plural` | STRING | REQUIRED | Display name plural ('Departments') |
+| `parent_level` | INTEGER | NULLABLE | Parent level number (NULL for root) |
+| `is_required` | BOOLEAN | REQUIRED | Must have parent? |
+| `is_leaf` | BOOLEAN | REQUIRED | Can have children? |
+| `max_children` | INTEGER | NULLABLE | Max children per entity |
+| `id_prefix` | STRING | NULLABLE | Auto-prefix for IDs ('DEPT-') |
+| `id_auto_generate` | BOOLEAN | REQUIRED | Auto-generate entity IDs? |
+| `metadata_schema` | JSON | NULLABLE | JSON Schema for entity metadata |
+| `display_order` | INTEGER | REQUIRED | UI ordering |
+| `icon` | STRING | NULLABLE | Icon identifier |
+| `color` | STRING | NULLABLE | Color code |
+| `is_active` | BOOLEAN | REQUIRED | Active flag |
+| `created_at` | TIMESTAMP | REQUIRED | Creation time |
+| `created_by` | STRING | REQUIRED | Creator |
+| `updated_at` | TIMESTAMP | NULLABLE | Update time |
+| `updated_by` | STRING | NULLABLE | Updater |
+
+### `org_hierarchy` (Entities)
+
+| Field | Type | Mode | Description |
+|-------|------|------|-------------|
+| `id` | STRING | REQUIRED | UUID primary key |
+| `org_slug` | STRING | REQUIRED | Organization identifier |
+| `entity_id` | STRING | REQUIRED | Unique entity ID (e.g., DEPT-001) |
+| `entity_name` | STRING | REQUIRED | Display name |
+| `level` | INTEGER | REQUIRED | Level number |
+| `level_code` | STRING | REQUIRED | Level code from config |
+| `parent_id` | STRING | NULLABLE | Parent entity ID |
+| `path` | STRING | REQUIRED | Materialized path ('/DEPT-001/PROJ-001') |
+| `path_ids` | STRING[] | REPEATED | Ancestor IDs from root |
+| `path_names` | STRING[] | REPEATED | Ancestor names from root |
+| `depth` | INTEGER | REQUIRED | Tree depth (0=root) |
+| `owner_id` | STRING | NULLABLE | Owner/leader user ID |
+| `owner_name` | STRING | NULLABLE | Owner display name |
+| `owner_email` | STRING | NULLABLE | Owner email |
+| `description` | STRING | NULLABLE | Entity description |
+| `metadata` | JSON | NULLABLE | Custom attributes |
+| `sort_order` | INTEGER | NULLABLE | Custom sort order |
+| `is_active` | BOOLEAN | REQUIRED | Active flag |
+| `created_at` | TIMESTAMP | REQUIRED | Creation time |
+| `created_by` | STRING | REQUIRED | Creator |
+| `updated_at` | TIMESTAMP | NULLABLE | Update time |
+| `updated_by` | STRING | NULLABLE | Updater |
+| `version` | INTEGER | REQUIRED | Version number |
+| `end_date` | TIMESTAMP | NULLABLE | End time (NULL=current) |
 
 ---
 
 ## API Endpoints
 
-**Base URL:** `http://localhost:8000/api/v1/hierarchy`
-
-**Authentication:** `X-API-Key` header (org API key)
-
-### List & Read
+### Level Configuration
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/{org_slug}` | List all active hierarchy entities |
-| GET | `/{org_slug}/tree` | Get hierarchical tree view |
-| GET | `/{org_slug}/departments` | List all departments |
-| GET | `/{org_slug}/departments/{dept_id}` | Get department details |
-| GET | `/{org_slug}/departments/{dept_id}/projects` | List projects in department |
-| GET | `/{org_slug}/projects` | List all projects |
-| GET | `/{org_slug}/projects/{project_id}` | Get project details |
-| GET | `/{org_slug}/projects/{project_id}/teams` | List teams in project |
-| GET | `/{org_slug}/teams` | List all teams |
-| GET | `/{org_slug}/teams/{team_id}` | Get team details |
+| GET | `/api/v1/hierarchy/{org}/levels` | List configured levels |
+| GET | `/api/v1/hierarchy/{org}/levels/{level}` | Get level by number |
+| POST | `/api/v1/hierarchy/{org}/levels` | Create new level |
+| PUT | `/api/v1/hierarchy/{org}/levels/{level}` | Update level |
+| DELETE | `/api/v1/hierarchy/{org}/levels/{level}` | Delete level (soft) |
+| POST | `/api/v1/hierarchy/{org}/levels/seed` | Seed default levels |
 
-### Create
-
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| POST | `/{org_slug}/departments` | `{entity_id, entity_name, owner_*?, description?}` | Create department |
-| POST | `/{org_slug}/projects` | `{entity_id, entity_name, dept_id, owner_*?, description?}` | Create project |
-| POST | `/{org_slug}/teams` | `{entity_id, entity_name, project_id, owner_*?, description?}` | Create team |
-
-### Update & Delete
-
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| PUT | `/{org_slug}/{entity_type}/{entity_id}` | `{entity_name?, owner_*?, description?}` | Update entity |
-| GET | `/{org_slug}/{entity_type}/{entity_id}/can-delete` | - | Check if deletion allowed |
-| DELETE | `/{org_slug}/{entity_type}/{entity_id}` | - | Soft delete entity |
-
-### Import/Export
+### Entity CRUD
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/{org_slug}/template` | Download CSV template |
-| POST | `/{org_slug}/import` | Import from CSV |
-| GET | `/{org_slug}/export` | Export to CSV |
-
----
-
-## CSV Format
-
-### Template Headers
-
-```csv
-entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
-```
-
-### Example Data
-
-```csv
-entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
-department,DEPT-001,Engineering,,,John Doe,john@example.com,Engineering department
-department,DEPT-002,Sales,,,Jane Smith,jane@example.com,Sales department
-project,PROJ-001,Platform,DEPT-001,,Bob Wilson,bob@example.com,Platform team project
-project,PROJ-002,Mobile,DEPT-001,,Alice Brown,alice@example.com,Mobile applications
-team,TEAM-001,Backend,PROJ-001,,Charlie Green,charlie@example.com,Backend development
-team,TEAM-002,Frontend,PROJ-001,,Diana White,diana@example.com,Frontend development
-```
-
-### Import Rules
-
-1. Parse CSV, validate headers
-2. Sort by entity_type (departments first, then projects, then teams)
-3. Validate parent references exist
-4. Create/update entities with version history
-5. Return import summary (created, updated, errors)
-
-**Template Location:** `01-fronted-system/lib/seed/hierarchy_template.csv`
-
----
-
-## Deletion Blocking
-
-Before delete, check:
-
-1. **Children exist** - Projects under department, teams under project
-2. **Subscription references** - `subscription_plans` with `hierarchy_dept_id`, `hierarchy_project_id`, or `hierarchy_team_id`
-
-**Response on Block:**
-
-```json
-{
-  "can_delete": false,
-  "blocking_children": [
-    {"entity_type": "project", "entity_id": "PROJ-001", "entity_name": "Platform"},
-    {"entity_type": "project", "entity_id": "PROJ-002", "entity_name": "Mobile"}
-  ],
-  "blocking_subscriptions": [
-    {"subscription_id": "123", "plan_name": "Slack Pro"}
-  ]
-}
-```
-
----
-
-## Frontend
-
-### Pages
-
-| Route | Purpose |
-|-------|---------|
-| `/{orgSlug}/settings/hierarchy` | Main hierarchy management page |
-
-### Features
-
-- **Tree View** - Visual hierarchy with expand/collapse
-- **Table View** - Tabular list with filtering by type
-- **Create Dialogs** - Forms for department, project, team
-- **Delete Confirmation** - Shows blocking items if deletion blocked
-- **CSV Import** - Upload with preview and validation
-- **CSV Export** - Download all active entities
-- **Template Download** - Get blank CSV template
+| GET | `/api/v1/hierarchy/{org}` | List all entities |
+| GET | `/api/v1/hierarchy/{org}/tree` | Get tree structure |
+| GET | `/api/v1/hierarchy/{org}/entities/{id}` | Get entity by ID |
+| POST | `/api/v1/hierarchy/{org}/entities` | Create entity |
+| PUT | `/api/v1/hierarchy/{org}/entities/{id}` | Update entity |
+| DELETE | `/api/v1/hierarchy/{org}/entities/{id}` | Delete entity (soft) |
 
 ### Navigation
 
-- Desktop: Settings > Hierarchy (owner only)
-- Mobile: Settings > Hierarchy (owner only)
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `app/[orgSlug]/settings/hierarchy/page.tsx` | Main UI component |
-| `actions/hierarchy.ts` | Server actions |
-| `components/dashboard-sidebar.tsx` | Desktop nav link |
-| `components/mobile-nav.tsx` | Mobile nav link |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/hierarchy/{org}/entities/{id}/children` | Get direct children |
+| GET | `/api/v1/hierarchy/{org}/entities/{id}/ancestors` | Get ancestor chain |
+| GET | `/api/v1/hierarchy/{org}/entities/{id}/descendants` | Get all descendants |
+| POST | `/api/v1/hierarchy/{org}/entities/{id}/move` | Move to new parent |
+| GET | `/api/v1/hierarchy/{org}/entities/{id}/can-delete` | Check if deletable |
 
 ---
 
-## Version History
+## Usage Examples
 
-When an entity is updated:
-
-1. Query existing active record
-2. Set `end_date = now()` on old record
-3. Set `is_active = false` on old record
-4. Create new record with:
-   - Same `entity_id`
-   - Incremented `version`
-   - Updated fields
-   - `created_at = now()`
-   - `is_active = true`
-   - `end_date = null`
-
-This provides full audit trail of changes.
-
----
-
-## Integration with Subscriptions
-
-### Subscription Form UI
-
-When adding/editing subscriptions, users can assign hierarchy for cost allocation via cascading dropdowns:
-
-**UI Location:** `/{orgSlug}/integrations/subscriptions/{provider}` → Add/Edit Sheet
-
-**Dropdowns:**
-1. **Department** - Select from available departments
-2. **Project** - Filtered by selected department
-3. **Team** - Filtered by selected project
-
-**Implementation:**
-- `01-fronted-system/app/[orgSlug]/integrations/subscriptions/[provider]/page.tsx`
-- Uses `loadHierarchy()` to fetch departments, projects, teams
-- `handleDepartmentChange()`, `handleProjectChange()`, `handleTeamChange()` for cascading filters
-
-### API Payload
-
-Subscription plans reference hierarchy entities for cost allocation:
-
-```json
-{
-  "plan_name": "Slack Pro",
-  "hierarchy_dept_id": "DEPT-001",
-  "hierarchy_dept_name": "Engineering",
-  "hierarchy_project_id": "PROJ-001",
-  "hierarchy_project_name": "Platform",
-  "hierarchy_team_id": "TEAM-001",
-  "hierarchy_team_name": "Backend"
-}
-```
-
-**Display Path:** Engineering > Platform > Backend
-
-### Cost Calculation Flow
-
-```
-subscription_plans (with hierarchy IDs)
-    ↓ sp_calculate_subscription_plan_costs_daily
-subscription_plan_costs_daily (hierarchy propagated)
-    ↓ sp_convert_subscription_costs_to_focus_1_3
-cost_data_standard_1_3 (x_hierarchy_dept_id, x_hierarchy_project_id, x_hierarchy_team_id)
-```
-
-**Stored Procedures Location:** `03-data-pipeline-service/configs/system/procedures/subscription/`
-
----
-
-## API Examples
-
-### Create Department
+### Seed Default Levels (New Org)
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_corp/departments" \
+curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_inc/levels/seed" \
+  -H "X-API-Key: $ORG_API_KEY"
+```
+
+### Create Entity
+
+```bash
+# Create department (level 1 - no parent)
+curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_inc/entities" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "entity_id": "DEPT-001",
     "entity_name": "Engineering",
+    "level_code": "department",
     "owner_name": "John Doe",
-    "owner_email": "john@example.com",
-    "description": "Engineering department"
+    "owner_email": "john@example.com"
   }'
-```
 
-### Create Project
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_corp/projects" \
+# Create project (level 2 - requires department parent)
+curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_inc/entities" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "entity_id": "PROJ-001",
     "entity_name": "Platform",
-    "dept_id": "DEPT-001",
-    "owner_name": "Bob Wilson",
-    "owner_email": "bob@example.com"
+    "level_code": "project",
+    "parent_id": "DEPT-001",
+    "owner_name": "Jane Smith"
   }'
-```
 
-### Create Team
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_corp/teams" \
+# Create team (level 3 - requires project parent)
+curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_inc/entities" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "entity_id": "TEAM-001",
     "entity_name": "Backend",
-    "project_id": "PROJ-001",
-    "owner_name": "Charlie Green",
-    "owner_email": "charlie@example.com"
+    "level_code": "team",
+    "parent_id": "PROJ-001"
   }'
 ```
 
-### Get Tree View
+### Get Hierarchy Tree
 
 ```bash
-curl -X GET "http://localhost:8000/api/v1/hierarchy/acme_corp/tree" \
+curl "http://localhost:8000/api/v1/hierarchy/acme_inc/tree" \
   -H "X-API-Key: $ORG_API_KEY"
 ```
 
-**Response:**
-
+Response:
 ```json
 {
-  "success": true,
-  "tree": [
+  "org_slug": "acme_inc",
+  "levels": [...],
+  "roots": [
     {
-      "entity_type": "department",
       "entity_id": "DEPT-001",
       "entity_name": "Engineering",
+      "level": 1,
+      "level_code": "department",
+      "level_name": "Department",
+      "path": "/DEPT-001",
       "children": [
         {
-          "entity_type": "project",
           "entity_id": "PROJ-001",
           "entity_name": "Platform",
+          "path": "/DEPT-001/PROJ-001",
           "children": [
             {
-              "entity_type": "team",
               "entity_id": "TEAM-001",
               "entity_name": "Backend",
+              "path": "/DEPT-001/PROJ-001/TEAM-001",
               "children": []
             }
           ]
         }
       ]
     }
-  ]
+  ],
+  "stats": {
+    "department": 1,
+    "project": 1,
+    "team": 1,
+    "total": 3
+  }
 }
 ```
 
-### Check Can Delete
+### Move Entity
 
 ```bash
-curl -X GET "http://localhost:8000/api/v1/hierarchy/acme_corp/department/DEPT-001/can-delete" \
-  -H "X-API-Key: $ORG_API_KEY"
+curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_inc/entities/PROJ-001/move" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"new_parent_id": "DEPT-002"}'
 ```
 
-### Import CSV
+### Add Custom Level (4th Level)
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_corp/import" \
+curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_inc/levels" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "rows": [
-      {"entity_type": "department", "entity_id": "DEPT-003", "entity_name": "Marketing"}
-    ]
+    "level": 4,
+    "level_code": "squad",
+    "level_name": "Squad",
+    "level_name_plural": "Squads",
+    "parent_level": 3,
+    "is_required": true,
+    "is_leaf": true,
+    "id_prefix": "SQUAD-"
   }'
 ```
 
 ---
 
-## Error Codes
+## Constraints & Rules
 
-| HTTP | Code | Description |
-|------|------|-------------|
-| 400 | `INVALID_ENTITY_TYPE` | Entity type must be department, project, or team |
-| 400 | `MISSING_PARENT` | Project requires dept_id, team requires project_id |
-| 400 | `PARENT_NOT_FOUND` | Referenced parent entity does not exist |
-| 404 | `ENTITY_NOT_FOUND` | Entity with given ID not found |
-| 409 | `DELETION_BLOCKED` | Entity has children or subscription references |
-| 409 | `DUPLICATE_ENTITY_ID` | Entity ID already exists |
-
----
-
-## Files Created/Modified
-
-### Created
-
-| File | Description |
+| Rule | Description |
 |------|-------------|
-| `02-api-service/configs/setup/organizations/onboarding/schemas/org_hierarchy.json` | BigQuery schema |
+| **Parent Required** | Non-root levels must have a parent at `parent_level` |
+| **Leaf Enforcement** | Leaf levels cannot have children |
+| **Max Children** | If `max_children` set, enforced on create |
+| **Delete Blocking** | Cannot delete with children or subscription references |
+| **Unique Entity ID** | Entity IDs must be unique within org |
+| **Path Integrity** | Paths auto-update when entities move |
+| **Version History** | All changes create new version row |
+
+---
+
+## Integration with Cost Allocation
+
+Subscription plans reference hierarchy entities:
+
+```sql
+-- subscription_plans table
+hierarchy_dept_id     -- References department entity_id
+hierarchy_dept_name   -- Denormalized name
+hierarchy_project_id  -- References project entity_id
+hierarchy_project_name
+hierarchy_team_id     -- References team entity_id
+hierarchy_team_name
+```
+
+**Note:** These fields reference `entity_id` values from `org_hierarchy`, not the generic `level_code`. For N-level support beyond 3 levels, additional integration may be needed.
+
+---
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `02-api-service/configs/setup/bootstrap/schemas/hierarchy_levels.json` | Level config schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_hierarchy.json` | Entity schema |
 | `02-api-service/src/app/models/hierarchy_models.py` | Pydantic models |
-| `02-api-service/src/core/services/hierarchy_service.py` | Service layer |
-| `02-api-service/src/app/routers/hierarchy.py` | API router |
-| `01-fronted-system/actions/hierarchy.ts` | Server actions |
-| `01-fronted-system/app/[orgSlug]/settings/hierarchy/page.tsx` | UI page |
-| `01-fronted-system/lib/seed/hierarchy_template.csv` | CSV template |
-
-### Modified
-
-| File | Change |
-|------|--------|
-| `02-api-service/configs/setup/organizations/onboarding/schemas/subscription_plans.json` | Added hierarchy reference fields |
-| `02-api-service/src/app/main.py` | Registered hierarchy router |
-| `01-fronted-system/components/dashboard-sidebar.tsx` | Added nav link |
-| `01-fronted-system/components/mobile-nav.tsx` | Added nav link |
+| `02-api-service/src/core/services/hierarchy_crud/service.py` | Entity CRUD service |
+| `02-api-service/src/core/services/hierarchy_crud/level_service.py` | Level config service |
+| `02-api-service/src/core/services/hierarchy_crud/path_utils.py` | Path utilities |
+| `02-api-service/src/app/routers/hierarchy.py` | API endpoints |
+| `02-api-service/configs/setup/organizations/onboarding/views/x_org_hierarchy_mv.sql` | MV definition |
 
 ---
 
-## Security
-
-- **Authentication:** All endpoints require valid org API key
-- **Authorization:** Only org members can access hierarchy data
-- **Role Check:** UI only shows hierarchy link to owners
-- **Input Validation:** Entity IDs validated, SQL injection prevented
-- **Soft Delete:** Data preserved for audit trail
-
----
-
-**Last Updated:** 2025-12-26 (Added default hierarchy seeding, subscription form integration)
+**Version History:**
+- v2.0 (2026-01-06): N-level configurable hierarchy, removed CSV import/export
+- v1.0 (2025-12-25): Fixed 3-level hierarchy (Dept -> Project -> Team)

@@ -1,0 +1,23 @@
+[
+  {"name": "id", "type": "STRING", "mode": "REQUIRED", "description": "Unique primary key (UUID)"},
+  {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy"},
+  {"name": "level", "type": "INTEGER", "mode": "REQUIRED", "description": "Hierarchy level number (1=root, 2=child of 1, etc.)"},
+  {"name": "level_code", "type": "STRING", "mode": "REQUIRED", "description": "Machine-readable level identifier (e.g., 'department', 'project', 'team')"},
+  {"name": "level_name", "type": "STRING", "mode": "REQUIRED", "description": "Human-readable singular name (e.g., 'Department')"},
+  {"name": "level_name_plural", "type": "STRING", "mode": "REQUIRED", "description": "Human-readable plural name (e.g., 'Departments')"},
+  {"name": "parent_level", "type": "INTEGER", "mode": "NULLABLE", "description": "Parent level number (NULL for root level)"},
+  {"name": "is_required", "type": "BOOLEAN", "mode": "REQUIRED", "description": "Whether entities at this level must have a parent"},
+  {"name": "is_leaf", "type": "BOOLEAN", "mode": "REQUIRED", "description": "Whether this is a leaf level (cannot have children)"},
+  {"name": "max_children", "type": "INTEGER", "mode": "NULLABLE", "description": "Maximum allowed children per entity (NULL=unlimited)"},
+  {"name": "id_prefix", "type": "STRING", "mode": "NULLABLE", "description": "Auto-prefix for entity IDs (e.g., 'DEPT-', 'PROJ-')"},
+  {"name": "id_auto_generate", "type": "BOOLEAN", "mode": "REQUIRED", "description": "Whether to auto-generate entity IDs"},
+  {"name": "metadata_schema", "type": "JSON", "mode": "NULLABLE", "description": "JSON Schema for validating entity metadata at this level"},
+  {"name": "display_order", "type": "INTEGER", "mode": "REQUIRED", "description": "Order for UI display"},
+  {"name": "icon", "type": "STRING", "mode": "NULLABLE", "description": "Icon identifier for UI display"},
+  {"name": "color", "type": "STRING", "mode": "NULLABLE", "description": "Color code for UI display"},
+  {"name": "is_active", "type": "BOOLEAN", "mode": "REQUIRED", "description": "Whether this level is active"},
+  {"name": "created_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Creation timestamp"},
+  {"name": "created_by", "type": "STRING", "mode": "REQUIRED", "description": "Creator user ID"},
+  {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Last update timestamp"},
+  {"name": "updated_by", "type": "STRING", "mode": "NULLABLE", "description": "Last updater user ID"}
+]
