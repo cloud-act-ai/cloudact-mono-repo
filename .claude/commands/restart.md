@@ -249,6 +249,11 @@ Report:
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic - today's date)* |
+| Org Slug | **Query from DB** (see command below) |
+
+```bash
+# Get actual org slug from Supabase
+cd 01-fronted-system && source .env.local && curl -s "https://kwroaccbrxppfiysqlzs.supabase.co/rest/v1/organizations?select=org_slug&order=created_at.desc&limit=1" -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c "import sys,json; print('Org Slug:', json.load(sys.stdin)[0]['org_slug'])"
+```
 
 See `.claude/debug-config.md` for full debug configuration.

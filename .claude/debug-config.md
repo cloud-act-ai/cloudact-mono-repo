@@ -14,23 +14,34 @@ Use these credentials for local development, testing, and debugging:
 | Last Name | `Doe` |
 | Company | `Acme Inc` |
 | Org Slug Pattern | `acme_inc_{MMDDYYYY}` |
-| Org Slug | **Dynamic** - `acme_inc_$(date +%m%d%Y)` |
+| Org Slug | **Query from DB** (see below) |
 | Plan | `scale` (14-day free trial) |
 | Timezone | `PST/PDT - Los Angeles, USA` |
 | Currency | `USD` |
 
-## Org Slug Format
+## Get Actual Org Slug
 
-The org slug follows the pattern: `acme_inc_{MMDDYYYY}` where:
-- `MMDDYYYY` is the date when the account was created (today's date for new accounts)
-- Get today's org slug: `acme_inc_$(date +%m%d%Y)`
+The org slug is created during onboarding with the date suffix. **Always query the database** to get the actual value:
+
+```bash
+# Get the latest org slug from Supabase
+source .env.local
+ORG_SLUG=$(curl -s "https://kwroaccbrxppfiysqlzs.supabase.co/rest/v1/organizations?select=org_slug&order=created_at.desc&limit=1" \
+  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['org_slug'])")
+echo "Org Slug: $ORG_SLUG"
+```
 
 ## Quick Login Test
 
 ```bash
-# Get today's org slug
-ORG_SLUG="acme_inc_$(date +%m%d%Y)"
-echo "Org Slug: $ORG_SLUG"
+# First get the actual org slug from database
+source .env.local
+ORG_SLUG=$(curl -s "https://kwroaccbrxppfiysqlzs.supabase.co/rest/v1/organizations?select=org_slug&order=created_at.desc&limit=1" \
+  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['org_slug'])")
+
+echo "Using Org Slug: $ORG_SLUG"
 
 # Test login via Playwright
 npx playwright test -g "login" --headed
@@ -67,7 +78,12 @@ When a skill needs to debug or test pages, use:
 ```bash
 Email: john@example.com
 Password: acme1234
-Org Slug: acme_inc_$(date +%m%d%Y)  # Dynamic - today's date
+Org Slug: # Query from Supabase (see "Get Actual Org Slug" above)
 ```
 
-If login fails, create a new account via `/signup` with these details. The org slug will be auto-generated based on the current date.
+To get the org slug dynamically in any skill:
+```bash
+source .env.local && ORG_SLUG=$(curl -s "https://kwroaccbrxppfiysqlzs.supabase.co/rest/v1/organizations?select=org_slug&order=created_at.desc&limit=1" -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['org_slug'])")
+```
+
+If login fails, create a new account via `/signup` with these details. The org slug will be auto-generated based on the creation date.
