@@ -34,12 +34,10 @@ import {
   getDateInfo,
   transformProvidersToBreakdownItems,
   transformProvidersToTableRows,
-  getSafeValue,
   calculatePercentage,
   OVERVIEW_CATEGORY_CONFIG,
   type ProviderData,
   // FinOps constants
-  FINOPS,
   calculateAllForecasts,
   // Design tokens
   OVERVIEW_CHART_PALETTE,

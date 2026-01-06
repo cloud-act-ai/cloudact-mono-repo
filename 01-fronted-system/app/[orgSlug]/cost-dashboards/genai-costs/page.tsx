@@ -29,7 +29,6 @@ import {
   GENAI_PROVIDER_CONFIG,
   type ProviderData,
   // FinOps constants
-  FINOPS,
   calculateAllForecasts,
   // Design tokens
   GENAI_CHART_PALETTE,

@@ -29,7 +29,6 @@ import {
   CLOUD_PROVIDER_CONFIG,
   type ProviderData,
   // FinOps constants
-  FINOPS,
   calculateAllForecasts,
   // Design tokens
   CLOUD_CHART_PALETTE,

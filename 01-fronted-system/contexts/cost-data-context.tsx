@@ -460,32 +460,6 @@ function getL1CacheDecision(
 // ============================================
 
 /**
- * Check if a time range is within last 365 days (L1 cache boundary).
- * Returns true for all preset ranges (7d, 30d, 90d, mtd, ytd, etc.)
- * and custom ranges that fall within 365 days from today.
- */
-function isWithin365Days(
-  timeRange: TimeRange,
-  customRange?: CustomDateRange
-): boolean {
-  // All preset ranges (7, 14, 30, 90, 365, mtd, ytd, qtd, last_month)
-  // are by definition within the last 365 days
-  if (timeRange !== "custom") {
-    return true
-  }
-
-  // Custom range - check if within 365-day window
-  if (!customRange) return true
-
-  const today = new Date()
-  const startOf365 = new Date(today)
-  startOf365.setDate(startOf365.getDate() - 365)
-
-  const requestedStart = new Date(customRange.startDate)
-  return requestedStart >= startOf365
-}
-
-/**
  * Convert TimeRange + CustomDateRange to a DateRange object for filtering.
  * Used by granular filter functions.
  */

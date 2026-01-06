@@ -29,7 +29,6 @@ import {
   SAAS_PROVIDER_CONFIG,
   type ProviderData,
   // FinOps constants
-  FINOPS,
   calculateAllForecasts,
   // Design tokens
   SUBSCRIPTION_CHART_PALETTE,
