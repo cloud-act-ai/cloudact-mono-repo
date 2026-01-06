@@ -158,6 +158,19 @@ async def lifespan(app: FastAPI):
     signal.signal(signal.SIGINT, handle_shutdown_signal)
     logger.info("Shutdown signal handlers registered (SIGTERM, SIGINT)")
 
+    # SCALE-001 FIX: Warn about in-memory lock limitations with multiple workers
+    # asyncio.Lock only works within a single process, not across uvicorn workers
+    workers = int(os.environ.get("WEB_CONCURRENCY", "1"))
+    if workers > 1:
+        logger.warning(
+            f"Running with {workers} workers. In-memory pipeline locks will NOT be "
+            "shared across workers. For production with multiple workers, consider: "
+            "(1) Using --workers 1 for pipeline-service, or "
+            "(2) Implementing distributed locking with Redis/Memorystore, or "
+            "(3) Using Cloud Tasks for pipeline execution. "
+            "Risk: Duplicate pipeline executions possible if same request hits different workers."
+        )
+
     # Initialize rate limiting
     if settings.rate_limit_enabled:
         init_rate_limiter(

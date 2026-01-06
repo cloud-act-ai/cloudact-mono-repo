@@ -296,6 +296,7 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row, index) => {
                 const isHovered = hoveredRow === row.id
+                // VIS-006: Enhanced row hover highlighting with branded colors
                 return (
                   <TableRow
                     key={row.id}
@@ -304,21 +305,28 @@ export function DataTable<TData, TValue>({
                       "transition-all duration-200",
                       // Striped
                       striped && index % 2 === 1 && "bg-slate-50/30",
-                      // Hover effects
-                      hoverable && !isPremium && "hover:bg-slate-50/50",
-                      // Clickable
+                      // VIS-006: Enhanced hover effects for all variants
+                      hoverable && [
+                        "hover:bg-[#90FCA6]/5",  // Light mint background on hover
+                        isHovered && "bg-[#90FCA6]/8",
+                      ],
+                      // Clickable - VIS-002: Always show pointer for interactive rows
                       onRowClick && "cursor-pointer",
                       // Premium hover
                       isPremium && hoverable && [
                         "relative",
-                        isHovered && "bg-gradient-to-r from-transparent via-slate-50/80 to-transparent",
+                        isHovered && "bg-gradient-to-r from-[#90FCA6]/5 via-[#90FCA6]/10 to-[#90FCA6]/5",
                       ],
                     )}
                     style={{
-                      // Premium hover glow
-                      boxShadow: isPremium && isHovered
-                        ? `inset 0 0 0 1px ${theme.primary}20, 0 1px 3px ${theme.primary}10`
+                      // VIS-006: Enhanced hover glow with mint accent
+                      boxShadow: isHovered
+                        ? isPremium
+                          ? `inset 0 0 0 1px #90FCA640, 0 2px 8px #90FCA620`
+                          : `inset 0 0 0 1px #90FCA630`
                         : undefined,
+                      // Smooth transition for shadow
+                      transition: "box-shadow 0.2s ease, background-color 0.2s ease",
                     }}
                     onClick={() => onRowClick?.(row.original)}
                     onMouseEnter={() => setHoveredRow(row.id)}

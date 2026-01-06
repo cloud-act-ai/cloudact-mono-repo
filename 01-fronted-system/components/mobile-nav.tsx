@@ -200,6 +200,7 @@ export function MobileNav({
     setIsLoggingOut(true)
     const supabase = createClient()
     await supabase.auth.signOut()
+    // AUTH-004/005: Server-side auth cache has 5-second TTL, no client-side clearing needed
     window.location.href = "/login"
   }
 

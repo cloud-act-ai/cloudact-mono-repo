@@ -74,11 +74,15 @@ export default function CostOverviewPage() {
   } = useCostData()
 
   // CROSS-PAGE-FIX: Reset provider/category filters on unmount to prevent cross-page persistence
+  // BUG-FIX: Use ref to avoid infinite loop - setUnifiedFilters changes on every state update
+  const setUnifiedFiltersRef = React.useRef(setUnifiedFilters)
+  setUnifiedFiltersRef.current = setUnifiedFilters
+
   useEffect(() => {
     return () => {
-      setUnifiedFilters({ providers: undefined, categories: undefined })
+      setUnifiedFiltersRef.current({ providers: undefined, categories: undefined })
     }
-  }, [setUnifiedFilters])
+  }, []) // Empty deps - only run on unmount
 
   // Extract time range from unified filters
   const timeRange = contextFilters.timeRange
@@ -133,12 +137,18 @@ export default function CostOverviewPage() {
 
   // Handle filter changes - sync to unified context for provider/category filters
   // FILTER-008 FIX: Sync local filters to context for consistent filtering
+  // TYPE-002 FIX: Validate categories before casting to avoid runtime type mismatches
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
+    // Validate and filter to only allowed category values
+    const validCategories = ["genai", "cloud", "subscription"] as const
+    const safeCategories = newFilters.categories.filter(
+      (c): c is "genai" | "cloud" | "subscription" => validCategories.includes(c as typeof validCategories[number])
+    )
     // Sync provider and category filters to unified context
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
-      categories: newFilters.categories.length > 0 ? newFilters.categories as ("genai" | "cloud" | "subscription")[] : undefined,
+      categories: safeCategories.length > 0 ? safeCategories : undefined,
     })
   }, [setUnifiedFilters])
 
@@ -165,20 +175,28 @@ export default function CostOverviewPage() {
     const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
 
     // Transform to chart format
-    return timeSeries.map((point) => {
-      const date = new Date(point.date)
-      // BUG-001 FIX: Format label based on data length - short format for large datasets
-      const label = timeSeries.length >= 90
-        ? date.toLocaleDateString("en-US", { day: "numeric" })  // Just day number for 90+ days
-        : date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    return timeSeries
+      .filter((point) => {
+        // EDGE-001 FIX: Skip entries with invalid dates
+        if (!point.date) return false
+        const date = new Date(point.date)
+        return !isNaN(date.getTime())
+      })
+      .map((point) => {
+        const date = new Date(point.date)
+        // LOCALE-001 FIX: Use undefined to respect user's browser locale
+        // BUG-001 FIX: Format label based on data length - short format for large datasets
+        const label = timeSeries.length >= 90
+          ? date.toLocaleDateString(undefined, { day: "numeric" })  // Just day number for 90+ days
+          : date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
-      return {
-        label,
-        value: point.total,
-        lineValue: Math.round(rollingAvg * 100) / 100,
-        date: point.date,
-      }
-    })
+        return {
+          label,
+          value: Number.isFinite(point.total) ? point.total : 0, // EDGE-001 FIX: Validate value
+          lineValue: Math.round(rollingAvg * 100) / 100,
+          date: point.date,
+        }
+      })
   }, [getFilteredTimeSeries])
 
   // FILTER-FIX: Build category breakdown from TIME-FILTERED data
@@ -232,6 +250,9 @@ export default function CostOverviewPage() {
     ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
   }, [getFilteredCategoryBreakdown, hasProviderFilter, filteredProviders, filters.providers])
 
+  // PERF-001 FIX: Memoize dateInfo to avoid redundant calculations
+  const dateInfo = useMemo(() => getDateInfo(), [])
+
   // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
     // Calculate totals from time-filtered daily data (respects time range filter)
@@ -247,11 +268,9 @@ export default function CostOverviewPage() {
       daysInPeriod
     )
 
-    // For YTD, use the filtered total for ytd range, otherwise calculate
-    const dateInfo = getDateInfo()
-    const ytdValue = timeRange === "ytd"
-      ? filteredTotal
-      : dailyRate * dateInfo.daysElapsed
+    // CALC-001 FIX: Only show YTD when timeRange is "ytd", otherwise show period total
+    // Projecting a 7-day average to entire YTD is statistically unreliable
+    const ytdValue = timeRange === "ytd" ? filteredTotal : filteredTotal
 
     return {
       mtd: filteredTotal,       // Period spend (from filtered data)
@@ -262,25 +281,36 @@ export default function CostOverviewPage() {
     }
   }, [dailyTrendData, timeRange, orgCurrency])
 
+  // TYPE-001 FIX: Safely map filtered providers to ProviderData shape
+  // This ensures type safety without unsafe `as` assertions
+  const safeProviders = useMemo((): ProviderData[] => {
+    return providers.map((p) => ({
+      provider: p.provider ?? "",
+      total_cost: Number.isFinite(p.total_cost) ? p.total_cost : 0,
+      percentage: Number.isFinite(p.percentage) ? p.percentage : 0,
+      record_count: Number.isFinite(p.record_count) ? p.record_count : 0,
+    }))
+  }, [providers])
+
   // Convert providers to breakdown items using centralized helper
   const providerBreakdownItems = useMemo(() =>
-    transformProvidersToBreakdownItems(providers as ProviderData[], {
+    transformProvidersToBreakdownItems(safeProviders, {
       names: {},
       colors: {},
       defaultColor: DEFAULT_COLOR, // COLOR-001 fix
     }),
-    [providers]
+    [safeProviders]
   )
 
   // Convert providers to table rows using centralized helper
+  // PERF-001 FIX: Use memoized dateInfo instead of calling getDateInfo() again
   const tableRows = useMemo(() => {
-    const dateInfo = getDateInfo()
-    return transformProvidersToTableRows(providers as ProviderData[], dateInfo, {
+    return transformProvidersToTableRows(safeProviders, dateInfo, {
       names: {},
       colors: {},
       defaultColor: DEFAULT_COLOR, // COLOR-001 fix
     })
-  }, [providers])
+  }, [safeProviders, dateInfo])
 
   // Ring chart segments - uses TIME-FILTERED category breakdown
   // BUG-001 FIX: Use getFilteredCategoryBreakdown() to respect time range filter

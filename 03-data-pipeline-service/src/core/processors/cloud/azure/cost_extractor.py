@@ -27,7 +27,7 @@ class AzureCostExtractor:
     Uses the Cost Management Query API to retrieve cost and usage data.
     """
 
-    def __init__(self, org_slug: str):
+    def __init__(self, org_slug: Optional[str] = None):
         self.org_slug = org_slug
         self.settings = get_settings()
         self._auth: Optional[AzureAuthenticator] = None
@@ -47,6 +47,12 @@ class AzureCostExtractor:
         Returns:
             Dict with extracted cost rows and metadata
         """
+        # ERR-002 FIX: Get org_slug from context if not set in constructor
+        if not self.org_slug:
+            self.org_slug = context.get("org_slug")
+        if not self.org_slug:
+            return {"status": "FAILED", "error": "org_slug is required"}
+
         config = step_config.get("config", {})
         date_filter = config.get("date_filter") or context.get("date")
         granularity = config.get("granularity", "Daily")
@@ -276,4 +282,4 @@ async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 def get_engine():
     """Factory function for pipeline executor."""
-    return AzureCostExtractor
+    return AzureCostExtractor()

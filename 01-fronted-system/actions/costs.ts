@@ -73,12 +73,23 @@ async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult
     return null // Not authenticated
   }
 
-  // AUTH-001 FIX: Cache key includes userId to prevent cross-user leakage
+  // CACHE-001 FIX: Cache key includes both userId AND orgSlug for complete isolation
+  // This prevents cross-org role leakage (e.g., admin in org-A, member in org-B)
   const cacheKey = `${currentUserId}:${orgSlug}`
   const cached = authCache.get(cacheKey)
   const now = Date.now()
 
-  // Return cached if still valid AND matches current user
+  // ASYNC-001 FIX: Proactive cleanup BEFORE cache grows too large
+  if (authCache.size >= 95) {
+    const entries = Array.from(authCache.entries())
+    for (const [key, value] of entries) {
+      if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {
+        authCache.delete(key)
+      }
+    }
+  }
+
+  // Return cached if still valid AND matches current user AND orgSlug
   if (cached && (now - cached.cachedAt) < AUTH_CACHE_TTL_MS && cached.userId === currentUserId) {
     return {
       auth: { user: { id: cached.userId }, orgId: cached.orgId, role: cached.role },
@@ -104,16 +115,7 @@ async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult
       cachedAt: now,
     })
 
-    // Cleanup old entries (max 100 user:org combinations cached)
-    if (authCache.size > 100) {
-      const entries = Array.from(authCache.entries())
-      for (const [key, value] of entries) {
-        if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {
-          authCache.delete(key)
-        }
-      }
-    }
-
+    // ASYNC-001 FIX: Cleanup moved to before cache check (proactive cleanup)
     return { auth, apiKey }
   } catch {
     return null
@@ -1160,19 +1162,21 @@ export async function getCostByProvider(
     // Transform API response to frontend interface
     const rawData = result.data || []
     const totalCost = rawData.reduce((sum, p) => {
-      // Use || to treat empty/0 as falsy
-      const cost = p.total_effective_cost || p.total_billed_cost || p.total_cost || 0
+      // NULL-001 FIX: Use ?? instead of || to correctly handle $0 costs
+      // 0 is a valid cost value (e.g., free tier usage), so we only fallback for null/undefined
+      const cost = p.total_effective_cost ?? p.total_billed_cost ?? p.total_cost ?? 0
       return sum + cost
     }, 0)
 
     const transformedData: ProviderBreakdown[] = rawData.map(p => {
-      // Use || to treat empty string as falsy (not just null/undefined)
+      // Use || for strings to treat empty string as falsy (intentional for provider names)
       const providerName = p.ServiceProviderName || p.provider || "Unknown"
-      const cost = p.total_effective_cost || p.total_billed_cost || p.total_cost || 0
+      // NULL-001 FIX: Use ?? for numeric costs to preserve valid $0 values
+      const cost = p.total_effective_cost ?? p.total_billed_cost ?? p.total_cost ?? 0
       return {
         provider: providerName.trim() || "Unknown",  // Also trim whitespace
         total_cost: cost,
-        record_count: p.record_count || 0,
+        record_count: p.record_count ?? 0,  // NULL-001 FIX: record_count of 0 is valid
         percentage: totalCost > 0 ? (cost / totalCost) * 100 : 0,
       }
     })

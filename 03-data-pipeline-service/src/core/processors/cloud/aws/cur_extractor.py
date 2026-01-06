@@ -29,7 +29,7 @@ class AWSCURExtractor:
     - Athena query integration
     """
 
-    def __init__(self, org_slug: str):
+    def __init__(self, org_slug: Optional[str] = None):
         self.org_slug = org_slug
         self.settings = get_settings()
         self._auth: Optional[AWSAuthenticator] = None
@@ -49,6 +49,12 @@ class AWSCURExtractor:
         Returns:
             Dict with extracted rows and metadata
         """
+        # ERR-002 FIX: Get org_slug from context if not set in constructor
+        if not self.org_slug:
+            self.org_slug = context.get("org_slug")
+        if not self.org_slug:
+            return {"status": "FAILED", "error": "org_slug is required"}
+
         config = step_config.get("config", {})
         source_bucket = config.get("source_bucket")
         source_prefix = config.get("source_prefix", "")
@@ -355,4 +361,4 @@ async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 def get_engine():
     """Factory function for pipeline executor."""
-    return AWSCURExtractor
+    return AWSCURExtractor()

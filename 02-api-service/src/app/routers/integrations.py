@@ -326,6 +326,9 @@ async def setup_gcp_integration(
             detail=f"Invalid Service Account JSON: Missing required fields: {', '.join(missing_fields)}"
         )
 
+    # INT-003 FIX: Validate metadata size BEFORE adding SA fields
+    enforce_metadata_size_limit(setup_request.metadata, org_slug)
+
     # Extract metadata from SA JSON
     metadata = setup_request.metadata or {}
     metadata["project_id"] = sa_data.get("project_id")
@@ -368,6 +371,9 @@ async def setup_openai_integration(
             detail="Cannot configure integrations for another organization"
         )
 
+    # INT-003 FIX: Validate metadata size before processing
+    enforce_metadata_size_limit(setup_request.metadata, org_slug)
+
     return await _setup_integration(
         org_slug=org_slug,
         provider="OPENAI",
@@ -404,6 +410,9 @@ async def setup_anthropic_integration(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
         )
+
+    # INT-003 FIX: Validate metadata size before processing
+    enforce_metadata_size_limit(setup_request.metadata, org_slug)
 
     return await _setup_integration(
         org_slug=org_slug,
@@ -442,6 +451,9 @@ async def setup_gemini_integration(
             detail="Cannot configure integrations for another organization"
         )
 
+    # INT-003 FIX: Validate metadata size before processing
+    enforce_metadata_size_limit(setup_request.metadata, org_slug)
+
     return await _setup_integration(
         org_slug=org_slug,
         provider="GEMINI",
@@ -478,6 +490,9 @@ async def setup_deepseek_integration(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
         )
+
+    # INT-003 FIX: Validate metadata size before processing
+    enforce_metadata_size_limit(setup_request.metadata, org_slug)
 
     return await _setup_integration(
         org_slug=org_slug,
@@ -613,8 +628,8 @@ async def get_all_integrations(
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # INT-007 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot view integrations for another organization"

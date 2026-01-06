@@ -11,6 +11,7 @@
  * - Loading skeleton state
  */
 
+import { useMemo } from "react"
 import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatCost, formatCostCompact, formatPercent, getTrendArrow, getTrendColorClass } from "@/lib/costs"
@@ -97,10 +98,13 @@ export function CostMetricCard({
     return <MetricCardSkeleton variant={variant} />
   }
 
-  // Format the value
-  const formattedValue = useCompact || value >= 100000
-    ? formatCostCompact(value, currency)
-    : formatCost(value, currency)
+  // PERF-002 FIX: Memoize formatted value to prevent recalculation on parent re-renders
+  const formattedValue = useMemo(
+    () => useCompact || value >= 100000
+      ? formatCostCompact(value, currency)
+      : formatCost(value, currency),
+    [value, currency, useCompact]
+  )
 
   // Size classes based on variant
   const sizeClasses = {

@@ -10,7 +10,7 @@
  * - Consistent styling with cost dashboard design
  */
 
-import React, { useState, useCallback } from "react"
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import {
   Building2,
   FolderKanban,
@@ -112,6 +112,7 @@ interface FilterButtonProps {
   className?: string
 }
 
+// FIX-011: Added aria-label for accessibility
 function FilterButton({
   label,
   value,
@@ -128,15 +129,24 @@ function FilterButton({
       : label
     : value || label
 
+  // FIX-011: Build accessible label
+  const ariaLabel = hasValue
+    ? `${label}: ${displayValue}. Click to change.`
+    : `Select ${label}`
+
   return (
     <Button
       variant="outline"
       size="sm"
       disabled={disabled}
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-haspopup="listbox"
       className={cn(
         "gap-2 h-9",
         "border-slate-200 hover:border-slate-300",
+        // FIX-006: Add disabled styling during loading
+        disabled && "opacity-60 cursor-not-allowed",
         hasValue ? "bg-[#90FCA6]/10 border-[#90FCA6]/50" : "",
         className
       )}
@@ -147,7 +157,9 @@ function FilterButton({
       </span>
       {hasValue && onClear && (
         <X
-          className="h-3 w-3 ml-1 hover:text-red-500"
+          className="h-3 w-3 ml-1 hover:text-red-500 cursor-pointer"
+          role="button"
+          aria-label={`Clear ${label} filter`}
           onClick={(e) => {
             e.stopPropagation()
             onClear()
@@ -562,6 +574,9 @@ export interface TimeRangeFilterProps {
 /** Default time range for all cost pages - 365 days */
 export const DEFAULT_TIME_RANGE: TimeRange = "365"
 
+// FIX-018: Add displayName to components for React DevTools
+CostFilters.displayName = "CostFilters"
+
 export const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; shortLabel: string }[] = [
   { value: "365", label: "Last 365 Days", shortLabel: "1Y" },
   { value: "ytd", label: "Year to Date", shortLabel: "YTD" },
@@ -603,6 +618,14 @@ export function TimeRangeFilter({
   const [showCustomPicker, setShowCustomPicker] = useState(false)
   const [tempStartDate, setTempStartDate] = useState(customRange?.startDate || "")
   const [tempEndDate, setTempEndDate] = useState(customRange?.endDate || "")
+
+  // FIX-002: Sync temp dates when customRange prop changes
+  useEffect(() => {
+    if (customRange) {
+      setTempStartDate(customRange.startDate)
+      setTempEndDate(customRange.endDate)
+    }
+  }, [customRange?.startDate, customRange?.endDate])
 
   // Get display label
   const displayLabel = getTimeRangeLabel(value, customRange)
@@ -828,3 +851,6 @@ export function getRollingAverageLabel(
   // User preference: Show simple "Daily Avg" label for overall period average
   return "Daily Avg"
 }
+
+// FIX-018: Add displayName to TimeRangeFilter
+TimeRangeFilter.displayName = "TimeRangeFilter"

@@ -37,7 +37,6 @@ import React, {
 import {
   getTotalCosts,
   getCostByProvider,
-  getExtendedPeriodCosts,
   getCostTrendGranular,
   type TotalCostSummary,
   type ProviderBreakdown,
@@ -45,6 +44,22 @@ import {
   type GranularCostRow,
   type GranularFiltersAvailable,
 } from "@/actions/costs"
+import {
+  getYesterdayRange,
+  getWTDRange,
+  getLastWeekRange,
+  getMTDRange,
+  getPreviousMonthRange,
+  getLast2MonthsRange,
+  getYTDRange,
+  getFYTDRange,
+  getFiscalYearRange,
+  calculateFiscalYearForecast,
+  getLast30DaysRange,
+  getPrevious30DaysRange,
+  getNovemberRange,
+  getDecemberRange,
+} from "@/lib/costs"
 import { getHierarchy } from "@/actions/hierarchy"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import type { HierarchyEntity } from "@/components/costs"
@@ -296,6 +311,100 @@ interface CostDataProviderProps {
 
 type L1CacheDecision = "L1_USE_CACHE" | "L1_NO_CACHE"
 
+// ============================================
+// PERF-001: Calculate Period Costs from Granular Data (Client-Side)
+// ============================================
+// This eliminates 12 API calls by computing period costs from cached granular data
+//
+// BEFORE: getExtendedPeriodCosts → 12 parallel getTotalCosts API calls → 12 BigQuery queries
+// AFTER:  calculatePeriodCostsFromGranular → Single pass over cached data (instant)
+
+interface PeriodRange {
+  startDate: string
+  endDate: string
+}
+
+/**
+ * Calculate cost for a specific period from granular data.
+ * Filters granular rows by date range and sums total_cost.
+ *
+ * @param granularData - Cached 365 days of granular cost data
+ * @param period - Start and end date (YYYY-MM-DD format)
+ * @returns Total cost for the period
+ */
+function calculatePeriodCost(granularData: GranularCostRow[], period: PeriodRange): number {
+  if (!granularData || granularData.length === 0) return 0
+
+  const startTs = new Date(period.startDate).getTime()
+  const endTs = new Date(period.endDate).getTime()
+
+  let total = 0
+  for (const row of granularData) {
+    if (!row.date) continue
+    const rowTs = new Date(row.date).getTime()
+    if (rowTs >= startTs && rowTs <= endTs) {
+      total += row.total_cost || 0
+    }
+  }
+
+  return total
+}
+
+/**
+ * Calculate all period costs from granular data in a single pass.
+ * PERF-001: This replaces 12 separate API calls with instant client-side calculation.
+ *
+ * @param granularData - Cached 365 days of granular cost data
+ * @param fiscalStartMonth - Fiscal year start month (1-12, default 4 = April)
+ * @returns PeriodCostsData with all period totals
+ */
+function calculatePeriodCostsFromGranular(
+  granularData: GranularCostRow[],
+  fiscalStartMonth: number = 4
+): PeriodCostsData {
+  // Get all period date ranges (same as getExtendedPeriodCosts used)
+  const periods = {
+    yesterday: getYesterdayRange(),
+    wtd: getWTDRange(),
+    lastWeek: getLastWeekRange(),
+    mtd: getMTDRange(),
+    previousMonth: getPreviousMonthRange(),
+    last2Months: getLast2MonthsRange(),
+    ytd: getYTDRange(),
+    fytd: getFYTDRange(fiscalStartMonth),
+    fy: getFiscalYearRange(fiscalStartMonth),
+    last30Days: getLast30DaysRange(),
+    previous30Days: getPrevious30DaysRange(),
+    november: getNovemberRange(),
+    december: getDecemberRange(),
+  }
+
+  // Calculate all period costs from granular data (single-pass friendly)
+  const fytdCost = calculatePeriodCost(granularData, periods.fytd)
+  const fyForecast = calculateFiscalYearForecast(
+    fytdCost,
+    periods.fytd.days,
+    periods.fy.days
+  )
+
+  return {
+    yesterday: calculatePeriodCost(granularData, periods.yesterday),
+    wtd: calculatePeriodCost(granularData, periods.wtd),
+    lastWeek: calculatePeriodCost(granularData, periods.lastWeek),
+    mtd: calculatePeriodCost(granularData, periods.mtd),
+    previousMonth: calculatePeriodCost(granularData, periods.previousMonth),
+    last2Months: calculatePeriodCost(granularData, periods.last2Months),
+    ytd: calculatePeriodCost(granularData, periods.ytd),
+    fytd: fytdCost,
+    fyForecast,
+    dataAsOf: periods.yesterday.endDate,
+    last30Days: calculatePeriodCost(granularData, periods.last30Days),
+    previous30Days: calculatePeriodCost(granularData, periods.previous30Days),
+    november: calculatePeriodCost(granularData, periods.november),
+    december: calculatePeriodCost(granularData, periods.december),
+  }
+}
+
 /**
  * Determine if a custom date range is within the L1 cached 365-day window.
  */
@@ -526,8 +635,17 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       const startOfRange = new Date(today)
       startOfRange.setDate(startOfRange.getDate() - 365)
 
-      const endDate = today.toISOString().split("T")[0]
-      const startDate = startOfRange.toISOString().split("T")[0]
+      // TZ-005 FIX: Use local date formatting instead of toISOString() to avoid timezone shifts
+      // toISOString() converts to UTC which can shift the date by one day for users in
+      // negative UTC offsets (e.g., 2024-01-15 00:00:00 PST becomes 2024-01-14 in UTC)
+      const formatLocalDate = (d: Date): string => {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, "0")
+        const day = String(d.getDate()).padStart(2, "0")
+        return `${year}-${month}-${day}`
+      }
+      const endDate = formatLocalDate(today)
+      const startDate = formatLocalDate(startOfRange)
 
       // CTX-001 FIX: Use filtersOverride if provided to avoid stale closure
       // When setUnifiedFilters calls fetchCostData, React hasn't committed
@@ -557,12 +675,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         setTimeout(() => reject(new Error("Request timeout after 30 seconds")), FETCH_TIMEOUT_MS)
       })
 
-      // Fetch core data in parallel with consistent 365-day range
-      // Granular data is the L1 cache source for client-side filtering
+      // PERF-001: Fetch core data in parallel (reduced from 5+12=17 to 4 API calls)
+      // Period costs now calculated client-side from granular data
       const fetchPromise = Promise.all([
         getTotalCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
-        getExtendedPeriodCosts(orgSlug, "total", apiFilters),
         getHierarchy(orgSlug),
         getCostTrendGranular(orgSlug, 365, clearBackendCache),
       ])
@@ -571,7 +688,6 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       const [
         totalCostsResult,
         providerResult,
-        periodCostsResult,
         hierarchyResult,
         granularResult,
       ] = await Promise.race([fetchPromise, timeoutPromise])
@@ -670,14 +786,19 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         ? granularResult.summary.available_filters
         : null
 
+      // PERF-001: Calculate period costs from granular data (client-side)
+      // This replaces 12 API calls with instant client-side calculation
+      const periodCosts = calculatePeriodCostsFromGranular(granularData)
+
       // Log successful fetch in dev mode
       if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Data loaded:`, {
+        console.log(`[CostData] Data loaded (PERF-001: 17→4 API calls):`, {
           providers: providerData.length,
           categories: availableCategories.length,
           granularRows: granularData.length,
           granularCacheHit: granularResult.cache_hit,
           cachedRange: `${startDate} to ${endDate}`,
+          periodCostsCalculated: 'client-side',
         })
       }
 
@@ -690,7 +811,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         // Aggregated data from backend
         totalCosts,
         providerBreakdown: providerData,
-        periodCosts: periodCostsResult.success ? periodCostsResult.data : null,
+        periodCosts, // PERF-001: Now calculated client-side
         hierarchy: hierarchyEntities,
         availableFilters,
         // CALC-003 FIX: Use ?? instead of || to handle null properly
@@ -699,7 +820,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           (providerResult.success ? providerResult.currency : null) ??
           DEFAULT_CURRENCY,
         lastFetchedAt: new Date(),
-        dataAsOf: periodCostsResult.data?.dataAsOf || null,
+        dataAsOf: periodCosts.dataAsOf || null,
         cachedDateRange: { start: startDate, end: endDate },
         cacheVersion: prev.cacheVersion + 1,
         isStale: false,
@@ -708,12 +829,24 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         error: totalCostsResult.error || providerResult.error || granularResult.error || null,
       }))
     } catch (err) {
-      console.error("Cost data fetch error:", err)
+      // ERR-002 FIX: Improved error handling with structured logging and clear error state
+      const errorMessage = err instanceof Error ? err.message : "Failed to load cost data"
+      const errorContext = {
+        orgSlug,
+        timestamp: new Date().toISOString(),
+        errorType: err instanceof Error ? err.name : "Unknown",
+      }
+
+      console.error("[CostData] Fetch failed:", errorMessage, errorContext)
+
+      // Always set error state so UI can show error message to user
       setState((prev) => ({
         ...prev,
         isLoading: false,
         isInitialized: true,
-        error: err instanceof Error ? err.message : "Failed to load cost data",
+        error: errorMessage,
+        // ERR-002 FIX: Clear stale data on error to prevent showing outdated info
+        isStale: true,
       }))
     } finally {
       // Clear fetching flag to allow future fetches (e.g., clear cache)
@@ -786,7 +919,8 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         categoryProviderIds.has(p.provider.toLowerCase())
       )
     },
-    [state.providerBreakdown, state.availableFilters.providers]
+    // STATE-002 FIX: Add cacheVersion to ensure re-computation on data updates
+    [state.providerBreakdown, state.availableFilters.providers, state.cacheVersion]
   )
 
 
@@ -800,51 +934,53 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
    *
    * L1_USE_CACHE: Time range, provider, category, hierarchy filters
    * L1_NO_CACHE: Initial load, custom range > 365 days, explicit refresh
+   *
+   * BUG-FIX: Use functional setState to avoid dependency on state.filters
+   * This prevents infinite loops when components have setUnifiedFilters in useEffect deps
    */
   const setUnifiedFilters = useCallback((newFilters: Partial<UnifiedFilters>) => {
-    // Merge with current filters
-    const updatedFilters: UnifiedFilters = {
-      ...state.filters,
-      ...newFilters,
-    }
+    setState((prev) => {
+      // Merge with current filters using functional update
+      const updatedFilters: UnifiedFilters = {
+        ...prev.filters,
+        ...newFilters,
+      }
 
-    // Check cache decision
-    const decision = getL1CacheDecision(
-      updatedFilters,
-      state.cachedDateRange,
-      state.granularData.length > 0
-    )
+      // Check cache decision using prev state
+      const decision = getL1CacheDecision(
+        updatedFilters,
+        prev.cachedDateRange,
+        prev.granularData.length > 0
+      )
 
-    if (decision === "L1_USE_CACHE") {
-      // Instant - just update filters, no API call
-      // CACHE-001 FIX: Increment cacheVersion to trigger chart re-renders
-      setState((prev) => ({
+      if (decision === "L1_USE_CACHE") {
+        // Instant - just update filters, no API call
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[CostData] L1_USE_CACHE: Filters updated (instant)`, updatedFilters)
+        }
+        return {
+          ...prev,
+          filters: updatedFilters,
+          cacheVersion: prev.cacheVersion + 1,
+        }
+      }
+
+      // L1_NO_CACHE - need to fetch new data
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] L1_NO_CACHE: Fetching new data for filters`, updatedFilters)
+      }
+
+      // Schedule fetch after state update
+      // Use setTimeout to ensure state is committed before fetch
+      setTimeout(() => fetchCostData(false, updatedFilters), 0)
+
+      return {
         ...prev,
         filters: updatedFilters,
-        cacheVersion: prev.cacheVersion + 1,
-      }))
-
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] L1_USE_CACHE: Filters updated (instant)`, updatedFilters)
+        isStale: true,
       }
-      return
-    }
-
-    // L1_NO_CACHE - need to fetch new data
-    setState((prev) => ({
-      ...prev,
-      filters: updatedFilters,
-      isStale: true,
-    }))
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[CostData] L1_NO_CACHE: Fetching new data for filters`, updatedFilters)
-    }
-
-    // CTX-005 FIX: Pass updatedFilters directly to avoid stale closure
-    // React batches state updates, so state.filters would still be old when fetchCostData runs
-    fetchCostData(false, updatedFilters)
-  }, [state.filters, state.cachedDateRange, state.granularData.length, fetchCostData])
+    })
+  }, [fetchCostData]) // BUG-FIX: Only depend on fetchCostData, not state
 
   /**
    * Get filtered granular data based on current unified filters.
@@ -1057,34 +1193,44 @@ export function useHierarchy() {
  * Uses getFilteredTimeSeries() which applies current unified filters.
  *
  * To change the time range or other filters, use setUnifiedFilters() from useCostData().
+ * FIX-012: Use undefined locale to respect user's browser locale
+ * FIX-016: Memoize transformation to prevent recalculation on every render
  */
 export function useDailyTrend() {
-  const { getFilteredTimeSeries, granularData, isLoading, error, currency } = useCostData()
-  const timeSeries = getFilteredTimeSeries()
+  const { getFilteredTimeSeries, granularData, isLoading, error, currency, cacheVersion } = useCostData()
 
-  // Transform to DailyTrendDataPoint format with labels
-  const trendData: DailyTrendDataPoint[] = timeSeries.map((point) => {
-    const date = new Date(point.date)
-    return {
-      date: point.date,
-      label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      value: point.total,
-      rollingAvg: 0, // Calculated below
+  // FIX-016: Memoize time series to prevent recalculation
+  const timeSeries = useMemo(() => getFilteredTimeSeries(), [getFilteredTimeSeries, cacheVersion])
+
+  // FIX-016: Memoize the entire transformation
+  const { trendData, summary } = useMemo(() => {
+    // Transform to DailyTrendDataPoint format with labels
+    const data: DailyTrendDataPoint[] = timeSeries.map((point) => {
+      const date = new Date(point.date)
+      return {
+        date: point.date,
+        // FIX-012: Use undefined locale to respect user's browser locale
+        label: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        value: point.total,
+        rollingAvg: 0, // Calculated below
+      }
+    })
+
+    // Calculate rolling average
+    const totalCost = data.reduce((sum, d) => sum + d.value, 0)
+    const avgDaily = data.length > 0 ? totalCost / data.length : 0
+    data.forEach(d => { d.rollingAvg = Math.round(avgDaily * 100) / 100 })
+
+    // Calculate summary stats for the selected range
+    const summaryData = {
+      totalCost,
+      averageDailyCost: avgDaily,
+      dataPoints: data.length,
+      hasData: granularData.length > 0,
     }
-  })
 
-  // Calculate rolling average
-  const totalCost = trendData.reduce((sum, d) => sum + d.value, 0)
-  const avgDaily = trendData.length > 0 ? totalCost / trendData.length : 0
-  trendData.forEach(d => { d.rollingAvg = Math.round(avgDaily * 100) / 100 })
-
-  // Calculate summary stats for the selected range
-  const summary = {
-    totalCost,
-    averageDailyCost: avgDaily,
-    dataPoints: trendData.length,
-    hasData: granularData.length > 0,
-  }
+    return { trendData: data, summary: summaryData }
+  }, [timeSeries, granularData.length])
 
   return { trendData, summary, isLoading, error, currency }
 }

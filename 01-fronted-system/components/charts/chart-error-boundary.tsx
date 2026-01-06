@@ -32,6 +32,9 @@ export class ChartErrorBoundary extends React.Component<
   ChartErrorBoundaryProps,
   ChartErrorBoundaryState
 > {
+  // FIX-018: Static displayName for React DevTools
+  static displayName = "ChartErrorBoundary"
+
   constructor(props: ChartErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false, error: null }

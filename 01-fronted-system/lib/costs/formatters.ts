@@ -31,7 +31,8 @@ export function formatCost(
     amount = 0
   }
 
-  const formatter = new Intl.NumberFormat("en-US", {
+  // FORMAT-001 FIX: Use undefined to respect user's browser locale
+  const formatter = new Intl.NumberFormat(undefined, {
     style: "currency",
     currency,
     minimumFractionDigits: compact ? 0 : decimals,
@@ -91,7 +92,8 @@ export function formatPercent(
     return "0%"
   }
 
-  const formatter = new Intl.NumberFormat("en-US", {
+  // FORMAT-001 FIX: Use undefined to respect user's browser locale
+  const formatter = new Intl.NumberFormat(undefined, {
     style: "percent",
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -225,7 +227,8 @@ export function formatNumber(
 ): string {
   const { compact = false, decimals = 0 } = options || {}
 
-  const formatter = new Intl.NumberFormat("en-US", {
+  // FORMAT-001 FIX: Use undefined to respect user's browser locale
+  const formatter = new Intl.NumberFormat(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
     notation: compact ? "compact" : "standard",
@@ -257,7 +260,8 @@ export function formatDate(date: Date | string): string {
     return "Invalid date"
   }
 
-  return d.toLocaleDateString("en-US", {
+  // FORMAT-001 FIX: Use undefined to respect user's browser locale
+  return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -287,12 +291,14 @@ export function formatDateRange(start: Date | string, end: Date | string): strin
 
   if (sameMonth) {
     // Same month: "Dec 1-31, 2025"
-    return `${startDate.toLocaleDateString("en-US", { month: "short" })} ${startDate.getDate()}-${endDate.getDate()}, ${endDate.getFullYear()}`
+    // FORMAT-001 FIX: Use undefined to respect user's browser locale
+    return `${startDate.toLocaleDateString(undefined, { month: "short" })} ${startDate.getDate()}-${endDate.getDate()}, ${endDate.getFullYear()}`
   }
 
   if (sameYear) {
     // Same year: "Dec 1 - Jan 31, 2025"
-    return `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${endDate.getFullYear()}`
+    // FORMAT-001 FIX: Use undefined to respect user's browser locale
+    return `${startDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${endDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${endDate.getFullYear()}`
   }
 
   // Different years: "Dec 1, 2024 - Jan 31, 2025"
@@ -310,7 +316,8 @@ export function formatMonthYear(date: Date | string): string {
     return "Invalid date"
   }
 
-  return d.toLocaleDateString("en-US", {
+  // FORMAT-001 FIX: Use undefined to respect user's browser locale
+  return d.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
   })

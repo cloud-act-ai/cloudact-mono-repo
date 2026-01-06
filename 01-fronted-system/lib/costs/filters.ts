@@ -12,6 +12,16 @@ import type { DateRange, GroupedCostData, TimeSeriesPoint, CostFilterOptions } f
 // ============================================
 
 /**
+ * TZ-004 FIX: Convert Date to local YYYY-MM-DD string (shared helper for CostRecord filters)
+ */
+function toLocalDateStr(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+/**
  * Filter records by date range
  *
  * DATE-002 FIX: Use string comparison for date boundaries to avoid timezone issues.
@@ -22,9 +32,9 @@ export function filterByDateRange(records: CostRecord[], range: DateRange): Cost
   if (!records || !Array.isArray(records)) return []
   if (!range || !range.start || !range.end) return records
 
-  // DATE-002 FIX: Convert Date objects to YYYY-MM-DD strings for consistent comparison
-  const startDateStr = range.start.toISOString().split("T")[0]
-  const endDateStr = range.end.toISOString().split("T")[0]
+  // TZ-004 FIX: Use local date conversion instead of toISOString() to avoid timezone shifts
+  const startDateStr = toLocalDateStr(range.start)
+  const endDateStr = toLocalDateStr(range.end)
 
   return records.filter((r) => {
     if (!r.ChargePeriodStart) return false
@@ -37,11 +47,16 @@ export function filterByDateRange(records: CostRecord[], range: DateRange): Cost
 
 /**
  * Filter records by providers
+ * FILTER-001 FIX: Filter out empty strings to prevent false positive matches
  */
 export function filterByProvider(records: CostRecord[], providers: string[]): CostRecord[] {
-  const lowerProviders = providers.map((p) => p.toLowerCase())
+  // FILTER-001 FIX: Filter out empty strings from providers to prevent matching null/undefined
+  const lowerProviders = providers
+    .filter((p) => p && p.trim())
+    .map((p) => p.toLowerCase())
+  if (lowerProviders.length === 0) return records
   return records.filter((r) =>
-    lowerProviders.includes(r.ServiceProviderName?.toLowerCase() || "")
+    r.ServiceProviderName && lowerProviders.includes(r.ServiceProviderName.toLowerCase())
   )
 }
 
@@ -139,6 +154,7 @@ export function groupByDay(records: CostRecord[]): Map<string, number> {
 /**
  * Group records by week (ISO week starting Monday)
  * Handles NaN and null values safely
+ * TZ-002 FIX: Use local date conversion instead of toISOString()
  */
 export function groupByWeek(records: CostRecord[]): Map<string, number> {
   const grouped = new Map<string, number>()
@@ -154,7 +170,8 @@ export function groupByWeek(records: CostRecord[]): Map<string, number> {
     const diff = date.getDate() - day + (day === 0 ? -6 : 1)
     const monday = new Date(date)
     monday.setDate(diff)
-    const weekKey = monday.toISOString().split("T")[0]
+    // TZ-002 FIX: Use local date string to avoid timezone shifts
+    const weekKey = toLocalDateStr(monday)
 
     const cost = record.EffectiveCost ?? record.BilledCost ?? 0
     const current = grouped.get(weekKey) || 0
@@ -304,6 +321,7 @@ export function toTimeSeries(
 /**
  * Convert records to time series with provider breakdown
  * Handles NaN, null, and empty values safely
+ * TZ-003 FIX: Use local date conversion for weekly granularity
  */
 export function toTimeSeriesWithProviders(
   records: CostRecord[],
@@ -327,7 +345,8 @@ export function toTimeSeriesWithProviders(
         const diff = date.getDate() - day + (day === 0 ? -6 : 1)
         const monday = new Date(date)
         monday.setDate(diff)
-        dateKey = monday.toISOString().split("T")[0]
+        // TZ-003 FIX: Use local date string to avoid timezone shifts
+        dateKey = toLocalDateStr(monday)
         break
       }
       case "monthly":
@@ -407,6 +426,8 @@ export function getUniqueServices(records: CostRecord[]): string[] {
 /**
  * Get date range from records
  * Handles null, undefined, and invalid date values safely
+ * FIX-012: Use undefined locale to use user's browser locale
+ * FIX-013: Use UTC parsing to avoid timezone offset issues
  */
 export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null {
   if (!records || !Array.isArray(records) || records.length === 0) return null
@@ -418,7 +439,10 @@ export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null
   for (const record of records) {
     if (!record.ChargePeriodStart) continue
 
-    const date = new Date(record.ChargePeriodStart)
+    // FIX-013: Parse date string as UTC to avoid timezone offset
+    const dateStr = record.ChargePeriodStart.split("T")[0]
+    const [year, month, day] = dateStr.split("-").map(Number)
+    const date = new Date(Date.UTC(year, month - 1, day))
     if (isNaN(date.getTime())) continue
 
     if (minDate === null || date < minDate) minDate = date
@@ -428,10 +452,11 @@ export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null
   // No valid dates found
   if (minDate === null || maxDate === null) return null
 
+  // FIX-012: Use undefined locale to use user's browser locale
   return {
     start: minDate,
     end: maxDate,
-    label: `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`,
+    label: `${minDate.toLocaleDateString(undefined, { dateStyle: "medium" })} - ${maxDate.toLocaleDateString(undefined, { dateStyle: "medium" })}`,
   }
 }
 
@@ -467,6 +492,17 @@ export interface GranularFilterOptions {
 }
 
 /**
+ * TZ-001 FIX: Convert Date to local YYYY-MM-DD string without timezone shift
+ * Using toISOString() can shift dates when user is in negative UTC offset
+ */
+function toLocalDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+/**
  * Filter granular data by date range
  *
  * DATE-001 FIX: Use string comparison for date boundaries to avoid timezone issues.
@@ -479,11 +515,11 @@ export function filterGranularByDateRange(
 ): GranularCostRow[] {
   if (!data || !Array.isArray(data) || !range) return data || []
 
-  // DATE-001 FIX: Convert Date objects to YYYY-MM-DD strings for consistent comparison
-  // This avoids timezone boundary issues where new Date("2024-01-15") could be
-  // interpreted as a different day depending on local timezone
-  const startDateStr = range.start.toISOString().split("T")[0]
-  const endDateStr = range.end.toISOString().split("T")[0]
+  // TZ-001 FIX: Use local date conversion instead of toISOString() to avoid timezone shifts
+  // toISOString() converts to UTC which can shift the date by one day for users in
+  // negative UTC offsets (e.g., 2024-01-15 00:00:00 PST becomes 2024-01-14 in UTC)
+  const startDateStr = toLocalDateString(range.start)
+  const endDateStr = toLocalDateString(range.end)
 
   return data.filter(row => {
     if (!row.date) return false
@@ -590,15 +626,20 @@ export function applyGranularFilters(
 
 /**
  * Aggregate granular data to time series (sum by date)
+ * FIX-022: Added null checks before array operations
+ * FIX-023: Use safeNumber for edge case handling
  */
 export function granularToTimeSeries(data: GranularCostRow[]): { date: string; total: number }[] {
-  if (!data || !Array.isArray(data)) return []
+  if (!data || !Array.isArray(data) || data.length === 0) return []
 
   const byDate = new Map<string, number>()
 
   for (const row of data) {
+    // FIX-022: Skip rows with missing date
+    if (!row?.date) continue
     const current = byDate.get(row.date) || 0
-    byDate.set(row.date, current + (row.total_cost || 0))
+    // FIX-023: Use safeNumber to handle NaN/Infinity
+    byDate.set(row.date, current + safeNumber(row.total_cost))
   }
 
   return Array.from(byDate.entries())
@@ -639,7 +680,8 @@ export function granularToProviderBreakdown(
     const current = byProvider.get(row.provider) || { total_cost: 0, record_count: 0 }
     byProvider.set(row.provider, {
       total_cost: current.total_cost + cost,
-      record_count: current.record_count + 1,
+      // EDGE-004 FIX: Use row's record_count if available (pre-aggregated data)
+      record_count: current.record_count + (row.record_count || 1),
     })
     grandTotal += cost
   }

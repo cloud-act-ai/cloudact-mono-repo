@@ -262,3 +262,13 @@ done
 ## Variables
 
 - `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
+
+## Debug Account (for testing)
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Org Slug | `acme_inc_01032026` |
+
+See `.claude/debug-config.md` for full debug configuration.

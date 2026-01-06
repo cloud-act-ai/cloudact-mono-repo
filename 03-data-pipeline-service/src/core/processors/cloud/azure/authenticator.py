@@ -46,12 +46,13 @@ class AzureAuthenticator:
         token = creds["access_token"]
     """
 
-    def __init__(self, org_slug: str):
+    def __init__(self, org_slug: Optional[str] = None):
         """
         Initialize authenticator for an organization.
 
         Args:
-            org_slug: Organization identifier (e.g., "acme_corp_123")
+            org_slug: Organization identifier (e.g., "acme_corp_123").
+                      Can be None if set later via execute() context.
         """
         self.org_slug = org_slug
         self.settings = get_settings()
@@ -63,6 +64,38 @@ class AzureAuthenticator:
         self._tenant_id: Optional[str] = None
         self._client_id: Optional[str] = None
         self._subscription_id: Optional[str] = None
+
+    async def execute(self, step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Entry point for pipeline executor (instance method).
+
+        Args:
+            step_config: Step configuration from pipeline YAML
+            context: Pipeline execution context containing org_slug
+
+        Returns:
+            Dict with execution status and results
+        """
+        org_slug = context.get("org_slug")
+        if not org_slug:
+            return {"status": "FAILED", "error": "org_slug is required"}
+
+        # Set org_slug from context if not already set
+        if not self.org_slug:
+            self.org_slug = org_slug
+
+        try:
+            await self.authenticate()
+            return {
+                "status": "SUCCESS",
+                "provider": "AZURE",
+                "tenant_id": self.tenant_id,
+                "subscription_id": self.subscription_id,
+                "message": "Azure authentication successful"
+            }
+        except Exception as e:
+            self.logger.error(f"Azure authentication failed: {e}", exc_info=True)
+            return {"status": "FAILED", "error": str(e)}
 
     @property
     def tenant_id(self) -> Optional[str]:
@@ -389,4 +422,4 @@ async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 def get_engine():
     """Factory function for pipeline executor."""
-    return AzureAuthenticator
+    return AzureAuthenticator()

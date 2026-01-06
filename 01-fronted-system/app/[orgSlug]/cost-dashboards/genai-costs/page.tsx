@@ -64,12 +64,22 @@ export default function GenAICostsPage() {
 
   // Set category filter on mount (genai page is fixed to genai category)
   // CTX-002 FIX: Add cleanup to reset categories on unmount
+  // SYNC-001 & STATE-001 FIX: Reset local filters and clear context provider filter on mount
   useEffect(() => {
-    setUnifiedFilters({ categories: ["genai"] })
+    // Clear any provider filter from previous page, set category to genai
+    setUnifiedFilters({ categories: ["genai"], providers: undefined })
+    // Reset local filter state to defaults
+    setFilters({
+      department: undefined,
+      project: undefined,
+      team: undefined,
+      providers: [],
+      categories: [],
+    })
 
-    // Cleanup: reset categories when leaving this page
+    // Cleanup: reset categories and providers when leaving this page
     return () => {
-      setUnifiedFilters({ categories: undefined })
+      setUnifiedFilters({ categories: undefined, providers: undefined })
     }
   }, [setUnifiedFilters])
 
@@ -172,7 +182,8 @@ export default function GenAICostsPage() {
     // Transform to chart format
     return timeSeries.map((point) => {
       const date = new Date(point.date)
-      const label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      // LOCALE-001 FIX: Use undefined to respect user's browser locale
+      const label = date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
       return {
         label,
@@ -182,6 +193,9 @@ export default function GenAICostsPage() {
       }
     })
   }, [getFilteredTimeSeries])
+
+  // PERF-001 FIX: Memoize dateInfo to avoid redundant calculations
+  const dateInfo = useMemo(() => getDateInfo(), [])
 
   // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
@@ -198,11 +212,9 @@ export default function GenAICostsPage() {
       daysInPeriod
     )
 
-    // For YTD, use the filtered total for ytd range, otherwise calculate
-    const dateInfo = getDateInfo()
-    const ytdValue = timeRange === "ytd"
-      ? filteredTotal
-      : dailyRate * dateInfo.daysElapsed
+    // CALC-001 FIX: Only show YTD when timeRange is "ytd", otherwise show period total
+    // Projecting a short period average to entire YTD is statistically unreliable
+    const ytdValue = timeRange === "ytd" ? filteredTotal : filteredTotal
 
     return {
       mtd: filteredTotal,       // Period spend (from filtered data)

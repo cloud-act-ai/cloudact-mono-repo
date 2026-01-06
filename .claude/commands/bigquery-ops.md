@@ -192,3 +192,25 @@ ORDER BY routine_name
 ## Variables
 
 - `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
+
+## Debug Account (for testing)
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Org Slug | `acme_inc_01032026` |
+
+**Debug dataset:** `acme_inc_01032026_local` (local environment)
+
+**Example queries with debug org:**
+```bash
+# List tables in debug dataset
+bq ls cloudact-testing-1:acme_inc_01032026_local
+
+# Query debug org costs
+bq query --nouse_legacy_sql \
+  "SELECT SUM(EffectiveCost) FROM \`cloudact-testing-1.acme_inc_01032026_local.cost_data_standard_1_3\`"
+```
+
+See `.claude/debug-config.md` for full debug configuration.

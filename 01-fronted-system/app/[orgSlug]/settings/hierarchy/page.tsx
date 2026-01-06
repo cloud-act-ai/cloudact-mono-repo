@@ -361,20 +361,81 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
     setError(null)
 
     try {
+      // VAL-001 FIX: Proper CSV parsing with quoted field support
+      // Parse CSV line respecting quoted fields (commas inside quotes)
+      const parseCSVLine = (line: string): string[] => {
+        const result: string[] = []
+        let current = ""
+        let inQuotes = false
+
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i]
+          const nextChar = line[i + 1]
+
+          if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+              // Escaped quote
+              current += '"'
+              i++
+            } else {
+              // Toggle quote mode
+              inQuotes = !inQuotes
+            }
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim())
+            current = ""
+          } else {
+            current += char
+          }
+        }
+        result.push(current.trim())
+        return result
+      }
+
+      // Sanitize value to prevent XSS (strip HTML tags)
+      const sanitizeValue = (value: string): string => {
+        if (!value) return ""
+        // Remove HTML tags and trim
+        return value.replace(/<[^>]*>/g, "").trim().slice(0, 500)
+      }
+
+      // Validate entity_type
+      const validEntityTypes = ["department", "project", "team"]
+      const validateEntityType = (type: string): HierarchyEntityType | null => {
+        const normalized = type.toLowerCase().trim()
+        return validEntityTypes.includes(normalized) ? normalized as HierarchyEntityType : null
+      }
+
       // Parse CSV
       const lines = importData.trim().split("\n")
-      const headers = lines[0].split(",").map(h => h.trim().toLowerCase())
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z_]/g, ""))
       const rows: HierarchyCSVRow[] = []
 
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map(v => v.trim())
+        const line = lines[i].trim()
+        if (!line) continue // Skip empty lines
+
+        const values = parseCSVLine(line)
         const row: Record<string, string> = {}
         headers.forEach((h, idx) => {
-          row[h] = values[idx] || ""
+          row[h] = sanitizeValue(values[idx] || "")
         })
 
+        // Validate entity_type
+        const entityType = validateEntityType(row.entity_type)
+        if (!entityType) {
+          setError(`Invalid entity_type on line ${i + 1}: "${row.entity_type}". Must be department, project, or team.`)
+          return
+        }
+
+        // Validate required fields
+        if (!row.entity_id || !row.entity_name) {
+          setError(`Missing required field (entity_id or entity_name) on line ${i + 1}`)
+          return
+        }
+
         rows.push({
-          entity_type: row.entity_type as HierarchyEntityType,
+          entity_type: entityType,
           entity_id: row.entity_id,
           entity_name: row.entity_name,
           parent_id: row.parent_id || undefined,

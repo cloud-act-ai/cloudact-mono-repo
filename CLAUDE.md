@@ -255,6 +255,19 @@ python -m pytest tests/ -v
 npx vitest
 ```
 
+## Default Test Credentials
+
+**Use these for local development and testing:**
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Organization | Acme Inc |
+| Org Slug | `acme_inc_01032026` |
+
+**Usage:** If login fails with these credentials, create a new account via signup with these details.
+
 ## Common Debugging
 
 ```bash

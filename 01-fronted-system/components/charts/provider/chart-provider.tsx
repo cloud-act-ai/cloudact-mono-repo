@@ -99,16 +99,17 @@ export const defaultChartTheme: ChartTheme = {
     subscription: "#FF6C5E", // Coral
   },
 
-  // Palette for multi-series
+  // VIS-007: Sharpened brand colors for chart palette
+  // Using CloudAct brand colors with higher saturation for visual impact
   palette: [
-    "#90FCA6",  // Mint
-    "#4285F4",  // Blue
-    "#FF6C5E",  // Coral
-    "#F24E1E",  // Orange
-    "#7C3AED",  // Purple
-    "#34A853",  // Green
-    "#FBBC04",  // Yellow
-    "#EA4335",  // Red
+    "#10A37F",  // GenAI Green (OpenAI)
+    "#4285F4",  // Cloud Blue (Google)
+    "#FF6C5E",  // Coral (Subscription/Warnings)
+    "#7C3AED",  // Purple (High contrast)
+    "#FF9900",  // AWS Orange
+    "#0078D4",  // Azure Blue
+    "#90FCA6",  // Mint (Brand primary)
+    "#1DA1F2",  // Twitter Blue (SaaS)
   ],
 
   // Animation timings (ms)

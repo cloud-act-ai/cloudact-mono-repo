@@ -366,36 +366,37 @@
 }
 
 /* Tailwind-style utilities for CloudAct colors */
-.text-cloudact-teal\/30 {
+/* Note: Using -30 instead of /30 to avoid cssnano build issues */
+.text-cloudact-teal-30 {
   color: rgba(144, 252, 166, 0.3);
 }
 
-.text-cloudact-coral\/30 {
+.text-cloudact-coral-30 {
   color: rgba(255, 108, 94, 0.3);
 }
 
-.focus\:border-cloudact-teal:focus {
+.focus-border-cloudact-teal:focus {
   border-color: var(--cloudact-mint);
 }
 
-.focus\:ring-cloudact-teal\/20:focus {
+.focus-ring-cloudact-teal-20:focus {
   --tw-ring-color: rgba(144, 252, 166, 0.25);
 }
 
 /* Modern Grid Backgrounds */
-.bg-grid-black\/5 {
+.bg-grid-black-5 {
   background-image: linear-gradient(to right, rgb(0 0 0 / 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(0 0 0 / 0.03) 1px, transparent 1px);
   background-size: 4rem 4rem;
 }
 
-.bg-grid-white\/5 {
+.bg-grid-white-5 {
   background-image: linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
   background-size: 4rem 4rem;
 }
 
-.bg-grid-small-black\/5 {
+.bg-grid-small-black-5 {
   background-image: linear-gradient(to right, rgb(0 0 0 / 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(0 0 0 / 0.03) 1px, transparent 1px);
   background-size: 1rem 1rem;

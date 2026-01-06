@@ -360,8 +360,8 @@ export function BaseComboChart<T extends Record<string, unknown>>({
               />
             ))}
 
-          {/* Bars */}
-          {bars.map((bar) => (
+          {/* Bars - VIS-002: Consistent cursor + VIS-008: Staggered animation */}
+          {bars.map((bar, barIndex) => (
             <Bar
               key={bar.dataKey}
               dataKey={bar.dataKey}
@@ -370,18 +370,22 @@ export function BaseComboChart<T extends Record<string, unknown>>({
               stackId={bar.stackId}
               radius={bar.radius || [4, 4, 0, 0]}
               maxBarSize={bar.maxBarSize || 50}
+              // VIS-008: Add staggered animation delay per bar series
               animationDuration={animate ? 700 : 0}
+              animationBegin={animate ? barIndex * 100 : 0}
               onClick={(data, index) => {
                 if (onBarClick) {
                   onBarClick(data as unknown as T, index)
                 }
               }}
-              cursor={onBarClick ? "pointer" : undefined}
+              // VIS-002: Always show pointer cursor on hover for better interactivity
+              cursor="pointer"
+              style={{ cursor: "pointer" }}
             />
           ))}
 
-          {/* Lines */}
-          {lines.map((line) => (
+          {/* Lines - VIS-004: Enhanced active dots with glow effect */}
+          {lines.map((line, lineIndex) => (
             <Line
               key={line.dataKey}
               type="monotone"
@@ -392,10 +396,15 @@ export function BaseComboChart<T extends Record<string, unknown>>({
               strokeDasharray={line.strokeDasharray}
               dot={line.dot ? { r: 3, fill: line.color, strokeWidth: 0 } : false}
               activeDot={{
-                r: 5,
+                r: 6,
                 fill: line.color,
-                strokeWidth: 2,
+                strokeWidth: 3,
                 stroke: "#fff",
+                // VIS-004: Add glow filter for hover effect
+                style: {
+                  filter: `drop-shadow(0 0 6px ${line.color}80)`,
+                  cursor: onPointClick ? "pointer" : "default",
+                },
                 onClick: (event: unknown) => {
                   if (onPointClick && event) {
                     const dotEvent = event as { payload?: T; index?: number }
@@ -404,9 +413,10 @@ export function BaseComboChart<T extends Record<string, unknown>>({
                     }
                   }
                 },
-                cursor: onPointClick ? "pointer" : undefined,
               }}
+              // VIS-008: Add staggered animation delay per line
               animationDuration={animate ? 700 : 0}
+              animationBegin={animate ? lineIndex * 150 : 0}
             />
           ))}
 

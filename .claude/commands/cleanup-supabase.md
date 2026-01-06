@@ -137,3 +137,26 @@ Report summary:
 2. **All data deleted** - This includes all organizations, users, and related data
 3. **Table structure preserved** - Only data is deleted, not the schema
 4. **Stripe data not affected** - Stripe customers/subscriptions remain in Stripe (not Supabase)
+
+## Variables
+
+- `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
+
+## Debug Account (for testing cleanup)
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Org Slug | `acme_inc_01032026` |
+
+**To cleanup and recreate the debug account:**
+```bash
+# 1. Cleanup via this command
+/cleanup-supabase stage
+
+# 2. Recreate via demo-setup
+npx tsx tests/demo-setup/setup-demo-account.ts
+```
+
+See `.claude/debug-config.md` for full debug configuration.

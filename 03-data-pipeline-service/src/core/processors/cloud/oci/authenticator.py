@@ -39,12 +39,13 @@ class OCIAuthenticator:
         # Use config with OCI SDK clients
     """
 
-    def __init__(self, org_slug: str):
+    def __init__(self, org_slug: Optional[str] = None):
         """
         Initialize authenticator for an organization.
 
         Args:
-            org_slug: Organization identifier (e.g., "acme_corp_123")
+            org_slug: Organization identifier (e.g., "acme_corp_123").
+                      Can be None if set later via execute() context.
         """
         self.org_slug = org_slug
         self.settings = get_settings()
@@ -55,6 +56,38 @@ class OCIAuthenticator:
         self._tenancy_ocid: Optional[str] = None
         self._user_ocid: Optional[str] = None
         self._region: Optional[str] = None
+
+    async def execute(self, step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Entry point for pipeline executor (instance method).
+
+        Args:
+            step_config: Step configuration from pipeline YAML
+            context: Pipeline context with org_slug and other metadata
+
+        Returns:
+            Dict with execution status and results
+        """
+        org_slug = context.get("org_slug")
+        if not org_slug:
+            return {"status": "FAILED", "error": "org_slug is required"}
+
+        # Set org_slug from context if not already set
+        if not self.org_slug:
+            self.org_slug = org_slug
+
+        try:
+            await self.authenticate()
+            return {
+                "status": "SUCCESS",
+                "provider": "OCI",
+                "tenancy_ocid": self.tenancy_ocid,
+                "region": self.region,
+                "message": "OCI authentication successful"
+            }
+        except Exception as e:
+            self.logger.error(f"OCI authentication failed: {e}", exc_info=True)
+            return {"status": "FAILED", "error": str(e)}
 
     @property
     def tenancy_ocid(self) -> Optional[str]:
@@ -355,4 +388,4 @@ async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 def get_engine():
     """Factory function for pipeline executor."""
-    return OCIAuthenticator
+    return OCIAuthenticator()

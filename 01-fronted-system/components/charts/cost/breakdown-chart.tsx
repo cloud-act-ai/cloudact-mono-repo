@@ -76,18 +76,20 @@ export function CostBreakdownChart({
   className,
 }: CostBreakdownChartProps) {
   const { formatValue, formatValueCompact, theme, isLoading: contextLoading } = useChartConfig()
-  const costData = useCostData()
+  // MEMO-002 FIX: Destructure only needed values to prevent unnecessary re-renders
+  const { providerBreakdown, getFilteredProviders } = useCostData()
 
   // Get items from context if useProviders
   const rawItems = useMemo<BreakdownItem[]>(() => {
     if (propItems) return propItems
 
     if (useProviders) {
-      let providers = costData.providerBreakdown
+      // MEMO-002 FIX: Use destructured values instead of whole costData object
+      let providers = providerBreakdown
 
       // Filter by category if specified
       if (category) {
-        providers = costData.getFilteredProviders(category)
+        providers = getFilteredProviders(category)
       }
 
       return providers.map((p, index) => ({
@@ -99,7 +101,7 @@ export function CostBreakdownChart({
     }
 
     return []
-  }, [propItems, useProviders, category, costData, theme])
+  }, [propItems, useProviders, category, providerBreakdown, getFilteredProviders, theme])
 
   // Calculate total
   const total = useMemo(
@@ -142,12 +144,17 @@ export function CostBreakdownChart({
   }, [displayItems, showOthers, othersValue, rawItems.length, maxItems, theme])
 
   // Add percentages
+  // EDGE-002 FIX: Guard against NaN in percentage calculation
   const itemsWithPercentages = useMemo(() =>
-    finalItems.map((item, index) => ({
-      ...item,
-      percentage: total > 0 ? (item.value / total) * 100 : 0,
-      color: item.color || getPaletteColor(index, theme),
-    })),
+    finalItems.map((item, index) => {
+      const safeValue = Number.isFinite(item.value) ? item.value : 0
+      const rawPercentage = total > 0 ? (safeValue / total) * 100 : 0
+      return {
+        ...item,
+        percentage: Number.isFinite(rawPercentage) ? rawPercentage : 0,
+        color: item.color || getPaletteColor(index, theme),
+      }
+    }),
     [finalItems, total, theme]
   )
 
@@ -216,7 +223,10 @@ export function CostBreakdownChart({
                     </span>
                     {item.count !== undefined && (
                       <span className="hidden sm:inline text-xs text-slate-400">
-                        {item.count} {item.count === 1 ? countLabel.slice(0, -1) : countLabel}
+                        {/* SING-001 FIX: Use proper pluralization instead of fragile slice() */}
+                        {item.count} {item.count === 1
+                          ? (countLabel.endsWith("s") ? countLabel.slice(0, -1) : countLabel)
+                          : countLabel}
                       </span>
                     )}
                   </div>

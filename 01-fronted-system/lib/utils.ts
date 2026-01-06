@@ -20,3 +20,17 @@ export function logError(context: string, error: unknown): string {
   }
   return message
 }
+
+/**
+ * SEC-001: Sanitize text for display in UI components.
+ * Defense-in-depth against XSS even though React escapes by default.
+ * Strips HTML tags, trims whitespace, and limits length.
+ */
+export function sanitizeDisplayText(text: unknown, maxLength = 100): string {
+  if (typeof text !== "string") return ""
+  return text
+    .replace(/<[^>]*>/g, "") // Strip HTML tags
+    .replace(/[<>'"&]/g, "") // Remove potential XSS chars
+    .trim()
+    .slice(0, maxLength)
+}

@@ -165,11 +165,13 @@ export function CostComparisonBanner({
         ? ArrowDownRight
         : Minus
 
+  // VIS-005: Use branded design token colors for comparison banner
+  // Coral (#FF6C5E) for cost increase (bad), Green (#10A37F) for decrease (good)
   const bgClass =
     comparison.trend === "up"
-      ? "bg-red-50 border-red-200"
+      ? "bg-[#FF6C5E]/10 border-[#FF6C5E]/30"
       : comparison.trend === "down"
-        ? "bg-green-50 border-green-200"
+        ? "bg-[#10A37F]/10 border-[#10A37F]/30"
         : "bg-slate-50 border-slate-200"
 
   return (

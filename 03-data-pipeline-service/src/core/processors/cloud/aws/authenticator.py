@@ -48,18 +48,61 @@ class AWSAuthenticator:
         buckets = s3.list_buckets()
     """
 
-    def __init__(self, org_slug: str):
+    def __init__(self, org_slug: Optional[str] = None):
         """
         Initialize authenticator for an organization.
 
         Args:
-            org_slug: Organization identifier (e.g., "acme_corp_123")
+            org_slug: Organization identifier (e.g., "acme_corp_123").
+                      Can be None if set later via execute() context.
         """
         self.org_slug = org_slug
         self.settings = get_settings()
         self._credentials: Optional[Dict[str, Any]] = None
         self._session = None
         self._provider: Optional[str] = None
+
+    async def execute(self, step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Entry point for pipeline executor (instance method).
+
+        Called by AsyncPipelineExecutor when ps_type: cloud.aws.authenticator is encountered.
+
+        Args:
+            step_config: Step configuration from pipeline YAML
+            context: Pipeline execution context with org_slug, variables, etc.
+
+        Returns:
+            Dict with execution status and authentication results
+        """
+        org_slug = context.get("org_slug")
+        if not org_slug:
+            return {"status": "FAILED", "error": "org_slug is required"}
+
+        # Set org_slug from context if not already set
+        if not self.org_slug:
+            self.org_slug = org_slug
+
+        try:
+            creds = await self.authenticate()
+
+            # Store credentials in context for downstream steps
+            context_key = step_config.get("config", {}).get("context_key", "aws_credentials")
+            context[context_key] = {
+                "access_key_id": creds["access_key_id"],
+                "region": creds.get("region"),
+                # Note: Don't store secret keys in context logs
+            }
+
+            return {
+                "status": "SUCCESS",
+                "provider": self._provider,
+                "region": creds.get("region"),
+                "message": "AWS authentication successful"
+            }
+        except Exception as e:
+            logger.error(f"AWS authentication failed: {e}", exc_info=True)
+            return {"status": "FAILED", "error": str(e)}
 
     @property
     def region(self) -> Optional[str]:
@@ -403,4 +446,4 @@ async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 def get_engine():
     """Factory function for pipeline executor."""
-    return AWSAuthenticator
+    return AWSAuthenticator()

@@ -545,6 +545,11 @@ class MetadataLogger:
             # NOTE: org_meta_pipeline_runs is in CENTRAL organizations dataset, not per-org dataset
             table_id = f"{self.project_id}.organizations.org_meta_pipeline_runs"
 
+            # PIPE-003 FIX: Atomic status transition - only update if currently RUNNING
+            # This prevents race conditions where:
+            # - Admin cancels pipeline while it's completing
+            # - Multiple completion calls race to update status
+            # Valid transitions: RUNNING -> COMPLETED/FAILED/CANCELLED/TIMEOUT
             update_query = f"""
             UPDATE `{table_id}`
             SET
@@ -557,6 +562,7 @@ class MetadataLogger:
             WHERE
                 pipeline_logging_id = @pipeline_logging_id
                 AND org_slug = @org_slug
+                AND status = 'RUNNING'
             """
 
             job_config = bigquery.QueryJobConfig(
@@ -586,9 +592,44 @@ class MetadataLogger:
             rows_updated = query_job.num_dml_affected_rows or 0
 
             if rows_updated == 0:
-                # UPDATE failed - row doesn't exist, try INSERT as fallback
+                # PIPE-003 FIX: UPDATE affected 0 rows - check if row exists with terminal status
+                # This can happen if:
+                # 1. Row doesn't exist (fallback: INSERT)
+                # 2. Row exists but status is not RUNNING (e.g., CANCELLED by admin)
+                #    - In this case, the status transition was already handled, don't INSERT
+                check_query = f"""
+                SELECT status FROM `{table_id}`
+                WHERE pipeline_logging_id = @pipeline_logging_id AND org_slug = @org_slug
+                """
+                check_job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                    ]
+                )
+                check_job = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.query(check_query, job_config=check_job_config)
+                )
+                existing_rows = list(await loop.run_in_executor(None, check_job.result))
+
+                if existing_rows:
+                    # Row exists with different status - status was already transitioned (e.g., CANCELLED)
+                    existing_status = existing_rows[0]['status']
+                    logger.info(
+                        f"Pipeline status already transitioned to {existing_status}, skipping update to {status}",
+                        extra={
+                            "pipeline_logging_id": pipeline_logging_id,
+                            "existing_status": existing_status,
+                            "requested_status": status,
+                            "org_slug": self.org_slug
+                        }
+                    )
+                    return  # Don't INSERT, the status was already set
+
+                # Row doesn't exist - proceed with INSERT fallback
                 logger.warning(
-                    f"UPDATE affected 0 rows - pipeline row may not exist, attempting INSERT fallback",
+                    f"UPDATE affected 0 rows - pipeline row does not exist, attempting INSERT fallback",
                     extra={
                         "pipeline_logging_id": pipeline_logging_id,
                         "status": status,

@@ -171,3 +171,15 @@ curl -s -u "$STRIPE_SECRET:" https://api.stripe.com/v1/webhook_endpoints | pytho
 ## Variables
 
 - `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
+
+## Debug Account (for testing)
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Org Slug | `acme_inc_01032026` |
+
+**The debug account uses the Scale plan (14-day free trial).**
+
+See `.claude/debug-config.md` for full debug configuration.

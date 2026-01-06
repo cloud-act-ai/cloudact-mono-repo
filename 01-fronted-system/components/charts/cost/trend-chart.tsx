@@ -133,7 +133,8 @@ export function CostTrendChart({
       const value = Number.isFinite(point.total) ? point.total : 0
       return {
         date: point.date,
-        label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        // LOCALE-001 FIX: Use undefined to respect user's browser locale
+        label: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         value,
         rollingAvg,
       }

@@ -11,7 +11,7 @@
  */
 
 import React, { useMemo } from "react"
-import { cn } from "@/lib/utils"
+import { cn, sanitizeDisplayText } from "@/lib/utils"
 import { ChevronRight } from "lucide-react"
 import { useCostData } from "@/contexts/cost-data-context"
 import { useChartConfig, getCategoryColor } from "../provider/chart-provider"
@@ -90,12 +90,12 @@ export function CostRingChart({
   const { formatValue, formatValueCompact, theme, isLoading: contextLoading } = useChartConfig()
   const { getFilteredCategoryBreakdown } = useCostData()
 
-  // Category display name mapping
-  const categoryNames: Record<string, string> = {
+  // MEMO-001 FIX: Memoize category display name mapping to prevent object recreation
+  const categoryNames = useMemo<Record<string, string>>(() => ({
     genai: "GenAI",
     cloud: "Cloud",
     subscription: "Subscriptions",
-  }
+  }), [])
 
   // Get segments from context if useCategories (uses time-filtered data)
   const segments = useMemo<RingSegment[]>(() => {
@@ -235,25 +235,38 @@ export function CostRingChart({
             <div className="flex-1 space-y-2 sm:space-y-2.5 min-w-0 w-full sm:w-auto">
               {segments.map((segment) => {
                 const percent = total > 0 ? (segment.value / total) * 100 : 0
+                const isClickable = !!onSegmentClick
 
                 return (
                   <div
                     key={segment.key}
                     className={cn(
                       "flex items-center justify-between text-xs sm:text-sm",
-                      onSegmentClick && "cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1 rounded"
+                      isClickable && "cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#90FCA6]"
                     )}
-                    onClick={onSegmentClick ? (e) => {
+                    onClick={isClickable ? (e) => {
                       e.stopPropagation()
                       onSegmentClick(segment)
                     } : undefined}
+                    // A11Y-001 FIX: Add keyboard accessibility for clickable segments
+                    onKeyDown={isClickable ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onSegmentClick(segment)
+                      }
+                    } : undefined}
+                    role={isClickable ? "button" : undefined}
+                    tabIndex={isClickable ? 0 : undefined}
+                    aria-label={isClickable ? `${segment.name}: ${formatValue(segment.value)} (${percent.toFixed(0)}%)` : undefined}
                   >
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                       <div
                         className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: segment.color }}
                       />
-                      <span className="text-slate-600 truncate">{segment.name}</span>
+                      {/* SEC-001 FIX: Sanitize segment name for defense-in-depth */}
+                      <span className="text-slate-600 truncate">{sanitizeDisplayText(segment.name)}</span>
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       <span className="font-medium text-slate-900 tabular-nums">

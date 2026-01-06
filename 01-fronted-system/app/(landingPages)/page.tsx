@@ -41,6 +41,7 @@ import {
 import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
+import { HeroSlider } from "./_components/hero-slider"
 
 // ============================================
 // HOME PAGE ANNOUNCEMENT BANNER
@@ -122,67 +123,7 @@ const INTEGRATION_CATEGORIES = [
   },
 ]
 
-// ============================================
-// HERO SECTION
-// ============================================
-function HeroSection() {
-  return (
-    <section className="ca-hero-premium">
-      {/* Subtle background gradient */}
-      <div className="ca-hero-bg-gradient" />
 
-      <div className="ca-hero-container">
-        {/* Left content */}
-        <div className="ca-hero-content-left">
-          {/* Main headline */}
-          <h1 className="ca-hero-headline">
-            The Modern FinOps Platform for{" "}
-            <span className="ca-hero-highlight-genai">GenAI</span>,{" "}
-            <span className="ca-hero-highlight-cloud">Cloud</span> &{" "}
-            <span className="ca-hero-highlight-saas">SaaS</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="ca-hero-subheadline">
-            Multi-cloud and enterprise-ready, CloudAct.ai gives Finance, Engineering, and FinOps teams
-            a shared system of record for managing spend so you can align on budgets, act on insights,
-            and scale with control.
-          </p>
-
-          {/* CTA buttons */}
-          <div className="ca-hero-cta-group">
-            <Link href="/signup" className="ca-btn-hero-primary">
-              Start Free Trial
-              <ArrowRight className="w-5 h-5" aria-hidden="true" />
-            </Link>
-            <Link href="/demo" className="ca-btn-hero-secondary">
-              <Play className="w-5 h-5" aria-hidden="true" />
-              Book a Demo
-            </Link>
-          </div>
-
-          {/* Trust indicators */}
-          <div className="ca-hero-trust-row">
-            <div className="ca-hero-trust-item">
-              <Zap className="w-4 h-4 ca-icon-coral" aria-hidden="true" />
-              <span>5-min setup</span>
-            </div>
-            <div className="ca-hero-trust-divider" />
-            <div className="ca-hero-trust-item">
-              <TrendingDown className="w-4 h-4 ca-icon-mint" aria-hidden="true" />
-              <span>20%+ avg savings</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right - Dashboard preview */}
-        <div className="ca-hero-visual">
-          <DashboardPreview />
-        </div>
-      </div>
-    </section>
-  )
-}
 
 // ============================================
 // DASHBOARD PREVIEW COMPONENT
@@ -920,7 +861,7 @@ export default function PremiumLandingPage() {
   return (
     <div className="ca-landing-page">
       <HomeAnnouncementBanner isVisible={bannerVisible} onClose={() => setBannerVisible(false)} />
-      <HeroSection />
+      <HeroSlider />
       <TrustedBySection />
       <IntegrationsSection />
       <CollaborationSection />

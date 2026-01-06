@@ -632,11 +632,19 @@ export function filterSubscriptionProviders<T extends { provider?: string | null
 // ============================================
 
 /**
+ * FIX-021: Type guard for objects with numeric properties
+ */
+function isRecordWithProperty(obj: unknown, key: string): obj is Record<string, unknown> {
+  return obj !== null && typeof obj === "object" && key in obj
+}
+
+/**
  * Safely extract a numeric value from a nested object
+ * FIX-021: Use proper type guard instead of `as` assertion
  */
 export function getSafeValue(obj: unknown, key: string): number {
-  if (obj && typeof obj === "object" && key in obj) {
-    const val = (obj as Record<string, unknown>)[key]
+  if (isRecordWithProperty(obj, key)) {
+    const val = obj[key]
     return typeof val === "number" && Number.isFinite(val) ? val : 0
   }
   return 0
@@ -644,12 +652,18 @@ export function getSafeValue(obj: unknown, key: string): number {
 
 /**
  * Calculate percentage with safety checks
+ * FIX-023: Added edge case for very small totals to avoid floating point issues
  */
 export function calculatePercentage(value: number, total: number): number {
   if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) {
     return 0
   }
-  return (value / total) * 100
+  // FIX-023: Avoid floating point precision issues with small numbers
+  if (total < 0.0001) {
+    return value > 0 ? 100 : 0
+  }
+  // Round to 1 decimal place for consistency
+  return Math.round((value / total) * 1000) / 10
 }
 
 // ============================================
@@ -954,12 +968,16 @@ export function getSpecificMonthRange(monthsAgo: number = 0): PeriodDateRange {
 }
 
 /**
- * Get November range (2 months ago from Jan 2026)
+ * Get November range (most recent past November)
+ * DATE-003 FIX: Correctly handle year boundary for all months
  */
 export function getNovemberRange(): PeriodDateRange {
   const now = new Date()
-  // Calculate November based on current date
-  const novYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+  const currentMonth = now.getMonth() // 0-11
+
+  // DATE-003 FIX: If we're in Jan-Oct (months 0-9), November is in the previous year
+  // If we're in Nov-Dec (months 10-11), November is in the current year
+  const novYear = currentMonth < 10 ? now.getFullYear() - 1 : now.getFullYear()
   const novStart = new Date(novYear, 10, 1) // November is month 10 (0-indexed)
   const novEnd = new Date(novYear, 11, 0) // Last day of November
 
@@ -972,12 +990,16 @@ export function getNovemberRange(): PeriodDateRange {
 }
 
 /**
- * Get December range (1 month ago from Jan 2026)
+ * Get December range (most recent past December)
+ * DATE-003 FIX: Correctly handle year boundary for all months
  */
 export function getDecemberRange(): PeriodDateRange {
   const now = new Date()
-  // Calculate December based on current date
-  const decYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+  const currentMonth = now.getMonth() // 0-11
+
+  // DATE-003 FIX: If we're in Jan-Nov (months 0-10), December is in the previous year
+  // If we're in Dec (month 11), December is in the current year
+  const decYear = currentMonth < 11 ? now.getFullYear() - 1 : now.getFullYear()
   const decStart = new Date(decYear, 11, 1) // December is month 11 (0-indexed)
   const decEnd = new Date(decYear, 12, 0) // Last day of December
 

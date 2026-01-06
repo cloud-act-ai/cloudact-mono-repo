@@ -12,6 +12,41 @@
  */
 
 import React, { useMemo, useState } from "react"
+
+// ============================================
+// VIS-001: Color Contrast Helpers
+// ============================================
+
+/**
+ * Calculate relative luminance of a hex color
+ * Used for WCAG contrast ratio calculations
+ */
+function getLuminance(hex: string): number {
+  const rgb = hex.replace("#", "").match(/.{2}/g)
+  if (!rgb) return 0
+
+  const [r, g, b] = rgb.map(c => {
+    const val = parseInt(c, 16) / 255
+    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4)
+  })
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/**
+ * Determine if a color is light (needs dark text) or dark (needs light text)
+ * Uses WCAG luminance threshold
+ */
+function isLightColor(hex: string): boolean {
+  return getLuminance(hex) > 0.4
+}
+
+/**
+ * Get contrasting text color for a background
+ */
+function getContrastTextColor(backgroundColor: string): string {
+  return isLightColor(backgroundColor) ? "#1e293b" : "#ffffff"
+}
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -137,7 +172,7 @@ export function BasePieChart({
     [processedData, formatValueCompact]
   )
 
-  // Label renderer
+  // Label renderer with VIS-001: Contrast-aware text color
   const renderLabel = (rawProps: unknown) => {
     if (!showLabels) return null
 
@@ -150,6 +185,8 @@ export function BasePieChart({
       percent?: number
       name?: string
       value?: number
+      fill?: string
+      payload?: { color?: string }
     }
 
     // Type guards for required properties
@@ -185,15 +222,20 @@ export function BasePieChart({
     // Only show labels for segments > 5%
     if (props.percent < 0.05) return null
 
+    // VIS-001: Get contrasting text color based on segment background
+    const segmentColor = props.fill || props.payload?.color || "#4285F4"
+    const textColor = getContrastTextColor(segmentColor)
+
     return (
       <text
         x={x}
         y={y}
-        fill="#fff"
+        fill={textColor}
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={11}
-        fontWeight={500}
+        fontWeight={600}
+        style={{ textShadow: isLightColor(segmentColor) ? "none" : "0 1px 2px rgba(0,0,0,0.3)" }}
       >
         {labelText}
       </text>
@@ -318,11 +360,14 @@ export function BasePieChart({
               label={showLabels ? renderLabel : undefined}
               labelLine={false}
             >
+              {/* VIS-002: Add cursor pointer on all pie segments for better interactivity */}
               {processedData.map((entry) => (
                 <Cell
                   key={entry.key}
                   fill={entry.color}
                   stroke="none"
+                  cursor="pointer"
+                  style={{ cursor: "pointer" }}
                 />
               ))}
             </Pie>

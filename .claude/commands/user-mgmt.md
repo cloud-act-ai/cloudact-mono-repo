@@ -280,3 +280,26 @@ HAVING COUNT(*) > 1;
 
 - [User Management](00-requirements-specs/01_USER_MANAGEMENT.md)
 - [Security](00-requirements-specs/05_SECURITY.md)
+
+## Variables
+
+- `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
+
+## Debug Account (for testing)
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Org Slug | `acme_inc_01032026` |
+
+**Example queries with debug account:**
+```sql
+-- Get user details
+/user-mgmt user stage john@example.com
+
+-- List org members
+/user-mgmt members stage acme_inc_01032026
+```
+
+See `.claude/debug-config.md` for full debug configuration.

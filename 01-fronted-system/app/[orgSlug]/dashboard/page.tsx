@@ -225,11 +225,12 @@ export default function DashboardPage() {
 
     return timeSeries.map((point) => ({
       date: point.date,
-      label: new Date(point.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      // FORMAT-001 FIX: Use undefined to respect user's browser locale
+      label: new Date(point.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
       value: point.total,
       rollingAvg: Math.round(rollingAvg * 100) / 100,
     }))
-  }, [getFilteredTimeSeries, timeRange])
+  }, [getFilteredTimeSeries])
 
   // BUG-002 FIX: Get category-specific totals from TIME-FILTERED granular data
   // Use context's getFilteredCategoryBreakdown() for actual time-filtered values
@@ -249,7 +250,8 @@ export default function DashboardPage() {
     }
 
     return totals
-  }, [getFilteredCategoryBreakdown, timeRange])
+  // PERF-003 FIX: Removed redundant timeRange dep - getFilteredCategoryBreakdown already handles it
+  }, [getFilteredCategoryBreakdown])
 
   // Legacy compatibility values (used by ringSegments and categoryBreakdown)
   const genaiCost = categoryTotals.genai

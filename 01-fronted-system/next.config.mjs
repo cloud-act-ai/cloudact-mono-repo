@@ -9,6 +9,12 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // PERF-FIX: Disable CSS optimization due to cssnano bug with Tailwind opacity modifiers
+  // cssnano has issues parsing escaped slashes in selectors like bg-[#90FCA6]/10
+  // This is a known issue: https://github.com/cssnano/cssnano/issues
+  experimental: {
+    optimizeCss: false,
+  },
   images: {
     unoptimized: false,
     formats: ["image/avif", "image/webp"],

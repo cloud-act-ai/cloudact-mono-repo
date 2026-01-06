@@ -46,6 +46,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
     const supabase = createClient()
     await supabase.auth.signOut()
     // Use hard redirect to avoid race conditions with auth state changes
+    // AUTH-004/005: Server-side auth cache has 5-second TTL, no client-side clearing needed
     window.location.href = "/login"
   }
 

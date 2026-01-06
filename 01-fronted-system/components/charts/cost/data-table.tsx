@@ -101,22 +101,29 @@ export interface CostDataTableProps {
 // ============================================
 
 function TrendBadge({ current, previous }: { current: number; previous?: number }) {
-  if (previous === undefined || previous === 0) {
+  // DIV-001 FIX: Handle undefined, zero, NaN, and very small values safely
+  if (previous === undefined || !Number.isFinite(previous) || Math.abs(previous) < 0.001) {
     return <span className="text-slate-400">—</span>
   }
 
   const change = ((current - previous) / previous) * 100
+  // DIV-001 FIX: Also guard against NaN/Infinity in result
+  if (!Number.isFinite(change)) {
+    return <span className="text-slate-400">—</span>
+  }
   const isUp = change > 0
   const isDown = change < 0
 
+  // VIS-003: Use branded design token colors for trends
+  // Coral (#FF6C5E) for cost increase (bad), Green (#10A37F) for decrease (good)
   return (
     <Badge
       variant="outline"
       className={cn(
-        "font-medium text-xs gap-1",
-        isUp && "text-red-600 border-red-200 bg-red-50",
-        isDown && "text-emerald-600 border-emerald-200 bg-emerald-50",
-        !isUp && !isDown && "text-slate-500"
+        "font-medium text-xs gap-1 transition-colors",
+        isUp && "text-[#FF6C5E] border-[#FF6C5E]/30 bg-[#FF6C5E]/10",
+        isDown && "text-[#10A37F] border-[#10A37F]/30 bg-[#10A37F]/10",
+        !isUp && !isDown && "text-slate-500 border-slate-200 bg-slate-50"
       )}
     >
       {isUp && <TrendingUp className="h-3 w-3" />}
@@ -153,7 +160,8 @@ export function CostDataTable({
   className,
 }: CostDataTableProps) {
   const { formatValue, isLoading: contextLoading } = useChartConfig()
-  const costData = useCostData()
+  // MEMO-003 FIX: Destructure only needed values to prevent unnecessary re-renders
+  const { providerBreakdown, getFilteredProviders } = useCostData()
   const [isExpanded, setIsExpanded] = useState(false)
 
   const loading = propLoading ?? contextLoading
@@ -162,9 +170,10 @@ export function CostDataTable({
   const contextRows = useMemo(() => {
     if (!useProviders || propRows) return []
 
+    // MEMO-003 FIX: Use destructured values instead of whole costData object
     const providers = category
-      ? costData.getFilteredProviders(category)
-      : costData.providerBreakdown
+      ? getFilteredProviders(category)
+      : providerBreakdown
 
     return providers.map((p) => ({
       key: p.provider,
@@ -173,7 +182,7 @@ export function CostDataTable({
       count: p.record_count,
       category: category, // Use the category prop passed to the component
     }))
-  }, [useProviders, propRows, category, costData])
+  }, [useProviders, propRows, category, providerBreakdown, getFilteredProviders])
 
   // Use prop rows or context rows
   const allRows = propRows ?? contextRows

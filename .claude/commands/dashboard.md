@@ -301,3 +301,19 @@ For each dashboard page:
 
 - `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
 - `$FRONTEND` = `01-fronted-system`
+
+## Debug Account (for testing dashboards)
+
+| Field | Value |
+|-------|-------|
+| Email | `john@example.com` |
+| Password | `acme1234` |
+| Org Slug | `acme_inc_01032026` |
+
+**Test URLs:**
+- Dashboard: `http://localhost:3000/acme_inc_01032026/dashboard`
+- Cost Overview: `http://localhost:3000/acme_inc_01032026/cost-dashboards/overview`
+- GenAI Costs: `http://localhost:3000/acme_inc_01032026/cost-dashboards/genai-costs`
+- Cloud Costs: `http://localhost:3000/acme_inc_01032026/cost-dashboards/cloud-costs`
+
+See `.claude/debug-config.md` for full debug configuration.

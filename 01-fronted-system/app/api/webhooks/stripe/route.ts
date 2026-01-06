@@ -282,19 +282,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
+  // EDGE-001 FIX: Validate webhook secret exists before using
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET environment variable is not set");
+    return NextResponse.json(
+      { error: "Webhook configuration error" },
+      { status: 500 }
+    );
+  }
+
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!,
+      webhookSecret,
     );
   } catch (signatureError) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[Stripe Webhook] Signature verification failed:", signatureError)
     }
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // SEC-001 FIX: Validate event timestamp to prevent replay attacks
+  // Reject events older than 5 minutes (300 seconds)
+  const MAX_EVENT_AGE_SECONDS = 300;
+  const eventTimestamp = event.created;
+  const currentTimestamp = Math.floor(Date.now() / 1000);
+  const eventAge = currentTimestamp - eventTimestamp;
+
+  if (eventAge > MAX_EVENT_AGE_SECONDS) {
+    console.warn(
+      `[Stripe Webhook] Rejecting stale event ${event.id}: ${eventAge}s old (max: ${MAX_EVENT_AGE_SECONDS}s)`
+    );
+    return NextResponse.json(
+      { error: "Event too old", age: eventAge },
+      { status: 400 }
+    );
   }
 
   // Idempotency check - prevent duplicate processing
@@ -383,8 +410,12 @@ export async function POST(request: NextRequest) {
 
         console.log(`[Stripe Webhook] checkout.session.completed: Updating org ${metadata.org_id} with plan ${planDetails.planId}`);
 
+        // STATE-001 FIX: Calculate event timestamp for optimistic locking
+        const eventTimestamp = new Date(event.created * 1000).toISOString();
+
         // Update organization with Stripe data (atomic operation - all fields updated together)
         // Note: In newer Stripe API, current_period_* moved to subscription items
+        // STATE-001 FIX: Only update if our event is newer than the last processed event
         const { data: updatedOrg, error: updateError } = await supabase
           .from("organizations")
           .update({
@@ -401,9 +432,11 @@ export async function POST(request: NextRequest) {
               subscriptionItem.current_period_end,
             ),
             stripe_webhook_last_event_id: event.id,
+            stripe_webhook_last_event_at: eventTimestamp,
             ...planDetails.limits,
           })
           .eq("id", metadata.org_id)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${eventTimestamp}`)
           .select();
 
         if (updateError) {
@@ -500,8 +533,12 @@ export async function POST(request: NextRequest) {
         else if (subscription.status === "paused") billingStatus = "paused";
         else if (subscription.status === "unpaid") billingStatus = "unpaid";
 
+        // STATE-001 FIX: Calculate event timestamp for optimistic locking
+        const subEventTimestamp = new Date(event.created * 1000).toISOString();
+
         // Atomic update - all subscription fields updated together
         // Note: In newer Stripe API, current_period_* moved to subscription items
+        // STATE-001 FIX: Include event timestamp for optimistic locking
         const updatePayload = {
           plan: planDetails.planId,
           billing_status: billingStatus,
@@ -514,23 +551,28 @@ export async function POST(request: NextRequest) {
           ),
           subscription_ends_at: safeTimestampToISO(subscription.cancel_at),
           stripe_webhook_last_event_id: event.id,
+          stripe_webhook_last_event_at: subEventTimestamp,
           ...planDetails.limits,
         };
 
+        // STATE-001 FIX: Only update if our event is newer than the last processed event
         const { data: updatedOrg, error: updateError } = await supabase
           .from("organizations")
           .update(updatePayload)
           .eq("stripe_subscription_id", subscription.id)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${subEventTimestamp}`)
           .select();
 
         if (updateError) {
           // Try by customer ID as fallback
           const customerId = subscription.customer as string;
           if (customerId) {
+            // STATE-001 FIX: Apply same optimistic locking to fallback path
             const { data: fallbackOrg, error: fallbackError } = await supabase
               .from("organizations")
               .update(updatePayload)
               .eq("stripe_customer_id", customerId)
+              .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${subEventTimestamp}`)
               .select();
 
             if (fallbackError) {
@@ -650,17 +692,24 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object;
 
+        // STATE-001 FIX: Calculate event timestamp for optimistic locking
+        const deleteEventTimestamp = new Date(event.created * 1000).toISOString();
+
         // Atomic update - both cancellation fields updated together
+        // STATE-001 FIX: Include event timestamp for optimistic locking
         const cancelPayload = {
           billing_status: "canceled",
           subscription_ends_at: new Date().toISOString(),
           stripe_webhook_last_event_id: event.id,
+          stripe_webhook_last_event_at: deleteEventTimestamp,
         };
 
+        // STATE-001 FIX: Only update if our event is newer
         const { data: updatedOrg, error: updateError } = await supabase
           .from("organizations")
           .update(cancelPayload)
           .eq("stripe_subscription_id", subscription.id)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${deleteEventTimestamp}`)
           .select();
 
         let orgForCancelSync = updatedOrg?.[0] || null;
@@ -669,10 +718,12 @@ export async function POST(request: NextRequest) {
           // Try by customer ID as fallback
           const customerId = subscription.customer as string;
           if (customerId) {
+            // STATE-001 FIX: Apply same optimistic locking to fallback path
             const { data: fallbackOrg, error: fallbackError } = await supabase
               .from("organizations")
               .update(cancelPayload)
               .eq("stripe_customer_id", customerId)
+              .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${deleteEventTimestamp}`)
               .select();
 
             if (fallbackError) {

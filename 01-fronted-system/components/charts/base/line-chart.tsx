@@ -120,11 +120,12 @@ export function BaseLineChart<T extends Record<string, unknown>>({
 }: BaseLineChartProps<T>) {
   const { formatValueCompact, theme } = useChartConfig()
 
-  // Assign colors from palette if not specified
+  // CHART-001 FIX: Assign colors with fallback to prevent null/undefined in SVG gradients
   const linesWithColors = useMemo(() =>
     lines.map((line, index) => ({
       ...line,
-      color: line.color || getPaletteColor(index, theme),
+      // Use provided color, or palette color, or fallback to safe default
+      color: line.color || getPaletteColor(index, theme) || "#94a3b8",
     })),
     [lines, theme]
   )
