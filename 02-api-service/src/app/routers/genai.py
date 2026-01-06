@@ -502,12 +502,11 @@ class UsageRecordResponse(BaseModel):
     ptu_units: Optional[int] = None
     gpu_hours: Optional[float] = None
     request_count: Optional[int] = None
-    hierarchy_dept_id: Optional[str] = None
-    hierarchy_dept_name: Optional[str] = None
-    hierarchy_project_id: Optional[str] = None
-    hierarchy_project_name: Optional[str] = None
-    hierarchy_team_id: Optional[str] = None
-    hierarchy_team_name: Optional[str] = None
+    hierarchy_entity_id: Optional[str] = None
+    hierarchy_entity_name: Optional[str] = None
+    hierarchy_level_code: Optional[str] = None
+    hierarchy_path: Optional[str] = None
+    hierarchy_path_names: Optional[str] = None
 
 
 class CostRecordResponse(BaseModel):
@@ -524,12 +523,11 @@ class CostRecordResponse(BaseModel):
     discount_applied_pct: Optional[float] = None
     usage_quantity: Optional[float] = None
     usage_unit: Optional[str] = None
-    hierarchy_dept_id: Optional[str] = None
-    hierarchy_dept_name: Optional[str] = None
-    hierarchy_project_id: Optional[str] = None
-    hierarchy_project_name: Optional[str] = None
-    hierarchy_team_id: Optional[str] = None
-    hierarchy_team_name: Optional[str] = None
+    hierarchy_entity_id: Optional[str] = None
+    hierarchy_entity_name: Optional[str] = None
+    hierarchy_level_code: Optional[str] = None
+    hierarchy_path: Optional[str] = None
+    hierarchy_path_names: Optional[str] = None
 
 
 class CostSummaryResponse(BaseModel):
@@ -1574,7 +1572,8 @@ async def get_usage(
     end_date: date = Query(..., description="End date (inclusive)"),
     flow: Optional[GenAIFlow] = Query(None, description="Filter by flow type"),
     provider: Optional[GenAIProvider] = Query(None, description="Filter by provider"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     # SECURITY FIX: Issue #7 - Add minimum limit validation (ge=1)
     limit: int = Query(1000, ge=1, le=10000, description="Max records to return (1-10000)"),
     auth: AuthResult = Depends(get_org_or_admin_auth),
@@ -1620,9 +1619,13 @@ async def get_usage(
     if provider:
         filter_parts.append("provider = @provider_filter")
         params.append(bigquery.ScalarQueryParameter("provider_filter", "STRING", provider.value))
-    if team_id:
-        filter_parts.append("hierarchy_team_id = @team_filter")
-        params.append(bigquery.ScalarQueryParameter("team_filter", "STRING", team_id))
+    # N-level hierarchy filters
+    if hierarchy_entity_id:
+        filter_parts.append("hierarchy_entity_id = @hierarchy_entity_filter")
+        params.append(bigquery.ScalarQueryParameter("hierarchy_entity_filter", "STRING", hierarchy_entity_id))
+    if hierarchy_path:
+        filter_parts.append("hierarchy_path LIKE @hierarchy_path_prefix")
+        params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{hierarchy_path}%"))
 
     filter_clause = f"AND {' AND '.join(filter_parts)}" if filter_parts else ""
 
@@ -1632,9 +1635,8 @@ async def get_usage(
             SELECT usage_date, cost_type, provider, model, instance_type, region,
                    input_tokens, output_tokens, total_tokens, ptu_units, gpu_hours,
                    request_count,
-                   hierarchy_dept_id, hierarchy_dept_name,
-                   hierarchy_project_id, hierarchy_project_name,
-                   hierarchy_team_id, hierarchy_team_name
+                   hierarchy_entity_id, hierarchy_entity_name,
+                   hierarchy_level_code, hierarchy_path, hierarchy_path_names
             FROM `{settings.gcp_project_id}.{dataset}.genai_usage_daily_unified`
             WHERE org_slug = @org_slug
               AND usage_date BETWEEN @start_date AND @end_date
@@ -1670,7 +1672,8 @@ async def get_costs(
     end_date: date = Query(..., description="End date (inclusive)"),
     flow: Optional[GenAIFlow] = Query(None, description="Filter by flow type"),
     provider: Optional[GenAIProvider] = Query(None, description="Filter by provider"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     # SECURITY FIX: Issue #7 - Add minimum limit validation (ge=1)
     limit: int = Query(1000, ge=1, le=10000, description="Max records to return (1-10000)"),
     auth: AuthResult = Depends(get_org_or_admin_auth),
@@ -1716,9 +1719,13 @@ async def get_costs(
     if provider:
         filter_parts.append("provider = @provider_filter")
         params.append(bigquery.ScalarQueryParameter("provider_filter", "STRING", provider.value))
-    if team_id:
-        filter_parts.append("hierarchy_team_id = @team_filter")
-        params.append(bigquery.ScalarQueryParameter("team_filter", "STRING", team_id))
+    # N-level hierarchy filters
+    if hierarchy_entity_id:
+        filter_parts.append("hierarchy_entity_id = @hierarchy_entity_filter")
+        params.append(bigquery.ScalarQueryParameter("hierarchy_entity_filter", "STRING", hierarchy_entity_id))
+    if hierarchy_path:
+        filter_parts.append("hierarchy_path LIKE @hierarchy_path_prefix")
+        params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{hierarchy_path}%"))
 
     filter_clause = f"AND {' AND '.join(filter_parts)}" if filter_parts else ""
 
@@ -1728,9 +1735,8 @@ async def get_costs(
             SELECT cost_date, cost_type, provider, model, instance_type, region,
                    input_cost_usd, output_cost_usd, total_cost_usd, discount_applied_pct,
                    usage_quantity, usage_unit,
-                   hierarchy_dept_id, hierarchy_dept_name,
-                   hierarchy_project_id, hierarchy_project_name,
-                   hierarchy_team_id, hierarchy_team_name
+                   hierarchy_entity_id, hierarchy_entity_name,
+                   hierarchy_level_code, hierarchy_path, hierarchy_path_names
             FROM `{settings.gcp_project_id}.{dataset}.genai_costs_daily_unified`
             WHERE org_slug = @org_slug
               AND cost_date BETWEEN @start_date AND @end_date

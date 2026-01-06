@@ -23,21 +23,21 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/genai/payg/openai
 |-------|---------|-----------|------------|
 | `genai_payg_pricing` | Token pricing with overrides | - | provider, model |
 | `genai_payg_usage_raw` | Daily token usage | usage_date | provider, model |
-| `genai_payg_costs_daily` | Daily token costs | cost_date | provider, hierarchy_team_id |
+| `genai_payg_costs_daily` | Daily token costs | cost_date | provider, hierarchy_entity_id |
 
 ### Commitment Flow (PTU/GSU)
 | Table | Purpose | Partition | Clustering |
 |-------|---------|-----------|------------|
 | `genai_commitment_pricing` | PTU/GSU pricing | - | provider, commitment_type |
 | `genai_commitment_usage_raw` | Daily PTU/GSU usage | usage_date | provider, commitment_id |
-| `genai_commitment_costs_daily` | Daily commitment costs | cost_date | provider, hierarchy_team_id |
+| `genai_commitment_costs_daily` | Daily commitment costs | cost_date | provider, hierarchy_entity_id |
 
 ### Infrastructure Flow (GPU/TPU)
 | Table | Purpose | Partition | Clustering |
 |-------|---------|-----------|------------|
 | `genai_infrastructure_pricing` | GPU/TPU hourly rates | - | provider, instance_type |
 | `genai_infrastructure_usage_raw` | Daily GPU/TPU usage | usage_date | provider, instance_type |
-| `genai_infrastructure_costs_daily` | Daily infrastructure costs | cost_date | provider, hierarchy_team_id |
+| `genai_infrastructure_costs_daily` | Daily infrastructure costs | cost_date | provider, hierarchy_entity_id |
 
 ### Unified Tables
 | Table | Purpose | Partition | Clustering |

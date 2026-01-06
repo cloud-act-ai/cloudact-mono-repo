@@ -89,7 +89,7 @@ description: |
 |                                                                              |
 |  Query pushdown:                                                             |
 |  - Date range: WHERE DATE(ChargePeriodStart) BETWEEN @start AND @end        |
-|  - Hierarchy: AND x_hierarchy_dept_id = @dept_id (optional)                 |
+|  - Hierarchy: AND x_hierarchy_path LIKE @path_prefix (optional)             |
 |                                                                              |
 |  Multi-tenancy: Dataset isolation {org_slug}_{env}                          |
 |  Query timeout: 30 seconds                                                   |

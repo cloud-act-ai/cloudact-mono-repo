@@ -231,36 +231,31 @@ class SaaSSubscriptionBase(BaseModel):
         description="User notes, plan description, or limitations"
     )
 
-    # Hierarchy fields for cost allocation (v13.0)
-    hierarchy_dept_id: Optional[str] = Field(
+    # N-level hierarchy fields for cost allocation (v14.0 - replaces fixed 3-level fields)
+    hierarchy_entity_id: Optional[str] = Field(
         default=None,
         max_length=50,
-        description="Reference to org_hierarchy department entity_id for cost allocation"
+        description="Reference to org_hierarchy entity_id for cost allocation. The leaf-level entity in the hierarchy path."
     )
-    hierarchy_dept_name: Optional[str] = Field(
+    hierarchy_entity_name: Optional[str] = Field(
         default=None,
         max_length=200,
-        description="Department name for reporting (denormalized from org_hierarchy)"
+        description="Entity name for reporting (denormalized from org_hierarchy)"
     )
-    hierarchy_project_id: Optional[str] = Field(
+    hierarchy_level_code: Optional[str] = Field(
         default=None,
         max_length=50,
-        description="Reference to org_hierarchy project entity_id for cost allocation"
+        description="Hierarchy level code (e.g., 'department', 'project', 'team'). Identifies the depth in the hierarchy."
     )
-    hierarchy_project_name: Optional[str] = Field(
+    hierarchy_path: Optional[str] = Field(
         default=None,
-        max_length=200,
-        description="Project name for reporting (denormalized from org_hierarchy)"
+        max_length=500,
+        description="Full materialized path from root to entity (e.g., '/DEPT-001/PROJ-001/TEAM-001'). Enables rollup queries at any level."
     )
-    hierarchy_team_id: Optional[str] = Field(
+    hierarchy_path_names: Optional[str] = Field(
         default=None,
-        max_length=50,
-        description="Reference to org_hierarchy team entity_id for cost allocation"
-    )
-    hierarchy_team_name: Optional[str] = Field(
-        default=None,
-        max_length=200,
-        description="Team name for reporting (denormalized from org_hierarchy)"
+        max_length=1000,
+        description="Full path of names from root to entity (e.g., '/Engineering/Cloud Platform/DevOps'). Human-readable hierarchy trail."
     )
 
     # Additional fields (not in BigQuery schema, but used in CSV and logic)
@@ -315,13 +310,12 @@ class SaaSSubscriptionUpdate(BaseModel):
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
     seats: Optional[int] = Field(None, ge=1)
-    # Hierarchy fields for cost allocation
-    hierarchy_dept_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_dept_name: Optional[str] = Field(None, max_length=200)
-    hierarchy_project_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_project_name: Optional[str] = Field(None, max_length=200)
-    hierarchy_team_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_team_name: Optional[str] = Field(None, max_length=200)
+    # N-level hierarchy fields for cost allocation
+    hierarchy_entity_id: Optional[str] = Field(None, max_length=50)
+    hierarchy_entity_name: Optional[str] = Field(None, max_length=200)
+    hierarchy_level_code: Optional[str] = Field(None, max_length=50)
+    hierarchy_path: Optional[str] = Field(None, max_length=500)
+    hierarchy_path_names: Optional[str] = Field(None, max_length=1000)
 
     model_config = ConfigDict(
         use_enum_values=True,

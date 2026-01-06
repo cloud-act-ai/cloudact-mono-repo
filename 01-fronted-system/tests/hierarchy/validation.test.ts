@@ -192,37 +192,46 @@ describe('Cascading Dropdown Behavior', () => {
     console.log('✓ Teams filtered by project')
   })
 
-  it('should clear child selections when parent changes', () => {
-    // Simulate parent change
+  it('should update hierarchy fields when entity changes', () => {
+    // N-level hierarchy uses single entity selection
     const formData = {
-      hierarchy_dept_id: 'DEPT-001',
-      hierarchy_dept_name: 'Engineering',
-      hierarchy_project_id: 'PROJ-001',
-      hierarchy_project_name: 'Platform',
-      hierarchy_team_id: 'TEAM-001',
-      hierarchy_team_name: 'Backend'
+      hierarchy_entity_id: 'TEAM-001',
+      hierarchy_entity_name: 'Backend',
+      hierarchy_level_code: 'team',
+      hierarchy_path: '/DEPT-001/PROJ-001/TEAM-001',
+      hierarchy_path_names: 'Engineering > Platform > Backend'
     }
 
-    // When department changes, project and team should be cleared
-    const handleDepartmentChange = (newDeptId: string, newDeptName: string) => {
+    // When entity changes, all fields update atomically
+    const handleHierarchyChange = (entity: {
+      entity_id: string
+      entity_name: string
+      level_code: string
+      path: string
+      path_names: string[]
+    }) => {
       return {
-        ...formData,
-        hierarchy_dept_id: newDeptId,
-        hierarchy_dept_name: newDeptName,
-        hierarchy_project_id: undefined,
-        hierarchy_project_name: undefined,
-        hierarchy_team_id: undefined,
-        hierarchy_team_name: undefined
+        hierarchy_entity_id: entity.entity_id,
+        hierarchy_entity_name: entity.entity_name,
+        hierarchy_level_code: entity.level_code,
+        hierarchy_path: entity.path,
+        hierarchy_path_names: entity.path_names.join(' > ')
       }
     }
 
-    const updatedFormData = handleDepartmentChange('DEPT-002', 'Marketing')
+    const updatedFormData = handleHierarchyChange({
+      entity_id: 'PROJ-002',
+      entity_name: 'Analytics',
+      level_code: 'project',
+      path: '/DEPT-002/PROJ-002',
+      path_names: ['Marketing', 'Analytics']
+    })
 
-    expect(updatedFormData.hierarchy_dept_id).toBe('DEPT-002')
-    expect(updatedFormData.hierarchy_project_id).toBeUndefined()
-    expect(updatedFormData.hierarchy_team_id).toBeUndefined()
+    expect(updatedFormData.hierarchy_entity_id).toBe('PROJ-002')
+    expect(updatedFormData.hierarchy_level_code).toBe('project')
+    expect(updatedFormData.hierarchy_path).toBe('/DEPT-002/PROJ-002')
 
-    console.log('✓ Child selections cleared on parent change')
+    console.log('✓ Hierarchy fields updated atomically on entity change')
   })
 })
 
@@ -231,7 +240,7 @@ describe('Cascading Dropdown Behavior', () => {
 // ============================================
 
 describe('Subscription Form Hierarchy Integration', () => {
-  it('should include hierarchy fields in subscription plan data', () => {
+  it('should include N-level hierarchy fields in subscription plan data', () => {
     const planData = {
       plan_name: 'PRO',
       display_name: 'Pro Plan',
@@ -239,24 +248,22 @@ describe('Subscription Form Hierarchy Integration', () => {
       seats: 5,
       billing_cycle: 'monthly',
       pricing_model: 'PER_SEAT',
-      // Hierarchy fields (still using dept/project/team for subscription compatibility)
-      hierarchy_dept_id: 'DEPT-001',
-      hierarchy_dept_name: 'Engineering',
-      hierarchy_project_id: 'PROJ-001',
-      hierarchy_project_name: 'Platform',
-      hierarchy_team_id: 'TEAM-001',
-      hierarchy_team_name: 'Backend'
+      // N-level hierarchy fields (v14.0)
+      hierarchy_entity_id: 'TEAM-001',
+      hierarchy_entity_name: 'Backend',
+      hierarchy_level_code: 'team',
+      hierarchy_path: '/DEPT-001/PROJ-001/TEAM-001',
+      hierarchy_path_names: 'Engineering > Platform > Backend'
     }
 
-    // Verify all hierarchy fields exist
-    expect(planData).toHaveProperty('hierarchy_dept_id')
-    expect(planData).toHaveProperty('hierarchy_dept_name')
-    expect(planData).toHaveProperty('hierarchy_project_id')
-    expect(planData).toHaveProperty('hierarchy_project_name')
-    expect(planData).toHaveProperty('hierarchy_team_id')
-    expect(planData).toHaveProperty('hierarchy_team_name')
+    // Verify all N-level hierarchy fields exist
+    expect(planData).toHaveProperty('hierarchy_entity_id')
+    expect(planData).toHaveProperty('hierarchy_entity_name')
+    expect(planData).toHaveProperty('hierarchy_level_code')
+    expect(planData).toHaveProperty('hierarchy_path')
+    expect(planData).toHaveProperty('hierarchy_path_names')
 
-    console.log('✓ Hierarchy fields included in plan data')
+    console.log('✓ N-level hierarchy fields included in plan data')
   })
 
   it('should allow optional hierarchy fields', () => {
@@ -270,9 +277,9 @@ describe('Subscription Form Hierarchy Integration', () => {
       pricing_model: 'PER_SEAT'
     }
 
-    expect(planDataWithoutHierarchy).not.toHaveProperty('hierarchy_dept_id')
-    expect(planDataWithoutHierarchy).not.toHaveProperty('hierarchy_project_id')
-    expect(planDataWithoutHierarchy).not.toHaveProperty('hierarchy_team_id')
+    expect(planDataWithoutHierarchy).not.toHaveProperty('hierarchy_entity_id')
+    expect(planDataWithoutHierarchy).not.toHaveProperty('hierarchy_path')
+    expect(planDataWithoutHierarchy).not.toHaveProperty('hierarchy_level_code')
 
     // This should be valid (no required hierarchy)
     const isValid = planDataWithoutHierarchy.plan_name.length > 0
@@ -281,30 +288,32 @@ describe('Subscription Form Hierarchy Integration', () => {
     console.log('✓ Optional hierarchy fields validated')
   })
 
-  it('should validate hierarchy field lengths', () => {
+  it('should validate N-level hierarchy field lengths', () => {
     const maxIdLength = 50
     const maxNameLength = 200
+    const maxPathLength = 500
 
     const validHierarchy = {
-      hierarchy_dept_id: 'DEPT-001',
-      hierarchy_dept_name: 'Engineering Department',
-      hierarchy_project_id: 'PROJ-001',
-      hierarchy_project_name: 'Platform Development',
-      hierarchy_team_id: 'TEAM-001',
-      hierarchy_team_name: 'Backend Engineering'
+      hierarchy_entity_id: 'TEAM-001',
+      hierarchy_entity_name: 'Backend Engineering',
+      hierarchy_level_code: 'team',
+      hierarchy_path: '/DEPT-001/PROJ-001/TEAM-001',
+      hierarchy_path_names: 'Engineering > Platform > Backend'
     }
 
-    // All IDs within limit
-    expect(validHierarchy.hierarchy_dept_id.length <= maxIdLength).toBe(true)
-    expect(validHierarchy.hierarchy_project_id.length <= maxIdLength).toBe(true)
-    expect(validHierarchy.hierarchy_team_id.length <= maxIdLength).toBe(true)
+    // Entity ID within limit
+    expect(validHierarchy.hierarchy_entity_id.length <= maxIdLength).toBe(true)
 
-    // All names within limit
-    expect(validHierarchy.hierarchy_dept_name.length <= maxNameLength).toBe(true)
-    expect(validHierarchy.hierarchy_project_name.length <= maxNameLength).toBe(true)
-    expect(validHierarchy.hierarchy_team_name.length <= maxNameLength).toBe(true)
+    // Entity name within limit
+    expect(validHierarchy.hierarchy_entity_name.length <= maxNameLength).toBe(true)
 
-    console.log('✓ Hierarchy field lengths validated')
+    // Path within limit
+    expect(validHierarchy.hierarchy_path.length <= maxPathLength).toBe(true)
+
+    // Path names within limit
+    expect(validHierarchy.hierarchy_path_names.length <= maxPathLength).toBe(true)
+
+    console.log('✓ N-level hierarchy field lengths validated')
   })
 })
 

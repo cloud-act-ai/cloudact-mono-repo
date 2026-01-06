@@ -147,6 +147,40 @@ class HierarchyService:
         if errors:
             raise ValueError(f"Failed to insert rows into {table_id}: {errors}")
 
+    async def _get_entity_from_central(
+        self,
+        org_slug: str,
+        entity_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get entity directly from central table (bypasses MV for fresh data).
+
+        Used for parent validation during create/move operations where
+        we need to see recently inserted data in the streaming buffer.
+        """
+        table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+        query = f"""
+        SELECT *
+        FROM `{table_ref}`
+        WHERE org_slug = @org_slug
+          AND entity_id = @entity_id
+          AND end_date IS NULL
+        LIMIT 1
+        """
+        query_params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
+        ]
+        try:
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            results = list(self.bq_client.client.query(query, job_config=job_config).result())
+            if results:
+                return dict(results[0])
+            return None
+        except Exception as e:
+            logger.error(f"Error querying central table for entity {entity_id}: {e}")
+            return None
+
     def _row_to_entity_response(
         self,
         row: Dict[str, Any],
@@ -188,11 +222,23 @@ class HierarchyService:
         self,
         org_slug: str,
         level_code: Optional[str] = None,
-        include_inactive: bool = False
+        include_inactive: bool = False,
+        use_central_table: bool = False
     ) -> HierarchyListResponse:
-        """Get all hierarchy entities for an organization."""
+        """Get all hierarchy entities for an organization.
+
+        Args:
+            use_central_table: If True, query central table directly (bypasses MV).
+                              Use this for operations that need fresh streaming buffer data.
+        """
         org_slug = validate_org_slug(org_slug)
-        table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
+
+        if use_central_table:
+            # Use central table directly for fresh data
+            table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+            uses_view = False
+        else:
+            table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
         # Get levels map for level names
         levels_map = await self.level_service.get_levels_map(org_slug)
@@ -445,8 +491,8 @@ class HierarchyService:
         levels_response = await self.level_service.get_levels(org_slug)
         levels_map = {lvl.level_code: lvl for lvl in levels_response.levels}
 
-        # Get all active entities
-        all_entities = await self.get_all_entities(org_slug)
+        # Get all active entities (use central table for fresh streaming buffer data)
+        all_entities = await self.get_all_entities(org_slug, use_central_table=True)
 
         # Build tree
         entities_by_id: Dict[str, HierarchyTreeNode] = {}
@@ -530,24 +576,25 @@ class HierarchyService:
             if not request.parent_id:
                 raise ValueError(f"Entities at level '{request.level_code}' require a parent")
 
-            parent = await self.get_entity(org_slug, request.parent_id)
-            if not parent:
+            # Query central table directly (bypasses MV for fresh data from streaming buffer)
+            parent_row = await self._get_entity_from_central(org_slug, request.parent_id)
+            if not parent_row:
                 raise ValueError(f"Parent entity {request.parent_id} does not exist")
 
             # Validate parent is at correct level
-            parent_level_config = await self.level_service.get_level_by_code(org_slug, parent.level_code)
+            parent_level_config = await self.level_service.get_level_by_code(org_slug, parent_row['level_code'])
             if parent_level_config and parent_level_config.is_leaf:
                 raise ValueError(f"Cannot add children to leaf entity {request.parent_id}")
 
-            if parent.level != level_config.parent_level:
+            if parent_row['level'] != level_config.parent_level:
                 raise ValueError(
-                    f"Parent {request.parent_id} is at level {parent.level}, "
+                    f"Parent {request.parent_id} is at level {parent_row['level']}, "
                     f"but level '{request.level_code}' requires parent at level {level_config.parent_level}"
                 )
 
-            parent_path = parent.path
-            parent_path_ids = parent.path_ids
-            parent_path_names = parent.path_names
+            parent_path = parent_row['path']
+            parent_path_ids = parent_row.get('path_ids') or []
+            parent_path_names = parent_row.get('path_names') or []
 
             # Check max_children constraint
             if level_config.max_children:
@@ -568,8 +615,8 @@ class HierarchyService:
         else:
             raise ValueError("entity_id is required for this level")
 
-        # Check for duplicate
-        existing = await self.get_entity(org_slug, entity_id)
+        # Check for duplicate (query central table for fresh streaming buffer data)
+        existing = await self._get_entity_from_central(org_slug, entity_id)
         if existing:
             raise ValueError(f"Entity {entity_id} already exists")
 
@@ -615,7 +662,37 @@ class HierarchyService:
             logger.error(f"Failed to create entity: {e}")
             raise RuntimeError(f"Failed to create entity: {e}")
 
-        return await self.get_entity(org_slug, entity_id)
+        # Return entity directly from inserted row (avoid BigQuery streaming buffer delay)
+        # Parse the ISO timestamp string back to datetime
+        from datetime import datetime as dt
+        created_at_dt = dt.fromisoformat(now.replace('Z', '+00:00')) if now.endswith('Z') else dt.fromisoformat(now)
+
+        return HierarchyEntityResponse(
+            id=record_id,
+            org_slug=org_slug,
+            entity_id=entity_id,
+            entity_name=request.entity_name,
+            level=level_config.level,
+            level_code=level_config.level_code,
+            parent_id=request.parent_id,
+            path=path,
+            path_ids=path_ids,
+            path_names=path_names,
+            depth=depth,
+            owner_id=request.owner_id,
+            owner_name=request.owner_name,
+            owner_email=request.owner_email,
+            description=request.description,
+            metadata=request.metadata,
+            sort_order=request.sort_order,
+            is_active=True,
+            created_at=created_at_dt,
+            created_by=created_by,
+            updated_at=None,
+            updated_by=None,
+            version=1,
+            level_name=level_config.level_name,
+        )
 
     # ==========================================================================
     # Update Operations
@@ -978,13 +1055,13 @@ class HierarchyService:
         # Check for references in subscription plans
         subscription_table = self._get_table_ref(org_slug, SAAS_SUBSCRIPTION_PLANS_TABLE)
         try:
-            # Check if entity_id appears in any hierarchy fields
+            # Check if entity_id appears in hierarchy_entity_id or as part of hierarchy_path
             ref_query = f"""
             SELECT subscription_id, provider, plan_name
             FROM `{subscription_table}`
-            WHERE (hierarchy_dept_id = @entity_id
-                   OR hierarchy_project_id = @entity_id
-                   OR hierarchy_team_id = @entity_id)
+            WHERE (hierarchy_entity_id = @entity_id
+                   OR hierarchy_path LIKE CONCAT('%/', @entity_id, '/%')
+                   OR hierarchy_path LIKE CONCAT('%/', @entity_id))
               AND end_date IS NULL
             LIMIT 10
             """

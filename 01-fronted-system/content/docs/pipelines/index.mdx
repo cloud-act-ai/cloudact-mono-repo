@@ -192,16 +192,15 @@ All pipelines convert data to FOCUS 1.3 for unified analytics:
 | `Region` | Geographic region |
 | `UsageDate` | Date of usage |
 
-**CloudAct Extensions:**
+**CloudAct Extensions (N-Level Hierarchy v14.0):**
 
 | Field | Description |
 |-------|-------------|
-| `x_hierarchy_dept_id` | Department ID |
-| `x_hierarchy_dept_name` | Department name |
-| `x_hierarchy_project_id` | Project ID |
-| `x_hierarchy_project_name` | Project name |
-| `x_hierarchy_team_id` | Team ID |
-| `x_hierarchy_team_name` | Team name |
+| `x_hierarchy_entity_id` | Hierarchy entity ID |
+| `x_hierarchy_entity_name` | Hierarchy entity name |
+| `x_hierarchy_level_code` | Entity's level code (e.g., department, project, team) |
+| `x_hierarchy_path` | Materialized path (e.g., /DEPT-001/PROJ-001/TEAM-001) |
+| `x_hierarchy_path_names` | Human-readable path (e.g., Engineering > Platform > Backend) |
 
 ---
 

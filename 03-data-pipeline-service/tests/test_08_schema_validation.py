@@ -358,14 +358,13 @@ class TestSchemaProcessorAlignment:
         for ext in genai_extensions:
             assert ext in column_names, f"Missing GenAI extension: {ext}"
 
-        # Check for hierarchy extension columns
+        # Check for N-level hierarchy extension columns
         hierarchy_extensions = [
-            "x_hierarchy_dept_id", "x_hierarchy_dept_name",
-            "x_hierarchy_project_id", "x_hierarchy_project_name",
-            "x_hierarchy_team_id", "x_hierarchy_team_name"
+            "x_hierarchy_entity_id", "x_hierarchy_entity_name",
+            "x_hierarchy_level_code", "x_hierarchy_path", "x_hierarchy_path_names"
         ]
         for ext in hierarchy_extensions:
-            assert ext in column_names, f"Missing hierarchy extension: {ext}"
+            assert ext in column_names, f"Missing N-level hierarchy extension: {ext}"
 
 
 # ============================================================================

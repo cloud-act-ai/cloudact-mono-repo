@@ -127,9 +127,9 @@ class UnifiedConsolidatorProcessor:
                     total_tokens, CAST(NULL AS INT64) as ptu_units, CAST(NULL AS INT64) as used_units,
                     CAST(NULL AS FLOAT64) as utilization_pct, CAST(NULL AS FLOAT64) as gpu_hours,
                     CAST(NULL AS FLOAT64) as instance_hours,
-                    request_count, hierarchy_dept_id, hierarchy_dept_name,
-                    hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                    hierarchy_team_name, 'genai_payg_usage_raw' as source_table,
+                    request_count, hierarchy_entity_id, hierarchy_entity_name,
+                    hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                    'genai_payg_usage_raw' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_payg_usage_raw`
@@ -146,9 +146,9 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS INT64) as cached_tokens, CAST(NULL AS INT64) as total_tokens,
                     provisioned_units as ptu_units, used_units, utilization_pct,
                     CAST(NULL AS FLOAT64) as gpu_hours, CAST(NULL AS FLOAT64) as instance_hours,
-                    CAST(NULL AS INT64) as request_count, hierarchy_dept_id, hierarchy_dept_name,
-                    hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                    hierarchy_team_name, 'genai_commitment_usage_raw' as source_table,
+                    CAST(NULL AS INT64) as request_count, hierarchy_entity_id, hierarchy_entity_name,
+                    hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                    'genai_commitment_usage_raw' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw`
@@ -164,9 +164,9 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS INT64) as cached_tokens, CAST(NULL AS INT64) as total_tokens,
                     CAST(NULL AS INT64) as ptu_units, CAST(NULL AS INT64) as used_units,
                     avg_gpu_utilization_pct as utilization_pct, gpu_hours, hours_used as instance_hours,
-                    CAST(NULL AS INT64) as request_count, hierarchy_dept_id, hierarchy_dept_name,
-                    hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                    hierarchy_team_name, 'genai_infrastructure_usage_raw' as source_table,
+                    CAST(NULL AS INT64) as request_count, hierarchy_entity_id, hierarchy_entity_name,
+                    hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                    'genai_infrastructure_usage_raw' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw`
@@ -194,12 +194,11 @@ class UnifiedConsolidatorProcessor:
                     gpu_hours = S.gpu_hours,
                     instance_hours = S.instance_hours,
                     request_count = S.request_count,
-                    hierarchy_dept_id = S.hierarchy_dept_id,
-                    hierarchy_dept_name = S.hierarchy_dept_name,
-                    hierarchy_project_id = S.hierarchy_project_id,
-                    hierarchy_project_name = S.hierarchy_project_name,
-                    hierarchy_team_id = S.hierarchy_team_id,
-                    hierarchy_team_name = S.hierarchy_team_name,
+                    hierarchy_entity_id = S.hierarchy_entity_id,
+                    hierarchy_entity_name = S.hierarchy_entity_name,
+                    hierarchy_level_code = S.hierarchy_level_code,
+                    hierarchy_path = S.hierarchy_path,
+                    hierarchy_path_names = S.hierarchy_path_names,
                     source_table = S.source_table,
                     consolidated_at = CURRENT_TIMESTAMP(),
                     x_pipeline_id = S.x_pipeline_id,
@@ -211,16 +210,16 @@ class UnifiedConsolidatorProcessor:
                 INSERT (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_tokens, output_tokens, cached_tokens, total_tokens,
                         ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
-                        request_count, hierarchy_dept_id, hierarchy_dept_name,
-                        hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                        hierarchy_team_name, source_table, consolidated_at,
+                        request_count, hierarchy_entity_id, hierarchy_entity_name,
+                        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                        source_table, consolidated_at,
                         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                 VALUES (S.usage_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_tokens, S.output_tokens, S.cached_tokens, S.total_tokens,
                         S.ptu_units, S.used_units, S.utilization_pct, S.gpu_hours, S.instance_hours,
-                        S.request_count, S.hierarchy_dept_id, S.hierarchy_dept_name,
-                        S.hierarchy_project_id, S.hierarchy_project_name, S.hierarchy_team_id,
-                        S.hierarchy_team_name, S.source_table, CURRENT_TIMESTAMP(),
+                        S.request_count, S.hierarchy_entity_id, S.hierarchy_entity_name,
+                        S.hierarchy_level_code, S.hierarchy_path, S.hierarchy_path_names,
+                        S.source_table, CURRENT_TIMESTAMP(),
                         S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
         """
 
@@ -255,8 +254,8 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS FLOAT64) as overage_cost_usd, CAST(NULL AS FLOAT64) as infrastructure_cost_usd,
                     total_cost_usd, discount_applied_pct,
                     CAST(total_tokens AS FLOAT64) as usage_quantity, 'tokens' as usage_unit,
-                    hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
-                    hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
+                    hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
+                    hierarchy_path, hierarchy_path_names,
                     'genai_payg_costs_daily' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -274,8 +273,8 @@ class UnifiedConsolidatorProcessor:
                     commitment_cost_usd, overage_cost_usd, CAST(NULL AS FLOAT64) as infrastructure_cost_usd,
                     total_cost_usd, CAST(NULL AS FLOAT64) as discount_applied_pct,
                     CAST(provisioned_units AS FLOAT64) as usage_quantity, 'ptu_hours' as usage_unit,
-                    hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
-                    hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
+                    hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
+                    hierarchy_path, hierarchy_path_names,
                     'genai_commitment_costs_daily' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -293,8 +292,8 @@ class UnifiedConsolidatorProcessor:
                     total_cost_usd as infrastructure_cost_usd, total_cost_usd,
                     ROUND((discount_applied_usd / NULLIF(base_cost_usd, 0)) * 100, 2) as discount_applied_pct,
                     gpu_hours as usage_quantity, 'gpu_hours' as usage_unit,
-                    hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
-                    hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
+                    hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
+                    hierarchy_path, hierarchy_path_names,
                     'genai_infrastructure_costs_daily' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -322,12 +321,11 @@ class UnifiedConsolidatorProcessor:
                     discount_applied_pct = S.discount_applied_pct,
                     usage_quantity = S.usage_quantity,
                     usage_unit = S.usage_unit,
-                    hierarchy_dept_id = S.hierarchy_dept_id,
-                    hierarchy_dept_name = S.hierarchy_dept_name,
-                    hierarchy_project_id = S.hierarchy_project_id,
-                    hierarchy_project_name = S.hierarchy_project_name,
-                    hierarchy_team_id = S.hierarchy_team_id,
-                    hierarchy_team_name = S.hierarchy_team_name,
+                    hierarchy_entity_id = S.hierarchy_entity_id,
+                    hierarchy_entity_name = S.hierarchy_entity_name,
+                    hierarchy_level_code = S.hierarchy_level_code,
+                    hierarchy_path = S.hierarchy_path,
+                    hierarchy_path_names = S.hierarchy_path_names,
                     source_table = S.source_table,
                     consolidated_at = CURRENT_TIMESTAMP(),
                     x_pipeline_id = S.x_pipeline_id,
@@ -339,16 +337,16 @@ class UnifiedConsolidatorProcessor:
                 INSERT (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
                         infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
-                        usage_quantity, usage_unit, hierarchy_dept_id, hierarchy_dept_name,
-                        hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                        hierarchy_team_name, source_table, consolidated_at,
+                        usage_quantity, usage_unit, hierarchy_entity_id, hierarchy_entity_name,
+                        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                        source_table, consolidated_at,
                         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                 VALUES (S.cost_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_cost_usd, S.output_cost_usd, S.commitment_cost_usd, S.overage_cost_usd,
                         S.infrastructure_cost_usd, S.total_cost_usd, S.discount_applied_pct,
-                        S.usage_quantity, S.usage_unit, S.hierarchy_dept_id, S.hierarchy_dept_name,
-                        S.hierarchy_project_id, S.hierarchy_project_name, S.hierarchy_team_id,
-                        S.hierarchy_team_name, S.source_table, CURRENT_TIMESTAMP(),
+                        S.usage_quantity, S.usage_unit, S.hierarchy_entity_id, S.hierarchy_entity_name,
+                        S.hierarchy_level_code, S.hierarchy_path, S.hierarchy_path_names,
+                        S.source_table, CURRENT_TIMESTAMP(),
                         S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
         """
 

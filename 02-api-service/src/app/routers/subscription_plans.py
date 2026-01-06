@@ -281,13 +281,12 @@ class SubscriptionPlan(BaseModel):
     source_price: Optional[float] = None
     exchange_rate_used: Optional[float] = None
     billing_anchor_day: Optional[int] = None
-    # Hierarchy fields for cost allocation
-    hierarchy_dept_id: Optional[str] = None
-    hierarchy_dept_name: Optional[str] = None
-    hierarchy_project_id: Optional[str] = None
-    hierarchy_project_name: Optional[str] = None
-    hierarchy_team_id: Optional[str] = None
-    hierarchy_team_name: Optional[str] = None
+    # N-level hierarchy fields for cost allocation
+    hierarchy_entity_id: Optional[str] = None
+    hierarchy_entity_name: Optional[str] = None
+    hierarchy_level_code: Optional[str] = None
+    hierarchy_path: Optional[str] = None
+    hierarchy_path_names: Optional[str] = None
     updated_at: Optional[datetime] = None
 
 
@@ -529,13 +528,12 @@ class PlanCreate(BaseModel):
     # EDGE-007: Max 28 ensures valid day in all months (Feb has 28 days min)
     # EDGE-005: Leap year handling is done in stored procedures for billing calculations
     billing_anchor_day: Optional[int] = Field(None, ge=1, le=28, description="Day of month billing cycle starts (1-28). NULL = calendar-aligned (1st of month)")
-    # Hierarchy fields for cost allocation
-    hierarchy_dept_id: Optional[str] = Field(None, max_length=50, description="Department ID from org_hierarchy")
-    hierarchy_dept_name: Optional[str] = Field(None, max_length=200, description="Department name")
-    hierarchy_project_id: Optional[str] = Field(None, max_length=50, description="Project ID from org_hierarchy")
-    hierarchy_project_name: Optional[str] = Field(None, max_length=200, description="Project name")
-    hierarchy_team_id: Optional[str] = Field(None, max_length=50, description="Team ID from org_hierarchy")
-    hierarchy_team_name: Optional[str] = Field(None, max_length=200, description="Team name")
+    # N-level hierarchy fields for cost allocation
+    hierarchy_entity_id: Optional[str] = Field(None, max_length=50, description="Entity ID from org_hierarchy")
+    hierarchy_entity_name: Optional[str] = Field(None, max_length=200, description="Entity name")
+    hierarchy_level_code: Optional[str] = Field(None, max_length=50, description="Entity level code (e.g., DEPT, PROJ, TEAM)")
+    hierarchy_path: Optional[str] = Field(None, max_length=500, description="Materialized path (e.g., /DEPT-001/PROJ-001)")
+    hierarchy_path_names: Optional[str] = Field(None, max_length=1000, description="Human-readable path")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -564,13 +562,12 @@ class PlanUpdate(BaseModel):
     exchange_rate_used: Optional[float] = Field(None, ge=0)
     billing_anchor_day: Optional[int] = Field(None, ge=1, le=28)
     end_date: Optional[date] = None
-    # Hierarchy fields for cost allocation
-    hierarchy_dept_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_dept_name: Optional[str] = Field(None, max_length=200)
-    hierarchy_project_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_project_name: Optional[str] = Field(None, max_length=200)
-    hierarchy_team_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_team_name: Optional[str] = Field(None, max_length=200)
+    # N-level hierarchy fields for cost allocation
+    hierarchy_entity_id: Optional[str] = Field(None, max_length=50)
+    hierarchy_entity_name: Optional[str] = Field(None, max_length=200)
+    hierarchy_level_code: Optional[str] = Field(None, max_length=50)
+    hierarchy_path: Optional[str] = Field(None, max_length=500)
+    hierarchy_path_names: Optional[str] = Field(None, max_length=1000)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -614,13 +611,12 @@ class EditVersionRequest(BaseModel):
     exchange_rate_used: Optional[float] = Field(None, ge=0)
     billing_anchor_day: Optional[int] = Field(None, ge=1, le=28)
     status: Optional[str] = Field(None, description="New status for the plan version")
-    # Hierarchy fields for cost allocation
-    hierarchy_dept_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_dept_name: Optional[str] = Field(None, max_length=200)
-    hierarchy_project_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_project_name: Optional[str] = Field(None, max_length=200)
-    hierarchy_team_id: Optional[str] = Field(None, max_length=50)
-    hierarchy_team_name: Optional[str] = Field(None, max_length=200)
+    # N-level hierarchy fields for cost allocation
+    hierarchy_entity_id: Optional[str] = Field(None, max_length=50)
+    hierarchy_entity_name: Optional[str] = Field(None, max_length=200)
+    hierarchy_level_code: Optional[str] = Field(None, max_length=50)
+    hierarchy_path: Optional[str] = Field(None, max_length=500)
+    hierarchy_path_names: Optional[str] = Field(None, max_length=1000)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -740,28 +736,23 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 async def validate_hierarchy_ids(
     bq_client: BigQueryClient,
     org_slug: str,
-    hierarchy_dept_id: Optional[str] = None,
-    hierarchy_project_id: Optional[str] = None,
-    hierarchy_team_id: Optional[str] = None
+    hierarchy_entity_id: Optional[str] = None
 ) -> None:
     """
-    Validate that hierarchy IDs exist in the org_hierarchy table.
+    Validate that hierarchy entity ID exists in the org_hierarchy table.
 
     Reads from x_org_hierarchy view (preferred) or falls back to central table.
     The view is pre-filtered by org_slug and end_date IS NULL.
 
-    Uses N-level hierarchy schema with level_code field (not entity_type).
+    Uses N-level hierarchy schema - validates entity_id regardless of level.
 
-    Raises HTTPException 400 if any provided hierarchy ID is not found.
-    Only validates IDs that are provided (non-None).
+    Raises HTTPException 400 if provided hierarchy ID is not found.
+    Only validates if entity_id is provided (non-None).
     """
-    ids_to_validate = []
-    if hierarchy_dept_id:
-        ids_to_validate.append(("department", hierarchy_dept_id))
-    if hierarchy_project_id:
-        ids_to_validate.append(("project", hierarchy_project_id))
-    if hierarchy_team_id:
-        ids_to_validate.append(("team", hierarchy_team_id))
+    if not hierarchy_entity_id:
+        return  # No hierarchy ID provided, nothing to validate
+
+    ids_to_validate = [("entity", hierarchy_entity_id)]
 
     if not ids_to_validate:
         return  # No hierarchy IDs provided, nothing to validate
@@ -1238,9 +1229,8 @@ async def list_plans(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at,
         source_currency, source_price, exchange_rate_used,
-        hierarchy_dept_id, hierarchy_dept_name,
-        hierarchy_project_id, hierarchy_project_name,
-        hierarchy_team_id, hierarchy_team_name
+        hierarchy_entity_id, hierarchy_entity_name,
+        hierarchy_level_code, hierarchy_path, hierarchy_path_names
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND provider = @provider
         AND (status = 'active' OR status = 'pending' OR status = 'cancelled' OR status = 'expired')
@@ -1309,12 +1299,11 @@ async def list_plans(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_dept_id=row.hierarchy_dept_id if hasattr(row, "hierarchy_dept_id") else None,
-                hierarchy_dept_name=row.hierarchy_dept_name if hasattr(row, "hierarchy_dept_name") else None,
-                hierarchy_project_id=row.hierarchy_project_id if hasattr(row, "hierarchy_project_id") else None,
-                hierarchy_project_name=row.hierarchy_project_name if hasattr(row, "hierarchy_project_name") else None,
-                hierarchy_team_id=row.hierarchy_team_id if hasattr(row, "hierarchy_team_id") else None,
-                hierarchy_team_name=row.hierarchy_team_name if hasattr(row, "hierarchy_team_name") else None,
+                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
+                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
+                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
+                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)
@@ -1647,13 +1636,11 @@ async def create_plan(
         )
 
     # CRUD-001: Validate hierarchy IDs exist in org_hierarchy table before insert
-    if plan.hierarchy_dept_id or plan.hierarchy_project_id or plan.hierarchy_team_id:
+    if plan.hierarchy_entity_id:
         await validate_hierarchy_ids(
             bq_client=bq_client,
             org_slug=org_slug,
-            hierarchy_dept_id=plan.hierarchy_dept_id,
-            hierarchy_project_id=plan.hierarchy_project_id,
-            hierarchy_team_id=plan.hierarchy_team_id
+            hierarchy_entity_id=plan.hierarchy_entity_id
         )
 
     # EDGE-009: Using 12 hex chars (48 bits) for lower collision probability than 8 chars
@@ -1673,9 +1660,8 @@ async def create_plan(
         pricing_model, unit_price, yearly_price, discount_type,
         discount_value, auto_renew, payment_method, owner_email, department,
         renewal_date, contract_id, notes, source_currency, source_price,
-        exchange_rate_used, hierarchy_dept_id, hierarchy_dept_name,
-        hierarchy_project_id, hierarchy_project_name,
-        hierarchy_team_id, hierarchy_team_name, updated_at
+        exchange_rate_used, hierarchy_entity_id, hierarchy_entity_name,
+        hierarchy_level_code, hierarchy_path, hierarchy_path_names, updated_at
     ) VALUES (
         @org_slug,
         @subscription_id,
@@ -1703,12 +1689,11 @@ async def create_plan(
         @source_currency,
         @source_price,
         @exchange_rate_used,
-        @hierarchy_dept_id,
-        @hierarchy_dept_name,
-        @hierarchy_project_id,
-        @hierarchy_project_name,
-        @hierarchy_team_id,
-        @hierarchy_team_name,
+        @hierarchy_entity_id,
+        @hierarchy_entity_name,
+        @hierarchy_level_code,
+        @hierarchy_path,
+        @hierarchy_path_names,
         CURRENT_TIMESTAMP()
     )
     """
@@ -1743,12 +1728,11 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("source_currency", "STRING", plan.source_currency),
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", plan.source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", plan.exchange_rate_used),
-                bigquery.ScalarQueryParameter("hierarchy_dept_id", "STRING", plan.hierarchy_dept_id),
-                bigquery.ScalarQueryParameter("hierarchy_dept_name", "STRING", plan.hierarchy_dept_name),
-                bigquery.ScalarQueryParameter("hierarchy_project_id", "STRING", plan.hierarchy_project_id),
-                bigquery.ScalarQueryParameter("hierarchy_project_name", "STRING", plan.hierarchy_project_name),
-                bigquery.ScalarQueryParameter("hierarchy_team_id", "STRING", plan.hierarchy_team_id),
-                bigquery.ScalarQueryParameter("hierarchy_team_name", "STRING", plan.hierarchy_team_name),
+                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", plan.hierarchy_entity_id),
+                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", plan.hierarchy_entity_name),
+                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", plan.hierarchy_level_code),
+                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", plan.hierarchy_path),
+                bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", plan.hierarchy_path_names),
             ],
             job_timeout_ms=30000  # 30 second timeout for user operations
         )
@@ -1782,9 +1766,8 @@ async def create_plan(
             discount_type, discount_value, auto_renew, payment_method,
             owner_email, department, renewal_date, contract_id, notes, updated_at,
             source_currency, source_price, exchange_rate_used,
-            hierarchy_dept_id, hierarchy_dept_name,
-            hierarchy_project_id, hierarchy_project_name,
-            hierarchy_team_id, hierarchy_team_name
+            hierarchy_entity_id, hierarchy_entity_name,
+            hierarchy_level_code, hierarchy_path, hierarchy_path_names
         FROM `{table_ref}`
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id
         """
@@ -1827,12 +1810,11 @@ async def create_plan(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_dept_id=row.hierarchy_dept_id if hasattr(row, "hierarchy_dept_id") else None,
-                hierarchy_dept_name=row.hierarchy_dept_name if hasattr(row, "hierarchy_dept_name") else None,
-                hierarchy_project_id=row.hierarchy_project_id if hasattr(row, "hierarchy_project_id") else None,
-                hierarchy_project_name=row.hierarchy_project_name if hasattr(row, "hierarchy_project_name") else None,
-                hierarchy_team_id=row.hierarchy_team_id if hasattr(row, "hierarchy_team_id") else None,
-                hierarchy_team_name=row.hierarchy_team_name if hasattr(row, "hierarchy_team_name") else None,
+                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
+                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
+                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
+                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
             )
             break
 
@@ -2000,8 +1982,8 @@ async def update_plan(
         'seats', 'pricing_model', 'yearly_price', 'discount_type', 'discount_value',
         'auto_renew', 'payment_method', 'owner_email', 'department', 'renewal_date',
         'contract_id', 'notes', 'source_currency', 'source_price', 'exchange_rate_used', 'end_date',
-        'hierarchy_dept_id', 'hierarchy_dept_name', 'hierarchy_project_id',
-        'hierarchy_project_name', 'hierarchy_team_id', 'hierarchy_team_name'
+        'hierarchy_entity_id', 'hierarchy_entity_name', 'hierarchy_level_code',
+        'hierarchy_path', 'hierarchy_path_names'
     }
 
     set_parts = ["updated_at = CURRENT_TIMESTAMP()"]
@@ -2075,9 +2057,8 @@ async def update_plan(
             invoice_id_last, owner_email, department, renewal_date,
             contract_id, notes, updated_at,
             source_currency, source_price, exchange_rate_used,
-            hierarchy_dept_id, hierarchy_dept_name,
-            hierarchy_project_id, hierarchy_project_name,
-            hierarchy_team_id, hierarchy_team_name
+            hierarchy_entity_id, hierarchy_entity_name,
+            hierarchy_level_code, hierarchy_path, hierarchy_path_names
         FROM `{table_ref}`
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id
         """
@@ -2120,12 +2101,11 @@ async def update_plan(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_dept_id=row.hierarchy_dept_id if hasattr(row, "hierarchy_dept_id") else None,
-                hierarchy_dept_name=row.hierarchy_dept_name if hasattr(row, "hierarchy_dept_name") else None,
-                hierarchy_project_id=row.hierarchy_project_id if hasattr(row, "hierarchy_project_id") else None,
-                hierarchy_project_name=row.hierarchy_project_name if hasattr(row, "hierarchy_project_name") else None,
-                hierarchy_team_id=row.hierarchy_team_id if hasattr(row, "hierarchy_team_id") else None,
-                hierarchy_team_name=row.hierarchy_team_name if hasattr(row, "hierarchy_team_name") else None,
+                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
+                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
+                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
+                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             # Invalidate relevant caches after updating plan
@@ -2249,9 +2229,8 @@ async def edit_plan_with_version(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at,
         source_currency, source_price, exchange_rate_used,
-        hierarchy_dept_id, hierarchy_dept_name,
-        hierarchy_project_id, hierarchy_project_name,
-        hierarchy_team_id, hierarchy_team_name
+        hierarchy_entity_id, hierarchy_entity_name,
+        hierarchy_level_code, hierarchy_path, hierarchy_path_names
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
@@ -2379,12 +2358,11 @@ async def edit_plan_with_version(
         new_source_price = request.source_price if request.source_price is not None else (current_row.source_price if hasattr(current_row, "source_price") else None)
         new_exchange_rate_used = request.exchange_rate_used if request.exchange_rate_used is not None else (current_row.exchange_rate_used if hasattr(current_row, "exchange_rate_used") else None)
         # Hierarchy fields - carry over from current or use new values from request
-        new_hierarchy_dept_id = request.hierarchy_dept_id if request.hierarchy_dept_id is not None else (current_row.hierarchy_dept_id if hasattr(current_row, "hierarchy_dept_id") else None)
-        new_hierarchy_dept_name = request.hierarchy_dept_name if request.hierarchy_dept_name is not None else (current_row.hierarchy_dept_name if hasattr(current_row, "hierarchy_dept_name") else None)
-        new_hierarchy_project_id = request.hierarchy_project_id if request.hierarchy_project_id is not None else (current_row.hierarchy_project_id if hasattr(current_row, "hierarchy_project_id") else None)
-        new_hierarchy_project_name = request.hierarchy_project_name if request.hierarchy_project_name is not None else (current_row.hierarchy_project_name if hasattr(current_row, "hierarchy_project_name") else None)
-        new_hierarchy_team_id = request.hierarchy_team_id if request.hierarchy_team_id is not None else (current_row.hierarchy_team_id if hasattr(current_row, "hierarchy_team_id") else None)
-        new_hierarchy_team_name = request.hierarchy_team_name if request.hierarchy_team_name is not None else (current_row.hierarchy_team_name if hasattr(current_row, "hierarchy_team_name") else None)
+        new_hierarchy_entity_id = request.hierarchy_entity_id if request.hierarchy_entity_id is not None else (current_row.hierarchy_entity_id if hasattr(current_row, "hierarchy_entity_id") else None)
+        new_hierarchy_entity_name = request.hierarchy_entity_name if request.hierarchy_entity_name is not None else (current_row.hierarchy_entity_name if hasattr(current_row, "hierarchy_entity_name") else None)
+        new_hierarchy_level_code = request.hierarchy_level_code if request.hierarchy_level_code is not None else (current_row.hierarchy_level_code if hasattr(current_row, "hierarchy_level_code") else None)
+        new_hierarchy_path = request.hierarchy_path if request.hierarchy_path is not None else (current_row.hierarchy_path if hasattr(current_row, "hierarchy_path") else None)
+        new_hierarchy_path_names = request.hierarchy_path_names if request.hierarchy_path_names is not None else (current_row.hierarchy_path_names if hasattr(current_row, "hierarchy_path_names") else None)
 
         insert_query = f"""
         INSERT INTO `{table_ref}` (
@@ -2393,18 +2371,16 @@ async def edit_plan_with_version(
             pricing_model, unit_price, yearly_price, discount_type,
             discount_value, auto_renew, payment_method, owner_email, department,
             renewal_date, contract_id, notes, source_currency, source_price,
-            exchange_rate_used, hierarchy_dept_id, hierarchy_dept_name,
-            hierarchy_project_id, hierarchy_project_name,
-            hierarchy_team_id, hierarchy_team_name, updated_at
+            exchange_rate_used, hierarchy_entity_id, hierarchy_entity_name,
+            hierarchy_level_code, hierarchy_path, hierarchy_path_names, updated_at
         ) VALUES (
             @org_slug, @subscription_id, @provider, @plan_name, @display_name,
             @category, @status, @start_date, @billing_cycle, @currency, @seats,
             @pricing_model, @unit_price, @yearly_price, @discount_type,
             @discount_value, @auto_renew, @payment_method, @owner_email, @department,
             @renewal_date, @contract_id, @notes, @source_currency, @source_price,
-            @exchange_rate_used, @hierarchy_dept_id, @hierarchy_dept_name,
-            @hierarchy_project_id, @hierarchy_project_name,
-            @hierarchy_team_id, @hierarchy_team_name, CURRENT_TIMESTAMP()
+            @exchange_rate_used, @hierarchy_entity_id, @hierarchy_entity_name,
+            @hierarchy_level_code, @hierarchy_path, @hierarchy_path_names, CURRENT_TIMESTAMP()
         )
         """
         insert_config = bigquery.QueryJobConfig(
@@ -2435,12 +2411,11 @@ async def edit_plan_with_version(
                 bigquery.ScalarQueryParameter("source_currency", "STRING", new_source_currency),
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", new_source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", new_exchange_rate_used),
-                bigquery.ScalarQueryParameter("hierarchy_dept_id", "STRING", new_hierarchy_dept_id),
-                bigquery.ScalarQueryParameter("hierarchy_dept_name", "STRING", new_hierarchy_dept_name),
-                bigquery.ScalarQueryParameter("hierarchy_project_id", "STRING", new_hierarchy_project_id),
-                bigquery.ScalarQueryParameter("hierarchy_project_name", "STRING", new_hierarchy_project_name),
-                bigquery.ScalarQueryParameter("hierarchy_team_id", "STRING", new_hierarchy_team_id),
-                bigquery.ScalarQueryParameter("hierarchy_team_name", "STRING", new_hierarchy_team_name),
+                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", new_hierarchy_entity_id),
+                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", new_hierarchy_entity_name),
+                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", new_hierarchy_level_code),
+                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", new_hierarchy_path),
+                bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", new_hierarchy_path_names),
             ],
             job_timeout_ms=60000  # Increased timeout for write operations
         )
@@ -2507,12 +2482,11 @@ async def edit_plan_with_version(
             source_currency=current_row.source_currency if hasattr(current_row, "source_currency") else None,
             source_price=float(current_row.source_price) if hasattr(current_row, "source_price") and current_row.source_price else None,
             exchange_rate_used=float(current_row.exchange_rate_used) if hasattr(current_row, "exchange_rate_used") and current_row.exchange_rate_used else None,
-            hierarchy_dept_id=current_row.hierarchy_dept_id if hasattr(current_row, "hierarchy_dept_id") else None,
-            hierarchy_dept_name=current_row.hierarchy_dept_name if hasattr(current_row, "hierarchy_dept_name") else None,
-            hierarchy_project_id=current_row.hierarchy_project_id if hasattr(current_row, "hierarchy_project_id") else None,
-            hierarchy_project_name=current_row.hierarchy_project_name if hasattr(current_row, "hierarchy_project_name") else None,
-            hierarchy_team_id=current_row.hierarchy_team_id if hasattr(current_row, "hierarchy_team_id") else None,
-            hierarchy_team_name=current_row.hierarchy_team_name if hasattr(current_row, "hierarchy_team_name") else None,
+            hierarchy_entity_id=current_row.hierarchy_entity_id if hasattr(current_row, "hierarchy_entity_id") else None,
+            hierarchy_entity_name=current_row.hierarchy_entity_name if hasattr(current_row, "hierarchy_entity_name") else None,
+            hierarchy_level_code=current_row.hierarchy_level_code if hasattr(current_row, "hierarchy_level_code") else None,
+            hierarchy_path=current_row.hierarchy_path if hasattr(current_row, "hierarchy_path") else None,
+            hierarchy_path_names=current_row.hierarchy_path_names if hasattr(current_row, "hierarchy_path_names") else None,
         )
 
         new_plan = SubscriptionPlan(
@@ -2542,12 +2516,11 @@ async def edit_plan_with_version(
             source_currency=new_source_currency,
             source_price=new_source_price,
             exchange_rate_used=new_exchange_rate_used,
-            hierarchy_dept_id=new_hierarchy_dept_id,
-            hierarchy_dept_name=new_hierarchy_dept_name,
-            hierarchy_project_id=new_hierarchy_project_id,
-            hierarchy_project_name=new_hierarchy_project_name,
-            hierarchy_team_id=new_hierarchy_team_id,
-            hierarchy_team_name=new_hierarchy_team_name,
+            hierarchy_entity_id=new_hierarchy_entity_id,
+            hierarchy_entity_name=new_hierarchy_entity_name,
+            hierarchy_level_code=new_hierarchy_level_code,
+            hierarchy_path=new_hierarchy_path,
+            hierarchy_path_names=new_hierarchy_path_names,
         )
 
         # Invalidate caches
@@ -2920,9 +2893,8 @@ async def get_all_plans(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at,
         source_currency, source_price, exchange_rate_used,
-        hierarchy_dept_id, hierarchy_dept_name,
-        hierarchy_project_id, hierarchy_project_name,
-        hierarchy_team_id, hierarchy_team_name
+        hierarchy_entity_id, hierarchy_entity_name,
+        hierarchy_level_code, hierarchy_path, hierarchy_path_names
     FROM `{table_ref}`
     {where_clause}
     ORDER BY provider, plan_name
@@ -2986,12 +2958,11 @@ async def get_all_plans(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_dept_id=row.hierarchy_dept_id if hasattr(row, "hierarchy_dept_id") else None,
-                hierarchy_dept_name=row.hierarchy_dept_name if hasattr(row, "hierarchy_dept_name") else None,
-                hierarchy_project_id=row.hierarchy_project_id if hasattr(row, "hierarchy_project_id") else None,
-                hierarchy_project_name=row.hierarchy_project_name if hasattr(row, "hierarchy_project_name") else None,
-                hierarchy_team_id=row.hierarchy_team_id if hasattr(row, "hierarchy_team_id") else None,
-                hierarchy_team_name=row.hierarchy_team_name if hasattr(row, "hierarchy_team_name") else None,
+                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
+                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
+                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
+                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)

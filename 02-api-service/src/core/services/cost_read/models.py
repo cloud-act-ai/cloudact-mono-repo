@@ -25,10 +25,9 @@ class CostQuery:
     3. fiscal_year → specific fiscal year
     4. Default → current fiscal YTD
 
-    Hierarchy filtering:
-    - department_id: Filter by x_hierarchy_dept_id
-    - project_id: Filter by x_hierarchy_project_id
-    - team_id: Filter by x_hierarchy_team_id
+    Hierarchy filtering (N-level):
+    - hierarchy_entity_id: Filter by x_hierarchy_entity_id
+    - hierarchy_path: Filter by x_hierarchy_path prefix for hierarchical filtering
     """
     org_slug: str
     start_date: Optional[date] = None
@@ -38,10 +37,9 @@ class CostQuery:
     fiscal_year_start_month: int = 1  # From org settings
     providers: Optional[List[str]] = None
     service_categories: Optional[List[str]] = None
-    # Hierarchy filters
-    department_id: Optional[str] = None
-    project_id: Optional[str] = None
-    team_id: Optional[str] = None
+    # N-level hierarchy filters
+    hierarchy_entity_id: Optional[str] = None
+    hierarchy_path: Optional[str] = None
     group_by: Optional[List[str]] = None
     limit: int = 10000
     offset: int = 0

@@ -25,9 +25,10 @@ class CostFilterParams:
     services: Optional[List[str]] = None
     min_cost: Optional[float] = None
     max_cost: Optional[float] = None
-    hierarchy_dept_id: Optional[str] = None
-    hierarchy_project_id: Optional[str] = None
-    hierarchy_team_id: Optional[str] = None
+    # N-level hierarchy filters (v14.0 - replaces fixed 3-level fields)
+    hierarchy_entity_id: Optional[str] = None
+    hierarchy_level_code: Optional[str] = None
+    hierarchy_path: Optional[str] = None  # Filter by path prefix for rollup queries
 
     def has_filters(self) -> bool:
         """Check if any filters are set."""
@@ -39,9 +40,9 @@ class CostFilterParams:
             self.services,
             self.min_cost is not None,
             self.max_cost is not None,
-            self.hierarchy_dept_id,
-            self.hierarchy_project_id,
-            self.hierarchy_team_id,
+            self.hierarchy_entity_id,
+            self.hierarchy_level_code,
+            self.hierarchy_path,
         ])
 
 
@@ -257,18 +258,18 @@ def filter_services(
 
 def filter_hierarchy(
     df: pl.DataFrame,
-    dept_id: Optional[str] = None,
-    project_id: Optional[str] = None,
-    team_id: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    level_code: Optional[str] = None,
+    path_prefix: Optional[str] = None,
 ) -> pl.DataFrame:
     """
-    Filter DataFrame by organizational hierarchy.
+    Filter DataFrame by organizational hierarchy (N-level support).
 
     Args:
         df: Polars DataFrame with cost data
-        dept_id: Filter by department ID
-        project_id: Filter by project ID
-        team_id: Filter by team ID
+        entity_id: Filter by specific entity ID (leaf node)
+        level_code: Filter by hierarchy level (e.g., 'department', 'project', 'team')
+        path_prefix: Filter by path prefix for rollup queries (e.g., '/DEPT-001' gets all under that dept)
 
     Returns:
         Filtered DataFrame
@@ -276,14 +277,17 @@ def filter_hierarchy(
     if df.is_empty():
         return df
 
-    if dept_id and "x_hierarchy_dept_id" in df.columns:
-        df = df.filter(pl.col("x_hierarchy_dept_id") == dept_id)
+    # Filter by specific entity ID
+    if entity_id and "x_hierarchy_entity_id" in df.columns:
+        df = df.filter(pl.col("x_hierarchy_entity_id") == entity_id)
 
-    if project_id and "x_hierarchy_project_id" in df.columns:
-        df = df.filter(pl.col("x_hierarchy_project_id") == project_id)
+    # Filter by hierarchy level
+    if level_code and "x_hierarchy_level_code" in df.columns:
+        df = df.filter(pl.col("x_hierarchy_level_code") == level_code)
 
-    if team_id and "x_hierarchy_team_id" in df.columns:
-        df = df.filter(pl.col("x_hierarchy_team_id") == team_id)
+    # Filter by path prefix (for rollup queries - get all costs under a parent)
+    if path_prefix and "x_hierarchy_path" in df.columns:
+        df = df.filter(pl.col("x_hierarchy_path").str.starts_with(path_prefix))
 
     return df
 
@@ -380,13 +384,13 @@ def apply_cost_filters(
     if params.min_cost is not None or params.max_cost is not None:
         df = filter_cost_range(df, params.min_cost, params.max_cost, cost_column)
 
-    # Apply hierarchy filter
-    if params.hierarchy_dept_id or params.hierarchy_project_id or params.hierarchy_team_id:
+    # Apply hierarchy filter (N-level)
+    if params.hierarchy_entity_id or params.hierarchy_level_code or params.hierarchy_path:
         df = filter_hierarchy(
             df,
-            params.hierarchy_dept_id,
-            params.hierarchy_project_id,
-            params.hierarchy_team_id,
+            entity_id=params.hierarchy_entity_id,
+            level_code=params.hierarchy_level_code,
+            path_prefix=params.hierarchy_path,
         )
 
     return df

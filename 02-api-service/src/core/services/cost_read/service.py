@@ -240,18 +240,15 @@ class CostReadService:
                 )
                 query_params.append(bigquery.ArrayQueryParameter("genai_providers", "STRING", genai_providers))
 
-        # Hierarchy filters
-        if query.department_id:
-            where_conditions.append("x_hierarchy_dept_id = @department_id")
-            query_params.append(bigquery.ScalarQueryParameter("department_id", "STRING", query.department_id))
+        # N-level hierarchy filters
+        if query.hierarchy_entity_id:
+            where_conditions.append("x_hierarchy_entity_id = @hierarchy_entity_id")
+            query_params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", query.hierarchy_entity_id))
 
-        if query.project_id:
-            where_conditions.append("x_hierarchy_project_id = @project_id")
-            query_params.append(bigquery.ScalarQueryParameter("project_id", "STRING", query.project_id))
-
-        if query.team_id:
-            where_conditions.append("x_hierarchy_team_id = @team_id")
-            query_params.append(bigquery.ScalarQueryParameter("team_id", "STRING", query.team_id))
+        if query.hierarchy_path:
+            # Use STARTS_WITH for hierarchical filtering (e.g., /DEPT-001/% matches all children)
+            where_conditions.append("x_hierarchy_path LIKE @hierarchy_path_prefix")
+            query_params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{query.hierarchy_path}%"))
 
         where_clause = " AND ".join(where_conditions)
 
@@ -275,12 +272,11 @@ class CostReadService:
             DATE(ChargePeriodStart) as ChargePeriodStart,
             DATE(ChargePeriodEnd) as ChargePeriodEnd,
             x_source_system,
-            x_hierarchy_dept_id,
-            x_hierarchy_dept_name,
-            x_hierarchy_project_id,
-            x_hierarchy_project_name,
-            x_hierarchy_team_id,
-            x_hierarchy_team_name
+            x_hierarchy_entity_id,
+            x_hierarchy_entity_name,
+            x_hierarchy_level_code,
+            x_hierarchy_path,
+            x_hierarchy_path_names
         FROM {table_ref}
         WHERE {where_clause}
         ORDER BY ChargePeriodStart DESC
@@ -1336,29 +1332,17 @@ class CostReadService:
                     "providers": _safe_unique_list(df, "ServiceProviderName"),
                     "categories": list(set(row.get("category", "other") for row in granular_data)),
                     "departments": [
-                        {"id": d, "name": n}
-                        for d, n in set(
-                            (row.get("x_hierarchy_dept_id"), row.get("x_hierarchy_dept_name"))
-                            for row in df.select(["x_hierarchy_dept_id", "x_hierarchy_dept_name"]).unique().to_dicts()
-                            if row.get("x_hierarchy_dept_id")
+                        {"id": e, "name": n, "level_code": lc, "path": p}
+                        for e, n, lc, p in set(
+                            (row.get("x_hierarchy_entity_id"), row.get("x_hierarchy_entity_name"),
+                             row.get("x_hierarchy_level_code"), row.get("x_hierarchy_path"))
+                            for row in df.select([
+                                "x_hierarchy_entity_id", "x_hierarchy_entity_name",
+                                "x_hierarchy_level_code", "x_hierarchy_path"
+                            ]).unique().to_dicts()
+                            if row.get("x_hierarchy_entity_id")
                         )
-                    ] if "x_hierarchy_dept_id" in df.columns else [],
-                    "projects": [
-                        {"id": p, "name": n}
-                        for p, n in set(
-                            (row.get("x_hierarchy_project_id"), row.get("x_hierarchy_project_name"))
-                            for row in df.select(["x_hierarchy_project_id", "x_hierarchy_project_name"]).unique().to_dicts()
-                            if row.get("x_hierarchy_project_id")
-                        )
-                    ] if "x_hierarchy_project_id" in df.columns else [],
-                    "teams": [
-                        {"id": t, "name": n}
-                        for t, n in set(
-                            (row.get("x_hierarchy_team_id"), row.get("x_hierarchy_team_name"))
-                            for row in df.select(["x_hierarchy_team_id", "x_hierarchy_team_name"]).unique().to_dicts()
-                            if row.get("x_hierarchy_team_id")
-                        )
-                    ] if "x_hierarchy_team_id" in df.columns else [],
+                    ] if "x_hierarchy_entity_id" in df.columns else [],
                 },
             }
 

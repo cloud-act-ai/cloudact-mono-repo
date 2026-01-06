@@ -173,59 +173,51 @@ SELECT * FROM hierarchy_tree
 ORDER BY path;
 ```
 
-### 6. Assign Subscription to Hierarchy
+### 6. Assign Subscription to N-Level Hierarchy
 ```bash
-# Update subscription with hierarchy mapping
+# Update subscription with N-level hierarchy mapping
 curl -X PUT "http://localhost:8000/api/v1/subscriptions/{org_slug}/plans/{plan_id}" \
   -H "X-API-Key: {org_api_key}" \
   -H "Content-Type: application/json" \
   -d '{
-    "hierarchy_dept_id": "dept-001",
-    "hierarchy_dept_name": "Engineering",
-    "hierarchy_project_id": "proj-001",
-    "hierarchy_project_name": "Platform",
-    "hierarchy_team_id": "team-001",
-    "hierarchy_team_name": "Backend Team"
+    "hierarchy_entity_id": "team-001",
+    "hierarchy_entity_name": "Backend Team",
+    "hierarchy_level_code": "team",
+    "hierarchy_path": "/dept-001/proj-001/team-001",
+    "hierarchy_path_names": "Engineering > Platform > Backend Team"
   }'
 ```
 
 ### 7. Get Costs by Hierarchy
 ```sql
--- Costs by department
+-- Costs by hierarchy entity (N-level)
 SELECT
-    hierarchy_dept_name as department,
+    x_hierarchy_entity_name as entity,
+    x_hierarchy_level_code as level,
+    x_hierarchy_path_names as path,
     SUM(EffectiveCost) as total_cost,
     currency
 FROM `{org_slug}_prod.cost_data_standard_1_3`
-WHERE hierarchy_dept_id IS NOT NULL
-GROUP BY hierarchy_dept_name, currency
+WHERE x_hierarchy_entity_id IS NOT NULL
+GROUP BY x_hierarchy_entity_name, x_hierarchy_level_code, x_hierarchy_path_names, currency
 ORDER BY total_cost DESC;
 
--- Costs by project
+-- Costs by hierarchy path prefix (all under a department)
 SELECT
-    hierarchy_dept_name as department,
-    hierarchy_project_name as project,
+    x_hierarchy_path_names as path,
     SUM(EffectiveCost) as total_cost
 FROM `{org_slug}_prod.cost_data_standard_1_3`
-WHERE hierarchy_project_id IS NOT NULL
-GROUP BY hierarchy_dept_name, hierarchy_project_name
-ORDER BY total_cost DESC;
-
--- Costs by team
-SELECT
-    hierarchy_team_name as team,
-    SUM(EffectiveCost) as total_cost
-FROM `{org_slug}_prod.cost_data_standard_1_3`
-WHERE hierarchy_team_id IS NOT NULL
-GROUP BY hierarchy_team_name
+WHERE x_hierarchy_path LIKE '/dept-001/%'
+GROUP BY x_hierarchy_path_names
 ORDER BY total_cost DESC;
 ```
 
-## Path Format
+## Path Format (N-Level Hierarchy)
 ```
-org_slug/dept-001/proj-001/team-001
-└──────┘ └──────┘ └──────┘ └──────┘
-  Org     Dept     Project   Team
+/dept-001/proj-001/team-001
+ └──────┘ └──────┘ └──────┘
+   L1       L2       L3
+   (any configurable level names)
 ```
 
 ## Version History

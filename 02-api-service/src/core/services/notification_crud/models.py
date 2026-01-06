@@ -269,9 +269,8 @@ class NotificationRuleBase(BaseModel):
     # Filters
     provider_filter: Optional[List[str]] = Field(default=None, description="Filter by providers")
     service_filter: Optional[List[str]] = Field(default=None, description="Filter by services")
-    hierarchy_dept_id: Optional[str] = Field(default=None, description="Filter by department")
-    hierarchy_project_id: Optional[str] = Field(default=None, description="Filter by project")
-    hierarchy_team_id: Optional[str] = Field(default=None, description="Filter by team")
+    hierarchy_entity_id: Optional[str] = Field(default=None, description="N-level hierarchy entity ID")
+    hierarchy_path: Optional[str] = Field(default=None, description="Materialized path for hierarchy filtering")
 
     # Delivery
     notify_channel_ids: List[str] = Field(..., min_length=1, description="Channels to notify")
@@ -312,9 +311,8 @@ class NotificationRuleUpdate(BaseModel):
     conditions: Optional[RuleConditions] = None
     provider_filter: Optional[List[str]] = None
     service_filter: Optional[List[str]] = None
-    hierarchy_dept_id: Optional[str] = None
-    hierarchy_project_id: Optional[str] = None
-    hierarchy_team_id: Optional[str] = None
+    hierarchy_entity_id: Optional[str] = None
+    hierarchy_path: Optional[str] = None
     notify_channel_ids: Optional[List[str]] = None
     escalate_after_mins: Optional[int] = None
     escalate_to_channel_ids: Optional[List[str]] = None

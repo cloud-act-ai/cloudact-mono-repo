@@ -136,9 +136,8 @@ export interface NotificationRule {
   conditions: RuleConditions
   provider_filter?: string[]
   service_filter?: string[]
-  hierarchy_dept_id?: string
-  hierarchy_project_id?: string
-  hierarchy_team_id?: string
+  hierarchy_entity_id?: string
+  hierarchy_path?: string
   notify_channel_ids: string[]
   escalate_after_mins?: number
   escalate_to_channel_ids?: string[]
@@ -166,9 +165,8 @@ export interface NotificationRuleCreate {
   conditions: RuleConditions
   provider_filter?: string[]
   service_filter?: string[]
-  hierarchy_dept_id?: string
-  hierarchy_project_id?: string
-  hierarchy_team_id?: string
+  hierarchy_entity_id?: string
+  hierarchy_path?: string
   notify_channel_ids: string[]
   escalate_after_mins?: number
   escalate_to_channel_ids?: string[]
@@ -187,9 +185,8 @@ export interface NotificationRuleUpdate {
   conditions?: RuleConditions
   provider_filter?: string[]
   service_filter?: string[]
-  hierarchy_dept_id?: string
-  hierarchy_project_id?: string
-  hierarchy_team_id?: string
+  hierarchy_entity_id?: string
+  hierarchy_path?: string
   notify_channel_ids?: string[]
   escalate_after_mins?: number
   escalate_to_channel_ids?: string[]

@@ -66,22 +66,16 @@
     "description": "Filter by specific services (null = all)"
   },
   {
-    "name": "hierarchy_dept_id",
+    "name": "hierarchy_entity_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Filter by department ID"
+    "description": "N-level hierarchy entity ID for filtering"
   },
   {
-    "name": "hierarchy_project_id",
+    "name": "hierarchy_path",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Filter by project ID"
-  },
-  {
-    "name": "hierarchy_team_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Filter by team ID"
+    "description": "Materialized path for hierarchy filtering (e.g., /DEPT-001/PROJ-001)"
   },
   {
     "name": "notify_channel_ids",

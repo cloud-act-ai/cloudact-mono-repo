@@ -109,9 +109,8 @@ BEGIN
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
         invoice_id_last, source,
-        hierarchy_dept_id, hierarchy_dept_name,
-        hierarchy_project_id, hierarchy_project_name,
-        hierarchy_team_id, hierarchy_team_name,
+        hierarchy_entity_id, hierarchy_entity_name,
+        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
         updated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
       )
       WITH subscriptions AS (
@@ -156,13 +155,12 @@ BEGIN
           -- NULL or 1 = calendar-aligned (1st of month)
           -- ASC 606 / IFRS 15 compliant: Track billing cycle anniversary
           COALESCE(billing_anchor_day, 1) AS billing_anchor_day,
-          -- Hierarchy fields for cost allocation
-          hierarchy_dept_id,
-          hierarchy_dept_name,
-          hierarchy_project_id,
-          hierarchy_project_name,
-          hierarchy_team_id,
-          hierarchy_team_name
+          -- N-level hierarchy fields for cost allocation (v14.0)
+          hierarchy_entity_id,
+          hierarchy_entity_name,
+          hierarchy_level_code,
+          hierarchy_path,
+          hierarchy_path_names
         FROM `%s.%s.subscription_plans`
         WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
@@ -382,13 +380,12 @@ BEGIN
             END AS NUMERIC
           ) AS daily_cost,
           s.invoice_id_last,
-          -- Hierarchy fields for cost allocation
-          s.hierarchy_dept_id,
-          s.hierarchy_dept_name,
-          s.hierarchy_project_id,
-          s.hierarchy_project_name,
-          s.hierarchy_team_id,
-          s.hierarchy_team_name
+          -- N-level hierarchy fields for cost allocation (v14.0)
+          s.hierarchy_entity_id,
+          s.hierarchy_entity_name,
+          s.hierarchy_level_code,
+          s.hierarchy_path,
+          s.hierarchy_path_names
         FROM with_cycle_cost s
         CROSS JOIN UNNEST(
           GENERATE_DATE_ARRAY(
@@ -423,13 +420,12 @@ BEGIN
         ) AS NUMERIC) AS annual_run_rate,
         invoice_id_last,
         'subscription_amortization' AS source,
-        -- Hierarchy fields for cost allocation
-        hierarchy_dept_id,
-        hierarchy_dept_name,
-        hierarchy_project_id,
-        hierarchy_project_name,
-        hierarchy_team_id,
-        hierarchy_team_name,
+        -- N-level hierarchy fields for cost allocation (v14.0)
+        hierarchy_entity_id,
+        hierarchy_entity_name,
+        hierarchy_level_code,
+        hierarchy_path,
+        hierarchy_path_names,
         CURRENT_TIMESTAMP() AS updated_at,
         -- Pipeline lineage columns (x_ prefix)
         'subscription_cost' AS x_pipeline_id,

@@ -71,7 +71,7 @@ import {
   type PlanCreate,
   type BillingCycle,
 } from "@/actions/subscription-providers"
-import { getEntitiesByLevel, type HierarchyEntity } from "@/actions/hierarchy"
+import { getHierarchy, type HierarchyEntity } from "@/actions/hierarchy"
 import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
@@ -150,20 +150,22 @@ interface FormDataWithAudit {
   source_currency?: string
   source_price?: number
   exchange_rate_used?: number
-  // Hierarchy fields for cost allocation
-  hierarchy_dept_id?: string
-  hierarchy_dept_name?: string
-  hierarchy_project_id?: string
-  hierarchy_project_name?: string
-  hierarchy_team_id?: string
-  hierarchy_team_name?: string
+  // N-level hierarchy fields for cost allocation (v14.0)
+  hierarchy_entity_id?: string
+  hierarchy_entity_name?: string
+  hierarchy_level_code?: string
+  hierarchy_path?: string
+  hierarchy_path_names?: string
 }
 
-// Hierarchy entity for dropdown
+// Hierarchy entity for N-level dropdown
 interface HierarchyOption {
   entity_id: string
   entity_name: string
-  parent_id: string | null
+  level_code: string
+  path: string
+  path_names: string[]
+  depth: number
 }
 
 export default function ProviderDetailPage() {
@@ -214,12 +216,8 @@ export default function ProviderDetailPage() {
   })
   const [isFromTemplate, setIsFromTemplate] = useState(false)
 
-  // Hierarchy state for cost allocation dropdowns
-  const [departments, setDepartments] = useState<HierarchyOption[]>([])
-  const [projects, setProjects] = useState<HierarchyOption[]>([])
-  const [teams, setTeams] = useState<HierarchyOption[]>([])
-  const [filteredProjects, setFilteredProjects] = useState<HierarchyOption[]>([])
-  const [filteredTeams, setFilteredTeams] = useState<HierarchyOption[]>([])
+  // N-level hierarchy state for cost allocation dropdown
+  const [hierarchyEntities, setHierarchyEntities] = useState<HierarchyOption[]>([])
   const [loadingHierarchy, setLoadingHierarchy] = useState(false)
 
   // Load plans from BigQuery
@@ -332,41 +330,29 @@ export default function ProviderDetailPage() {
     setCustomSheetOpen(true)
   }
 
-  // Load hierarchy entities for cost allocation dropdowns
+  // Load N-level hierarchy entities for cost allocation dropdown
   const loadHierarchy = useCallback(async () => {
     setLoadingHierarchy(true)
     try {
-      // Use N-level hierarchy API: getEntitiesByLevel(orgSlug, levelCode)
-      const [deptsResult, projsResult, teamsResult] = await Promise.all([
-        getEntitiesByLevel(orgSlug, "department"),
-        getEntitiesByLevel(orgSlug, "project"),
-        getEntitiesByLevel(orgSlug, "team"),
-      ])
+      // Use N-level hierarchy API: getHierarchy(orgSlug) without level filter
+      const result = await getHierarchy(orgSlug)
 
-      if (deptsResult.success && deptsResult.data) {
-        setDepartments(deptsResult.data.map((d: HierarchyEntity) => ({
-          entity_id: d.entity_id,
-          entity_name: d.entity_name,
-          parent_id: d.parent_id,
-        })))
-      }
-      if (projsResult.success && projsResult.data) {
-        const projOptions = projsResult.data.map((p: HierarchyEntity) => ({
-          entity_id: p.entity_id,
-          entity_name: p.entity_name,
-          parent_id: p.parent_id,
-        }))
-        setProjects(projOptions)
-        setFilteredProjects(projOptions)
-      }
-      if (teamsResult.success && teamsResult.data) {
-        const teamOptions = teamsResult.data.map((t: HierarchyEntity) => ({
-          entity_id: t.entity_id,
-          entity_name: t.entity_name,
-          parent_id: t.parent_id,
-        }))
-        setTeams(teamOptions)
-        setFilteredTeams(teamOptions)
+      if (result.success && result.data) {
+        // Sort by depth for hierarchical display, then by name
+        const sortedEntities = result.data
+          .map((e: HierarchyEntity) => ({
+            entity_id: e.entity_id,
+            entity_name: e.entity_name,
+            level_code: e.level_code,
+            path: e.path,
+            path_names: e.path_names || [],
+            depth: e.depth,
+          }))
+          .sort((a: HierarchyOption, b: HierarchyOption) => {
+            if (a.depth !== b.depth) return a.depth - b.depth
+            return a.entity_name.localeCompare(b.entity_name)
+          })
+        setHierarchyEntities(sortedEntities)
       }
     } catch (err) {
       console.error("Failed to load hierarchy:", err)
@@ -375,47 +361,31 @@ export default function ProviderDetailPage() {
     }
   }, [orgSlug])
 
-  // Filter projects when department changes
-  const handleDepartmentChange = (deptId: string) => {
-    const dept = departments.find(d => d.entity_id === deptId)
-    setFormData({
-      ...formData,
-      hierarchy_dept_id: deptId,
-      hierarchy_dept_name: dept?.entity_name || "",
-      hierarchy_project_id: undefined,
-      hierarchy_project_name: undefined,
-      hierarchy_team_id: undefined,
-      hierarchy_team_name: undefined,
-    })
-    // Filter projects by department
-    const filtered = projects.filter(p => p.parent_id === deptId)
-    setFilteredProjects(filtered)
-    setFilteredTeams([])
-  }
-
-  // Filter teams when project changes
-  const handleProjectChange = (projId: string) => {
-    const proj = projects.find(p => p.entity_id === projId)
-    setFormData({
-      ...formData,
-      hierarchy_project_id: projId,
-      hierarchy_project_name: proj?.entity_name || "",
-      hierarchy_team_id: undefined,
-      hierarchy_team_name: undefined,
-    })
-    // Filter teams by project
-    const filtered = teams.filter(t => t.parent_id === projId)
-    setFilteredTeams(filtered)
-  }
-
-  // Handle team selection
-  const handleTeamChange = (teamId: string) => {
-    const team = teams.find(t => t.entity_id === teamId)
-    setFormData({
-      ...formData,
-      hierarchy_team_id: teamId,
-      hierarchy_team_name: team?.entity_name || "",
-    })
+  // Handle N-level hierarchy entity selection
+  const handleHierarchyChange = (entityId: string) => {
+    if (!entityId) {
+      // Clear hierarchy selection
+      setFormData({
+        ...formData,
+        hierarchy_entity_id: undefined,
+        hierarchy_entity_name: undefined,
+        hierarchy_level_code: undefined,
+        hierarchy_path: undefined,
+        hierarchy_path_names: undefined,
+      })
+      return
+    }
+    const entity = hierarchyEntities.find(e => e.entity_id === entityId)
+    if (entity) {
+      setFormData({
+        ...formData,
+        hierarchy_entity_id: entity.entity_id,
+        hierarchy_entity_name: entity.entity_name,
+        hierarchy_level_code: entity.level_code,
+        hierarchy_path: entity.path,
+        hierarchy_path_names: entity.path_names.join(" > "),
+      })
+    }
   }
 
   // Open custom sheet with empty form
@@ -439,19 +409,15 @@ export default function ProviderDetailPage() {
       source_currency: undefined,
       source_price: undefined,
       exchange_rate_used: undefined,
-      hierarchy_dept_id: undefined,
-      hierarchy_dept_name: undefined,
-      hierarchy_project_id: undefined,
-      hierarchy_project_name: undefined,
-      hierarchy_team_id: undefined,
-      hierarchy_team_name: undefined,
+      hierarchy_entity_id: undefined,
+      hierarchy_entity_name: undefined,
+      hierarchy_level_code: undefined,
+      hierarchy_path: undefined,
+      hierarchy_path_names: undefined,
     })
     setIsFromTemplate(false)
     setStartDate(new Date())
     setError(null)
-    // Reset filtered hierarchy lists
-    setFilteredProjects(projects)
-    setFilteredTeams(teams)
   }
 
   // Handle form submission
@@ -504,12 +470,12 @@ export default function ProviderDetailPage() {
         source_currency?: string
         source_price?: number
         exchange_rate_used?: number
-        hierarchy_dept_id?: string
-        hierarchy_dept_name?: string
-        hierarchy_project_id?: string
-        hierarchy_project_name?: string
-        hierarchy_team_id?: string
-        hierarchy_team_name?: string
+        // N-level hierarchy fields (v14.0)
+        hierarchy_entity_id?: string
+        hierarchy_entity_name?: string
+        hierarchy_level_code?: string
+        hierarchy_path?: string
+        hierarchy_path_names?: string
       } = {
         plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
         display_name: formData.display_name || formData.plan_name,
@@ -529,18 +495,13 @@ export default function ProviderDetailPage() {
         planData.exchange_rate_used = formData.exchange_rate_used
       }
 
-      // Add hierarchy fields for cost allocation
-      if (formData.hierarchy_dept_id) {
-        planData.hierarchy_dept_id = formData.hierarchy_dept_id
-        planData.hierarchy_dept_name = formData.hierarchy_dept_name
-      }
-      if (formData.hierarchy_project_id) {
-        planData.hierarchy_project_id = formData.hierarchy_project_id
-        planData.hierarchy_project_name = formData.hierarchy_project_name
-      }
-      if (formData.hierarchy_team_id) {
-        planData.hierarchy_team_id = formData.hierarchy_team_id
-        planData.hierarchy_team_name = formData.hierarchy_team_name
+      // Add N-level hierarchy fields for cost allocation
+      if (formData.hierarchy_entity_id) {
+        planData.hierarchy_entity_id = formData.hierarchy_entity_id
+        planData.hierarchy_entity_name = formData.hierarchy_entity_name
+        planData.hierarchy_level_code = formData.hierarchy_level_code
+        planData.hierarchy_path = formData.hierarchy_path
+        planData.hierarchy_path_names = formData.hierarchy_path_names
       }
 
       const result = await createCustomPlan(orgSlug, provider, planData)
@@ -1280,7 +1241,7 @@ export default function ProviderDetailPage() {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground -mt-2">
-                Assign this subscription to a department, project, or team for cost tracking
+                Assign this subscription to a hierarchy entity for cost tracking
               </p>
 
               {loadingHierarchy ? (
@@ -1289,80 +1250,38 @@ export default function ProviderDetailPage() {
                   <span className="text-sm text-muted-foreground">Loading hierarchy...</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Department */}
-                  <div className="space-y-2">
-                    <Label>Department</Label>
-                    <Select
-                      value={formData.hierarchy_dept_id || ""}
-                      onValueChange={handleDepartmentChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select department..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.entity_id} value={dept.entity_id}>
-                            {dept.entity_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Project - filtered by department */}
-                  <div className="space-y-2">
-                    <Label>Project</Label>
-                    <Select
-                      value={formData.hierarchy_project_id || ""}
-                      onValueChange={handleProjectChange}
-                      disabled={!formData.hierarchy_dept_id || filteredProjects.length === 0}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          !formData.hierarchy_dept_id
-                            ? "Select department first..."
-                            : filteredProjects.length === 0
-                              ? "No projects in this department"
-                              : "Select project..."
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredProjects.map((proj) => (
-                          <SelectItem key={proj.entity_id} value={proj.entity_id}>
-                            {proj.entity_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Team - filtered by project */}
-                  <div className="space-y-2">
-                    <Label>Team</Label>
-                    <Select
-                      value={formData.hierarchy_team_id || ""}
-                      onValueChange={handleTeamChange}
-                      disabled={!formData.hierarchy_project_id || filteredTeams.length === 0}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          !formData.hierarchy_project_id
-                            ? "Select project first..."
-                            : filteredTeams.length === 0
-                              ? "No teams in this project"
-                              : "Select team..."
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredTeams.map((team) => (
-                          <SelectItem key={team.entity_id} value={team.entity_id}>
-                            {team.entity_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Cost Allocation Entity</Label>
+                  <Select
+                    value={formData.hierarchy_entity_id || ""}
+                    onValueChange={handleHierarchyChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select hierarchy entity...">
+                        {formData.hierarchy_entity_id && formData.hierarchy_path_names ? (
+                          <span className="truncate">{formData.hierarchy_path_names}</span>
+                        ) : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">
+                        <span className="text-muted-foreground">No allocation (org-level)</span>
+                      </SelectItem>
+                      {hierarchyEntities.map((entity) => (
+                        <SelectItem key={entity.entity_id} value={entity.entity_id}>
+                          <span style={{ paddingLeft: `${entity.depth * 16}px` }} className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground capitalize">[{entity.level_code}]</span>
+                            <span>{entity.entity_name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formData.hierarchy_path && (
+                    <p className="text-xs text-muted-foreground">
+                      Path: {formData.hierarchy_path}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

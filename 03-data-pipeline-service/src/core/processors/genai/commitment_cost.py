@@ -218,12 +218,11 @@ class CommitmentCostProcessor:
                         u.hours_active,
 
                         -- Issue #43: Handle NULL hierarchy fields
-                        NULLIF(TRIM(COALESCE(u.hierarchy_dept_id, '')), '') as hierarchy_dept_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_dept_name, '')), '') as hierarchy_dept_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_project_id, '')), '') as hierarchy_project_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_project_name, '')), '') as hierarchy_project_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_team_id, '')), '') as hierarchy_team_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_team_name, '')), '') as hierarchy_team_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_entity_id, '')), '') as hierarchy_entity_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_entity_name, '')), '') as hierarchy_entity_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_code, '')), '') as hierarchy_level_code,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_path, '')), '') as hierarchy_path,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_path_names, '')), '') as hierarchy_path_names,
 
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_commitment_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
@@ -262,12 +261,11 @@ class CommitmentCostProcessor:
                         effective_rate_per_unit = S.effective_rate_per_unit,
                         tokens_processed = S.tokens_processed,
                         hours_active = S.hours_active,
-                        hierarchy_dept_id = S.hierarchy_dept_id,
-                        hierarchy_dept_name = S.hierarchy_dept_name,
-                        hierarchy_project_id = S.hierarchy_project_id,
-                        hierarchy_project_name = S.hierarchy_project_name,
-                        hierarchy_team_id = S.hierarchy_team_id,
-                        hierarchy_team_name = S.hierarchy_team_name,
+                        hierarchy_entity_id = S.hierarchy_entity_id,
+                        hierarchy_entity_name = S.hierarchy_entity_name,
+                        hierarchy_level_code = S.hierarchy_level_code,
+                        hierarchy_path = S.hierarchy_path,
+                        hierarchy_path_names = S.hierarchy_path_names,
                         calculated_at = CURRENT_TIMESTAMP(),
                         x_pipeline_id = S.x_pipeline_id,
                         x_credential_id = S.x_credential_id,
@@ -279,16 +277,16 @@ class CommitmentCostProcessor:
                             model, region, provisioned_units, used_units, utilization_pct,
                             commitment_cost_usd, overage_cost_usd, total_cost_usd,
                             effective_rate_per_unit, tokens_processed, hours_active,
-                            hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
-                            hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
+                            hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
+                            hierarchy_path, hierarchy_path_names,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
                     VALUES (S.cost_date, S.org_slug, S.provider, S.commitment_type, S.commitment_id,
                             S.model, S.region, S.provisioned_units, S.used_units, S.utilization_pct,
                             S.commitment_cost_usd, S.overage_cost_usd, S.total_cost_usd,
                             S.effective_rate_per_unit, S.tokens_processed, S.hours_active,
-                            S.hierarchy_dept_id, S.hierarchy_dept_name, S.hierarchy_project_id,
-                            S.hierarchy_project_name, S.hierarchy_team_id, S.hierarchy_team_name,
+                            S.hierarchy_entity_id, S.hierarchy_entity_name, S.hierarchy_level_code,
+                            S.hierarchy_path, S.hierarchy_path_names,
                             CURRENT_TIMESTAMP(), S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
                             S.x_run_id, S.x_ingested_at)
             """
@@ -406,22 +404,18 @@ class CommitmentCostProcessor:
             self.logger.warning(f"Negative units check failed: {e}")
 
         # Issue #5: Check for orphan hierarchy allocations (warning only)
-        # Use x_org_hierarchy view (pre-filtered by org_slug) for faster queries
+        # N-level hierarchy: Check if hierarchy_entity_id exists in x_org_hierarchy
         hierarchy_check_query = f"""
             SELECT DISTINCT
-                u.hierarchy_dept_id,
-                u.hierarchy_project_id,
-                u.hierarchy_team_id
+                u.hierarchy_entity_id,
+                u.hierarchy_entity_name,
+                u.hierarchy_level_code
             FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw` u
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
-                ON (
-                    (h.entity_type = 'department' AND h.entity_id = u.hierarchy_dept_id) OR
-                    (h.entity_type = 'project' AND h.entity_id = u.hierarchy_project_id) OR
-                    (h.entity_type = 'team' AND h.entity_id = u.hierarchy_team_id)
-                )
+                ON h.entity_id = u.hierarchy_entity_id
             WHERE u.usage_date = @process_date
                 AND u.org_slug = @org_slug
-                AND (u.hierarchy_dept_id IS NOT NULL OR u.hierarchy_project_id IS NOT NULL OR u.hierarchy_team_id IS NOT NULL)
+                AND u.hierarchy_entity_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}
         """
@@ -429,13 +423,13 @@ class CommitmentCostProcessor:
         try:
             orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
             for row in orphan_results:
-                dept_id = row.get("hierarchy_dept_id")
-                project_id_val = row.get("hierarchy_project_id")
-                team_id = row.get("hierarchy_team_id")
+                entity_id = row.get("hierarchy_entity_id")
+                entity_name = row.get("hierarchy_entity_name")
+                level_code = row.get("hierarchy_level_code")
                 self.logger.warning(
                     f"Issue #5: Orphan hierarchy allocation detected - "
-                    f"dept_id={dept_id}, project_id={project_id_val}, team_id={team_id}. "
-                    f"These IDs may not exist in x_org_hierarchy view."
+                    f"entity_id={entity_id}, name={entity_name}, level={level_code}. "
+                    f"This entity may not exist in x_org_hierarchy view."
                 )
         except Exception as e:
             # Don't fail on hierarchy check errors - just warn

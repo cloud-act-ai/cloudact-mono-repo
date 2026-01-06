@@ -598,17 +598,18 @@ team,TEAM-001,Backend,PROJ-001,,Bob Wilson,bob@example.com,Backend team
 **Default Seeding:** New orgs get default hierarchy (2 depts, 3 projects, 4 teams) during onboarding.
 
 **Subscription Form UI:** `app/[orgSlug]/integrations/subscriptions/[provider]/page.tsx`
-- Cascading dropdowns: Department → Project → Team
-- Uses `loadHierarchy()`, `handleDepartmentChange/ProjectChange/TeamChange()`
+- Single N-level hierarchy dropdown (any node in tree)
+- Uses `loadHierarchy()`, `handleHierarchyChange()`
 
-**Subscription Integration:** Each subscription can be assigned to dept/project/team via:
-- `hierarchy_dept_id`, `hierarchy_dept_name`
-- `hierarchy_project_id`, `hierarchy_project_name`
-- `hierarchy_team_id`, `hierarchy_team_name`
+**Subscription Integration (N-Level v14.0):** Each subscription can be assigned to any hierarchy entity via:
+- `hierarchy_entity_id`, `hierarchy_entity_name` - Selected entity
+- `hierarchy_level_code` - Entity's level (e.g., department, project, team)
+- `hierarchy_path` - Materialized path (e.g., /DEPT-001/PROJ-001/TEAM-001)
+- `hierarchy_path_names` - Human-readable path (e.g., Engineering > Platform > Backend)
 
 **Cost Allocation Flow:**
 ```
-subscription_plans (hierarchy IDs)
+subscription_plans (N-level hierarchy fields)
     ↓ sp_calculate_subscription_plan_costs_daily
 subscription_plan_costs_daily (with hierarchy)
     ↓ sp_convert_subscription_costs_to_focus_1_3

@@ -68,9 +68,8 @@ BEGIN
        ChargeCategory, ChargeType, ChargeFrequency,
        SubAccountId, SubAccountName,
        x_genai_cost_type, x_genai_provider, x_genai_model,
-       x_hierarchy_dept_id, x_hierarchy_dept_name,
-       x_hierarchy_project_id, x_hierarchy_project_name,
-       x_hierarchy_team_id, x_hierarchy_team_name,
+       x_hierarchy_entity_id, x_hierarchy_entity_name,
+       x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
        x_hierarchy_validated_at,  -- Issue #8-11 FIX: Add hierarchy validation timestamp
        -- STATE-001 FIX: Required lineage columns for FOCUS 1.3 (Issue #1: snake_case)
        -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -170,15 +169,14 @@ BEGIN
         cost_type as x_genai_cost_type,
         provider as x_genai_provider,
         model as x_genai_model,
-        hierarchy_dept_id as x_hierarchy_dept_id,
-        hierarchy_dept_name as x_hierarchy_dept_name,
-        hierarchy_project_id as x_hierarchy_project_id,
-        hierarchy_project_name as x_hierarchy_project_name,
-        hierarchy_team_id as x_hierarchy_team_id,
-        hierarchy_team_name as x_hierarchy_team_name,
-        -- Issue #8-11 FIX: Set validation timestamp when hierarchy IDs present
+        hierarchy_entity_id as x_hierarchy_entity_id,
+        hierarchy_entity_name as x_hierarchy_entity_name,
+        hierarchy_level_code as x_hierarchy_level_code,
+        hierarchy_path as x_hierarchy_path,
+        hierarchy_path_names as x_hierarchy_path_names,
+        -- Issue #8-11 FIX: Set validation timestamp when hierarchy entity is set
         CASE
-          WHEN hierarchy_dept_id IS NOT NULL OR hierarchy_project_id IS NOT NULL OR hierarchy_team_id IS NOT NULL
+          WHEN hierarchy_entity_id IS NOT NULL
           THEN CURRENT_TIMESTAMP()
           ELSE NULL
         END as x_hierarchy_validated_at,

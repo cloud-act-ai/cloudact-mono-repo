@@ -57,9 +57,11 @@ billing_cycle       STRING    -- 'monthly', 'annual'
 price_per_unit      FLOAT64   -- Monthly price
 number_of_users     INT64     -- Seat count
 currency            STRING    -- e.g., 'USD', 'INR'
-hierarchy_dept_id   STRING    -- Cost allocation
-hierarchy_project_id STRING
-hierarchy_team_id   STRING
+hierarchy_entity_id   STRING  -- N-level hierarchy entity ID
+hierarchy_entity_name STRING  -- N-level hierarchy entity name
+hierarchy_level_code  STRING  -- Level code (e.g., department, project, team)
+hierarchy_path        STRING  -- Materialized path (e.g., /DEPT-001/PROJ-001)
+hierarchy_path_names  STRING  -- Human-readable path
 ```
 
 ### Output Table: `subscription_plan_costs_daily`
@@ -71,7 +73,7 @@ plan_name           STRING
 daily_cost_local    FLOAT64   -- In org currency
 daily_cost_usd      FLOAT64   -- Converted to USD
 currency            STRING
-hierarchy_*         STRING    -- Allocation fields
+hierarchy_entity_*  STRING    -- N-level hierarchy allocation fields
 ```
 
 ### FOCUS Output: `cost_data_standard_1_3`

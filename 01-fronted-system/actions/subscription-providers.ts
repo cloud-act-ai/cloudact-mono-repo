@@ -363,13 +363,12 @@ export interface PlanCreate {
   renewal_date?: string
   contract_id?: string
   notes?: string
-  // Hierarchy fields for cost allocation (v13.0)
-  hierarchy_dept_id?: string      // Reference to org_hierarchy department entity_id
-  hierarchy_dept_name?: string    // Department name (denormalized)
-  hierarchy_project_id?: string   // Reference to org_hierarchy project entity_id
-  hierarchy_project_name?: string // Project name (denormalized)
-  hierarchy_team_id?: string      // Reference to org_hierarchy team entity_id
-  hierarchy_team_name?: string    // Team name (denormalized)
+  // N-level hierarchy fields for cost allocation (v14.0)
+  hierarchy_entity_id?: string      // Reference to org_hierarchy entity_id
+  hierarchy_entity_name?: string    // Entity name (denormalized)
+  hierarchy_level_code?: string     // Level code (DEPT, PROJ, TEAM, etc.)
+  hierarchy_path?: string           // Materialized path (e.g., /DEPT-001/PROJ-001/TEAM-001)
+  hierarchy_path_names?: string     // Human-readable path (e.g., /Engineering/Platform/Backend)
   // Audit trail fields for currency conversion (v12.2)
   source_currency?: string      // Original currency of template (e.g., "USD")
   source_price?: number         // Original price before conversion
@@ -395,13 +394,12 @@ export interface PlanUpdate {
   contract_id?: string
   notes?: string
   end_date?: string
-  // Hierarchy fields for cost allocation (v13.0)
-  hierarchy_dept_id?: string      // Reference to org_hierarchy department entity_id
-  hierarchy_dept_name?: string    // Department name (denormalized)
-  hierarchy_project_id?: string   // Reference to org_hierarchy project entity_id
-  hierarchy_project_name?: string // Project name (denormalized)
-  hierarchy_team_id?: string      // Reference to org_hierarchy team entity_id
-  hierarchy_team_name?: string    // Team name (denormalized)
+  // N-level hierarchy fields for cost allocation (v14.0)
+  hierarchy_entity_id?: string      // Reference to org_hierarchy entity_id
+  hierarchy_entity_name?: string    // Entity name (denormalized)
+  hierarchy_level_code?: string     // Level code (DEPT, PROJ, TEAM, etc.)
+  hierarchy_path?: string           // Materialized path (e.g., /DEPT-001/PROJ-001/TEAM-001)
+  hierarchy_path_names?: string     // Human-readable path (e.g., /Engineering/Platform/Backend)
 }
 
 // ============================================

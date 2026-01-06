@@ -113,10 +113,9 @@ BEGIN
         -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
         x_data_quality_score, x_created_at,
-        -- Hierarchy extension fields for cost allocation
-        x_hierarchy_dept_id, x_hierarchy_dept_name,
-        x_hierarchy_project_id, x_hierarchy_project_name,
-        x_hierarchy_team_id, x_hierarchy_team_name,
+        -- N-level hierarchy extension fields for cost allocation (v14.0)
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
         -- GenAI extension fields
         x_genai_cost_type, x_genai_provider, x_genai_model,
         -- Hierarchy validation timestamp
@@ -302,22 +301,21 @@ BEGIN
         1.0 AS x_data_quality_score,
         CURRENT_TIMESTAMP() AS x_created_at,
 
-        -- Hierarchy extension fields for cost allocation (from subscription plans)
-        spc.hierarchy_dept_id AS x_hierarchy_dept_id,
-        spc.hierarchy_dept_name AS x_hierarchy_dept_name,
-        spc.hierarchy_project_id AS x_hierarchy_project_id,
-        spc.hierarchy_project_name AS x_hierarchy_project_name,
-        spc.hierarchy_team_id AS x_hierarchy_team_id,
-        spc.hierarchy_team_name AS x_hierarchy_team_name,
+        -- N-level hierarchy extension fields for cost allocation (from subscription plans, v14.0)
+        spc.hierarchy_entity_id AS x_hierarchy_entity_id,
+        spc.hierarchy_entity_name AS x_hierarchy_entity_name,
+        spc.hierarchy_level_code AS x_hierarchy_level_code,
+        spc.hierarchy_path AS x_hierarchy_path,
+        spc.hierarchy_path_names AS x_hierarchy_path_names,
 
         -- GenAI extension fields (NULL for Subscriptions)
         NULL AS x_genai_cost_type,
         NULL AS x_genai_provider,
         NULL AS x_genai_model,
 
-        -- Hierarchy validation timestamp (set when hierarchy IDs are validated)
+        -- Hierarchy validation timestamp (set when hierarchy entity is set)
         CASE
-          WHEN spc.hierarchy_dept_id IS NOT NULL OR spc.hierarchy_project_id IS NOT NULL OR spc.hierarchy_team_id IS NOT NULL
+          WHEN spc.hierarchy_entity_id IS NOT NULL
           THEN CURRENT_TIMESTAMP()
           ELSE NULL
         END AS x_hierarchy_validated_at

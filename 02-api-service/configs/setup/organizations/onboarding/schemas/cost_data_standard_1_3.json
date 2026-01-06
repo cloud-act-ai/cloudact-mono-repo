@@ -534,40 +534,34 @@
     "description": "[Extension] Timestamp when the record was first created in the data warehouse."
   },
   {
-    "name": "x_hierarchy_dept_id",
+    "name": "x_hierarchy_entity_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "[Extension] Reference to org_hierarchy department entity_id for cost allocation."
+    "description": "[Extension] Reference to org_hierarchy entity_id for cost allocation. The leaf-level entity in the hierarchy path."
   },
   {
-    "name": "x_hierarchy_dept_name",
+    "name": "x_hierarchy_entity_name",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "[Extension] Department name for reporting (denormalized from org_hierarchy)."
+    "description": "[Extension] Entity name for reporting (denormalized from org_hierarchy)."
   },
   {
-    "name": "x_hierarchy_project_id",
+    "name": "x_hierarchy_level_code",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "[Extension] Reference to org_hierarchy project entity_id for cost allocation."
+    "description": "[Extension] Hierarchy level code (e.g., 'department', 'project', 'team'). Identifies the depth in the hierarchy."
   },
   {
-    "name": "x_hierarchy_project_name",
+    "name": "x_hierarchy_path",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "[Extension] Project name for reporting (denormalized from org_hierarchy)."
+    "description": "[Extension] Full materialized path from root to entity (e.g., '/DEPT-001/PROJ-001/TEAM-001'). Enables rollup queries at any level."
   },
   {
-    "name": "x_hierarchy_team_id",
+    "name": "x_hierarchy_path_names",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "[Extension] Reference to org_hierarchy team entity_id for cost allocation."
-  },
-  {
-    "name": "x_hierarchy_team_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Team name for reporting (denormalized from org_hierarchy)."
+    "description": "[Extension] Full path of names from root to entity (e.g., '/Engineering/Cloud Platform/DevOps'). Human-readable hierarchy trail."
   },
   {
     "name": "x_genai_cost_type",

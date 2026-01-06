@@ -313,9 +313,9 @@ READS  → {org_slug}_prod.x_org_hierarchy (per-org materialized view)
 
 - Central table in `organizations` dataset for single source of truth
 - Per-org view `x_org_hierarchy` for fast reads (auto-refreshed every 15 min)
-- Subscription plans include `hierarchy_dept_id/name`, `hierarchy_project_id/name`, `hierarchy_team_id/name`
+- N-level hierarchy: `hierarchy_entity_id`, `hierarchy_entity_name`, `hierarchy_level_code`, `hierarchy_path`, `hierarchy_path_names`
 
-**Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with hierarchy extension fields)
+**Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with x_hierarchy_* extension fields)
 
 ---
 **Last Updated:** 2026-01-01
