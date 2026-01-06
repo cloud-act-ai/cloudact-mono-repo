@@ -22,7 +22,7 @@ All scripts are consolidated in: `01-fronted-system/tests/demo-setup/`
 | Last Name | `Doe` |
 | Phone | `5551234567` |
 | Company | `Acme Inc` |
-| Org Slug | `acme_inc_{MMDDYYYY}` (auto-generated, e.g., `acme_inc_01032026`) |
+| Org Slug | `acme_inc_{MMDDYYYY}` (auto-generated, e.g., `acme_inc_$(date +%m%d%Y)`) |
 | Plan | `scale` (14-day free trial, no credit card required) |
 | Timezone | `PST/PDT - Los Angeles, USA` |
 | Currency | `USD` |

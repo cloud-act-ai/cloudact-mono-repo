@@ -148,7 +148,7 @@ Report summary:
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_01032026` |
+| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
 
 **To cleanup and recreate the debug account:**
 ```bash

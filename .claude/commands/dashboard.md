@@ -308,7 +308,7 @@ For each dashboard page:
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_01032026` |
+| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
 
 **Test URLs:**
 - Dashboard: `http://localhost:3000/acme_inc_01032026/dashboard`
