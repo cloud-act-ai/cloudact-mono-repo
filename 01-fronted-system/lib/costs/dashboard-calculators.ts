@@ -54,11 +54,13 @@ export interface DateInfo {
   month: number
 }
 
+// BUG-001 FIX: Make fields required to match ProviderBreakdown from actions/costs.ts
+// This eliminates the need for unsafe type assertions in dashboard pages
 export interface ProviderData {
   provider: string
   total_cost: number
-  record_count?: number
-  percentage?: number
+  record_count: number
+  percentage: number
 }
 
 export interface CategoryData {
@@ -758,6 +760,7 @@ export function getLastWeekRange(): PeriodDateRange {
 
 /**
  * Get month to date range (1st of month to yesterday)
+ * BUG-007 FIX: Use date-based calculation instead of milliseconds to avoid DST edge cases
  */
 export function getMTDRange(): PeriodDateRange {
   const now = new Date()
@@ -765,7 +768,9 @@ export function getMTDRange(): PeriodDateRange {
   yesterday.setDate(yesterday.getDate() - 1)
 
   const monthStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1)
-  const days = Math.ceil((yesterday.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  // BUG-007 FIX: Use date arithmetic instead of milliseconds to handle DST correctly
+  // During DST transitions, a day can be 23 or 25 hours, causing off-by-one errors
+  const days = yesterday.getDate() - monthStart.getDate() + 1
 
   return {
     startDate: formatDateForApi(monthStart),

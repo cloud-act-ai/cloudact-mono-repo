@@ -543,6 +543,7 @@ export function filterGranularByProvider(
 
 /**
  * Filter granular data by category (genai, cloud, subscription, other)
+ * CHART-FIX: Case-insensitive matching to handle backend variations
  */
 export function filterGranularByCategory(
   data: GranularCostRow[],
@@ -550,8 +551,12 @@ export function filterGranularByCategory(
 ): GranularCostRow[] {
   if (!data || !categories || categories.length === 0) return data || []
 
-  const categorySet = new Set(categories)
-  return data.filter(row => categorySet.has(row.category))
+  // CHART-FIX: Normalize to lowercase for case-insensitive matching
+  const categorySet = new Set(categories.map(c => c.toLowerCase()))
+  return data.filter(row => {
+    const rowCategory = (row.category || "").toLowerCase()
+    return categorySet.has(rowCategory)
+  })
 }
 
 /**

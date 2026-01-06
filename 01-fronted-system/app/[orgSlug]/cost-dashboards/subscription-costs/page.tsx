@@ -62,12 +62,17 @@ export default function SubscriptionCostsPage() {
   const timeRange = contextFilters.timeRange
   const customRange = contextFilters.customRange
 
+  // INFINITE-LOOP-FIX: Use ref to avoid infinite loop when setUnifiedFilters identity changes
+  // The ref pattern allows us to call setUnifiedFilters without it being a dependency
+  const setUnifiedFiltersRef = React.useRef(setUnifiedFilters)
+  setUnifiedFiltersRef.current = setUnifiedFilters
+
   // Set category filter on mount (subscription page is fixed to subscription category)
   // CTX-002 FIX: Add cleanup to reset categories on unmount
   // SYNC-001 & STATE-001 FIX: Reset local filters and clear context provider filter on mount
   useEffect(() => {
     // Clear any provider filter from previous page, set category to subscription
-    setUnifiedFilters({ categories: ["subscription"], providers: undefined })
+    setUnifiedFiltersRef.current({ categories: ["subscription"], providers: undefined })
     // Reset local filter state to defaults
     setFilters({
       department: undefined,
@@ -79,9 +84,9 @@ export default function SubscriptionCostsPage() {
 
     // Cleanup: reset categories and providers when leaving this page
     return () => {
-      setUnifiedFilters({ categories: undefined, providers: undefined })
+      setUnifiedFiltersRef.current({ categories: undefined, providers: undefined })
     }
-  }, [setUnifiedFilters])
+  }, []) // Empty deps - only run on mount/unmount
 
   // Local state - Subscription costs page (category fixed to "subscription")
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -106,22 +111,17 @@ export default function SubscriptionCostsPage() {
   const hasProviderFilter = filters.providers.length > 0
 
   // FILTER-FIX: Use time-filtered providers from context (respects time range)
+  // CHART-FIX: The context already filters by category (set in useEffect),
+  // so getFilteredProviderBreakdown() returns only subscription providers
   const timeFilteredProviders = useMemo(() => {
     return getFilteredProviderBreakdown()
   }, [getFilteredProviderBreakdown])
 
-  // Get SaaS providers from TIME-FILTERED data (using unified filter data)
-  const saasProviders = useMemo(() => {
-    const categoryProviderIds = new Set(
-      availableFilters.providers
-        .filter(p => p.category === "subscription")
-        .map(p => p.id.toLowerCase())
-    )
-    // FILTER-FIX: Use timeFilteredProviders instead of cachedProviders
-    return timeFilteredProviders.filter(p =>
-      categoryProviderIds.has(p.provider.toLowerCase())
-    )
-  }, [availableFilters.providers, timeFilteredProviders])
+  // CHART-FIX: Removed redundant page-level category filter.
+  // The context-level filter (state.filters.categories = ["subscription"]) already
+  // filters granular data by row.category, so timeFilteredProviders only
+  // contains subscription providers.
+  const saasProviders = timeFilteredProviders
 
   // Client-side filtered providers (instant, no backend call)
   const filteredProviders = useMemo(() => {

@@ -343,9 +343,10 @@ export default function CostOverviewPage() {
   // FILTER-FIX: Use timeFilteredProviders (respects time range) as base, then apply provider filter
   const getProvidersByCategory = useCallback((category: "genai" | "cloud" | "subscription") => {
     // Use availableFilters to get category info from backend
+    // BUG-008 FIX: Check p.id exists to prevent runtime error on null/undefined
     const categoryProviderIds = new Set(
       availableFilters.providers
-        .filter(p => p.category === category)
+        .filter(p => p.category === category && p.id)
         .map(p => p.id.toLowerCase())
     )
     // FILTER-FIX: Use filteredProviders which is already time-filtered + optional provider filter
