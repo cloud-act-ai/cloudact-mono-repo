@@ -1,0 +1,6 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="80" height="80" rx="12" fill="#FF492C"/>
+  <path d="M28 32C28 28.6863 30.6863 26 34 26H46C49.3137 26 52 28.6863 52 32V42C52 45.3137 49.3137 48 46 48H41L34 54V48C30.6863 48 28 45.3137 28 42V32Z" fill="white"/>
+  <text x="40" y="40" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FF492C" text-anchor="middle" dominant-baseline="middle">G2</text>
+  <text x="40" y="62" font-family="Arial, sans-serif" font-size="9" font-weight="600" fill="white" text-anchor="middle">LEADER</text>
+</svg>

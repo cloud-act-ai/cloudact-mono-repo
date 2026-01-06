@@ -497,12 +497,13 @@ function timeRangeToDateRange(
       startDate = new Date(today.getFullYear(), 0, 1)
       startDate.setHours(0, 0, 0, 0)
       break
-    case "qtd":
+    case "qtd": {
       // Quarter to date
       const quarterMonth = Math.floor(today.getMonth() / 3) * 3
       startDate = new Date(today.getFullYear(), quarterMonth, 1)
       startDate.setHours(0, 0, 0, 0)
       break
+    }
     case "last_month":
       // Last full month
       startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
@@ -510,12 +511,13 @@ function timeRangeToDateRange(
       endDate = new Date(today.getFullYear(), today.getMonth(), 0)
       endDate.setHours(23, 59, 59, 999)
       break
-    default:
+    default: {
       // Numeric days (365, 90, 30, 14, 7)
       const days = parseInt(timeRange, 10) || 30
       startDate = new Date(today)
       startDate.setDate(startDate.getDate() - days + 1)
       startDate.setHours(0, 0, 0, 0)
+    }
   }
 
   return { start: startDate, end: endDate }
@@ -905,8 +907,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         categoryProviderIds.has(p.provider.toLowerCase())
       )
     },
-    // STATE-002 FIX: Add cacheVersion to ensure re-computation on data updates
-    [state.providerBreakdown, state.availableFilters.providers, state.cacheVersion]
+    [state.providerBreakdown, state.availableFilters.providers]
   )
 
 
@@ -1183,10 +1184,10 @@ export function useHierarchy() {
  * FIX-016: Memoize transformation to prevent recalculation on every render
  */
 export function useDailyTrend() {
-  const { getFilteredTimeSeries, granularData, isLoading, error, currency, cacheVersion } = useCostData()
+  const { getFilteredTimeSeries, granularData, isLoading, error, currency } = useCostData()
 
   // FIX-016: Memoize time series to prevent recalculation
-  const timeSeries = useMemo(() => getFilteredTimeSeries(), [getFilteredTimeSeries, cacheVersion])
+  const timeSeries = useMemo(() => getFilteredTimeSeries(), [getFilteredTimeSeries])
 
   // FIX-016: Memoize the entire transformation
   const { trendData, summary } = useMemo(() => {

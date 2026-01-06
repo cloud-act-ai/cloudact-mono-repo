@@ -10,7 +10,7 @@
  * - Consistent styling with cost dashboard design
  */
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import {
   Building2,
   FolderKanban,
@@ -625,7 +625,7 @@ export function TimeRangeFilter({
       setTempStartDate(customRange.startDate)
       setTempEndDate(customRange.endDate)
     }
-  }, [customRange?.startDate, customRange?.endDate])
+  }, [customRange])
 
   // Get display label
   const displayLabel = getTimeRangeLabel(value, customRange)
@@ -845,10 +845,11 @@ export function getRollingAverageWindow(
  * Shows "Daily Avg" as an overall average for the selected period
  */
 export function getRollingAverageLabel(
-  timeRange: TimeRange,
-  customRange?: CustomDateRange
+  _timeRange: TimeRange,
+  _customRange?: CustomDateRange
 ): string {
   // User preference: Show simple "Daily Avg" label for overall period average
+  // Parameters kept for API compatibility / future use
   return "Daily Avg"
 }
 

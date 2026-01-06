@@ -14405,3 +14405,1681 @@ a:focus-visible {
     height: 24px;
   }
 }
+
+/* ============================================
+   ENHANCED SECTIONS - Design Improvements
+   Updated: 2026-01-05
+   ============================================ */
+
+/* ============================================
+   CREDIBILITY SECTION - Enhanced with Icons
+   ============================================ */
+.ca-credibility-section-enhanced {
+  padding: var(--space-12) var(--space-6);
+  background: linear-gradient(180deg, var(--ca-gray-50) 0%, var(--ca-white) 100%);
+  border-bottom: 1px solid var(--ca-gray-100);
+}
+
+.ca-credibility-stats-enhanced {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .ca-credibility-stats-enhanced {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .ca-credibility-stats-enhanced {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+.ca-credibility-stat-enhanced {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--ca-white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--ca-gray-100);
+  transition: all 0.25s var(--ease-out);
+}
+
+.ca-credibility-stat-enhanced:hover {
+  border-color: var(--ca-gray-200);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.ca-credibility-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--ca-mint-50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ca-gray-900);
+  flex-shrink: 0;
+}
+
+.ca-credibility-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ca-credibility-section-enhanced .ca-credibility-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--ca-gray-900);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.ca-credibility-section-enhanced .ca-credibility-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ca-gray-500);
+  margin-top: 2px;
+}
+
+.ca-partner-badges-enhanced {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+
+.ca-partner-badge-enhanced {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 20px;
+  background: var(--ca-white);
+  border: 1px solid var(--ca-gray-200);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ca-gray-700);
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-partner-badge-enhanced:hover {
+  border-color: var(--ca-gray-900);
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+}
+
+.ca-partner-badge-enhanced svg {
+  color: var(--ca-mint-dark);
+}
+
+.ca-partner-badge-enhanced:hover svg {
+  color: var(--ca-mint);
+}
+
+/* ============================================
+   INTEGRATIONS SECTION - Enhanced
+   ============================================ */
+.ca-integrations-section-enhanced {
+  padding: var(--space-20) var(--space-6);
+  background: var(--ca-white);
+}
+
+.ca-integrations-categories-enhanced {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .ca-integrations-categories-enhanced {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+    max-width: 400px;
+  }
+}
+
+.ca-integration-category-enhanced {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-6);
+  background: var(--ca-gray-50);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--ca-gray-100);
+  transition: all 0.3s var(--ease-out);
+}
+
+.ca-integration-category-enhanced:hover {
+  background: var(--ca-white);
+  border-color: var(--ca-gray-200);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+
+.ca-integration-category-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-xl);
+  background: var(--ca-white);
+  border: 1px solid var(--ca-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ca-gray-700);
+  margin-bottom: var(--space-4);
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-integration-category-enhanced:hover .ca-integration-category-icon {
+  background: var(--ca-gray-900);
+  border-color: var(--ca-gray-900);
+  color: var(--ca-white);
+}
+
+.ca-integration-category-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ca-gray-900);
+  margin-bottom: var(--space-4);
+}
+
+.ca-integration-logos-enhanced {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ca-integration-logo-item {
+  position: relative;
+  width: 64px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ca-white);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  transition: all 0.2s var(--ease-out);
+  cursor: default;
+}
+
+.ca-integration-logo-item:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
+}
+
+.ca-integration-tooltip {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.ca-integration-logo-item:hover .ca-integration-tooltip {
+  opacity: 1;
+}
+
+.ca-integrations-cta-enhanced {
+  text-align: center;
+  margin-top: var(--space-10);
+}
+
+.ca-btn-integrations {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 14px 28px;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-full);
+  transition: all 0.25s var(--ease-out);
+}
+
+.ca-btn-integrations:hover {
+  background: var(--ca-gray-800);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   COLLABORATION SECTION - Enhanced
+   ============================================ */
+.ca-collab-section-enhanced {
+  padding: var(--space-20) var(--space-6);
+  background: var(--ca-gray-50);
+}
+
+.ca-collab-grid-enhanced {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+  .ca-collab-grid-enhanced {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 700px;
+  }
+}
+
+@media (max-width: 600px) {
+  .ca-collab-grid-enhanced {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+}
+
+.ca-collab-card-enhanced {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  background: var(--ca-white);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--ca-gray-100);
+  text-decoration: none;
+  transition: all 0.3s var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.ca-collab-card-enhanced::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--ca-gray-200);
+  transition: all 0.3s var(--ease-out);
+}
+
+.ca-collab-coral::before { background: var(--ca-coral); }
+.ca-collab-blue::before { background: var(--ca-blue); }
+.ca-collab-purple::before { background: var(--ca-purple); }
+.ca-collab-mint::before { background: var(--ca-mint); }
+
+.ca-collab-card-enhanced:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--ca-gray-200);
+}
+
+.ca-collab-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+}
+
+.ca-collab-icon-coral { background: var(--ca-coral-50); color: var(--ca-coral); }
+.ca-collab-icon-blue { background: var(--ca-blue-50); color: var(--ca-blue); }
+.ca-collab-icon-purple { background: var(--ca-purple-50); color: var(--ca-purple); }
+.ca-collab-icon-mint { background: var(--ca-mint-100); color: var(--ca-mint-dark); }
+
+.ca-collab-card-enhanced .ca-collab-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ca-gray-900);
+  margin-bottom: var(--space-2);
+}
+
+.ca-collab-card-enhanced .ca-collab-card-desc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ca-gray-500);
+  flex: 1;
+  margin-bottom: var(--space-4);
+}
+
+.ca-collab-link-enhanced {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ca-gray-900);
+  transition: gap 0.2s var(--ease-out);
+}
+
+.ca-collab-card-enhanced:hover .ca-collab-link-enhanced {
+  gap: var(--space-2);
+}
+
+/* ============================================
+   RATING SECTION - Enhanced G2 Prominence
+   ============================================ */
+.ca-rating-section-enhanced {
+  padding: var(--space-20) var(--space-6);
+  background: var(--ca-white);
+  border-top: 1px solid var(--ca-gray-100);
+  border-bottom: 1px solid var(--ca-gray-100);
+}
+
+.ca-rating-container-enhanced {
+  max-width: 1000px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.ca-rating-g2-featured {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  margin-bottom: var(--space-10);
+}
+
+@media (max-width: 600px) {
+  .ca-rating-g2-featured {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+}
+
+.ca-g2-badge-large {
+  width: 100px;
+  height: 100px;
+  background: var(--ca-gray-100);
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.ca-g2-badge-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ca-g2-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .ca-g2-info {
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.ca-rating-stars-large {
+  display: flex;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.ca-rating-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ca-gray-900);
+}
+
+.ca-rating-reviews {
+  font-size: 0.875rem;
+  color: var(--ca-gray-500);
+}
+
+.ca-rating-quote {
+  max-width: 700px;
+  margin: 0 auto var(--space-10);
+  padding: var(--space-8);
+  background: var(--ca-gray-50);
+  border-radius: var(--radius-2xl);
+  position: relative;
+}
+
+.ca-quote-icon {
+  color: var(--ca-gray-200);
+  margin-bottom: var(--space-4);
+}
+
+.ca-rating-quote p {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--ca-gray-800);
+  line-height: 1.5;
+  font-style: italic;
+  margin-bottom: var(--space-4);
+}
+
+.ca-quote-source {
+  font-size: 0.875rem;
+  color: var(--ca-gray-500);
+  font-weight: 500;
+}
+
+.ca-rating-achievements {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.ca-achievement-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--ca-white);
+  border: 1px solid var(--ca-gray-200);
+  border-radius: var(--radius-xl);
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-achievement-badge:hover {
+  border-color: var(--ca-gray-300);
+  box-shadow: var(--shadow-md);
+}
+
+.ca-achievement-badge svg {
+  color: var(--ca-amber);
+}
+
+.ca-achievement-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.ca-achievement-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ca-gray-900);
+}
+
+.ca-achievement-subtitle {
+  font-size: 0.75rem;
+  color: var(--ca-gray-500);
+}
+
+/* ============================================
+   HOW IT WORKS SECTION - Enhanced (Dark Numbers)
+   ============================================ */
+.ca-how-section-enhanced {
+  padding: var(--space-20) var(--space-6);
+  background: var(--ca-gray-50);
+}
+
+.ca-how-steps-enhanced {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  max-width: 1000px;
+  margin: 0 auto;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .ca-how-steps-enhanced {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    max-width: 400px;
+  }
+}
+
+.ca-how-step-enhanced {
+  text-align: center;
+  padding: var(--space-6);
+  background: var(--ca-white);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--ca-gray-100);
+  position: relative;
+  transition: all 0.3s var(--ease-out);
+}
+
+.ca-how-step-enhanced:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--ca-gray-200);
+}
+
+.ca-how-step-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* CRITICAL: Dark gray number circles instead of mint */
+.ca-how-number-dark {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ca-gray-900);
+}
+
+.ca-how-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background: var(--ca-mint-50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ca-gray-700);
+}
+
+.ca-how-step-enhanced .ca-how-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ca-gray-900);
+  margin-bottom: var(--space-2);
+}
+
+.ca-how-step-enhanced .ca-how-desc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ca-gray-500);
+}
+
+/* Connector line between steps (desktop only) */
+.ca-how-connector {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .ca-how-connector {
+    display: block;
+    position: absolute;
+    top: 50%;
+    right: -24px;
+    width: 48px;
+    height: 2px;
+    background: var(--ca-gray-200);
+    transform: translateY(-50%);
+  }
+  
+  .ca-how-step-enhanced:last-child .ca-how-connector {
+    display: none;
+  }
+}
+
+/* ============================================
+   TESTIMONIALS SECTION - Enhanced (3 Visible)
+   ============================================ */
+.ca-testimonials-section-enhanced {
+  padding: var(--space-20) var(--space-6);
+  background: var(--ca-white);
+}
+
+/* Desktop: Show all 3 testimonials in a grid */
+.ca-testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .ca-testimonials-grid {
+    display: none;
+  }
+}
+
+/* Mobile: Show carousel */
+.ca-testimonials-carousel {
+  display: none;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .ca-testimonials-carousel {
+    display: block;
+  }
+}
+
+.ca-testimonial-card-enhanced,
+.ca-testimonial-card-mobile {
+  background: var(--ca-gray-50);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
+  border: 1px solid var(--ca-gray-100);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s var(--ease-out);
+}
+
+.ca-testimonial-card-enhanced:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--ca-gray-200);
+}
+
+.ca-testimonial-rating {
+  display: flex;
+  gap: 2px;
+  margin-bottom: var(--space-3);
+}
+
+.ca-testimonial-quote-icon-small {
+  width: 24px;
+  height: 24px;
+  color: var(--ca-gray-300);
+  margin-bottom: var(--space-3);
+}
+
+.ca-testimonial-text-enhanced {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--ca-gray-700);
+  flex: 1;
+  margin-bottom: var(--space-4);
+}
+
+.ca-testimonial-metric-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--ca-mint-50);
+  color: var(--ca-gray-900);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-4);
+  align-self: flex-start;
+}
+
+.ca-testimonial-footer-enhanced {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--ca-gray-200);
+}
+
+.ca-testimonial-avatar-enhanced {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ca-testimonial-company {
+  font-size: 0.75rem;
+  color: var(--ca-gray-400);
+  font-weight: 500;
+}
+
+.ca-testimonial-nav-enhanced {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.ca-testimonial-nav-btn-enhanced {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--ca-gray-200);
+  background: var(--ca-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-testimonial-nav-btn-enhanced:hover {
+  background: var(--ca-gray-50);
+  border-color: var(--ca-gray-300);
+}
+
+/* ============================================
+   PRICING SECTION - Enhanced with Icons
+   ============================================ */
+.ca-pricing-preview-section-enhanced {
+  padding: var(--space-20) var(--space-6);
+  background: var(--ca-gray-50);
+}
+
+.ca-pricing-grid-enhanced {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5);
+  max-width: 1200px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+  .ca-pricing-grid-enhanced {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 700px;
+  }
+}
+
+@media (max-width: 600px) {
+  .ca-pricing-grid-enhanced {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+}
+
+.ca-pricing-card-enhanced {
+  background: var(--ca-white);
+  border: 1px solid var(--ca-gray-100);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.3s var(--ease-out);
+}
+
+.ca-pricing-card-enhanced:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--ca-gray-200);
+}
+
+.ca-pricing-featured-enhanced {
+  border: 2px solid var(--ca-gray-900);
+  box-shadow: var(--shadow-2xl);
+}
+
+.ca-pricing-badge-enhanced {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.ca-pricing-header-enhanced {
+  margin-bottom: var(--space-5);
+}
+
+.ca-pricing-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.ca-pricing-icon-0 { background: var(--ca-gray-100); color: var(--ca-gray-600); }
+.ca-pricing-icon-1 { background: var(--ca-coral-50); color: var(--ca-coral); }
+.ca-pricing-icon-2 { background: var(--ca-blue-50); color: var(--ca-blue); }
+.ca-pricing-icon-enterprise { background: var(--ca-purple-50); color: var(--ca-purple); }
+
+.ca-pricing-enterprise-enhanced {
+  background: linear-gradient(135deg, var(--ca-gray-900) 0%, var(--ca-gray-800) 100%);
+  border-color: var(--ca-gray-800);
+}
+
+.ca-pricing-enterprise-enhanced .ca-pricing-name,
+.ca-pricing-enterprise-enhanced .ca-pricing-features-enhanced li {
+  color: var(--ca-white);
+}
+
+.ca-pricing-enterprise-enhanced .ca-pricing-icon-wrap {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ca-white);
+}
+
+.ca-pricing-enterprise-enhanced .ca-pricing-features-enhanced li svg {
+  color: var(--ca-mint);
+}
+
+.ca-pricing-amount-custom {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ca-white);
+}
+
+.ca-pricing-features-enhanced {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-6) 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ca-pricing-features-enhanced li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--ca-gray-600);
+  line-height: 1.4;
+}
+
+.ca-pricing-features-enhanced li svg {
+  flex-shrink: 0;
+  color: var(--ca-gray-900);
+  margin-top: 1px;
+}
+
+.ca-btn-pricing-primary-enhanced {
+  display: block;
+  width: 100%;
+  padding: 12px 20px;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border-radius: var(--radius-lg);
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-btn-pricing-primary-enhanced:hover {
+  background: var(--ca-gray-800);
+}
+
+.ca-btn-pricing-secondary-enhanced {
+  display: block;
+  width: 100%;
+  padding: 12px 20px;
+  background: var(--ca-white);
+  color: var(--ca-gray-900);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--ca-gray-200);
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-btn-pricing-secondary-enhanced:hover {
+  background: var(--ca-gray-50);
+  border-color: var(--ca-gray-300);
+}
+
+.ca-btn-pricing-enterprise {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 12px 20px;
+  background: var(--ca-white);
+  color: var(--ca-gray-900);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-lg);
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-btn-pricing-enterprise:hover {
+  background: var(--ca-mint);
+}
+
+.ca-pricing-cta-row-enhanced {
+  text-align: center;
+  margin-top: var(--space-10);
+}
+
+.ca-link-pricing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ca-gray-600);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s var(--ease-out);
+}
+
+.ca-link-pricing:hover {
+  color: var(--ca-gray-900);
+  gap: var(--space-2);
+}
+
+/* ============================================
+   FINAL CTA SECTION - Enhanced with Pattern
+   ============================================ */
+.ca-final-cta-section-enhanced {
+  padding: var(--space-24) var(--space-6);
+  background: linear-gradient(180deg, var(--ca-white) 0%, var(--ca-mint-50) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.ca-final-cta-bg-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--ca-gray-200) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ca-final-cta-container-enhanced {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+
+.ca-final-cta-proof {
+  margin-bottom: var(--space-6);
+}
+
+.ca-proof-stat {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4) var(--space-8);
+  background: var(--ca-white);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.ca-proof-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ca-mint-dark);
+  letter-spacing: -0.02em;
+}
+
+.ca-proof-label {
+  font-size: 0.875rem;
+  color: var(--ca-gray-500);
+}
+
+.ca-final-cta-badge-enhanced {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 20px;
+  background: var(--ca-white);
+  border: 1px solid var(--ca-gray-200);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ca-gray-700);
+  margin-bottom: var(--space-6);
+}
+
+.ca-final-cta-badge-enhanced svg {
+  color: var(--ca-amber);
+}
+
+.ca-final-cta-title-enhanced {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: var(--ca-gray-900);
+  margin-bottom: var(--space-4);
+  letter-spacing: -0.02em;
+}
+
+.ca-final-cta-subtitle-enhanced {
+  font-size: 1.125rem;
+  color: var(--ca-gray-600);
+  max-width: 550px;
+  margin: 0 auto var(--space-8);
+  line-height: 1.65;
+}
+
+.ca-final-cta-buttons-enhanced {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-8);
+}
+
+.ca-btn-cta-primary-enhanced {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 16px 32px;
+  background: var(--ca-gray-900);
+  color: var(--ca-white);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-full);
+  transition: all 0.25s var(--ease-out);
+}
+
+.ca-btn-cta-primary-enhanced:hover {
+  background: var(--ca-gray-800);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+.ca-btn-cta-secondary-enhanced {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 16px 32px;
+  background: var(--ca-white);
+  color: var(--ca-gray-900);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--ca-gray-200);
+  transition: all 0.25s var(--ease-out);
+}
+
+.ca-btn-cta-secondary-enhanced:hover {
+  background: var(--ca-gray-50);
+  border-color: var(--ca-gray-300);
+}
+
+.ca-final-cta-trust {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.ca-final-cta-trust .ca-trust-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--ca-gray-500);
+}
+
+.ca-final-cta-trust .ca-trust-item svg {
+  color: var(--ca-gray-400);
+}
+
+/* ============================================
+   GENERAL ENHANCEMENTS
+   ============================================ */
+
+/* Section subtitle consistency */
+.ca-section-subtitle {
+  max-width: 600px;
+  margin: var(--space-4) auto 0;
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--ca-gray-500);
+}
+
+/* Scroll animation base (can be enhanced with JS) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ca-animate-in {
+  animation: fadeInUp 0.6s var(--ease-out) forwards;
+}
+
+/* Improved section spacing */
+.ca-section-header-centered {
+  text-align: center;
+  margin-bottom: var(--space-12);
+}
+
+.ca-section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ca-gray-500);
+  margin-bottom: var(--space-3);
+}
+
+.ca-section-title {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: var(--ca-gray-900);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* ============================================
+   HERO TEXT HIGHLIGHT - Simplified
+   ============================================ */
+.ca-hero-highlight {
+  font-weight: 700;
+  color: var(--ca-gray-900);
+}
+
+.ca-hero-highlight-unified {
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--ca-gray-900) 0%, var(--ca-gray-600) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Keep the original individual color highlights subtle */
+.ca-hero-highlight-genai {
+  color: var(--ca-gray-900);
+  font-weight: 700;
+}
+
+.ca-hero-highlight-cloud {
+  color: var(--ca-gray-900);
+  font-weight: 700;
+}
+
+.ca-hero-highlight-saas {
+  color: var(--ca-gray-900);
+  font-weight: 700;
+}
+
+/* ============================================
+   BUTTON FIXES - Mint Brand Color (NOT Black)
+   All primary buttons should use mint green
+   ============================================ */
+
+/* Override dark buttons back to mint */
+.ca-btn-integrations {
+  background: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+.ca-btn-integrations:hover {
+  background: var(--ca-mint-dark) !important;
+  color: #000000 !important;
+}
+
+.ca-btn-cta-primary-enhanced {
+  background: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+.ca-btn-cta-primary-enhanced:hover {
+  background: var(--ca-mint-dark) !important;
+  color: #000000 !important;
+  box-shadow: 0 4px 20px rgba(144, 252, 166, 0.35);
+}
+
+.ca-btn-pricing-primary-enhanced {
+  background: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+.ca-btn-pricing-primary-enhanced:hover {
+  background: var(--ca-mint-dark) !important;
+  color: #000000 !important;
+}
+
+.ca-btn-pricing-enterprise {
+  background: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+.ca-btn-pricing-enterprise:hover {
+  background: var(--ca-mint-dark) !important;
+  color: #000000 !important;
+}
+
+/* Pricing badge should also be mint, not dark */
+.ca-pricing-badge-enhanced {
+  background: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+/* Final CTA badge sparkle icon */
+.ca-final-cta-badge-enhanced svg {
+  color: var(--ca-mint-dark) !important;
+}
+
+/* ============================================
+   BRAND COLOR OVERRIDES - No Black, No Blue
+   Use: Mint, Coral, Purple, Gray-900 for text
+   ============================================ */
+
+/* Section titles - use dark gray (not pure black) */
+.ca-section-title {
+  color: var(--ca-gray-900) !important; /* #111827 - softer than black */
+}
+
+/* Section eyebrows - use mint dark */
+.ca-section-eyebrow {
+  color: var(--ca-mint-dark) !important; /* #6EE890 */
+}
+
+.ca-section-eyebrow svg {
+  color: var(--ca-mint-dark) !important;
+}
+
+/* Collaboration section title */
+.ca-collab-title {
+  color: var(--ca-gray-900) !important;
+}
+
+/* How It Works - Number circles use gray-900 (not pure black) */
+.ca-how-number-dark {
+  background: var(--ca-gray-900) !important; /* Dark gray, not pure black */
+  border-color: var(--ca-gray-900) !important;
+}
+
+/* Credibility icons - use mint */
+.ca-credibility-icon-wrap {
+  background: var(--ca-mint-50) !important;
+  color: var(--ca-mint-dark) !important;
+}
+
+/* Partner badges on hover - use mint instead of black */
+.ca-partner-badge-enhanced:hover {
+  background: var(--ca-mint) !important;
+  border-color: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+/* Integration category icon on hover - mint instead of black */
+.ca-integration-category-enhanced:hover .ca-integration-category-icon {
+  background: var(--ca-mint) !important;
+  border-color: var(--ca-mint) !important;
+  color: #000000 !important;
+}
+
+/* Pricing icon colors - use brand colors */
+.ca-pricing-icon-0 { 
+  background: var(--ca-gray-100) !important; 
+  color: var(--ca-gray-700) !important; 
+}
+.ca-pricing-icon-1 { 
+  background: var(--ca-coral-50) !important; 
+  color: var(--ca-coral) !important; 
+}
+.ca-pricing-icon-2 { 
+  background: var(--ca-purple-50) !important; 
+  color: var(--ca-purple) !important; 
+}
+.ca-pricing-icon-enterprise { 
+  background: var(--ca-mint-100) !important; 
+  color: var(--ca-mint-dark) !important; 
+}
+
+/* Pricing featured card - use coral border instead of black */
+.ca-pricing-featured-enhanced {
+  border: 2px solid var(--ca-coral) !important;
+}
+
+/* Enterprise card - use purple gradient instead of black */
+.ca-pricing-enterprise-enhanced {
+  background: linear-gradient(135deg, var(--ca-purple) 0%, var(--ca-purple-dark) 100%) !important;
+  border-color: var(--ca-purple) !important;
+}
+
+.ca-pricing-enterprise-enhanced .ca-pricing-icon-wrap {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: var(--ca-white) !important;
+}
+
+/* Testimonial avatar - use coral instead of black */
+.ca-testimonial-avatar-enhanced {
+  background: var(--ca-coral) !important;
+  color: var(--ca-white) !important;
+}
+
+/* Secondary buttons - use gray with mint hover */
+.ca-btn-cta-secondary-enhanced {
+  background: var(--ca-white) !important;
+  color: var(--ca-gray-700) !important;
+  border-color: var(--ca-gray-200) !important;
+}
+
+.ca-btn-cta-secondary-enhanced:hover {
+  background: var(--ca-mint-50) !important;
+  border-color: var(--ca-mint) !important;
+  color: var(--ca-gray-900) !important;
+}
+
+/* Proof value - use mint dark */
+.ca-proof-value {
+  color: var(--ca-mint-dark) !important;
+}
+
+/* Achievement badge icons - use coral */
+.ca-achievement-badge svg {
+  color: var(--ca-coral) !important;
+}
+
+/* Rating stars */
+.ca-star-filled {
+  fill: var(--ca-coral) !important;
+  color: var(--ca-coral) !important;
+}
+
+/* Quote icon */
+.ca-quote-icon {
+  color: var(--ca-mint) !important;
+}
+
+/* Collab link colors - all use gray-900 text */
+.ca-collab-link-enhanced {
+  color: var(--ca-gray-700) !important;
+}
+
+.ca-collab-card-enhanced:hover .ca-collab-link-enhanced {
+  color: var(--ca-mint-dark) !important;
+}
+
+/* Pricing features checkmarks - use mint */
+.ca-pricing-features-enhanced li svg {
+  color: var(--ca-mint-dark) !important;
+}
+
+/* Remove any blue references */
+.ca-icon-blue {
+  color: var(--ca-purple) !important; /* Replace blue with purple */
+}
+
+/* ============================================
+   TEXT COLOR RULES - FINAL
+   Mint = BUTTONS ONLY, never text
+   Section titles/eyebrows = Coral or Gray-900
+   ============================================ */
+
+/* Section eyebrows - use CORAL, not mint */
+.ca-section-eyebrow {
+  color: var(--ca-coral) !important; /* #FF6C5E */
+}
+
+.ca-section-eyebrow svg {
+  color: var(--ca-coral) !important;
+}
+
+/* Collab link on hover - use coral */
+.ca-collab-card-enhanced:hover .ca-collab-link-enhanced {
+  color: var(--ca-coral) !important;
+}
+
+/* Proof value - use coral, not mint */
+.ca-proof-value {
+  color: var(--ca-coral) !important;
+}
+
+/* Quote icon - use coral */
+.ca-quote-icon {
+  color: var(--ca-coral-50) !important;
+}
+
+/* Credibility icons - keep mint background but coral icon */
+.ca-credibility-icon-wrap {
+  background: var(--ca-gray-100) !important;
+  color: var(--ca-coral) !important;
+}
+
+/* Rating score text */
+.ca-rating-score {
+  color: var(--ca-gray-900) !important;
+}
+
+/* Pillar links - use coral */
+.ca-pillar-link {
+  color: var(--ca-coral) !important;
+}
+
+.ca-pillar-link:hover {
+  color: var(--ca-coral-dark) !important;
+}
+
+/* Pricing link */
+.ca-link-pricing:hover {
+  color: var(--ca-coral) !important;
+}
+
+/* Any mint text override to coral */
+.ca-text-gradient-mint,
+.ca-gradient-text-teal,
+.ca-gradient-text {
+  background: linear-gradient(135deg, var(--ca-coral) 0%, var(--ca-coral-dark) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* ============================================
+   FINAL COLOR RULES
+   Mint = BUTTONS ONLY
+   Coral = Text accents, section labels, icons
+   Gray-900 = Body text, titles
+   NO Purple, NO Blue
+   ============================================ */
+
+/* Replace all purple with coral */
+.ca-pricing-enterprise-enhanced {
+  background: linear-gradient(135deg, var(--ca-coral) 0%, var(--ca-coral-dark) 100%) !important;
+  border-color: var(--ca-coral) !important;
+}
+
+.ca-pricing-icon-2 { 
+  background: var(--ca-coral-50) !important; 
+  color: var(--ca-coral) !important; 
+}
+
+.ca-icon-purple {
+  color: var(--ca-coral) !important;
+}
+
+/* Collab card purple -> coral */
+.ca-collab-purple::before { 
+  background: var(--ca-coral) !important; 
+}
+
+.ca-collab-icon-purple { 
+  background: var(--ca-coral-50) !important; 
+  color: var(--ca-coral) !important; 
+}
+
+/* Pillar purple -> coral */
+.ca-pillar-purple::before {
+  background: var(--ca-coral) !important;
+}
+
+.ca-pillar-icon-purple {
+  background: var(--ca-coral-50) !important;
+  color: var(--ca-coral) !important;
+}
+
+.ca-pillar-purple .ca-pillar-features li svg {
+  color: var(--ca-coral) !important;
+}
+
+.ca-pillar-link-purple {
+  color: var(--ca-coral) !important;
+}
+
+/* Feature icon purple -> coral */
+.ca-feature-icon-purple {
+  background: var(--ca-coral-50) !important;
+  color: var(--ca-coral) !important;
+}
+
+/* ============================================
+   FINAL BRAND COLOR RULES
+   Mint (#90FCA6) = BUTTONS ONLY
+   Coral (#FF6C5E) = Text accents, icons, labels
+   Blue (#3b82f6) = CHARTS ONLY (data viz)
+   Gray-900 = Body text, titles
+   NO PURPLE anywhere
+   ============================================ */
+
+/* Enterprise card - use coral gradient (no purple) */
+.ca-pricing-enterprise-enhanced {
+  background: linear-gradient(135deg, var(--ca-gray-800) 0%, var(--ca-gray-900) 100%) !important;
+  border-color: var(--ca-coral) !important;
+}
+
+/* All purple overrides to coral */
+.ca-purple-50 { background: var(--ca-coral-50) !important; }
+.ca-purple { color: var(--ca-coral) !important; }
+.ca-purple-light { color: var(--ca-coral-light) !important; }
+.ca-purple-dark { color: var(--ca-coral-dark) !important; }
+
+/* Keep blue ONLY for chart elements */
+.ca-bar-blue,
+.ca-legend-blue,
+.ca-chart-blue {
+  background: var(--ca-blue) !important;
+  color: var(--ca-blue) !important;
+}
+
+/* Dashboard preview chart - blue is OK here */
+.ca-dash-metric-blue {
+  /* Keep blue for chart metrics */
+}
+
+.ca-legend-dot.ca-legend-blue {
+  background: var(--ca-blue) !important;
+}
+
+/* ============================================
+   BRAND COLORS - FINAL
+   1. Mint (#90FCA6) = Buttons only
+   2. Coral (#FF6C5E) = Primary accent, text
+   3. Blue (#3b82f6) = Third color, charts, accents
+   NO PURPLE - replace all with Blue
+   ============================================ */
+
+/* Replace ALL purple with blue */
+.ca-pillar-purple::before {
+  background: var(--ca-blue) !important;
+}
+
+.ca-pillar-icon-purple {
+  background: var(--ca-blue-50) !important;
+  color: var(--ca-blue) !important;
+}
+
+.ca-pillar-purple .ca-pillar-features li svg {
+  color: var(--ca-blue) !important;
+}
+
+.ca-pillar-link-purple {
+  color: var(--ca-blue) !important;
+}
+
+.ca-collab-purple::before { 
+  background: var(--ca-blue) !important; 
+}
+
+.ca-collab-icon-purple { 
+  background: var(--ca-blue-50) !important; 
+  color: var(--ca-blue) !important; 
+}
+
+.ca-feature-icon-purple {
+  background: var(--ca-blue-50) !important;
+  color: var(--ca-blue) !important;
+}
+
+.ca-pricing-icon-2 { 
+  background: var(--ca-blue-50) !important; 
+  color: var(--ca-blue) !important; 
+}
+
+.ca-icon-purple {
+  color: var(--ca-blue) !important;
+}
+
+/* Enterprise card - dark with blue accent */
+.ca-pricing-enterprise-enhanced {
+  background: linear-gradient(135deg, var(--ca-gray-800) 0%, var(--ca-gray-900) 100%) !important;
+  border-color: var(--ca-blue) !important;
+}
+
+.ca-pricing-enterprise-enhanced .ca-pricing-icon-wrap {
+  background: var(--ca-blue) !important;
+  color: var(--ca-white) !important;
+}
+
+/* Collaboration card third color -> blue */
+.ca-collaboration-purple::before {
+  background: var(--ca-blue) !important;
+}
+
+.ca-collaboration-icon-purple {
+  background: var(--ca-blue-50) !important;
+  color: var(--ca-blue) !important;
+}
+
+.ca-collaboration-link-purple {
+  color: var(--ca-blue) !important;
+}
+
+/* Hero orbs - replace purple with blue */
+.ca-hero-orb-3 {
+  background: var(--ca-blue-glow) !important;
+}
+
+/* Any remaining purple glows */
+.ca-purple-glow,
+.ca-shadow-glow-purple {
+  box-shadow: 0 0 50px -15px rgba(59, 130, 246, 0.25) !important;
+}

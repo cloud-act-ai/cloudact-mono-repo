@@ -84,10 +84,10 @@ function HomeAnnouncementBanner({
 // INDUSTRY BADGES (More credible than fake company logos)
 // ============================================
 const INDUSTRY_BADGES = [
-  { label: "500+", sublabel: "Engineering Teams" },
-  { label: "$100M+", sublabel: "Cloud Spend Managed" },
-  { label: "50+", sublabel: "Enterprise Customers" },
-  { label: "15+", sublabel: "Countries" },
+  { label: "500+", sublabel: "Engineering Teams", icon: Users },
+  { label: "$100M+", sublabel: "Cloud Spend Managed", icon: DollarSign },
+  { label: "50+", sublabel: "Enterprise Customers", icon: Blocks },
+  { label: "15+", sublabel: "Countries", icon: Cloud },
 ]
 
 // Provider integrations - expanded list with categories
@@ -229,26 +229,35 @@ function DashboardPreview() {
 // ============================================
 function TrustedBySection() {
   return (
-    <section className="ca-credibility-section">
+    <section className="ca-credibility-section-enhanced">
       <div className="ca-credibility-container">
-        {/* Stats row */}
-        <div className="ca-credibility-stats">
+        {/* Stats row with icons */}
+        <div className="ca-credibility-stats-enhanced">
           {INDUSTRY_BADGES.map((badge) => (
-            <div key={badge.label} className="ca-credibility-stat">
-              <span className="ca-credibility-value">{badge.label}</span>
-              <span className="ca-credibility-label">{badge.sublabel}</span>
+            <div key={badge.label} className="ca-credibility-stat-enhanced">
+              <div className="ca-credibility-icon-wrap">
+                <badge.icon className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div className="ca-credibility-text">
+                <span className="ca-credibility-value">{badge.label}</span>
+                <span className="ca-credibility-label">{badge.sublabel}</span>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Partner badges */}
-        <div className="ca-partner-badges">
-          <div className="ca-partner-badge">
-            <Award className="w-4 h-4" aria-hidden="true" />
+        {/* Partner badges - more prominent */}
+        <div className="ca-partner-badges-enhanced">
+          <div className="ca-partner-badge-enhanced">
+            <Shield className="w-5 h-5" aria-hidden="true" />
+            <span>SOC2 Type II</span>
+          </div>
+          <div className="ca-partner-badge-enhanced">
+            <Award className="w-5 h-5" aria-hidden="true" />
             <span>FinOps Certified</span>
           </div>
-          <div className="ca-partner-badge">
-            <Cloud className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-partner-badge-enhanced">
+            <Cloud className="w-5 h-5" aria-hidden="true" />
             <span>Multi-Cloud Ready</span>
           </div>
         </div>
@@ -292,45 +301,55 @@ function CollaborationSection() {
   const personas = [
     {
       title: "FinOps Teams",
-      description: "Standardize reporting using FOCUS-compliant billing data.",
+      description: "Standardize reporting using FOCUS-compliant billing data. Align engineering and finance on shared cost metrics.",
       color: "coral",
       link: "/solutions#finops",
+      icon: Target,
     },
     {
       title: "Engineering",
-      description: "Eliminate waste faster with tailored recommendations.",
+      description: "Eliminate waste faster with tailored recommendations. Get actionable insights without leaving your workflow.",
       color: "blue",
       link: "/solutions#engineering",
+      icon: Cpu,
     },
     {
       title: "Finance",
-      description: "Reduce budget variance with cost visibility and forecasting.",
+      description: "Reduce budget variance with cost visibility and forecasting. Build accurate financial models for tech spend.",
       color: "purple",
       link: "/solutions#finance",
+      icon: PieChart,
     },
     {
       title: "MSPs & Partners",
-      description: "Deliver higher client ROI through proactive optimization.",
+      description: "Deliver higher client ROI through proactive optimization. White-label dashboards for your customers.",
       color: "mint",
       link: "/solutions#partners",
+      icon: Users,
     },
   ]
 
   return (
-    <section className="ca-collab-section">
+    <section className="ca-collab-section-enhanced">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
           <Users className="w-4 h-4" aria-hidden="true" />
           Teams
         </span>
         <h2 className="ca-collab-title">Collaboration that delivers results</h2>
+        <p className="ca-section-subtitle">
+          Built for every stakeholder in your organization
+        </p>
       </div>
-      <div className="ca-collab-grid">
+      <div className="ca-collab-grid-enhanced">
         {personas.map((persona) => (
-          <Link key={persona.title} href={persona.link} className={`ca-collab-card ca-collab-${persona.color}`}>
+          <Link key={persona.title} href={persona.link} className={`ca-collab-card-enhanced ca-collab-${persona.color}`}>
+            <div className={`ca-collab-icon-wrap ca-collab-icon-${persona.color}`}>
+              <persona.icon className="w-5 h-5" aria-hidden="true" />
+            </div>
             <h3 className="ca-collab-card-title">{persona.title}</h3>
             <p className="ca-collab-card-desc">{persona.description}</p>
-            <span className={`ca-collab-link ca-collab-link-${persona.color}`}>
+            <span className="ca-collab-link-enhanced">
               Learn more <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </span>
           </Link>
@@ -345,32 +364,59 @@ function CollaborationSection() {
 // ============================================
 function RatingSection() {
   return (
-    <section className="ca-rating-section">
-      <div className="ca-rating-container">
-        <div className="ca-rating-content">
-          <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" aria-hidden="true" />
-            Recognition
-          </span>
-          <div className="ca-rating-stars">
-            {[...Array(5)].map((_, i) => (
-              <Star key={`star-${i}`} className="w-5 h-5 ca-star-filled" aria-hidden="true" />
-            ))}
+    <section className="ca-rating-section-enhanced">
+      <div className="ca-rating-container-enhanced">
+        {/* G2 Featured Badge - Large and Prominent */}
+        <div className="ca-rating-g2-featured">
+          <div className="ca-g2-badge-large">
+            <Image
+              src="/logos/g2-leader-badge.svg"
+              alt="G2 Leader Badge"
+              width={80}
+              height={80}
+              className="ca-g2-badge-img"
+            />
           </div>
-          <span className="ca-rating-text">Rated #1 for GenAI Cost Management on G2</span>
+          <div className="ca-g2-info">
+            <div className="ca-rating-stars-large">
+              {[...Array(5)].map((_, i) => (
+                <Star key={`star-${i}`} className="w-6 h-6 ca-star-filled" aria-hidden="true" />
+              ))}
+            </div>
+            <span className="ca-rating-score">4.9 out of 5</span>
+            <span className="ca-rating-reviews">Based on 500+ verified reviews</span>
+          </div>
         </div>
-        <div className="ca-rating-badges">
-          <div className="ca-rating-badge">
-            <span className="ca-rating-badge-value">4.9/5</span>
-            <span className="ca-rating-badge-label">G2 Rating</span>
+
+        {/* Quote from reviews */}
+        <div className="ca-rating-quote">
+          <Quote className="w-8 h-8 ca-quote-icon" aria-hidden="true" />
+          <p>&quot;The only platform that truly unifies GenAI, cloud, and SaaS costs in one place.&quot;</p>
+          <span className="ca-quote-source">— G2 Verified Reviewer, Enterprise</span>
+        </div>
+
+        {/* Achievement badges */}
+        <div className="ca-rating-achievements">
+          <div className="ca-achievement-badge">
+            <Award className="w-5 h-5" aria-hidden="true" />
+            <div className="ca-achievement-info">
+              <span className="ca-achievement-title">Leader</span>
+              <span className="ca-achievement-subtitle">FinOps Software 2025</span>
+            </div>
           </div>
-          <div className="ca-rating-badge">
-            <span className="ca-rating-badge-value">500+</span>
-            <span className="ca-rating-badge-label">Reviews</span>
+          <div className="ca-achievement-badge">
+            <TrendingDown className="w-5 h-5" aria-hidden="true" />
+            <div className="ca-achievement-info">
+              <span className="ca-achievement-title">High Performer</span>
+              <span className="ca-achievement-subtitle">Cost Management</span>
+            </div>
           </div>
-          <div className="ca-rating-badge">
-            <span className="ca-rating-badge-value">Leader</span>
-            <span className="ca-rating-badge-label">FinOps 2025</span>
+          <div className="ca-achievement-badge">
+            <Users className="w-5 h-5" aria-hidden="true" />
+            <div className="ca-achievement-info">
+              <span className="ca-achievement-title">Best Support</span>
+              <span className="ca-achievement-subtitle">Enterprise Software</span>
+            </div>
           </div>
         </div>
       </div>
@@ -530,38 +576,52 @@ function FeaturesSection() {
 function HowItWorksSection() {
   const steps = [
     {
-      number: "01",
+      number: "1",
       title: "Connect Your Tools",
-      description: "Link your cloud providers, GenAI APIs, and SaaS subscriptions with secure, read-only access.",
+      description: "Link your cloud providers, GenAI APIs, and SaaS subscriptions with secure, read-only access. Setup takes less than 5 minutes.",
+      icon: Plug,
     },
     {
-      number: "02",
+      number: "2",
       title: "See Your Costs",
-      description: "Get a unified dashboard showing all spending with automatic categorization and trends.",
+      description: "Get a unified dashboard showing all spending with automatic categorization, trends, and real-time anomaly detection.",
+      icon: LineChart,
     },
     {
-      number: "03",
+      number: "3",
       title: "Optimize & Save",
-      description: "Receive AI-powered recommendations to reduce waste and optimize your infrastructure.",
+      description: "Receive AI-powered recommendations to reduce waste, rightsize resources, and optimize your infrastructure spend.",
+      icon: Sparkles,
     },
   ]
 
   return (
-    <section className="ca-how-section">
+    <section className="ca-how-section-enhanced">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
           <Settings className="w-4 h-4" aria-hidden="true" />
           How It Works
         </span>
         <h2 className="ca-section-title">Get started in 3 simple steps</h2>
+        <p className="ca-section-subtitle">
+          From connection to optimization in minutes, not months
+        </p>
       </div>
 
-      <div className="ca-how-steps">
-        {steps.map((step) => (
-          <div key={step.number} className="ca-how-step">
-            <div className="ca-how-number">{step.number}</div>
+      <div className="ca-how-steps-enhanced">
+        {steps.map((step, index) => (
+          <div key={step.number} className="ca-how-step-enhanced">
+            <div className="ca-how-step-header">
+              <div className="ca-how-number-dark">{step.number}</div>
+              <div className="ca-how-icon-wrap">
+                <step.icon className="w-5 h-5" aria-hidden="true" />
+              </div>
+            </div>
             <h3 className="ca-how-title">{step.title}</h3>
             <p className="ca-how-desc">{step.description}</p>
+            {index < steps.length - 1 && (
+              <div className="ca-how-connector" aria-hidden="true" />
+            )}
           </div>
         ))}
       </div>
@@ -574,7 +634,7 @@ function HowItWorksSection() {
 // ============================================
 function IntegrationsSection() {
   return (
-    <section className="ca-integrations-section">
+    <section className="ca-integrations-section-enhanced">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
           <Plug className="w-4 h-4" aria-hidden="true" />
@@ -586,16 +646,16 @@ function IntegrationsSection() {
         </p>
       </div>
 
-      <div className="ca-integrations-categories">
+      <div className="ca-integrations-categories-enhanced">
         {INTEGRATION_CATEGORIES.map((category) => (
-          <div key={category.title} className="ca-integration-category">
-            <div className="ca-integration-category-header">
-              <category.icon className="w-5 h-5" aria-hidden="true" />
-              <h3>{category.title}</h3>
+          <div key={category.title} className="ca-integration-category-enhanced">
+            <div className="ca-integration-category-icon">
+              <category.icon className="w-6 h-6" aria-hidden="true" />
             </div>
-            <div className="ca-integration-logos-row">
+            <h3 className="ca-integration-category-title">{category.title}</h3>
+            <div className="ca-integration-logos-enhanced">
               {category.providers.map((provider) => (
-                <div key={provider.name} className="ca-integration-logo-compact">
+                <div key={provider.name} className="ca-integration-logo-item" title={provider.name}>
                   <Image
                     src={provider.logo}
                     alt={provider.name}
@@ -603,6 +663,7 @@ function IntegrationsSection() {
                     height={32}
                     className="ca-integration-img"
                   />
+                  <span className="ca-integration-tooltip">{provider.name}</span>
                 </div>
               ))}
             </div>
@@ -610,10 +671,10 @@ function IntegrationsSection() {
         ))}
       </div>
 
-      <div className="ca-integrations-cta">
-        <Link href="/integrations" className="ca-btn-outline-dark">
-          View all 50+ integrations
-          <ArrowRight className="w-4 h-4" aria-hidden="true" />
+      <div className="ca-integrations-cta-enhanced">
+        <Link href="/integrations" className="ca-btn-integrations">
+          <span>Explore All Integrations</span>
+          <ArrowRight className="w-5 h-5" aria-hidden="true" />
         </Link>
       </div>
     </section>
@@ -631,6 +692,7 @@ const TESTIMONIALS = [
     company: "TechScale Inc.",
     avatar: "SC",
     metric: "$40K saved/month",
+    rating: 5,
   },
   {
     quote: "Finally, one dashboard for all our cloud and AI costs. Our FinOps team went from spending days on reports to having real-time insights.",
@@ -639,6 +701,7 @@ const TESTIMONIALS = [
     company: "DataFirst Corp",
     avatar: "MR",
     metric: "80% time saved",
+    rating: 5,
   },
   {
     quote: "The AI recommendations alone paid for the platform 10x over. CloudAct.ai is essential for any team using LLMs at scale.",
@@ -647,6 +710,7 @@ const TESTIMONIALS = [
     company: "AI Ventures",
     avatar: "EW",
     metric: "10x ROI",
+    rating: 5,
   },
 ]
 
@@ -661,34 +725,68 @@ function TestimonialsSection() {
   }, [])
 
   return (
-    <section className="ca-testimonials-section">
+    <section className="ca-testimonials-section-enhanced">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
           <MessageSquare className="w-4 h-4" aria-hidden="true" />
           Customer Stories
         </span>
         <h2 className="ca-section-title">Trusted by FinOps leaders</h2>
+        <p className="ca-section-subtitle">
+          See how teams are transforming their cost management
+        </p>
       </div>
 
-      <div className="ca-testimonial-container">
-        <div className="ca-testimonial-card-premium" role="region" aria-live="polite" aria-atomic="true">
-          <Quote className="ca-testimonial-quote-icon" aria-hidden="true" />
-          <p className="ca-testimonial-text">{TESTIMONIALS[active].quote}</p>
-          <div className="ca-testimonial-footer">
-            <div className="ca-testimonial-avatar">{TESTIMONIALS[active].avatar}</div>
+      {/* Desktop: Show all 3 testimonials */}
+      <div className="ca-testimonials-grid">
+        {TESTIMONIALS.map((testimonial) => (
+          <div key={testimonial.author} className="ca-testimonial-card-enhanced">
+            <div className="ca-testimonial-rating">
+              {[...Array(testimonial.rating)].map((_, i) => (
+                <Star key={`star-${testimonial.author}-${i}`} className="w-4 h-4 ca-star-filled" aria-hidden="true" />
+              ))}
+            </div>
+            <Quote className="ca-testimonial-quote-icon-small" aria-hidden="true" />
+            <p className="ca-testimonial-text-enhanced">{testimonial.quote}</p>
+            <div className="ca-testimonial-metric-badge">{testimonial.metric}</div>
+            <div className="ca-testimonial-footer-enhanced">
+              <div className="ca-testimonial-avatar-enhanced">{testimonial.avatar}</div>
+              <div className="ca-testimonial-info">
+                <div className="ca-testimonial-author">{testimonial.author}</div>
+                <div className="ca-testimonial-role">{testimonial.role}</div>
+                <div className="ca-testimonial-company">{testimonial.company}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile: Carousel */}
+      <div className="ca-testimonials-carousel">
+        <div className="ca-testimonial-card-mobile" role="region" aria-live="polite" aria-atomic="true">
+          <div className="ca-testimonial-rating">
+            {[...Array(TESTIMONIALS[active].rating)].map((_, i) => (
+              <Star key={`star-mobile-${i}`} className="w-4 h-4 ca-star-filled" aria-hidden="true" />
+            ))}
+          </div>
+          <Quote className="ca-testimonial-quote-icon-small" aria-hidden="true" />
+          <p className="ca-testimonial-text-enhanced">{TESTIMONIALS[active].quote}</p>
+          <div className="ca-testimonial-metric-badge">{TESTIMONIALS[active].metric}</div>
+          <div className="ca-testimonial-footer-enhanced">
+            <div className="ca-testimonial-avatar-enhanced">{TESTIMONIALS[active].avatar}</div>
             <div className="ca-testimonial-info">
               <div className="ca-testimonial-author">{TESTIMONIALS[active].author}</div>
-              <div className="ca-testimonial-role">{TESTIMONIALS[active].role}, {TESTIMONIALS[active].company}</div>
+              <div className="ca-testimonial-role">{TESTIMONIALS[active].role}</div>
+              <div className="ca-testimonial-company">{TESTIMONIALS[active].company}</div>
             </div>
-            <div className="ca-testimonial-metric">{TESTIMONIALS[active].metric}</div>
           </div>
         </div>
 
-        <div className="ca-testimonial-nav" role="group" aria-label="Testimonial navigation">
+        <div className="ca-testimonial-nav-enhanced" role="group" aria-label="Testimonial navigation">
           <button
             type="button"
             onClick={() => setActive((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)}
-            className="ca-testimonial-nav-btn"
+            className="ca-testimonial-nav-btn-enhanced"
             aria-label="Previous testimonial"
           >
             <ChevronLeft className="w-5 h-5" aria-hidden="true" />
@@ -709,7 +807,7 @@ function TestimonialsSection() {
           <button
             type="button"
             onClick={() => setActive((prev) => (prev + 1) % TESTIMONIALS.length)}
-            className="ca-testimonial-nav-btn"
+            className="ca-testimonial-nav-btn-enhanced"
             aria-label="Next testimonial"
           >
             <ChevronRight className="w-5 h-5" aria-hidden="true" />
@@ -723,6 +821,8 @@ function TestimonialsSection() {
 // ============================================
 // PRICING PREVIEW SECTION
 // ============================================
+const PLAN_ICONS = [Zap, Star, Gauge, Blocks] // Starter, Pro, Scale, Enterprise
+
 function PricingPreviewSection() {
   const [plans, setPlans] = useState<DynamicPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -741,7 +841,7 @@ function PricingPreviewSection() {
   }, [loadPlans])
 
   return (
-    <section className="ca-pricing-preview-section">
+    <section className="ca-pricing-preview-section-enhanced">
       <div className="ca-section-header-centered">
         <span className="ca-section-eyebrow">
           <DollarSign className="w-4 h-4" aria-hidden="true" />
@@ -753,55 +853,66 @@ function PricingPreviewSection() {
         </p>
       </div>
 
-      <div className="ca-pricing-grid-premium">
+      <div className="ca-pricing-grid-enhanced">
         {loading ? (
           <div className="ca-pricing-loading" role="status" aria-label="Loading pricing plans">
             <Loader2 className="w-8 h-8 animate-spin ca-icon-mint" aria-hidden="true" />
           </div>
         ) : plans.length > 0 ? (
           <>
-            {plans.map((plan, i) => (
-              <div key={plan.id} className={`ca-pricing-card-premium ${i === 1 ? "ca-pricing-featured" : ""}`}>
-                {i === 1 && <div className="ca-pricing-badge">Most Popular</div>}
-                <div className="ca-pricing-header">
-                  <h3 className="ca-pricing-name">{plan.name}</h3>
-                  <div className="ca-pricing-price">
-                    <span className="ca-pricing-amount">${plan.price}</span>
-                    <span className="ca-pricing-period">/{plan.interval === "year" ? "yr" : "mo"}</span>
+            {plans.map((plan, i) => {
+              const PlanIcon = PLAN_ICONS[i] || Zap
+              return (
+                <div key={plan.id} className={`ca-pricing-card-enhanced ${i === 1 ? "ca-pricing-featured-enhanced" : ""}`}>
+                  {i === 1 && <div className="ca-pricing-badge-enhanced">Most Popular</div>}
+                  <div className="ca-pricing-header-enhanced">
+                    <div className={`ca-pricing-icon-wrap ca-pricing-icon-${i}`}>
+                      <PlanIcon className="w-5 h-5" aria-hidden="true" />
+                    </div>
+                    <h3 className="ca-pricing-name">{plan.name}</h3>
+                    <div className="ca-pricing-price">
+                      <span className="ca-pricing-amount">${plan.price}</span>
+                      <span className="ca-pricing-period">/{plan.interval === "year" ? "yr" : "mo"}</span>
+                    </div>
                   </div>
+                  <ul className="ca-pricing-features-enhanced">
+                    {plan.features.map((feature) => (
+                      <li key={feature}>
+                        <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href="/signup"
+                    className={i === 1 ? "ca-btn-pricing-primary-enhanced" : "ca-btn-pricing-secondary-enhanced"}
+                  >
+                    Get started
+                  </Link>
                 </div>
-                <ul className="ca-pricing-features">
-                  {plan.features.map((feature) => (
-                    <li key={feature}>
-                      <Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/signup"
-                  className={i === 1 ? "ca-btn-pricing-primary" : "ca-btn-pricing-secondary"}
-                >
-                  Get started
-                </Link>
-              </div>
-            ))}
-            <div className="ca-pricing-card-premium ca-pricing-enterprise">
-              <div className="ca-pricing-header">
+              )
+            })}
+            <div className="ca-pricing-card-enhanced ca-pricing-enterprise-enhanced">
+              <div className="ca-pricing-header-enhanced">
+                <div className="ca-pricing-icon-wrap ca-pricing-icon-enterprise">
+                  <Blocks className="w-5 h-5" aria-hidden="true" />
+                </div>
                 <h3 className="ca-pricing-name">Enterprise</h3>
                 <div className="ca-pricing-price">
-                  <span className="ca-pricing-amount">Custom</span>
+                  <span className="ca-pricing-amount-custom">Custom</span>
                 </div>
               </div>
-              <ul className="ca-pricing-features">
-                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Unlimited team members</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Unlimited integrations</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>SSO & SCIM</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Dedicated success manager</span></li>
-                <li><Check className="w-4 h-4 ca-icon-mint" aria-hidden="true" /><span>Custom SLAs</span></li>
+              <ul className="ca-pricing-features-enhanced">
+                <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Unlimited team members</span></li>
+                <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Unlimited integrations</span></li>
+                <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>SSO & SCIM provisioning</span></li>
+                <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Dedicated success manager</span></li>
+                <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>Custom SLAs & contracts</span></li>
+                <li><CheckCircle2 className="w-4 h-4" aria-hidden="true" /><span>On-premise deployment option</span></li>
               </ul>
-              <Link href="/contact" className="ca-btn-pricing-secondary">
-                Contact sales
+              <Link href="/contact" className="ca-btn-pricing-enterprise">
+                Contact Sales
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
             </div>
           </>
@@ -812,9 +923,9 @@ function PricingPreviewSection() {
         )}
       </div>
 
-      <div className="ca-pricing-cta-row">
-        <Link href="/pricing" className="ca-link-dark">
-          View full pricing details <ArrowRight className="w-4 h-4" aria-hidden="true" />
+      <div className="ca-pricing-cta-row-enhanced">
+        <Link href="/pricing" className="ca-link-pricing">
+          Compare all plans <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
       </div>
     </section>
@@ -826,26 +937,53 @@ function PricingPreviewSection() {
 // ============================================
 function FinalCTASection() {
   return (
-    <section className="ca-final-cta-section">
-      <div className="ca-final-cta-container">
-        <div className="ca-final-cta-badge">
+    <section className="ca-final-cta-section-enhanced">
+      <div className="ca-final-cta-bg-pattern" aria-hidden="true" />
+      <div className="ca-final-cta-container-enhanced">
+        {/* Social proof stat */}
+        <div className="ca-final-cta-proof">
+          <div className="ca-proof-stat">
+            <span className="ca-proof-value">$2.4M+</span>
+            <span className="ca-proof-label">saved by teams this month</span>
+          </div>
+        </div>
+
+        <div className="ca-final-cta-badge-enhanced">
           <Sparkles className="w-4 h-4" aria-hidden="true" />
           {DEFAULT_TRIAL_DAYS}-day free trial • No credit card required
         </div>
-        <h2 className="ca-final-cta-title">Ready to take control of your costs?</h2>
-        <p className="ca-final-cta-subtitle">
+
+        <h2 className="ca-final-cta-title-enhanced">Ready to take control of your costs?</h2>
+        <p className="ca-final-cta-subtitle-enhanced">
           Join hundreds of teams using CloudAct.ai to track, analyze, and optimize their
           GenAI, cloud, and SaaS spending.
         </p>
-        <div className="ca-final-cta-buttons">
-          <Link href="/signup" className="ca-btn-cta-primary">
+
+        <div className="ca-final-cta-buttons-enhanced">
+          <Link href="/signup" className="ca-btn-cta-primary-enhanced">
             Start Free Trial
             <ArrowRight className="w-5 h-5" aria-hidden="true" />
           </Link>
-          <Link href="/contact" className="ca-btn-cta-secondary">
+          <Link href="/contact" className="ca-btn-cta-secondary-enhanced">
             Talk to Sales
             <ArrowUpRight className="w-5 h-5" aria-hidden="true" />
           </Link>
+        </div>
+
+        {/* Trust indicators */}
+        <div className="ca-final-cta-trust">
+          <div className="ca-trust-item">
+            <Shield className="w-4 h-4" aria-hidden="true" />
+            <span>SOC2 Compliant</span>
+          </div>
+          <div className="ca-trust-item">
+            <Zap className="w-4 h-4" aria-hidden="true" />
+            <span>5 min setup</span>
+          </div>
+          <div className="ca-trust-item">
+            <Users className="w-4 h-4" aria-hidden="true" />
+            <span>500+ teams</span>
+          </div>
         </div>
       </div>
     </section>

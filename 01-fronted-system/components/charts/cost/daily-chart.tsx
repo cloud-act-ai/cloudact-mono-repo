@@ -65,8 +65,8 @@ export interface DailyCostChartProps {
 export function DailyCostChart({
   title,
   subtitle,
-  timeRange: propTimeRange,
-  customRange: propCustomRange,
+  timeRange: _propTimeRange,
+  customRange: _propCustomRange,
   data: propData,
   stacked = false,
   category,
@@ -78,12 +78,8 @@ export function DailyCostChart({
   emptyMessage,
   className,
 }: DailyCostChartProps) {
-  const { theme, timeRange: contextTimeRange, customRange: contextCustomRange } = useChartConfig()
+  const { theme } = useChartConfig()
   const costData = useCostData()
-
-  // Determine time range
-  const timeRange = propTimeRange || contextTimeRange
-  const customRange = propCustomRange || contextCustomRange
 
   // Get data from context or use provided data
   const chartData = useMemo(() => {

@@ -81,9 +81,9 @@ export interface CostTrendChartProps {
 export function CostTrendChart({
   title,
   subtitle,
-  category,
-  timeRange: propTimeRange,
-  customRange: propCustomRange,
+  category: _category,
+  timeRange: _propTimeRange,
+  customRange: _propCustomRange,
   data: propData,
   showBars = true,
   barColor,
@@ -103,13 +103,9 @@ export function CostTrendChart({
 }: CostTrendChartProps) {
   // Responsive height - use CSS media query approach
   const responsiveHeight = mobileHeight ?? Math.max(height - 80, 200)
-  const { theme, timeRange: contextTimeRange, customRange: contextCustomRange } = useChartConfig()
+  const { theme } = useChartConfig()
   // PERF-001 FIX: Destructure only needed values to prevent unnecessary re-renders
-  const { getFilteredTimeSeries, cacheVersion, isLoading: contextLoading } = useCostData()
-
-  // Determine time range
-  const timeRange = propTimeRange || contextTimeRange
-  const customRange = propCustomRange || contextCustomRange
+  const { getFilteredTimeSeries, isLoading: contextLoading } = useCostData()
 
   // Get data from context or use provided data
   // PERF-001 FIX: Depend on cacheVersion instead of entire costData object
@@ -139,7 +135,7 @@ export function CostTrendChart({
         rollingAvg,
       }
     })
-  }, [propData, getFilteredTimeSeries, cacheVersion])
+  }, [propData, getFilteredTimeSeries])
 
   // Determine loading state
   const isLoading = propLoading ?? contextLoading

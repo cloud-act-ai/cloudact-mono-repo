@@ -88,10 +88,11 @@ export function HeroSlider() {
                 </div>
                 
                 <h1 className="ca-hero-headline">
-                  {slide.title.split(/(GenAI|Cloud|SaaS)/g).map((part, i) => {
-                    if (part === 'GenAI') return <span key={i} className="ca-hero-highlight-genai">GenAI</span>
-                    if (part === 'Cloud') return <span key={i} className="ca-hero-highlight-cloud">Cloud</span>
-                    if (part === 'SaaS') return <span key={i} className="ca-hero-highlight-saas">SaaS</span>
+                  {slide.title.split(/(GenAI, Cloud & SaaS|GenAI|Cloud|SaaS)/g).map((part, i) => {
+                    if (part === 'GenAI, Cloud & SaaS') return <span key={i} className="ca-hero-highlight-unified">GenAI, Cloud & SaaS</span>
+                    if (part === 'GenAI') return <span key={i} className="ca-hero-highlight">GenAI</span>
+                    if (part === 'Cloud') return <span key={i} className="ca-hero-highlight">Cloud</span>
+                    if (part === 'SaaS') return <span key={i} className="ca-hero-highlight">SaaS</span>
                     return part
                   })}
                 </h1>

@@ -416,7 +416,7 @@ interface AnimatedLegendProps extends ChartLegendProps {
 }
 
 export function AnimatedLegend({
-  staggerDelay = 50,
+  staggerDelay: _staggerDelay = 50,
   className,
   ...props
 }: AnimatedLegendProps) {

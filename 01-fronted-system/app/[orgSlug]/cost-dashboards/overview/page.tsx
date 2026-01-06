@@ -17,7 +17,6 @@ import {
   CostRingChart,
   CostBreakdownChart,
   CostDataTable,
-  type BreakdownItem,
 } from "@/components/charts"
 import {
   CostDashboardShell,
@@ -34,13 +33,10 @@ import {
   getDateInfo,
   transformProvidersToBreakdownItems,
   transformProvidersToTableRows,
-  calculatePercentage,
-  OVERVIEW_CATEGORY_CONFIG,
   type ProviderData,
   // FinOps constants
   calculateAllForecasts,
   // Design tokens
-  OVERVIEW_CHART_PALETTE,
   DEFAULT_CHART_PALETTE,
   CATEGORY_COLORS,
   DEFAULT_COLOR,
@@ -55,20 +51,18 @@ export default function CostOverviewPage() {
   const {
     totalCosts: cachedTotalCosts,
     providerBreakdown: cachedProviders,
-    periodCosts: cachedPeriodCosts,
     hierarchy: cachedHierarchy,
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
     refresh: refreshCostData,
     availableFilters,
-    // Unified filter API (NEW - all client-side, instant)
+    // Unified filter API (all client-side, instant)
     filters: contextFilters,
     setUnifiedFilters,
     getFilteredTimeSeries,
     getFilteredProviderBreakdown,
     getFilteredCategoryBreakdown,
-    getFilteredGranularData,
   } = useCostData()
 
   // CROSS-PAGE-FIX: Reset provider/category filters on unmount to prevent cross-page persistence
@@ -122,7 +116,6 @@ export default function CostOverviewPage() {
   // Use cached or client-side filtered data
   const totalSummary = cachedTotalCosts
   const providers = filteredProviders
-  const periodCosts = cachedPeriodCosts
   const hierarchy = cachedHierarchy
   const orgCurrency = cachedCurrency || DEFAULT_CURRENCY
   const isLoading = isCostLoading
@@ -197,57 +190,6 @@ export default function CostOverviewPage() {
       })
   }, [getFilteredTimeSeries])
 
-  // FILTER-FIX: Build category breakdown from TIME-FILTERED data
-  const categories = useMemo<BreakdownItem[]>(() => {
-    if (hasProviderFilter && filteredProviders && filteredProviders.length > 0) {
-      const filteredTotalCost = filteredProviders.reduce((sum, p) => sum + p.total_cost, 0)
-      const filteredRecordCount = filteredProviders.reduce((sum, p) => sum + p.record_count, 0)
-      return [{
-        key: "filtered",
-        name: filters.providers.length === 1 ? filters.providers[0] : "Selected Providers",
-        value: filteredTotalCost,
-        percentage: 100,
-        count: filteredRecordCount,
-        color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
-      }]
-    }
-
-    // FILTER-FIX: Use time-filtered category breakdown
-    const categoryBreakdown = getFilteredCategoryBreakdown()
-    const categoryMap = new Map(categoryBreakdown.map(c => [c.category.toLowerCase(), c.total_cost]))
-
-    const genaiCost = categoryMap.get("genai") ?? 0
-    const cloudCost = categoryMap.get("cloud") ?? 0
-    const subscriptionCost = categoryMap.get("subscription") ?? 0
-    const totalCost = genaiCost + cloudCost + subscriptionCost
-
-    if (totalCost === 0) return []
-
-    return [
-      {
-        key: "genai",
-        name: OVERVIEW_CATEGORY_CONFIG.names.genai,
-        value: genaiCost,
-        percentage: calculatePercentage(genaiCost, totalCost),
-        color: OVERVIEW_CATEGORY_CONFIG.colors.genai,
-      },
-      {
-        key: "cloud",
-        name: OVERVIEW_CATEGORY_CONFIG.names.cloud,
-        value: cloudCost,
-        percentage: calculatePercentage(cloudCost, totalCost),
-        color: OVERVIEW_CATEGORY_CONFIG.colors.cloud,
-      },
-      {
-        key: "subscription",
-        name: OVERVIEW_CATEGORY_CONFIG.names.subscription,
-        value: subscriptionCost,
-        percentage: calculatePercentage(subscriptionCost, totalCost),
-        color: OVERVIEW_CATEGORY_CONFIG.colors.subscription,
-      },
-    ].filter(c => c.value > 0).sort((a, b) => b.value - a.value)
-  }, [getFilteredCategoryBreakdown, hasProviderFilter, filteredProviders, filters.providers])
-
   // PERF-001 FIX: Memoize dateInfo to avoid redundant calculations
   const dateInfo = useMemo(() => getDateInfo(), [])
 
@@ -261,7 +203,7 @@ export default function CostOverviewPage() {
     const dailyRate = filteredTotal / daysInPeriod
 
     // Use FinOps standard calculations for forecasts
-    const { monthlyForecast, annualForecast } = calculateAllForecasts(
+    const { monthlyForecast } = calculateAllForecasts(
       filteredTotal,
       daysInPeriod
     )
@@ -289,16 +231,6 @@ export default function CostOverviewPage() {
       record_count: Number.isFinite(p.record_count) ? p.record_count : 0,
     }))
   }, [providers])
-
-  // Convert providers to breakdown items using centralized helper
-  const providerBreakdownItems = useMemo(() =>
-    transformProvidersToBreakdownItems(safeProviders, {
-      names: {},
-      colors: {},
-      defaultColor: DEFAULT_COLOR, // COLOR-001 fix
-    }),
-    [safeProviders]
-  )
 
   // Convert providers to table rows using centralized helper
   // PERF-001 FIX: Use memoized dateInfo instead of calling getDateInfo() again

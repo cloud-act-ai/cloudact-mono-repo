@@ -337,9 +337,32 @@ async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
 /**
  * Get cached auth + API key in a single call.
  * PERFORMANCE: Use this instead of separate requireOrgMembership + getOrgApiKeySecure calls.
+ *
+ * AUTH-002 FIX: Added 10-second timeout to prevent indefinite hanging on Supabase issues.
+ * This ensures the caller gets a null result quickly rather than waiting for the
+ * parent 30-second timeout in fetchCostData.
  */
 async function getAuthWithApiKey(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
-  return getCachedAuthContext(orgSlug)
+  const AUTH_TIMEOUT_MS = 10000 // 10 seconds - enough for Supabase queries, fails fast if issues
+
+  try {
+    const authPromise = getCachedAuthContext(orgSlug)
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[getAuthWithApiKey] Auth timeout after ${AUTH_TIMEOUT_MS}ms for org: ${orgSlug}`)
+        }
+        resolve(null)
+      }, AUTH_TIMEOUT_MS)
+    })
+
+    return await Promise.race([authPromise, timeoutPromise])
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[getAuthWithApiKey] Auth failed:", err)
+    }
+    return null
+  }
 }
 
 // ============================================
@@ -367,7 +390,7 @@ export async function getGenAICosts(
         cache_hit: false,
         query_time_ms: 0,
         currency: "USD",
-        error: "Organization API key not found. Please complete organization onboarding.",
+        error: "Unable to access cost data. Please ensure your organization is fully set up with an API key. Go to Settings > Organization to verify.",
       }
     }
     const { apiKey: orgApiKey } = authContext
@@ -516,7 +539,7 @@ export async function getCloudCosts(
         cache_hit: false,
         query_time_ms: 0,
         currency: "USD",
-        error: "Organization API key not found. Please complete organization onboarding.",
+        error: "Unable to access cost data. Please ensure your organization is fully set up with an API key. Go to Settings > Organization to verify.",
       }
     }
     const { apiKey: orgApiKey } = authContext
@@ -660,12 +683,13 @@ export async function getTotalCosts(
 }> {
   try {
     // PERFORMANCE: Use cached auth + API key to avoid redundant Supabase queries
+    // AUTH-002 FIX: This now includes a 10-second timeout to fail fast
     const authContext = await getAuthWithApiKey(orgSlug)
     if (!authContext) {
       return {
         success: false,
         data: null,
-        error: "Organization API key not found. Please complete organization onboarding.",
+        error: "Unable to access cost data. Please ensure your organization is fully set up with an API key. Go to Settings > Organization to verify.",
       }
     }
     const { apiKey: orgApiKey } = authContext
@@ -788,7 +812,7 @@ export async function getCostTrend(
         success: false,
         data: [],
         currency: "USD",
-        error: "Organization API key not found.",
+        error: "Unable to access cost data. Please check organization setup.",
       }
     }
     const { apiKey: orgApiKey } = authContext
@@ -980,7 +1004,7 @@ export async function getCostTrendGranular(
         summary: null,
         currency: "USD",
         cache_hit: false,
-        error: "Organization API key not found.",
+        error: "Unable to access cost data. Please check organization setup.",
       }
     }
     const { apiKey: orgApiKey } = authContext
@@ -1058,7 +1082,7 @@ export async function getCostByProvider(
         success: false,
         data: [],
         currency: "USD",
-        error: "Organization API key not found.",
+        error: "Unable to access cost data. Please check organization setup.",
       }
     }
     const { apiKey: orgApiKey } = authContext
@@ -1222,7 +1246,7 @@ export async function getCostByService(
         success: false,
         data: [],
         currency: "USD",
-        error: "Organization API key not found.",
+        error: "Unable to access cost data. Please check organization setup.",
       }
     }
     const { apiKey: orgApiKey } = authContext

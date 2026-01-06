@@ -24,7 +24,6 @@ import {
 import { cn } from "@/lib/utils"
 import { CostMetricCard, CostMetricGrid } from "./cost-metric-card"
 import {
-  formatCost,
   formatCostCompact,
   getYesterdayRange,
   getWTDRange,

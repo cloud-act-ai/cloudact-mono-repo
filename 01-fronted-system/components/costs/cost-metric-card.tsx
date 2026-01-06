@@ -94,17 +94,18 @@ export function CostMetricCard({
   iconColor = "text-slate-600",
   onClick,
 }: CostMetricCardProps) {
-  if (loading) {
-    return <MetricCardSkeleton variant={variant} />
-  }
-
   // PERF-002 FIX: Memoize formatted value to prevent recalculation on parent re-renders
+  // NOTE: Must be called before any early returns (React hooks rules)
   const formattedValue = useMemo(
     () => useCompact || value >= 100000
       ? formatCostCompact(value, currency)
       : formatCost(value, currency),
     [value, currency, useCompact]
   )
+
+  if (loading) {
+    return <MetricCardSkeleton variant={variant} />
+  }
 
   // Size classes based on variant
   const sizeClasses = {

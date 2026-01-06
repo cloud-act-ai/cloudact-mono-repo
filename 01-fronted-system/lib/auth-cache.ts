@@ -113,12 +113,17 @@ async function requireOrgMembershipInternal(orgSlug: string): Promise<AuthResult
 // Cached Auth Functions (PUBLIC API)
 // ============================================
 
+// AUTH-002 FIX: Timeout for auth operations to prevent indefinite hanging
+const AUTH_OPERATION_TIMEOUT_MS = 10000 // 10 seconds
+
 /**
  * Get cached auth + API key in a single call.
  * PERFORMANCE: Use this instead of separate auth + getOrgApiKeySecure calls.
  *
+ * AUTH-002 FIX: Added 10-second timeout to prevent indefinite hanging on Supabase issues.
+ *
  * @param orgSlug - Organization slug
- * @returns Auth context with API key, or null if auth fails
+ * @returns Auth context with API key, or null if auth fails or times out
  */
 export async function getAuthWithApiKey(orgSlug: string): Promise<CachedAuthContext | null> {
   const cacheKey = orgSlug
@@ -133,35 +138,49 @@ export async function getAuthWithApiKey(orgSlug: string): Promise<CachedAuthCont
     }
   }
 
-  // Fetch fresh auth + API key
+  // Fetch fresh auth + API key with timeout
   try {
-    const auth = await requireOrgMembershipInternal(orgSlug)
-    const apiKey = await getOrgApiKeySecure(orgSlug)
+    const fetchAuthPromise = async (): Promise<CachedAuthContext | null> => {
+      const auth = await requireOrgMembershipInternal(orgSlug)
+      const apiKey = await getOrgApiKeySecure(orgSlug)
 
-    if (!apiKey) {
-      return null
-    }
+      if (!apiKey) {
+        return null
+      }
 
-    // Cache the result
-    authCache.set(cacheKey, {
-      userId: auth.user.id,
-      orgId: auth.orgId,
-      role: auth.role,
-      apiKey,
-      cachedAt: now,
-    })
+      // Cache the result
+      authCache.set(cacheKey, {
+        userId: auth.user.id,
+        orgId: auth.orgId,
+        role: auth.role,
+        apiKey,
+        cachedAt: now,
+      })
 
-    // Cleanup old entries
-    if (authCache.size > MAX_CACHE_ENTRIES) {
-      const entries = Array.from(authCache.entries())
-      for (const [key, value] of entries) {
-        if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {
-          authCache.delete(key)
+      // Cleanup old entries
+      if (authCache.size > MAX_CACHE_ENTRIES) {
+        const entries = Array.from(authCache.entries())
+        for (const [key, value] of entries) {
+          if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {
+            authCache.delete(key)
+          }
         }
       }
+
+      return { auth, apiKey }
     }
 
-    return { auth, apiKey }
+    // AUTH-002 FIX: Race between auth fetch and timeout
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[getAuthWithApiKey] Auth timeout after ${AUTH_OPERATION_TIMEOUT_MS}ms for org: ${orgSlug}`)
+        }
+        resolve(null)
+      }, AUTH_OPERATION_TIMEOUT_MS)
+    })
+
+    return await Promise.race([fetchAuthPromise(), timeoutPromise])
   } catch {
     return null
   }

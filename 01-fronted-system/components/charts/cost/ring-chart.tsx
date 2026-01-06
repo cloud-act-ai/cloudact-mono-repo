@@ -113,7 +113,7 @@ export function CostRingChart({
     }
 
     return []
-  }, [propSegments, useCategories, getFilteredCategoryBreakdown, theme])
+  }, [propSegments, useCategories, getFilteredCategoryBreakdown, theme, categoryNames])
 
   // Calculate total
   const total = useMemo(

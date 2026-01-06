@@ -43,14 +43,12 @@ export default function GenAICostsPage() {
   // Use unified filters from context (all client-side, instant)
   const {
     totalCosts,
-    providerBreakdown: cachedProviders,
     hierarchy: cachedHierarchy,
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
     refresh: refreshCostData,
-    availableFilters,
-    // Unified filter API (NEW - all client-side, instant)
+    // Unified filter API (all client-side, instant)
     filters: contextFilters,
     setUnifiedFilters,
     getFilteredTimeSeries,
@@ -207,7 +205,7 @@ export default function GenAICostsPage() {
     const dailyRate = filteredTotal / daysInPeriod
 
     // Use FinOps standard calculations for forecasts
-    const { monthlyForecast, annualForecast } = calculateAllForecasts(
+    const { monthlyForecast } = calculateAllForecasts(
       filteredTotal,
       daysInPeriod
     )
@@ -236,13 +234,12 @@ export default function GenAICostsPage() {
 
   // Convert providers to table rows using centralized helper
   const tableRows = useMemo(() => {
-    const dateInfo = getDateInfo()
     return transformProvidersToTableRows(
       providers as ProviderData[],
       dateInfo,
       GENAI_PROVIDER_CONFIG
     )
-  }, [providers])
+  }, [providers, dateInfo])
 
   // Ring chart segments for LLM provider breakdown
   // Filter first to avoid showing empty segments, then slice for top 6

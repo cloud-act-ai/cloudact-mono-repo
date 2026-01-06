@@ -62,7 +62,7 @@ export function MetricSparkline({
   previousValue: propPreviousValue,
   data: propData,
   category,
-  timeRange = "30",
+  timeRange: _timeRange = "30",
   color: _color,
   showChange = true,
   invertTrend = false,
@@ -124,7 +124,7 @@ export function MetricSparkline({
       currentValue: propValue || 0,
       previousValue: propPreviousValue,
     }
-  }, [propData, propValue, propPreviousValue, category, timeRange, costData])
+  }, [propData, propValue, propPreviousValue, category, costData])
 
   // Calculate percentage change
   const percentChange = useMemo(() => {
