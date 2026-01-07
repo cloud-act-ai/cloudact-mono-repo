@@ -169,60 +169,110 @@ class OrgOnboardingProcessor:
         self,
         bq_client: BigQueryClient,
         dataset_id: str,
-        org_slug: str
+        org_slug: str,
+        csv_path: str = "configs/hierarchy/seed/data/default_hierarchy.csv"
     ) -> Dict[str, Any]:
         """
-        Seed default organizational hierarchy with sample departments, projects, and teams.
+        Seed default organizational hierarchy from CSV file.
 
-        Creates a starter hierarchy so organizations don't start with empty data:
-        - 2 departments: Corporate, Engineering
-        - 3 projects: Operations, Platform, Product
-        - 4 teams: Finance, HR, Backend, Frontend
+        CSV-based seeding allows easy customization of the default hierarchy structure.
+        The CSV should contain: entity_id, entity_name, level, level_code, parent_id,
+        owner_name, owner_email, description, metadata, sort_order
 
-        Note: org_hierarchy is in the central 'organizations' dataset, not per-org dataset.
-        Uses N-level hierarchy schema with materialized paths.
+        Computed fields (path, path_ids, path_names, depth) are built automatically
+        from the parent_id relationships.
+
+        Default CSV provides FinOps Foundation enterprise structure:
+        - Level 1 (c_suite): Group CFO, Group CIO, Group COO, Business Lines
+        - Level 2 (business_unit): BU CIOs, CTO, IT COO, Business COOs, Procurement, Group Ops
+        - Level 3 (function): Platforms, Architecture, Infrastructure, Tech Centres, Data, FinOps
+
+        Edit the CSV file to customize the default hierarchy for your organization.
+        CSV location: configs/hierarchy/seed/data/default_hierarchy.csv
 
         Args:
             bq_client: BigQuery client
             dataset_id: Organization dataset ID (not used for hierarchy - kept for signature)
             org_slug: Organization slug
+            csv_path: Path to CSV file with hierarchy data (relative to api-service root)
 
         Returns:
-            Dict with seeding results
+            Dict with seeding results by level_code
         """
         result = {
-            "departments_seeded": 0,
-            "projects_seeded": 0,
-            "teams_seeded": 0,
+            "entities_seeded": 0,
+            "by_level": {},
             "errors": []
         }
+
+        # Load hierarchy from CSV
+        csv_rows = self._load_csv_file(csv_path)
+        if not csv_rows:
+            self.logger.warning(f"No hierarchy data found in {csv_path}, skipping seeding")
+            return result
 
         now = datetime.utcnow().isoformat() + "Z"
         # org_hierarchy is in central dataset for consistency with other org_* tables
         table_id = f"{self.settings.gcp_project_id}.organizations.org_hierarchy"
 
-        # Default hierarchy structure using N-level schema
-        # Level 1 = Department, Level 2 = Project, Level 3 = Team
-        default_hierarchy = [
-            # Departments (level 1, depth 0, no parent)
-            {
+        # Build entity lookup for path computation
+        entity_lookup = {row["entity_id"]: row for row in csv_rows}
+
+        def compute_path_info(entity_id: str) -> tuple:
+            """Compute path, path_ids, path_names, and depth for an entity."""
+            path_ids = []
+            path_names = []
+            current_id = entity_id
+
+            while current_id:
+                entity = entity_lookup.get(current_id)
+                if not entity:
+                    break
+                path_ids.insert(0, current_id)
+                path_names.insert(0, entity["entity_name"])
+                current_id = entity.get("parent_id")
+
+            path = "/" + "/".join(path_ids)
+            depth = len(path_ids) - 1  # 0 for root
+            return path, path_ids, path_names, depth
+
+        # Build hierarchy rows with computed paths from CSV data
+        default_hierarchy = []
+        for row in csv_rows:
+            entity_id = row["entity_id"]
+            path, path_ids, path_names, depth = compute_path_info(entity_id)
+
+            # Parse metadata - it's already a string from CSV, but might be JSON
+            metadata = row.get("metadata")
+            if metadata and isinstance(metadata, str):
+                try:
+                    # Validate it's valid JSON, keep as string for BQ
+                    json.loads(metadata)
+                except json.JSONDecodeError:
+                    metadata = json.dumps({"raw": metadata})
+            elif metadata and isinstance(metadata, dict):
+                metadata = json.dumps(metadata)
+            else:
+                metadata = None
+
+            entity = {
                 "id": str(uuid.uuid4()),
                 "org_slug": org_slug,
-                "entity_id": "DEPT-CORP",
-                "entity_name": "Corporate",
-                "level": 1,
-                "level_code": "department",
-                "parent_id": None,
-                "path": "/DEPT-CORP",
-                "path_ids": ["DEPT-CORP"],
-                "path_names": ["Corporate"],
-                "depth": 0,
+                "entity_id": entity_id,
+                "entity_name": row["entity_name"],
+                "level": int(row["level"]),
+                "level_code": row["level_code"],
+                "parent_id": row.get("parent_id") or None,
+                "path": path,
+                "path_ids": path_ids,
+                "path_names": path_names,
+                "depth": depth,
                 "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Corporate departments including Finance, HR, and Operations",
-                "metadata": None,
-                "sort_order": 1,
+                "owner_name": row.get("owner_name"),
+                "owner_email": row.get("owner_email"),
+                "description": row.get("description"),
+                "metadata": metadata,
+                "sort_order": int(row.get("sort_order") or 0),
                 "is_active": True,
                 "created_at": now,
                 "created_by": "system",
@@ -230,218 +280,12 @@ class OrgOnboardingProcessor:
                 "updated_by": "system",
                 "version": 1,
                 "end_date": None
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "DEPT-ENG",
-                "entity_name": "Engineering",
-                "level": 1,
-                "level_code": "department",
-                "parent_id": None,
-                "path": "/DEPT-ENG",
-                "path_ids": ["DEPT-ENG"],
-                "path_names": ["Engineering"],
-                "depth": 0,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Engineering and product development teams",
-                "metadata": None,
-                "sort_order": 2,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            # Projects (level 2, depth 1, parent = department)
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "PROJ-OPS",
-                "entity_name": "Operations",
-                "level": 2,
-                "level_code": "project",
-                "parent_id": "DEPT-CORP",
-                "path": "/DEPT-CORP/PROJ-OPS",
-                "path_ids": ["DEPT-CORP", "PROJ-OPS"],
-                "path_names": ["Corporate", "Operations"],
-                "depth": 1,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Business operations and administrative functions",
-                "metadata": None,
-                "sort_order": 1,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "PROJ-PLATFORM",
-                "entity_name": "Platform",
-                "level": 2,
-                "level_code": "project",
-                "parent_id": "DEPT-ENG",
-                "path": "/DEPT-ENG/PROJ-PLATFORM",
-                "path_ids": ["DEPT-ENG", "PROJ-PLATFORM"],
-                "path_names": ["Engineering", "Platform"],
-                "depth": 1,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Core platform infrastructure and services",
-                "metadata": None,
-                "sort_order": 1,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "PROJ-PRODUCT",
-                "entity_name": "Product",
-                "level": 2,
-                "level_code": "project",
-                "parent_id": "DEPT-ENG",
-                "path": "/DEPT-ENG/PROJ-PRODUCT",
-                "path_ids": ["DEPT-ENG", "PROJ-PRODUCT"],
-                "path_names": ["Engineering", "Product"],
-                "depth": 1,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Product development and features",
-                "metadata": None,
-                "sort_order": 2,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            # Teams (level 3, depth 2, parent = project)
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "TEAM-FIN",
-                "entity_name": "Finance",
-                "level": 3,
-                "level_code": "team",
-                "parent_id": "PROJ-OPS",
-                "path": "/DEPT-CORP/PROJ-OPS/TEAM-FIN",
-                "path_ids": ["DEPT-CORP", "PROJ-OPS", "TEAM-FIN"],
-                "path_names": ["Corporate", "Operations", "Finance"],
-                "depth": 2,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Financial planning and accounting",
-                "metadata": None,
-                "sort_order": 1,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "TEAM-HR",
-                "entity_name": "Human Resources",
-                "level": 3,
-                "level_code": "team",
-                "parent_id": "PROJ-OPS",
-                "path": "/DEPT-CORP/PROJ-OPS/TEAM-HR",
-                "path_ids": ["DEPT-CORP", "PROJ-OPS", "TEAM-HR"],
-                "path_names": ["Corporate", "Operations", "Human Resources"],
-                "depth": 2,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Human resources and people operations",
-                "metadata": None,
-                "sort_order": 2,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "TEAM-BACKEND",
-                "entity_name": "Backend",
-                "level": 3,
-                "level_code": "team",
-                "parent_id": "PROJ-PLATFORM",
-                "path": "/DEPT-ENG/PROJ-PLATFORM/TEAM-BACKEND",
-                "path_ids": ["DEPT-ENG", "PROJ-PLATFORM", "TEAM-BACKEND"],
-                "path_names": ["Engineering", "Platform", "Backend"],
-                "depth": 2,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Backend API and services development",
-                "metadata": None,
-                "sort_order": 1,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "entity_id": "TEAM-FRONTEND",
-                "entity_name": "Frontend",
-                "level": 3,
-                "level_code": "team",
-                "parent_id": "PROJ-PLATFORM",
-                "path": "/DEPT-ENG/PROJ-PLATFORM/TEAM-FRONTEND",
-                "path_ids": ["DEPT-ENG", "PROJ-PLATFORM", "TEAM-FRONTEND"],
-                "path_names": ["Engineering", "Platform", "Frontend"],
-                "depth": 2,
-                "owner_id": None,
-                "owner_name": "Admin",
-                "owner_email": None,
-                "description": "Frontend and UI development",
-                "metadata": None,
-                "sort_order": 2,
-                "is_active": True,
-                "created_at": now,
-                "created_by": "system",
-                "updated_at": now,
-                "updated_by": "system",
-                "version": 1,
-                "end_date": None
-            },
-        ]
+            }
+            default_hierarchy.append(entity)
+
+        if not default_hierarchy:
+            self.logger.warning("No hierarchy entities built from CSV")
+            return result
 
         try:
             # Use BigQuery streaming insert
@@ -455,18 +299,12 @@ class OrgOnboardingProcessor:
                 # Count by level_code
                 for entity in default_hierarchy:
                     level_code = entity["level_code"]
-                    if level_code == "department":
-                        result["departments_seeded"] += 1
-                    elif level_code == "project":
-                        result["projects_seeded"] += 1
-                    elif level_code == "team":
-                        result["teams_seeded"] += 1
+                    result["by_level"][level_code] = result["by_level"].get(level_code, 0) + 1
+                    result["entities_seeded"] += 1
 
                 self.logger.info(
-                    f"Seeded default hierarchy for {org_slug}: "
-                    f"{result['departments_seeded']} departments, "
-                    f"{result['projects_seeded']} projects, "
-                    f"{result['teams_seeded']} teams"
+                    f"Seeded hierarchy from CSV for {org_slug}: "
+                    f"{result['entities_seeded']} entities ({result['by_level']})"
                 )
 
         except Exception as e:
@@ -755,8 +593,9 @@ class OrgOnboardingProcessor:
         else:
             self.logger.info(f"Skipping quota creation (handled by API endpoint)")
 
-        # Step 4: Seed default hierarchy data (always enabled for new orgs)
-        # Creates: 2 departments, 3 projects, 4 teams
+        # Step 4: Seed default hierarchy data from CSV (always enabled for new orgs)
+        # CSV file: configs/hierarchy/seed/data/default_hierarchy.csv
+        # Default: FinOps Foundation enterprise structure (17 entities across 3 levels)
         hierarchy_result = await self._seed_default_hierarchy(bq_client, dataset_id, org_slug)
         if hierarchy_result.get("errors"):
             self.logger.warning(f"Default hierarchy seeding had errors: {hierarchy_result['errors']}")
@@ -782,11 +621,8 @@ class OrgOnboardingProcessor:
 
         # Prepare result
         all_tables_failed = tables_failed + views_failed
-        hierarchy_total = (
-            hierarchy_result.get("departments_seeded", 0) +
-            hierarchy_result.get("projects_seeded", 0) +
-            hierarchy_result.get("teams_seeded", 0)
-        )
+        hierarchy_total = hierarchy_result.get("entities_seeded", 0)
+        hierarchy_by_level = hierarchy_result.get("by_level", {})
         result = {
             "status": "SUCCESS" if not all_tables_failed else "PARTIAL",
             "org_slug": org_slug,
@@ -797,10 +633,8 @@ class OrgOnboardingProcessor:
             "tables_failed": tables_failed,
             "views_failed": views_failed,
             "hierarchy_seeded": {
-                "departments": hierarchy_result.get("departments_seeded", 0),
-                "projects": hierarchy_result.get("projects_seeded", 0),
-                "teams": hierarchy_result.get("teams_seeded", 0),
-                "total": hierarchy_total
+                "total": hierarchy_total,
+                "by_level": hierarchy_by_level
             },
             "subscriptions_seeded": genai_seed_result.get("subscriptions_seeded", 0),
             "genai_pricing_seeded": genai_seed_result.get("pricing_seeded", 0),

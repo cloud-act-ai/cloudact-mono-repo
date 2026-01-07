@@ -199,18 +199,19 @@ ORDER BY routine_name
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
+| Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
-**Debug dataset:** `acme_inc_01032026_local` (local environment)
+**Debug dataset:** `acme_inc_{MMDDYYYY}_local` (local environment)
 
 **Example queries with debug org:**
 ```bash
-# List tables in debug dataset
-bq ls cloudact-testing-1:acme_inc_01032026_local
+# First, get org_slug from Supabase (see debug-config.md)
+# Then list tables in debug dataset
+bq ls cloudact-testing-1:acme_inc_01062026_local
 
 # Query debug org costs
 bq query --nouse_legacy_sql \
-  "SELECT SUM(EffectiveCost) FROM \`cloudact-testing-1.acme_inc_01032026_local.cost_data_standard_1_3\`"
+  "SELECT SUM(EffectiveCost) FROM \`cloudact-testing-1.acme_inc_01062026_local.cost_data_standard_1_3\`"
 ```
 
 See `.claude/debug-config.md` for full debug configuration.

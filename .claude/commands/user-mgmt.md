@@ -291,15 +291,15 @@ HAVING COUNT(*) > 1;
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
+| Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 **Example queries with debug account:**
 ```sql
 -- Get user details
 /user-mgmt user stage john@example.com
 
--- List org members
-/user-mgmt members stage acme_inc_01032026
+-- List org members (query org_slug from Supabase first)
+/user-mgmt members stage acme_inc_01062026
 ```
 
 See `.claude/debug-config.md` for full debug configuration.

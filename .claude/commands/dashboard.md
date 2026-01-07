@@ -308,12 +308,12 @@ For each dashboard page:
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
+| Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
-**Test URLs:**
-- Dashboard: `http://localhost:3000/acme_inc_01032026/dashboard`
-- Cost Overview: `http://localhost:3000/acme_inc_01032026/cost-dashboards/overview`
-- GenAI Costs: `http://localhost:3000/acme_inc_01032026/cost-dashboards/genai-costs`
-- Cloud Costs: `http://localhost:3000/acme_inc_01032026/cost-dashboards/cloud-costs`
+**Test URLs (replace {ORG_SLUG} with actual org slug):**
+- Dashboard: `http://localhost:3000/{ORG_SLUG}/dashboard`
+- Cost Overview: `http://localhost:3000/{ORG_SLUG}/cost-dashboards/overview`
+- GenAI Costs: `http://localhost:3000/{ORG_SLUG}/cost-dashboards/genai-costs`
+- Cloud Costs: `http://localhost:3000/{ORG_SLUG}/cost-dashboards/cloud-costs`
 
 See `.claude/debug-config.md` for full debug configuration.

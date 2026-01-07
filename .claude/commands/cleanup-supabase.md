@@ -148,7 +148,7 @@ Report summary:
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
+| Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 **To cleanup and recreate the debug account:**
 ```bash

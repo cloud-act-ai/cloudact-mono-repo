@@ -65,9 +65,8 @@ class CostQuery:
             f"end:{resolved_end}",
             f"providers:{sorted(self.providers or [])}",
             f"categories:{sorted(self.service_categories or [])}",
-            f"dept:{self.department_id or ''}",
-            f"proj:{self.project_id or ''}",
-            f"team:{self.team_id or ''}",
+            f"entity:{self.hierarchy_entity_id or ''}",
+            f"path:{self.hierarchy_path or ''}",
             f"group:{sorted(self.group_by or [])}",
             f"limit:{self.limit}",
             f"offset:{self.offset}"

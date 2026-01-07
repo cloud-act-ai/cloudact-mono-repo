@@ -269,6 +269,6 @@ done
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| Org Slug | `acme_inc_$(date +%m%d%Y)` *(dynamic)* |
+| Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 See `.claude/debug-config.md` for full debug configuration.

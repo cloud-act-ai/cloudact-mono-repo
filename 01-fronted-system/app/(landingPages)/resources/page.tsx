@@ -169,13 +169,6 @@ const POPULAR_DOWNLOADS = [
     href: "/resources/documentation",
   },
   {
-    title: "GenAI Cost Calculator Template",
-    type: "Excel",
-    size: "156 KB",
-    label: "New",
-    href: "/resources/documentation",
-  },
-  {
     title: "Multi-Cloud Strategy Guide",
     type: "PDF",
     size: "3.1 MB",

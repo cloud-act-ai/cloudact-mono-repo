@@ -18,11 +18,11 @@ All scripts are consolidated in: `01-fronted-system/tests/demo-setup/`
 |-------|-------|
 | Email | `john@example.com` |
 | Password | `acme1234` |
-| First Name | `John` |
-| Last Name | `Doe` |
-| Phone | `5551234567` |
+| First Name | `Alex` |
+| Last Name | `Kumar` |
+| Phone | `5559876543` |
 | Company | `Acme Inc` |
-| Org Slug | `acme_inc_{MMDDYYYY}` (auto-generated, e.g., `acme_inc_$(date +%m%d%Y)`) |
+| Org Slug | `acme_inc_{MMDDYYYY}` (auto-generated, query from DB for actual value) |
 | Plan | `scale` (14-day free trial, no credit card required) |
 | Timezone | `PST/PDT - Los Angeles, USA` |
 | Currency | `USD` |
@@ -66,8 +66,8 @@ source .env.local
 # Cleanup by email
 npx tsx tests/demo-setup/cleanup-demo-account.ts --email=john@example.com
 
-# OR cleanup by org slug
-npx tsx tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc_01022026
+# OR cleanup by org slug (query actual slug from Supabase first)
+npx tsx tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc_01062026
 ```
 
 This automatically:
@@ -117,9 +117,9 @@ TEST_HEADLESS=false npx tsx tests/demo-setup/setup-demo-account.ts
 ```json
 {
   "success": true,
-  "orgSlug": "acme_inc_01032026",
+  "orgSlug": "acme_inc_01062026",
   "apiKey": "org_api_key_...",
-  "dashboardUrl": "http://localhost:3000/acme_inc_01032026/dashboard"
+  "dashboardUrl": "http://localhost:3000/acme_inc_01062026/dashboard"
 }
 ```
 
@@ -136,7 +136,7 @@ TEST_HEADLESS=false npx tsx tests/demo-setup/setup-demo-account.ts
 cd 01-fronted-system
 
 # Use values from Step 1 output
-export ORG_SLUG="acme_inc_01032026"
+export ORG_SLUG="acme_inc_01062026"
 export ORG_API_KEY="org_api_key_..."
 
 # Full mode (Stage 1 + Stage 2)
@@ -259,7 +259,7 @@ npx tsx tests/demo-setup/setup-demo-account.ts
 # → Note the org_slug and apiKey from output
 
 # 2. Load data + run pipelines (use values from step 1)
-export ORG_SLUG="acme_inc_01032026"
+export ORG_SLUG="acme_inc_01062026"
 export ORG_API_KEY="..."  # From step 1 output
 npx tsx tests/demo-setup/load-demo-data-direct.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY
 
@@ -332,8 +332,8 @@ USING (
                u.output_tokens * COALESCE(p.override_output_per_1m, p.output_per_1m)) / 1000000, 6) as total_cost_usd,
         0 as discount_applied_pct,
         p.input_per_1m as effective_rate_input, p.output_per_1m as effective_rate_output,
-        u.request_count, u.hierarchy_dept_id, u.hierarchy_dept_name,
-        u.hierarchy_project_id, u.hierarchy_project_name, u.hierarchy_team_id, u.hierarchy_team_name,
+        u.request_count, u.hierarchy_entity_id, u.hierarchy_entity_name,
+        u.hierarchy_level_code, u.hierarchy_path, u.hierarchy_path_names,
         CURRENT_TIMESTAMP() as calculated_at,
         'genai_payg_cost_demo' as x_pipeline_id, u.x_credential_id,
         u.usage_date as x_pipeline_run_date, 'demo_cost_calc' as x_run_id, CURRENT_TIMESTAMP() as x_ingested_at
@@ -388,7 +388,7 @@ For demo data without integration credentials, run procedures directly:
 bq query --use_legacy_sql=false "
 CALL \`cloudact-testing-1.organizations\`.sp_convert_cloud_costs_to_focus_1_3(
   'cloudact-testing-1',
-  'acme_inc_01032026_local',
+  'acme_inc_01062026_local',
   DATE('2025-12-01'),
   'all',
   'demo_cloud_pipeline',
@@ -401,7 +401,7 @@ for month in 01 02 03 04 05 06 07 08 09 10 11 12; do
   bq query --use_legacy_sql=false "
   CALL \`cloudact-testing-1.organizations\`.sp_convert_cloud_costs_to_focus_1_3(
     'cloudact-testing-1',
-    'acme_inc_01032026_local',
+    'acme_inc_01062026_local',
     DATE('2025-${month}-01'),
     'all',
     'demo_cloud_pipeline',
@@ -414,7 +414,7 @@ done
 bq query --use_legacy_sql=false "
 CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_usage_daily(
   'cloudact-testing-1',
-  'acme_inc_01032026_local',
+  'acme_inc_01062026_local',
   DATE('2025-01-01'),
   NULL,
   'demo_pipeline',
@@ -425,7 +425,7 @@ CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_usage_daily(
 bq query --use_legacy_sql=false "
 CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_costs_daily(
   'cloudact-testing-1',
-  'acme_inc_01032026_local',
+  'acme_inc_01062026_local',
   DATE('2025-01-01'),
   NULL,
   'demo_pipeline',

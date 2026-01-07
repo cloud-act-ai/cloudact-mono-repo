@@ -34,54 +34,55 @@ HIERARCHY_LEVELS_TABLE = "hierarchy_levels"
 CENTRAL_DATASET = "organizations"
 
 # Default levels to seed for new organizations
+# Based on FinOps Foundation enterprise structure for large organizations
 DEFAULT_LEVELS = [
     {
         "level": 1,
-        "level_code": "department",
-        "level_name": "Department",
-        "level_name_plural": "Departments",
+        "level_code": "c_suite",
+        "level_name": "C-Suite",
+        "level_name_plural": "C-Suite Executives",
         "parent_level": None,
         "is_required": False,
         "is_leaf": False,
         "max_children": None,
-        "id_prefix": "DEPT-",
+        "id_prefix": "CSUITE-",
         "id_auto_generate": False,
         "metadata_schema": None,
         "display_order": 1,
-        "icon": "building",
-        "color": "#3B82F6",
+        "icon": "crown",
+        "color": "#0D4D56",  # Dark teal - executive level
     },
     {
         "level": 2,
-        "level_code": "project",
-        "level_name": "Project",
-        "level_name_plural": "Projects",
+        "level_code": "business_unit",
+        "level_name": "Business Unit",
+        "level_name_plural": "Business Units",
         "parent_level": 1,
         "is_required": True,
         "is_leaf": False,
         "max_children": None,
-        "id_prefix": "PROJ-",
+        "id_prefix": "BU-",
         "id_auto_generate": False,
         "metadata_schema": None,
         "display_order": 2,
-        "icon": "folder",
-        "color": "#10B981",
+        "icon": "building-2",
+        "color": "#1A9FB2",  # Teal - business unit level
     },
     {
         "level": 3,
-        "level_code": "team",
-        "level_name": "Team",
-        "level_name_plural": "Teams",
+        "level_code": "function",
+        "level_name": "Function",
+        "level_name_plural": "Functions",
         "parent_level": 2,
         "is_required": True,
         "is_leaf": True,
         "max_children": None,
-        "id_prefix": "TEAM-",
+        "id_prefix": "FUNC-",
         "id_auto_generate": False,
         "metadata_schema": None,
         "display_order": 3,
         "icon": "users",
-        "color": "#8B5CF6",
+        "color": "#90FCA6",  # Mint - function/team level
     },
 ]
 

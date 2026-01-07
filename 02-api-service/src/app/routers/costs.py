@@ -126,9 +126,8 @@ class CostQueryParams(BaseModel):
     end_date: Optional[date] = Field(None, description="End date for cost data (inclusive)")
     providers: Optional[List[str]] = Field(None, description="Filter by providers (e.g., openai, anthropic, gcp)")
     service_categories: Optional[List[str]] = Field(None, description="Filter by service categories (e.g., Subscriptions, Cloud)")
-    department_id: Optional[str] = Field(None, description="Filter by department ID (hierarchy)")
-    project_id: Optional[str] = Field(None, description="Filter by project ID (hierarchy)")
-    team_id: Optional[str] = Field(None, description="Filter by team ID (hierarchy)")
+    hierarchy_entity_id: Optional[str] = Field(None, description="Filter by N-level hierarchy entity ID")
+    hierarchy_path: Optional[str] = Field(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)")
     limit: int = Field(1000, ge=1, le=10000, description="Maximum records to return")
     offset: int = Field(0, ge=0, description="Offset for pagination")
 
@@ -258,9 +257,8 @@ async def get_costs(
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
     service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
-    department_id: Optional[str] = Query(None, description="Filter by department ID (hierarchy)"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID (hierarchy)"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID (hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     limit: int = Query(1000, ge=1, le=10000, description="Max records"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     auth_context: OrgContext = Depends(verify_api_key),
@@ -275,9 +273,8 @@ async def get_costs(
     - **end_date**: Filter costs until this date
     - **providers**: Comma-separated provider filter (e.g., "openai,anthropic")
     - **service_categories**: Comma-separated category filter (e.g., "Subscriptions,Cloud")
-    - **department_id**: Filter by department ID (hierarchy)
-    - **project_id**: Filter by project ID (hierarchy)
-    - **team_id**: Filter by team ID (hierarchy)
+    - **hierarchy_entity_id**: Filter by N-level hierarchy entity ID
+    - **hierarchy_path**: Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)
     - **limit**: Maximum records to return (default 1000, max 10000)
     - **offset**: Pagination offset
     """
@@ -305,9 +302,8 @@ async def get_costs(
         end_date=end_date,
         providers=provider_list,
         service_categories=category_list,
-        department_id=department_id,
-        project_id=project_id,
-        team_id=team_id,
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path,
         limit=limit,
         offset=offset
     )
@@ -399,9 +395,8 @@ async def get_cost_by_provider(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter"),
-    department_id: Optional[str] = Query(None, description="Filter by department ID (hierarchy)"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID (hierarchy)"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID (hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -434,9 +429,8 @@ async def get_cost_by_provider(
         start_date=start_date,
         end_date=end_date,
         providers=provider_list,
-        department_id=department_id,
-        project_id=project_id,
-        team_id=team_id
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
     result = await cost_service.get_cost_by_provider(query)
 
@@ -600,7 +594,7 @@ async def get_granular_trend(
     **Use Case:** Dashboard initialization - one call, all filters instant.
 
     **Response includes:**
-    - `data`: Array of granular rows (date, provider, category, dept_id, project_id, team_id, total_cost)
+    - `data`: Array of granular rows (date, provider, category, hierarchy_entity_id, hierarchy_path, total_cost)
     - `summary.available_filters`: All unique values for each filter dimension
     - `summary.granular_rows`: Number of aggregated rows (typically ~18K for 365 days)
     - `summary.record_count`: Original row count before aggregation
@@ -679,9 +673,8 @@ async def get_subscription_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
-    department_id: Optional[str] = Query(None, description="Filter by department ID (hierarchy)"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID (hierarchy)"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID (hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -715,9 +708,8 @@ async def get_subscription_costs(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
-        department_id=department_id,
-        project_id=project_id,
-        team_id=team_id
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
     result = await cost_service.get_subscription_costs(query)
 
@@ -748,9 +740,8 @@ async def get_cloud_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
-    department_id: Optional[str] = Query(None, description="Filter by department ID (hierarchy)"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID (hierarchy)"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID (hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -781,9 +772,8 @@ async def get_cloud_costs(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
-        department_id=department_id,
-        project_id=project_id,
-        team_id=team_id
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
     result = await cost_service.get_cloud_costs(query)
 
@@ -814,9 +804,8 @@ async def get_genai_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
-    department_id: Optional[str] = Query(None, description="Filter by department ID (hierarchy)"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID (hierarchy)"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID (hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -850,9 +839,8 @@ async def get_genai_costs(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
-        department_id=department_id,
-        project_id=project_id,
-        team_id=team_id
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
     result = await cost_service.get_genai_costs(query)
 
@@ -894,9 +882,8 @@ async def get_total_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
-    department_id: Optional[str] = Query(None, description="Filter by department ID (hierarchy)"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID (hierarchy)"),
-    team_id: Optional[str] = Query(None, description="Filter by team ID (hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -933,9 +920,8 @@ async def get_total_costs(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
-        department_id=department_id,
-        project_id=project_id,
-        team_id=team_id
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
 
     # Fetch all cost types in parallel + currency (single lookup, not 4)
