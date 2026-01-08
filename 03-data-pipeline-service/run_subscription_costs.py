@@ -35,7 +35,7 @@ def main():
 
     # Call the orchestrator stored procedure
     query = f"""
-        CALL `{PROJECT_ID}.organizations.sp_run_subscription_costs_pipeline`(
+        CALL `{PROJECT_ID}.organizations.sp_subscription_4_run_pipeline`(
             @project_id,
             @dataset_id,
             @start_date,

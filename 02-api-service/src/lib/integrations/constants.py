@@ -30,12 +30,13 @@ STATUS_DISPLAY_NAMES: Dict[str, str] = {
 }
 
 STATUS_COLORS: Dict[str, str] = {
-    "VALID": "#22c55e",         # green-500
-    "INVALID": "#ef4444",       # red-500
-    "PENDING": "#f59e0b",       # amber-500
-    "NOT_CONFIGURED": "#94a3b8", # slate-400
-    "EXPIRED": "#f97316",       # orange-500
-    "RATE_LIMITED": "#8b5cf6",  # violet-500
+    # BUG-042 FIX: Corrected color values (removed misleading Tailwind comments)
+    "VALID": "#22c55e",         # Success green
+    "INVALID": "#ef4444",       # Error red
+    "PENDING": "#f59e0b",       # Warning amber
+    "NOT_CONFIGURED": "#94a3b8", # Neutral slate
+    "EXPIRED": "#f97316",       # Alert orange
+    "RATE_LIMITED": "#8b5cf6",  # Info violet
 }
 
 VALID_STATUSES: Set[str] = frozenset(INTEGRATION_STATUS.keys())
@@ -50,6 +51,7 @@ INTEGRATION_CATEGORIES = {
     "genai": "GenAI Providers",
     "saas": "SaaS Applications",
     "observability": "Observability",
+    "other": "Other",  # BUG-044 FIX: Add "other" category
 }
 
 PROVIDER_CATEGORIES: Dict[str, str] = {
@@ -57,6 +59,7 @@ PROVIDER_CATEGORIES: Dict[str, str] = {
     "GCP": "cloud",
     "AWS": "cloud",
     "AZURE": "cloud",
+    "OCI": "cloud",  # BUG-041 FIX: Add Oracle Cloud
     # GenAI Providers
     "OPENAI": "genai",
     "ANTHROPIC": "genai",
@@ -155,7 +158,7 @@ DEFAULT_PROVIDER_COLOR = "#94a3b8"  # slate-400
 # Helper Functions
 # ==============================================================================
 
-def get_provider_category(provider: str) -> Optional[str]:
+def get_provider_category(provider: str) -> str:
     """
     Get category for a provider.
 
@@ -163,9 +166,10 @@ def get_provider_category(provider: str) -> Optional[str]:
         provider: Provider key
 
     Returns:
-        Category key or None
+        Category key (returns "other" for unknown providers)
     """
-    return PROVIDER_CATEGORIES.get(provider.upper())
+    # BUG-043 FIX: Return "other" as fallback instead of None
+    return PROVIDER_CATEGORIES.get(provider.upper(), "other")
 
 
 def get_category_name(category: str) -> str:

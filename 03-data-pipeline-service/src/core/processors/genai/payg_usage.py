@@ -204,6 +204,15 @@ class PAYGUsageProcessor:
                 record["x_run_id"] = run_id
                 record["x_ingested_at"] = now
 
+                # Add hierarchy from credential (GenAI hierarchy assignment)
+                for level in range(1, 11):
+                    id_key = f"hierarchy_level_{level}_id"
+                    name_key = f"hierarchy_level_{level}_name"
+                    # Only set if not already present in record and credential has it
+                    if not record.get(id_key):
+                        record[id_key] = credentials.get(id_key)
+                        record[name_key] = credentials.get(name_key)
+
             # Write to BigQuery using MERGE (CRITICAL FIX #1)
             table_id = f"{project_id}.{dataset_id}.genai_payg_usage_raw"
             insert_result = await self._insert_usage_merge(bq_client, table_id, usage_records)
@@ -257,9 +266,20 @@ class PAYGUsageProcessor:
         org_slug: str,
         provider: str
     ) -> Dict[str, Any]:
-        """Get and decrypt credentials for provider."""
+        """Get and decrypt credentials for provider, including default hierarchy."""
         query = f"""
-            SELECT credential_id, encrypted_credential, provider, credential_type
+            SELECT
+                credential_id, encrypted_credential, provider, credential_type,
+                default_hierarchy_level_1_id, default_hierarchy_level_1_name,
+                default_hierarchy_level_2_id, default_hierarchy_level_2_name,
+                default_hierarchy_level_3_id, default_hierarchy_level_3_name,
+                default_hierarchy_level_4_id, default_hierarchy_level_4_name,
+                default_hierarchy_level_5_id, default_hierarchy_level_5_name,
+                default_hierarchy_level_6_id, default_hierarchy_level_6_name,
+                default_hierarchy_level_7_id, default_hierarchy_level_7_name,
+                default_hierarchy_level_8_id, default_hierarchy_level_8_name,
+                default_hierarchy_level_9_id, default_hierarchy_level_9_name,
+                default_hierarchy_level_10_id, default_hierarchy_level_10_name
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug
               AND provider = @provider
@@ -282,6 +302,14 @@ class PAYGUsageProcessor:
         # Decrypt credentials
         decrypted = await decrypt_credentials(encrypted)
         decrypted["credential_id"] = credential_id
+
+        # Add hierarchy fields from credentials (for GenAI hierarchy assignment)
+        for level in range(1, 11):
+            id_key = f"hierarchy_level_{level}_id"
+            name_key = f"hierarchy_level_{level}_name"
+            decrypted[id_key] = row.get(f"default_{id_key}")
+            decrypted[name_key] = row.get(f"default_{name_key}")
+
         return decrypted
 
     def _generate_idempotency_key(self, org_slug: str, provider: str, process_date: date) -> str:
@@ -491,11 +519,8 @@ class PAYGUsageProcessor:
                         {escape_int(record.get('total_tokens'))} as total_tokens,
                         {escape_int(record.get('request_count'))} as request_count,
                         {escape_bool(record.get('is_batch'))} as is_batch,
-                        {escape_str(record.get('hierarchy_entity_id'))} as hierarchy_entity_id,
-                        {escape_str(record.get('hierarchy_entity_name'))} as hierarchy_entity_name,
-                        {escape_str(record.get('hierarchy_level_code'))} as hierarchy_level_code,
-                        {escape_str(record.get('hierarchy_path'))} as hierarchy_path,
-                        {escape_str(record.get('hierarchy_path_names'))} as hierarchy_path_names,
+                        {escape_str(record.get('x_hierarchy_level_1_id'))} as x_hierarchy_level_1_id,
+                        {escape_str(record.get('x_hierarchy_level_1_name'))} as x_hierarchy_level_1_name,
                         {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
                         {escape_str(record.get('x_credential_id'))} as x_credential_id,
                         DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
@@ -530,25 +555,18 @@ class PAYGUsageProcessor:
                             total_tokens = S.total_tokens,
                             request_count = S.request_count,
                             is_batch = S.is_batch,
-                            hierarchy_entity_id = S.hierarchy_entity_id,
-                            hierarchy_entity_name = S.hierarchy_entity_name,
-                            hierarchy_level_code = S.hierarchy_level_code,
-                            hierarchy_path = S.hierarchy_path,
-                            hierarchy_path_names = S.hierarchy_path_names,
+                            x_hierarchy_level_1_id = S.x_hierarchy_level_1_id,
+                            x_hierarchy_level_1_name = S.x_hierarchy_level_1_name,
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
                         INSERT (org_slug, provider, model, model_family, usage_date, region,
                                 input_tokens, output_tokens, cached_input_tokens, total_tokens,
-                                request_count, is_batch, hierarchy_entity_id,
-                                hierarchy_entity_name, hierarchy_level_code, hierarchy_path,
-                                hierarchy_path_names,
+                                request_count, is_batch, x_hierarchy_level_1_id,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.model, S.model_family, S.usage_date, S.region,
                                 S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
-                                S.request_count, S.is_batch, S.hierarchy_entity_id,
-                                S.hierarchy_entity_name, S.hierarchy_level_code, S.hierarchy_path,
-                                S.hierarchy_path_names,
+                                S.request_count, S.is_batch, S.x_hierarchy_level_1_id,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

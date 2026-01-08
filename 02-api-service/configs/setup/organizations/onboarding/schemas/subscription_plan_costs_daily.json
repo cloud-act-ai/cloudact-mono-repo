@@ -96,130 +96,40 @@
     "description": "Source: subscription_amortization."
   },
   {
-    "name": "hierarchy_level_1_id",
+    "name": "hierarchy_entity_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Level 1 (root) hierarchy entity ID. Denormalized for fast aggregation."
+    "description": "N-level hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
   },
   {
-    "name": "hierarchy_level_1_name",
+    "name": "hierarchy_entity_name",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Level 1 (root) hierarchy entity name."
+    "description": "N-level hierarchy: Leaf entity display name. Example: 'Platform Team'."
   },
   {
-    "name": "hierarchy_level_2_id",
+    "name": "hierarchy_level_code",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Level 2 hierarchy entity ID. Denormalized for fast aggregation."
+    "description": "N-level hierarchy: Entity level code. Example: 'team', 'project', 'department'."
   },
   {
-    "name": "hierarchy_level_2_name",
+    "name": "hierarchy_path",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Level 2 hierarchy entity name."
+    "description": "N-level hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
   },
   {
-    "name": "hierarchy_level_3_id",
+    "name": "hierarchy_path_names",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Level 3 hierarchy entity ID. Denormalized for fast aggregation."
+    "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
   },
   {
-    "name": "hierarchy_level_3_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 3 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_4_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 4 hierarchy entity ID."
-  },
-  {
-    "name": "hierarchy_level_4_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 4 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_5_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 5 hierarchy entity ID."
-  },
-  {
-    "name": "hierarchy_level_5_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 5 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_6_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 6 hierarchy entity ID."
-  },
-  {
-    "name": "hierarchy_level_6_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 6 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_7_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 7 hierarchy entity ID."
-  },
-  {
-    "name": "hierarchy_level_7_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 7 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_8_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 8 hierarchy entity ID."
-  },
-  {
-    "name": "hierarchy_level_8_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 8 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_9_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 9 hierarchy entity ID."
-  },
-  {
-    "name": "hierarchy_level_9_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 9 hierarchy entity name."
-  },
-  {
-    "name": "hierarchy_level_10_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 10 hierarchy entity ID (deepest level)."
-  },
-  {
-    "name": "hierarchy_level_10_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Level 10 hierarchy entity name (deepest level)."
-  },
-  {
-    "name": "hierarchy_validated_at",
+    "name": "x_hierarchy_validated_at",
     "type": "TIMESTAMP",
     "mode": "NULLABLE",
-    "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table."
+    "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table. FOCUS 1.3 extension field."
   },
   {
     "name": "updated_at",

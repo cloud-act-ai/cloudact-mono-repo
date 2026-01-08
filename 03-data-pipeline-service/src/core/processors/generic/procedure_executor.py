@@ -32,7 +32,7 @@ class ProcedureExecutorProcessor:
         processor: generic.procedure_executor
         config:
           procedure:
-            name: sp_run_subscription_costs_pipeline
+            name: sp_subscription_4_run_pipeline
             dataset: organizations  # Central dataset where procedure lives
             # Parameters are passed dynamically from pipeline context
           parameters:

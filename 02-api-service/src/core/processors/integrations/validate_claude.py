@@ -59,20 +59,28 @@ class ValidateClaudeIntegrationProcessor:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                # List models to validate key
-                response = await client.get(
-                    "https://api.anthropic.com/v1/models",
+            # BUG-012 FIX: Make timeout configurable
+            timeout = step_config.get("timeout", 15.0)
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                # BUG-013 FIX: Use correct Anthropic API endpoint for validation
+                # Anthropic doesn't have /v1/models endpoint, use /v1/messages with minimal request
+                response = await client.post(
+                    "https://api.anthropic.com/v1/messages",
                     headers={
                         "x-api-key": api_key,
-                        "anthropic-version": "2023-06-01"
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json"
+                    },
+                    json={
+                        "model": "claude-3-haiku-20240307",
+                        "max_tokens": 1,
+                        "messages": [{"role": "user", "content": "Hi"}]
                     }
                 )
 
                 if response.status_code == 200:
-                    data = response.json()
-                    models = [m.get("id", m.get("name")) for m in data.get("data", [])]
-
+                    # Successfully made API call with the key
                     await self._update_validation_status(
                         org_slug, "CLAUDE", "VALID", None
                     )
@@ -81,9 +89,7 @@ class ValidateClaudeIntegrationProcessor:
                     return {
                         "status": "SUCCESS",
                         "validation_status": "VALID",
-                        "models_count": len(models),
-                        "sample_models": models[:5],
-                        "message": f"Claude API key validated. {len(models)} models available."
+                        "message": "Claude API key validated successfully"
                     }
                 elif response.status_code == 401:
                     error_msg = "Invalid API key"

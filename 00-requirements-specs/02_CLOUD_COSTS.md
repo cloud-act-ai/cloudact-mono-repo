@@ -25,7 +25,7 @@ Cloud Billing Export → Pipeline Engine → Raw Table → FOCUS 1.3
                    Decrypt credentials (KMS)
                    Extract from source
                    Add x_* lineage fields
-                   Call sp_convert_cloud_costs_to_focus_1_3
+                   Call sp_cloud_1_convert_to_focus
 ```
 
 ---
@@ -71,7 +71,7 @@ POST /api/v1/integrations/{org}/{provider}/validate
 
 ## FOCUS 1.3 Conversion
 
-**Stored Procedure:** `sp_convert_cloud_costs_to_focus_1_3`
+**Stored Procedure:** `sp_cloud_1_convert_to_focus`
 
 | Source Field | FOCUS Field |
 |--------------|-------------|
@@ -88,7 +88,7 @@ POST /api/v1/integrations/{org}/{provider}/validate
 | File | Purpose |
 |------|---------|
 | `03-data-pipeline-service/configs/cloud/{provider}/cost/billing.yml` | Pipeline configs |
-| `03-data-pipeline-service/configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql` | FOCUS converter |
+| `03-data-pipeline-service/configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql` | FOCUS converter |
 | `02-api-service/configs/setup/organizations/onboarding/schemas/cloud_*_billing_raw_daily.json` | Schemas |
 | `02-api-service/src/core/services/cost_read/service.py` | Cost read service |
 

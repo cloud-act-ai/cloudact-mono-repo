@@ -18,7 +18,7 @@ import logging
 import time
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable, TypeVar
 from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
@@ -27,8 +27,101 @@ from src.core.providers import provider_registry
 from src.app.config import get_settings
 
 
+# Type variable for generic return type
+T = TypeVar('T')
+
 # TTL for decrypted secrets in seconds (SECURITY FIX #4)
 DECRYPTED_SECRET_TTL_SECONDS = 300  # 5 minutes
+
+# BUG-021 FIX: Audit log retry configuration
+AUDIT_LOG_MAX_RETRIES = 3
+AUDIT_LOG_BACKOFF_SECONDS = 1  # Exponential backoff: 1s, 2s, 4s
+
+
+def retry_with_backoff(
+    func: Callable[..., T],
+    max_retries: int = 3,
+    backoff_seconds: float = 1,
+    operation_name: str = "operation",
+    logger: Optional[logging.Logger] = None
+) -> T:
+    """
+    BUG-021 FIX: Retry a function with exponential backoff for transient failures.
+
+    Args:
+        func: Function to retry (should be a lambda or callable with no args)
+        max_retries: Maximum number of retry attempts (default: 3)
+        backoff_seconds: Initial backoff time in seconds (default: 1)
+        operation_name: Name of operation for logging
+        logger: Logger instance for logging retry attempts
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        Last exception if all retries exhausted
+
+    Example:
+        >>> result = retry_with_backoff(
+        ...     lambda: bq_client.query(query).result(),
+        ...     operation_name="Audit log insert"
+        ... )
+    """
+    log = logger or logging.getLogger(__name__)
+    last_exception = None
+
+    for attempt in range(max_retries + 1):  # +1 for initial attempt
+        try:
+            return func()
+        except Exception as e:
+            last_exception = e
+
+            # Check if this is a transient error worth retrying
+            error_type = type(e).__name__
+            is_transient = error_type in {
+                "ConnectionError",
+                "ConnectionRefusedError",
+                "ConnectionResetError",
+                "TimeoutError",
+                "HTTPError",
+                "ServiceUnavailable",
+                "TooManyRequests",
+                "InternalServerError",
+            }
+
+            if not is_transient or attempt >= max_retries:
+                # Not transient or exhausted retries
+                if attempt > 0:
+                    log.error(
+                        f"{operation_name} failed after {attempt + 1} attempts",
+                        extra={
+                            "operation": operation_name,
+                            "attempts": attempt + 1,
+                            "error_type": error_type,
+                            "error": str(e)
+                        }
+                    )
+                raise
+
+            # Calculate exponential backoff
+            sleep_time = backoff_seconds * (2 ** attempt)
+            log.warning(
+                f"{operation_name} failed (attempt {attempt + 1}/{max_retries + 1}), retrying in {sleep_time}s",
+                extra={
+                    "operation": operation_name,
+                    "attempt": attempt + 1,
+                    "max_attempts": max_retries + 1,
+                    "backoff_seconds": sleep_time,
+                    "error_type": error_type,
+                    "error": str(e)
+                }
+            )
+            time.sleep(sleep_time)
+
+    # Should never reach here, but just in case
+    if last_exception:
+        raise last_exception
+    raise RuntimeError(f"{operation_name} failed unexpectedly")
 
 
 class CredentialDecryptionAuditLogger:
@@ -126,8 +219,17 @@ class CredentialDecryptionAuditLogger:
                 job_timeout_ms=10000  # 10 seconds max for audit log
             )
 
-            # Execute asynchronously
-            bq_client.client.query(insert_query, job_config=job_config)
+            # BUG-021 FIX: Execute with retry logic for transient failures
+            def _execute_audit_insert():
+                return bq_client.client.query(insert_query, job_config=job_config).result()
+
+            retry_with_backoff(
+                func=_execute_audit_insert,
+                max_retries=AUDIT_LOG_MAX_RETRIES,
+                backoff_seconds=AUDIT_LOG_BACKOFF_SECONDS,
+                operation_name=f"Audit log insert for {org_slug}/{provider}",
+                logger=self.logger
+            )
 
             self.logger.debug(
                 f"Audit logged: credential decryption for {org_slug}/{provider}",
@@ -303,14 +405,47 @@ class KMSDecryptIntegrationProcessor:
 
             # Extract context info for audit logging (SECURITY FIX #2, #12)
             user_id = context.get("user_id")
+
+            # BUG-025 FIX: Generate request_id if missing to ensure request traceability
             request_id = context.get("request_id") or context.get("correlation_id")
+            if not request_id:
+                request_id = f"decrypt-{uuid.uuid4().hex[:16]}"
+                context["request_id"] = request_id  # Propagate to downstream steps
+                self.logger.info(
+                    f"Generated request_id for credential decryption",
+                    extra={"org_slug": org_slug, "provider": provider, "request_id": request_id}
+                )
+
             pipeline_id = context.get("pipeline_id")
 
             # Decrypt credential
             try:
                 decrypted_credential = decrypt_value(encrypted_credential)
+
+                # BUG-026 FIX: Validate credential format after decryption
+                # This prevents using corrupt or tampered credentials
+                from src.core.providers import validate_credential_format
+                format_validation = validate_credential_format(provider, decrypted_credential)
+                if not format_validation["valid"]:
+                    error_msg = f"Decrypted credential failed format validation: {format_validation['error']}"
+                    self.logger.error(
+                        error_msg,
+                        extra={
+                            "org_slug": org_slug,
+                            "provider": provider,
+                            "credential_id": credential_id,
+                            "request_id": request_id,
+                        }
+                    )
+                    return {
+                        "status": "FAILED",
+                        "error": "Stored credential is invalid or corrupted. Please reconfigure integration.",
+                        "error_code": "FORMAT_001",
+                        "provider": provider
+                    }
+
                 self.logger.info(
-                    f"Credential decrypted successfully",
+                    f"Credential decrypted and validated successfully",
                     extra={
                         "org_slug": org_slug,
                         "provider": provider,
@@ -367,23 +502,35 @@ class KMSDecryptIntegrationProcessor:
 
             # Determine context key - use provider registry if not overridden
             if context_key:
-                key = context_key
+                base_key = context_key
             else:
                 # Get key from provider registry (loaded from providers.yml)
-                key = provider_registry.get_context_key(provider)
-                if not key:
+                base_key = provider_registry.get_context_key(provider)
+                if not base_key:
                     # Fallback if provider not in registry
-                    key = f"{provider.lower()}_credential"
+                    base_key = f"{provider.lower()}_credential"
+
+            # BUG-027 FIX: Namespace keys by provider to prevent collisions in multi-integration pipelines
+            # This ensures that if two providers use the same base context key, they won't overwrite each other
+            key = f"{provider.upper()}::{base_key}"
 
             # SECURITY FIX #4: Wrap secret with TTL
             secret_with_ttl = SecretWithTTL(decrypted_credential)
             context["secrets"][key] = decrypted_credential  # Keep raw for backward compat
             context["secrets_ttl"][key] = secret_with_ttl  # Store TTL wrapper
 
+            # BUG-027 FIX: Also store non-namespaced version for backward compatibility
+            # This allows existing pipelines to continue working while new ones can use namespaced keys
+            context["secrets"][base_key] = decrypted_credential
+            context["secrets_ttl"][base_key] = secret_with_ttl
+
             # Also store metadata if present
             if row.get("metadata"):
                 metadata_key = f"{key}_metadata"
-                context["secrets"][metadata_key] = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+                base_metadata_key = f"{base_key}_metadata"
+                metadata_value = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+                context["secrets"][metadata_key] = metadata_value
+                context["secrets"][base_metadata_key] = metadata_value  # Backward compat
 
             self.logger.info(
                 f"Credential stored in context",
@@ -453,9 +600,14 @@ class GetIntegrationStatusProcessor:
                 "error": "org_slug is required in context"
             }
 
+        # BUG-024 FIX: Add pagination support with default limit
+        limit = context.get("limit", 100)  # Default 100 integrations (more than enough for most orgs)
+        offset = context.get("offset", 0)
+
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 
         try:
+            # BUG-024 FIX: Query with pagination
             query = f"""
             SELECT
                 provider,
@@ -468,6 +620,7 @@ class GetIntegrationStatusProcessor:
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug AND is_active = TRUE
             ORDER BY provider
+            LIMIT @limit OFFSET @offset
             """
 
             results = list(bq_client.client.query(
@@ -475,6 +628,8 @@ class GetIntegrationStatusProcessor:
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("limit", "INT64", limit),
+                        bigquery.ScalarQueryParameter("offset", "INT64", offset),
                     ],
                     job_timeout_ms=60000  # 60 seconds for integration ops
                 )

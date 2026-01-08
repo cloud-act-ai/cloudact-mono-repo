@@ -1,25 +1,170 @@
 [
-  {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy."},
-  {"name": "provider", "type": "STRING", "mode": "REQUIRED", "description": "Commitment provider: azure_openai_ptu, aws_bedrock_pt, gcp_vertex_pt."},
-  {"name": "commitment_type", "type": "STRING", "mode": "REQUIRED", "description": "Type: ptu (Azure), provisioned_throughput (AWS), gsu (GCP)."},
-  {"name": "model", "type": "STRING", "mode": "REQUIRED", "description": "Model covered by commitment. Example: gpt-4, claude-3-sonnet."},
-  {"name": "unit_name", "type": "STRING", "mode": "NULLABLE", "description": "PTU type identifier to distinguish variants. Example: gpt-4-ptu, gpt-4-32k-ptu, claude-3-sonnet-pt. Issue #48: Required to differentiate pricing tiers within same model family."},
-  {"name": "region", "type": "STRING", "mode": "REQUIRED", "description": "Deployment region. Example: eastus, us-east-1, us-central1."},
-  {"name": "ptu_hourly_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Hourly rate per PTU/unit in USD. Issue #3: BUSINESS RULE - At least one of ptu_hourly_rate or ptu_monthly_rate must be provided for active pricing. Cost processors will skip records with both rates NULL. Valid range: 0 to 1000000."},
-  {"name": "ptu_monthly_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Monthly rate per PTU/unit in USD. Issue #3: BUSINESS RULE - At least one of ptu_hourly_rate or ptu_monthly_rate must be provided for active pricing. Cost processors will skip records with both rates NULL. Valid range: 0 to 1000000."},
-  {"name": "min_units", "type": "INT64", "mode": "NULLABLE", "description": "Minimum units required. Issue #46: Standardized from min_ptu for consistency with API."},
-  {"name": "max_units", "type": "INT64", "mode": "NULLABLE", "description": "Maximum units available. Issue #46: Standardized from max_ptu for consistency with API."},
-  {"name": "commitment_term_months", "type": "INT64", "mode": "NULLABLE", "description": "Commitment term in months."},
-  {"name": "tokens_per_unit_minute", "type": "INT64", "mode": "NULLABLE", "description": "Tokens per unit per minute throughput. Issue #46: Standardized from tokens_per_ptu_minute."},
-  {"name": "term_discount_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Discount for longer commitment terms."},
-  {"name": "volume_discount_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Discount for higher unit volumes."},
-  {"name": "effective_from", "type": "DATE", "mode": "NULLABLE", "description": "Pricing effective start date."},
-  {"name": "effective_to", "type": "DATE", "mode": "NULLABLE", "description": "Pricing effective end date."},
-  {"name": "status", "type": "STRING", "mode": "NULLABLE", "description": "Status: active, deprecated."},
-  {"name": "is_override", "type": "BOOLEAN", "mode": "NULLABLE", "description": "True if org has custom pricing."},
-  {"name": "override_hourly_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Org-specific hourly rate override. Issue #45: Standardized override naming."},
-  {"name": "override_monthly_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Org-specific monthly rate override. Issue #45: Added for consistency with PAYG override pattern."},
-  {"name": "override_effective_from", "type": "DATE", "mode": "NULLABLE", "description": "When override pricing became effective. Issue #45: Added for consistency with PAYG."},
-  {"name": "override_notes", "type": "STRING", "mode": "NULLABLE", "description": "Notes for pricing override (contract reference)."},
-  {"name": "last_updated", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of last update."}
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy."
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Commitment provider: azure_openai_ptu, aws_bedrock_pt, gcp_vertex_pt."
+  },
+  {
+    "name": "commitment_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type: ptu (Azure), provisioned_throughput (AWS), gsu (GCP)."
+  },
+  {
+    "name": "model",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Model covered by commitment. Example: gpt-4, claude-3-sonnet."
+  },
+  {
+    "name": "unit_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "PTU type identifier to distinguish variants. Example: gpt-4-ptu, gpt-4-32k-ptu, claude-3-sonnet-pt. Issue #48: Required to differentiate pricing tiers within same model family."
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Deployment region. Example: eastus, us-east-1, us-central1."
+  },
+  {
+    "name": "ptu_hourly_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Hourly rate per PTU/unit in USD. Issue #3: BUSINESS RULE - At least one of ptu_hourly_rate or ptu_monthly_rate must be provided for active pricing. Cost processors will skip records with both rates NULL. Valid range: 0 to 1000000."
+  },
+  {
+    "name": "ptu_monthly_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Monthly rate per PTU/unit in USD. Issue #3: BUSINESS RULE - At least one of ptu_hourly_rate or ptu_monthly_rate must be provided for active pricing. Cost processors will skip records with both rates NULL. Valid range: 0 to 1000000."
+  },
+  {
+    "name": "min_units",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Minimum units required. Issue #46: Standardized from min_ptu for consistency with API."
+  },
+  {
+    "name": "max_units",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Maximum units available. Issue #46: Standardized from max_ptu for consistency with API."
+  },
+  {
+    "name": "commitment_term_months",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Commitment term in months."
+  },
+  {
+    "name": "tokens_per_unit_minute",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Tokens per unit per minute throughput. Issue #46: Standardized from tokens_per_ptu_minute."
+  },
+  {
+    "name": "term_discount_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Discount for longer commitment terms."
+  },
+  {
+    "name": "volume_discount_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Discount for higher unit volumes."
+  },
+  {
+    "name": "effective_from",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Pricing effective start date."
+  },
+  {
+    "name": "effective_to",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Pricing effective end date."
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Status: active, deprecated."
+  },
+  {
+    "name": "is_override",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "True if org has custom pricing."
+  },
+  {
+    "name": "override_hourly_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Org-specific hourly rate override. Issue #45: Standardized override naming."
+  },
+  {
+    "name": "override_monthly_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Org-specific monthly rate override. Issue #45: Added for consistency with PAYG override pattern."
+  },
+  {
+    "name": "override_effective_from",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "When override pricing became effective. Issue #45: Added for consistency with PAYG."
+  },
+  {
+    "name": "override_notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Notes for pricing override (contract reference)."
+  },
+  {
+    "name": "last_updated",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline that loaded this pricing data."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N/A for pricing reference data."
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when pricing was loaded."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline execution UUID."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When pricing was written to table."
+  }
 ]

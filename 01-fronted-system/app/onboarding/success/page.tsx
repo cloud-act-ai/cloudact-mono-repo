@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { completeOnboarding } from "@/actions/organization"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { OnboardingProgress, createOnboardingStages, updateStageStatus, completeStageAndMoveNext, type ProgressStage } from "@/components/onboarding-progress"
 
 // Validate Stripe session ID format
 function isValidSessionId(sessionId: string | null): sessionId is string {
@@ -31,6 +32,8 @@ function SuccessContent() {
   const [backendFailed, setBackendFailed] = useState(false)
   const [apiKey, setApiKey] = useState<string | null>(null)
   const [apiKeyCopied, setApiKeyCopied] = useState(false)
+  // FIX GAP-006: Track progress stages for real-time feedback
+  const [progressStages, setProgressStages] = useState<ProgressStage[]>(createOnboardingStages())
 
   // Prevent duplicate processing and back button issues
   const processingRef = useRef(false)
@@ -40,6 +43,11 @@ function SuccessContent() {
     // Prevent duplicate processing
     if (processingRef.current && !isRetry) return
     processingRef.current = true
+
+    // FIX GAP-006: Reset progress stages on retry
+    if (isRetry) {
+      setProgressStages(createOnboardingStages())
+    }
 
     // Validate session ID format before making request
     if (!isValidSessionId(sessionId)) {
@@ -55,6 +63,9 @@ function SuccessContent() {
         window.history.replaceState({ processing: true }, "", window.location.href)
       }
 
+      // FIX GAP-006: Stage 1 - Verifying payment
+      setProgressStages(prev => updateStageStatus(prev, 0, "in_progress"))
+
       // Check if user is authenticated
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -67,16 +78,45 @@ function SuccessContent() {
         return
       }
 
+      // FIX GAP-006: Stage 1 complete, move to Stage 2 - Creating organization
+      setProgressStages(prev => completeStageAndMoveNext(prev, 0))
+
       // Call server action to complete onboarding
       // This will verify the checkout session and create the organization
       const result = await completeOnboarding(sessionId)
 
       if (!result.success) {
+        // FIX GAP-006: Mark current stage as error
+        const currentStageIdx = progressStages.findIndex(s => s.status === "in_progress")
+        if (currentStageIdx >= 0) {
+          setProgressStages(prev => updateStageStatus(prev, currentStageIdx, "error", result.error))
+        }
         setStatus("error")
         setError(result.error || "Failed to complete setup")
         processingRef.current = false
         return
       }
+
+      // FIX GAP-006: Stage 2 complete (org created), move to Stage 3 - Setting up workspace
+      setProgressStages(prev => completeStageAndMoveNext(prev, 1))
+
+      // Small delay to show workspace setup stage
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // FIX GAP-006: Stage 3 complete, move to Stage 4 - Generating API key
+      setProgressStages(prev => completeStageAndMoveNext(prev, 2))
+
+      // Small delay to show API key generation
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // FIX GAP-006: Stage 4 complete, move to Stage 5 - Finalizing
+      setProgressStages(prev => completeStageAndMoveNext(prev, 3))
+
+      // Small delay to show finalizing stage
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // FIX GAP-006: All stages complete
+      setProgressStages(prev => updateStageStatus(prev, 4, "completed"))
 
       hasProcessedRef.current = true
       setOrgSlug(result.orgSlug || null)
@@ -146,7 +186,7 @@ function SuccessContent() {
 
   if (status === "processing") {
     return (
-      <div className="flex flex-col items-center gap-6 text-center">
+      <div className="flex flex-col items-center gap-6 text-center max-w-md">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDFA]">
           <Loader2 className="h-10 w-10 animate-spin text-[#6EE890]" />
         </div>
@@ -156,10 +196,9 @@ function SuccessContent() {
             Please wait while we complete your setup. This may take a moment.
           </p>
         </div>
-        <div className="flex flex-col gap-2 text-sm text-gray-600">
-          <p>Creating your organization...</p>
-          <p>Setting up your workspace...</p>
-          <p>Configuring your subscription...</p>
+        {/* FIX GAP-006: Real-time progress indicator */}
+        <div className="w-full mt-4">
+          <OnboardingProgress stages={progressStages} />
         </div>
       </div>
     )

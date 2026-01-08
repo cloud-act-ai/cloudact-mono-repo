@@ -292,7 +292,7 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total" -H "X-API-Key: $O
 | GenAI PAYG pipeline fails | Requires integration credentials | Run cost MERGE query directly via BigQuery |
 | GenAI pricing mismatch | Usage model names don't match pricing | Add pricing for exact model names (e.g., `claude-3-5-sonnet-20241022`) |
 | GenAI provider mismatch | Usage has `gemini`, pricing has `google` | Add pricing with matching provider name |
-| Cloud pipeline 404 | Cloud unified pipeline not configured | Run sp_convert_cloud_costs_to_focus_1_3 directly |
+| Cloud pipeline 404 | Cloud unified pipeline not configured | Run sp_cloud_1_convert_to_focus directly |
 | API shows $0 for Cloud/GenAI | API defaults to current month (2026), demo data is 2025 | **MUST use date range**: `?start_date=2025-01-01&end_date=2025-12-31` |
 | Subscription shows costs but Cloud/GenAI $0 | Subscription data has 2026 dates, Cloud/GenAI only 2025 | Set dashboard to 2025 date range |
 | Cloud only shows 1st of month | Procedure run per-date | Run procedure loop for all dates in range |
@@ -386,7 +386,7 @@ For demo data without integration credentials, run procedures directly:
 ```bash
 # Cloud FOCUS conversion (all providers, per-date)
 bq query --use_legacy_sql=false "
-CALL \`cloudact-testing-1.organizations\`.sp_convert_cloud_costs_to_focus_1_3(
+CALL \`cloudact-testing-1.organizations\`.sp_cloud_1_convert_to_focus(
   'cloudact-testing-1',
   'acme_inc_01062026_local',
   DATE('2025-12-01'),
@@ -399,7 +399,7 @@ CALL \`cloudact-testing-1.organizations\`.sp_convert_cloud_costs_to_focus_1_3(
 # Cloud conversion for all months (loop)
 for month in 01 02 03 04 05 06 07 08 09 10 11 12; do
   bq query --use_legacy_sql=false "
-  CALL \`cloudact-testing-1.organizations\`.sp_convert_cloud_costs_to_focus_1_3(
+  CALL \`cloudact-testing-1.organizations\`.sp_cloud_1_convert_to_focus(
     'cloudact-testing-1',
     'acme_inc_01062026_local',
     DATE('2025-${month}-01'),
@@ -412,7 +412,7 @@ done
 
 # GenAI usage consolidation (per-date)
 bq query --use_legacy_sql=false "
-CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_usage_daily(
+CALL \`cloudact-testing-1.organizations\`.sp_genai_1_consolidate_usage_daily(
   'cloudact-testing-1',
   'acme_inc_01062026_local',
   DATE('2025-01-01'),
@@ -423,7 +423,7 @@ CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_usage_daily(
 
 # GenAI cost consolidation (per-date) - requires genai_payg_costs_daily to have data
 bq query --use_legacy_sql=false "
-CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_costs_daily(
+CALL \`cloudact-testing-1.organizations\`.sp_genai_2_consolidate_costs_daily(
   'cloudact-testing-1',
   'acme_inc_01062026_local',
   DATE('2025-01-01'),
@@ -437,16 +437,16 @@ CALL \`cloudact-testing-1.organizations\`.sp_consolidate_genai_costs_daily(
 
 ```
 Subscription:
-  subscription_plans → sp_calculate_subscription_plan_costs_daily → subscription_plan_costs_daily
-  subscription_plan_costs_daily → sp_convert_subscription_costs_to_focus_1_3 → cost_data_standard_1_3
+  subscription_plans → sp_subscription_2_calculate_daily_costs → subscription_plan_costs_daily
+  subscription_plan_costs_daily → sp_subscription_3_convert_to_focus → cost_data_standard_1_3
 
 GenAI (requires cost calculation first):
   genai_payg_usage_raw + genai_payg_pricing → PAYGCostProcessor/MERGE → genai_payg_costs_daily
-  genai_payg_costs_daily → sp_consolidate_genai_costs_daily → genai_costs_daily_unified
-  genai_costs_daily_unified → sp_convert_genai_to_focus_1_3 → cost_data_standard_1_3
+  genai_payg_costs_daily → sp_genai_2_consolidate_costs_daily → genai_costs_daily_unified
+  genai_costs_daily_unified → sp_genai_3_convert_to_focus → cost_data_standard_1_3
 
 Cloud:
-  cloud_*_billing_raw_daily → sp_convert_cloud_costs_to_focus_1_3 → cost_data_standard_1_3
+  cloud_*_billing_raw_daily → sp_cloud_1_convert_to_focus → cost_data_standard_1_3
 ```
 
 ### Cloud FOCUS Conversion (CRITICAL - Per-Provider Column Mapping)

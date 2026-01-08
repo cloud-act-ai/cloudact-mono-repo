@@ -135,10 +135,9 @@ class OnetimeBootstrapProcessor:
     ) -> bool:
         """Create table from schema JSON and config.yml settings."""
         # BUG-014 FIX: Validate table name convention
-        if not table_name.startswith('org_') and table_name != 'hierarchy_levels':
+        if not table_name.startswith('org_'):
             raise ValueError(
-                f"Invalid table name '{table_name}': Bootstrap tables must start with 'org_' "
-                f"(exception: 'hierarchy_levels')"
+                f"Invalid table name '{table_name}': Bootstrap tables must start with 'org_'"
             )
 
         dataset_name = self.config.get('dataset', {}).get('name', 'organizations')

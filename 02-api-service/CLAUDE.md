@@ -195,7 +195,7 @@ curl -X DELETE "http://localhost:8000/api/v1/subscriptions/my_org/providers/chat
 │   ├── usage/                  # GenAI usage calculations
 │   └── integrations/           # Integration status/health
 ├── configs/
-│   ├── setup/bootstrap/        # 14 table schemas
+│   ├── setup/bootstrap/        # 21 table schemas
 │   └── subscription/seed/      # Subscription templates
 └── tests/
 ```

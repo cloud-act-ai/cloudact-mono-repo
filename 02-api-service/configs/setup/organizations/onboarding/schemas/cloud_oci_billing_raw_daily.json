@@ -192,6 +192,162 @@
     "description": "When this record was ingested"
   },
   {
+    "name": "hierarchy_entity_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
+  },
+  {
+    "name": "hierarchy_entity_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Leaf entity display name. Example: 'Platform Team'."
+  },
+  {
+    "name": "hierarchy_level_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Entity level code. Example: 'team', 'project', 'department'."
+  },
+  {
+    "name": "hierarchy_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
+  },
+  {
+    "name": "hierarchy_path_names",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
+  },
+  {
+    "name": "x_hierarchy_level_1_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_1_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_2_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_2_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_3_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_3_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_4_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_4_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_5_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_5_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_6_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_6_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_7_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_7_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_8_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_8_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_9_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_9_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_10_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_level_10_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_validated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When hierarchy was validated"
+  },
+  {
     "name": "x_pipeline_id",
     "type": "STRING",
     "mode": "REQUIRED",

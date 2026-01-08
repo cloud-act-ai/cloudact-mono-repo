@@ -49,7 +49,7 @@ def main():
     for i, process_date in enumerate(dates, 1):
         # Call the conversion procedure for each date
         query = f"""
-            CALL `{PROJECT_ID}.organizations.sp_convert_genai_to_focus_1_3`(
+            CALL `{PROJECT_ID}.organizations.sp_genai_3_convert_to_focus`(
                 @project_id,
                 @dataset_id,
                 @cost_date,

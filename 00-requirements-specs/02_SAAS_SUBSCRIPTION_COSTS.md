@@ -101,9 +101,9 @@ GET    /api/v1/subscriptions/{org}/providers/{p}/available-plans # Get templates
 **Stored Procedures:**
 | Procedure | Purpose |
 |-----------|---------|
-| `sp_calculate_subscription_plan_costs_daily` | Daily amortized costs |
-| `sp_convert_subscription_costs_to_focus_1_3` | FOCUS 1.3 format |
-| `sp_run_subscription_costs_pipeline` | Orchestrator |
+| `sp_subscription_2_calculate_daily_costs` | Daily amortized costs |
+| `sp_subscription_3_convert_to_focus` | FOCUS 1.3 format |
+| `sp_subscription_4_run_pipeline` | Orchestrator |
 
 ---
 

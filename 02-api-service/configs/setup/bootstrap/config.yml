@@ -144,7 +144,7 @@ tables:
   # Flexible hierarchy structure with configurable levels
   # ============================================
 
-  hierarchy_levels:
+  org_hierarchy_levels:
     description: "Hierarchy level configuration (defines structure: e.g., Dept → Project → Team)"
     clustering: ["org_slug", "level", "is_active"]
 

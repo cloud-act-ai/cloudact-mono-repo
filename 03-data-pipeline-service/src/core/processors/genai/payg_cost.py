@@ -81,6 +81,19 @@ class PAYGCostProcessor:
         self.logger = logging.getLogger("src.core.processors.genai.payg_cost")
         self._pool_manager = BigQueryPoolManager.get_instance()
 
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, _exc_type, _exc_val, _exc_tb):
+        """Async context manager exit - cleanup connection pool."""
+        if self._pool_manager:
+            try:
+                self._pool_manager.shutdown()
+            except Exception as e:
+                self.logger.warning(f"Error closing connection pool: {e}")
+        return False
+
     def _validate_table_name(self, table_name: str) -> bool:
         """
         SECURITY: Validate table name against allowlist.
@@ -317,6 +330,7 @@ class PAYGCostProcessor:
 
             total_rows_inserted = 0
             total_cost_all_dates = 0.0
+            process_date = None  # Initialize for exception handler
 
             # Process each date
             for process_date in dates_to_process:
@@ -576,10 +590,13 @@ class PAYGCostProcessor:
 
         except Exception as e:
             # SECURITY: Log full error internally but return generic message to API
+            date_str = "undefined"
+            if 'process_date' in locals() and process_date:
+                date_str = str(process_date)
             self.logger.error(
                 f"Failed to calculate PAYG costs: {type(e).__name__}: {e}",
                 exc_info=True,
-                extra={"org_slug": org_slug, "date": str(process_date)}
+                extra={"org_slug": org_slug, "date": date_str}
             )
             return {
                 "status": "FAILED",
@@ -688,41 +705,33 @@ class PAYGCostProcessor:
         except Exception as e:
             self.logger.warning(f"Missing pricing check failed: {e}")
 
-        # BUG ERR-01: Disabled - references non-existent columns (hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code)
-        # These columns were replaced by 10-level hierarchy fields (hierarchy_level_1_id through hierarchy_level_10_id)
-        # TODO: Implement new validation logic for 10-level hierarchy if needed
-        #
-        # # Issue #5: Check for orphan hierarchy allocations (warning only)
-        # # N-level hierarchy: Check if hierarchy_entity_id exists in x_org_hierarchy
-        # hierarchy_check_query = f"""
-        #     SELECT DISTINCT
-        #         u.hierarchy_level_1_id,
-        #         u.hierarchy_entity_name,
-        #         u.hierarchy_level_code
-        #     FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
-        #     LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
-        #         ON h.entity_id = u.hierarchy_entity_id
-        #     WHERE u.usage_date = @process_date
-        #         AND u.org_slug = @org_slug
-        #         AND u.hierarchy_entity_id IS NOT NULL
-        #         AND h.entity_id IS NULL
-        #         {provider_condition}
-        # """
-        #
-        # try:
-        #     orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
-        #     for row in orphan_results:
-        #         entity_id = row.get("hierarchy_entity_id")
-        #         entity_name = row.get("hierarchy_entity_name")
-        #         level_code = row.get("hierarchy_level_code")
-        #         self.logger.warning(
-        #             f"Issue #5: Orphan hierarchy allocation detected - "
-        #             f"entity_id={entity_id}, name={entity_name}, level={level_code}. "
-        #             f"This entity may not exist in x_org_hierarchy view."
-        #         )
-        # except Exception as e:
-        #     # Don't fail on hierarchy check errors - just warn
-        #     self.logger.warning(f"Hierarchy validation check failed: {e}")
+        # Issue #5: Check for orphan hierarchy allocations (warning only)
+        # Check if hierarchy_entity_id exists in org_hierarchy
+        hierarchy_check_query = f"""
+            SELECT DISTINCT
+                u.hierarchy_entity_id,
+                u.hierarchy_entity_name
+            FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
+            LEFT JOIN `{project_id}.organizations.org_hierarchy` h
+                ON h.entity_id = u.hierarchy_entity_id
+                AND h.org_slug = @org_slug
+                AND h.end_date IS NULL
+            WHERE u.usage_date = @process_date
+                AND u.org_slug = @org_slug
+                AND u.hierarchy_entity_id IS NOT NULL
+                AND h.entity_id IS NULL
+                {provider_condition}
+        """
+
+        try:
+            orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
+            for row in orphan_results:
+                self.logger.warning(
+                    f"Orphan hierarchy allocation: entity_id={row.get('hierarchy_entity_id')}, "
+                    f"entity_name={row.get('hierarchy_entity_name')} not found in org_hierarchy"
+                )
+        except Exception as e:
+            self.logger.warning(f"Hierarchy validation check failed: {e}")
 
         return {
             "has_errors": len(errors) > 0,
@@ -774,7 +783,7 @@ class PAYGCostProcessor:
             current_date += timedelta(days=1)
         return dates
 
-    def _parse_date(self, date_str: str) -> date:
+    def _parse_date(self, date_str: str) -> Optional[date]:
         """Parse date string to date object."""
         if not date_str:
             return None

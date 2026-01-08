@@ -33,6 +33,8 @@ steps:
     ps_type: genai.payg_cost
     config:
       provider: "openai"
+      start_date: "${start_date}"
+      end_date: "${end_date}"
     depends_on:
       - extract_usage
     timeout_seconds: 300

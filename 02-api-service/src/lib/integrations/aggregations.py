@@ -252,6 +252,10 @@ def aggregate_validation_history(
     breakdown = []
     for row in result.iter_rows(named=True):
         period = row["_period"]
+        # BUG-047 FIX: Handle None dates before processing
+        if period is None:
+            continue  # Skip records with None dates
+
         total = row["total_validations"]
         valid = row["valid"]
 
@@ -309,10 +313,22 @@ def aggregate_error_patterns(
         .collect()
     )
 
+    # BUG-048 FIX: Sanitize error messages before returning
+    def sanitize_error(error_msg: str) -> str:
+        """Remove potential credentials from error messages"""
+        if not error_msg:
+            return error_msg
+        import re
+        # Remove API keys (sk-..., sk_..., etc.)
+        sanitized = re.sub(r'sk[-_][a-zA-Z0-9]{20,}', '[REDACTED_API_KEY]', error_msg)
+        # Remove potential tokens
+        sanitized = re.sub(r'[a-zA-Z0-9]{32,}', '[REDACTED_TOKEN]', sanitized)
+        return sanitized
+
     patterns = []
     for row in result.iter_rows(named=True):
         patterns.append({
-            "error": row[error_col],
+            "error": sanitize_error(row[error_col]),
             "count": row["count"],
             "affected_providers": row["affected_providers"],
             "example_provider": row["example_provider"],
@@ -341,7 +357,23 @@ def aggregate_integration_summary(
     Returns:
         Dict with overall summary
     """
-    if df.is_empty():
+    # BUG-050 FIX: Wrap Polars operations in try/except
+    try:
+        if df.is_empty():
+            return {
+                "total_integrations": 0,
+                "valid_count": 0,
+                "invalid_count": 0,
+                "pending_count": 0,
+                "unique_providers": 0,
+                "health_percentage": 100.0,
+                "by_category": {},
+            }
+    except Exception as e:
+        # Return empty summary on error
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error checking DataFrame empty status: {e}")
         return {
             "total_integrations": 0,
             "valid_count": 0,
@@ -350,6 +382,7 @@ def aggregate_integration_summary(
             "unique_providers": 0,
             "health_percentage": 100.0,
             "by_category": {},
+            "error": str(e),
         }
 
     # Overall counts

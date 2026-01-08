@@ -683,7 +683,7 @@ async def get_subscription_costs(
     Get subscription costs from the cost_data_standard_1_3 table.
 
     This is the **source of truth** for subscription costs, calculated by the
-    subscription costs pipeline (sp_run_subscription_costs_pipeline).
+    subscription costs pipeline (sp_subscription_4_run_pipeline).
 
     Returns:
     - Per-subscription monthly and annual run rates (calculated from daily costs)

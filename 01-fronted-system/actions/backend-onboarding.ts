@@ -17,6 +17,7 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { PipelineBackendClient, OnboardOrgRequest } from "@/lib/api/backend"
 import { createHash } from "crypto"
 import { isValidOrgSlug } from "@/lib/utils/validation"
+import { getUserFriendlyError } from "@/lib/errors/user-friendly"
 
 /**
  * Generate a fingerprint (hash) of an API key for display.
@@ -32,7 +33,9 @@ function generateApiKeyFingerprint(apiKey: string): string {
 // In-memory cache for reveal tokens with expiration
 // Tokens expire after 30 minutes (extended from 5 min to handle Stripe checkout flow)
 // BUG FIX: Extended TTL because users may take longer than 5 min in Stripe checkout
-const REVEAL_TOKEN_TTL_MS = 30 * 60 * 1000
+// FIX GAP-010: Increased from 30 minutes to 2 hours to accommodate user delays
+// User may complete Stripe checkout (5 min), onboarding (20 sec), but be distracted before copying API key
+const REVEAL_TOKEN_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours
 const revealTokenCache = new Map<string, { apiKey: string; expiresAt: Date }>()
 
 /**
@@ -305,6 +308,53 @@ export async function onboardToBackend(input: {
       }
     }
 
+    // FIX GAP-001: Validate bootstrap completed before onboarding
+    // Check if system is initialized (21 meta tables exist)
+    try {
+      const bootstrapStatusResponse = await fetch(
+        `${backendUrl}/api/v1/admin/bootstrap/status`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CA-Root-Key": adminApiKey,
+          },
+        }
+      )
+
+      if (!bootstrapStatusResponse.ok) {
+        // Bootstrap endpoint failed - system may not be initialized
+        return {
+          success: false,
+          error: "System initialization check failed. Please try again in a few moments or contact support.",
+        }
+      }
+
+      const bootstrapStatus = await bootstrapStatusResponse.json()
+
+      // Check if bootstrap is complete and all tables exist
+      if (bootstrapStatus.status !== "SYNCED") {
+        return {
+          success: false,
+          error: "System setup is incomplete. Please contact support to complete initialization.",
+        }
+      }
+
+      // Check if any tables are missing
+      if (bootstrapStatus.tables_missing && bootstrapStatus.tables_missing.length > 0) {
+        return {
+          success: false,
+          error: `System setup incomplete (${bootstrapStatus.tables_missing.length} tables missing). Please contact support.`,
+        }
+      }
+    } catch (bootstrapCheckError) {
+      // Network error or unexpected response
+      return {
+        success: false,
+        error: "Unable to verify system readiness. Please try again or contact support.",
+      }
+    }
+
     // Create backend client with admin key for onboarding
     const backend = new PipelineBackendClient({ adminApiKey })
 
@@ -326,22 +376,63 @@ export async function onboardToBackend(input: {
       ? response.api_key.slice(-4)
       : undefined
 
-    // Update Supabase org with backend onboarding status
+    // FIX GAP-004: Update Supabase org with retry logic (exponential backoff)
+    // Backend succeeded, must sync to Supabase to avoid inconsistent state
     const adminClient = createServiceRoleClient()
 
-    const { error: updateError } = await adminClient
-      .from("organizations")
-      .update({
-        backend_onboarded: true,
-        backend_api_key_fingerprint: apiKeyFingerprint,
-        backend_onboarded_at: new Date().toISOString(),
-      })
-      .eq("org_slug", input.orgSlug)
+    let retryCount = 0
+    const maxRetries = 3
+    let updateSuccess = false
 
-    if (updateError) {
-      // Don't fail - backend onboarding succeeded, just metadata update failed
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[onboardToBackend] Failed to update org with backend status:", updateError.message)
+    while (retryCount < maxRetries && !updateSuccess) {
+      try {
+        const { error: updateError } = await adminClient
+          .from("organizations")
+          .update({
+            backend_onboarded: true,
+            backend_api_key_fingerprint: apiKeyFingerprint,
+            backend_onboarded_at: new Date().toISOString(),
+          })
+          .eq("org_slug", input.orgSlug)
+
+        if (!updateError) {
+          updateSuccess = true
+          break
+        }
+
+        throw new Error(updateError.message)
+      } catch (err) {
+        retryCount++
+
+        if (retryCount >= maxRetries) {
+          // Max retries exceeded - backend succeeded but Supabase update failed
+          // Store in compensation table for manual sync later
+          try {
+            await adminClient.from("pending_backend_syncs").insert({
+              org_slug: input.orgSlug,
+              api_key_fingerprint: apiKeyFingerprint,
+              backend_onboarded_at: new Date().toISOString(),
+              status: "pending_sync",
+              retry_count: maxRetries,
+              last_error: err instanceof Error ? err.message : "Unknown error",
+            })
+          } catch (compensationError) {
+            // Even compensation failed - log for manual intervention
+            if (process.env.NODE_ENV === "development") {
+              console.error("[onboardToBackend] Compensation transaction failed:", compensationError)
+            }
+          }
+
+          if (process.env.NODE_ENV === "development") {
+            console.error("[onboardToBackend] Supabase update failed after retries:", err)
+          }
+
+          // Return success with warning (backend succeeded, sync can be done later)
+          break
+        }
+
+        // Exponential backoff: 1s, 2s, 4s
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)))
       }
     }
 
@@ -450,17 +541,20 @@ export async function onboardToBackend(input: {
         }
       } catch (retryErr: unknown) {
         const retryError = retryErr as { detail?: string; message?: string }
+        const technicalError = `Organization exists but failed to regenerate API key: ${retryError.message || retryError.detail}`
         return {
           success: false,
           orgSlug: input.orgSlug,
-          error: `Organization exists but failed to regenerate API key: ${retryError.message || retryError.detail}. Please contact support.`,
+          // FIX GAP-007: User-friendly error message
+          error: getUserFriendlyError(technicalError),
         }
       }
     }
 
+    // FIX GAP-007: User-friendly error message for all other backend errors
     return {
       success: false,
-      error: errorMessage,
+      error: getUserFriendlyError(errorMessage),
     }
   }
 }

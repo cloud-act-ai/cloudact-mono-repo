@@ -343,7 +343,7 @@ def run_consolidation_procedure(client: bigquery.Client):
         consolidated = 0
         for i, d in enumerate(dates):
             proc_query = f"""
-                CALL `{PROJECT_ID}.organizations`.sp_consolidate_genai_costs_daily(
+                CALL `{PROJECT_ID}.organizations`.sp_genai_2_consolidate_costs_daily(
                     '{PROJECT_ID}', '{DATASET_ID}', DATE('{d}'), NULL, 'demo_consolidation', GENERATE_UUID()
                 )
             """
@@ -382,7 +382,7 @@ def run_focus_conversion_procedure(client: bigquery.Client):
         converted = 0
         for i, d in enumerate(dates):
             proc_query = f"""
-                CALL `{PROJECT_ID}.organizations`.sp_convert_genai_to_focus_1_3(
+                CALL `{PROJECT_ID}.organizations`.sp_genai_3_convert_to_focus(
                     '{PROJECT_ID}', '{DATASET_ID}', DATE('{d}'), NULL, 'demo_focus', GENERATE_UUID()
                 )
             """

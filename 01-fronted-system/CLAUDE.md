@@ -610,9 +610,9 @@ team,TEAM-001,Backend,PROJ-001,,Bob Wilson,bob@example.com,Backend team
 **Cost Allocation Flow:**
 ```
 subscription_plans (N-level hierarchy fields)
-    ↓ sp_calculate_subscription_plan_costs_daily
+    ↓ sp_subscription_2_calculate_daily_costs
 subscription_plan_costs_daily (with hierarchy)
-    ↓ sp_convert_subscription_costs_to_focus_1_3
+    ↓ sp_subscription_3_convert_to_focus
 cost_data_standard_1_3 (x_hierarchy_* extension fields)
 ```
 

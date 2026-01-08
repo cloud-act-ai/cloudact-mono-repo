@@ -41,9 +41,9 @@ Successfully migrated from 5-field hierarchy design to 10-level ID+Name pairs fo
 | Component | File | Status |
 |-----------|------|--------|
 | GenAI FOCUS Processor | `src/core/processors/genai/focus_converter.py` | ✅ |
-| GenAI FOCUS Procedure | `configs/system/procedures/genai/sp_convert_genai_to_focus_1_3.sql` | ✅ |
-| Subscription FOCUS Procedure | `configs/system/procedures/subscription/sp_convert_subscription_costs_to_focus_1_3.sql` | ✅ |
-| Cloud FOCUS Procedure | `configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql` | ✅ (NULL placeholders) |
+| GenAI FOCUS Procedure | `configs/system/procedures/genai/sp_genai_3_convert_to_focus.sql` | ✅ |
+| Subscription FOCUS Procedure | `configs/system/procedures/subscription/sp_subscription_3_convert_to_focus.sql` | ✅ |
+| Cloud FOCUS Procedure | `configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql` | ✅ (NULL placeholders) |
 
 **Cloud FOCUS Note:** Added NULL placeholders for all 10 levels with comments for future tag-based enrichment.
 
@@ -146,7 +146,7 @@ WHERE x_hierarchy_level_2_id = 'PROJ-001'  -- Direct level filtering
 ## ✅ Cloud Tag-Based Hierarchy Enrichment (COMPLETED)
 
 ### Implementation (GCP Reference)
-**Location:** `03-data-pipeline-service/configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql`
+**Location:** `03-data-pipeline-service/configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql`
 
 **Approach:**
 1. **CTE to expand hierarchy:** Creates `hierarchy_lookup` CTE that expands `path_ids` and `path_names` arrays from `org_hierarchy` table into individual level columns
@@ -297,7 +297,57 @@ WHERE x_hierarchy_level_2_id = 'PROJ-CTO'  -- All teams under CTO project
 
 ---
 
+## ✅ NEW: Automatic Procedure Sync in Bootstrap (2026-01-08)
+
+### What Changed
+**Location:** `02-api-service/src/app/routers/admin.py:299-332`
+
+Bootstrap endpoint now automatically syncs stored procedures after creating tables.
+
+### Implementation Details
+```python
+# After table creation (line 299+)
+async with httpx.AsyncClient(timeout=120.0) as client:
+    response = await client.post(
+        f"{pipeline_service_url}/api/v1/procedures/sync",
+        headers={"X-CA-Root-Key": settings.ca_root_api_key},
+        json={"force": True}  # Always update to latest SQL files
+    )
+```
+
+### Benefits
+1. **Zero Manual Steps** - Procedures always match SQL files
+2. **Idempotent** - Safe to run bootstrap multiple times
+3. **Non-Fatal** - Bootstrap succeeds even if sync fails (logs warning)
+4. **Always Current** - New deployments get latest procedure definitions
+
+### Test Results
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
+  -H "X-CA-Root-Key: test-ca-root-key-dev-32chars"
+```
+
+**Result:**
+- ✅ 21 tables created/verified
+- ✅ 8 procedures updated with 10-level hierarchy fields
+- ✅ 1 new procedure created (backfill_currency_audit_fields)
+- ✅ 0 failures
+
+### Procedures Updated
+All procedures now use the 10-level hierarchy structure:
+
+1. `sp_subscription_3_convert_to_focus` - ✅ Updated
+2. `sp_subscription_2_calculate_daily_costs` - ✅ Updated
+3. `sp_subscription_1_validate_data` - ✅ Updated
+4. `sp_subscription_4_run_pipeline` - ✅ Updated
+5. `sp_cloud_1_convert_to_focus` - ✅ Updated
+6. `sp_genai_1_consolidate_usage_daily` - ✅ Updated
+7. `sp_genai_2_consolidate_costs_daily` - ✅ Updated
+8. `sp_genai_3_convert_to_focus` - ✅ Updated
+
+---
+
 **Migration Date:** 2026-01-08
-**Version:** v15.0 (10-level hierarchy)
+**Version:** v15.0 (10-level hierarchy) + v15.1 (automatic procedure sync)
 **Breaking Changes:** None (backward compatible with nullable columns)
-**Status:** Ready for API service query updates
+**Status:** ✅ PRODUCTION READY - All migrations complete

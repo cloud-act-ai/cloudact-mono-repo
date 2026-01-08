@@ -4,7 +4,7 @@
   {"name": "entity_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique identifier for this entity within the org (e.g., 'DEPT-001')"},
   {"name": "entity_name", "type": "STRING", "mode": "REQUIRED", "description": "Human-readable name for the entity"},
   {"name": "level", "type": "INTEGER", "mode": "REQUIRED", "description": "Hierarchy level number (1=root, 2=child of 1, etc.)"},
-  {"name": "level_code", "type": "STRING", "mode": "REQUIRED", "description": "Level code from hierarchy_levels (e.g., 'department', 'project')"},
+  {"name": "level_code", "type": "STRING", "mode": "REQUIRED", "description": "Level code from org_hierarchy_levels (e.g., 'department', 'project')"},
   {"name": "parent_id", "type": "STRING", "mode": "NULLABLE", "description": "Entity ID of parent (NULL for root level entities)"},
   {"name": "path", "type": "STRING", "mode": "REQUIRED", "description": "Materialized path from root (e.g., '/DEPT-001/PROJ-001/TEAM-001')"},
   {"name": "path_ids", "type": "STRING", "mode": "REPEATED", "description": "Array of ancestor entity IDs from root to this entity"},

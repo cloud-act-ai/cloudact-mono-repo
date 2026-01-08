@@ -11,6 +11,8 @@ import hashlib
 import secrets
 import logging
 import time
+import httpx
+import os
 
 from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
@@ -293,6 +295,40 @@ async def bootstrap_system(
             "tables_validated": total_present,
             "validation_timestamp": datetime.utcnow().isoformat()
         }
+
+        # Sync stored procedures automatically after bootstrap
+        procedures_synced = False
+        procedure_sync_message = ""
+        try:
+            pipeline_service_url = os.getenv("PIPELINE_SERVICE_URL", "http://localhost:8001")
+
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{pipeline_service_url}/api/v1/procedures/sync",
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-CA-Root-Key": settings.ca_root_api_key
+                    },
+                    json={"force": True}
+                )
+
+                if response.status_code == 200:
+                    sync_result = response.json()
+                    procedures_synced = True
+                    procedure_sync_message = sync_result.get("message", "Procedures synced successfully")
+                    logger.info(f"Bootstrap procedure sync: {procedure_sync_message}")
+                else:
+                    procedure_sync_message = f"Procedure sync returned {response.status_code}"
+                    logger.warning(f"Procedure sync failed (non-fatal): {procedure_sync_message}")
+
+        except Exception as sync_error:
+            # Non-fatal - log warning but don't fail bootstrap
+            procedure_sync_message = f"Procedure sync failed: {str(sync_error)}"
+            logger.warning(f"Procedure sync error (non-fatal): {sync_error}")
+
+        # Add procedure sync status to validation warnings if it failed
+        if not procedures_synced:
+            validation_warnings.append(f"Procedure sync incomplete: {procedure_sync_message}")
 
         return BootstrapResponse(
             status=result.get("status", "SUCCESS"),

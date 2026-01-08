@@ -893,7 +893,7 @@ def main():
     subscription_plans = generate_subscription_plans_data(start_date)
     write_csv_data(subscription_plans, SUBSCRIPTIONS_DIR / "subscription_plans.csv")
     # NOTE: Daily subscription costs are NOT generated here - pipelines create them
-    # from subscription_plans using sp_calculate_subscription_plan_costs_daily
+    # from subscription_plans using sp_subscription_2_calculate_daily_costs
 
     print()
 

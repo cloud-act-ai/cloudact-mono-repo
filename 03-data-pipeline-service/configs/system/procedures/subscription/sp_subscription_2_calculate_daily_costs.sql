@@ -1,5 +1,5 @@
 -- ================================================================================
--- PROCEDURE: sp_calculate_subscription_plan_costs_daily
+-- PROCEDURE: sp_subscription_2_calculate_daily_costs
 -- LOCATION: {project_id}.organizations (central dataset)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
@@ -50,7 +50,7 @@
 --
 -- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_calculate_subscription_plan_costs_daily(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_2_calculate_daily_costs(
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
@@ -64,6 +64,8 @@ BEGIN
   DECLARE v_default_currency STRING DEFAULT 'USD';
   -- Fiscal year support: Month when FY starts (1=Jan/calendar, 4=Apr/India, 7=Jul/Australia)
   DECLARE v_fiscal_year_start_month INT64 DEFAULT 1;
+  -- BUG-034 FIX: Generate UUID once for entire pipeline run (not per row)
+  DECLARE v_run_id STRING DEFAULT GENERATE_UUID();
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -109,6 +111,18 @@ BEGIN
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
         invoice_id_last, source,
+        -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
+        hierarchy_level_1_id, hierarchy_level_1_name,
+        hierarchy_level_2_id, hierarchy_level_2_name,
+        hierarchy_level_3_id, hierarchy_level_3_name,
+        hierarchy_level_4_id, hierarchy_level_4_name,
+        hierarchy_level_5_id, hierarchy_level_5_name,
+        hierarchy_level_6_id, hierarchy_level_6_name,
+        hierarchy_level_7_id, hierarchy_level_7_name,
+        hierarchy_level_8_id, hierarchy_level_8_name,
+        hierarchy_level_9_id, hierarchy_level_9_name,
+        hierarchy_level_10_id, hierarchy_level_10_name,
+        -- N-level hierarchy fields for cost allocation
         hierarchy_entity_id, hierarchy_entity_name,
         hierarchy_level_code, hierarchy_path, hierarchy_path_names,
         updated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -155,6 +169,17 @@ BEGIN
           -- NULL or 1 = calendar-aligned (1st of month)
           -- ASC 606 / IFRS 15 compliant: Track billing cycle anniversary
           COALESCE(billing_anchor_day, 1) AS billing_anchor_day,
+          -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
+          hierarchy_level_1_id, hierarchy_level_1_name,
+          hierarchy_level_2_id, hierarchy_level_2_name,
+          hierarchy_level_3_id, hierarchy_level_3_name,
+          hierarchy_level_4_id, hierarchy_level_4_name,
+          hierarchy_level_5_id, hierarchy_level_5_name,
+          hierarchy_level_6_id, hierarchy_level_6_name,
+          hierarchy_level_7_id, hierarchy_level_7_name,
+          hierarchy_level_8_id, hierarchy_level_8_name,
+          hierarchy_level_9_id, hierarchy_level_9_name,
+          hierarchy_level_10_id, hierarchy_level_10_name,
           -- N-level hierarchy fields for cost allocation (v14.0)
           hierarchy_entity_id,
           hierarchy_entity_name,
@@ -380,6 +405,17 @@ BEGIN
             END AS NUMERIC
           ) AS daily_cost,
           s.invoice_id_last,
+          -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
+          s.hierarchy_level_1_id, s.hierarchy_level_1_name,
+          s.hierarchy_level_2_id, s.hierarchy_level_2_name,
+          s.hierarchy_level_3_id, s.hierarchy_level_3_name,
+          s.hierarchy_level_4_id, s.hierarchy_level_4_name,
+          s.hierarchy_level_5_id, s.hierarchy_level_5_name,
+          s.hierarchy_level_6_id, s.hierarchy_level_6_name,
+          s.hierarchy_level_7_id, s.hierarchy_level_7_name,
+          s.hierarchy_level_8_id, s.hierarchy_level_8_name,
+          s.hierarchy_level_9_id, s.hierarchy_level_9_name,
+          s.hierarchy_level_10_id, s.hierarchy_level_10_name,
           -- N-level hierarchy fields for cost allocation (v14.0)
           s.hierarchy_entity_id,
           s.hierarchy_entity_name,
@@ -420,6 +456,17 @@ BEGIN
         ) AS NUMERIC) AS annual_run_rate,
         invoice_id_last,
         'subscription_amortization' AS source,
+        -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
+        hierarchy_level_1_id, hierarchy_level_1_name,
+        hierarchy_level_2_id, hierarchy_level_2_name,
+        hierarchy_level_3_id, hierarchy_level_3_name,
+        hierarchy_level_4_id, hierarchy_level_4_name,
+        hierarchy_level_5_id, hierarchy_level_5_name,
+        hierarchy_level_6_id, hierarchy_level_6_name,
+        hierarchy_level_7_id, hierarchy_level_7_name,
+        hierarchy_level_8_id, hierarchy_level_8_name,
+        hierarchy_level_9_id, hierarchy_level_9_name,
+        hierarchy_level_10_id, hierarchy_level_10_name,
         -- N-level hierarchy fields for cost allocation (v14.0)
         hierarchy_entity_id,
         hierarchy_entity_name,
@@ -431,7 +478,7 @@ BEGIN
         'subscription_cost' AS x_pipeline_id,
         'internal' AS x_credential_id,
         CURRENT_DATE() AS x_pipeline_run_date,
-        GENERATE_UUID() AS x_run_id,
+        v_run_id AS x_run_id,  -- BUG-034 FIX: Use single UUID for entire run
         CURRENT_TIMESTAMP() AS x_ingested_at
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)
@@ -447,6 +494,29 @@ BEGIN
 
   COMMIT TRANSACTION;
 
+  -- BUG-036 FIX: Log warning if no cost rows inserted (all plans FREE or inactive)
+  IF v_rows_inserted = 0 THEN
+    -- Log to DQ results for monitoring
+    EXECUTE IMMEDIATE FORMAT("""
+      INSERT INTO `%s.organizations.org_meta_dq_results` (
+        org_slug, table_name, check_name, check_status,
+        rows_checked, rows_passed, rows_failed, error_message,
+        ingestion_date, created_at
+      )
+      VALUES (
+        REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', ''),
+        'subscription_plan_costs_daily',
+        'zero_cost_check',
+        'WARNING',
+        0, 0, 0,
+        'No cost data generated - all subscriptions may be FREE or inactive',
+        CURRENT_DATE(),
+        CURRENT_TIMESTAMP()
+      )
+    """, p_project_id)
+    USING p_dataset_id AS p_ds;
+  END IF;
+
   SELECT 'Daily Costs Calculated' AS status,
          v_rows_inserted AS rows_inserted,
          p_dataset_id AS dataset,
@@ -455,5 +525,5 @@ BEGIN
 
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
-  RAISE USING MESSAGE = CONCAT('sp_calculate_subscription_plan_costs_daily Failed: ', @@error.message);
+  RAISE USING MESSAGE = CONCAT('sp_subscription_2_calculate_daily_costs Failed: ', @@error.message);
 END;

@@ -176,9 +176,9 @@ ORDER BY routine_name
 
 | Domain | Procedures |
 |--------|------------|
-| `subscription` | sp_run_subscription_costs_pipeline, sp_calculate_subscription_plan_costs_daily, sp_convert_subscription_costs_to_focus_1_3 |
-| `genai` | sp_consolidate_genai_costs_daily, sp_consolidate_genai_usage_daily, sp_convert_genai_to_focus_1_3 |
-| `cloud` | sp_convert_cloud_costs_to_focus_1_3 |
+| `subscription` | sp_subscription_4_run_pipeline, sp_subscription_2_calculate_daily_costs, sp_subscription_3_convert_to_focus |
+| `genai` | sp_genai_2_consolidate_costs_daily, sp_genai_1_consolidate_usage_daily, sp_genai_3_convert_to_focus |
+| `cloud` | sp_cloud_1_convert_to_focus |
 | `migrations` | backfill_currency_audit_fields |
 
 ## Environment Reference

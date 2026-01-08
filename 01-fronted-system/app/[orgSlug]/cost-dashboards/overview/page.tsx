@@ -126,9 +126,10 @@ export default function CostOverviewPage() {
     return cachedProviders.map(p => p.provider)
   }, [cachedProviders])
 
-  // Handle filter changes - sync to unified context for provider/category filters
+  // Handle filter changes - sync to unified context for provider/category/hierarchy filters
   // FILTER-008 FIX: Sync local filters to context for consistent filtering
   // TYPE-002 FIX: Validate categories before casting to avoid runtime type mismatches
+  // HIERARCHY-FILTER-FIX: Sync hierarchy filters to unified context
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
     // Validate and filter to only allowed category values
@@ -136,10 +137,13 @@ export default function CostOverviewPage() {
     const safeCategories = newFilters.categories.filter(
       (c): c is "genai" | "cloud" | "subscription" => validCategories.includes(c as typeof validCategories[number])
     )
-    // Sync provider and category filters to unified context
+    // Sync all filters to unified context (provider, category, hierarchy)
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
       categories: safeCategories.length > 0 ? safeCategories : undefined,
+      departmentId: newFilters.department || undefined,
+      projectId: newFilters.project || undefined,
+      teamId: newFilters.team || undefined,
     })
   }, [setUnifiedFilters])
 

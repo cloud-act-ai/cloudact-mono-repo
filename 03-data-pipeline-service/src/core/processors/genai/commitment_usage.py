@@ -151,6 +151,15 @@ class CommitmentUsageProcessor:
                 record["x_run_id"] = run_id
                 record["x_ingested_at"] = now
 
+                # Add hierarchy from credential (GenAI hierarchy assignment)
+                for level in range(1, 11):
+                    id_key = f"hierarchy_level_{level}_id"
+                    name_key = f"hierarchy_level_{level}_name"
+                    # Only set if not already present in record and credential has it
+                    if not record.get(id_key):
+                        record[id_key] = credentials.get(id_key)
+                        record[name_key] = credentials.get(name_key)
+
             # Write to BigQuery
             table_id = f"{project_id}.{dataset_id}.genai_commitment_usage_raw"
             insert_result = await self._insert_usage(bq_client, table_id, usage_records)
@@ -174,9 +183,20 @@ class CommitmentUsageProcessor:
             return {"status": "FAILED", "provider": provider, "error": str(e)}
 
     async def _get_provider_credentials(self, bq_client, org_slug, provider):
-        """Get credentials for provider."""
+        """Get credentials for provider, including default hierarchy."""
         query = f"""
-            SELECT credential_id, encrypted_credential
+            SELECT
+                credential_id, encrypted_credential,
+                default_hierarchy_level_1_id, default_hierarchy_level_1_name,
+                default_hierarchy_level_2_id, default_hierarchy_level_2_name,
+                default_hierarchy_level_3_id, default_hierarchy_level_3_name,
+                default_hierarchy_level_4_id, default_hierarchy_level_4_name,
+                default_hierarchy_level_5_id, default_hierarchy_level_5_name,
+                default_hierarchy_level_6_id, default_hierarchy_level_6_name,
+                default_hierarchy_level_7_id, default_hierarchy_level_7_name,
+                default_hierarchy_level_8_id, default_hierarchy_level_8_name,
+                default_hierarchy_level_9_id, default_hierarchy_level_9_name,
+                default_hierarchy_level_10_id, default_hierarchy_level_10_name
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
             LIMIT 1
@@ -187,9 +207,19 @@ class CommitmentUsageProcessor:
         ]))
         if not results:
             return None
-        encrypted = results[0].get("encrypted_credential")
+
+        row = results[0]
+        encrypted = row.get("encrypted_credential")
         decrypted = await decrypt_credentials(encrypted)
-        decrypted["credential_id"] = results[0].get("credential_id")
+        decrypted["credential_id"] = row.get("credential_id")
+
+        # Add hierarchy fields from credentials (for GenAI hierarchy assignment)
+        for level in range(1, 11):
+            id_key = f"hierarchy_level_{level}_id"
+            name_key = f"hierarchy_level_{level}_name"
+            decrypted[id_key] = row.get(f"default_{id_key}")
+            decrypted[name_key] = row.get(f"default_{name_key}")
+
         return decrypted
 
     async def _check_already_processed(
@@ -305,11 +335,8 @@ class CommitmentUsageProcessor:
                         {escape_int(record.get('tokens_processed') or record.get('tokens_generated'))} as tokens_processed,
                         {escape_float(record.get('utilization_pct'))} as utilization_pct,
                         {escape_float(record.get('hours_active') or record.get('usage_hours'))} as hours_active,
-                        {escape_str(record.get('hierarchy_entity_id'))} as hierarchy_entity_id,
-                        {escape_str(record.get('hierarchy_entity_name'))} as hierarchy_entity_name,
-                        {escape_str(record.get('hierarchy_level_code'))} as hierarchy_level_code,
-                        {escape_str(record.get('hierarchy_path'))} as hierarchy_path,
-                        {escape_str(record.get('hierarchy_path_names'))} as hierarchy_path_names,
+                        {escape_str(record.get('x_hierarchy_level_1_id'))} as x_hierarchy_level_1_id,
+                        {escape_str(record.get('x_hierarchy_level_1_name'))} as x_hierarchy_level_1_name,
                         {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
                         {escape_str(record.get('x_credential_id'))} as x_credential_id,
                         DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
@@ -333,11 +360,8 @@ class CommitmentUsageProcessor:
                             tokens_processed = S.tokens_processed,
                             utilization_pct = S.utilization_pct,
                             hours_active = S.hours_active,
-                            hierarchy_entity_id = S.hierarchy_entity_id,
-                            hierarchy_entity_name = S.hierarchy_entity_name,
-                            hierarchy_level_code = S.hierarchy_level_code,
-                            hierarchy_path = S.hierarchy_path,
-                            hierarchy_path_names = S.hierarchy_path_names,
+                            x_hierarchy_level_1_id = S.x_hierarchy_level_1_id,
+                            x_hierarchy_level_1_name = S.x_hierarchy_level_1_name,
                             x_pipeline_id = S.x_pipeline_id,
                             x_credential_id = S.x_credential_id,
                             x_pipeline_run_date = S.x_pipeline_run_date,
@@ -346,13 +370,9 @@ class CommitmentUsageProcessor:
                     WHEN NOT MATCHED THEN
                         INSERT (org_slug, provider, commitment_id, commitment_type, model, usage_date, region,
                                 provisioned_units, tokens_processed, utilization_pct, hours_active,
-                                hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                                hierarchy_path, hierarchy_path_names,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.commitment_id, S.commitment_type, S.model, S.usage_date, S.region,
                                 S.provisioned_units, S.tokens_processed, S.utilization_pct, S.hours_active,
-                                S.hierarchy_entity_id, S.hierarchy_entity_name, S.hierarchy_level_code,
-                                S.hierarchy_path, S.hierarchy_path_names,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

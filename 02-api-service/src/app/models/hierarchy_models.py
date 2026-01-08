@@ -259,7 +259,7 @@ class CreateEntityRequest(BaseModel):
         ...,
         min_length=2,
         max_length=30,
-        description="Level code from hierarchy_levels configuration"
+        description="Level code from org_hierarchy_levels configuration"
     )
     parent_id: Optional[str] = Field(
         default=None,

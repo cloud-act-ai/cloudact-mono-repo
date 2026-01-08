@@ -8,283 +8,167 @@ Migrations are stored procedures that run against customer datasets to update ex
 
 ## Available Migrations
 
-### `backfill_currency_audit_fields.sql`
+**No migrations currently defined.**
 
-**Purpose:** Backfill `source_currency`, `source_price`, and `exchange_rate_used` for existing SaaS subscription plans.
-
-**Why:** These audit fields were added to track currency conversion history. Existing plans need these fields populated.
-
-**Logic:**
-- For plans without audit fields:
-  - `source_currency` = current `currency` (assume it was the source)
-  - `source_price` = current `unit_price`
-  - `exchange_rate_used` = 1.0 (if USD) or calculated ratio
-
-**Procedure:** `sp_backfill_currency_audit_fields`
-
----
-
-## Running Migrations
-
-### Prerequisites
-
-1. **Sync procedure to BigQuery:**
-   ```bash
-   # Sync all procedures (including migrations)
-   curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
-     -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"force": true}'
-   ```
-
-2. **Verify procedure exists:**
-   ```bash
-   # List all procedures
-   curl -X GET "http://localhost:8001/api/v1/procedures" \
-     -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-
-   # Check specific procedure
-   curl -X GET "http://localhost:8001/api/v1/procedures/sp_backfill_currency_audit_fields" \
-     -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-   ```
-
-### Step 1: Dry Run (Preview Changes)
-
-**Always run dry run first to preview changes without modifying data.**
-
-```bash
-# Using BigQuery Console
-CALL `your-project-id.organizations`.sp_backfill_currency_audit_fields(
-  'your-project-id',      -- p_project_id
-  'org_slug_prod',        -- p_dataset_id (e.g., 'acme_corp_prod')
-  TRUE                    -- p_dry_run (TRUE = preview only)
-);
-```
-
-**Using gcloud CLI:**
-```bash
-bq query --use_legacy_sql=false \
-  "CALL \`your-project-id.organizations\`.sp_backfill_currency_audit_fields(
-    'your-project-id',
-    'org_slug_prod',
-    TRUE
-  )"
-```
-
-**Expected Output:**
-```
-+------------------+----------------+--------------------------------------------+
-| mode             | rows_to_update | next_step                                  |
-+------------------+----------------+--------------------------------------------+
-| DRY RUN PREVIEW  | 42             | Set p_dry_run = FALSE to execute migration |
-+------------------+----------------+--------------------------------------------+
-
-Followed by a preview table showing current vs. new values for affected rows.
-```
-
-### Step 2: Execute Migration
-
-**Only after reviewing dry run results:**
-
-```bash
-# Using BigQuery Console
-CALL `your-project-id.organizations`.sp_backfill_currency_audit_fields(
-  'your-project-id',
-  'org_slug_prod',
-  FALSE  -- p_dry_run = FALSE to execute
-);
-```
-
-**Using gcloud CLI:**
-```bash
-bq query --use_legacy_sql=false \
-  "CALL \`your-project-id.organizations\`.sp_backfill_currency_audit_fields(
-    'your-project-id',
-    'org_slug_prod',
-    FALSE
-  )"
-```
-
-**Expected Output:**
-```
-+---------------------+----------------+----------------+------------------+---------------+
-| status              | project_id     | dataset_id     | rows_identified  | rows_updated  |
-+---------------------+----------------+----------------+------------------+---------------+
-| MIGRATION COMPLETED | your-project   | org_slug_prod  | 42               | 42            |
-+---------------------+----------------+----------------+------------------+---------------+
-
-Followed by sample of 20 recently updated rows.
-```
-
----
-
-## Migration Workflow
-
-### For Each Organization:
-
-1. **Sync procedures** (if not already done)
-2. **Run dry run** to preview changes
-3. **Review dry run output** carefully
-4. **Execute migration** if dry run looks correct
-5. **Verify results** by checking sample rows
-6. **Document completion** (optional: track in org_audit_logs)
-
-### Example Multi-Org Script:
-
-```bash
-#!/bin/bash
-# backfill_all_orgs.sh
-
-PROJECT_ID="your-project-id"
-ORGS=("acme_corp_prod" "example_org_prod" "another_org_prod")
-
-for ORG_DATASET in "${ORGS[@]}"; do
-  echo "Processing $ORG_DATASET..."
-
-  # Dry run first
-  echo "Running dry run..."
-  bq query --use_legacy_sql=false \
-    "CALL \`$PROJECT_ID.organizations\`.sp_backfill_currency_audit_fields(
-      '$PROJECT_ID',
-      '$ORG_DATASET',
-      TRUE
-    )"
-
-  # Prompt for confirmation
-  read -p "Execute migration for $ORG_DATASET? (y/n) " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Executing migration..."
-    bq query --use_legacy_sql=false \
-      "CALL \`$PROJECT_ID.organizations\`.sp_backfill_currency_audit_fields(
-        '$PROJECT_ID',
-        '$ORG_DATASET',
-        FALSE
-      )"
-  else
-    echo "Skipped $ORG_DATASET"
-  fi
-
-  echo "---"
-done
-
-echo "Migration complete for all organizations"
-```
-
----
-
-## Safety Features
-
-### Built-in Safeguards:
-
-1. **Dry Run Mode:**
-   - Preview changes without modifying data
-   - Shows current vs. new values
-   - Counts rows to be updated
-
-2. **Selective Updates:**
-   - Only updates rows with NULL audit fields
-   - Preserves existing audit data if already populated
-   - WHERE clause prevents unnecessary updates
-
-3. **Validation:**
-   - Only updates plans with `unit_price > 0`
-   - Validates project_id and dataset_id parameters
-   - Transaction-based (atomic operation)
-
-4. **Audit Trail:**
-   - Updates `updated_at` timestamp on affected rows
-   - Returns sample of updated rows for verification
-   - Shows before/after comparison in dry run
-
-### Best Practices:
-
-- ✅ **Always run dry run first**
-- ✅ **Review row counts and sample data**
-- ✅ **Test on dev/staging org before production**
-- ✅ **Run during low-traffic periods**
-- ✅ **Document which orgs have been migrated**
-- ❌ **Never skip dry run in production**
-- ❌ **Don't run on multiple orgs in parallel without testing**
-
----
-
-## Troubleshooting
-
-### "Procedure not found"
-
-```bash
-# Sync procedures again
-curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"force": true}'
-```
-
-### "Table not found"
-
-- Verify dataset name: `{org_slug}_prod` (e.g., `acme_corp_prod`)
-- Check table exists: `subscription_plans`
-- Ensure org has been onboarded
-
-### "No rows updated"
-
-- All rows may already have audit fields populated
-- Check dry run output to see affected rows
-- Verify `unit_price > 0` for plans
-
-### Migration failed mid-execution
-
-- BigQuery transactions ensure atomicity
-- Either all rows updated or none
-- Re-run migration (WHERE clause prevents duplicates)
-
----
+The previous `sp_migration_1_backfill_currency_audit` procedure was removed because:
+- Clean bootstrap means no existing data to backfill
+- Currency audit fields (`source_currency`, `source_price`, `exchange_rate_used`) are optional user inputs
+- No auto-population logic exists in the codebase
+- Migration was unnecessary dead weight
 
 ## Creating New Migrations
 
-### Template:
+### When to Create a Migration
+
+Create a migration procedure when you need to:
+- Backfill new fields for existing data
+- Transform data format (e.g., changing enum values)
+- Migrate data between tables
+- Fix data inconsistencies
+
+### Naming Convention
+
+```
+sp_migration_{step}_{description}.sql
+```
+
+Examples:
+- `sp_migration_1_backfill_new_field.sql`
+- `sp_migration_2_transform_enum_values.sql`
+- `sp_migration_3_fix_data_inconsistency.sql`
+
+### Migration Template
 
 ```sql
--- Migration: {migration_name}
--- Purpose: {what this migration does}
--- Date: {creation_date}
+-- ================================================================================
+-- MIGRATION: sp_migration_{step}_{description}
+-- LOCATION: {project_id}.organizations (central dataset)
+-- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
+--
+-- PURPOSE: {What this migration does and why}
+--
+-- INPUTS:
+--   p_project_id: GCP Project ID
+--   p_dataset_id: Customer dataset ID (e.g., 'acme_corp_prod')
+--   p_dry_run:    If TRUE, only show what would be updated (default: FALSE)
+--
+-- USAGE:
+--   -- Dry run (preview changes)
+--   CALL `your-project-id.organizations`.sp_migration_{step}_{description}(
+--     'your-project-id',
+--     'acme_corp_prod',
+--     TRUE
+--   );
+--
+--   -- Execute migration
+--   CALL `your-project-id.organizations`.sp_migration_{step}_{description}(
+--     'your-project-id',
+--     'acme_corp_prod',
+--     FALSE
+--   );
+-- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_{migration_name}(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_migration_{step}_{description}(
   p_project_id STRING,
   p_dataset_id STRING,
   p_dry_run BOOL
 )
 BEGIN
-  -- 1. Validate parameters
+  DECLARE v_rows_to_update INT64;
+  DECLARE v_rows_updated INT64 DEFAULT 0;
+
+  -- 1. Parameter Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
   ASSERT p_dataset_id IS NOT NULL AS "p_dataset_id cannot be NULL";
   SET p_dry_run = COALESCE(p_dry_run, FALSE);
 
-  -- 2. Dry run preview
+  -- 2. Count rows that need updating
+  EXECUTE IMMEDIATE FORMAT("""
+    SELECT COUNT(*)
+    FROM `%s.%s.{table_name}`
+    WHERE {conditions}
+  """, p_project_id, p_dataset_id)
+  INTO v_rows_to_update;
+
+  -- 3. Dry run preview
   IF p_dry_run THEN
-    -- Show what would be updated
+    EXECUTE IMMEDIATE FORMAT("""
+      SELECT
+        -- Preview what will be updated
+      FROM `%s.%s.{table_name}`
+      WHERE {conditions}
+    """, p_project_id, p_dataset_id);
+
+    SELECT
+      'DRY RUN PREVIEW' AS mode,
+      v_rows_to_update AS rows_to_update,
+      'Set p_dry_run = FALSE to execute migration' AS next_step;
+
   ELSE
-    -- Execute migration
+    -- 4. Execute migration
+    EXECUTE IMMEDIATE FORMAT("""
+      UPDATE `%s.%s.{table_name}`
+      SET
+        {update_statements},
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE {conditions}
+    """, p_project_id, p_dataset_id);
+
+    SET v_rows_updated = @@row_count;
+
+    -- 5. Verify results
+    SELECT
+      'MIGRATION COMPLETED' AS status,
+      p_project_id AS project_id,
+      p_dataset_id AS dataset_id,
+      v_rows_to_update AS rows_identified,
+      v_rows_updated AS rows_updated,
+      CURRENT_TIMESTAMP() AS completed_at;
   END IF;
 
 EXCEPTION WHEN ERROR THEN
-  SELECT @@error.message AS error_message;
+  SELECT
+    'MIGRATION FAILED' AS status,
+    @@error.message AS error_message,
+    p_project_id AS project_id,
+    p_dataset_id AS dataset_id;
   RAISE USING MESSAGE = CONCAT('Migration Failed: ', @@error.message);
 END;
 ```
 
-### Checklist:
+### Migration Workflow
 
-- [ ] Clear purpose and documentation
-- [ ] Dry run mode support
-- [ ] Parameter validation
-- [ ] Selective updates (WHERE clauses)
-- [ ] Error handling
-- [ ] Audit trail (updated_at)
-- [ ] Sample output
-- [ ] README documentation
+1. **Create SQL file** following naming convention
+2. **Sync procedure** to BigQuery
+   ```bash
+   curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
+     -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"force": true}'
+   ```
+3. **Test dry run** on dev/staging org
+4. **Review preview** output carefully
+5. **Execute** migration if dry run looks correct
+6. **Verify** results
+7. **Document** completion
+
+### Safety Features
+
+- **Dry Run Mode**: Preview changes without modifying data
+- **Selective Updates**: Only updates rows matching WHERE clause
+- **Validation**: Parameter checks and assertions
+- **Atomic**: Transaction-based operations
+- **Audit Trail**: Updates `updated_at` timestamp
+
+### Best Practices
+
+- ✅ **Always run dry run first**
+- ✅ **Test on dev/staging before production**
+- ✅ **Run during low-traffic periods**
+- ✅ **Document which orgs have been migrated**
+- ❌ **Never skip dry run in production**
+- ❌ **Don't modify existing migration files** (create new ones)
 
 ---
 
-**Last Updated:** 2025-12-14
+**Last Updated:** 2026-01-08

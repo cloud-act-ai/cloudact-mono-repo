@@ -143,13 +143,17 @@ export default function SubscriptionCostsPage() {
     return saasProviders.map(p => p.provider)
   }, [saasProviders])
 
-  // Handle filter changes - sync to unified context for provider filters
+  // Handle filter changes - sync to unified context for provider/hierarchy filters
   // FILTER-008 FIX: Sync local filters to context for consistent filtering
+  // HIERARCHY-FILTER-FIX: Sync hierarchy filters to unified context
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
-    // Sync provider filter to unified context (category is fixed for this page)
+    // Sync all filters to unified context (provider, hierarchy; category fixed for this page)
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
+      departmentId: newFilters.department || undefined,
+      projectId: newFilters.project || undefined,
+      teamId: newFilters.team || undefined,
     })
   }, [setUnifiedFilters])
 

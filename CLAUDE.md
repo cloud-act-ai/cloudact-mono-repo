@@ -48,7 +48,7 @@ Frontend (3000)              API Service (8000)           Pipeline Engine (8001)
                              └─ Subscription plans
                              ↓                            ↓
                              BigQuery (Shared)
-                             ├─ organizations dataset (14 meta tables)
+                             ├─ organizations dataset (21 meta tables)
                              └─ {org_slug}_prod datasets
 ```
 
@@ -121,7 +121,7 @@ See `01-fronted-system/CLAUDE.md` → "Layout System" section for complete desig
 CA_ROOT_API_KEY (system admin)
     │
     ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (20 meta tables)
+    │   └── One-time system initialization (21 meta tables)
     │
     └── Creates → Org API Keys (per-organization)
                     ├── Integrations: POST /api/v1/integrations/{org}/{provider}/setup
@@ -137,7 +137,7 @@ CA_ROOT_API_KEY (system admin)
 ## Key Endpoints
 
 ### api-service (8000)
-- `POST /api/v1/admin/bootstrap` - Initialize system (20 meta tables)
+- `POST /api/v1/admin/bootstrap` - Initialize system (21 meta tables)
 - `POST /api/v1/organizations/onboard` - Create org + API key + 6 tables
 - `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration
 - `GET/POST /api/v1/subscriptions/{org}/providers/*/plans` - Subscription CRUD
@@ -243,7 +243,7 @@ cd 03-data-pipeline-service && python3 -m uvicorn src.app.main:app --port 8001 -
 # Frontend (3000)
 cd 01-fronted-system && npm run dev
 
-# Bootstrap BigQuery (creates organizations dataset + 20 tables)
+# Bootstrap BigQuery (creates organizations dataset + 21 tables)
 curl -s -X POST http://localhost:8000/api/v1/admin/bootstrap \
   -H "Content-Type: application/json" -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d @- <<< '{}'
 

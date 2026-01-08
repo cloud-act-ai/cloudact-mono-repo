@@ -1,5 +1,5 @@
 -- ================================================================================
--- PROCEDURE: sp_run_subscription_costs_pipeline
+-- PROCEDURE: sp_subscription_4_run_pipeline
 -- LOCATION: {project_id}.organizations (central dataset - created once)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
@@ -15,7 +15,7 @@
 --
 -- USAGE:
 --   -- Run for a specific customer
---   CALL `your-project-id.organizations`.sp_run_subscription_costs_pipeline(
+--   CALL `your-project-id.organizations`.sp_subscription_4_run_pipeline(
 --     'your-project-id',
 --     'acme_corp_prod',
 --     DATE('2024-01-01'),
@@ -29,7 +29,7 @@
 --   4. Scheduler runs daily for all active customers
 -- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_run_subscription_costs_pipeline(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_4_run_pipeline(
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
@@ -69,12 +69,12 @@ BEGIN
 
   -- 2. Stage 1: Calculate Daily Costs
   -- Note: Using direct CALL - procedures must be in same project as orchestrator
-  CALL `{project_id}.organizations`.sp_calculate_subscription_plan_costs_daily(
+  CALL `{project_id}.organizations`.sp_subscription_2_calculate_daily_costs(
     p_project_id, p_dataset_id, v_start_date, v_end_date
   );
 
   -- 3. Stage 2: Convert to FOCUS 1.3 Standard (with org-specific fields)
-  CALL `{project_id}.organizations`.sp_convert_subscription_costs_to_focus_1_3(
+  CALL `{project_id}.organizations`.sp_subscription_3_convert_to_focus(
     p_project_id, p_dataset_id, v_start_date, v_end_date
   );
 
@@ -99,7 +99,7 @@ EXCEPTION WHEN ERROR THEN
     @@error.statement_text AS failed_statement;
   -- Re-raise with context
   RAISE USING MESSAGE = CONCAT(
-    'sp_run_subscription_costs_pipeline Failed for dataset=', p_dataset_id,
+    'sp_subscription_4_run_pipeline Failed for dataset=', p_dataset_id,
     ', date_range=[', COALESCE(CAST(p_start_date AS STRING), 'AUTO'),
     ' to ', COALESCE(CAST(p_end_date AS STRING), 'TODAY'), ']: ',
     @@error.message

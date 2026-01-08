@@ -194,6 +194,9 @@ class FOCUSConverterProcessor:
                     WHERE cost_date = @process_date
                       AND org_slug = @org_slug
                       AND total_cost_usd > 0
+                      AND usage_quantity > 0
+                      AND usage_unit IS NOT NULL
+                      AND cost_type IN ('payg', 'commitment', 'infrastructure')
                 ) S
                 ON T.ChargePeriodStart = S.ChargePeriodStart
                     AND T.SubAccountId = S.SubAccountId

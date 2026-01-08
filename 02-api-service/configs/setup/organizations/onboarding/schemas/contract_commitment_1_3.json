@@ -130,5 +130,35 @@
     "type": "TIMESTAMP",
     "mode": "NULLABLE",
     "description": "[Extension] Timestamp when the record was last updated in the data warehouse."
+  },
+  {
+    "name": "hierarchy_entity_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
+  },
+  {
+    "name": "hierarchy_entity_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Leaf entity display name. Example: 'Platform Team'."
+  },
+  {
+    "name": "hierarchy_level_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Entity level code. Example: 'team', 'project', 'department'."
+  },
+  {
+    "name": "hierarchy_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
+  },
+  {
+    "name": "hierarchy_path_names",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
   }
 ]

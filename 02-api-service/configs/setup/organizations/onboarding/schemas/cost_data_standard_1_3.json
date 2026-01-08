@@ -492,6 +492,36 @@
     "description": "[Extension] Organization's subscription status (ACTIVE, TRIAL, SUSPENDED, CANCELLED). Affects pipeline execution."
   },
   {
+    "name": "hierarchy_entity_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
+  },
+  {
+    "name": "hierarchy_entity_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Leaf entity display name. Example: 'Platform Team'."
+  },
+  {
+    "name": "hierarchy_level_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Entity level code. Example: 'team', 'project', 'department'."
+  },
+  {
+    "name": "hierarchy_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
+  },
+  {
+    "name": "hierarchy_path_names",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
+  },
+  {
     "name": "x_pipeline_id",
     "type": "STRING",
     "mode": "REQUIRED",
@@ -532,126 +562,6 @@
     "type": "TIMESTAMP",
     "mode": "NULLABLE",
     "description": "[Extension] Timestamp when the record was first created in the data warehouse."
-  },
-  {
-    "name": "x_hierarchy_level_1_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 1 (root) hierarchy entity ID. Typically department/division (e.g., 'DEPT-CFO'). NULL if not allocated."
-  },
-  {
-    "name": "x_hierarchy_level_1_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 1 (root) hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_2_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 2 hierarchy entity ID. Typically business unit/project (e.g., 'PROJ-ENGINEERING'). NULL if hierarchy depth < 2."
-  },
-  {
-    "name": "x_hierarchy_level_2_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 2 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_3_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 3 hierarchy entity ID. Typically team/squad (e.g., 'TEAM-PLATFORM'). NULL if hierarchy depth < 3."
-  },
-  {
-    "name": "x_hierarchy_level_3_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 3 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_4_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 4 hierarchy entity ID. Flexible organizational level (e.g., 'SUB-TEAM-001'). NULL if hierarchy depth < 4."
-  },
-  {
-    "name": "x_hierarchy_level_4_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 4 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_5_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 5 hierarchy entity ID. Flexible organizational level. NULL if hierarchy depth < 5."
-  },
-  {
-    "name": "x_hierarchy_level_5_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 5 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_6_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 6 hierarchy entity ID. Flexible organizational level. NULL if hierarchy depth < 6."
-  },
-  {
-    "name": "x_hierarchy_level_6_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 6 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_7_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 7 hierarchy entity ID. Flexible organizational level. NULL if hierarchy depth < 7."
-  },
-  {
-    "name": "x_hierarchy_level_7_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 7 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_8_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 8 hierarchy entity ID. Flexible organizational level. NULL if hierarchy depth < 8."
-  },
-  {
-    "name": "x_hierarchy_level_8_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 8 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_9_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 9 hierarchy entity ID. Flexible organizational level. NULL if hierarchy depth < 9."
-  },
-  {
-    "name": "x_hierarchy_level_9_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 9 hierarchy entity name. Denormalized for fast queries without JOINs."
-  },
-  {
-    "name": "x_hierarchy_level_10_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 10 hierarchy entity ID (deepest level). Flexible organizational level. NULL if hierarchy depth < 10."
-  },
-  {
-    "name": "x_hierarchy_level_10_name",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Level 10 hierarchy entity name (deepest level). Denormalized for fast queries without JOINs."
   },
   {
     "name": "x_genai_cost_type",

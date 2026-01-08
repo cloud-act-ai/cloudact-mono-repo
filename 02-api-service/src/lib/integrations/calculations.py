@@ -301,7 +301,12 @@ def calculate_validation_freshness(
             "status": "never_validated",
         }
 
-    now = datetime.utcnow()
+    # BUG-046 FIX: Use timezone-aware datetime
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    # Ensure last_validated_at is timezone-aware
+    if last_validated_at.tzinfo is None:
+        last_validated_at = last_validated_at.replace(tzinfo=timezone.utc)
     delta = now - last_validated_at
     hours_since = delta.total_seconds() / 3600
 
@@ -339,10 +344,15 @@ def calculate_error_rate(
     Returns:
         Error rate (0-100)
     """
+    # BUG-049 FIX: Validate days parameter
+    if days <= 0:
+        days = 7  # Default to 7 days if invalid
+
     if not validation_history:
         return 0.0
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    from datetime import timezone
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     recent = []
     for record in validation_history:

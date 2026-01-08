@@ -30,7 +30,7 @@ settings = get_settings()
 ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
 
 # Table names
-HIERARCHY_LEVELS_TABLE = "hierarchy_levels"
+HIERARCHY_LEVELS_TABLE = "org_hierarchy_levels"
 CENTRAL_DATASET = "organizations"
 
 # Default levels to seed for new organizations

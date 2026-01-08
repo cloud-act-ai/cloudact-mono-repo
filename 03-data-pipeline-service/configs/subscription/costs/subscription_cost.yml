@@ -7,8 +7,8 @@
 # Flow:
 #   0. Query MIN(effective_date) from active plans (auto start date detection)
 #   1. Read active subscriptions from subscription_plans
-#   2. Calculate daily amortized costs (sp_calculate_subscription_plan_costs_daily)
-#   3. Convert to FOCUS 1.3 standard (sp_convert_subscription_costs_to_focus_1_3)
+#   2. Calculate daily amortized costs (sp_subscription_2_calculate_daily_costs)
+#   3. Convert to FOCUS 1.3 standard (sp_subscription_3_convert_to_focus)
 #
 # FOCUS 1.3 Key Changes:
 #   - ServiceProviderName/HostProviderName/InvoiceIssuerName replace deprecated ProviderName/PublisherName
@@ -32,7 +32,8 @@ description: "Calculate daily amortized SaaS subscription costs and convert to F
 version: "1.0.0"
 
 # Pipeline-level timeout (minutes)
-timeout_minutes: 15
+# BUG-039 FIX: Reduced from 15min to 5min (query-only pipeline, no external API calls)
+timeout_minutes: 5
 
 # Rate limiting (requests per minute for this pipeline)
 rate_limit_per_minute: 30
@@ -48,17 +49,35 @@ variables:
   provider: "subscription"
 
 steps:
+  # BUG-031 FIX: Add validation step before processing
+  - step_id: "validate_subscription_data"
+    ps_type: "generic.procedure_executor"
+    description: "Validate subscription_plans data quality before cost calculation"
+    timeout_minutes: 2
+    config:
+      procedure:
+        name: sp_subscription_1_validate_data
+        dataset: organizations
+      parameters:
+        - name: p_project_id
+          type: STRING
+          value: "${project_id}"
+        - name: p_dataset_id
+          type: STRING
+          value: "${org_dataset}"
+    continue_on_failure: false  # Stop pipeline if validation fails
+
   # Single step that runs the orchestrator procedure
   # The procedure internally calls:
-  #   1. sp_calculate_subscription_plan_costs_daily (Stage 1)
-  #   2. sp_convert_subscription_costs_to_focus_1_3 (Stage 2)
+  #   1. sp_subscription_2_calculate_daily_costs (Stage 1)
+  #   2. sp_subscription_3_convert_to_focus (Stage 2)
   - step_id: "run_cost_pipeline"
     ps_type: "generic.procedure_executor"
     description: "Execute SaaS subscription cost calculation and FOCUS 1.3 conversion"
     timeout_minutes: 10
     config:
       procedure:
-        name: sp_run_subscription_costs_pipeline
+        name: sp_subscription_4_run_pipeline
         dataset: organizations  # Central dataset where procedure lives
       parameters:
         - name: p_project_id

@@ -120,6 +120,27 @@ export interface SetupIntegrationRequest {
   credential_name?: string
   metadata?: Record<string, unknown>
   skip_validation?: boolean
+  // Default hierarchy for all usage from this integration (GenAI providers)
+  default_hierarchy_level_1_id?: string
+  default_hierarchy_level_1_name?: string
+  default_hierarchy_level_2_id?: string
+  default_hierarchy_level_2_name?: string
+  default_hierarchy_level_3_id?: string
+  default_hierarchy_level_3_name?: string
+  default_hierarchy_level_4_id?: string
+  default_hierarchy_level_4_name?: string
+  default_hierarchy_level_5_id?: string
+  default_hierarchy_level_5_name?: string
+  default_hierarchy_level_6_id?: string
+  default_hierarchy_level_6_name?: string
+  default_hierarchy_level_7_id?: string
+  default_hierarchy_level_7_name?: string
+  default_hierarchy_level_8_id?: string
+  default_hierarchy_level_8_name?: string
+  default_hierarchy_level_9_id?: string
+  default_hierarchy_level_9_name?: string
+  default_hierarchy_level_10_id?: string
+  default_hierarchy_level_10_name?: string
 }
 
 export interface SetupIntegrationResponse {

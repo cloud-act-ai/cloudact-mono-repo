@@ -60,7 +60,10 @@ class ValidateOpenAIIntegrationProcessor:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            # BUG-012 FIX: Make timeout configurable via step_config
+            timeout = step_config.get("timeout", 15.0)
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 # List models to validate key
                 response = await client.get(
                     "https://api.openai.com/v1/models",
@@ -92,6 +95,17 @@ class ValidateOpenAIIntegrationProcessor:
                     return {
                         "status": "SUCCESS",  # Processor succeeded, validation failed
                         "validation_status": "INVALID",
+                        "error": error_msg
+                    }
+                elif response.status_code == 429:
+                    # BUG-019 FIX: Distinguish rate limiting from invalid credentials
+                    error_msg = "Rate limited - API key may be valid but requests are being throttled"
+                    await self._update_validation_status(
+                        org_slug, "OPENAI", "PENDING", error_msg
+                    )
+                    return {
+                        "status": "SUCCESS",
+                        "validation_status": "PENDING",
                         "error": error_msg
                     }
                 else:

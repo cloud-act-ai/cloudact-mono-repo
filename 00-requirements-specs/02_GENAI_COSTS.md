@@ -113,9 +113,9 @@ POST /api/v1/pipelines/run/{org}/genai/unified/consolidate
 
 | Procedure | Purpose |
 |-----------|---------|
-| `sp_consolidate_genai_usage_daily` | Merge usage from all flows |
-| `sp_consolidate_genai_costs_daily` | Merge costs from all flows |
-| `sp_convert_genai_to_focus_1_3` | Convert to FOCUS standard |
+| `sp_genai_1_consolidate_usage_daily` | Merge usage from all flows |
+| `sp_genai_2_consolidate_costs_daily` | Merge costs from all flows |
+| `sp_genai_3_convert_to_focus` | Convert to FOCUS standard |
 
 ---
 

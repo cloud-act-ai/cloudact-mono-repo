@@ -217,12 +217,27 @@ class CommitmentCostProcessor:
 
                         u.hours_active,
 
-                        -- Issue #43: Handle NULL hierarchy fields
-                        NULLIF(TRIM(COALESCE(u.hierarchy_entity_id, '')), '') as hierarchy_entity_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_entity_name, '')), '') as hierarchy_entity_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_code, '')), '') as hierarchy_level_code,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_path, '')), '') as hierarchy_path,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_path_names, '')), '') as hierarchy_path_names,
+                        -- Issue #43: Handle NULL hierarchy fields (10 levels)
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_1_id, '')), '') as hierarchy_level_1_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_1_name, '')), '') as hierarchy_level_1_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_2_id, '')), '') as hierarchy_level_2_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_2_name, '')), '') as hierarchy_level_2_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_3_id, '')), '') as hierarchy_level_3_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_3_name, '')), '') as hierarchy_level_3_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_4_id, '')), '') as hierarchy_level_4_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_4_name, '')), '') as hierarchy_level_4_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_5_id, '')), '') as hierarchy_level_5_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_5_name, '')), '') as hierarchy_level_5_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_6_id, '')), '') as hierarchy_level_6_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_6_name, '')), '') as hierarchy_level_6_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_7_id, '')), '') as hierarchy_level_7_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_7_name, '')), '') as hierarchy_level_7_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_8_id, '')), '') as hierarchy_level_8_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_8_name, '')), '') as hierarchy_level_8_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_9_id, '')), '') as hierarchy_level_9_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_9_name, '')), '') as hierarchy_level_9_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_10_id, '')), '') as hierarchy_level_10_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_10_name, '')), '') as hierarchy_level_10_name,
 
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_commitment_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
@@ -261,11 +276,26 @@ class CommitmentCostProcessor:
                         effective_rate_per_unit = S.effective_rate_per_unit,
                         tokens_processed = S.tokens_processed,
                         hours_active = S.hours_active,
-                        hierarchy_entity_id = S.hierarchy_entity_id,
-                        hierarchy_entity_name = S.hierarchy_entity_name,
-                        hierarchy_level_code = S.hierarchy_level_code,
-                        hierarchy_path = S.hierarchy_path,
-                        hierarchy_path_names = S.hierarchy_path_names,
+                        hierarchy_level_1_id = S.hierarchy_level_1_id,
+                        hierarchy_level_1_name = S.hierarchy_level_1_name,
+                        hierarchy_level_2_id = S.hierarchy_level_2_id,
+                        hierarchy_level_2_name = S.hierarchy_level_2_name,
+                        hierarchy_level_3_id = S.hierarchy_level_3_id,
+                        hierarchy_level_3_name = S.hierarchy_level_3_name,
+                        hierarchy_level_4_id = S.hierarchy_level_4_id,
+                        hierarchy_level_4_name = S.hierarchy_level_4_name,
+                        hierarchy_level_5_id = S.hierarchy_level_5_id,
+                        hierarchy_level_5_name = S.hierarchy_level_5_name,
+                        hierarchy_level_6_id = S.hierarchy_level_6_id,
+                        hierarchy_level_6_name = S.hierarchy_level_6_name,
+                        hierarchy_level_7_id = S.hierarchy_level_7_id,
+                        hierarchy_level_7_name = S.hierarchy_level_7_name,
+                        hierarchy_level_8_id = S.hierarchy_level_8_id,
+                        hierarchy_level_8_name = S.hierarchy_level_8_name,
+                        hierarchy_level_9_id = S.hierarchy_level_9_id,
+                        hierarchy_level_9_name = S.hierarchy_level_9_name,
+                        hierarchy_level_10_id = S.hierarchy_level_10_id,
+                        hierarchy_level_10_name = S.hierarchy_level_10_name,
                         calculated_at = CURRENT_TIMESTAMP(),
                         x_pipeline_id = S.x_pipeline_id,
                         x_credential_id = S.x_credential_id,
@@ -277,16 +307,32 @@ class CommitmentCostProcessor:
                             model, region, provisioned_units, used_units, utilization_pct,
                             commitment_cost_usd, overage_cost_usd, total_cost_usd,
                             effective_rate_per_unit, tokens_processed, hours_active,
-                            hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                            hierarchy_path, hierarchy_path_names,
+                            hierarchy_level_1_id, hierarchy_level_1_name,
+                            hierarchy_level_2_id, hierarchy_level_2_name,
+                            hierarchy_level_3_id, hierarchy_level_3_name,
+                            hierarchy_level_4_id, hierarchy_level_4_name,
+                            hierarchy_level_5_id, hierarchy_level_5_name,
+                            hierarchy_level_6_id, hierarchy_level_6_name,
+                            hierarchy_level_7_id, hierarchy_level_7_name,
+                            hierarchy_level_8_id, hierarchy_level_8_name,
+                            hierarchy_level_9_id, hierarchy_level_9_name,
+                            hierarchy_level_10_id, hierarchy_level_10_name,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
                     VALUES (S.cost_date, S.org_slug, S.provider, S.commitment_type, S.commitment_id,
                             S.model, S.region, S.provisioned_units, S.used_units, S.utilization_pct,
                             S.commitment_cost_usd, S.overage_cost_usd, S.total_cost_usd,
                             S.effective_rate_per_unit, S.tokens_processed, S.hours_active,
-                            S.hierarchy_entity_id, S.hierarchy_entity_name, S.hierarchy_level_code,
-                            S.hierarchy_path, S.hierarchy_path_names,
+                            S.hierarchy_level_1_id, S.hierarchy_level_1_name,
+                            S.hierarchy_level_2_id, S.hierarchy_level_2_name,
+                            S.hierarchy_level_3_id, S.hierarchy_level_3_name,
+                            S.hierarchy_level_4_id, S.hierarchy_level_4_name,
+                            S.hierarchy_level_5_id, S.hierarchy_level_5_name,
+                            S.hierarchy_level_6_id, S.hierarchy_level_6_name,
+                            S.hierarchy_level_7_id, S.hierarchy_level_7_name,
+                            S.hierarchy_level_8_id, S.hierarchy_level_8_name,
+                            S.hierarchy_level_9_id, S.hierarchy_level_9_name,
+                            S.hierarchy_level_10_id, S.hierarchy_level_10_name,
                             CURRENT_TIMESTAMP(), S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
                             S.x_run_id, S.x_ingested_at)
             """
@@ -404,18 +450,17 @@ class CommitmentCostProcessor:
             self.logger.warning(f"Negative units check failed: {e}")
 
         # Issue #5: Check for orphan hierarchy allocations (warning only)
-        # N-level hierarchy: Check if hierarchy_entity_id exists in x_org_hierarchy
+        # N-level hierarchy: Check if hierarchy_level_1_id exists in x_org_hierarchy
         hierarchy_check_query = f"""
             SELECT DISTINCT
-                u.hierarchy_entity_id,
-                u.hierarchy_entity_name,
-                u.hierarchy_level_code
+                u.hierarchy_level_1_id,
+                u.hierarchy_level_1_name
             FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw` u
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
-                ON h.entity_id = u.hierarchy_entity_id
+                ON h.entity_id = u.hierarchy_level_1_id
             WHERE u.usage_date = @process_date
                 AND u.org_slug = @org_slug
-                AND u.hierarchy_entity_id IS NOT NULL
+                AND u.hierarchy_level_1_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}
         """
@@ -423,12 +468,11 @@ class CommitmentCostProcessor:
         try:
             orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
             for row in orphan_results:
-                entity_id = row.get("hierarchy_entity_id")
-                entity_name = row.get("hierarchy_entity_name")
-                level_code = row.get("hierarchy_level_code")
+                entity_id = row.get("hierarchy_level_1_id")
+                entity_name = row.get("hierarchy_level_1_name")
                 self.logger.warning(
                     f"Issue #5: Orphan hierarchy allocation detected - "
-                    f"entity_id={entity_id}, name={entity_name}, level={level_code}. "
+                    f"entity_id={entity_id}, name={entity_name}, level=1. "
                     f"This entity may not exist in x_org_hierarchy view."
                 )
         except Exception as e:

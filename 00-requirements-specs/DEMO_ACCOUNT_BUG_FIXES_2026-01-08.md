@@ -101,14 +101,14 @@ Hierarchy properly flows through all cost domains to FOCUS 1.3 standard.
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ 3. DAILY COSTS (subscription_plan_costs_daily)                  │
-│    - Procedure: sp_calculate_subscription_plan_costs_daily      │
+│    - Procedure: sp_subscription_2_calculate_daily_costs      │
 │    - Copies hierarchy from subscription_plans                   │
 │    - Fields: hierarchy_level_1_id...hierarchy_level_10_id       │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ 4. FOCUS 1.3 UNIFIED (cost_data_standard_1_3)                  │
-│    - Procedure: sp_convert_subscription_costs_to_focus_1_3      │
+│    - Procedure: sp_subscription_3_convert_to_focus      │
 │    - Maps to: x_hierarchy_level_1_id...x_hierarchy_level_10_id │
 │    - Lines 312-344 in stored procedure                          │
 └─────────────────────────────────────────────────────────────────┘
@@ -117,19 +117,19 @@ Hierarchy properly flows through all cost domains to FOCUS 1.3 standard.
 ### Verification Results
 
 #### ✅ Subscription Cost Flow
-**File:** `configs/system/procedures/subscription/sp_convert_subscription_costs_to_focus_1_3.sql`
+**File:** `configs/system/procedures/subscription/sp_subscription_3_convert_to_focus.sql`
 - **Lines 312-344:** Hierarchy mapping confirmed
 - **Source:** `subscription_plan_costs_daily.hierarchy_level_*`
 - **Target:** `cost_data_standard_1_3.x_hierarchy_level_*`
 
 #### ✅ GenAI Cost Flow
-**File:** `configs/system/procedures/genai/sp_convert_genai_to_focus_1_3.sql`
+**File:** `configs/system/procedures/genai/sp_genai_3_convert_to_focus.sql`
 - **Lines 83-92, 192-210:** Hierarchy mapping confirmed
 - **Source:** `genai_costs_daily_unified.hierarchy_level_*`
 - **Target:** `cost_data_standard_1_3.x_hierarchy_level_*`
 
 #### ✅ Cloud Cost Flow
-**File:** `configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql`
+**File:** `configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql`
 - **Lines 120-129, 194-212:** Hierarchy mapping confirmed
 - **Source:** JOIN with `org_hierarchy` view
 - **Target:** `cost_data_standard_1_3.x_hierarchy_level_*`
@@ -178,9 +178,9 @@ Sample hierarchy assignments (already correct):
 1. `02-api-service/configs/setup/organizations/onboarding/schemas/subscription_plans.json` ✅
 2. `02-api-service/configs/setup/organizations/onboarding/schemas/subscription_plan_costs_daily.json` ✅
 3. `02-api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_3.json` ✅
-4. `03-data-pipeline-service/configs/system/procedures/subscription/sp_convert_subscription_costs_to_focus_1_3.sql` ✅
-5. `03-data-pipeline-service/configs/system/procedures/genai/sp_convert_genai_to_focus_1_3.sql` ✅
-6. `03-data-pipeline-service/configs/system/procedures/cloud/sp_convert_cloud_costs_to_focus_1_3.sql` ✅
+4. `03-data-pipeline-service/configs/system/procedures/subscription/sp_subscription_3_convert_to_focus.sql` ✅
+5. `03-data-pipeline-service/configs/system/procedures/genai/sp_genai_3_convert_to_focus.sql` ✅
+6. `03-data-pipeline-service/configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql` ✅
 7. `04-inra-cicd-automation/load-demo-data/data/subscriptions/subscription_plans.csv` ✅
 8. `01-fronted-system/lib/seed/hierarchy_template.csv` ✅
 

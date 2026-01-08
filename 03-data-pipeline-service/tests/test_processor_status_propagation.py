@@ -22,7 +22,7 @@ async def test_processor_failure_status_propagation():
     mock_processor = MagicMock()
     mock_processor.execute = AsyncMock(return_value={
         "status": "FAILED",
-        "error": "BigQuery procedure failed: sp_run_subscription_costs_pipeline",
+        "error": "BigQuery procedure failed: sp_subscription_4_run_pipeline",
         "error_type": "BigQueryAPIError"
     })
 
@@ -89,7 +89,7 @@ async def test_processor_success_status_propagation():
     mock_processor = MagicMock()
     mock_processor.execute = AsyncMock(return_value={
         "status": "SUCCESS",
-        "procedure": "sp_run_subscription_costs_pipeline",
+        "procedure": "sp_subscription_4_run_pipeline",
         "job_id": "test_job_id",
         "results": [],
         "rows_returned": 0

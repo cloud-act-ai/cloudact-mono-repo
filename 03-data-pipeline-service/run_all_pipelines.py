@@ -38,7 +38,7 @@ async def run_subscription_costs():
 
         # Call the orchestrator stored procedure
         call_query = f"""
-            CALL `{PROJECT_ID}.organizations`.sp_run_subscription_costs_pipeline(
+            CALL `{PROJECT_ID}.organizations`.sp_subscription_4_run_pipeline(
                 @p_project_id,
                 @p_dataset_id,
                 @p_start_date,

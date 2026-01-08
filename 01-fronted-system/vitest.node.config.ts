@@ -43,6 +43,8 @@ export default defineConfig(({ mode }: { mode: string }) => {
                 '**/tests/hierarchy/*.test.ts',
                 // GenAI pricing tests
                 '**/tests/genai/*.test.ts',
+                // Demo setup tests (Playwright-based)
+                '**/tests/demo-setup/*.test.ts',
             ],
             // Allow tests to run longer for API integration flows
             testTimeout: 120000,

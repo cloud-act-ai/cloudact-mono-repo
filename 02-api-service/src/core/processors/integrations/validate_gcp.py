@@ -40,6 +40,7 @@ class ValidateGcpIntegrationProcessor:
             context: Execution context containing:
                 - org_slug: Organization identifier (REQUIRED)
                 - secrets.gcp_sa_json: Decrypted SA JSON (REQUIRED)
+                - expires_at: Optional credential expiration date (OPTIONAL)
 
         Returns:
             Dict with:
@@ -51,6 +52,7 @@ class ValidateGcpIntegrationProcessor:
         org_slug = context.get("org_slug")
         secrets = context.get("secrets", {})
         sa_json_str = secrets.get("gcp_sa_json")
+        expires_at = context.get("expires_at")
 
         config = step_config.get("config", {})
         check_bigquery = config.get("check_bigquery", True)
@@ -61,6 +63,26 @@ class ValidateGcpIntegrationProcessor:
 
         if not sa_json_str:
             return {"status": "FAILED", "error": "gcp_sa_json not found in context.secrets"}
+
+        # BUG-009 FIX: Check if credential is expired before validation
+        if expires_at:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            # Ensure expires_at is timezone-aware
+            if isinstance(expires_at, datetime):
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                if now >= expires_at:
+                    error_msg = f"Credential expired on {expires_at.isoformat()}"
+                    await self._update_validation_status(
+                        org_slug, "GCP_SA", "EXPIRED", error_msg
+                    )
+                    return {
+                        "status": "SUCCESS",
+                        "validation_status": "EXPIRED",
+                        "error": error_msg
+                    }
 
         self.logger.info(f"Validating GCP integration for {org_slug}")
 
@@ -90,6 +112,66 @@ class ValidateGcpIntegrationProcessor:
 
             validated_permissions = []
             errors = []
+
+            # BUG-011 FIX: Check if service account is revoked/disabled via IAM API
+            try:
+                from google.oauth2 import service_account as sa_module
+                from googleapiclient.discovery import build
+                from googleapiclient.errors import HttpError
+
+                # Build IAM service
+                iam_service = build(
+                    "iam", "v1",
+                    credentials=credentials,
+                    cache_discovery=False
+                )
+
+                # Check service account status
+                sa_name = f"projects/{project_id}/serviceAccounts/{client_email}"
+                try:
+                    sa_info = iam_service.projects().serviceAccounts().get(name=sa_name).execute()
+
+                    # Check if service account is disabled
+                    if sa_info.get("disabled", False):
+                        error_msg = f"Service account {client_email} is disabled"
+                        await self._update_validation_status(
+                            org_slug, "GCP_SA", "INVALID", error_msg
+                        )
+                        return {
+                            "status": "SUCCESS",
+                            "validation_status": "INVALID",
+                            "project_id": project_id,
+                            "error": error_msg
+                        }
+
+                    validated_permissions.append("iam.serviceAccounts.get")
+                    self.logger.info(f"IAM revocation check passed for {org_slug}/{project_id}")
+                except HttpError as e:
+                    if e.resp.status == 403:
+                        # Permission denied - SA may not have IAM permissions
+                        # This is non-critical, continue with other checks
+                        errors.append(f"IAM: Insufficient permissions to check revocation status")
+                        self.logger.warning(f"Cannot check SA revocation for {org_slug}: {str(e)}")
+                    elif e.resp.status == 404:
+                        # Service account not found (likely deleted)
+                        error_msg = f"Service account {client_email} not found (may be deleted)"
+                        await self._update_validation_status(
+                            org_slug, "GCP_SA", "INVALID", error_msg
+                        )
+                        return {
+                            "status": "SUCCESS",
+                            "validation_status": "INVALID",
+                            "project_id": project_id,
+                            "error": error_msg
+                        }
+                    else:
+                        errors.append(f"IAM: {str(e)}")
+            except ImportError:
+                self.logger.warning("google-api-python-client not available, skipping revocation check")
+                errors.append("IAM: API client not available")
+            except Exception as e:
+                self.logger.warning(f"IAM revocation check failed for {org_slug}: {str(e)}")
+                errors.append(f"IAM: {str(e)}")
 
             # Check BigQuery access
             if check_bigquery:
@@ -136,18 +218,18 @@ class ValidateGcpIntegrationProcessor:
                     "message": f"GCP Service Account validated for project {project_id}"
                 }
             elif validated_permissions and errors:
-                # Partial success
+                # BUG-016 FIX: Return PARTIAL_VALID for partial success instead of VALID
                 error_msg = "; ".join(errors)
                 await self._update_validation_status(
-                    org_slug, "GCP_SA", "VALID", f"Partial: {error_msg}"
+                    org_slug, "GCP_SA", "PARTIAL_VALID", f"Partial: {error_msg}"
                 )
                 return {
                     "status": "SUCCESS",
-                    "validation_status": "VALID",
+                    "validation_status": "PARTIAL_VALID",
                     "project_id": project_id,
                     "permissions": validated_permissions,
                     "warnings": errors,
-                    "message": f"GCP SA validated with warnings"
+                    "message": f"GCP SA validated with warnings: {error_msg}"
                 }
             else:
                 error_msg = "; ".join(errors) if errors else "No permissions validated"

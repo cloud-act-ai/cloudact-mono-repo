@@ -1,5 +1,5 @@
 -- ================================================================================
--- PROCEDURE: sp_convert_cloud_costs_to_focus_1_3
+-- PROCEDURE: sp_cloud_1_convert_to_focus
 -- LOCATION: {project_id}.organizations (central dataset)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
@@ -15,7 +15,7 @@
 -- OUTPUT: Records inserted into cost_data_standard_1_3 table
 -- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_cloud_costs_to_focus_1_3(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_cloud_1_convert_to_focus(
   p_project_id STRING,
   p_dataset_id STRING,
   p_cost_date DATE,
@@ -239,6 +239,35 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('aws', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- CTE to expand hierarchy from tags
+        WITH hierarchy_lookup AS (
+          SELECT
+            entity_id,
+            entity_name,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 1 THEN path_ids[OFFSET(0)] ELSE NULL END AS level_1_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 2 THEN path_ids[OFFSET(1)] ELSE NULL END AS level_2_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 3 THEN path_ids[OFFSET(2)] ELSE NULL END AS level_3_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 4 THEN path_ids[OFFSET(3)] ELSE NULL END AS level_4_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 5 THEN path_ids[OFFSET(4)] ELSE NULL END AS level_5_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 6 THEN path_ids[OFFSET(5)] ELSE NULL END AS level_6_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 7 THEN path_ids[OFFSET(6)] ELSE NULL END AS level_7_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 8 THEN path_ids[OFFSET(7)] ELSE NULL END AS level_8_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 9 THEN path_ids[OFFSET(8)] ELSE NULL END AS level_9_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 10 THEN path_ids[OFFSET(9)] ELSE NULL END AS level_10_id,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 1 THEN path_names[OFFSET(0)] ELSE NULL END AS level_1_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 2 THEN path_names[OFFSET(1)] ELSE NULL END AS level_2_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 3 THEN path_names[OFFSET(2)] ELSE NULL END AS level_3_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 4 THEN path_names[OFFSET(3)] ELSE NULL END AS level_4_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 5 THEN path_names[OFFSET(4)] ELSE NULL END AS level_5_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 6 THEN path_names[OFFSET(5)] ELSE NULL END AS level_6_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 7 THEN path_names[OFFSET(6)] ELSE NULL END AS level_7_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 8 THEN path_names[OFFSET(7)] ELSE NULL END AS level_8_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 9 THEN path_names[OFFSET(8)] ELSE NULL END AS level_9_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 10 THEN path_names[OFFSET(9)] ELSE NULL END AS level_10_name
+          FROM `%s.organizations.org_hierarchy`
+          WHERE org_slug = @v_org_slug
+            AND end_date IS NULL
+        )
         INSERT INTO `%s.%s.cost_data_standard_1_3`
         (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
@@ -254,78 +283,113 @@ BEGIN
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
          CommitmentDiscountId, CommitmentDiscountType,
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
-          payer_account_id as BillingAccountId,
-          COALESCE(usage_start_time, TIMESTAMP(usage_date)) as ChargePeriodStart,
-          COALESCE(usage_end_time, TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
-          TIMESTAMP(billing_period_start) as BillingPeriodStart,
-          TIMESTAMP(billing_period_end) as BillingPeriodEnd,
+          b.payer_account_id as BillingAccountId,
+          COALESCE(b.usage_start_time, TIMESTAMP(b.usage_date)) as ChargePeriodStart,
+          COALESCE(b.usage_end_time, TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
+          TIMESTAMP(b.billing_period_start) as BillingPeriodStart,
+          TIMESTAMP(b.billing_period_end) as BillingPeriodEnd,
 
           'Amazon Web Services' as InvoiceIssuerName,
           'AWS' as ServiceProviderName,
           'AWS' as HostProviderName,
 
           CASE
-            WHEN service_code LIKE '%%EC2%%' OR product_code LIKE '%%EC2%%' THEN 'Compute'
-            WHEN service_code LIKE '%%S3%%' THEN 'Storage'
-            WHEN service_code LIKE '%%RDS%%' THEN 'Database'
-            WHEN service_code LIKE '%%Lambda%%' THEN 'Compute'
+            WHEN b.service_code LIKE '%%EC2%%' OR b.product_code LIKE '%%EC2%%' THEN 'Compute'
+            WHEN b.service_code LIKE '%%S3%%' THEN 'Storage'
+            WHEN b.service_code LIKE '%%RDS%%' THEN 'Database'
+            WHEN b.service_code LIKE '%%Lambda%%' THEN 'Compute'
             ELSE 'Other'
           END as ServiceCategory,
-          COALESCE(product_name, service_code, product_code) as ServiceName,
-          COALESCE(operation, 'Default') as ServiceSubcategory,
+          COALESCE(b.product_name, b.service_code, b.product_code) as ServiceName,
+          COALESCE(b.operation, 'Default') as ServiceSubcategory,
 
-          resource_id as ResourceId,
-          resource_id as ResourceName,
-          COALESCE(usage_type, 'AWS Resource') as ResourceType,
-          COALESCE(region, 'global') as RegionId,
-          COALESCE(region, 'Global') as RegionName,
+          b.resource_id as ResourceId,
+          b.resource_id as ResourceName,
+          COALESCE(b.usage_type, 'AWS Resource') as ResourceType,
+          COALESCE(b.region, 'global') as RegionId,
+          COALESCE(b.region, 'Global') as RegionName,
 
-          CAST(usage_amount AS NUMERIC) as ConsumedQuantity,
-          usage_unit as ConsumedUnit,
+          CAST(b.usage_amount AS NUMERIC) as ConsumedQuantity,
+          b.usage_unit as ConsumedUnit,
           CASE
-            WHEN reservation_arn IS NOT NULL THEN 'Committed'
-            WHEN savings_plan_arn IS NOT NULL THEN 'Committed'
+            WHEN b.reservation_arn IS NOT NULL THEN 'Committed'
+            WHEN b.savings_plan_arn IS NOT NULL THEN 'Committed'
             ELSE 'On-Demand'
           END as PricingCategory,
-          pricing_unit as PricingUnit,
+          b.pricing_unit as PricingUnit,
 
-          CAST(COALESCE(net_unblended_cost, unblended_cost) AS NUMERIC) as ContractedCost,
-          CAST(COALESCE(net_unblended_cost, unblended_cost) AS NUMERIC) as EffectiveCost,
-          CAST(unblended_cost AS NUMERIC) as BilledCost,
-          CAST(COALESCE(public_on_demand_cost, unblended_cost) AS NUMERIC) as ListCost,
-          COALESCE(currency, 'USD') as BillingCurrency,
+          CAST(COALESCE(b.net_unblended_cost, b.unblended_cost) AS NUMERIC) as ContractedCost,
+          CAST(COALESCE(b.net_unblended_cost, b.unblended_cost) AS NUMERIC) as EffectiveCost,
+          CAST(b.unblended_cost AS NUMERIC) as BilledCost,
+          CAST(COALESCE(b.public_on_demand_cost, b.unblended_cost) AS NUMERIC) as ListCost,
+          COALESCE(b.currency, 'USD') as BillingCurrency,
 
-          CASE line_item_type
+          CASE b.line_item_type
             WHEN 'Tax' THEN 'Tax'
             WHEN 'Credit' THEN 'Credit'
             ELSE 'Usage'
           END as ChargeCategory,
-          COALESCE(line_item_type, 'Usage') as ChargeType,
+          COALESCE(b.line_item_type, 'Usage') as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
           @v_org_slug as SubAccountId,
-          COALESCE(linked_account_name, linked_account_id) as SubAccountName,
+          COALESCE(b.linked_account_name, b.linked_account_id) as SubAccountName,
 
-          CONCAT(product_code, '/', usage_type) as SkuId,
-          JSON_OBJECT('service_code', service_code, 'product_code', product_code, 'usage_type', usage_type) as SkuPriceDetails,
+          CONCAT(b.product_code, '/', b.usage_type) as SkuId,
+          JSON_OBJECT('service_code', b.service_code, 'product_code', b.product_code, 'usage_type', b.usage_type) as SkuPriceDetails,
 
-          COALESCE(SAFE.PARSE_JSON(resource_tags_json), JSON_OBJECT()) as Tags,
+          COALESCE(SAFE.PARSE_JSON(b.resource_tags_json), JSON_OBJECT()) as Tags,
 
           'cloud_aws_billing_raw_daily' as x_source_system,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
           'aws' as x_cloud_provider,
-          payer_account_id as x_cloud_account_id,
+          b.payer_account_id as x_cloud_account_id,
 
-          COALESCE(reservation_arn, savings_plan_arn) as CommitmentDiscountId,
+          COALESCE(b.reservation_arn, b.savings_plan_arn) as CommitmentDiscountId,
           CASE
-            WHEN reservation_arn IS NOT NULL THEN 'Reserved Instance'
-            WHEN savings_plan_arn IS NOT NULL THEN 'Savings Plan'
+            WHEN b.reservation_arn IS NOT NULL THEN 'Reserved Instance'
+            WHEN b.savings_plan_arn IS NOT NULL THEN 'Savings Plan'
             ELSE NULL
           END as CommitmentDiscountType,
+          -- 10-level hierarchy from resource tags (v15.0)
+          -- Looks for 'cost_center', 'team', 'department', or 'entity_id' tags
+          h.level_1_id as x_hierarchy_level_1_id,
+          h.level_1_name as x_hierarchy_level_1_name,
+          h.level_2_id as x_hierarchy_level_2_id,
+          h.level_2_name as x_hierarchy_level_2_name,
+          h.level_3_id as x_hierarchy_level_3_id,
+          h.level_3_name as x_hierarchy_level_3_name,
+          h.level_4_id as x_hierarchy_level_4_id,
+          h.level_4_name as x_hierarchy_level_4_name,
+          h.level_5_id as x_hierarchy_level_5_id,
+          h.level_5_name as x_hierarchy_level_5_name,
+          h.level_6_id as x_hierarchy_level_6_id,
+          h.level_6_name as x_hierarchy_level_6_name,
+          h.level_7_id as x_hierarchy_level_7_id,
+          h.level_7_name as x_hierarchy_level_7_name,
+          h.level_8_id as x_hierarchy_level_8_id,
+          h.level_8_name as x_hierarchy_level_8_name,
+          h.level_9_id as x_hierarchy_level_9_id,
+          h.level_9_name as x_hierarchy_level_9_name,
+          h.level_10_id as x_hierarchy_level_10_id,
+          h.level_10_name as x_hierarchy_level_10_name,
+          CASE WHEN h.level_1_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
@@ -333,9 +397,17 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.cloud_aws_billing_raw_daily`
-        WHERE usage_date = @p_date
-          AND unblended_cost > 0
+        FROM `%s.%s.cloud_aws_billing_raw_daily` b
+        LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.team'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.department'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.entity_id'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.entity_id')
+        )
+        WHERE b.usage_date = @p_date
+          AND b.unblended_cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
@@ -361,7 +433,7 @@ BEGIN
          x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
-         CommitmentDiscountId, CommitmentDiscountName,
+         CommitmentDiscountId, CommitmentDiscountName, CommitmentDiscountType,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           subscription_id as BillingAccountId,
@@ -420,6 +492,11 @@ BEGIN
 
           reservation_id as CommitmentDiscountId,
           reservation_name as CommitmentDiscountName,
+          CASE
+            WHEN reservation_id IS NOT NULL THEN 'Reservation'
+            WHEN benefit_id IS NOT NULL THEN 'Savings Plan'
+            ELSE NULL
+          END as CommitmentDiscountType,
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
@@ -441,6 +518,35 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('oci', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- CTE to expand hierarchy from tags
+        WITH hierarchy_lookup AS (
+          SELECT
+            entity_id,
+            entity_name,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 1 THEN path_ids[OFFSET(0)] ELSE NULL END AS level_1_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 2 THEN path_ids[OFFSET(1)] ELSE NULL END AS level_2_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 3 THEN path_ids[OFFSET(2)] ELSE NULL END AS level_3_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 4 THEN path_ids[OFFSET(3)] ELSE NULL END AS level_4_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 5 THEN path_ids[OFFSET(4)] ELSE NULL END AS level_5_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 6 THEN path_ids[OFFSET(5)] ELSE NULL END AS level_6_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 7 THEN path_ids[OFFSET(6)] ELSE NULL END AS level_7_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 8 THEN path_ids[OFFSET(7)] ELSE NULL END AS level_8_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 9 THEN path_ids[OFFSET(8)] ELSE NULL END AS level_9_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 10 THEN path_ids[OFFSET(9)] ELSE NULL END AS level_10_id,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 1 THEN path_names[OFFSET(0)] ELSE NULL END AS level_1_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 2 THEN path_names[OFFSET(1)] ELSE NULL END AS level_2_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 3 THEN path_names[OFFSET(2)] ELSE NULL END AS level_3_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 4 THEN path_names[OFFSET(3)] ELSE NULL END AS level_4_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 5 THEN path_names[OFFSET(4)] ELSE NULL END AS level_5_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 6 THEN path_names[OFFSET(5)] ELSE NULL END AS level_6_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 7 THEN path_names[OFFSET(6)] ELSE NULL END AS level_7_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 8 THEN path_names[OFFSET(7)] ELSE NULL END AS level_8_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 9 THEN path_names[OFFSET(8)] ELSE NULL END AS level_9_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 10 THEN path_names[OFFSET(9)] ELSE NULL END AS level_10_name
+          FROM `%s.organizations.org_hierarchy`
+          WHERE org_slug = @v_org_slug
+            AND end_date IS NULL
+        )
         INSERT INTO `%s.%s.cost_data_standard_1_3`
         (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
@@ -469,64 +575,87 @@ BEGIN
          x_hierarchy_validated_at,
                   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
-          tenancy_id as BillingAccountId,
-          TIMESTAMP(usage_date) as ChargePeriodStart,
-          TIMESTAMP(DATE_ADD(usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
-          TIMESTAMP(DATE_TRUNC(usage_date, MONTH)) as BillingPeriodStart,
-          TIMESTAMP(LAST_DAY(usage_date, MONTH)) as BillingPeriodEnd,
+          b.tenancy_id as BillingAccountId,
+          TIMESTAMP(b.usage_date) as ChargePeriodStart,
+          TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
+          TIMESTAMP(DATE_TRUNC(b.usage_date, MONTH)) as BillingPeriodStart,
+          TIMESTAMP(LAST_DAY(b.usage_date, MONTH)) as BillingPeriodEnd,
 
           'Oracle Cloud Infrastructure' as InvoiceIssuerName,
           'OCI' as ServiceProviderName,
           'Oracle' as HostProviderName,
 
           CASE
-            WHEN service_name LIKE '%%COMPUTE%%' THEN 'Compute'
-            WHEN service_name LIKE '%%STORAGE%%' THEN 'Storage'
-            WHEN service_name LIKE '%%DATABASE%%' THEN 'Database'
-            WHEN service_name LIKE '%%NETWORK%%' THEN 'Networking'
+            WHEN b.service_name LIKE '%%COMPUTE%%' THEN 'Compute'
+            WHEN b.service_name LIKE '%%STORAGE%%' THEN 'Storage'
+            WHEN b.service_name LIKE '%%DATABASE%%' THEN 'Database'
+            WHEN b.service_name LIKE '%%NETWORK%%' THEN 'Networking'
             ELSE 'Other'
           END as ServiceCategory,
-          service_name as ServiceName,
-          COALESCE(sku_name, 'Default') as ServiceSubcategory,
+          b.service_name as ServiceName,
+          COALESCE(b.sku_name, 'Default') as ServiceSubcategory,
 
-          resource_id as ResourceId,
-          resource_name as ResourceName,
+          b.resource_id as ResourceId,
+          b.resource_name as ResourceName,
           'OCI Resource' as ResourceType,
-          COALESCE(region, 'global') as RegionId,
-          COALESCE(region, 'Global') as RegionName,
+          COALESCE(b.region, 'global') as RegionId,
+          COALESCE(b.region, 'Global') as RegionName,
 
-          CAST(usage_quantity AS NUMERIC) as ConsumedQuantity,
-          unit as ConsumedUnit,
+          CAST(b.usage_quantity AS NUMERIC) as ConsumedQuantity,
+          b.unit as ConsumedUnit,
           CASE
-            WHEN overage_flag = 'Y' THEN 'Overage'
+            WHEN b.overage_flag = 'Y' THEN 'Overage'
             ELSE 'On-Demand'
           END as PricingCategory,
-          unit as PricingUnit,
+          b.unit as PricingUnit,
 
-          CAST(cost AS NUMERIC) as ContractedCost,
-          CAST(cost AS NUMERIC) as EffectiveCost,
-          CAST(cost AS NUMERIC) as BilledCost,
-          CAST(COALESCE(usage_quantity * unit_price, cost) AS NUMERIC) as ListCost,
-          COALESCE(currency, 'USD') as BillingCurrency,
+          CAST(b.cost AS NUMERIC) as ContractedCost,
+          CAST(b.cost AS NUMERIC) as EffectiveCost,
+          CAST(b.cost AS NUMERIC) as BilledCost,
+          CAST(COALESCE(b.usage_quantity * b.unit_price, b.cost) AS NUMERIC) as ListCost,
+          COALESCE(b.currency, 'USD') as BillingCurrency,
 
           'Usage' as ChargeCategory,
           'Usage' as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
           @v_org_slug as SubAccountId,
-          COALESCE(compartment_name, compartment_id) as SubAccountName,
+          COALESCE(b.compartment_name, b.compartment_id) as SubAccountName,
 
-          sku_part_number as SkuId,
-          JSON_OBJECT('sku_name', sku_name, 'service_name', service_name, 'compartment_path', compartment_path) as SkuPriceDetails,
+          b.sku_part_number as SkuId,
+          JSON_OBJECT('sku_name', b.sku_name, 'service_name', b.service_name, 'compartment_path', b.compartment_path) as SkuPriceDetails,
 
-          COALESCE(SAFE.PARSE_JSON(freeform_tags_json), JSON_OBJECT()) as Tags,
+          COALESCE(SAFE.PARSE_JSON(b.freeform_tags_json), JSON_OBJECT()) as Tags,
 
           'cloud_oci_billing_raw_daily' as x_source_system,
           GENERATE_UUID() as x_source_record_id,
           CURRENT_TIMESTAMP() as x_updated_at,
           -- Issue #3 FIX: snake_case for x_* fields
           'oci' as x_cloud_provider,
-          tenancy_id as x_cloud_account_id,
+          b.tenancy_id as x_cloud_account_id,
+          -- 10-level hierarchy from resource tags (v15.0)
+          -- Looks for 'cost_center', 'team', 'department', or 'entity_id' tags
+          h.level_1_id as x_hierarchy_level_1_id,
+          h.level_1_name as x_hierarchy_level_1_name,
+          h.level_2_id as x_hierarchy_level_2_id,
+          h.level_2_name as x_hierarchy_level_2_name,
+          h.level_3_id as x_hierarchy_level_3_id,
+          h.level_3_name as x_hierarchy_level_3_name,
+          h.level_4_id as x_hierarchy_level_4_id,
+          h.level_4_name as x_hierarchy_level_4_name,
+          h.level_5_id as x_hierarchy_level_5_id,
+          h.level_5_name as x_hierarchy_level_5_name,
+          h.level_6_id as x_hierarchy_level_6_id,
+          h.level_6_name as x_hierarchy_level_6_name,
+          h.level_7_id as x_hierarchy_level_7_id,
+          h.level_7_name as x_hierarchy_level_7_name,
+          h.level_8_id as x_hierarchy_level_8_id,
+          h.level_8_name as x_hierarchy_level_8_name,
+          h.level_9_id as x_hierarchy_level_9_id,
+          h.level_9_name as x_hierarchy_level_9_name,
+          h.level_10_id as x_hierarchy_level_10_id,
+          h.level_10_name as x_hierarchy_level_10_name,
+          CASE WHEN h.level_1_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
@@ -534,9 +663,17 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.cloud_oci_billing_raw_daily`
-        WHERE usage_date = @p_date
-          AND cost > 0
+        FROM `%s.%s.cloud_oci_billing_raw_daily` b
+        LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.team'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.department'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.entity_id'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.entity_id')
+        )
+        WHERE b.usage_date = @p_date
+          AND b.cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
@@ -555,5 +692,5 @@ BEGIN
 
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
-  RAISE USING MESSAGE = CONCAT('sp_convert_cloud_costs_to_focus_1_3 Failed: ', @@error.message);
+  RAISE USING MESSAGE = CONCAT('sp_cloud_1_convert_to_focus Failed: ', @@error.message);
 END;

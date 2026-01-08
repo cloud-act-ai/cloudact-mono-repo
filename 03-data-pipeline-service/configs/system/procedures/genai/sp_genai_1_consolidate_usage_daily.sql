@@ -1,5 +1,5 @@
 -- ================================================================================
--- PROCEDURE: sp_consolidate_genai_usage_daily
+-- PROCEDURE: sp_genai_1_consolidate_usage_daily
 -- LOCATION: {project_id}.organizations (central dataset)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
@@ -14,7 +14,7 @@
 -- OUTPUT: Consolidated records in genai_usage_daily_unified table
 -- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_consolidate_genai_usage_daily(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_genai_1_consolidate_usage_daily(
   p_project_id STRING,
   p_dataset_id STRING,
   p_usage_date DATE,
@@ -58,13 +58,23 @@ BEGIN
     SET v_rows_deleted = @@row_count;
 
     -- Step 2: Insert PAYG usage (token-based) with lineage columns (STATE-001 FIX)
+    -- HIERARCHY-001 FIX: Use 20 hierarchy fields (10 levels x 2 fields each)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_usage_daily_unified`
       (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
        region, input_tokens, output_tokens, cached_tokens, total_tokens,
        ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
-       request_count, hierarchy_entity_id, hierarchy_entity_name,
-       hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+       request_count,
+       hierarchy_level_1_id, hierarchy_level_1_name,
+       hierarchy_level_2_id, hierarchy_level_2_name,
+       hierarchy_level_3_id, hierarchy_level_3_name,
+       hierarchy_level_4_id, hierarchy_level_4_name,
+       hierarchy_level_5_id, hierarchy_level_5_name,
+       hierarchy_level_6_id, hierarchy_level_6_name,
+       hierarchy_level_7_id, hierarchy_level_7_name,
+       hierarchy_level_8_id, hierarchy_level_8_name,
+       hierarchy_level_9_id, hierarchy_level_9_name,
+       hierarchy_level_10_id, hierarchy_level_10_name,
        source_table, consolidated_at,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
@@ -86,19 +96,24 @@ BEGIN
         NULL as gpu_hours,
         NULL as instance_hours,
         request_count,
-        hierarchy_entity_id,
-        hierarchy_entity_name,
-        hierarchy_level_code,
-        hierarchy_path,
-        hierarchy_path_names,
+        hierarchy_level_1_id, hierarchy_level_1_name,
+        hierarchy_level_2_id, hierarchy_level_2_name,
+        hierarchy_level_3_id, hierarchy_level_3_name,
+        hierarchy_level_4_id, hierarchy_level_4_name,
+        hierarchy_level_5_id, hierarchy_level_5_name,
+        hierarchy_level_6_id, hierarchy_level_6_name,
+        hierarchy_level_7_id, hierarchy_level_7_name,
+        hierarchy_level_8_id, hierarchy_level_8_name,
+        hierarchy_level_9_id, hierarchy_level_9_name,
+        hierarchy_level_10_id, hierarchy_level_10_name,
         'genai_payg_usage_raw' as source_table,
         CURRENT_TIMESTAMP() as consolidated_at,
-        -- STATE-001 FIX: Preserve lineage from source or use procedure params
-        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        -- STATE-001 FIX: Use procedure's own pipeline_id for consolidation lineage
+        @p_pipeline_id as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
-        COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
-        COALESCE(x_run_id, @p_run_id) as x_run_id,
-        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
+        @p_date as x_pipeline_run_date,
+        @p_run_id as x_run_id,
+        CURRENT_TIMESTAMP() as x_ingested_at
       FROM `%s.%s.genai_payg_usage_raw`
       WHERE usage_date = @p_date
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
@@ -107,13 +122,23 @@ BEGIN
           v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     -- Step 3: Insert Commitment usage (PTU/GSU) with lineage columns (STATE-001 FIX)
+    -- HIERARCHY-001 FIX: Use 20 hierarchy fields (10 levels x 2 fields each)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_usage_daily_unified`
       (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
        region, input_tokens, output_tokens, cached_tokens, total_tokens,
        ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
-       request_count, hierarchy_entity_id, hierarchy_entity_name,
-       hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+       request_count,
+       hierarchy_level_1_id, hierarchy_level_1_name,
+       hierarchy_level_2_id, hierarchy_level_2_name,
+       hierarchy_level_3_id, hierarchy_level_3_name,
+       hierarchy_level_4_id, hierarchy_level_4_name,
+       hierarchy_level_5_id, hierarchy_level_5_name,
+       hierarchy_level_6_id, hierarchy_level_6_name,
+       hierarchy_level_7_id, hierarchy_level_7_name,
+       hierarchy_level_8_id, hierarchy_level_8_name,
+       hierarchy_level_9_id, hierarchy_level_9_name,
+       hierarchy_level_10_id, hierarchy_level_10_name,
        source_table, consolidated_at,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
@@ -134,20 +159,25 @@ BEGIN
         utilization_pct,
         NULL as gpu_hours,
         NULL as instance_hours,
-        NULL as request_count,
-        hierarchy_entity_id,
-        hierarchy_entity_name,
-        hierarchy_level_code,
-        hierarchy_path,
-        hierarchy_path_names,
+        request_count,
+        hierarchy_level_1_id, hierarchy_level_1_name,
+        hierarchy_level_2_id, hierarchy_level_2_name,
+        hierarchy_level_3_id, hierarchy_level_3_name,
+        hierarchy_level_4_id, hierarchy_level_4_name,
+        hierarchy_level_5_id, hierarchy_level_5_name,
+        hierarchy_level_6_id, hierarchy_level_6_name,
+        hierarchy_level_7_id, hierarchy_level_7_name,
+        hierarchy_level_8_id, hierarchy_level_8_name,
+        hierarchy_level_9_id, hierarchy_level_9_name,
+        hierarchy_level_10_id, hierarchy_level_10_name,
         'genai_commitment_usage_raw' as source_table,
         CURRENT_TIMESTAMP() as consolidated_at,
-        -- STATE-001 FIX: Preserve lineage from source or use procedure params
-        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        -- STATE-001 FIX: Use procedure's own pipeline_id for consolidation lineage
+        @p_pipeline_id as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
-        COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
-        COALESCE(x_run_id, @p_run_id) as x_run_id,
-        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
+        @p_date as x_pipeline_run_date,
+        @p_run_id as x_run_id,
+        CURRENT_TIMESTAMP() as x_ingested_at
       FROM `%s.%s.genai_commitment_usage_raw`
       WHERE usage_date = @p_date
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
@@ -156,13 +186,23 @@ BEGIN
           v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     -- Step 4: Insert Infrastructure usage (GPU/TPU) with lineage columns (STATE-001 FIX)
+    -- HIERARCHY-001 FIX: Use 20 hierarchy fields (10 levels x 2 fields each)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_usage_daily_unified`
       (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
        region, input_tokens, output_tokens, cached_tokens, total_tokens,
        ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
-       request_count, hierarchy_entity_id, hierarchy_entity_name,
-       hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+       request_count,
+       hierarchy_level_1_id, hierarchy_level_1_name,
+       hierarchy_level_2_id, hierarchy_level_2_name,
+       hierarchy_level_3_id, hierarchy_level_3_name,
+       hierarchy_level_4_id, hierarchy_level_4_name,
+       hierarchy_level_5_id, hierarchy_level_5_name,
+       hierarchy_level_6_id, hierarchy_level_6_name,
+       hierarchy_level_7_id, hierarchy_level_7_name,
+       hierarchy_level_8_id, hierarchy_level_8_name,
+       hierarchy_level_9_id, hierarchy_level_9_name,
+       hierarchy_level_10_id, hierarchy_level_10_name,
        source_table, consolidated_at,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
@@ -184,19 +224,24 @@ BEGIN
         gpu_hours,
         hours_used as instance_hours,
         NULL as request_count,
-        hierarchy_entity_id,
-        hierarchy_entity_name,
-        hierarchy_level_code,
-        hierarchy_path,
-        hierarchy_path_names,
+        hierarchy_level_1_id, hierarchy_level_1_name,
+        hierarchy_level_2_id, hierarchy_level_2_name,
+        hierarchy_level_3_id, hierarchy_level_3_name,
+        hierarchy_level_4_id, hierarchy_level_4_name,
+        hierarchy_level_5_id, hierarchy_level_5_name,
+        hierarchy_level_6_id, hierarchy_level_6_name,
+        hierarchy_level_7_id, hierarchy_level_7_name,
+        hierarchy_level_8_id, hierarchy_level_8_name,
+        hierarchy_level_9_id, hierarchy_level_9_name,
+        hierarchy_level_10_id, hierarchy_level_10_name,
         'genai_infrastructure_usage_raw' as source_table,
         CURRENT_TIMESTAMP() as consolidated_at,
-        -- STATE-001 FIX: Preserve lineage from source or use procedure params
-        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        -- STATE-001 FIX: Use procedure's own pipeline_id for consolidation lineage
+        @p_pipeline_id as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
-        COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
-        COALESCE(x_run_id, @p_run_id) as x_run_id,
-        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
+        @p_date as x_pipeline_run_date,
+        @p_run_id as x_run_id,
+        CURRENT_TIMESTAMP() as x_ingested_at
       FROM `%s.%s.genai_infrastructure_usage_raw`
       WHERE usage_date = @p_date
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
@@ -224,5 +269,5 @@ BEGIN
 -- Issue #16-18 FIX: Add error handling
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
-  RAISE USING MESSAGE = CONCAT('sp_consolidate_genai_usage_daily Failed: ', @@error.message);
+  RAISE USING MESSAGE = CONCAT('sp_genai_1_consolidate_usage_daily Failed: ', @@error.message);
 END;

@@ -189,10 +189,10 @@ class TestStoredProcedureXColumns:
     """Test x_* column ordering in stored procedures."""
 
     def test_genai_focus_procedure_column_order(self, procedure_files):
-        """Test sp_convert_genai_to_focus_1_3 has correct x_* column order."""
-        proc_path = procedure_files.get("sp_convert_genai_to_focus_1_3")
+        """Test sp_genai_3_convert_to_focus has correct x_* column order."""
+        proc_path = procedure_files.get("sp_genai_3_convert_to_focus")
         if not proc_path:
-            pytest.skip("sp_convert_genai_to_focus_1_3.sql not found")
+            pytest.skip("sp_genai_3_convert_to_focus.sql not found")
 
         content = proc_path.read_text()
 
@@ -206,10 +206,10 @@ class TestStoredProcedureXColumns:
             "Deprecated x_pipeline_run_id found (use x_run_id)"
 
     def test_subscription_focus_procedure_column_order(self, procedure_files):
-        """Test sp_convert_subscription_costs_to_focus_1_3 has correct x_* column order."""
-        proc_path = procedure_files.get("sp_convert_subscription_costs_to_focus_1_3")
+        """Test sp_subscription_3_convert_to_focus has correct x_* column order."""
+        proc_path = procedure_files.get("sp_subscription_3_convert_to_focus")
         if not proc_path:
-            pytest.skip("sp_convert_subscription_costs_to_focus_1_3.sql not found")
+            pytest.skip("sp_subscription_3_convert_to_focus.sql not found")
 
         content = proc_path.read_text()
 
@@ -218,10 +218,10 @@ class TestStoredProcedureXColumns:
             "INSERT columns not in standard order"
 
     def test_subscription_calculate_procedure_column_order(self, procedure_files):
-        """Test sp_calculate_subscription_plan_costs_daily has correct x_* column order."""
-        proc_path = procedure_files.get("sp_calculate_subscription_plan_costs_daily")
+        """Test sp_subscription_2_calculate_daily_costs has correct x_* column order."""
+        proc_path = procedure_files.get("sp_subscription_2_calculate_daily_costs")
         if not proc_path:
-            pytest.skip("sp_calculate_subscription_plan_costs_daily.sql not found")
+            pytest.skip("sp_subscription_2_calculate_daily_costs.sql not found")
 
         content = proc_path.read_text()
 
@@ -230,10 +230,10 @@ class TestStoredProcedureXColumns:
             "INSERT columns not in standard order"
 
     def test_cloud_focus_procedure_column_order(self, procedure_files):
-        """Test sp_convert_cloud_costs_to_focus_1_3 has correct x_* column order."""
-        proc_path = procedure_files.get("sp_convert_cloud_costs_to_focus_1_3")
+        """Test sp_cloud_1_convert_to_focus has correct x_* column order."""
+        proc_path = procedure_files.get("sp_cloud_1_convert_to_focus")
         if not proc_path:
-            pytest.skip("sp_convert_cloud_costs_to_focus_1_3.sql not found")
+            pytest.skip("sp_cloud_1_convert_to_focus.sql not found")
 
         content = proc_path.read_text()
 

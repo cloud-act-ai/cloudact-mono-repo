@@ -18,6 +18,7 @@ import { stripe } from "@/lib/stripe"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { getCountryFromCurrency, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
 import { sanitizeOrgName, isValidOrgName } from "@/lib/utils/validation"
+import { getUserFriendlyError } from "@/lib/errors/user-friendly"
 
 interface CreateOrganizationInput {
   name: string
@@ -157,7 +158,8 @@ export async function createOrganization(input: CreateOrganizationInput) {
       .single()
 
     if (orgError) {
-      return { success: false, error: orgError.message }
+      // FIX GAP-007: User-friendly error message
+      return { success: false, error: getUserFriendlyError(orgError.message) }
     }
 
     // Note: organization_members entry is auto-created by DB trigger (on_org_created)
@@ -215,8 +217,9 @@ export async function createOrganization(input: CreateOrganizationInput) {
       message,
     }
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to create organization"
-    return { success: false, error: errorMessage }
+    const technicalError = err instanceof Error ? err.message : "Failed to create organization"
+    // FIX GAP-007: User-friendly error message
+    return { success: false, error: getUserFriendlyError(technicalError) }
   }
 }
 
@@ -254,6 +257,9 @@ const safeParseInt = (value: string | undefined, defaultValue: number): number =
  * 5. Triggers backend onboarding (BigQuery dataset + API key)
  */
 export async function completeOnboarding(sessionId: string) {
+  // FIX GAP-003: Declare lockId at function scope for cleanup in catch block
+  const lockId = `onboarding_${sessionId}`
+
   try {
     // Validate session ID format
     if (!sessionId || !sessionId.startsWith("cs_")) {
@@ -266,6 +272,55 @@ export async function completeOnboarding(sessionId: string) {
 
     if (!user) {
       return { success: false, error: "Not authenticated" }
+    }
+
+    // FIX GAP-003: Distributed locking to prevent concurrent onboarding
+    // Attempt to acquire lock for this session
+    const adminClient = createServiceRoleClient()
+    const lockExpiry = new Date(Date.now() + 60000) // 60 second lock
+
+    try {
+      const { error: lockError } = await adminClient
+        .from("onboarding_locks")
+        .insert({
+          lock_id: lockId,
+          session_id: sessionId,
+          user_id: user.id,
+          expires_at: lockExpiry.toISOString(),
+        })
+
+      if (lockError) {
+        // Lock exists (another tab is processing) - PostgreSQL error code 23505 = unique_violation
+        if (lockError.code === "23505") {
+          // Check if it's our lock (same user) vs someone else's
+          const { data: existingLock } = await adminClient
+            .from("onboarding_locks")
+            .select("user_id")
+            .eq("lock_id", lockId)
+            .single()
+
+          if (existingLock?.user_id === user.id) {
+            return {
+              success: false,
+              error: "Setup in progress in another tab. Please wait or close other tabs and try again.",
+            }
+          } else {
+            return {
+              success: false,
+              error: "This checkout session is being processed. Please wait a moment.",
+            }
+          }
+        }
+        // Other errors - log but continue (don't block onboarding for lock failures)
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[completeOnboarding] Lock acquisition failed:", lockError)
+        }
+      }
+    } catch (lockAttemptError) {
+      // Non-critical - continue without lock if table doesn't exist yet
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[completeOnboarding] Lock attempt error:", lockAttemptError)
+      }
     }
 
     // Retrieve checkout session from Stripe (expand only subscription - 1 level)
@@ -315,8 +370,7 @@ export async function completeOnboarding(sessionId: string) {
       return { success: false, error: "Company name is too short after removing invalid characters" }
     }
 
-    // Use service role client to bypass RLS
-    const adminClient = createServiceRoleClient()
+    // Note: adminClient already declared above for lock acquisition
 
     // IDEMPOTENCY CHECK 1: Check if this Stripe session was already processed
     // BUG FIX: Prevents duplicate org creation if user refreshes success page or webhook retries
@@ -480,7 +534,8 @@ export async function completeOnboarding(sessionId: string) {
       .single()
 
     if (orgError) {
-      return { success: false, error: orgError.message }
+      // FIX GAP-007: User-friendly error message
+      return { success: false, error: getUserFriendlyError(orgError.message) }
     }
 
     // Update Stripe subscription with org info (with retry)
@@ -559,6 +614,16 @@ export async function completeOnboarding(sessionId: string) {
       }
     }
 
+    // FIX GAP-003: Release lock on success
+    try {
+      await adminClient.from("onboarding_locks").delete().eq("lock_id", lockId)
+    } catch (cleanupError) {
+      // Non-critical - lock will expire naturally after 60 seconds
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[completeOnboarding] Lock cleanup failed:", cleanupError)
+      }
+    }
+
     return {
       success: true,
       orgSlug,
@@ -570,7 +635,16 @@ export async function completeOnboarding(sessionId: string) {
         : "Organization created successfully.",
     }
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to complete setup"
-    return { success: false, error: errorMessage }
+    // FIX GAP-003: Release lock on error
+    try {
+      const adminClient = createServiceRoleClient()
+      await adminClient.from("onboarding_locks").delete().eq("lock_id", lockId)
+    } catch (cleanupError) {
+      // Non-critical - lock will expire naturally
+    }
+
+    const technicalError = err instanceof Error ? err.message : "Failed to complete setup"
+    // FIX GAP-007: User-friendly error message
+    return { success: false, error: getUserFriendlyError(technicalError) }
   }
 }

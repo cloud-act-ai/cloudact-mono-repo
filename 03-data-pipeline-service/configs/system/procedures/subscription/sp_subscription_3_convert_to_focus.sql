@@ -1,5 +1,5 @@
 -- ================================================================================
--- PROCEDURE: sp_convert_subscription_costs_to_focus_1_3
+-- PROCEDURE: sp_subscription_3_convert_to_focus
 -- LOCATION: {project_id}.organizations (central dataset)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
@@ -18,7 +18,7 @@
 -- UPDATED: 2026-01-01 - All x_* fields standardized to snake_case convention
 -- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_subscription_costs_to_focus_1_3(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_3_convert_to_focus(
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
@@ -373,5 +373,5 @@ BEGIN
 
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
-  RAISE USING MESSAGE = CONCAT('sp_convert_subscription_costs_to_focus_1_3 Failed: ', @@error.message);
+  RAISE USING MESSAGE = CONCAT('sp_subscription_3_convert_to_focus Failed: ', @@error.message);
 END;

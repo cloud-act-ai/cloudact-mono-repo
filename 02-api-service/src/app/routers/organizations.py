@@ -1339,7 +1339,7 @@ async def onboard_org(
                             "schema_file": "subscription_plan_costs_daily.json",
                             "description": "Daily fact table. Granular daily cost breakdown for every active subscription.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["subscription_id", "provider", "hierarchy_entity_id"]
+                            "clustering_fields": ["subscription_id", "provider", "hierarchy_level_1_id"]
                         },
                         # FOCUS 1.3 Standardized Cost Data (common table for all cost sources)
                         {
@@ -1380,7 +1380,7 @@ async def onboard_org(
                             "schema_file": "genai_payg_costs_daily.json",
                             "description": "Daily GenAI PAYG costs calculated from usage and pricing.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["provider", "model", "hierarchy_entity_id"]
+                            "clustering_fields": ["provider", "model", "hierarchy_level_1_id"]
                         },
                         # --- Commitment Flow (PTU/GSU: Azure OpenAI, AWS Bedrock, GCP Vertex) ---
                         {
@@ -1401,7 +1401,7 @@ async def onboard_org(
                             "schema_file": "genai_commitment_costs_daily.json",
                             "description": "Daily GenAI commitment costs (fixed + overage).",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["provider", "commitment_type", "hierarchy_entity_id"]
+                            "clustering_fields": ["provider", "commitment_type", "hierarchy_level_1_id"]
                         },
                         # --- Infrastructure Flow (Self-hosted: GPU/TPU hourly) ---
                         {
@@ -1422,7 +1422,7 @@ async def onboard_org(
                             "schema_file": "genai_infrastructure_costs_daily.json",
                             "description": "Daily GPU/TPU infrastructure costs.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["provider", "instance_type", "hierarchy_entity_id"]
+                            "clustering_fields": ["provider", "instance_type", "hierarchy_level_1_id"]
                         },
                         # --- Unified Tables (All 3 flows consolidated) ---
                         {
@@ -1430,14 +1430,14 @@ async def onboard_org(
                             "schema_file": "genai_usage_daily_unified.json",
                             "description": "Consolidated GenAI usage (PAYG + Commitment + Infrastructure) for analytics and forecasting.",
                             "partition_field": "usage_date",
-                            "clustering_fields": ["cost_type", "provider", "hierarchy_entity_id"]
+                            "clustering_fields": ["cost_type", "provider", "hierarchy_level_1_id"]
                         },
                         {
                             "table_name": "genai_costs_daily_unified",
                             "schema_file": "genai_costs_daily_unified.json",
                             "description": "Consolidated GenAI costs (PAYG + Commitment + Infrastructure) for dashboards and billing.",
                             "partition_field": "cost_date",
-                            "clustering_fields": ["cost_type", "provider", "hierarchy_entity_id"]
+                            "clustering_fields": ["cost_type", "provider", "hierarchy_level_1_id"]
                         },
                         # ========================================
                         # Cloud Billing Tables (GCP, AWS, Azure, OCI)

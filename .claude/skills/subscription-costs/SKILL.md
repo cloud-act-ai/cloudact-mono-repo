@@ -25,12 +25,12 @@ POST /api/v1/pipelines/run/{org_slug}/subscription/costs/subscription_cost
   │
   └─► procedure_executor (generic.procedure_executor)
        │
-       └─► sp_run_subscription_costs_pipeline
+       └─► sp_subscription_4_run_pipeline
             │
-            ├─► Stage 1: sp_calculate_subscription_plan_costs_daily
+            ├─► Stage 1: sp_subscription_2_calculate_daily_costs
             │   └─► Outputs: subscription_plan_costs_daily
             │
-            └─► Stage 2: sp_convert_subscription_costs_to_focus_1_3
+            └─► Stage 2: sp_subscription_3_convert_to_focus
                 └─► Outputs: cost_data_standard_1_3 (x_source_system = 'subscription_costs_daily')
 ```
 
@@ -38,9 +38,9 @@ POST /api/v1/pipelines/run/{org_slug}/subscription/costs/subscription_cost
 
 | Procedure | Purpose |
 |-----------|---------|
-| `sp_run_subscription_costs_pipeline` | Orchestrator - calls Stage 1 & 2 |
-| `sp_calculate_subscription_plan_costs_daily` | Calculate daily amortized costs |
-| `sp_convert_subscription_costs_to_focus_1_3` | Convert to FOCUS 1.3 format |
+| `sp_subscription_4_run_pipeline` | Orchestrator - calls Stage 1 & 2 |
+| `sp_subscription_2_calculate_daily_costs` | Calculate daily amortized costs |
+| `sp_subscription_3_convert_to_focus` | Convert to FOCUS 1.3 format |
 
 ## Tables
 
@@ -201,7 +201,7 @@ daily_cost_usd = daily_cost_local * exchange_rate_to_usd
 | Pipeline stuck PENDING | Duplicate run detection | Wait for existing run or check logs |
 | No costs calculated | No active subscriptions | Add plans with `status = 'active'` |
 | Wrong currency | Plan currency mismatch | Match plan currency to org default |
-| Missing FOCUS data | Stage 2 failed | Check `sp_convert_subscription_costs_to_focus_1_3` |
+| Missing FOCUS data | Stage 2 failed | Check `sp_subscription_3_convert_to_focus` |
 | Procedure not found | Not synced | Run `/api/v1/procedures/sync` |
 
 ## Example Prompts

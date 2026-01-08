@@ -231,7 +231,7 @@ class UnifiedConsolidatorProcessor:
                     hierarchy_level_3_name = S.hierarchy_level_3_name,
                     hierarchy_level_4_id = S.hierarchy_level_4_id,
                     hierarchy_level_4_name = S.hierarchy_level_4_name,
-                    hierarchy_level_5_id = S.hierarchy_level_5_name,
+                    hierarchy_level_5_id = S.hierarchy_level_5_id,
                     hierarchy_level_5_name = S.hierarchy_level_5_name,
                     hierarchy_level_6_id = S.hierarchy_level_6_id,
                     hierarchy_level_6_name = S.hierarchy_level_6_name,

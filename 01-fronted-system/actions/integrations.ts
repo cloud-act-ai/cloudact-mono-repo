@@ -55,6 +55,27 @@ export interface SetupIntegrationInput {
   credential: string
   credentialName?: string
   metadata?: Record<string, unknown>
+  // Default hierarchy for GenAI integrations
+  defaultHierarchyLevel1Id?: string
+  defaultHierarchyLevel1Name?: string
+  defaultHierarchyLevel2Id?: string
+  defaultHierarchyLevel2Name?: string
+  defaultHierarchyLevel3Id?: string
+  defaultHierarchyLevel3Name?: string
+  defaultHierarchyLevel4Id?: string
+  defaultHierarchyLevel4Name?: string
+  defaultHierarchyLevel5Id?: string
+  defaultHierarchyLevel5Name?: string
+  defaultHierarchyLevel6Id?: string
+  defaultHierarchyLevel6Name?: string
+  defaultHierarchyLevel7Id?: string
+  defaultHierarchyLevel7Name?: string
+  defaultHierarchyLevel8Id?: string
+  defaultHierarchyLevel8Name?: string
+  defaultHierarchyLevel9Id?: string
+  defaultHierarchyLevel9Name?: string
+  defaultHierarchyLevel10Id?: string
+  defaultHierarchyLevel10Name?: string
 }
 
 export interface IntegrationResult {
@@ -279,6 +300,27 @@ export async function setupIntegration(
       credential_name: input.credentialName,
       metadata: input.metadata,
       skip_validation: false,
+      // Map hierarchy fields from camelCase to snake_case
+      default_hierarchy_level_1_id: input.defaultHierarchyLevel1Id,
+      default_hierarchy_level_1_name: input.defaultHierarchyLevel1Name,
+      default_hierarchy_level_2_id: input.defaultHierarchyLevel2Id,
+      default_hierarchy_level_2_name: input.defaultHierarchyLevel2Name,
+      default_hierarchy_level_3_id: input.defaultHierarchyLevel3Id,
+      default_hierarchy_level_3_name: input.defaultHierarchyLevel3Name,
+      default_hierarchy_level_4_id: input.defaultHierarchyLevel4Id,
+      default_hierarchy_level_4_name: input.defaultHierarchyLevel4Name,
+      default_hierarchy_level_5_id: input.defaultHierarchyLevel5Id,
+      default_hierarchy_level_5_name: input.defaultHierarchyLevel5Name,
+      default_hierarchy_level_6_id: input.defaultHierarchyLevel6Id,
+      default_hierarchy_level_6_name: input.defaultHierarchyLevel6Name,
+      default_hierarchy_level_7_id: input.defaultHierarchyLevel7Id,
+      default_hierarchy_level_7_name: input.defaultHierarchyLevel7Name,
+      default_hierarchy_level_8_id: input.defaultHierarchyLevel8Id,
+      default_hierarchy_level_8_name: input.defaultHierarchyLevel8Name,
+      default_hierarchy_level_9_id: input.defaultHierarchyLevel9Id,
+      default_hierarchy_level_9_name: input.defaultHierarchyLevel9Name,
+      default_hierarchy_level_10_id: input.defaultHierarchyLevel10Id,
+      default_hierarchy_level_10_name: input.defaultHierarchyLevel10Name,
     }
 
     const response = await backend.setupIntegration(

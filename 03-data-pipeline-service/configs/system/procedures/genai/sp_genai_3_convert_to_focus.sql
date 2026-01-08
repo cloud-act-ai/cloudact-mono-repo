@@ -1,5 +1,5 @@
 -- ================================================================================
--- PROCEDURE: sp_convert_genai_to_focus_1_3
+-- PROCEDURE: sp_genai_3_convert_to_focus
 -- LOCATION: {project_id}.organizations (central dataset)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
@@ -14,7 +14,7 @@
 -- OUTPUT: Records inserted into cost_data_standard_1_3 table
 -- ================================================================================
 
-CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_genai_to_focus_1_3(
+CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_genai_3_convert_to_focus(
   p_project_id STRING,
   p_dataset_id STRING,
   p_cost_date DATE,
@@ -25,6 +25,8 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_genai_to_foc
 OPTIONS(strict_mode=TRUE)
 BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
+  DECLARE v_org_slug STRING;
+  DECLARE v_currency STRING DEFAULT 'USD';
   -- Handle NULL defaults inside procedure body for BigQuery compatibility
   DECLARE v_pipeline_id STRING DEFAULT COALESCE(p_pipeline_id, 'genai_to_focus');
   DECLARE v_run_id STRING DEFAULT COALESCE(p_run_id, GENERATE_UUID());
@@ -46,10 +48,24 @@ BEGIN
   ASSERT p_cost_date >= DATE('2020-01-01')
     AS "p_cost_date must be after 2020-01-01";
 
+  -- FIX #4: Extract org_slug from dataset_id (format: {org_slug}_prod)
+  SET v_org_slug = REGEXP_EXTRACT(p_dataset_id, r'^(.+)_prod$');
+
+  -- FIX #4: Query org currency from org_profiles
+  BEGIN
+    EXECUTE IMMEDIATE FORMAT("""
+      SELECT default_currency FROM `%s.organizations.org_profiles`
+      WHERE org_slug = '%s'
+    """, p_project_id, v_org_slug) INTO v_currency;
+  EXCEPTION WHEN ERROR THEN
+    -- If query fails, keep default USD
+    SET v_currency = 'USD';
+  END;
+
   BEGIN TRANSACTION;
 
     -- Step 1: Delete existing GenAI FOCUS records for this date AND credential (idempotent)
-    -- MT-001 FIX: Add credential_id filter to prevent deleting other credentials' data
+    -- FIX #3: Add credential_id filter to prevent deleting other credentials' data
     IF p_credential_id IS NOT NULL THEN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
@@ -103,7 +119,7 @@ BEGIN
 
         -- Required billing fields
         org_slug as BillingAccountId,
-        'USD' as BillingCurrency,
+        @v_currency as BillingCurrency,  -- FIX #4: Use org's currency
         'CloudAct' as HostProviderName,
 
         -- Provider name mapping
@@ -153,8 +169,16 @@ BEGIN
         COALESCE(region, 'global') as RegionId,
         COALESCE(region, 'global') as RegionName,
 
-        -- Usage
-        CAST(usage_quantity AS NUMERIC) as ConsumedQuantity,
+        -- FIX #9: ConsumedQuantity based on cost_type
+        CAST(
+          CASE
+            WHEN cost_type = 'payg' THEN usage_quantity  -- tokens
+            WHEN cost_type = 'commitment' THEN usage_quantity  -- provisioned_units (already in usage_quantity)
+            WHEN cost_type = 'infrastructure' THEN usage_quantity  -- gpu_hours
+            ELSE usage_quantity
+          END AS NUMERIC
+        ) as ConsumedQuantity,
+
         usage_unit as ConsumedUnit,
 
         CASE cost_type
@@ -179,7 +203,11 @@ BEGIN
         -- Charge attributes
         'Usage' as ChargeCategory,
         'Usage' as ChargeType,
-        'Usage-Based' as ChargeFrequency,
+        -- FIX #10: ChargeFrequency based on cost_type
+        CASE
+          WHEN cost_type = 'commitment' THEN 'Recurring'
+          ELSE 'Usage-Based'
+        END as ChargeFrequency,
 
         -- Account
         org_slug as SubAccountId,
@@ -232,7 +260,7 @@ BEGIN
         AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
     USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
-          v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
+          v_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id, v_currency AS v_currency;
 
     SET v_rows_inserted = @@row_count;
 
@@ -248,5 +276,5 @@ BEGIN
 -- Issue #16-18 FIX: Add error handling
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
-  RAISE USING MESSAGE = CONCAT('sp_convert_genai_to_focus_1_3 Failed: ', @@error.message);
+  RAISE USING MESSAGE = CONCAT('sp_genai_3_convert_to_focus Failed: ', @@error.message);
 END;

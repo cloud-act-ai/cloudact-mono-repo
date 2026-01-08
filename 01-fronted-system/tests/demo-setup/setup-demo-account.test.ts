@@ -44,6 +44,10 @@ describe('Demo Account Setup', () => {
             viewport: { width: 1280, height: 720 },
         })
         page = await context.newPage()
+
+        // Listen to console messages
+        page.on('console', msg => console.log(`BROWSER: ${msg.text()}`))
+        page.on('pageerror', err => console.error(`PAGE ERROR: ${err.message}`))
     }, testConfig.timeout)
 
     afterAll(async () => {
@@ -68,11 +72,28 @@ describe('Demo Account Setup', () => {
         console.log('[2/5] Filling account details...')
         await page.fill('input[placeholder="you@company.com"]', config.email)
         await page.fill('input[placeholder="Min 8 characters"]', config.password)
-        await page.fill('input[placeholder="555 123 4567"]', config.phone)
-        await page.click('button:has-text("Continue")')
+        await page.fill('input[id="phone"]', config.phone)
 
-        // Wait for step 2
-        await page.waitForSelector('text=Set up organization', { timeout: 10000 })
+        // Wait a bit for any validation
+        await page.waitForTimeout(1000)
+
+        // Check for any error messages before clicking
+        const errorText = await page.textContent('body')
+        if (errorText?.includes('already') || errorText?.includes('exists')) {
+            console.log('⚠️  User may already exist, continuing anyway...')
+        }
+
+        // Click continue and wait for navigation
+        try {
+            await page.click('button:has-text("Continue")')
+            await page.waitForSelector('text=Set up organization', { timeout: 15000 })
+        } catch (error) {
+            // Take screenshot on failure
+            await page.screenshot({ path: 'tests/demo-setup/error-screenshot-' + Date.now() + '.png' })
+            const html = await page.content()
+            console.log('Current page HTML length:', html.length)
+            throw error
+        }
 
         // Step 3: Fill organization details
         console.log('[3/5] Filling organization details...')

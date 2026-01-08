@@ -2,7 +2,7 @@
 Cloud Costs to FOCUS 1.3 Converter
 
 Converts cloud provider billing data (GCP, AWS, Azure, OCI) to FOCUS 1.3 standard format.
-Uses stored procedure sp_convert_cloud_costs_to_focus_1_3 for the conversion.
+Uses stored procedure sp_cloud_1_convert_to_focus for the conversion.
 
 Usage in pipeline:
     ps_type: cloud.focus_converter
@@ -110,7 +110,7 @@ class CloudFOCUSConverterProcessor:
             for process_date in dates_to_process:
                 # Call stored procedure with lineage parameters
                 call_query = f"""
-                    CALL `{project_id}.organizations`.sp_convert_cloud_costs_to_focus_1_3(
+                    CALL `{project_id}.organizations`.sp_cloud_1_convert_to_focus(
                         @p_project_id,
                         @p_dataset_id,
                         @p_cost_date,

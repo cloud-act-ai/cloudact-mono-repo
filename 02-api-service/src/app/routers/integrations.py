@@ -25,6 +25,7 @@ from src.app.config import settings
 from src.core.providers import provider_registry
 from src.core.utils.validators import validate_org_slug, sanitize_sql_identifier
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
+from src.lib.integrations.metadata_schemas import validate_metadata  # BUG-020 FIX
 from google.cloud import bigquery
 
 router = APIRouter()
@@ -39,10 +40,19 @@ async def safe_rate_limit(request: Request, org_slug: str, limit: int, action: s
     """
     Issue #30: Wrapper for rate limiting with proper error handling.
     Fail-closed for security - reject requests if rate limiting fails.
+
+    BUG-005 FIX: Distinguish rate limit exceptions from other errors.
     """
     try:
         await rate_limit_by_org(request, org_slug, limit, action)
-    except HTTPException:
+    except HTTPException as e:
+        # BUG-005 FIX: Check if this is a rate limit error (429)
+        if e.status_code == 429:
+            # Rate limit exceeded - this is expected behavior
+            logger.warning(
+                f"Rate limit exceeded for {org_slug}/{action}",
+                extra={"org_slug": org_slug, "action": action, "limit": limit}
+            )
         raise
     except Exception as e:
         # SECURITY: Fail-closed - reject requests if rate limiting fails
@@ -152,6 +162,14 @@ class SetupIntegrationRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # BUG-014 FIX: Validate credential is not empty after stripping
+    @staticmethod
+    def validate_credential(v: str) -> str:
+        """Validate credential is not empty or whitespace-only"""
+        if not v or not v.strip():
+            raise ValueError("Credential cannot be empty or whitespace-only")
+        return v.strip()
+
 
 class IntegrationStatusResponse(BaseModel):
     """Response for integration status."""
@@ -227,8 +245,15 @@ def normalize_provider(provider: str) -> str:
     if normalized:
         return normalized
 
-    # Not found - return generic message without exposing internal provider list
-    logger.warning(f"Invalid provider requested: {provider}")
+    # BUG-008 FIX: Log suspicious provider attempts with details for security monitoring
+    logger.warning(
+        f"Invalid provider requested: {provider}",
+        extra={
+            "provider": provider,
+            "provider_uppercase": provider_upper,
+            "security_category": "invalid_provider_attempt"
+        }
+    )
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail="Invalid provider specified. Please check the supported providers list."
@@ -334,6 +359,14 @@ async def setup_gcp_integration(
     metadata["project_id"] = sa_data.get("project_id")
     metadata["client_email"] = sa_data.get("client_email")
 
+    # BUG-020 FIX: Validate metadata JSON schema AFTER adding SA fields
+    is_valid, error_msg = validate_metadata("GCP_SA", metadata)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid metadata structure: {error_msg}"
+        )
+
     return await _setup_integration(
         org_slug=org_slug,
         provider="GCP_SA",
@@ -373,6 +406,14 @@ async def setup_openai_integration(
 
     # INT-003 FIX: Validate metadata size before processing
     enforce_metadata_size_limit(setup_request.metadata, org_slug)
+
+    # BUG-020 FIX: Validate metadata JSON schema
+    is_valid, error_msg = validate_metadata("OPENAI", setup_request.metadata)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid metadata structure: {error_msg}"
+        )
 
     return await _setup_integration(
         org_slug=org_slug,
@@ -414,6 +455,14 @@ async def setup_anthropic_integration(
     # INT-003 FIX: Validate metadata size before processing
     enforce_metadata_size_limit(setup_request.metadata, org_slug)
 
+    # BUG-020 FIX: Validate metadata JSON schema
+    is_valid, error_msg = validate_metadata("ANTHROPIC", setup_request.metadata)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid metadata structure: {error_msg}"
+        )
+
     return await _setup_integration(
         org_slug=org_slug,
         provider="ANTHROPIC",
@@ -454,6 +503,14 @@ async def setup_gemini_integration(
     # INT-003 FIX: Validate metadata size before processing
     enforce_metadata_size_limit(setup_request.metadata, org_slug)
 
+    # BUG-020 FIX: Validate metadata JSON schema
+    is_valid, error_msg = validate_metadata("GEMINI", setup_request.metadata)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid metadata structure: {error_msg}"
+        )
+
     return await _setup_integration(
         org_slug=org_slug,
         provider="GEMINI",
@@ -493,6 +550,14 @@ async def setup_deepseek_integration(
 
     # INT-003 FIX: Validate metadata size before processing
     enforce_metadata_size_limit(setup_request.metadata, org_slug)
+
+    # BUG-020 FIX: Validate metadata JSON schema
+    is_valid, error_msg = validate_metadata("DEEPSEEK", setup_request.metadata)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid metadata structure: {error_msg}"
+        )
 
     return await _setup_integration(
         org_slug=org_slug,
@@ -712,8 +777,8 @@ async def get_integration_status(
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # BUG-001 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot view integrations for another organization"
@@ -784,8 +849,8 @@ async def update_integration(
     # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
     await safe_rate_limit(request, org_slug, 10, "update_integration")
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # BUG-004 FIX: Always validate org ownership (no dev mode bypass)
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update integrations for another organization"
@@ -822,6 +887,15 @@ async def update_integration(
 
         existing_credential_id = check_result[0]["credential_id"]
         existing_name = check_result[0]["credential_name"]
+
+        # BUG-004 FIX: Verify credential_id belongs to this org (paranoid check)
+        # The query already filters by org_slug, but explicitly validate for security
+        if not existing_credential_id:
+            logger.error(f"Empty credential_id returned for {org_slug}/{provider_upper}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Integration data integrity error"
+            )
 
     except HTTPException:
         raise
@@ -863,6 +937,8 @@ async def update_integration(
 
         if update_request.metadata:
             import json
+            # BUG-007 FIX: Validate metadata size before JSON serialization
+            enforce_metadata_size_limit(update_request.metadata, org_slug)
             update_fields.append("metadata = @metadata")
             query_params.append(bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(update_request.metadata)))
 
@@ -921,8 +997,8 @@ async def delete_integration(
     # Rate limiting: 10 requests per minute for delete endpoints (lower limit)
     await safe_rate_limit(request, org_slug, 10, "delete_integration")
 
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # BUG-006 FIX: Always validate org ownership, even in dev mode
+    if org.get("org_slug") != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete integrations for another organization"
@@ -989,9 +1065,17 @@ async def _setup_integration(
         # SECURITY: Validate table name components before dynamic usage
         # This prevents SQL injection in table names constructed from org_slug/provider
         sanitize_sql_identifier(org_slug, "org_slug")
-        # Provider can have underscores (e.g., GCP_SA), so validate alphanumeric part only
-        provider_clean = provider.replace("_", "")
-        sanitize_sql_identifier(provider_clean, "provider")
+        # BUG-002 FIX: Validate provider against allowlist instead of just stripping underscores
+        # Provider must be in registry's valid providers list
+        if not provider_registry.is_valid_provider(provider):
+            logger.error(
+                f"SQL injection attempt? Invalid provider after normalization: {provider}",
+                extra={"provider": provider, "org_slug": org_slug, "security_category": "sql_injection_attempt"}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid provider specified"
+            )
 
         # INTEGRATION LIMITS ENFORCEMENT: Check if adding a new integration would exceed the org's provider limit
         bq_client = get_bigquery_client()

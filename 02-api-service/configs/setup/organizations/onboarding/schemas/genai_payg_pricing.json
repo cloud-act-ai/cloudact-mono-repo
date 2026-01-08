@@ -1,34 +1,224 @@
 [
-  {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy."},
-  {"name": "provider", "type": "STRING", "mode": "REQUIRED", "description": "GenAI provider: openai, anthropic, gemini, azure_openai, aws_bedrock, gcp_vertex."},
-  {"name": "model", "type": "STRING", "mode": "REQUIRED", "description": "Model identifier. Example: gpt-4o, claude-3-5-sonnet-20241022."},
-  {"name": "model_family", "type": "STRING", "mode": "NULLABLE", "description": "Model family grouping. Example: gpt-4o, claude-3.5, gemini-2.5."},
-  {"name": "model_version", "type": "STRING", "mode": "NULLABLE", "description": "Specific version or variant. Example: latest, 2024-11-20, mini."},
-  {"name": "region", "type": "STRING", "mode": "REQUIRED", "description": "Deployment region. Example: global, eastus, us-east-1, us-central1."},
-  {"name": "input_per_1m", "type": "FLOAT64", "mode": "REQUIRED", "description": "Cost per 1M input tokens in USD."},
-  {"name": "output_per_1m", "type": "FLOAT64", "mode": "REQUIRED", "description": "Cost per 1M output tokens in USD."},
-  {"name": "cached_input_per_1m", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost per 1M cached input tokens (prompt caching)."},
-  {"name": "cached_write_per_1m", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost per 1M tokens written to cache (Anthropic)."},
-  {"name": "batch_input_per_1m", "type": "FLOAT64", "mode": "NULLABLE", "description": "Batch API input cost per 1M tokens."},
-  {"name": "batch_output_per_1m", "type": "FLOAT64", "mode": "NULLABLE", "description": "Batch API output cost per 1M tokens."},
-  {"name": "cached_discount_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Discount percentage for cached tokens."},
-  {"name": "batch_discount_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Discount percentage for batch processing."},
-  {"name": "volume_discount_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Volume-based discount percentage. Issue #33: Applied to total cost for high-volume usage."},
-  {"name": "context_window", "type": "INT64", "mode": "NULLABLE", "description": "Maximum context window size in tokens."},
-  {"name": "max_output_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Maximum output tokens per request."},
-  {"name": "supports_vision", "type": "BOOLEAN", "mode": "NULLABLE", "description": "Whether model supports image input."},
-  {"name": "supports_streaming", "type": "BOOLEAN", "mode": "NULLABLE", "description": "Whether model supports streaming responses."},
-  {"name": "supports_tools", "type": "BOOLEAN", "mode": "NULLABLE", "description": "Whether model supports tool/function calling."},
-  {"name": "rate_limit_rpm", "type": "INT64", "mode": "NULLABLE", "description": "Rate limit: requests per minute."},
-  {"name": "rate_limit_tpm", "type": "INT64", "mode": "NULLABLE", "description": "Rate limit: tokens per minute."},
-  {"name": "sla_uptime_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "SLA uptime percentage. Example: 99.9."},
-  {"name": "effective_from", "type": "DATE", "mode": "NULLABLE", "description": "Date when pricing becomes effective."},
-  {"name": "effective_to", "type": "DATE", "mode": "NULLABLE", "description": "Date when pricing expires (NULL = current)."},
-  {"name": "status", "type": "STRING", "mode": "NULLABLE", "description": "Pricing status: active, deprecated, preview."},
-  {"name": "is_override", "type": "BOOLEAN", "mode": "NULLABLE", "description": "True if org has custom pricing override."},
-  {"name": "override_input_per_1m", "type": "FLOAT64", "mode": "NULLABLE", "description": "Org-specific override for input pricing."},
-  {"name": "override_output_per_1m", "type": "FLOAT64", "mode": "NULLABLE", "description": "Org-specific override for output pricing."},
-  {"name": "override_effective_from", "type": "DATE", "mode": "NULLABLE", "description": "When override pricing became effective."},
-  {"name": "override_notes", "type": "STRING", "mode": "NULLABLE", "description": "Notes for pricing override (contract reference)."},
-  {"name": "last_updated", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of last update."}
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy."
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "GenAI provider: openai, anthropic, gemini, azure_openai, aws_bedrock, gcp_vertex."
+  },
+  {
+    "name": "model",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Model identifier. Example: gpt-4o, claude-3-5-sonnet-20241022."
+  },
+  {
+    "name": "model_family",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Model family grouping. Example: gpt-4o, claude-3.5, gemini-2.5."
+  },
+  {
+    "name": "model_version",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Specific version or variant. Example: latest, 2024-11-20, mini."
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Deployment region. Example: global, eastus, us-east-1, us-central1."
+  },
+  {
+    "name": "input_per_1m",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Cost per 1M input tokens in USD."
+  },
+  {
+    "name": "output_per_1m",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Cost per 1M output tokens in USD."
+  },
+  {
+    "name": "cached_input_per_1m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost per 1M cached input tokens (prompt caching)."
+  },
+  {
+    "name": "cached_write_per_1m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost per 1M tokens written to cache (Anthropic)."
+  },
+  {
+    "name": "batch_input_per_1m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Batch API input cost per 1M tokens."
+  },
+  {
+    "name": "batch_output_per_1m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Batch API output cost per 1M tokens."
+  },
+  {
+    "name": "cached_discount_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Discount percentage for cached tokens."
+  },
+  {
+    "name": "batch_discount_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Discount percentage for batch processing."
+  },
+  {
+    "name": "volume_discount_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Volume-based discount percentage. Issue #33: Applied to total cost for high-volume usage."
+  },
+  {
+    "name": "context_window",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Maximum context window size in tokens."
+  },
+  {
+    "name": "max_output_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Maximum output tokens per request."
+  },
+  {
+    "name": "supports_vision",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether model supports image input."
+  },
+  {
+    "name": "supports_streaming",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether model supports streaming responses."
+  },
+  {
+    "name": "supports_tools",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "Whether model supports tool/function calling."
+  },
+  {
+    "name": "rate_limit_rpm",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Rate limit: requests per minute."
+  },
+  {
+    "name": "rate_limit_tpm",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Rate limit: tokens per minute."
+  },
+  {
+    "name": "sla_uptime_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "SLA uptime percentage. Example: 99.9."
+  },
+  {
+    "name": "effective_from",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Date when pricing becomes effective."
+  },
+  {
+    "name": "effective_to",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Date when pricing expires (NULL = current)."
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Pricing status: active, deprecated, preview."
+  },
+  {
+    "name": "is_override",
+    "type": "BOOLEAN",
+    "mode": "NULLABLE",
+    "description": "True if org has custom pricing override."
+  },
+  {
+    "name": "override_input_per_1m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Org-specific override for input pricing."
+  },
+  {
+    "name": "override_output_per_1m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Org-specific override for output pricing."
+  },
+  {
+    "name": "override_effective_from",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "When override pricing became effective."
+  },
+  {
+    "name": "override_notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Notes for pricing override (contract reference)."
+  },
+  {
+    "name": "last_updated",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline that loaded this pricing data."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "N/A for pricing reference data."
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when pricing was loaded."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline execution UUID."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When pricing was written to table."
+  }
 ]

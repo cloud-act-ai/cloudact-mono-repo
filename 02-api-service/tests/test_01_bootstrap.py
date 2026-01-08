@@ -423,7 +423,14 @@ async def test_bootstrap_processor_failure(base_url, admin_headers, mock_bootstr
 
         if response.status_code == 500:
             data = response.json()
-            assert "operation failed" in data["detail"].lower() or "error" in data["detail"].lower()
+            detail = data.get("detail", {})
+            # Handle both string and structured error responses
+            if isinstance(detail, str):
+                assert "operation failed" in detail.lower() or "error" in detail.lower()
+            elif isinstance(detail, dict):
+                # Check the 'message' field from safe_error_response
+                error_msg = detail.get("message", "")
+                assert "failed" in error_msg.lower() or "error" in error_msg.lower()
         elif response.status_code == 409:
             # System already bootstrapped - mock didn't apply due to early exit
             pass

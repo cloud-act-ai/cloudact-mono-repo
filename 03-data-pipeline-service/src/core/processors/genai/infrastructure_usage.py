@@ -132,6 +132,15 @@ class InfrastructureUsageProcessor:
                 record["x_run_id"] = run_id
                 record["x_ingested_at"] = now
 
+                # Add hierarchy from credential (GenAI hierarchy assignment)
+                for level in range(1, 11):
+                    id_key = f"hierarchy_level_{level}_id"
+                    name_key = f"hierarchy_level_{level}_name"
+                    # Only set if not already present in record and credential has it
+                    if not record.get(id_key):
+                        record[id_key] = credentials.get(id_key)
+                        record[name_key] = credentials.get(name_key)
+
             # Write to BigQuery
             table_id = f"{project_id}.{dataset_id}.genai_infrastructure_usage_raw"
             insert_result = await self._insert_usage(bq_client, table_id, usage_records)
@@ -170,10 +179,21 @@ class InfrastructureUsageProcessor:
         )
 
     async def _get_cloud_credentials(self, bq_client, org_slug, provider):
-        """Get cloud credentials."""
+        """Get cloud credentials, including default hierarchy."""
         cloud_provider = provider.split("_")[0]  # gcp, aws, azure
         query = f"""
-            SELECT credential_id, encrypted_credential
+            SELECT
+                credential_id, encrypted_credential,
+                default_hierarchy_level_1_id, default_hierarchy_level_1_name,
+                default_hierarchy_level_2_id, default_hierarchy_level_2_name,
+                default_hierarchy_level_3_id, default_hierarchy_level_3_name,
+                default_hierarchy_level_4_id, default_hierarchy_level_4_name,
+                default_hierarchy_level_5_id, default_hierarchy_level_5_name,
+                default_hierarchy_level_6_id, default_hierarchy_level_6_name,
+                default_hierarchy_level_7_id, default_hierarchy_level_7_name,
+                default_hierarchy_level_8_id, default_hierarchy_level_8_name,
+                default_hierarchy_level_9_id, default_hierarchy_level_9_name,
+                default_hierarchy_level_10_id, default_hierarchy_level_10_name
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
             LIMIT 1
@@ -184,8 +204,19 @@ class InfrastructureUsageProcessor:
         ]))
         if not results:
             return None
-        encrypted = results[0].get("encrypted_credential")
+
+        row = results[0]
+        encrypted = row.get("encrypted_credential")
         decrypted = await decrypt_credentials(encrypted)
+        decrypted["credential_id"] = row.get("credential_id")
+
+        # Add hierarchy fields from credentials (for GenAI hierarchy assignment)
+        for level in range(1, 11):
+            id_key = f"hierarchy_level_{level}_id"
+            name_key = f"hierarchy_level_{level}_name"
+            decrypted[id_key] = row.get(f"default_{id_key}")
+            decrypted[name_key] = row.get(f"default_{name_key}")
+
         return decrypted
 
     async def _check_already_processed(
@@ -304,11 +335,8 @@ class InfrastructureUsageProcessor:
                         {escape_str(record.get('pricing_type') or 'on_demand')} as pricing_type,
                         {escape_float(record.get('avg_gpu_utilization_pct'))} as avg_gpu_utilization_pct,
                         {escape_float(record.get('avg_memory_utilization_pct'))} as avg_memory_utilization_pct,
-                        {escape_str(record.get('hierarchy_entity_id'))} as hierarchy_entity_id,
-                        {escape_str(record.get('hierarchy_entity_name'))} as hierarchy_entity_name,
-                        {escape_str(record.get('hierarchy_level_code'))} as hierarchy_level_code,
-                        {escape_str(record.get('hierarchy_path'))} as hierarchy_path,
-                        {escape_str(record.get('hierarchy_path_names'))} as hierarchy_path_names,
+                        {escape_str(record.get('x_hierarchy_level_1_id'))} as x_hierarchy_level_1_id,
+                        {escape_str(record.get('x_hierarchy_level_1_name'))} as x_hierarchy_level_1_name,
                         {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
                         {escape_str(record.get('x_credential_id'))} as x_credential_id,
                         DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
@@ -339,11 +367,8 @@ class InfrastructureUsageProcessor:
                             pricing_type = S.pricing_type,
                             avg_gpu_utilization_pct = S.avg_gpu_utilization_pct,
                             avg_memory_utilization_pct = S.avg_memory_utilization_pct,
-                            hierarchy_entity_id = S.hierarchy_entity_id,
-                            hierarchy_entity_name = S.hierarchy_entity_name,
-                            hierarchy_level_code = S.hierarchy_level_code,
-                            hierarchy_path = S.hierarchy_path,
-                            hierarchy_path_names = S.hierarchy_path_names,
+                            x_hierarchy_level_1_id = S.x_hierarchy_level_1_id,
+                            x_hierarchy_level_1_name = S.x_hierarchy_level_1_name,
                             x_pipeline_id = S.x_pipeline_id,
                             x_credential_id = S.x_credential_id,
                             x_pipeline_run_date = S.x_pipeline_run_date,
@@ -353,14 +378,10 @@ class InfrastructureUsageProcessor:
                         INSERT (usage_date, org_slug, provider, resource_type, instance_type,
                                 instance_id, gpu_type, region, instance_count, hours_used,
                                 gpu_hours, pricing_type, avg_gpu_utilization_pct, avg_memory_utilization_pct,
-                                hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                                hierarchy_path, hierarchy_path_names,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.usage_date, S.org_slug, S.provider, S.resource_type, S.instance_type,
                                 S.instance_id, S.gpu_type, S.region, S.instance_count, S.hours_used,
                                 S.gpu_hours, S.pricing_type, S.avg_gpu_utilization_pct, S.avg_memory_utilization_pct,
-                                S.hierarchy_entity_id, S.hierarchy_entity_name, S.hierarchy_level_code,
-                                S.hierarchy_path, S.hierarchy_path_names,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

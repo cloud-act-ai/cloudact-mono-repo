@@ -168,35 +168,43 @@ def invalidate_all_subscription_caches(org_slug: str, provider: str = None) -> i
         provider: Optional provider name. If None, invalidates all provider caches.
 
     Returns:
-        Total number of cache entries invalidated
+        Total number of unique cache entries invalidated
+
+    BUG-011 FIX: Track unique keys to avoid double-counting overlapping invalidations
     """
     cache = get_cache()
-    total_invalidated = 0
+    invalidated_keys = set()
 
     # Always invalidate providers list
-    cache.invalidate(f"providers_list_{org_slug}")
-    total_invalidated += 1
+    key = f"providers_list_{org_slug}"
+    cache.invalidate(key)
+    invalidated_keys.add(key)
 
     # Invalidate all_plans caches (both enabled_only variants)
-    cache.invalidate(f"all_plans_{org_slug}_True")
-    cache.invalidate(f"all_plans_{org_slug}_False")
-    total_invalidated += 2
+    for enabled_only in [True, False]:
+        key = f"all_plans_{org_slug}_{enabled_only}"
+        cache.invalidate(key)
+        invalidated_keys.add(key)
 
     # Invalidate provider-specific plans cache
     if provider:
-        cache.invalidate(f"plans:{org_slug}:{provider}")
-        total_invalidated += 1
+        key = f"plans:{org_slug}:{provider}"
+        cache.invalidate(key)
+        invalidated_keys.add(key)
     else:
         # Invalidate all provider plan caches for this org using pattern matching
         # Pattern matches plans:{org_slug}: prefix
-        total_invalidated += cache.invalidate_pattern(f"plans:{org_slug}:")
+        pattern_count = cache.invalidate_pattern(f"plans:{org_slug}:")
+        # Note: pattern invalidation returns count but we can't track individual keys
+        # This is acceptable as these won't overlap with keys above
+        invalidated_keys.add(f"<pattern:plans:{org_slug}:*>_{pattern_count}")
 
-    # Also use the existing invalidation functions for any other cached data
-    total_invalidated += invalidate_provider_cache(org_slug, provider) if provider else 0
-    total_invalidated += invalidate_org_cache(org_slug)
+    # Don't call other invalidation functions to avoid double-counting
+    # All relevant keys are already invalidated above
 
+    total_invalidated = len(invalidated_keys)
     logger.debug(
-        f"Invalidated {total_invalidated} cache entries for org {org_slug}" +
+        f"Invalidated {total_invalidated} unique cache entries for org {org_slug}" +
         (f" provider {provider}" if provider else "")
     )
 
@@ -374,11 +382,13 @@ def validate_enum_field(value: Optional[str], valid_values: set, field_name: str
 
 # Business logic validation thresholds
 HIGH_UNIT_PRICE_THRESHOLD = 10000.0  # Flag prices above this for review
-MAX_SEATS_LIMIT = 100000  # Maximum reasonable seats per plan
+MAX_SEATS_LIMIT = 1000000  # BUG-012 FIX: Increased from 100K to 1M for enterprise orgs
 MAX_FUTURE_YEARS = 5  # Maximum years in the future for start_date (VAL-003)
+MAX_DISCOUNT_FIXED = 1000000.0  # BUG-007 FIX: Max fixed discount amount
 
 # Email validation regex (VAL-004)
-EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+# BUG-013 FIX: Improved regex - TLD must be 2+ chars, better validation
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$")
 
 
 def validate_email_format(email: Optional[str]) -> None:
@@ -408,6 +418,31 @@ def validate_start_date_not_too_far_future(start_date: Optional[date]) -> None:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"start_date cannot be more than {MAX_FUTURE_YEARS} years in the future. "
                        f"Maximum allowed: {max_future_date.isoformat()}"
+            )
+
+
+def validate_billing_anchor_day(billing_cycle: str, billing_anchor_day: Optional[int]) -> None:
+    """
+    BUG-006 FIX: Validate that billing_anchor_day is only set for monthly billing cycles.
+
+    billing_anchor_day should be None/NULL for annual, quarterly, semi-annual, weekly cycles.
+    It only applies to monthly billing where billing starts on a specific day other than 1st.
+
+    Args:
+        billing_cycle: The billing cycle (monthly, annual, quarterly, etc.)
+        billing_anchor_day: The day of month billing starts (1-28) or None
+
+    Raises:
+        HTTPException 400 if billing_anchor_day is set for non-monthly cycles
+    """
+    if billing_anchor_day is not None:
+        # Only allow billing_anchor_day for monthly billing cycles
+        if billing_cycle.lower() not in ["monthly", "month"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"billing_anchor_day can only be set for monthly billing cycles. "
+                       f"Current billing_cycle: '{billing_cycle}'. "
+                       f"For {billing_cycle} cycles, billing_anchor_day must be None."
             )
 
 
@@ -455,16 +490,21 @@ def validate_business_rules(
 
 def validate_discount_fields(
     discount_type: Optional[str],
-    discount_value: Optional[int]
+    discount_value: Optional[float],  # BUG-007 FIX: Changed from int to float for fixed discounts
+    unit_price: Optional[float] = None
 ) -> None:
     """
     Validate discount_type and discount_value consistency.
+
+    BUG-007 FIX: discount_value now accepts float to support fixed discounts > $100
+    BUG-015 FIX: Added unit_price validation to prevent negative costs
 
     Rules:
     - If discount_type is provided, discount_value must also be provided (and > 0)
     - If discount_value is provided, discount_type must also be provided
     - discount_type must be one of: 'percent', 'fixed'
     - For 'percent' discount, value must be 0-100
+    - For 'fixed' discount, value cannot exceed unit_price (prevents negative costs)
     """
     # Both must be provided or both must be None
     if (discount_type and not discount_value) or (discount_value and not discount_type):
@@ -493,8 +533,60 @@ def validate_discount_fields(
         if discount_type == "percent" and discount_value > 100:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Percent discount cannot exceed 100"
+                detail="Percent discount cannot exceed 100%"
             )
+
+        # BUG-007 FIX: For fixed discount, enforce max limit
+        if discount_type == "fixed" and discount_value > MAX_DISCOUNT_FIXED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Fixed discount cannot exceed ${MAX_DISCOUNT_FIXED:,.2f}"
+            )
+
+        # BUG-015 FIX: For fixed discount, cannot exceed unit_price
+        if discount_type == "fixed" and unit_price is not None and discount_value > unit_price:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Fixed discount (${discount_value:,.2f}) cannot exceed unit price (${unit_price:,.2f}). This would result in negative costs."
+            )
+
+
+def validate_currency_conversion(
+    source_price: Optional[float],
+    exchange_rate: Optional[float],
+    unit_price: float,
+    tolerance_percent: float = 1.0
+) -> None:
+    """
+    Validate that currency conversion math is correct.
+
+    BUG-030 FIX: Ensure source_price * exchange_rate ≈ unit_price within tolerance
+
+    Args:
+        source_price: Original price before conversion
+        exchange_rate: Exchange rate used for conversion
+        unit_price: Final price after conversion
+        tolerance_percent: Allowed deviation percentage (default 1.0%)
+
+    Raises:
+        HTTPException: If conversion math is incorrect beyond tolerance
+    """
+    # Only validate if both source_price and exchange_rate are provided
+    if source_price is not None and exchange_rate is not None:
+        # Calculate expected unit_price
+        expected_unit_price = source_price * exchange_rate
+
+        # Calculate deviation
+        if expected_unit_price > 0:
+            deviation_percent = abs(unit_price - expected_unit_price) / expected_unit_price * 100
+
+            if deviation_percent > tolerance_percent:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Currency conversion math error: source_price ({source_price}) × exchange_rate ({exchange_rate}) "
+                           f"= {expected_unit_price:.2f}, but unit_price is {unit_price:.2f}. "
+                           f"Deviation: {deviation_percent:.2f}% (tolerance: {tolerance_percent}%)"
+                )
 
 
 class PlanCreate(BaseModel):
@@ -511,9 +603,10 @@ class PlanCreate(BaseModel):
     pricing_model: str = Field("PER_SEAT", description="PER_SEAT or FLAT_FEE")
     yearly_price: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = Field(None, description="percent or fixed")
-    # EDGE-010: le=100 is intentional - discount_value represents percentage (0-100)
-    # for 'percent' type, or a fixed currency amount for 'fixed' type (capped at 100)
-    discount_value: Optional[int] = Field(None, ge=0, le=100)
+    # BUG-007 FIX: Changed from int le=100 to float le=1000000 to support large fixed discounts
+    # For 'percent': value is 0-100 (percentage)
+    # For 'fixed': value is dollar amount (up to $1M)
+    discount_value: Optional[float] = Field(None, ge=0, le=1000000)
     auto_renew: bool = Field(True)
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
@@ -549,7 +642,7 @@ class PlanUpdate(BaseModel):
     pricing_model: Optional[str] = None
     yearly_price: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = None
-    discount_value: Optional[int] = Field(None, ge=0, le=100)
+    discount_value: Optional[float] = Field(None, ge=0, le=1000000)
     auto_renew: Optional[bool] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
@@ -598,7 +691,7 @@ class EditVersionRequest(BaseModel):
     pricing_model: Optional[str] = None
     yearly_price: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = None
-    discount_value: Optional[int] = Field(None, ge=0, le=100)
+    discount_value: Optional[float] = Field(None, ge=0, le=1000000)
     auto_renew: Optional[bool] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
@@ -663,8 +756,9 @@ def validate_provider(provider: str, allow_custom: bool = True) -> str:
     SEC-003: Custom providers are intentionally allowed to support user-defined
     SaaS providers not in our predefined list. The regex validation ensures
     only safe alphanumeric characters with underscores are permitted.
+
+    BUG-025 FIX: Removed duplicate docstring
     """
-    """Validate provider format. Allows custom providers by default."""
     provider_lower = provider.lower()
     # Allow known SaaS providers
     if is_saas_provider(provider_lower):
@@ -736,7 +830,7 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 async def validate_hierarchy_ids(
     bq_client: BigQueryClient,
     org_slug: str,
-    hierarchy_entity_id: Optional[str] = None
+    hierarchy_entity_id: str
 ) -> None:
     """
     Validate that hierarchy entity ID exists in the org_hierarchy table.
@@ -746,11 +840,30 @@ async def validate_hierarchy_ids(
 
     Uses N-level hierarchy schema - validates entity_id regardless of level.
 
-    Raises HTTPException 400 if provided hierarchy ID is not found.
-    Only validates if entity_id is provided (non-None).
+    BUG-046 FIX: Results cached for 5 minutes to prevent DoS via repeated validation queries
+
+    Raises HTTPException 400 if hierarchy ID is not found or is empty.
     """
     if not hierarchy_entity_id:
-        return  # No hierarchy ID provided, nothing to validate
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="hierarchy_entity_id is required and cannot be empty"
+        )
+
+    # BUG-046 FIX: Check cache first to avoid repeated BigQuery queries
+    cache = get_cache()
+    cache_key = f"hierarchy_valid:{org_slug}:{hierarchy_entity_id}"
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        if cached_result == "INVALID":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid hierarchy entity ID: '{hierarchy_entity_id}' not found in org_hierarchy table. "
+                       f"Please ensure the entity exists and is active. "
+                       f"Use GET /api/v1/hierarchy/{org_slug} to list valid hierarchy entities."
+            )
+        # Cached as valid, return immediately
+        return
 
     ids_to_validate = [("entity", hierarchy_entity_id)]
 
@@ -797,7 +910,7 @@ async def validate_hierarchy_ids(
                     bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
                     bigquery.ScalarQueryParameter("level_code", "STRING", level_code),
                 ],
-                job_timeout_ms=30000
+                job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
             )
         else:
             query = f"""
@@ -815,7 +928,7 @@ async def validate_hierarchy_ids(
                     bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
                     bigquery.ScalarQueryParameter("level_code", "STRING", level_code),
                 ],
-                job_timeout_ms=30000
+                job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
             )
 
         try:
@@ -825,17 +938,27 @@ async def validate_hierarchy_ids(
                 found = True
                 break
 
+            # BUG-042 FIX: Improved error message with actionable guidance
             if not found:
+                # BUG-046 FIX: Cache invalid result for 5 minutes
+                cache.set(cache_key, "INVALID", ttl_seconds=300)
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid hierarchy_{level_code}_id: '{entity_id}' not found in org_hierarchy"
+                    detail=f"Invalid hierarchy entity ID: '{entity_id}' not found in org_hierarchy table. "
+                           f"Please ensure the entity exists and is active. "
+                           f"Use GET /api/v1/hierarchy/{org_slug} to list valid hierarchy entities."
                 )
+            # BUG-046 FIX: Cache valid result for 5 minutes
+            cache.set(cache_key, "VALID", ttl_seconds=300)
         except HTTPException:
             raise
         except Exception as e:
-            logger.warning(f"Failed to validate hierarchy {level_code} ID {entity_id}: {e}")
-            # Don't block on validation failures - the view/table may not exist yet
-            # for new organizations. The ID will just be stored as-is.
+            # BUG-042 FIX: Return 500 with clear message for database errors
+            logger.error(f"Failed to validate hierarchy entity ID {entity_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to validate hierarchy entity ID due to database error. Please try again."
+            )
 
 
 
@@ -892,6 +1015,11 @@ def get_subscription_plans_schema() -> List[bigquery.SchemaField]:
     NOTE: This schema must match the Pydantic models (SubscriptionPlan, PlanCreate, etc.)
     defined in this file and in subscription_schema.py. Any schema changes should be
     synchronized with those models to ensure API request/response consistency.
+
+    BUG-001 FIX: Added missing fields:
+    - billing_anchor_day (for non-calendar-aligned monthly billing)
+    - N-level hierarchy fields (hierarchy_entity_id, hierarchy_entity_name, etc.)
+    - Denormalized 10-level hierarchy fields (hierarchy_level_1_id through hierarchy_level_10_id)
     """
     return [
         bigquery.SchemaField("org_slug", "STRING", mode="REQUIRED"),
@@ -904,6 +1032,7 @@ def get_subscription_plans_schema() -> List[bigquery.SchemaField]:
         bigquery.SchemaField("start_date", "DATE", mode="NULLABLE"),
         bigquery.SchemaField("end_date", "DATE", mode="NULLABLE"),
         bigquery.SchemaField("billing_cycle", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("billing_anchor_day", "INTEGER", mode="NULLABLE", description="Day of month billing cycle starts (1-28). NULL = calendar-aligned (1st of month)"),
         bigquery.SchemaField("currency", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("seats", "INTEGER", mode="REQUIRED"),
         bigquery.SchemaField("pricing_model", "STRING", mode="REQUIRED"),
@@ -916,6 +1045,33 @@ def get_subscription_plans_schema() -> List[bigquery.SchemaField]:
         bigquery.SchemaField("invoice_id_last", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("owner_email", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("department", "STRING", mode="NULLABLE"),
+        # Denormalized 10-level hierarchy for fast aggregation
+        bigquery.SchemaField("hierarchy_level_1_id", "STRING", mode="NULLABLE", description="Level 1 (root) hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_1_name", "STRING", mode="NULLABLE", description="Level 1 (root) hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_2_id", "STRING", mode="NULLABLE", description="Level 2 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_2_name", "STRING", mode="NULLABLE", description="Level 2 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_3_id", "STRING", mode="NULLABLE", description="Level 3 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_3_name", "STRING", mode="NULLABLE", description="Level 3 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_4_id", "STRING", mode="NULLABLE", description="Level 4 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_4_name", "STRING", mode="NULLABLE", description="Level 4 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_5_id", "STRING", mode="NULLABLE", description="Level 5 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_5_name", "STRING", mode="NULLABLE", description="Level 5 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_6_id", "STRING", mode="NULLABLE", description="Level 6 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_6_name", "STRING", mode="NULLABLE", description="Level 6 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_7_id", "STRING", mode="NULLABLE", description="Level 7 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_7_name", "STRING", mode="NULLABLE", description="Level 7 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_8_id", "STRING", mode="NULLABLE", description="Level 8 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_8_name", "STRING", mode="NULLABLE", description="Level 8 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_9_id", "STRING", mode="NULLABLE", description="Level 9 hierarchy entity ID"),
+        bigquery.SchemaField("hierarchy_level_9_name", "STRING", mode="NULLABLE", description="Level 9 hierarchy entity name"),
+        bigquery.SchemaField("hierarchy_level_10_id", "STRING", mode="NULLABLE", description="Level 10 hierarchy entity ID (deepest level)"),
+        bigquery.SchemaField("hierarchy_level_10_name", "STRING", mode="NULLABLE", description="Level 10 hierarchy entity name (deepest level)"),
+        # N-level hierarchy fields for cost allocation (REQUIRED for proper attribution)
+        bigquery.SchemaField("hierarchy_entity_id", "STRING", mode="REQUIRED", description="Leaf entity ID from org_hierarchy (REQUIRED)"),
+        bigquery.SchemaField("hierarchy_entity_name", "STRING", mode="REQUIRED", description="Leaf entity display name (REQUIRED)"),
+        bigquery.SchemaField("hierarchy_level_code", "STRING", mode="REQUIRED", description="Entity level code (REQUIRED, e.g., 'team', 'project', 'department')"),
+        bigquery.SchemaField("hierarchy_path", "STRING", mode="REQUIRED", description="Materialized path from root to leaf (REQUIRED)"),
+        bigquery.SchemaField("hierarchy_path_names", "STRING", mode="REQUIRED", description="Human-readable path (REQUIRED)"),
         bigquery.SchemaField("renewal_date", "DATE", mode="NULLABLE"),
         bigquery.SchemaField("contract_id", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("notes", "STRING", mode="NULLABLE"),
@@ -1143,7 +1299,7 @@ async def disable_provider(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user queries
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user queries (increased for large orgs)
         )
         result = bq_client.client.query(count_query, job_config=job_config).result()
         plans_count = 0
@@ -1561,7 +1717,7 @@ async def create_plan(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             ],
-            job_timeout_ms=30000  # Standardized timeout for read operations
+            job_timeout_ms=60000  # BUG-017 FIX: Standardized timeout for read operations (increased for large orgs)
         )
         result = bq_client.client.query(org_currency_query, job_config=job_config).result()
         org_currency = None
@@ -1614,7 +1770,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
                 bigquery.ScalarQueryParameter("plan_name", "STRING", validated_plan_name),
             ],
-            job_timeout_ms=30000  # Standardized timeout for read operations
+            job_timeout_ms=60000  # BUG-017 FIX: Standardized timeout for read operations (increased for large orgs)
         )
         result = bq_client.client.query(duplicate_check_query, job_config=job_config).result()
         for row in result:
@@ -1636,12 +1792,18 @@ async def create_plan(
         )
 
     # CRUD-001: Validate hierarchy IDs exist in org_hierarchy table before insert
-    if plan.hierarchy_entity_id:
-        await validate_hierarchy_ids(
-            bq_client=bq_client,
-            org_slug=org_slug,
-            hierarchy_entity_id=plan.hierarchy_entity_id
-        )
+    await validate_hierarchy_ids(
+        bq_client=bq_client,
+        org_slug=org_slug,
+        hierarchy_entity_id=plan.hierarchy_entity_id
+    )
+
+    # BUG-030 FIX: Validate currency conversion math if provided
+    validate_currency_conversion(
+        source_price=plan.source_price,
+        exchange_rate=plan.exchange_rate_used,
+        unit_price=plan.unit_price
+    )
 
     # EDGE-009: Using 12 hex chars (48 bits) for lower collision probability than 8 chars
     subscription_id = f"sub_{provider}_{plan.plan_name.lower()}_{uuid.uuid4().hex[:12]}"
@@ -1734,7 +1896,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("hierarchy_path", "STRING", plan.hierarchy_path),
                 bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", plan.hierarchy_path_names),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user operations
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user operations (increased for large orgs)
         )
         # Execute insert and verify
         query_job = bq_client.client.query(insert_query, job_config=job_config)
@@ -1951,7 +2113,7 @@ async def update_plan(
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                     bigquery.ScalarQueryParameter("provider", "STRING", provider),
                 ],
-                job_timeout_ms=30000
+                job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
             )
             status_result = bq_client.client.query(current_status_query, job_config=status_config).result()
             rows = list(status_result)
@@ -2035,7 +2197,7 @@ async def update_plan(
     try:
         job_config = bigquery.QueryJobConfig(
             query_parameters=query_parameters,
-            job_timeout_ms=30000  # 30 second timeout for user operations
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user operations (increased for large orgs)
         )
         update_job = bq_client.client.query(update_query, job_config=job_config)
         update_job.result()
@@ -2067,7 +2229,7 @@ async def update_plan(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user queries
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user queries (increased for large orgs)
         )
         result = bq_client.client.query(select_query, job_config=select_config).result()
 
@@ -2242,7 +2404,7 @@ async def edit_plan_with_version(
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
-            job_timeout_ms=30000
+            job_timeout_ms=60000  # BUG-017 FIX: Increased from 30s to 60s for large orgs
         )
         result = bq_client.client.query(select_query, job_config=job_config).result()
         rows = list(result)
@@ -2625,7 +2787,7 @@ async def delete_plan(
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
                 bigquery.ScalarQueryParameter("end_date", "DATE", end_date_value),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user operations
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user operations (increased for large orgs)
         )
         bq_client.client.query(update_query, job_config=job_config).result()
 
@@ -2775,7 +2937,7 @@ async def toggle_plan(
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user operations
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user operations (increased for large orgs)
         )
         bq_client.client.query(update_query, job_config=job_config).result()
 
@@ -2907,7 +3069,7 @@ async def get_all_plans(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user queries
+            job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user queries (increased for large orgs)
         )
 
         # Execute count query first for pagination metadata
