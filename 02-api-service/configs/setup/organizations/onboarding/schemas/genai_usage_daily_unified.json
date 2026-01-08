@@ -1,32 +1,272 @@
 [
-  {"name": "usage_date", "type": "DATE", "mode": "REQUIRED", "description": "Date of usage (partition field)."},
-  {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy."},
-  {"name": "cost_type", "type": "STRING", "mode": "REQUIRED", "description": "Cost flow type: payg, commitment, infrastructure."},
-  {"name": "provider", "type": "STRING", "mode": "REQUIRED", "description": "Provider identifier (all provider types)."},
-  {"name": "model", "type": "STRING", "mode": "NULLABLE", "description": "Model identifier (for PAYG/commitment)."},
-  {"name": "instance_type", "type": "STRING", "mode": "NULLABLE", "description": "Instance type (for infrastructure)."},
-  {"name": "gpu_type", "type": "STRING", "mode": "NULLABLE", "description": "GPU/accelerator type (for infrastructure)."},
-  {"name": "region", "type": "STRING", "mode": "NULLABLE", "description": "Deployment region."},
-  {"name": "input_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Input tokens (PAYG)."},
-  {"name": "output_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Output tokens (PAYG)."},
-  {"name": "cached_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Cached tokens (PAYG)."},
-  {"name": "total_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Total tokens (PAYG)."},
-  {"name": "ptu_units", "type": "INT64", "mode": "NULLABLE", "description": "Provisioned units (commitment)."},
-  {"name": "used_units", "type": "INT64", "mode": "NULLABLE", "description": "Used units (commitment)."},
-  {"name": "utilization_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Utilization percentage (commitment)."},
-  {"name": "gpu_hours", "type": "FLOAT64", "mode": "NULLABLE", "description": "GPU-hours (infrastructure)."},
-  {"name": "instance_hours", "type": "FLOAT64", "mode": "NULLABLE", "description": "Instance-hours (infrastructure)."},
-  {"name": "request_count", "type": "INT64", "mode": "NULLABLE", "description": "Number of API requests."},
-  {"name": "hierarchy_entity_id", "type": "STRING", "mode": "NULLABLE", "description": "Reference to org_hierarchy entity_id for cost allocation. The leaf-level entity in the hierarchy path."},
-  {"name": "hierarchy_entity_name", "type": "STRING", "mode": "NULLABLE", "description": "Entity name for reporting (denormalized from org_hierarchy)."},
-  {"name": "hierarchy_level_code", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy level code (e.g., 'department', 'project', 'team'). Identifies the depth in the hierarchy."},
-  {"name": "hierarchy_path", "type": "STRING", "mode": "NULLABLE", "description": "Full materialized path from root to entity (e.g., '/DEPT-001/PROJ-001/TEAM-001'). Enables rollup queries at any level."},
-  {"name": "hierarchy_path_names", "type": "STRING", "mode": "NULLABLE", "description": "Full path of names from root to entity (e.g., '/Engineering/Cloud Platform/DevOps'). Human-readable hierarchy trail."},
-  {"name": "source_table", "type": "STRING", "mode": "NULLABLE", "description": "Source table name for lineage."},
-  {"name": "consolidated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when consolidated."},
-  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_unified_consolidate."},
-  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
-  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
-  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
-  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
+  {
+    "name": "usage_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of usage (partition field)."
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy."
+  },
+  {
+    "name": "cost_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cost flow type: payg, commitment, infrastructure."
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Provider identifier (all provider types)."
+  },
+  {
+    "name": "model",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Model identifier (for PAYG/commitment)."
+  },
+  {
+    "name": "instance_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Instance type (for infrastructure)."
+  },
+  {
+    "name": "gpu_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "GPU/accelerator type (for infrastructure)."
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Deployment region."
+  },
+  {
+    "name": "input_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Input tokens (PAYG)."
+  },
+  {
+    "name": "output_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Output tokens (PAYG)."
+  },
+  {
+    "name": "cached_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Cached tokens (PAYG)."
+  },
+  {
+    "name": "total_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Total tokens (PAYG)."
+  },
+  {
+    "name": "ptu_units",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Provisioned units (commitment)."
+  },
+  {
+    "name": "used_units",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Used units (commitment)."
+  },
+  {
+    "name": "utilization_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Utilization percentage (commitment)."
+  },
+  {
+    "name": "gpu_hours",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "GPU-hours (infrastructure)."
+  },
+  {
+    "name": "instance_hours",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Instance-hours (infrastructure)."
+  },
+  {
+    "name": "request_count",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Number of API requests."
+  },
+  {
+    "name": "hierarchy_level_1_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_1_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_2_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_2_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_3_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_3_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_4_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_4_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_5_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_5_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_6_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_6_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_7_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_7_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_8_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_8_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_9_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_9_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_10_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity ID (deepest level)."
+  },
+  {
+    "name": "hierarchy_level_10_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity name (deepest level)."
+  },
+  {
+    "name": "source_table",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Source table name for lineage."
+  },
+  {
+    "name": "consolidated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when consolidated."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline template name. Example: genai_unified_consolidate."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "The DATA date being processed. KEY for idempotent re-runs."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pipeline run UUID for full traceability."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was written to this table."
+  }
 ]

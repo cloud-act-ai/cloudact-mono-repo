@@ -55,7 +55,7 @@ tables:
     partition:
       type: "DAY"
       field: "scheduled_time"
-    clustering: ["state", "priority", "org_slug"]
+    clustering: ["org_slug", "state", "priority"]
 
   org_meta_pipeline_runs:
     description: "Pipeline execution logs"

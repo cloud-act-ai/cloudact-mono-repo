@@ -190,9 +190,16 @@ export function CostFilters({
   const [categoryOpen, setCategoryOpen] = useState(false)
 
   // Parse hierarchy into nested structure (N-level: uses level_code)
-  const departments = hierarchy.filter((h) => h.level_code === "department")
-  const projects = hierarchy.filter((h) => h.level_code === "project")
-  const teams = hierarchy.filter((h) => h.level_code === "team")
+  // Support both old (department/project/team) and new (c_suite/business_unit/function) level codes
+  const departments = hierarchy.filter((h) =>
+    h.level_code === "department" || h.level_code === "c_suite"
+  )
+  const projects = hierarchy.filter((h) =>
+    h.level_code === "project" || h.level_code === "business_unit"
+  )
+  const teams = hierarchy.filter((h) =>
+    h.level_code === "team" || h.level_code === "function"
+  )
 
   // Filter projects/teams based on selected parent
   const filteredProjects = value.department
@@ -310,11 +317,11 @@ export function CostFilters({
           </PopoverTrigger>
           <PopoverContent className="w-72 p-3" align="start">
             <div className="space-y-4">
-              {/* Department */}
+              {/* Level 1: Department / C-Suite */}
               <div>
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
                   <Building2 className="h-3.5 w-3.5" />
-                  Department
+                  {departments[0]?.level_code === "c_suite" ? "C-Suite" : "Department"}
                 </label>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   <button
@@ -327,7 +334,7 @@ export function CostFilters({
                         : "text-slate-600 hover:bg-slate-100"
                     )}
                   >
-                    All Departments
+                    {departments[0]?.level_code === "c_suite" ? "All C-Suite" : "All Departments"}
                   </button>
                   {departments.map((dept) => (
                     <button
@@ -347,12 +354,12 @@ export function CostFilters({
                 </div>
               </div>
 
-              {/* Project (shows when department selected) */}
+              {/* Level 2: Project / Business Unit (shows when level 1 selected) */}
               {value.department && filteredProjects.length > 0 && (
                 <div>
                   <label className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
                     <FolderKanban className="h-3.5 w-3.5" />
-                    Project
+                    {projects[0]?.level_code === "business_unit" ? "Business Unit" : "Project"}
                   </label>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     <button
@@ -365,7 +372,7 @@ export function CostFilters({
                           : "text-slate-600 hover:bg-slate-100"
                       )}
                     >
-                      All Projects
+                      {projects[0]?.level_code === "business_unit" ? "All Business Units" : "All Projects"}
                     </button>
                     {filteredProjects.map((proj) => (
                       <button
@@ -386,12 +393,12 @@ export function CostFilters({
                 </div>
               )}
 
-              {/* Team (shows when project selected) */}
+              {/* Level 3: Team / Function (shows when level 2 selected) */}
               {value.project && filteredTeams.length > 0 && (
                 <div>
                   <label className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
                     <Users className="h-3.5 w-3.5" />
-                    Team
+                    {teams[0]?.level_code === "function" ? "Function" : "Team"}
                   </label>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     <button
@@ -404,7 +411,7 @@ export function CostFilters({
                           : "text-slate-600 hover:bg-slate-100"
                       )}
                     >
-                      All Teams
+                      {teams[0]?.level_code === "function" ? "All Functions" : "All Teams"}
                     </button>
                     {filteredTeams.map((team) => (
                       <button

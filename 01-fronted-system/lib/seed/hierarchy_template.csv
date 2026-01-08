@@ -1,21 +1,21 @@
 entity_id,entity_name,level,level_code,parent_id,owner_name,owner_email,description
-CSUITE-CFO,Group CFO,1,c_suite,,Sarah Mitchell,sarah.mitchell@acmeinc.com,Finance and financial operations
-CSUITE-CIO,Group CIO,1,c_suite,,Michael Chen,michael.chen@acmeinc.com,Information technology and digital transformation
-CSUITE-COO,Group COO,1,c_suite,,Jennifer Williams,jennifer.williams@acmeinc.com,Operations and business efficiency
-CSUITE-BL,Business Lines,1,c_suite,,Robert Garcia,robert.garcia@acmeinc.com,Business units and product lines
-BU-CIO1,Business Unit 1 IT,2,business_unit,CSUITE-CIO,David Kim,david.kim@acmeinc.com,BU 1 CIO - Application optimization
-BU-CIO2,Business Unit 2 IT,2,business_unit,CSUITE-CIO,Lisa Anderson,lisa.anderson@acmeinc.com,BU 2 CIO - Application optimization
-BU-CTO,Engineering,2,business_unit,CSUITE-CIO,James Wilson,james.wilson@acmeinc.com,CTO office - Central technology and tooling
-BU-ITCOO,IT Operations,2,business_unit,CSUITE-CIO,Amanda Brown,amanda.brown@acmeinc.com,IT COO - Operations and FinOps
-BU-BIZCOO,Business Operations,2,business_unit,CSUITE-COO,Thomas Martinez,thomas.martinez@acmeinc.com,Business COOs - Risk and value focus
-BU-PROC,Procurement,2,business_unit,CSUITE-COO,Emily Davis,emily.davis@acmeinc.com,Procurement and vendor management
-BU-GRPOPS,Group Operations,2,business_unit,CSUITE-COO,Christopher Lee,christopher.lee@acmeinc.com,Central operations and metrics alignment
-FUNC-PLAT,Platforms,3,function,BU-CTO,Kevin Zhang,kevin.zhang@acmeinc.com,Platform engineering team
-FUNC-ARCH,Architecture,3,function,BU-CTO,Rachel Thompson,rachel.thompson@acmeinc.com,Enterprise architecture team
-FUNC-INFRA,Infrastructure,3,function,BU-CTO,Daniel Harris,daniel.harris@acmeinc.com,Infrastructure and cloud team
-FUNC-TC,Technology Centres,3,function,BU-CTO,Michelle Robinson,michelle.robinson@acmeinc.com,Technology centres of excellence
-FUNC-DATA,Data,3,function,BU-CTO,Andrew Clark,andrew.clark@acmeinc.com,Data engineering and analytics
-FUNC-FINOPS,FinOps,3,function,BU-ITCOO,Jessica Taylor,jessica.taylor@acmeinc.com,Cloud financial operations and optimization
-FUNC-ITSUPPORT,IT Support,3,function,BU-ITCOO,Ryan Johnson,ryan.johnson@acmeinc.com,IT support and service desk
-FUNC-BU1APP,BU1 Applications,3,function,BU-CIO1,Nicole White,nicole.white@acmeinc.com,Business Unit 1 application development
-FUNC-BU2APP,BU2 Applications,3,function,BU-CIO2,Brandon Moore,brandon.moore@acmeinc.com,Business Unit 2 application development
+DEPT-CFO,Group CFO,1,department,,Sarah Mitchell,sarah.mitchell@acmeinc.com,Finance and financial operations
+DEPT-CIO,Group CIO,1,department,,Michael Chen,michael.chen@acmeinc.com,Information technology and digital transformation
+DEPT-COO,Group COO,1,department,,Jennifer Williams,jennifer.williams@acmeinc.com,Operations and business efficiency
+DEPT-BIZ,Business Lines,1,department,,Robert Garcia,robert.garcia@acmeinc.com,Business units and product lines
+PROJ-BU1,Business Unit 1 IT,2,project,DEPT-CIO,David Kim,david.kim@acmeinc.com,BU 1 CIO - Application optimization
+PROJ-BU2,Business Unit 2 IT,2,project,DEPT-CIO,Lisa Anderson,lisa.anderson@acmeinc.com,BU 2 CIO - Application optimization
+PROJ-CTO,Engineering,2,project,DEPT-CIO,James Wilson,james.wilson@acmeinc.com,CTO office - Central technology and tooling
+PROJ-ITCOO,IT Operations,2,project,DEPT-CIO,Amanda Brown,amanda.brown@acmeinc.com,IT COO - Operations and FinOps
+PROJ-BIZCOO,Business Operations,2,project,DEPT-COO,Thomas Martinez,thomas.martinez@acmeinc.com,Business COOs - Risk and value focus
+PROJ-PROC,Procurement,2,project,DEPT-COO,Emily Davis,emily.davis@acmeinc.com,Procurement and vendor management
+PROJ-GRPOPS,Group Operations,2,project,DEPT-COO,Christopher Lee,christopher.lee@acmeinc.com,Central operations and metrics alignment
+TEAM-PLAT,Platforms,3,team,PROJ-CTO,Kevin Zhang,kevin.zhang@acmeinc.com,Platform engineering team
+TEAM-ARCH,Architecture,3,team,PROJ-CTO,Rachel Thompson,rachel.thompson@acmeinc.com,Enterprise architecture team
+TEAM-INFRA,Infrastructure,3,team,PROJ-CTO,Daniel Harris,daniel.harris@acmeinc.com,Infrastructure and cloud team
+TEAM-TC,Technology Centres,3,team,PROJ-CTO,Michelle Robinson,michelle.robinson@acmeinc.com,Technology centres of excellence
+TEAM-DATA,Data,3,team,PROJ-CTO,Andrew Clark,andrew.clark@acmeinc.com,Data engineering and analytics
+TEAM-FINOPS,FinOps,3,team,PROJ-ITCOO,Jessica Taylor,jessica.taylor@acmeinc.com,Cloud financial operations and optimization
+TEAM-ITSUPPORT,IT Support,3,team,PROJ-ITCOO,Ryan Johnson,ryan.johnson@acmeinc.com,IT support and service desk
+TEAM-BU1APP,BU1 Applications,3,team,PROJ-BU1,Nicole White,nicole.white@acmeinc.com,Business Unit 1 application development
+TEAM-BU2APP,BU2 Applications,3,team,PROJ-BU2,Brandon Moore,brandon.moore@acmeinc.com,Business Unit 2 application development

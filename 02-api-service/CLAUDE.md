@@ -46,7 +46,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ -v --run-integration
 ```
 
-## Bootstrap (20 Meta Tables)
+## Bootstrap (21 Meta Tables)
 
 | Table | Purpose | Partitioned |
 |-------|---------|-------------|

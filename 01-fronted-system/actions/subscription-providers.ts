@@ -363,12 +363,12 @@ export interface PlanCreate {
   renewal_date?: string
   contract_id?: string
   notes?: string
-  // N-level hierarchy fields for cost allocation (v14.0)
-  hierarchy_entity_id?: string      // Reference to org_hierarchy entity_id
-  hierarchy_entity_name?: string    // Entity name (denormalized)
-  hierarchy_level_code?: string     // Level code (DEPT, PROJ, TEAM, etc.)
-  hierarchy_path?: string           // Materialized path (e.g., /DEPT-001/PROJ-001/TEAM-001)
-  hierarchy_path_names?: string     // Human-readable path (e.g., /Engineering/Platform/Backend)
+  // N-level hierarchy fields for cost allocation (v14.0) - REQUIRED
+  hierarchy_entity_id: string      // Reference to org_hierarchy entity_id (REQUIRED)
+  hierarchy_entity_name: string    // Entity display name (REQUIRED)
+  hierarchy_level_code: string     // Level code (department, project, team) (REQUIRED)
+  hierarchy_path: string           // Materialized path (/DEPT-001/PROJ-001) (REQUIRED)
+  hierarchy_path_names: string     // Human-readable path (Engineering > Platform) (REQUIRED)
   // Audit trail fields for currency conversion (v12.2)
   source_currency?: string      // Original currency of template (e.g., "USD")
   source_price?: number         // Original price before conversion

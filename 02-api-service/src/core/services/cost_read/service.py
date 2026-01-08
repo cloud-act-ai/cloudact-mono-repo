@@ -240,13 +240,27 @@ class CostReadService:
                 )
                 query_params.append(bigquery.ArrayQueryParameter("genai_providers", "STRING", genai_providers))
 
-        # N-level hierarchy filters
-        if query.hierarchy_entity_id:
-            where_conditions.append("x_hierarchy_entity_id = @hierarchy_entity_id")
-            query_params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", query.hierarchy_entity_id))
+        # 10-level hierarchy filters (v15.0)
+        if query.department_id:  # Level 1
+            where_conditions.append("x_hierarchy_level_1_id = @department_id")
+            query_params.append(bigquery.ScalarQueryParameter("department_id", "STRING", query.department_id))
 
+        if query.project_id:  # Level 2
+            where_conditions.append("x_hierarchy_level_2_id = @project_id")
+            query_params.append(bigquery.ScalarQueryParameter("project_id", "STRING", query.project_id))
+
+        if query.team_id:  # Level 3
+            where_conditions.append("x_hierarchy_level_3_id = @team_id")
+            query_params.append(bigquery.ScalarQueryParameter("team_id", "STRING", query.team_id))
+
+        # Generic level filter (for levels 4-10)
+        if query.hierarchy_level and query.hierarchy_entity_id:
+            if 1 <= query.hierarchy_level <= 10:
+                where_conditions.append(f"x_hierarchy_level_{query.hierarchy_level}_id = @hierarchy_entity_id")
+                query_params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", query.hierarchy_entity_id))
+
+        # Legacy path filter (deprecated - kept for backward compatibility)
         if query.hierarchy_path:
-            # Use STARTS_WITH for hierarchical filtering (e.g., /DEPT-001/% matches all children)
             where_conditions.append("x_hierarchy_path LIKE @hierarchy_path_prefix")
             query_params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{query.hierarchy_path}%"))
 
@@ -272,11 +286,16 @@ class CostReadService:
             DATE(ChargePeriodStart) as ChargePeriodStart,
             DATE(ChargePeriodEnd) as ChargePeriodEnd,
             x_source_system,
-            x_hierarchy_entity_id,
-            x_hierarchy_entity_name,
-            x_hierarchy_level_code,
-            x_hierarchy_path,
-            x_hierarchy_path_names
+            x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+            x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+            x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+            x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+            x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+            x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+            x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+            x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+            x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+            x_hierarchy_level_10_id, x_hierarchy_level_10_name
         FROM {table_ref}
         WHERE {where_clause}
         ORDER BY ChargePeriodStart DESC

@@ -70,12 +70,20 @@ class OnetimeBootstrapProcessor:
         # Create dataset
         dataset_created = self._ensure_dataset(force_recreate=force_recreate_dataset)
 
-        # Create tables from config
+        # Create tables from config in order (BUG-004 FIX: dependency-safe ordering)
         tables_config = self.config.get('tables', {})
+        table_names = list(tables_config.keys())
+        total_tables = len(table_names)
+
         tables_created = []
         tables_existed = []
 
-        for table_name, table_cfg in tables_config.items():
+        for idx, table_name in enumerate(table_names, 1):
+            table_cfg = tables_config[table_name]
+
+            # BUG-009 FIX: Log table creation order
+            self.logger.info(f"Bootstrap [{idx}/{total_tables}]: Processing table '{table_name}'")
+
             existed = self._ensure_table(
                 table_name=table_name,
                 table_config=table_cfg or {},
@@ -126,10 +134,48 @@ class OnetimeBootstrapProcessor:
         force_recreate: bool = False
     ) -> bool:
         """Create table from schema JSON and config.yml settings."""
+        # BUG-014 FIX: Validate table name convention
+        if not table_name.startswith('org_') and table_name != 'hierarchy_levels':
+            raise ValueError(
+                f"Invalid table name '{table_name}': Bootstrap tables must start with 'org_' "
+                f"(exception: 'hierarchy_levels')"
+            )
+
         dataset_name = self.config.get('dataset', {}).get('name', 'organizations')
         table_id = f"{self.project_id}.{dataset_name}.{table_name}"
 
         schema = self._load_table_schema(table_name)
+
+        # BUG-005 FIX: Validate partition field type if partitioning is configured
+        partition_cfg = table_config.get('partition')
+        if partition_cfg:
+            partition_field = partition_cfg.get('field')
+            if partition_field:
+                # Find field in schema
+                schema_dict = {field.name: field for field in schema}
+                if partition_field not in schema_dict:
+                    raise ValueError(
+                        f"Partition field '{partition_field}' not found in schema for table '{table_name}'"
+                    )
+
+                # Validate field type is suitable for partitioning
+                field_type = schema_dict[partition_field].field_type
+                valid_partition_types = {'TIMESTAMP', 'DATE', 'DATETIME'}
+                if field_type not in valid_partition_types:
+                    raise ValueError(
+                        f"Invalid partition field type for '{table_name}.{partition_field}': "
+                        f"'{field_type}'. Must be one of {valid_partition_types}"
+                    )
+
+        # BUG-012 FIX: Validate clustering fields exist in schema
+        clustering = table_config.get('clustering', [])
+        if clustering:
+            schema_dict = {field.name: field for field in schema}
+            for cluster_field in clustering:
+                if cluster_field not in schema_dict:
+                    raise ValueError(
+                        f"Clustering field '{cluster_field}' not found in schema for table '{table_name}'"
+                    )
 
         if force_recreate:
             self.client.delete_table(table_id, not_found_ok=True)

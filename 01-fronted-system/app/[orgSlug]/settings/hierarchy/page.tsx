@@ -28,6 +28,7 @@ import {
   Loader2,
   Plus,
   Trash2,
+  Pencil,
   AlertTriangle,
   CheckCircle2,
   Building2,
@@ -44,6 +45,7 @@ import {
   getHierarchy,
   getHierarchyLevels,
   createEntity,
+  updateEntity,
   deleteEntity,
   checkCanDelete,
   type HierarchyEntity,
@@ -51,23 +53,34 @@ import {
   type HierarchyTreeResponse,
   type HierarchyLevel,
   type CreateEntityInput,
+  type UpdateEntityInput,
 } from "@/actions/hierarchy"
 
 // Premium components
 import { StatRow } from "@/components/ui/stat-row"
 import { LoadingState } from "@/components/ui/loading-state"
 
-// Level icons mapping
+// Level icons mapping - supports both old (department/project/team) and new (c_suite/business_unit/function) level codes
 const LEVEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  // Old level codes
   department: Building2,
   project: FolderKanban,
   team: Users,
+  // New N-level codes
+  c_suite: Building2,
+  business_unit: FolderKanban,
+  function: Users,
 }
 
 const LEVEL_COLORS: Record<string, { icon: string; bg: string; badge: string }> = {
+  // Old level codes
   department: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
   project: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
   team: { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" },
+  // New N-level codes
+  c_suite: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
+  business_unit: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
+  function: { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" },
 }
 
 interface CreateFormData {
@@ -117,6 +130,17 @@ export default function HierarchySettingsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ entityId: string; name: string; levelCode: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null)
+
+  // Edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<HierarchyEntity | null>(null)
+  const [editFormData, setEditFormData] = useState<{
+    entity_name: string
+    owner_name: string
+    owner_email: string
+    description: string
+  }>({ entity_name: "", owner_name: "", owner_email: "", description: "" })
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     document.title = "Hierarchy Settings | CloudAct.ai"
@@ -263,6 +287,51 @@ export default function HierarchySettingsPage() {
     }
   }
 
+  const openEditDialog = (entity: HierarchyEntity) => {
+    setEditTarget(entity)
+    setEditFormData({
+      entity_name: entity.entity_name,
+      owner_name: entity.owner_name || "",
+      owner_email: entity.owner_email || "",
+      description: entity.description || "",
+    })
+    setError(null)
+    setEditDialogOpen(true)
+  }
+
+  const handleEdit = async () => {
+    if (!editTarget) return
+
+    setIsEditing(true)
+    setError(null)
+
+    try {
+      const input: UpdateEntityInput = {
+        entity_name: editFormData.entity_name,
+        owner_name: editFormData.owner_name || undefined,
+        owner_email: editFormData.owner_email || undefined,
+        description: editFormData.description || undefined,
+      }
+
+      const result = await updateEntity(orgSlug, editTarget.entity_id, input)
+
+      if (result.success) {
+        const levelConfig = levels.find(l => l.level_code === editTarget.level_code)
+        setSuccess(`${levelConfig?.level_name || editTarget.level_code} updated successfully!`)
+        setEditDialogOpen(false)
+        setEditTarget(null)
+        await loadData()
+        setTimeout(() => setSuccess(null), 4000)
+      } else {
+        setError(result.error || "Failed to update entity")
+      }
+    } catch {
+      setError("Failed to update entity")
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
   const getLevelIcon = (levelCode: string) => {
     const IconComponent = LEVEL_ICONS[levelCode] || Layers
     const colors = LEVEL_COLORS[levelCode] || { icon: "text-slate-600", bg: "bg-slate-100" }
@@ -328,6 +397,19 @@ export default function HierarchySettingsPage() {
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-lg hover:bg-blue-500/10 hover:text-blue-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation()
+                const entity = allEntities.find(e => e.entity_id === node.entity_id)
+                if (entity) openEditDialog(entity)
+              }}
+              title="Edit"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -446,13 +528,13 @@ export default function HierarchySettingsPage() {
 
       {/* Action Bar */}
       <div className="flex flex-wrap gap-2 sm:gap-3">
-        {rootLevel && (
+        {levels.length > 0 && (
           <Button
-            onClick={() => openCreateDialog(rootLevel.level_code)}
+            onClick={() => openCreateDialog("")}
             className="console-button-primary h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
           >
             <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Add {rootLevel.level_name}</span>
+            <span className="hidden sm:inline">Add Entity</span>
             <span className="sm:hidden">Add</span>
           </Button>
         )}
@@ -467,8 +549,8 @@ export default function HierarchySettingsPage() {
               className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
             >
               <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Tree View</span>
-              <span className="sm:hidden">Tree</span>
+              <span className="hidden sm:inline">Org Structure</span>
+              <span className="sm:hidden">Org</span>
             </TabsTrigger>
             {levels.filter(l => l.is_active).sort((a, b) => a.level - b.level).map(level => {
               const { IconComponent } = getLevelIcon(level.level_code)
@@ -566,6 +648,15 @@ export default function HierarchySettingsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8 rounded-lg hover:bg-blue-500/10 hover:text-blue-600 transition-colors"
+                                onClick={() => openEditDialog(entity)}
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
                                 onClick={() => openDeleteDialog(entity.entity_id, entity.entity_name, entity.level_code)}
                               >
@@ -599,32 +690,64 @@ export default function HierarchySettingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Create {selectedLevelConfig?.level_name || "Entity"}
+              Add New Entity
             </DialogTitle>
             <DialogDescription>
-              Add a new {selectedLevelConfig?.level_name.toLowerCase() || "entity"} to your organization
+              Add a new entity to your organizational hierarchy
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Level selector if no level_code preset */}
-            {!formData.level_code && (
+            {/* Level selector - always shown */}
+            <div className="space-y-2">
+              <Label htmlFor="level_code">Level *</Label>
+              <Select
+                value={formData.level_code}
+                onValueChange={(val) => setFormData({ ...formData, level_code: val, parent_id: "" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {levels.filter(l => l.is_active).sort((a, b) => a.level - b.level).map(level => (
+                    <SelectItem key={level.level_code} value={level.level_code}>
+                      <span className="flex items-center gap-2">
+                        <span className="text-slate-400">L{level.level}</span>
+                        {level.level_name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Parent selector - shown for non-root levels */}
+            {formData.level_code && requiresParent && (
               <div className="space-y-2">
-                <Label htmlFor="level_code">Type *</Label>
+                <Label htmlFor="parent_id">
+                  Parent ({levels.find(l => l.level === selectedLevelConfig?.parent_level)?.level_name || "Parent"}) *
+                </Label>
                 <Select
-                  value={formData.level_code}
-                  onValueChange={(val) => setFormData({ ...formData, level_code: val, parent_id: "" })}
+                  value={formData.parent_id}
+                  onValueChange={(val) => setFormData({ ...formData, parent_id: val })}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                  <SelectTrigger className={!formData.parent_id ? "border-amber-300" : ""}>
+                    <SelectValue placeholder="Select parent (required)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {levels.filter(l => l.is_active).map(level => (
-                      <SelectItem key={level.level_code} value={level.level_code}>
-                        {level.level_name}
+                    {parentOptions.length > 0 ? parentOptions.map(parent => (
+                      <SelectItem key={parent.entity_id} value={parent.entity_id}>
+                        {parent.entity_name} ({parent.entity_id})
                       </SelectItem>
-                    ))}
+                    )) : (
+                      <div className="px-3 py-2 text-sm text-slate-500">
+                        No {levels.find(l => l.level === selectedLevelConfig?.parent_level)?.level_name_plural || "parents"} available. Create one first.
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
+                {requiresParent && !formData.parent_id && (
+                  <p className="text-xs text-amber-600">Parent is required for {selectedLevelConfig?.level_name_plural || "this level"}</p>
+                )}
               </div>
             )}
 
@@ -648,29 +771,6 @@ export default function HierarchySettingsPage() {
                 />
               </div>
             </div>
-
-            {requiresParent && (
-              <div className="space-y-2">
-                <Label htmlFor="parent_id">
-                  {levels.find(l => l.level === selectedLevelConfig?.parent_level)?.level_name || "Parent"} *
-                </Label>
-                <Select
-                  value={formData.parent_id}
-                  onValueChange={(val) => setFormData({ ...formData, parent_id: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select parent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {parentOptions.map(parent => (
-                      <SelectItem key={parent.entity_id} value={parent.entity_id}>
-                        {parent.entity_name} ({parent.entity_id})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -763,6 +863,92 @@ export default function HierarchySettingsPage() {
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Edit {levels.find(l => l.level_code === editTarget?.level_code)?.level_name || "Entity"}
+            </DialogTitle>
+            <DialogDescription>
+              Update details for "{editTarget?.entity_name}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_entity_id">ID</Label>
+              <Input
+                id="edit_entity_id"
+                value={editTarget?.entity_id || ""}
+                disabled
+                className="bg-slate-50 text-slate-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_entity_name">Name *</Label>
+              <Input
+                id="edit_entity_name"
+                value={editFormData.entity_name}
+                onChange={(e) => setEditFormData({ ...editFormData, entity_name: e.target.value })}
+                placeholder="Enter name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_owner_name">Owner Name</Label>
+                <Input
+                  id="edit_owner_name"
+                  value={editFormData.owner_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, owner_name: e.target.value })}
+                  placeholder="John Doe"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_owner_email">Owner Email</Label>
+                <Input
+                  id="edit_owner_email"
+                  type="email"
+                  value={editFormData.owner_email}
+                  onChange={(e) => setEditFormData({ ...editFormData, owner_email: e.target.value })}
+                  placeholder="john@example.com"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_description">Description</Label>
+              <Input
+                id="edit_description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                placeholder="Optional description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEdit}
+              disabled={isEditing || !editFormData.entity_name}
+              className="console-button-primary"
+            >
+              {isEditing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Save Changes
                 </>
               )}
             </Button>

@@ -70,5 +70,11 @@
     "type": "DATE",
     "mode": "REQUIRED",
     "description": "Date partition for this DQ result record. Typically the date when validation was executed (DATE(executed_at)). Used for efficient partitioned queries (e.g., last 30 days of DQ results), data retention policies, and cost optimization. Partition key for this table."
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was created in the database"
   }
 ]

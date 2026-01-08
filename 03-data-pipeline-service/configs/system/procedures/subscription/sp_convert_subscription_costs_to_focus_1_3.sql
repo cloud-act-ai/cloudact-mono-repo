@@ -113,9 +113,17 @@ BEGIN
         -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
         x_data_quality_score, x_created_at,
-        -- N-level hierarchy extension fields for cost allocation (v14.0)
-        x_hierarchy_entity_id, x_hierarchy_entity_name,
-        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
+        -- 10-level hierarchy extension fields for cost allocation (v15.0)
+        x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+        x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+        x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+        x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+        x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+        x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+        x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+        x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+        x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+        x_hierarchy_level_10_id, x_hierarchy_level_10_name,
         -- GenAI extension fields
         x_genai_cost_type, x_genai_provider, x_genai_model,
         -- Hierarchy validation timestamp
@@ -301,21 +309,36 @@ BEGIN
         1.0 AS x_data_quality_score,
         CURRENT_TIMESTAMP() AS x_created_at,
 
-        -- N-level hierarchy extension fields for cost allocation (from subscription plans, v14.0)
-        spc.hierarchy_entity_id AS x_hierarchy_entity_id,
-        spc.hierarchy_entity_name AS x_hierarchy_entity_name,
-        spc.hierarchy_level_code AS x_hierarchy_level_code,
-        spc.hierarchy_path AS x_hierarchy_path,
-        spc.hierarchy_path_names AS x_hierarchy_path_names,
+        -- 10-level hierarchy extension fields for cost allocation (from subscription plans, v15.0)
+        spc.hierarchy_level_1_id AS x_hierarchy_level_1_id,
+        spc.hierarchy_level_1_name AS x_hierarchy_level_1_name,
+        spc.hierarchy_level_2_id AS x_hierarchy_level_2_id,
+        spc.hierarchy_level_2_name AS x_hierarchy_level_2_name,
+        spc.hierarchy_level_3_id AS x_hierarchy_level_3_id,
+        spc.hierarchy_level_3_name AS x_hierarchy_level_3_name,
+        spc.hierarchy_level_4_id AS x_hierarchy_level_4_id,
+        spc.hierarchy_level_4_name AS x_hierarchy_level_4_name,
+        spc.hierarchy_level_5_id AS x_hierarchy_level_5_id,
+        spc.hierarchy_level_5_name AS x_hierarchy_level_5_name,
+        spc.hierarchy_level_6_id AS x_hierarchy_level_6_id,
+        spc.hierarchy_level_6_name AS x_hierarchy_level_6_name,
+        spc.hierarchy_level_7_id AS x_hierarchy_level_7_id,
+        spc.hierarchy_level_7_name AS x_hierarchy_level_7_name,
+        spc.hierarchy_level_8_id AS x_hierarchy_level_8_id,
+        spc.hierarchy_level_8_name AS x_hierarchy_level_8_name,
+        spc.hierarchy_level_9_id AS x_hierarchy_level_9_id,
+        spc.hierarchy_level_9_name AS x_hierarchy_level_9_name,
+        spc.hierarchy_level_10_id AS x_hierarchy_level_10_id,
+        spc.hierarchy_level_10_name AS x_hierarchy_level_10_name,
 
         -- GenAI extension fields (NULL for Subscriptions)
         NULL AS x_genai_cost_type,
         NULL AS x_genai_provider,
         NULL AS x_genai_model,
 
-        -- Hierarchy validation timestamp (set when hierarchy entity is set)
+        -- Hierarchy validation timestamp (set when hierarchy level 1 is set)
         CASE
-          WHEN spc.hierarchy_entity_id IS NOT NULL
+          WHEN spc.hierarchy_level_1_id IS NOT NULL
           THEN CURRENT_TIMESTAMP()
           ELSE NULL
         END AS x_hierarchy_validated_at

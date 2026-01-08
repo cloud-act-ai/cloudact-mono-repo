@@ -6,10 +6,11 @@ Endpoints for organization and API key management.
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any, Dict
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import hashlib
 import secrets
 import logging
+import time
 
 from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
@@ -25,6 +26,45 @@ from src.core.utils.validators import validate_org_slug
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ============================================
+# BUG-006 FIX: Simple TTL Cache for Bootstrap Status
+# ============================================
+
+class BootstrapStatusCache:
+    """Simple TTL cache for bootstrap status endpoint (60-second cache)"""
+    def __init__(self, ttl_seconds: int = 60):
+        self.ttl_seconds = ttl_seconds
+        self._cache: Dict[str, Any] = {}
+        self._timestamps: Dict[str, float] = {}
+
+    def get(self, key: str) -> Optional[Dict[str, Any]]:
+        """Get cached value if not expired"""
+        if key not in self._cache:
+            return None
+
+        # Check if expired
+        if time.time() - self._timestamps[key] > self.ttl_seconds:
+            # Expired - remove from cache
+            del self._cache[key]
+            del self._timestamps[key]
+            return None
+
+        return self._cache[key]
+
+    def set(self, key: str, value: Dict[str, Any]):
+        """Set cached value with current timestamp"""
+        self._cache[key] = value
+        self._timestamps[key] = time.time()
+
+    def clear(self):
+        """Clear all cache"""
+        self._cache.clear()
+        self._timestamps.clear()
+
+# Initialize cache
+bootstrap_status_cache = BootstrapStatusCache(ttl_seconds=60)
 
 
 # ============================================
@@ -90,6 +130,11 @@ class BootstrapResponse(BaseModel):
     tables_existed: list = Field(..., description="List of existing tables")
     total_tables: int
     message: str
+    # BUG-015 FIX: Add schema validation report
+    schema_validation: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Schema validation summary: {valid: bool, errors: List[str], warnings: List[str]}"
+    )
 
 
 class BootstrapStatusResponse(BaseModel):
@@ -224,13 +269,39 @@ async def bootstrap_system(
             }
         )
 
+        # BUG-015 FIX: Add schema validation report
+        validation_errors = []
+        validation_warnings = []
+
+        # Validate that all expected tables were created
+        tables_created = result.get("tables_created", [])
+        tables_existed = result.get("tables_existed", [])
+        total_tables = result.get("total_tables", 0)
+        total_present = len(tables_created) + len(tables_existed)
+
+        if total_present < total_tables:
+            validation_errors.append(f"Expected {total_tables} tables but only {total_present} are present")
+
+        # Check for any tables that existed (could be warning)
+        if tables_existed:
+            validation_warnings.append(f"{len(tables_existed)} tables already existed (idempotent)")
+
+        schema_validation = {
+            "valid": len(validation_errors) == 0,
+            "errors": validation_errors,
+            "warnings": validation_warnings,
+            "tables_validated": total_present,
+            "validation_timestamp": datetime.utcnow().isoformat()
+        }
+
         return BootstrapResponse(
             status=result.get("status", "SUCCESS"),
             dataset_created=result.get("dataset_created", False),
             tables_created=result.get("tables_created", []),
             tables_existed=result.get("tables_existed", []),
             total_tables=result.get("total_tables", 0),
-            message=result.get("message", "Bootstrap completed")
+            message=result.get("message", "Bootstrap completed"),
+            schema_validation=schema_validation
         )
 
     except HTTPException:
@@ -238,9 +309,11 @@ async def bootstrap_system(
         raise
     except Exception as e:
         logger.error(f"Bootstrap failed: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
+        # BUG-007 FIX: Use safe_error_response for consistent error handling
+        raise safe_error_response(
+            error=e,
+            operation="bootstrap system",
+            context={"force_recreate_dataset": request.force_recreate_dataset}
         )
 
 
@@ -255,10 +328,14 @@ async def bootstrap_system(
     description="Check if system bootstrap tables are in sync with configuration"
 )
 async def get_bootstrap_status(
+    force_refresh: bool = Query(False, description="Force cache refresh"),
     _admin: None = Depends(verify_admin_key)
 ):
     """
     Check bootstrap status and identify any missing tables or schema differences.
+
+    BUG-006 FIX: Cached for 60 seconds to avoid repeated BigQuery queries.
+    Use ?force_refresh=true to bypass cache.
 
     Returns:
     - **status**: SYNCED (all good), OUT_OF_SYNC (missing tables/columns), NOT_BOOTSTRAPPED (no dataset)
@@ -266,6 +343,14 @@ async def get_bootstrap_status(
     - **tables_extra**: Tables in BigQuery not in config (usually fine, could be custom)
     - **schema_diffs**: Columns that differ between config and BigQuery
     """
+    # BUG-006 FIX: Check cache first (unless force_refresh)
+    cache_key = "bootstrap_status"
+    if not force_refresh:
+        cached_result = bootstrap_status_cache.get(cache_key)
+        if cached_result:
+            logger.debug("Returning cached bootstrap status")
+            return BootstrapStatusResponse(**cached_result)
+
     try:
         from src.core.engine.bq_client import get_bigquery_client
         from pathlib import Path
@@ -349,16 +434,23 @@ async def get_bootstrap_status(
             status_val = "SYNCED"
             message = f"Bootstrap in sync: {len(existing_tables)} tables present"
 
-        return BootstrapStatusResponse(
-            status=status_val,
-            dataset_exists=dataset_exists,
-            tables_expected=len(expected_tables),
-            tables_existing=list(existing_tables),
-            tables_missing=tables_missing,
-            tables_extra=tables_extra,
-            schema_diffs=schema_diffs,
-            message=message
-        )
+        # Build response
+        response_data = {
+            "status": status_val,
+            "dataset_exists": dataset_exists,
+            "tables_expected": len(expected_tables),
+            "tables_existing": list(existing_tables),
+            "tables_missing": tables_missing,
+            "tables_extra": tables_extra,
+            "schema_diffs": schema_diffs,
+            "message": message
+        }
+
+        # BUG-006 FIX: Cache the result
+        bootstrap_status_cache.set(cache_key, response_data)
+        logger.debug("Cached bootstrap status for 60 seconds")
+
+        return BootstrapStatusResponse(**response_data)
 
     except Exception as e:
         logger.error(f"Failed to check bootstrap status: {e}", exc_info=True)

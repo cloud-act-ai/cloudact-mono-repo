@@ -13,7 +13,7 @@ Idempotency Fixes:
 """
 
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Dict, Any
 from google.cloud import bigquery
 
@@ -47,8 +47,9 @@ class UnifiedConsolidatorProcessor:
         Args:
             step_config: Step configuration containing:
                 - config.target: 'usage' or 'costs' or 'both' (default: both)
-                - config.date: Date to consolidate
-            context: Execution context with org_slug
+                - config.date: Single date to consolidate (legacy)
+                - config.start_date / config.end_date: Date range (new)
+            context: Execution context with org_slug, start_date, end_date
 
         Returns:
             Dict with status and row counts
@@ -66,40 +67,71 @@ class UnifiedConsolidatorProcessor:
             }
 
         target = config.get("target", "both")
-        process_date = self._parse_date(config.get("date") or context.get("start_date"))
 
-        if not process_date:
-            return {"status": "FAILED", "error": "date is required"}
+        # Support both single date and date ranges
+        start_date_str = context.get("start_date") or config.get("start_date")
+        end_date_str = context.get("end_date") or config.get("end_date")
+        single_date_str = config.get("date") or context.get("date")
+
+        if start_date_str and end_date_str:
+            # Date range mode
+            start_date = self._parse_date(start_date_str)
+            end_date = self._parse_date(end_date_str)
+            if not start_date or not end_date:
+                return {"status": "FAILED", "error": "Invalid start_date or end_date format. Use YYYY-MM-DD"}
+            # BUG VAL-03 FIX: Add future date validation
+            if end_date > date.today():
+                return {"status": "FAILED", "error": f"Cannot process future date: {end_date}"}
+            dates_to_process = self._generate_date_range(start_date, end_date)
+            self.logger.info(
+                f"Consolidating GenAI data for {org_slug} (date range)",
+                extra={"start_date": str(start_date), "end_date": str(end_date), "days": len(dates_to_process)}
+            )
+        elif single_date_str:
+            # Single date mode (legacy)
+            process_date = self._parse_date(single_date_str)
+            if not process_date:
+                return {"status": "FAILED", "error": "Invalid date format. Use YYYY-MM-DD"}
+            dates_to_process = [process_date]
+            self.logger.info(f"Consolidating GenAI data for {org_slug}, date={process_date}")
+        else:
+            return {"status": "FAILED", "error": "date (single) or start_date/end_date (range) is required"}
 
         dataset_id = self.settings.get_org_dataset_name(org_slug)
         project_id = self.settings.gcp_project_id
 
-        self.logger.info(f"Consolidating GenAI data for {org_slug}, date={process_date}")
-
         try:
             bq_client = BigQueryClient(project_id=project_id)
-            results = {}
+            total_rows_all_dates = 0
+            days_processed = 0
 
-            if target in ["usage", "both"]:
-                usage_result = await self._consolidate_usage(
-                    bq_client, project_id, dataset_id, org_slug, process_date
-                )
-                results["usage"] = usage_result
+            # Process each date
+            for process_date in dates_to_process:
+                results = {}
 
-            if target in ["costs", "both"]:
-                costs_result = await self._consolidate_costs(
-                    bq_client, project_id, dataset_id, org_slug, process_date
-                )
-                results["costs"] = costs_result
+                if target in ["usage", "both"]:
+                    usage_result = await self._consolidate_usage(
+                        bq_client, project_id, dataset_id, org_slug, process_date
+                    )
+                    results["usage"] = usage_result
 
-            total_rows = sum(r.get("rows_inserted", 0) for r in results.values())
+                if target in ["costs", "both"]:
+                    costs_result = await self._consolidate_costs(
+                        bq_client, project_id, dataset_id, org_slug, process_date
+                    )
+                    results["costs"] = costs_result
 
-            self.logger.info(f"Consolidated {total_rows} records into unified tables")
+                total_rows = sum(r.get("rows_inserted", 0) for r in results.values())
+                total_rows_all_dates += total_rows
+                days_processed += 1
+
+                self.logger.info(f"Consolidated {total_rows} records for {process_date}")
+
+            self.logger.info(f"Consolidated {total_rows_all_dates} records across {days_processed} days")
             return {
                 "status": "SUCCESS",
-                "date": str(process_date),
-                "results": results,
-                "total_rows": total_rows
+                "rows_inserted": total_rows_all_dates,
+                "days_processed": days_processed
             }
 
         except Exception as e:
@@ -127,8 +159,7 @@ class UnifiedConsolidatorProcessor:
                     total_tokens, CAST(NULL AS INT64) as ptu_units, CAST(NULL AS INT64) as used_units,
                     CAST(NULL AS FLOAT64) as utilization_pct, CAST(NULL AS FLOAT64) as gpu_hours,
                     CAST(NULL AS FLOAT64) as instance_hours,
-                    request_count, hierarchy_entity_id, hierarchy_entity_name,
-                    hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                    request_count, hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                     'genai_payg_usage_raw' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -146,8 +177,7 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS INT64) as cached_tokens, CAST(NULL AS INT64) as total_tokens,
                     provisioned_units as ptu_units, used_units, utilization_pct,
                     CAST(NULL AS FLOAT64) as gpu_hours, CAST(NULL AS FLOAT64) as instance_hours,
-                    CAST(NULL AS INT64) as request_count, hierarchy_entity_id, hierarchy_entity_name,
-                    hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                    CAST(NULL AS INT64) as request_count, hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                     'genai_commitment_usage_raw' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -164,8 +194,7 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS INT64) as cached_tokens, CAST(NULL AS INT64) as total_tokens,
                     CAST(NULL AS INT64) as ptu_units, CAST(NULL AS INT64) as used_units,
                     avg_gpu_utilization_pct as utilization_pct, gpu_hours, hours_used as instance_hours,
-                    CAST(NULL AS INT64) as request_count, hierarchy_entity_id, hierarchy_entity_name,
-                    hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                    CAST(NULL AS INT64) as request_count, hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                     'genai_infrastructure_usage_raw' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -194,11 +223,26 @@ class UnifiedConsolidatorProcessor:
                     gpu_hours = S.gpu_hours,
                     instance_hours = S.instance_hours,
                     request_count = S.request_count,
-                    hierarchy_entity_id = S.hierarchy_entity_id,
-                    hierarchy_entity_name = S.hierarchy_entity_name,
-                    hierarchy_level_code = S.hierarchy_level_code,
-                    hierarchy_path = S.hierarchy_path,
-                    hierarchy_path_names = S.hierarchy_path_names,
+                    hierarchy_level_1_id = S.hierarchy_level_1_id,
+                    hierarchy_level_1_name = S.hierarchy_level_1_name,
+                    hierarchy_level_2_id = S.hierarchy_level_2_id,
+                    hierarchy_level_2_name = S.hierarchy_level_2_name,
+                    hierarchy_level_3_id = S.hierarchy_level_3_id,
+                    hierarchy_level_3_name = S.hierarchy_level_3_name,
+                    hierarchy_level_4_id = S.hierarchy_level_4_id,
+                    hierarchy_level_4_name = S.hierarchy_level_4_name,
+                    hierarchy_level_5_id = S.hierarchy_level_5_name,
+                    hierarchy_level_5_name = S.hierarchy_level_5_name,
+                    hierarchy_level_6_id = S.hierarchy_level_6_id,
+                    hierarchy_level_6_name = S.hierarchy_level_6_name,
+                    hierarchy_level_7_id = S.hierarchy_level_7_id,
+                    hierarchy_level_7_name = S.hierarchy_level_7_name,
+                    hierarchy_level_8_id = S.hierarchy_level_8_id,
+                    hierarchy_level_8_name = S.hierarchy_level_8_name,
+                    hierarchy_level_9_id = S.hierarchy_level_9_id,
+                    hierarchy_level_9_name = S.hierarchy_level_9_name,
+                    hierarchy_level_10_id = S.hierarchy_level_10_id,
+                    hierarchy_level_10_name = S.hierarchy_level_10_name,
                     source_table = S.source_table,
                     consolidated_at = CURRENT_TIMESTAMP(),
                     x_pipeline_id = S.x_pipeline_id,
@@ -210,15 +254,13 @@ class UnifiedConsolidatorProcessor:
                 INSERT (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_tokens, output_tokens, cached_tokens, total_tokens,
                         ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
-                        request_count, hierarchy_entity_id, hierarchy_entity_name,
-                        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                        request_count, hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                         source_table, consolidated_at,
                         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                 VALUES (S.usage_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_tokens, S.output_tokens, S.cached_tokens, S.total_tokens,
                         S.ptu_units, S.used_units, S.utilization_pct, S.gpu_hours, S.instance_hours,
-                        S.request_count, S.hierarchy_entity_id, S.hierarchy_entity_name,
-                        S.hierarchy_level_code, S.hierarchy_path, S.hierarchy_path_names,
+                        S.request_count, S.hierarchy_level_1_id, S.hierarchy_level_1_name, S.hierarchy_level_2_id, S.hierarchy_level_2_name, S.hierarchy_level_3_id, S.hierarchy_level_3_name, S.hierarchy_level_4_id, S.hierarchy_level_4_name, S.hierarchy_level_5_id, S.hierarchy_level_5_name, S.hierarchy_level_6_id, S.hierarchy_level_6_name, S.hierarchy_level_7_id, S.hierarchy_level_7_name, S.hierarchy_level_8_id, S.hierarchy_level_8_name, S.hierarchy_level_9_id, S.hierarchy_level_9_name, S.hierarchy_level_10_id, S.hierarchy_level_10_name,
                         S.source_table, CURRENT_TIMESTAMP(),
                         S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
         """
@@ -254,8 +296,7 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS FLOAT64) as overage_cost_usd, CAST(NULL AS FLOAT64) as infrastructure_cost_usd,
                     total_cost_usd, discount_applied_pct,
                     CAST(total_tokens AS FLOAT64) as usage_quantity, 'tokens' as usage_unit,
-                    hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                    hierarchy_path, hierarchy_path_names,
+                    hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                     'genai_payg_costs_daily' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -273,8 +314,7 @@ class UnifiedConsolidatorProcessor:
                     commitment_cost_usd, overage_cost_usd, CAST(NULL AS FLOAT64) as infrastructure_cost_usd,
                     total_cost_usd, CAST(NULL AS FLOAT64) as discount_applied_pct,
                     CAST(provisioned_units AS FLOAT64) as usage_quantity, 'ptu_hours' as usage_unit,
-                    hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                    hierarchy_path, hierarchy_path_names,
+                    hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                     'genai_commitment_costs_daily' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -292,8 +332,7 @@ class UnifiedConsolidatorProcessor:
                     total_cost_usd as infrastructure_cost_usd, total_cost_usd,
                     ROUND((discount_applied_usd / NULLIF(base_cost_usd, 0)) * 100, 2) as discount_applied_pct,
                     gpu_hours as usage_quantity, 'gpu_hours' as usage_unit,
-                    hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                    hierarchy_path, hierarchy_path_names,
+                    hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                     'genai_infrastructure_costs_daily' as source_table,
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
@@ -321,11 +360,26 @@ class UnifiedConsolidatorProcessor:
                     discount_applied_pct = S.discount_applied_pct,
                     usage_quantity = S.usage_quantity,
                     usage_unit = S.usage_unit,
-                    hierarchy_entity_id = S.hierarchy_entity_id,
-                    hierarchy_entity_name = S.hierarchy_entity_name,
-                    hierarchy_level_code = S.hierarchy_level_code,
-                    hierarchy_path = S.hierarchy_path,
-                    hierarchy_path_names = S.hierarchy_path_names,
+                    hierarchy_level_1_id = S.hierarchy_level_1_id,
+                    hierarchy_level_1_name = S.hierarchy_level_1_name,
+                    hierarchy_level_2_id = S.hierarchy_level_2_id,
+                    hierarchy_level_2_name = S.hierarchy_level_2_name,
+                    hierarchy_level_3_id = S.hierarchy_level_3_id,
+                    hierarchy_level_3_name = S.hierarchy_level_3_name,
+                    hierarchy_level_4_id = S.hierarchy_level_4_id,
+                    hierarchy_level_4_name = S.hierarchy_level_4_name,
+                    hierarchy_level_5_id = S.hierarchy_level_5_id,
+                    hierarchy_level_5_name = S.hierarchy_level_5_name,
+                    hierarchy_level_6_id = S.hierarchy_level_6_id,
+                    hierarchy_level_6_name = S.hierarchy_level_6_name,
+                    hierarchy_level_7_id = S.hierarchy_level_7_id,
+                    hierarchy_level_7_name = S.hierarchy_level_7_name,
+                    hierarchy_level_8_id = S.hierarchy_level_8_id,
+                    hierarchy_level_8_name = S.hierarchy_level_8_name,
+                    hierarchy_level_9_id = S.hierarchy_level_9_id,
+                    hierarchy_level_9_name = S.hierarchy_level_9_name,
+                    hierarchy_level_10_id = S.hierarchy_level_10_id,
+                    hierarchy_level_10_name = S.hierarchy_level_10_name,
                     source_table = S.source_table,
                     consolidated_at = CURRENT_TIMESTAMP(),
                     x_pipeline_id = S.x_pipeline_id,
@@ -337,15 +391,13 @@ class UnifiedConsolidatorProcessor:
                 INSERT (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
                         infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
-                        usage_quantity, usage_unit, hierarchy_entity_id, hierarchy_entity_name,
-                        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+                        usage_quantity, usage_unit, hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                         source_table, consolidated_at,
                         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                 VALUES (S.cost_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_cost_usd, S.output_cost_usd, S.commitment_cost_usd, S.overage_cost_usd,
                         S.infrastructure_cost_usd, S.total_cost_usd, S.discount_applied_pct,
-                        S.usage_quantity, S.usage_unit, S.hierarchy_entity_id, S.hierarchy_entity_name,
-                        S.hierarchy_level_code, S.hierarchy_path, S.hierarchy_path_names,
+                        S.usage_quantity, S.usage_unit, S.hierarchy_level_1_id, S.hierarchy_level_1_name, S.hierarchy_level_2_id, S.hierarchy_level_2_name, S.hierarchy_level_3_id, S.hierarchy_level_3_name, S.hierarchy_level_4_id, S.hierarchy_level_4_name, S.hierarchy_level_5_id, S.hierarchy_level_5_name, S.hierarchy_level_6_id, S.hierarchy_level_6_name, S.hierarchy_level_7_id, S.hierarchy_level_7_name, S.hierarchy_level_8_id, S.hierarchy_level_8_name, S.hierarchy_level_9_id, S.hierarchy_level_9_name, S.hierarchy_level_10_id, S.hierarchy_level_10_name,
                         S.source_table, CURRENT_TIMESTAMP(),
                         S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
         """
@@ -369,6 +421,15 @@ class UnifiedConsolidatorProcessor:
             return datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             return None
+
+    def _generate_date_range(self, start_date: date, end_date: date) -> list:
+        """Generate list of dates from start_date to end_date (inclusive)."""
+        dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            dates.append(current_date)
+            current_date += timedelta(days=1)
+        return dates
 
 
 def get_engine():

@@ -88,5 +88,11 @@
     "type": "JSON",
     "mode": "NULLABLE",
     "description": "Step-specific execution metadata as flexible JSON object. Schema varies by step_type. Examples: For gcp.bq_etl: {'destination_table': 'dataset.table', 'bytes_processed': 12345678, 'query_cost_usd': 0.05}. For data_quality: {'total_checks': 15, 'passed_count': 14, 'failed_count': 1, 'failed_expectations': [...]}. For notifications: {'recipients': ['email@example.com'], 'status': 'sent'}. JSON type provides schema flexibility for different step types without table alterations. Used for detailed step analytics, cost tracking, and audit trails."
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was created in the database"
   }
 ]

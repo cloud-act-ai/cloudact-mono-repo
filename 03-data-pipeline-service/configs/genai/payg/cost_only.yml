@@ -1,0 +1,31 @@
+# Temporary GenAI PAYG Cost Calculation Only
+#
+# Calculates costs from existing usage data (no API extraction)
+# Use this when usage data already exists in genai_payg_usage_raw
+#
+# URL: POST /api/v1/pipelines/run/{org}/genai/payg/cost_only
+
+pipeline_id: "{org_slug}-genai-payg-cost-only"
+name: "GenAI PAYG Cost Calculation Only"
+description: "Calculate costs from existing GenAI usage data (all providers)"
+provider: "genai"
+domain: "payg"
+version: "1.0.0"
+
+steps:
+  - step_id: calculate_costs
+    name: "Calculate PAYG Costs from Existing Usage"
+    ps_type: genai.payg_cost
+    config:
+      # No provider specified = process ALL providers
+      # Dates passed from context or API request (start_date/end_date)
+      force_reprocess: false
+    timeout_seconds: 600
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email
+  on_success: []

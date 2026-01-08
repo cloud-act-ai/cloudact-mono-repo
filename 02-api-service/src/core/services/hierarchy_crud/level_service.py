@@ -35,54 +35,65 @@ CENTRAL_DATASET = "organizations"
 
 # Default levels to seed for new organizations
 # Based on FinOps Foundation enterprise structure for large organizations
+#
+# STANDARD HIERARCHY STRUCTURE (N-Level Configurable):
+# ┌─────────────────────────────────────────────────────────────────┐
+# │  Level 1: Department (DEPT-)  - C-Suite / Executive             │
+# │  Level 2: Project (PROJ-)     - Business Units / Cost Centers   │
+# │  Level 3: Team (TEAM-)        - Functions / Teams               │
+# └─────────────────────────────────────────────────────────────────┘
+#
+# Entity ID Format: {PREFIX}{CODE}
+# Examples: DEPT-CFO, PROJ-ENGINEERING, TEAM-PLATFORM
+#
 DEFAULT_LEVELS = [
     {
         "level": 1,
-        "level_code": "c_suite",
-        "level_name": "C-Suite",
-        "level_name_plural": "C-Suite Executives",
+        "level_code": "department",
+        "level_name": "Department",
+        "level_name_plural": "Departments",
         "parent_level": None,
         "is_required": False,
         "is_leaf": False,
         "max_children": None,
-        "id_prefix": "CSUITE-",
+        "id_prefix": "DEPT-",
         "id_auto_generate": False,
         "metadata_schema": None,
         "display_order": 1,
-        "icon": "crown",
+        "icon": "building-2",
         "color": "#0D4D56",  # Dark teal - executive level
     },
     {
         "level": 2,
-        "level_code": "business_unit",
-        "level_name": "Business Unit",
-        "level_name_plural": "Business Units",
+        "level_code": "project",
+        "level_name": "Project",
+        "level_name_plural": "Projects",
         "parent_level": 1,
         "is_required": True,
         "is_leaf": False,
         "max_children": None,
-        "id_prefix": "BU-",
+        "id_prefix": "PROJ-",
         "id_auto_generate": False,
         "metadata_schema": None,
         "display_order": 2,
-        "icon": "building-2",
-        "color": "#1A9FB2",  # Teal - business unit level
+        "icon": "folder-kanban",
+        "color": "#1A9FB2",  # Teal - project/BU level
     },
     {
         "level": 3,
-        "level_code": "function",
-        "level_name": "Function",
-        "level_name_plural": "Functions",
+        "level_code": "team",
+        "level_name": "Team",
+        "level_name_plural": "Teams",
         "parent_level": 2,
         "is_required": True,
         "is_leaf": True,
         "max_children": None,
-        "id_prefix": "FUNC-",
+        "id_prefix": "TEAM-",
         "id_auto_generate": False,
         "metadata_schema": None,
         "display_order": 3,
         "icon": "users",
-        "color": "#90FCA6",  # Mint - function/team level
+        "color": "#90FCA6",  # Mint - team level
     },
 ]
 

@@ -543,8 +543,12 @@ async def trigger_templated_pipeline(
     else:
         pipeline_id = f"{org_slug}-{category}-{domain}-{template_name}"
 
-    # File identifier for config lookup (just the template name for glob search)
-    file_identifier = template_name  # e.g., "billing"
+    # File identifier for config lookup (full path structure for disambiguation)
+    # Examples: "cloud/aws/cost/focus_convert", "genai/unified/consolidate", "subscription/costs/subscription_cost"
+    if provider:
+        file_identifier = f"{category}/{provider}/{domain}/{template_name}"
+    else:
+        file_identifier = f"{category}/{domain}/{template_name}"
 
     # Get template path using category-based structure
     template_path = get_template_path(category, provider, domain, template_name)

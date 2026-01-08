@@ -150,7 +150,7 @@ def sample_infrastructure_pricing() -> List[Dict[str, Any]]:
 
 @pytest.fixture
 def sample_payg_usage() -> List[Dict[str, Any]]:
-    """Sample PAYG usage data."""
+    """Sample PAYG usage data with 10-level hierarchy."""
     today = date.today()
     return [
         {
@@ -164,11 +164,27 @@ def sample_payg_usage() -> List[Dict[str, Any]]:
             "output_tokens": 1_000_000,
             "cached_input_tokens": 2_000_000,
             "request_count": 10000,
-            "hierarchy_entity_id": "TEAM-001",
-            "hierarchy_entity_name": "ML Team",
-            "hierarchy_level_code": "TEAM",
-            "hierarchy_path": "/DEPT-001/PROJ-001/TEAM-001",
-            "hierarchy_path_names": "/Engineering/AI Platform/ML Team"
+            # 10-level hierarchy (v15.0+)
+            "hierarchy_level_1_id": "DEPT-001",
+            "hierarchy_level_1_name": "Engineering",
+            "hierarchy_level_2_id": "PROJ-001",
+            "hierarchy_level_2_name": "AI Platform",
+            "hierarchy_level_3_id": "TEAM-001",
+            "hierarchy_level_3_name": "ML Team",
+            "hierarchy_level_4_id": None,
+            "hierarchy_level_4_name": None,
+            "hierarchy_level_5_id": None,
+            "hierarchy_level_5_name": None,
+            "hierarchy_level_6_id": None,
+            "hierarchy_level_6_name": None,
+            "hierarchy_level_7_id": None,
+            "hierarchy_level_7_name": None,
+            "hierarchy_level_8_id": None,
+            "hierarchy_level_8_name": None,
+            "hierarchy_level_9_id": None,
+            "hierarchy_level_9_name": None,
+            "hierarchy_level_10_id": None,
+            "hierarchy_level_10_name": None
         },
         {
             "org_slug": TEST_ORG_SLUG,
@@ -181,11 +197,27 @@ def sample_payg_usage() -> List[Dict[str, Any]]:
             "output_tokens": 500_000,
             "cached_input_tokens": 1_000_000,
             "request_count": 5000,
-            "hierarchy_entity_id": "TEAM-002",
-            "hierarchy_entity_name": "Data Team",
-            "hierarchy_level_code": "TEAM",
-            "hierarchy_path": "/DEPT-001/PROJ-002/TEAM-002",
-            "hierarchy_path_names": "/Engineering/Data Platform/Data Team"
+            # 10-level hierarchy (v15.0+)
+            "hierarchy_level_1_id": "DEPT-001",
+            "hierarchy_level_1_name": "Engineering",
+            "hierarchy_level_2_id": "PROJ-002",
+            "hierarchy_level_2_name": "Data Platform",
+            "hierarchy_level_3_id": "TEAM-002",
+            "hierarchy_level_3_name": "Data Team",
+            "hierarchy_level_4_id": None,
+            "hierarchy_level_4_name": None,
+            "hierarchy_level_5_id": None,
+            "hierarchy_level_5_name": None,
+            "hierarchy_level_6_id": None,
+            "hierarchy_level_6_name": None,
+            "hierarchy_level_7_id": None,
+            "hierarchy_level_7_name": None,
+            "hierarchy_level_8_id": None,
+            "hierarchy_level_8_name": None,
+            "hierarchy_level_9_id": None,
+            "hierarchy_level_9_name": None,
+            "hierarchy_level_10_id": None,
+            "hierarchy_level_10_name": None
         }
     ]
 
@@ -478,26 +510,28 @@ class TestUsageAggregationPipeline:
             assert totals["total_input_tokens"] > 0
 
     def test_hierarchy_usage_aggregation(self, sample_payg_usage):
-        """Test usage aggregation by hierarchy entity (N-level)."""
-        by_entity: Dict[str, Dict] = {}
+        """Test usage aggregation by hierarchy entity (10-level)."""
+        by_level_3: Dict[str, Dict] = {}
 
         for usage in sample_payg_usage:
-            entity_id = usage.get("hierarchy_entity_id", "unassigned")
-            if entity_id not in by_entity:
-                by_entity[entity_id] = {
-                    "entity_name": usage.get("hierarchy_entity_name", "Unassigned"),
-                    "level_code": usage.get("hierarchy_level_code", "UNKNOWN"),
+            # Aggregate by level 3 (team)
+            entity_id = usage.get("hierarchy_level_3_id", "unassigned")
+            if entity_id not in by_level_3:
+                by_level_3[entity_id] = {
+                    "entity_name": usage.get("hierarchy_level_3_name", "Unassigned"),
+                    "level_1_id": usage.get("hierarchy_level_1_id"),
+                    "level_2_id": usage.get("hierarchy_level_2_id"),
                     "total_input_tokens": 0,
                     "total_output_tokens": 0,
                     "total_requests": 0
                 }
 
-            by_entity[entity_id]["total_input_tokens"] += usage["input_tokens"]
-            by_entity[entity_id]["total_output_tokens"] += usage["output_tokens"]
-            by_entity[entity_id]["total_requests"] += usage["request_count"]
+            by_level_3[entity_id]["total_input_tokens"] += usage["input_tokens"]
+            by_level_3[entity_id]["total_output_tokens"] += usage["output_tokens"]
+            by_level_3[entity_id]["total_requests"] += usage["request_count"]
 
         # Verify aggregation
-        assert len(by_entity) >= 1
+        assert len(by_level_3) >= 1
 
 
 # ============================================================================

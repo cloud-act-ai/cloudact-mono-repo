@@ -1,18 +1,21 @@
 entity_id,entity_name,level,level_code,parent_id,owner_name,owner_email,description,metadata,sort_order
-CSUITE-CFO,Group CFO,1,c_suite,,CFO,cfo@company.com,Chief Financial Officer - Financial strategy and cost governance,"{""role"": ""executive"", ""finops_focus"": ""budget_alignment""}",1
-CSUITE-CIO,Group CIO,1,c_suite,,CIO,cio@company.com,Chief Information Officer - IT strategy and technology investments,"{""role"": ""executive"", ""finops_focus"": ""technology_optimization""}",2
-CSUITE-COO,Group COO,1,c_suite,,COO,coo@company.com,Chief Operating Officer - Operations and efficiency,"{""role"": ""executive"", ""finops_focus"": ""operational_efficiency""}",3
-CSUITE-BL,Business Lines,1,c_suite,,Business Head,bizlines@company.com,Business Lines - Revenue generating divisions,"{""role"": ""executive"", ""finops_focus"": ""value_realization""}",4
-BU-CIO1,BU 1 CIO,2,business_unit,CSUITE-CIO,BU1 CIO Lead,bu1cio@company.com,Business Unit 1 CIO - Application optimization,"{""role"": ""bu_leader"", ""finops_focus"": ""application_optimization""}",1
-BU-CIO2,BU 2 CIO,2,business_unit,CSUITE-CIO,BU2 CIO Lead,bu2cio@company.com,Business Unit 2 CIO - Application optimization,"{""role"": ""bu_leader"", ""finops_focus"": ""application_optimization""}",2
-BU-CTO,CTO,2,business_unit,CSUITE-CIO,CTO,cto@company.com,Chief Technology Officer - Platform efficiency and tooling,"{""role"": ""technology_leader"", ""finops_focus"": ""platform_efficiency""}",3
-BU-ITCOO,IT COO,2,business_unit,CSUITE-CIO,IT COO,itcoo@company.com,IT COO - Cost optimization and FinOps leadership,"{""role"": ""operations_leader"", ""finops_focus"": ""cost_optimization""}",4
-BU-BIZCOO,Business COOs,2,business_unit,CSUITE-COO,Biz COO Lead,bizcoo@company.com,Business COOs - Risk assessment and value focus,"{""role"": ""operations_leader"", ""finops_focus"": ""risk_value""}",1
-BU-PROC,Procurement,2,business_unit,CSUITE-COO,CPO,cpo@company.com,Procurement - Vendor management and cost negotiation,"{""role"": ""procurement_leader"", ""finops_focus"": ""vendor_optimization""}",2
-BU-GRPOPS,Group Operations,2,business_unit,CSUITE-COO,Group Ops Head,grpops@company.com,Group Operations - Enterprise-wide operational efficiency,"{""role"": ""operations_leader"", ""finops_focus"": ""metrics_alignment""}",3
-FUNC-PLAT,Platforms,3,function,BU-CTO,Platform Lead,platforms@company.com,Platform Engineering - Cloud platforms and DevOps,"{""role"": ""team"", ""finops_focus"": ""platform_costs""}",1
-FUNC-ARCH,Architecture,3,function,BU-CTO,Chief Architect,architecture@company.com,Enterprise Architecture - System design and standards,"{""role"": ""team"", ""finops_focus"": ""architecture_efficiency""}",2
-FUNC-INFRA,Infrastructure,3,function,BU-CTO,Infra Lead,infra@company.com,Infrastructure - Cloud infrastructure and networking,"{""role"": ""team"", ""finops_focus"": ""infrastructure_costs""}",3
-FUNC-TC,Technology Centres,3,function,BU-CTO,TC Head,techcentres@company.com,Technology Centres - Regional tech hubs and innovation,"{""role"": ""team"", ""finops_focus"": ""regional_costs""}",4
-FUNC-DATA,Data,3,function,BU-CTO,CDO,data@company.com,Data Engineering - Data platforms and AI/ML infrastructure,"{""role"": ""team"", ""finops_focus"": ""data_costs""}",5
-FUNC-FINOPS,FinOps,3,function,BU-ITCOO,FinOps Lead,finops@company.com,FinOps Team - Cloud financial management and optimization,"{""role"": ""team"", ""finops_focus"": ""central_finops""}",1
+DEPT-CFO,Group CFO,1,c_suite,,Sarah Mitchell,sarah.mitchell@acmeinc.com,Finance and financial operations - FinOps budget alignment,"{""role"": ""executive"", ""finops_focus"": ""budget_alignment""}",1
+DEPT-CIO,Group CIO,1,c_suite,,Michael Chen,michael.chen@acmeinc.com,Information technology and digital transformation,"{""role"": ""executive"", ""finops_focus"": ""technology_optimization""}",2
+DEPT-COO,Group COO,1,c_suite,,Jennifer Williams,jennifer.williams@acmeinc.com,Operations and business efficiency,"{""role"": ""executive"", ""finops_focus"": ""operational_efficiency""}",3
+DEPT-BIZ,Business Lines,1,c_suite,,Robert Garcia,robert.garcia@acmeinc.com,Business units and product lines,"{""role"": ""executive"", ""finops_focus"": ""value_realization""}",4
+PROJ-BU1,Business Unit 1 IT,2,business_unit,DEPT-CIO,David Kim,david.kim@acmeinc.com,BU 1 CIO - Application optimization,"{""role"": ""bu_leader"", ""finops_focus"": ""application_optimization""}",1
+PROJ-BU2,Business Unit 2 IT,2,business_unit,DEPT-CIO,Lisa Anderson,lisa.anderson@acmeinc.com,BU 2 CIO - Application optimization,"{""role"": ""bu_leader"", ""finops_focus"": ""application_optimization""}",2
+PROJ-CTO,Engineering,2,business_unit,DEPT-CIO,James Wilson,james.wilson@acmeinc.com,CTO office - Central technology and tooling,"{""role"": ""technology_leader"", ""finops_focus"": ""platform_efficiency""}",3
+PROJ-ITCOO,IT Operations,2,business_unit,DEPT-CIO,Amanda Brown,amanda.brown@acmeinc.com,IT COO - Operations and FinOps,"{""role"": ""operations_leader"", ""finops_focus"": ""cost_optimization""}",4
+PROJ-BIZCOO,Business Operations,2,business_unit,DEPT-COO,Thomas Martinez,thomas.martinez@acmeinc.com,Business COOs - Risk and value focus,"{""role"": ""operations_leader"", ""finops_focus"": ""risk_value""}",1
+PROJ-PROC,Procurement,2,business_unit,DEPT-COO,Emily Davis,emily.davis@acmeinc.com,Procurement and vendor management,"{""role"": ""procurement_leader"", ""finops_focus"": ""vendor_optimization""}",2
+PROJ-GRPOPS,Group Operations,2,business_unit,DEPT-COO,Christopher Lee,christopher.lee@acmeinc.com,Central operations and metrics alignment,"{""role"": ""operations_leader"", ""finops_focus"": ""metrics_alignment""}",3
+TEAM-PLATFORMS,Platforms,3,function,PROJ-CTO,Kevin Zhang,kevin.zhang@acmeinc.com,Platform engineering team,"{""role"": ""team"", ""finops_focus"": ""platform_costs""}",1
+TEAM-ARCH,Architecture,3,function,PROJ-CTO,Rachel Thompson,rachel.thompson@acmeinc.com,Enterprise architecture team,"{""role"": ""team"", ""finops_focus"": ""architecture_efficiency""}",2
+TEAM-INFRA,Infrastructure,3,function,PROJ-CTO,Daniel Harris,daniel.harris@acmeinc.com,Infrastructure and cloud team,"{""role"": ""team"", ""finops_focus"": ""infrastructure_costs""}",3
+TEAM-TECHCTR,Technology Centres,3,function,PROJ-CTO,Michelle Robinson,michelle.robinson@acmeinc.com,Technology centres of excellence,"{""role"": ""team"", ""finops_focus"": ""regional_costs""}",4
+TEAM-DATA,Data,3,function,PROJ-CTO,Andrew Clark,andrew.clark@acmeinc.com,Data engineering and analytics,"{""role"": ""team"", ""finops_focus"": ""data_costs""}",5
+TEAM-FINOPS,FinOps,3,function,PROJ-ITCOO,Jessica Taylor,jessica.taylor@acmeinc.com,Cloud financial operations and optimization,"{""role"": ""team"", ""finops_focus"": ""central_finops""}",1
+TEAM-ITSUPPORT,IT Support,3,function,PROJ-ITCOO,Ryan Johnson,ryan.johnson@acmeinc.com,IT support and service desk,"{""role"": ""team"", ""finops_focus"": ""support_costs""}",2
+TEAM-BU1APP,BU1 Applications,3,function,PROJ-BU1,Nicole White,nicole.white@acmeinc.com,Business Unit 1 application development,"{""role"": ""team"", ""finops_focus"": ""application_costs""}",1
+TEAM-BU2APP,BU2 Applications,3,function,PROJ-BU2,Brandon Moore,brandon.moore@acmeinc.com,Business Unit 2 application development,"{""role"": ""team"", ""finops_focus"": ""application_costs""}",1

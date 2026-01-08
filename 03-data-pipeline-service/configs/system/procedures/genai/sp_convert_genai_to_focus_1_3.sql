@@ -34,6 +34,18 @@ BEGIN
   ASSERT p_dataset_id IS NOT NULL AS "p_dataset_id cannot be NULL";
   ASSERT p_cost_date IS NOT NULL AS "p_cost_date cannot be NULL";
 
+  -- BUG SEC-01 FIX: Validate identifiers to prevent SQL injection
+  ASSERT REGEXP_CONTAINS(p_project_id, r'^[a-z][a-z0-9\-]*[a-z0-9]$')
+    AS "Invalid project_id format - must match GCP project naming rules";
+  ASSERT REGEXP_CONTAINS(p_dataset_id, r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+    AS "Invalid dataset_id format - must be valid BigQuery dataset name";
+
+  -- BUG VAL-04 FIX: Add date validation
+  ASSERT p_cost_date <= CURRENT_DATE()
+    AS "p_cost_date cannot be in the future";
+  ASSERT p_cost_date >= DATE('2020-01-01')
+    AS "p_cost_date must be after 2020-01-01";
+
   BEGIN TRANSACTION;
 
     -- Step 1: Delete existing GenAI FOCUS records for this date AND credential (idempotent)
@@ -68,9 +80,17 @@ BEGIN
        ChargeCategory, ChargeType, ChargeFrequency,
        SubAccountId, SubAccountName,
        x_genai_cost_type, x_genai_provider, x_genai_model,
-       x_hierarchy_entity_id, x_hierarchy_entity_name,
-       x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
-       x_hierarchy_validated_at,  -- Issue #8-11 FIX: Add hierarchy validation timestamp
+       x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+       x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+       x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+       x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+       x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+       x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+       x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+       x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+       x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+       x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+       x_hierarchy_validated_at,  -- Validation timestamp for hierarchy assignment
        -- STATE-001 FIX: Required lineage columns for FOCUS 1.3 (Issue #1: snake_case)
        -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
@@ -169,14 +189,29 @@ BEGIN
         cost_type as x_genai_cost_type,
         provider as x_genai_provider,
         model as x_genai_model,
-        hierarchy_entity_id as x_hierarchy_entity_id,
-        hierarchy_entity_name as x_hierarchy_entity_name,
-        hierarchy_level_code as x_hierarchy_level_code,
-        hierarchy_path as x_hierarchy_path,
-        hierarchy_path_names as x_hierarchy_path_names,
-        -- Issue #8-11 FIX: Set validation timestamp when hierarchy entity is set
+        hierarchy_level_1_id as x_hierarchy_level_1_id,
+        hierarchy_level_1_name as x_hierarchy_level_1_name,
+        hierarchy_level_2_id as x_hierarchy_level_2_id,
+        hierarchy_level_2_name as x_hierarchy_level_2_name,
+        hierarchy_level_3_id as x_hierarchy_level_3_id,
+        hierarchy_level_3_name as x_hierarchy_level_3_name,
+        hierarchy_level_4_id as x_hierarchy_level_4_id,
+        hierarchy_level_4_name as x_hierarchy_level_4_name,
+        hierarchy_level_5_id as x_hierarchy_level_5_id,
+        hierarchy_level_5_name as x_hierarchy_level_5_name,
+        hierarchy_level_6_id as x_hierarchy_level_6_id,
+        hierarchy_level_6_name as x_hierarchy_level_6_name,
+        hierarchy_level_7_id as x_hierarchy_level_7_id,
+        hierarchy_level_7_name as x_hierarchy_level_7_name,
+        hierarchy_level_8_id as x_hierarchy_level_8_id,
+        hierarchy_level_8_name as x_hierarchy_level_8_name,
+        hierarchy_level_9_id as x_hierarchy_level_9_id,
+        hierarchy_level_9_name as x_hierarchy_level_9_name,
+        hierarchy_level_10_id as x_hierarchy_level_10_id,
+        hierarchy_level_10_name as x_hierarchy_level_10_name,
+        -- Set validation timestamp when any hierarchy level is set
         CASE
-          WHEN hierarchy_entity_id IS NOT NULL
+          WHEN hierarchy_level_1_id IS NOT NULL
           THEN CURRENT_TIMESTAMP()
           ELSE NULL
         END as x_hierarchy_validated_at,

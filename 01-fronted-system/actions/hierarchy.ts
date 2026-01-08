@@ -298,6 +298,10 @@ export async function getHierarchy(
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
+    // HIERARCHY-DEBUG: Log API key retrieval for debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[getHierarchy] API key for ${orgSlug}:`, apiKey ? "found" : "NOT FOUND")
+    }
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }

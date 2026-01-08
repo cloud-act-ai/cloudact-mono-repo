@@ -597,9 +597,18 @@ class Settings(BaseSettings):
         if not value:
             raise ValueError(f"{param_name} cannot be empty")
 
-        # CRITICAL: Only allow safe characters - alphanumeric, underscore, hyphen
-        # This prevents: ../, ..\, /, \, etc.
-        safe_pattern = r'^[a-zA-Z0-9_-]+$'
+        # CRITICAL: Prevent path traversal attacks
+        # Allow forward slashes for path-based pipeline IDs (e.g., "cloud/aws/cost/focus_convert")
+        # but reject path traversal patterns and absolute paths
+        if '..' in value:
+            raise ValueError(f"{param_name} contains path traversal pattern '..'")
+        if value.startswith('/'):
+            raise ValueError(f"{param_name} cannot start with '/' (absolute path)")
+        if '\\' in value:
+            raise ValueError(f"{param_name} contains backslash (Windows path separator)")
+
+        # Allow alphanumeric, underscore, hyphen, and forward slash
+        safe_pattern = r'^[a-zA-Z0-9_/-]+$'
         if not re.match(safe_pattern, value):
             raise ValueError(
                 f"{param_name} contains invalid characters. "
@@ -641,37 +650,69 @@ class Settings(BaseSettings):
                 f"Organization path {org_base_path} escapes base configs directory {configs_base_abs}"
             )
 
-        # First try organization-specific config
-        matches = list(org_base_path.glob(f"**/{pipeline_id}.yml"))
+        # Support two formats for pipeline_id:
+        # 1. Simple name: "focus_convert" -> search with glob
+        # 2. Path-based: "cloud/aws/cost/focus_convert" -> direct path construction
 
-        # SECURITY: Verify all matched paths are within org directory
-        safe_matches = []
-        for match in matches:
-            try:
-                match.relative_to(org_base_path)
-                safe_matches.append(match)
-            except ValueError:
-                # Path escaped org directory - reject it
-                continue
-        matches = safe_matches
-
-        # If not found in org directory, try shared templates
-        if not matches:
-            shared_base_path = configs_base_abs
-            all_matches = list(shared_base_path.glob(f"**/{pipeline_id}.yml"))
-
-            # SECURITY: Verify all matched paths are within configs directory
-            safe_shared_matches = []
-            for match in all_matches:
+        if "/" in pipeline_id:
+            # Path-based format (e.g., "cloud/aws/cost/focus_convert")
+            # Try org-specific path first
+            org_specific_path = org_base_path / f"{pipeline_id}.yml"
+            if org_specific_path.exists():
+                # SECURITY: Verify path is within org directory
                 try:
-                    match.relative_to(configs_base_abs)
-                    safe_shared_matches.append(match)
+                    org_specific_path.relative_to(org_base_path)
+                    matches = [org_specific_path]
                 except ValueError:
-                    # Path escaped configs directory - reject it
-                    continue
+                    matches = []
+            else:
+                # Try shared config path
+                shared_path = configs_base_abs / f"{pipeline_id}.yml"
+                if shared_path.exists():
+                    # SECURITY: Verify path is within configs directory and not in org path
+                    try:
+                        shared_path.relative_to(configs_base_abs)
+                        if not str(shared_path).startswith(str(org_base_path)):
+                            matches = [shared_path]
+                        else:
+                            matches = []
+                    except ValueError:
+                        matches = []
+                else:
+                    matches = []
+        else:
+            # Legacy simple name format (e.g., "focus_convert")
+            # Search with glob pattern
+            matches = list(org_base_path.glob(f"**/{pipeline_id}.yml"))
 
-            # Filter out org-specific paths from shared search
-            matches = [m for m in safe_shared_matches if not str(m).startswith(str(org_base_path))]
+            # SECURITY: Verify all matched paths are within org directory
+            safe_matches = []
+            for match in matches:
+                try:
+                    match.relative_to(org_base_path)
+                    safe_matches.append(match)
+                except ValueError:
+                    # Path escaped org directory - reject it
+                    continue
+            matches = safe_matches
+
+            # If not found in org directory, try shared templates
+            if not matches:
+                shared_base_path = configs_base_abs
+                all_matches = list(shared_base_path.glob(f"**/{pipeline_id}.yml"))
+
+                # SECURITY: Verify all matched paths are within configs directory
+                safe_shared_matches = []
+                for match in all_matches:
+                    try:
+                        match.relative_to(configs_base_abs)
+                        safe_shared_matches.append(match)
+                    except ValueError:
+                        # Path escaped configs directory - reject it
+                        continue
+
+                # Filter out org-specific paths from shared search
+                matches = [m for m in safe_shared_matches if not str(m).startswith(str(org_base_path))]
 
         if not matches:
             raise FileNotFoundError(

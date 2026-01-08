@@ -214,12 +214,22 @@ async def lifespan(app: FastAPI):
                     columns_added = {}
                     tables_created = []
 
-                    # Process each table in config
-                    for table_name, table_config in config.get('tables', {}).items():
+                    # Process each table in config.yml order (dependency-safe)
+                    # BUG-004 FIX: Explicit ordering instead of dict iteration
+                    tables_config = config.get('tables', {})
+                    table_names = list(tables_config.keys())
+                    total_tables = len(table_names)
+
+                    for idx, table_name in enumerate(table_names, 1):
+                        table_config = tables_config[table_name]
                         schema_file = schemas_dir / f"{table_name}.json"
 
                         if not schema_file.exists():
+                            logger.warning(f"Auto-sync [{idx}/{total_tables}]: Schema file not found for {table_name}")
                             continue
+
+                        # BUG-009 FIX: Log table processing order
+                        logger.debug(f"Auto-sync [{idx}/{total_tables}]: Processing table {table_name}")
 
                         with open(schema_file, 'r') as f:
                             schema_json = json.load(f)

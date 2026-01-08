@@ -37,8 +37,14 @@ class CostQuery:
     fiscal_year_start_month: int = 1  # From org settings
     providers: Optional[List[str]] = None
     service_categories: Optional[List[str]] = None
-    # N-level hierarchy filters
-    hierarchy_entity_id: Optional[str] = None
+    # 10-level hierarchy filters (v15.0)
+    department_id: Optional[str] = None  # Level 1 filter
+    project_id: Optional[str] = None     # Level 2 filter
+    team_id: Optional[str] = None        # Level 3 filter
+    # Generic level filter (for levels 4-10)
+    hierarchy_level: Optional[int] = None      # Level number (1-10)
+    hierarchy_entity_id: Optional[str] = None  # Entity ID to filter by
+    # Legacy filters (deprecated - use level-specific filters above)
     hierarchy_path: Optional[str] = None
     group_by: Optional[List[str]] = None
     limit: int = 10000
@@ -65,6 +71,10 @@ class CostQuery:
             f"end:{resolved_end}",
             f"providers:{sorted(self.providers or [])}",
             f"categories:{sorted(self.service_categories or [])}",
+            f"dept:{self.department_id or ''}",
+            f"proj:{self.project_id or ''}",
+            f"team:{self.team_id or ''}",
+            f"level:{self.hierarchy_level or ''}",
             f"entity:{self.hierarchy_entity_id or ''}",
             f"path:{self.hierarchy_path or ''}",
             f"group:{sorted(self.group_by or [])}",

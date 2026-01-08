@@ -46,5 +46,11 @@
     "type": "TIMESTAMP",
     "mode": "NULLABLE",
     "description": "Timestamp when processing started"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was created in the database"
   }
 ]

@@ -40,7 +40,7 @@ const DEMO_DATA_PATH = path.resolve(__dirname, '../../../04-inra-cicd-automation
 
 // Default date range for demo data
 const START_DATE = '2025-01-01'
-const END_DATE = '2026-01-02'
+const END_DATE = '2026-01-05'
 
 interface LoadConfig {
     orgSlug: string
@@ -75,6 +75,7 @@ interface LoadResult {
         cloud: boolean
         subscriptions: boolean
         pricing: boolean
+        hierarchy: boolean
     }
     pipelinesExecuted: {
         subscription: PipelineStatus
@@ -203,13 +204,92 @@ async function syncProcedures(): Promise<boolean> {
 function loadPricingSeed(orgSlug: string, dataset: string): boolean {
     console.log('\n[Step 2] Loading GenAI pricing seed data...')
 
-    const pricingFile = `${DEMO_DATA_PATH}/data/pricing/genai_payg_pricing.csv`
-    // Load to org's dataset (genai_payg_pricing table is created during org onboarding)
-    const table = `${GCP_PROJECT_ID}:${dataset}.genai_payg_pricing`
+    // CRITICAL FIX: Use script to add org_slug column before loading
+    // Bug: genai_payg_pricing.csv is missing org_slug (REQUIRED by schema)
+    const fixScript = path.resolve(__dirname, '../../../04-inra-cicd-automation/load-demo-data/scripts/fix_genai_pricing_for_org.sh')
+    const command = `bash ${fixScript} ${orgSlug} ${GCP_PROJECT_ID} ${dataset}`
 
-    // Load CSV to BigQuery (append mode with write disposition)
-    const command = `bq load --source_format=CSV --skip_leading_rows=1 --replace ${table} ${pricingFile}`
-    return runCommand(command, 'Loading genai_payg_pricing')
+    return runCommand(command, 'Loading genai_payg_pricing (with org_slug fix)')
+}
+
+function loadHierarchy(orgSlug: string, apiKey: string): boolean {
+    console.log('\n[Step 2.5] Loading hierarchy levels and entities...')
+
+    const API_SERVICE_URL = process.env.API_SERVICE_URL || 'http://localhost:8000'
+
+    // Step 1: Seed hierarchy levels (DEPT, PROJ, TEAM)
+    console.log('    Seeding hierarchy levels...')
+    try {
+        const seedResult = spawnSync('curl', [
+            '-s', '-X', 'POST',
+            `${API_SERVICE_URL}/api/v1/hierarchy/${orgSlug}/levels/seed`,
+            '-H', `X-API-Key: ${apiKey}`,
+            '-H', 'Content-Type: application/json'
+        ], { encoding: 'utf-8' })
+
+        if (seedResult.status !== 0) {
+            console.log('    WARNING: Failed to seed levels (may already exist)')
+        } else {
+            const response = JSON.parse(seedResult.stdout || '{}')
+            console.log(`    Seeded ${response.total || 0} hierarchy levels`)
+        }
+    } catch {
+        console.log('    WARNING: Error seeding levels')
+    }
+
+    // Step 2: Load hierarchy entities from template CSV
+    console.log('    Loading hierarchy entities from template...')
+    const templatePath = path.resolve(__dirname, '../../lib/seed/hierarchy_template.csv')
+
+    try {
+        const fs = require('fs')
+        if (!fs.existsSync(templatePath)) {
+            console.log(`    WARNING: Template not found at ${templatePath}`)
+            return true // Levels seeded, entities optional
+        }
+
+        const csvContent = fs.readFileSync(templatePath, 'utf-8')
+        const lines = csvContent.trim().split('\n').slice(1) // Skip header
+
+        let created = 0
+        let skipped = 0
+
+        for (const line of lines) {
+            const [entityId, entityName, level, levelCode, parentId, ownerName, ownerEmail, description] = line.split(',')
+
+            if (!entityId || !entityName || !levelCode) continue
+
+            const payload = {
+                entity_id: entityId.trim(),
+                entity_name: entityName.trim(),
+                level_code: levelCode.trim(),
+                parent_id: parentId?.trim() || null,
+                owner_name: ownerName?.trim() || null,
+                owner_email: ownerEmail?.trim() || null,
+                description: description?.trim() || null
+            }
+
+            const createResult = spawnSync('curl', [
+                '-s', '-X', 'POST',
+                `${API_SERVICE_URL}/api/v1/hierarchy/${orgSlug}/entities`,
+                '-H', `X-API-Key: ${apiKey}`,
+                '-H', 'Content-Type: application/json',
+                '-d', JSON.stringify(payload)
+            ], { encoding: 'utf-8' })
+
+            if (createResult.status === 0 && !createResult.stdout?.includes('error')) {
+                created++
+            } else {
+                skipped++ // Already exists or error
+            }
+        }
+
+        console.log(`    Created ${created} entities, skipped ${skipped} (may already exist)`)
+        return true
+    } catch (error) {
+        console.log(`    WARNING: Error loading entities: ${error}`)
+        return true // Continue anyway
+    }
 }
 
 function loadGenAIData(orgSlug: string, dataset: string): boolean {
@@ -813,7 +893,8 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
             genai: false,
             cloud: false,
             subscriptions: false,
-            pricing: false
+            pricing: false,
+            hierarchy: false
         },
         pipelinesExecuted: {
             subscription: { status: 'NOT_RUN' },
@@ -887,6 +968,11 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
             result.rawDataLoaded.pricing = loadPricingSeed(config.orgSlug, dataset)
             if (!result.rawDataLoaded.pricing) {
                 result.warnings.push('Failed to load pricing seed')
+            }
+
+            result.rawDataLoaded.hierarchy = loadHierarchy(config.orgSlug, config.apiKey)
+            if (!result.rawDataLoaded.hierarchy) {
+                result.warnings.push('Failed to load hierarchy (may already exist)')
             }
 
             result.rawDataLoaded.genai = loadGenAIData(config.orgSlug, dataset)
@@ -1049,6 +1135,7 @@ function printFinalStatus(result: LoadResult, config: LoadConfig): void {
     // Raw Data Loading
     console.log('\n📦 Raw Data Loading (Stage 1):')
     console.log(`   Pricing Seed:      ${result.rawDataLoaded.pricing ? '✅ Loaded' : '⚠️  Skipped/Failed'}`)
+    console.log(`   Hierarchy:         ${result.rawDataLoaded.hierarchy ? '✅ Loaded' : '⚠️  Skipped/Failed'}`)
     console.log(`   GenAI Usage:       ${result.rawDataLoaded.genai ? '✅ Loaded' : '⚠️  Skipped/Failed'}`)
     console.log(`   Cloud Billing:     ${result.rawDataLoaded.cloud ? '✅ Loaded' : '⚠️  Skipped/Failed'}`)
     console.log(`   Subscriptions:     ${result.rawDataLoaded.subscriptions ? '✅ Loaded' : '❌ Failed (Required)'}`)

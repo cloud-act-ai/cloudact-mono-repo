@@ -1,28 +1,254 @@
 [
-  {"name": "cost_date", "type": "DATE", "mode": "REQUIRED", "description": "Date of cost (partition field)."},
-  {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy."},
-  {"name": "provider", "type": "STRING", "mode": "REQUIRED", "description": "Infrastructure provider: gcp_gpu, aws_gpu, azure_gpu, etc."},
-  {"name": "resource_type", "type": "STRING", "mode": "REQUIRED", "description": "Resource type: gpu, tpu, inferentia, trainium."},
-  {"name": "instance_type", "type": "STRING", "mode": "REQUIRED", "description": "Instance type used. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."},
-  {"name": "gpu_type", "type": "STRING", "mode": "NULLABLE", "description": "GPU/accelerator type. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."},
-  {"name": "region", "type": "STRING", "mode": "REQUIRED", "description": "Cloud region. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."},
-  {"name": "instance_count", "type": "INT64", "mode": "NULLABLE", "description": "Number of instances."},
-  {"name": "hours_used", "type": "FLOAT64", "mode": "NULLABLE", "description": "Total instance-hours."},
-  {"name": "gpu_hours", "type": "FLOAT64", "mode": "NULLABLE", "description": "Total GPU-hours."},
-  {"name": "pricing_type", "type": "STRING", "mode": "NULLABLE", "description": "Pricing type: on_demand, spot, reserved."},
-  {"name": "base_cost_usd", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost before discounts in USD."},
-  {"name": "discount_applied_usd", "type": "FLOAT64", "mode": "NULLABLE", "description": "Discount amount in USD."},
-  {"name": "total_cost_usd", "type": "FLOAT64", "mode": "REQUIRED", "description": "Total daily cost in USD."},
-  {"name": "effective_hourly_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Effective hourly rate after discounts."},
-  {"name": "hierarchy_entity_id", "type": "STRING", "mode": "NULLABLE", "description": "Entity ID for N-level cost allocation. Validated against x_org_hierarchy view."},
-  {"name": "hierarchy_entity_name", "type": "STRING", "mode": "NULLABLE", "description": "Entity name (denormalized from org_hierarchy)."},
-  {"name": "hierarchy_level_code", "type": "STRING", "mode": "NULLABLE", "description": "Entity level code (e.g., DEPT, PROJ, TEAM, SQUAD)."},
-  {"name": "hierarchy_path", "type": "STRING", "mode": "NULLABLE", "description": "Materialized path for N-level hierarchy (e.g., /DEPT-001/PROJ-001/TEAM-001)."},
-  {"name": "hierarchy_path_names", "type": "STRING", "mode": "NULLABLE", "description": "Human-readable path (e.g., /Engineering/AI Platform/ML Team)."},
-  {"name": "calculated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when cost was calculated."},
-  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_infrastructure_cost."},
-  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
-  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
-  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
-  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
+  {
+    "name": "cost_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of cost (partition field)."
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy."
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Infrastructure provider: gcp_gpu, aws_gpu, azure_gpu, etc."
+  },
+  {
+    "name": "resource_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Resource type: gpu, tpu, inferentia, trainium."
+  },
+  {
+    "name": "instance_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Instance type used. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."
+  },
+  {
+    "name": "gpu_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "GPU/accelerator type. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cloud region. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."
+  },
+  {
+    "name": "instance_count",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Number of instances."
+  },
+  {
+    "name": "hours_used",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Total instance-hours."
+  },
+  {
+    "name": "gpu_hours",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Total GPU-hours."
+  },
+  {
+    "name": "pricing_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Pricing type: on_demand, spot, reserved."
+  },
+  {
+    "name": "base_cost_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost before discounts in USD."
+  },
+  {
+    "name": "discount_applied_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Discount amount in USD."
+  },
+  {
+    "name": "total_cost_usd",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Total daily cost in USD."
+  },
+  {
+    "name": "effective_hourly_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Effective hourly rate after discounts."
+  },
+  {
+    "name": "hierarchy_level_1_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_1_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_2_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_2_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_3_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_3_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_4_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_4_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_5_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_5_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_6_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_6_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_7_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_7_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_8_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_8_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_9_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_9_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_10_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity ID (deepest level)."
+  },
+  {
+    "name": "hierarchy_level_10_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity name (deepest level)."
+  },
+  {
+    "name": "hierarchy_validated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table."
+  },
+  {
+    "name": "calculated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when cost was calculated."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline template name. Example: genai_infrastructure_cost."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "The DATA date being processed. KEY for idempotent re-runs."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pipeline run UUID for full traceability."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was written to this table."
+  }
 ]

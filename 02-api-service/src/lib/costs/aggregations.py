@@ -269,18 +269,16 @@ def aggregate_by_date(
 def aggregate_by_hierarchy(
     df: pl.DataFrame,
     cost_column: str = "BilledCost",
-    level_code: Optional[str] = None,
-    path_prefix: Optional[str] = None,
+    hierarchy_level: int = 1,
     include_percentage: bool = True,
 ) -> List[Dict[str, Any]]:
     """
-    Aggregate costs by organizational hierarchy (N-level support).
+    Aggregate costs by organizational hierarchy (10-level support).
 
     Args:
         df: Polars DataFrame with cost data
         cost_column: Column name for cost values
-        level_code: Filter to specific level (e.g., 'department', 'project', 'team')
-        path_prefix: Filter by path prefix for rollup queries (e.g., '/DEPT-001')
+        hierarchy_level: Level number to aggregate by (1-10, default=1 for department)
         include_percentage: Whether to calculate percentage of total
 
     Returns:
@@ -289,31 +287,28 @@ def aggregate_by_hierarchy(
     if df.is_empty():
         return []
 
-    # Check if N-level hierarchy columns exist
-    if "x_hierarchy_entity_id" not in df.columns:
+    # Validate level
+    if not 1 <= hierarchy_level <= 10:
+        raise ValueError(f"hierarchy_level must be 1-10, got {hierarchy_level}")
+
+    # Check if hierarchy columns exist for the specified level
+    level_id_col = f"x_hierarchy_level_{hierarchy_level}_id"
+    level_name_col = f"x_hierarchy_level_{hierarchy_level}_name"
+
+    if level_id_col not in df.columns:
         return []
 
     df = df.with_columns(
         pl.col(cost_column).cast(pl.Float64).alias(cost_column)
     )
 
-    # Start with non-null entity filter
-    filtered = df.lazy().filter(pl.col("x_hierarchy_entity_id").is_not_null())
+    # Filter to non-null entities at the specified level
+    filtered = df.lazy().filter(pl.col(level_id_col).is_not_null())
 
-    # Apply level filter if specified
-    if level_code and "x_hierarchy_level_code" in df.columns:
-        filtered = filtered.filter(pl.col("x_hierarchy_level_code") == level_code)
-
-    # Apply path prefix filter if specified
-    if path_prefix and "x_hierarchy_path" in df.columns:
-        filtered = filtered.filter(pl.col("x_hierarchy_path").str.starts_with(path_prefix))
-
-    # Group by entity fields
-    group_cols = ["x_hierarchy_entity_id", "x_hierarchy_entity_name"]
-    if "x_hierarchy_level_code" in df.columns:
-        group_cols.append("x_hierarchy_level_code")
-    if "x_hierarchy_path" in df.columns:
-        group_cols.append("x_hierarchy_path")
+    # Group by level ID and name
+    group_cols = [level_id_col]
+    if level_name_col in df.columns:
+        group_cols.append(level_name_col)
 
     result = (
         filtered
@@ -330,11 +325,13 @@ def aggregate_by_hierarchy(
 
     breakdown = []
     for row in result.iter_rows(named=True):
+        entity_id = row[level_id_col]
+        entity_name = row.get(level_name_col) or entity_id
+
         item = {
-            "entity_id": row["x_hierarchy_entity_id"],
-            "entity_name": row.get("x_hierarchy_entity_name") or row["x_hierarchy_entity_id"],
-            "level_code": row.get("x_hierarchy_level_code"),
-            "path": row.get("x_hierarchy_path"),
+            "entity_id": entity_id,
+            "entity_name": entity_name,
+            "hierarchy_level": hierarchy_level,
             "total_cost": round(row["total_cost"] or 0, 2),
             "record_count": row["record_count"],
         }
@@ -438,14 +435,15 @@ def aggregate_granular(
     # Define grouping columns (include hierarchy if present)
     group_cols = ["_date", provider_column]
 
-    # Add N-level hierarchy columns if they exist
+    # Add 10-level hierarchy columns if they exist
     hierarchy_cols = []
-    if "x_hierarchy_entity_id" in df.columns:
-        hierarchy_cols.append("x_hierarchy_entity_id")
-    if "x_hierarchy_level_code" in df.columns:
-        hierarchy_cols.append("x_hierarchy_level_code")
-    if "x_hierarchy_path" in df.columns:
-        hierarchy_cols.append("x_hierarchy_path")
+    for level in range(1, 11):
+        level_id_col = f"x_hierarchy_level_{level}_id"
+        level_name_col = f"x_hierarchy_level_{level}_name"
+        if level_id_col in df.columns:
+            hierarchy_cols.append(level_id_col)
+        if level_name_col in df.columns:
+            hierarchy_cols.append(level_name_col)
 
     # Add category columns if they exist
     category_cols = []
@@ -481,10 +479,12 @@ def aggregate_granular(
             "record_count": row["record_count"],
         }
 
-        # Add N-level hierarchy fields (null if not present)
-        item["entity_id"] = row.get("x_hierarchy_entity_id")
-        item["level_code"] = row.get("x_hierarchy_level_code")
-        item["hierarchy_path"] = row.get("x_hierarchy_path")
+        # Add 10-level hierarchy fields (null if not present)
+        for level in range(1, 11):
+            level_id_col = f"x_hierarchy_level_{level}_id"
+            level_name_col = f"x_hierarchy_level_{level}_name"
+            item[f"level_{level}_id"] = row.get(level_id_col)
+            item[f"level_{level}_name"] = row.get(level_name_col)
 
         # Derive category from source_system or provider
         source_system = row.get("x_source_system", "")

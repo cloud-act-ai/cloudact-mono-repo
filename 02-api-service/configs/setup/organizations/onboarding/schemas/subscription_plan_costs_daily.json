@@ -75,13 +75,13 @@
     "name": "monthly_run_rate",
     "type": "NUMERIC",
     "mode": "NULLABLE",
-    "description": "Projected monthly cost (daily_cost × days_in_month)."
+    "description": "Projected monthly cost (daily_cost \u00d7 days_in_month)."
   },
   {
     "name": "annual_run_rate",
     "type": "NUMERIC",
     "mode": "NULLABLE",
-    "description": "Projected annual cost (daily_cost × days_in_year)."
+    "description": "Projected annual cost (daily_cost \u00d7 days_in_year)."
   },
   {
     "name": "invoice_id_last",
@@ -96,34 +96,130 @@
     "description": "Source: subscription_amortization."
   },
   {
-    "name": "hierarchy_entity_id",
+    "name": "hierarchy_level_1_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Reference to org_hierarchy entity_id for cost allocation. The leaf-level entity in the hierarchy path."
+    "description": "Level 1 (root) hierarchy entity ID. Denormalized for fast aggregation."
   },
   {
-    "name": "hierarchy_entity_name",
+    "name": "hierarchy_level_1_name",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Entity name for reporting (denormalized from org_hierarchy)."
+    "description": "Level 1 (root) hierarchy entity name."
   },
   {
-    "name": "hierarchy_level_code",
+    "name": "hierarchy_level_2_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Hierarchy level code (e.g., 'department', 'project', 'team'). Identifies the depth in the hierarchy."
+    "description": "Level 2 hierarchy entity ID. Denormalized for fast aggregation."
   },
   {
-    "name": "hierarchy_path",
+    "name": "hierarchy_level_2_name",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Full materialized path from root to entity (e.g., '/DEPT-001/PROJ-001/TEAM-001'). Enables rollup queries at any level."
+    "description": "Level 2 hierarchy entity name."
   },
   {
-    "name": "hierarchy_path_names",
+    "name": "hierarchy_level_3_id",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Full path of names from root to entity (e.g., '/Engineering/Cloud Platform/DevOps'). Human-readable hierarchy trail."
+    "description": "Level 3 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_3_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_4_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_4_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_5_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_5_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_6_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_6_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_7_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_7_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_8_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_8_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_9_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_9_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_10_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity ID (deepest level)."
+  },
+  {
+    "name": "hierarchy_level_10_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity name (deepest level)."
+  },
+  {
+    "name": "hierarchy_validated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table."
   },
   {
     "name": "updated_at",

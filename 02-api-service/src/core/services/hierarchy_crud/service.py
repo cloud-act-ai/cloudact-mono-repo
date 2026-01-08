@@ -12,6 +12,7 @@ Features:
 - Version history for all changes
 """
 
+import json
 import logging
 import re
 import uuid
@@ -187,6 +188,14 @@ class HierarchyService:
         level_name: Optional[str] = None
     ) -> HierarchyEntityResponse:
         """Convert BigQuery row to HierarchyEntityResponse."""
+        # Parse metadata from JSON string if needed (streaming insert stores as string)
+        metadata = row.get('metadata')
+        if metadata and isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except (json.JSONDecodeError, TypeError):
+                metadata = None
+
         return HierarchyEntityResponse(
             id=row['id'],
             org_slug=row['org_slug'],
@@ -203,7 +212,7 @@ class HierarchyService:
             owner_name=row.get('owner_name'),
             owner_email=row.get('owner_email'),
             description=row.get('description'),
-            metadata=row.get('metadata'),
+            metadata=metadata,
             sort_order=row.get('sort_order'),
             is_active=row['is_active'],
             created_at=row['created_at'],
@@ -230,47 +239,59 @@ class HierarchyService:
         Args:
             use_central_table: If True, query central table directly (bypasses MV).
                               Use this for operations that need fresh streaming buffer data.
+
+        Note: If MV returns empty, automatically falls back to central table
+        to handle streaming buffer lag (MVs don't see streaming buffer data).
         """
         org_slug = validate_org_slug(org_slug)
-
-        if use_central_table:
-            # Use central table directly for fresh data
-            table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
-            uses_view = False
-        else:
-            table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
 
         # Get levels map for level names
         levels_map = await self.level_service.get_levels_map(org_slug)
 
-        query_params = []
-        if uses_view:
-            query = f"""
-            SELECT *
-            FROM `{table_ref}`
-            WHERE 1=1
-            """
-        else:
-            query = f"""
-            SELECT *
-            FROM `{table_ref}`
-            WHERE org_slug = @org_slug
-              AND end_date IS NULL
-            """
-            query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
+        # Helper to run query and get entities
+        def _run_query(table_ref: str, uses_view: bool) -> List[Dict]:
+            query_params = []
+            if uses_view:
+                query = f"""
+                SELECT *
+                FROM `{table_ref}`
+                WHERE 1=1
+                """
+            else:
+                query = f"""
+                SELECT *
+                FROM `{table_ref}`
+                WHERE org_slug = @org_slug
+                  AND end_date IS NULL
+                """
+                query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
 
-        if not include_inactive:
-            query += " AND is_active = TRUE"
+            inactive_filter = "" if include_inactive else " AND is_active = TRUE"
+            level_filter = ""
+            if level_code:
+                level_filter = " AND level_code = @level_code"
+                query_params.append(bigquery.ScalarQueryParameter("level_code", "STRING", level_code.lower()))
 
-        if level_code:
-            query += " AND level_code = @level_code"
-            query_params.append(bigquery.ScalarQueryParameter("level_code", "STRING", level_code.lower()))
-
-        query += " ORDER BY level ASC, path ASC, sort_order ASC, entity_name ASC"
+            full_query = query + inactive_filter + level_filter + " ORDER BY level ASC, path ASC, sort_order ASC, entity_name ASC"
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params) if query_params else None
+            return list(self.bq_client.client.query(full_query, job_config=job_config).result())
 
         try:
-            job_config = bigquery.QueryJobConfig(query_parameters=query_params) if query_params else None
-            results = list(self.bq_client.client.query(query, job_config=job_config).result())
+            if use_central_table:
+                # Use central table directly for fresh data
+                table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+                results = _run_query(table_ref, uses_view=False)
+            else:
+                # Try MV first, then fallback to central table if empty
+                table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
+                results = _run_query(table_ref, uses_view)
+
+                # If MV returns empty and we were using the view, try central table
+                # (handles streaming buffer lag where MV hasn't refreshed yet)
+                if not results and uses_view:
+                    logger.debug(f"MV returned empty for {org_slug}, falling back to central table")
+                    central_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+                    results = _run_query(central_ref, uses_view=False)
 
             entities = []
             for row in results:

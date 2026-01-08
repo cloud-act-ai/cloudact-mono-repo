@@ -528,12 +528,12 @@ class PlanCreate(BaseModel):
     # EDGE-007: Max 28 ensures valid day in all months (Feb has 28 days min)
     # EDGE-005: Leap year handling is done in stored procedures for billing calculations
     billing_anchor_day: Optional[int] = Field(None, ge=1, le=28, description="Day of month billing cycle starts (1-28). NULL = calendar-aligned (1st of month)")
-    # N-level hierarchy fields for cost allocation
-    hierarchy_entity_id: Optional[str] = Field(None, max_length=50, description="Entity ID from org_hierarchy")
-    hierarchy_entity_name: Optional[str] = Field(None, max_length=200, description="Entity name")
-    hierarchy_level_code: Optional[str] = Field(None, max_length=50, description="Entity level code (e.g., DEPT, PROJ, TEAM)")
-    hierarchy_path: Optional[str] = Field(None, max_length=500, description="Materialized path (e.g., /DEPT-001/PROJ-001)")
-    hierarchy_path_names: Optional[str] = Field(None, max_length=1000, description="Human-readable path")
+    # N-level hierarchy fields for cost allocation (REQUIRED for proper cost attribution)
+    hierarchy_entity_id: str = Field(..., max_length=50, description="Entity ID from org_hierarchy (REQUIRED)")
+    hierarchy_entity_name: str = Field(..., max_length=200, description="Entity name (REQUIRED)")
+    hierarchy_level_code: str = Field(..., max_length=50, description="Entity level code (e.g., DEPT, PROJ, TEAM) (REQUIRED)")
+    hierarchy_path: str = Field(..., max_length=500, description="Materialized path (e.g., /DEPT-001/PROJ-001) (REQUIRED)")
+    hierarchy_path_names: str = Field(..., max_length=1000, description="Human-readable path (REQUIRED)")
 
     model_config = ConfigDict(extra="forbid")
 

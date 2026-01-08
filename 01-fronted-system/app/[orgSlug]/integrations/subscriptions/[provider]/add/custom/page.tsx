@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
+import { CascadingHierarchySelector, type SelectedHierarchy } from "@/components/hierarchy/cascading-hierarchy-selector"
 
 import {
   createCustomPlan,
@@ -41,7 +42,27 @@ import { getOrgLocale } from "@/actions/organization-locale"
 import { formatCurrency, SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Extended form data to include audit trail from template
-interface FormDataWithAudit extends PlanCreate {
+// Note: hierarchy fields are managed separately via selectedHierarchy state
+type FormDataWithAudit = {
+  plan_name: string
+  display_name?: string
+  unit_price: number | undefined
+  billing_cycle?: BillingCycle
+  currency?: string
+  seats?: number | undefined
+  pricing_model?: 'PER_SEAT' | 'FLAT_FEE'
+  yearly_price?: number
+  discount_type?: 'percent' | 'fixed'
+  discount_value?: number
+  auto_renew?: boolean
+  payment_method?: string
+  owner_email?: string
+  department?: string
+  start_date?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
+  // Audit trail fields
   source_currency?: string
   source_price?: number
   exchange_rate_used?: number
@@ -98,6 +119,7 @@ export default function AddCustomSubscriptionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<Date | undefined>(new Date())
+  const [selectedHierarchy, setSelectedHierarchy] = useState<SelectedHierarchy | null>(null)
 
   // Form state with audit trail
   // CRITICAL FIX: Initialize with null/undefined for numeric fields to avoid 0 validation issues
@@ -222,6 +244,16 @@ export default function AddCustomSubscriptionPage() {
       return
     }
 
+    // CRITICAL: Validate hierarchy selection (all levels required)
+    if (!selectedHierarchy) {
+      setError("Hierarchy assignment is required. Please select all hierarchy levels.")
+      return
+    }
+    if (!selectedHierarchy.entity_id || !selectedHierarchy.level_code || !selectedHierarchy.path) {
+      setError("Incomplete hierarchy selection. Please select all hierarchy levels from top to bottom.")
+      return
+    }
+
     // CRITICAL FIX: Ensure numeric fields have valid values before validation
     const finalUnitPrice = formData.unit_price ?? 0
     const finalSeats = formData.seats ?? (formData.pricing_model === 'PER_SEAT' ? 1 : 0)
@@ -258,7 +290,7 @@ export default function AddCustomSubscriptionPage() {
       const startDateStr = format(startDate, "yyyy-MM-dd")
 
       // Build plan data including audit trail if from template
-      // CRITICAL FIX: Use final validated values
+      // CRITICAL FIX: Use final validated values and include hierarchy fields
       const planData: PlanCreate & {
         source_currency?: string
         source_price?: number
@@ -273,6 +305,12 @@ export default function AddCustomSubscriptionPage() {
         currency: formData.currency,
         notes: formData.notes?.trim() || "",
         start_date: startDateStr,
+        // REQUIRED: Include hierarchy fields for cost allocation
+        hierarchy_entity_id: selectedHierarchy.entity_id,
+        hierarchy_entity_name: selectedHierarchy.entity_name,
+        hierarchy_level_code: selectedHierarchy.level_code,
+        hierarchy_path: selectedHierarchy.path,
+        hierarchy_path_names: selectedHierarchy.path_names,
       }
 
       // Include audit trail if from template (currency was converted)
@@ -599,6 +637,15 @@ export default function AddCustomSubscriptionPage() {
               </p>
             </div>
 
+            {/* Hierarchy Selector */}
+            <CascadingHierarchySelector
+              orgSlug={orgSlug}
+              value={selectedHierarchy}
+              onChange={setSelectedHierarchy}
+              disabled={submitting}
+              error={error?.includes("hierarchy") || error?.includes("Hierarchy") ? error : undefined}
+            />
+
             {/* Start Date */}
             <div className="space-y-2">
               <Label>Start Date *</Label>
@@ -657,7 +704,7 @@ export default function AddCustomSubscriptionPage() {
             )}
 
             {/* Cost Preview */}
-            {formData.unit_price > 0 && (
+            {formData.unit_price !== undefined && formData.unit_price > 0 && (
               <Card className="bg-[#90FCA6]/5 border-border">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
@@ -667,27 +714,29 @@ export default function AddCustomSubscriptionPage() {
                         <span className="text-muted-foreground">Total Cost:</span>
                         <span className="ml-2 font-semibold text-[#FF6C5E]">
                           {(() => {
-                            let totalCost = formData.unit_price
+                            const basePrice = formData.unit_price ?? 0
+                            let totalCost = basePrice
                             if (formData.pricing_model === 'PER_SEAT') {
-                              totalCost = formData.unit_price * (formData.seats || 1)
+                              totalCost = basePrice * (formData.seats || 1)
                             }
-                            return formatCurrency(totalCost, formData.currency)
+                            return formatCurrency(totalCost, formData.currency || "USD")
                           })()}
-                          /{formData.billing_cycle}
+                          /{formData.billing_cycle || "monthly"}
                         </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Monthly Rate:</span>
                         <span className="ml-2 font-semibold">
                           {(() => {
-                            let totalCost = formData.unit_price
+                            const basePrice = formData.unit_price ?? 0
+                            let totalCost = basePrice
                             if (formData.pricing_model === 'PER_SEAT') {
-                              totalCost = formData.unit_price * (formData.seats || 1)
+                              totalCost = basePrice * (formData.seats || 1)
                             }
                             let monthlyCost = totalCost
                             if (formData.billing_cycle === 'annual') monthlyCost = totalCost / 12
                             if (formData.billing_cycle === 'quarterly') monthlyCost = totalCost / 3
-                            return formatCurrency(monthlyCost, formData.currency)
+                            return formatCurrency(monthlyCost, formData.currency || "USD")
                           })()}
                           /month
                         </span>
@@ -712,7 +761,7 @@ export default function AddCustomSubscriptionPage() {
           </Button>
           <Button
             type="submit"
-            disabled={submitting || !formData.plan_name.trim() || !startDate}
+            disabled={submitting || !formData.plan_name.trim() || !startDate || !selectedHierarchy}
             className="console-button-primary h-11 rounded-xl"
           >
             {submitting ? (

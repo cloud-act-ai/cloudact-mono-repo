@@ -154,7 +154,7 @@ API Request → configs/ → Processor → BigQuery API
 ```
 
 **Key Paths:**
-- Bootstrap Schemas: `02-api-service/configs/setup/bootstrap/schemas/*.json`
+- Bootstrap Schemas: `02-api-service/configs/setup/bootstrap/schemas/*.json` (21 tables)
 - Pipeline Configs: `03-data-pipeline-service/configs/{provider}/{domain}/*.yml`
 - Processors: `03-data-pipeline-service/src/core/processors/`
 
@@ -305,7 +305,29 @@ pkill -f "uvicorn.*8001"
 
 **Structure:** Org → Department → Project → Team (strict parent-child for cost allocation)
 
-**Data Architecture:**
+### Standard Hierarchy Configuration
+
+| Level | Code | Name | ID Prefix | Description |
+|-------|------|------|-----------|-------------|
+| L1 | `department` | Department | `DEPT-` | C-Suite / Executive level |
+| L2 | `project` | Project | `PROJ-` | Business Units / Cost Centers |
+| L3 | `team` | Team | `TEAM-` | Functions / Teams |
+
+### Entity ID Format
+```
+{PREFIX}{CODE}
+Examples: DEPT-CFO, PROJ-ENGINEERING, TEAM-PLATFORM
+```
+
+### Default Template (20 entities)
+```
+lib/seed/hierarchy_template.csv
+├── DEPT-CFO, DEPT-CIO, DEPT-COO, DEPT-BIZ (4 departments)
+├── PROJ-BU1, PROJ-CTO, PROJ-ITCOO... (7 projects)
+└── TEAM-PLAT, TEAM-ARCH, TEAM-INFRA... (9 teams)
+```
+
+### Data Architecture
 ```
 WRITES → organizations.org_hierarchy (central table in bootstrap dataset)
 READS  → {org_slug}_prod.x_org_hierarchy (per-org materialized view)
@@ -313,9 +335,22 @@ READS  → {org_slug}_prod.x_org_hierarchy (per-org materialized view)
 
 - Central table in `organizations` dataset for single source of truth
 - Per-org view `x_org_hierarchy` for fast reads (auto-refreshed every 15 min)
-- N-level hierarchy: `hierarchy_entity_id`, `hierarchy_entity_name`, `hierarchy_level_code`, `hierarchy_path`, `hierarchy_path_names`
+- Levels stored in `hierarchy_levels` table (seeded via `/levels/seed` endpoint)
+
+### API Endpoints
+```bash
+# Seed default levels (DEPT/PROJ/TEAM)
+POST /api/v1/hierarchy/{org}/levels/seed
+
+# CRUD operations
+GET    /api/v1/hierarchy/{org}           # List entities
+GET    /api/v1/hierarchy/{org}/tree      # Tree structure
+POST   /api/v1/hierarchy/{org}/entities  # Create entity
+PUT    /api/v1/hierarchy/{org}/entities/{id}
+DELETE /api/v1/hierarchy/{org}/entities/{id}
+```
 
 **Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with x_hierarchy_* extension fields)
 
 ---
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-06

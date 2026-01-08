@@ -112,5 +112,11 @@
     "type": "DATE",
     "mode": "REQUIRED",
     "description": "Partition column (DATE of transition_time)"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was created in the database"
   }
 ]

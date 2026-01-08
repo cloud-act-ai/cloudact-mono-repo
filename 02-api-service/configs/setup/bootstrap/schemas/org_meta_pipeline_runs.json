@@ -94,5 +94,11 @@
     "type": "JSON",
     "mode": "NULLABLE",
     "description": "Enhanced error context: {error_type, error_code, is_retryable, retry_count, stack_trace, suggested_action}"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was created in the database"
   }
 ]

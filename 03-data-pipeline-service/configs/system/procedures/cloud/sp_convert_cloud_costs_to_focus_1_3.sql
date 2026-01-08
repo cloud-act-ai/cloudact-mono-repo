@@ -73,6 +73,35 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('gcp', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- CTE to expand hierarchy from tags
+        WITH hierarchy_lookup AS (
+          SELECT
+            entity_id,
+            entity_name,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 1 THEN path_ids[OFFSET(0)] ELSE NULL END AS level_1_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 2 THEN path_ids[OFFSET(1)] ELSE NULL END AS level_2_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 3 THEN path_ids[OFFSET(2)] ELSE NULL END AS level_3_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 4 THEN path_ids[OFFSET(3)] ELSE NULL END AS level_4_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 5 THEN path_ids[OFFSET(4)] ELSE NULL END AS level_5_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 6 THEN path_ids[OFFSET(5)] ELSE NULL END AS level_6_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 7 THEN path_ids[OFFSET(6)] ELSE NULL END AS level_7_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 8 THEN path_ids[OFFSET(7)] ELSE NULL END AS level_8_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 9 THEN path_ids[OFFSET(8)] ELSE NULL END AS level_9_id,
+            CASE WHEN ARRAY_LENGTH(path_ids) >= 10 THEN path_ids[OFFSET(9)] ELSE NULL END AS level_10_id,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 1 THEN path_names[OFFSET(0)] ELSE NULL END AS level_1_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 2 THEN path_names[OFFSET(1)] ELSE NULL END AS level_2_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 3 THEN path_names[OFFSET(2)] ELSE NULL END AS level_3_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 4 THEN path_names[OFFSET(3)] ELSE NULL END AS level_4_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 5 THEN path_names[OFFSET(4)] ELSE NULL END AS level_5_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 6 THEN path_names[OFFSET(5)] ELSE NULL END AS level_6_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 7 THEN path_names[OFFSET(6)] ELSE NULL END AS level_7_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 8 THEN path_names[OFFSET(7)] ELSE NULL END AS level_8_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 9 THEN path_names[OFFSET(8)] ELSE NULL END AS level_9_name,
+            CASE WHEN ARRAY_LENGTH(path_names) >= 10 THEN path_names[OFFSET(9)] ELSE NULL END AS level_10_name
+          FROM `%s.organizations.org_hierarchy`
+          WHERE org_slug = @v_org_slug
+            AND end_date IS NULL
+        )
         INSERT INTO `%s.%s.cost_data_standard_1_3`
         (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
          InvoiceIssuerName, ServiceProviderName, HostProviderName,
@@ -87,6 +116,18 @@ BEGIN
          x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
          x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           billing_account_id as BillingAccountId,
@@ -148,6 +189,29 @@ BEGIN
           -- Issue #3 FIX: snake_case for x_* fields
           'gcp' as x_cloud_provider,
           billing_account_id as x_cloud_account_id,
+          -- 10-level hierarchy from resource tags (v15.0)
+          -- Looks for 'cost_center', 'team', 'department', or 'entity_id' labels
+          h.level_1_id as x_hierarchy_level_1_id,
+          h.level_1_name as x_hierarchy_level_1_name,
+          h.level_2_id as x_hierarchy_level_2_id,
+          h.level_2_name as x_hierarchy_level_2_name,
+          h.level_3_id as x_hierarchy_level_3_id,
+          h.level_3_name as x_hierarchy_level_3_name,
+          h.level_4_id as x_hierarchy_level_4_id,
+          h.level_4_name as x_hierarchy_level_4_name,
+          h.level_5_id as x_hierarchy_level_5_id,
+          h.level_5_name as x_hierarchy_level_5_name,
+          h.level_6_id as x_hierarchy_level_6_id,
+          h.level_6_name as x_hierarchy_level_6_name,
+          h.level_7_id as x_hierarchy_level_7_id,
+          h.level_7_name as x_hierarchy_level_7_name,
+          h.level_8_id as x_hierarchy_level_8_id,
+          h.level_8_name as x_hierarchy_level_8_name,
+          h.level_9_id as x_hierarchy_level_9_id,
+          h.level_9_name as x_hierarchy_level_9_name,
+          h.level_10_id as x_hierarchy_level_10_id,
+          h.level_10_name as x_hierarchy_level_10_name,
+          CASE WHEN h.level_1_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
@@ -155,9 +219,15 @@ BEGIN
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
-        FROM `%s.%s.cloud_gcp_billing_raw_daily`
-        WHERE DATE(usage_start_time) = @p_date
-          AND cost > 0
+        FROM `%s.%s.cloud_gcp_billing_raw_daily` b
+        LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.team'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.department'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.entity_id')
+        )
+        WHERE DATE(b.usage_start_time) = @p_date
+          AND b.cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
@@ -385,7 +455,19 @@ BEGIN
          x_source_system, x_source_record_id, x_updated_at,
          -- Issue #3 FIX: snake_case for x_* fields
          x_cloud_provider, x_cloud_account_id,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
+                  x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           tenancy_id as BillingAccountId,
           TIMESTAMP(usage_date) as ChargePeriodStart,

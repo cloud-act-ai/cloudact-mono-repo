@@ -8,6 +8,11 @@ Writes to: {org_slug}_{env}.genai_payg_costs_daily
 Usage in pipeline:
     ps_type: genai.payg_cost
 
+Date Range Support:
+    - Single date: config.date or context.date (legacy)
+    - Date range: config.start_date + config.end_date or context.start_date + context.end_date (new)
+    - When using date range, processor loops through each day and processes individually
+
 Issues Fixed:
     #32: Fixed cached tokens field mismatch (cached_input_tokens in schema)
     #33: Added volume discount calculation using volume_discount_pct from pricing
@@ -24,7 +29,7 @@ Idempotency Fixes:
 
 import logging
 import asyncio
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Optional
 from google.cloud import bigquery
 from google.api_core import exceptions as google_exceptions
@@ -224,36 +229,73 @@ class PAYGCostProcessor:
         Args:
             step_config: Step configuration containing:
                 - config.provider: Provider name (optional, processes all if not set)
-                - config.date: Date to process (YYYY-MM-DD)
+                - config.date: Single date to process (legacy, YYYY-MM-DD)
+                - config.start_date: Start date for range (new, YYYY-MM-DD)
+                - config.end_date: End date for range (new, YYYY-MM-DD)
                 - config.force_reprocess: If True, reprocess even if already done (default: False)
             context: Execution context containing:
                 - org_slug: Organization identifier (REQUIRED)
                 - run_id: Pipeline run ID
+                - start_date: Alternative start date from context
+                - end_date: Alternative end date from context
 
         Returns:
             Dict with:
                 - status: SUCCESS or FAILED
                 - rows_inserted: Number of cost records created
                 - total_cost_usd: Total cost calculated
+                - days_processed: Number of days processed
         """
         org_slug = context.get("org_slug")
         run_id = context.get("run_id", "manual")
         config = step_config.get("config", {})
 
+        # BUG SEC-02: Add org_slug format validation
+        from src.core.utils.validators import is_valid_org_slug
+
         if not org_slug:
             return {"status": "FAILED", "error": "org_slug is required"}
+        if not is_valid_org_slug(org_slug):
+            return {"status": "FAILED", "error": "Invalid org_slug format"}
 
         provider = config.get("provider")  # Optional filter
-        process_date = self._parse_date(config.get("date") or context.get("start_date"))
         force_reprocess = config.get("force_reprocess", False)
 
-        # Issue #39: Validate date
-        if not process_date:
-            return {"status": "FAILED", "error": "date is required"}
+        # Support both single date and date ranges
+        start_date_str = context.get("start_date") or config.get("start_date")
+        end_date_str = context.get("end_date") or config.get("end_date")
+        single_date_str = config.get("date") or context.get("date")
 
-        # Issue #39: Validate date is not in the future
-        if process_date > date.today():
-            return {"status": "FAILED", "error": f"Cannot process future date: {process_date}"}
+        if start_date_str and end_date_str:
+            # Date range mode
+            start_date = self._parse_date(start_date_str)
+            end_date = self._parse_date(end_date_str)
+            if not start_date or not end_date:
+                return {"status": "FAILED", "error": "Invalid start_date or end_date format"}
+
+            dates_to_process = self._generate_date_range(start_date, end_date)
+            self.logger.info(
+                f"Calculating PAYG costs for {org_slug} (date range)",
+                extra={"start_date": str(start_date), "end_date": str(end_date), "days": len(dates_to_process), "provider": provider or "all"}
+            )
+        elif single_date_str:
+            # Single date mode (legacy)
+            single_date = self._parse_date(single_date_str)
+            if not single_date:
+                return {"status": "FAILED", "error": "Invalid date format"}
+
+            dates_to_process = [single_date]
+            self.logger.info(
+                f"Calculating PAYG costs for {org_slug} (single date)",
+                extra={"date": str(single_date), "provider": provider or "all"}
+            )
+        else:
+            return {"status": "FAILED", "error": "Either 'date' or 'start_date'+'end_date' is required"}
+
+        # Issue #39: Validate dates are not in the future
+        for process_date in dates_to_process:
+            if process_date > date.today():
+                return {"status": "FAILED", "error": f"Cannot process future date: {process_date}"}
 
         dataset_id = self.settings.get_org_dataset_name(org_slug)
         project_id = self.settings.gcp_project_id
@@ -270,60 +312,52 @@ class PAYGCostProcessor:
             if not self._validate_table_name(table):
                 return {"status": "FAILED", "error": f"Invalid table name: {table}"}
 
-        self.logger.info(
-            f"Calculating PAYG costs for {org_slug}",
-            extra={"org_slug": org_slug, "provider": provider, "date": str(process_date)}
-        )
-
         try:
             bq_client = BigQueryClient(project_id=project_id)
 
-            # Issue #44: Check idempotency - skip if already processed
-            if not force_reprocess:
-                already_processed = await self._check_already_processed(
+            total_rows_inserted = 0
+            total_cost_all_dates = 0.0
+
+            # Process each date
+            for process_date in dates_to_process:
+                # Issue #44: Check idempotency - skip if already processed
+                if not force_reprocess:
+                    already_processed = await self._check_already_processed(
+                        bq_client, project_id, dataset_id, org_slug, process_date, provider
+                    )
+                    if already_processed:
+                        self.logger.debug(f"Date {process_date} already processed for {org_slug}, skipping")
+                        continue
+
+                # Issue #39: Validate usage data before processing
+                validation_result = await self._validate_usage_data(
                     bq_client, project_id, dataset_id, org_slug, process_date, provider
                 )
-                if already_processed:
-                    self.logger.info(f"Date {process_date} already processed for {org_slug}, skipping")
-                    return {
-                        "status": "SUCCESS",
-                        "rows_inserted": 0,
-                        "total_cost_usd": 0,
-                        "date": str(process_date),
-                        "skipped": True,
-                        "reason": "Already processed"
-                    }
+                if validation_result["has_errors"]:
+                    self.logger.warning(
+                        f"Validation errors for {process_date}: {validation_result['errors']}"
+                    )
+                    continue
 
-            # Issue #39: Validate usage data before processing
-            validation_result = await self._validate_usage_data(
-                bq_client, project_id, dataset_id, org_slug, process_date, provider
-            )
-            if validation_result["has_errors"]:
-                return {
-                    "status": "FAILED",
-                    "error": "Data validation failed",
-                    "validation_errors": validation_result["errors"]
-                }
+                # Build query parameters - Issue #41: Use parameterized queries for provider
+                query_params = [
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
+                    bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
+                ]
 
-            # Build query parameters - Issue #41: Use parameterized queries for provider
-            query_params = [
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
-                bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
-            ]
+                # Issue #41: Add provider as parameter instead of string interpolation
+                provider_condition = ""
+                if provider:
+                    provider_condition = "AND u.provider = @provider"
+                    query_params.append(bigquery.ScalarQueryParameter("provider", "STRING", provider))
 
-            # Issue #41: Add provider as parameter instead of string interpolation
-            provider_condition = ""
-            if provider:
-                provider_condition = "AND u.provider = @provider"
-                query_params.append(bigquery.ScalarQueryParameter("provider", "STRING", provider))
-
-            # HIGH FIX #5: Use atomic MERGE instead of DELETE+INSERT
-            # This prevents race conditions between delete and insert operations
-            # Issue #32, #33, #34, #43: Complete cost calculation with all fixes
-            cost_query = f"""
-                MERGE `{project_id}.{dataset_id}.genai_payg_costs_daily` T
-                USING (
+                # HIGH FIX #5: Use atomic MERGE instead of DELETE+INSERT
+                # This prevents race conditions between delete and insert operations
+                # Issue #32, #33, #34, #43: Complete cost calculation with all fixes
+                cost_query = f"""
+                    MERGE `{project_id}.{dataset_id}.genai_payg_costs_daily` T
+                    USING (
                     SELECT
                         u.usage_date as cost_date,
                         u.org_slug,
@@ -400,12 +434,27 @@ class PAYGCostProcessor:
 
                         u.request_count,
 
-                        -- Issue #43: Handle NULL hierarchy fields with COALESCE for safe insertion
-                        NULLIF(TRIM(COALESCE(u.hierarchy_entity_id, '')), '') as hierarchy_entity_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_entity_name, '')), '') as hierarchy_entity_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_code, '')), '') as hierarchy_level_code,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_path, '')), '') as hierarchy_path,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_path_names, '')), '') as hierarchy_path_names,
+                        -- Issue #43: Handle NULL hierarchy fields with COALESCE for safe insertion (10-level)
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_1_id, '')), '') as hierarchy_level_1_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_1_name, '')), '') as hierarchy_level_1_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_2_id, '')), '') as hierarchy_level_2_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_2_name, '')), '') as hierarchy_level_2_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_3_id, '')), '') as hierarchy_level_3_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_3_name, '')), '') as hierarchy_level_3_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_4_id, '')), '') as hierarchy_level_4_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_4_name, '')), '') as hierarchy_level_4_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_5_id, '')), '') as hierarchy_level_5_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_5_name, '')), '') as hierarchy_level_5_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_6_id, '')), '') as hierarchy_level_6_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_6_name, '')), '') as hierarchy_level_6_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_7_id, '')), '') as hierarchy_level_7_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_7_name, '')), '') as hierarchy_level_7_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_8_id, '')), '') as hierarchy_level_8_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_8_name, '')), '') as hierarchy_level_8_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_9_id, '')), '') as hierarchy_level_9_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_9_name, '')), '') as hierarchy_level_9_name,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_10_id, '')), '') as hierarchy_level_10_id,
+                        NULLIF(TRIM(COALESCE(u.hierarchy_level_10_name, '')), '') as hierarchy_level_10_name,
 
                         CURRENT_TIMESTAMP() as calculated_at,
                         -- Standardized lineage columns (x_ prefix)
@@ -445,11 +494,26 @@ class PAYGCostProcessor:
                         effective_rate_input = S.effective_rate_input,
                         effective_rate_output = S.effective_rate_output,
                         request_count = S.request_count,
-                        hierarchy_entity_id = S.hierarchy_entity_id,
-                        hierarchy_entity_name = S.hierarchy_entity_name,
-                        hierarchy_level_code = S.hierarchy_level_code,
-                        hierarchy_path = S.hierarchy_path,
-                        hierarchy_path_names = S.hierarchy_path_names,
+                                                hierarchy_level_1_id = S.hierarchy_level_1_id,
+                        hierarchy_level_1_name = S.hierarchy_level_1_name,
+                        hierarchy_level_2_id = S.hierarchy_level_2_id,
+                        hierarchy_level_2_name = S.hierarchy_level_2_name,
+                        hierarchy_level_3_id = S.hierarchy_level_3_id,
+                        hierarchy_level_3_name = S.hierarchy_level_3_name,
+                        hierarchy_level_4_id = S.hierarchy_level_4_id,
+                        hierarchy_level_4_name = S.hierarchy_level_4_name,
+                        hierarchy_level_5_id = S.hierarchy_level_5_id,
+                        hierarchy_level_5_name = S.hierarchy_level_5_name,
+                        hierarchy_level_6_id = S.hierarchy_level_6_id,
+                        hierarchy_level_6_name = S.hierarchy_level_6_name,
+                        hierarchy_level_7_id = S.hierarchy_level_7_id,
+                        hierarchy_level_7_name = S.hierarchy_level_7_name,
+                        hierarchy_level_8_id = S.hierarchy_level_8_id,
+                        hierarchy_level_8_name = S.hierarchy_level_8_name,
+                        hierarchy_level_9_id = S.hierarchy_level_9_id,
+                        hierarchy_level_9_name = S.hierarchy_level_9_name,
+                        hierarchy_level_10_id = S.hierarchy_level_10_id,
+                        hierarchy_level_10_name = S.hierarchy_level_10_name,
                         calculated_at = S.calculated_at,
                         x_pipeline_id = S.x_pipeline_id,
                         x_credential_id = S.x_credential_id,
@@ -462,8 +526,7 @@ class PAYGCostProcessor:
                             input_cost_usd, output_cost_usd, cached_cost_usd, total_cost_usd,
                             discount_applied_pct, effective_rate_input, effective_rate_output,
                             request_count,
-                            hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-                            hierarchy_path, hierarchy_path_names,
+                            hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
                     VALUES (S.cost_date, S.org_slug, S.provider, S.model, S.model_family, S.region,
@@ -471,39 +534,44 @@ class PAYGCostProcessor:
                             S.input_cost_usd, S.output_cost_usd, S.cached_cost_usd, S.total_cost_usd,
                             S.discount_applied_pct, S.effective_rate_input, S.effective_rate_output,
                             S.request_count,
-                            S.hierarchy_entity_id, S.hierarchy_entity_name, S.hierarchy_level_code,
-                            S.hierarchy_path, S.hierarchy_path_names,
+                            S.hierarchy_level_1_id, S.hierarchy_level_1_name, S.hierarchy_level_2_id, S.hierarchy_level_2_name, S.hierarchy_level_3_id, S.hierarchy_level_3_name, S.hierarchy_level_4_id, S.hierarchy_level_4_name, S.hierarchy_level_5_id, S.hierarchy_level_5_name, S.hierarchy_level_6_id, S.hierarchy_level_6_name, S.hierarchy_level_7_id, S.hierarchy_level_7_name, S.hierarchy_level_8_id, S.hierarchy_level_8_name, S.hierarchy_level_9_id, S.hierarchy_level_9_name, S.hierarchy_level_10_id, S.hierarchy_level_10_name,
                             S.calculated_at, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
                             S.x_run_id, S.x_ingested_at)
-            """
+                """
 
-            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+                job_config = bigquery.QueryJobConfig(query_parameters=query_params)
 
-            # Issue #45: Use retry logic for BigQuery rate limits
-            job = await self._execute_with_retry(
-                bq_client, cost_query, job_config, "calculate_payg_costs"
+                # Issue #45: Use retry logic for BigQuery rate limits
+                job = await self._execute_with_retry(
+                    bq_client, cost_query, job_config, "calculate_payg_costs"
+                )
+
+                rows_inserted = job.num_dml_affected_rows or 0
+                total_rows_inserted += rows_inserted
+
+                # Get total cost for this date
+                total_query = f"""
+                    SELECT COALESCE(SUM(total_cost_usd), 0) as total
+                    FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
+                    WHERE cost_date = @process_date AND org_slug = @org_slug
+                """
+                total_result = list(bq_client.query(total_query, parameters=[
+                    bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]))
+                date_cost = total_result[0].get("total", 0) if total_result else 0
+                total_cost_all_dates += date_cost
+
+            # Log summary
+            self.logger.info(
+                f"Calculated {total_rows_inserted} PAYG cost records across {len(dates_to_process)} days, "
+                f"total: ${total_cost_all_dates:.2f}"
             )
-
-            rows_inserted = job.num_dml_affected_rows or 0
-
-            # Get total cost
-            total_query = f"""
-                SELECT COALESCE(SUM(total_cost_usd), 0) as total
-                FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
-                WHERE cost_date = @process_date AND org_slug = @org_slug
-            """
-            total_result = list(bq_client.query(total_query, parameters=[
-                bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-            ]))
-            total_cost = total_result[0].get("total", 0) if total_result else 0
-
-            self.logger.info(f"Calculated {rows_inserted} PAYG cost records, total: ${total_cost:.2f}")
             return {
                 "status": "SUCCESS",
-                "rows_inserted": rows_inserted,
-                "total_cost_usd": round(total_cost, 2),
-                "date": str(process_date)
+                "rows_inserted": total_rows_inserted,
+                "total_cost_usd": round(total_cost_all_dates, 2),
+                "days_processed": len(dates_to_process)
             }
 
         except Exception as e:
@@ -620,37 +688,41 @@ class PAYGCostProcessor:
         except Exception as e:
             self.logger.warning(f"Missing pricing check failed: {e}")
 
-        # Issue #5: Check for orphan hierarchy allocations (warning only)
-        # N-level hierarchy: Check if hierarchy_entity_id exists in x_org_hierarchy
-        hierarchy_check_query = f"""
-            SELECT DISTINCT
-                u.hierarchy_entity_id,
-                u.hierarchy_entity_name,
-                u.hierarchy_level_code
-            FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
-            LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
-                ON h.entity_id = u.hierarchy_entity_id
-            WHERE u.usage_date = @process_date
-                AND u.org_slug = @org_slug
-                AND u.hierarchy_entity_id IS NOT NULL
-                AND h.entity_id IS NULL
-                {provider_condition}
-        """
-
-        try:
-            orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
-            for row in orphan_results:
-                entity_id = row.get("hierarchy_entity_id")
-                entity_name = row.get("hierarchy_entity_name")
-                level_code = row.get("hierarchy_level_code")
-                self.logger.warning(
-                    f"Issue #5: Orphan hierarchy allocation detected - "
-                    f"entity_id={entity_id}, name={entity_name}, level={level_code}. "
-                    f"This entity may not exist in x_org_hierarchy view."
-                )
-        except Exception as e:
-            # Don't fail on hierarchy check errors - just warn
-            self.logger.warning(f"Hierarchy validation check failed: {e}")
+        # BUG ERR-01: Disabled - references non-existent columns (hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code)
+        # These columns were replaced by 10-level hierarchy fields (hierarchy_level_1_id through hierarchy_level_10_id)
+        # TODO: Implement new validation logic for 10-level hierarchy if needed
+        #
+        # # Issue #5: Check for orphan hierarchy allocations (warning only)
+        # # N-level hierarchy: Check if hierarchy_entity_id exists in x_org_hierarchy
+        # hierarchy_check_query = f"""
+        #     SELECT DISTINCT
+        #         u.hierarchy_level_1_id,
+        #         u.hierarchy_entity_name,
+        #         u.hierarchy_level_code
+        #     FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
+        #     LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
+        #         ON h.entity_id = u.hierarchy_entity_id
+        #     WHERE u.usage_date = @process_date
+        #         AND u.org_slug = @org_slug
+        #         AND u.hierarchy_entity_id IS NOT NULL
+        #         AND h.entity_id IS NULL
+        #         {provider_condition}
+        # """
+        #
+        # try:
+        #     orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
+        #     for row in orphan_results:
+        #         entity_id = row.get("hierarchy_entity_id")
+        #         entity_name = row.get("hierarchy_entity_name")
+        #         level_code = row.get("hierarchy_level_code")
+        #         self.logger.warning(
+        #             f"Issue #5: Orphan hierarchy allocation detected - "
+        #             f"entity_id={entity_id}, name={entity_name}, level={level_code}. "
+        #             f"This entity may not exist in x_org_hierarchy view."
+        #         )
+        # except Exception as e:
+        #     # Don't fail on hierarchy check errors - just warn
+        #     self.logger.warning(f"Hierarchy validation check failed: {e}")
 
         return {
             "has_errors": len(errors) > 0,
@@ -692,6 +764,15 @@ class PAYGCostProcessor:
                 self.logger.info(f"Deleted {job.num_dml_affected_rows} existing records for reprocessing")
         except Exception as e:
             self.logger.warning(f"Delete existing records failed (table may not exist): {e}")
+
+    def _generate_date_range(self, start_date: date, end_date: date) -> list:
+        """Generate list of dates from start_date to end_date (inclusive)."""
+        dates = []
+        current_date = start_date
+        while current_date <= end_date:
+            dates.append(current_date)
+            current_date += timedelta(days=1)
+        return dates
 
     def _parse_date(self, date_str: str) -> date:
         """Parse date string to date object."""

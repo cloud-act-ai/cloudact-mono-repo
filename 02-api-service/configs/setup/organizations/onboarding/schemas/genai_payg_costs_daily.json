@@ -1,32 +1,272 @@
 [
-  {"name": "cost_date", "type": "DATE", "mode": "REQUIRED", "description": "Date of cost (partition field). Daily cost aggregation."},
-  {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy."},
-  {"name": "provider", "type": "STRING", "mode": "REQUIRED", "description": "GenAI provider: openai, anthropic, gemini, azure_openai, aws_bedrock, gcp_vertex."},
-  {"name": "model", "type": "STRING", "mode": "REQUIRED", "description": "Model identifier. Example: gpt-4o, claude-3-5-sonnet."},
-  {"name": "model_family", "type": "STRING", "mode": "NULLABLE", "description": "Model family for grouping."},
-  {"name": "region", "type": "STRING", "mode": "NULLABLE", "description": "Deployment region."},
-  {"name": "input_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Total input tokens for the day."},
-  {"name": "output_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Total output tokens for the day."},
-  {"name": "cached_input_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Cached input tokens (if applicable)."},
-  {"name": "total_tokens", "type": "INT64", "mode": "NULLABLE", "description": "Total tokens consumed."},
-  {"name": "input_cost_usd", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost for input tokens in USD."},
-  {"name": "output_cost_usd", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost for output tokens in USD."},
-  {"name": "cached_cost_usd", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost for cached tokens in USD."},
-  {"name": "total_cost_usd", "type": "FLOAT64", "mode": "REQUIRED", "description": "Total daily cost in USD."},
-  {"name": "discount_applied_pct", "type": "FLOAT64", "mode": "NULLABLE", "description": "Volume/commitment discount percentage applied."},
-  {"name": "effective_rate_input", "type": "FLOAT64", "mode": "NULLABLE", "description": "Effective rate per 1M input tokens after discounts."},
-  {"name": "effective_rate_output", "type": "FLOAT64", "mode": "NULLABLE", "description": "Effective rate per 1M output tokens after discounts."},
-  {"name": "request_count", "type": "INT64", "mode": "NULLABLE", "description": "Number of API requests."},
-  {"name": "hierarchy_entity_id", "type": "STRING", "mode": "NULLABLE", "description": "Reference to org_hierarchy entity_id for cost allocation. The leaf-level entity in the hierarchy path."},
-  {"name": "hierarchy_entity_name", "type": "STRING", "mode": "NULLABLE", "description": "Entity name for reporting (denormalized from org_hierarchy)."},
-  {"name": "hierarchy_level_code", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy level code (e.g., 'department', 'project', 'team'). Identifies the depth in the hierarchy."},
-  {"name": "hierarchy_path", "type": "STRING", "mode": "NULLABLE", "description": "Full materialized path from root to entity (e.g., '/DEPT-001/PROJ-001/TEAM-001'). Enables rollup queries at any level."},
-  {"name": "hierarchy_path_names", "type": "STRING", "mode": "NULLABLE", "description": "Full path of names from root to entity (e.g., '/Engineering/Cloud Platform/DevOps'). Human-readable hierarchy trail."},
-  {"name": "hierarchy_validated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table."},
-  {"name": "calculated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when cost was calculated."},
-  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_payg_openai."},
-  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
-  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
-  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
-  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
+  {
+    "name": "cost_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of cost (partition field). Daily cost aggregation."
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy."
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "GenAI provider: openai, anthropic, gemini, azure_openai, aws_bedrock, gcp_vertex."
+  },
+  {
+    "name": "model",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Model identifier. Example: gpt-4o, claude-3-5-sonnet."
+  },
+  {
+    "name": "model_family",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Model family for grouping."
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Deployment region."
+  },
+  {
+    "name": "input_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Total input tokens for the day."
+  },
+  {
+    "name": "output_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Total output tokens for the day."
+  },
+  {
+    "name": "cached_input_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Cached input tokens (if applicable)."
+  },
+  {
+    "name": "total_tokens",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Total tokens consumed."
+  },
+  {
+    "name": "input_cost_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost for input tokens in USD."
+  },
+  {
+    "name": "output_cost_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost for output tokens in USD."
+  },
+  {
+    "name": "cached_cost_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost for cached tokens in USD."
+  },
+  {
+    "name": "total_cost_usd",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Total daily cost in USD."
+  },
+  {
+    "name": "discount_applied_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Volume/commitment discount percentage applied."
+  },
+  {
+    "name": "effective_rate_input",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Effective rate per 1M input tokens after discounts."
+  },
+  {
+    "name": "effective_rate_output",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Effective rate per 1M output tokens after discounts."
+  },
+  {
+    "name": "request_count",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Number of API requests."
+  },
+  {
+    "name": "hierarchy_level_1_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_1_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_2_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_2_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_3_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_3_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_4_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_4_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_5_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_5_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_6_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_6_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_7_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_7_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_8_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_8_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_9_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_9_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_10_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity ID (deepest level)."
+  },
+  {
+    "name": "hierarchy_level_10_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity name (deepest level)."
+  },
+  {
+    "name": "hierarchy_validated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table."
+  },
+  {
+    "name": "calculated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when cost was calculated."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline template name. Example: genai_payg_openai."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "The DATA date being processed. KEY for idempotent re-runs."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pipeline run UUID for full traceability."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was written to this table."
+  }
 ]

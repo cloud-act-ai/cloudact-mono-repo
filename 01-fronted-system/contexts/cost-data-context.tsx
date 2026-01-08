@@ -689,6 +689,19 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       }
 
       // Extract hierarchy entities (N-level: uses level_code)
+      // HIERARCHY-DEBUG: Log hierarchy fetch result for debugging filter visibility
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[CostData] Hierarchy fetch result:`, {
+          success: hierarchyResult.success,
+          error: hierarchyResult.error,
+          entityCount: hierarchyResult.data?.entities?.length ?? 0,
+          entities: hierarchyResult.data?.entities?.slice(0, 3).map(e => ({
+            entity_id: e.entity_id,
+            entity_name: e.entity_name,
+            level_code: e.level_code,
+          })),
+        })
+      }
       const hierarchyEntities: HierarchyEntity[] =
         hierarchyResult.success && hierarchyResult.data?.entities
           ? hierarchyResult.data.entities.map((h) => ({
