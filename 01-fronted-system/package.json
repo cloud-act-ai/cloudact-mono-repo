@@ -5,8 +5,11 @@
   "scripts": {
     "build": "next build --webpack",
     "dev": "next dev --webpack",
+    "predev": "node scripts/run-migrations.js",
     "lint": "eslint .",
+    "migrate": "node scripts/run-migrations.js",
     "start": "next start",
+    "prestart": "node scripts/run-migrations.js",
     "test": "vitest",
     "test:api": "vitest -c vitest.api.config.ts"
   },

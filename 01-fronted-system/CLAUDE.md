@@ -48,15 +48,18 @@ Next.js frontend with Supabase auth and Stripe payments. Port 3000. Connects to 
 ## Development
 
 ```bash
-npm run dev          # Start (http://localhost:3000)
+npm run dev          # Start (http://localhost:3000) - auto-runs migrations first
 npm run build        # Production build
 npm run lint         # ESLint
 npx vitest           # Tests
 
 # Supabase migrations (uses pooler connection: aws-0-{region}.pooler.supabase.com:6543)
-cd scripts/supabase_db && ./migrate.sh           # Run pending migrations
+npm run migrate                                  # Run pending migrations manually
+cd scripts/supabase_db && ./migrate.sh           # Run pending migrations (bash)
 cd scripts/supabase_db && ./migrate.sh --status  # Check status
 ```
+
+**Auto-Migrations:** Frontend automatically checks and applies pending Supabase migrations on startup (`npm run dev` and `npm start`). See `scripts/AUTO_MIGRATIONS.md` for details.
 
 ## User Flow
 

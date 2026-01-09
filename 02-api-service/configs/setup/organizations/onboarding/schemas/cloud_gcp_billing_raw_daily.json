@@ -238,5 +238,11 @@
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
     "description": "Timestamp when data was written to this table"
+  },
+  {
+    "name": "x_data_quality_score",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Data quality validation score (0.0-1.0)"
   }
 ]
