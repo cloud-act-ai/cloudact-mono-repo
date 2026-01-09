@@ -37,7 +37,7 @@ export function getApiServiceUrl(): string {
 export async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs = 30000
+  timeoutMs = 60000
 ): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)

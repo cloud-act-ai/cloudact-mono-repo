@@ -645,15 +645,15 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         })
       }
 
-      // ENT-003 FIX: Add timeout wrapper (30 seconds)
+      // ENT-003 FIX: Add timeout wrapper (60 seconds)
       // BUG-005 FIX: Store timeout ID to clear it when fetch completes, and abort on timeout
-      const FETCH_TIMEOUT_MS = 30000
+      const FETCH_TIMEOUT_MS = 60000
       let timeoutId: NodeJS.Timeout | null = null
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
           // Abort the controller when timeout fires to stop any pending requests
           abortController.abort()
-          reject(new Error("Request timeout after 30 seconds"))
+          reject(new Error("Request timeout after 60 seconds"))
         }, FETCH_TIMEOUT_MS)
       })
 

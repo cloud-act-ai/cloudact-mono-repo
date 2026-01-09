@@ -363,7 +363,7 @@ export default function ProviderDetailPage() {
 
   // Handle N-level hierarchy entity selection
   const handleHierarchyChange = (entityId: string) => {
-    if (!entityId) {
+    if (!entityId || entityId === "no_allocation") {
       // Clear hierarchy selection
       setFormData({
         ...formData,
@@ -1253,7 +1253,7 @@ export default function ProviderDetailPage() {
                 <div className="space-y-2">
                   <Label>Cost Allocation Entity</Label>
                   <Select
-                    value={formData.hierarchy_entity_id || ""}
+                    value={formData.hierarchy_entity_id || "no_allocation"}
                     onValueChange={handleHierarchyChange}
                   >
                     <SelectTrigger>
@@ -1264,7 +1264,7 @@ export default function ProviderDetailPage() {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">
+                      <SelectItem value="no_allocation">
                         <span className="text-muted-foreground">No allocation (org-level)</span>
                       </SelectItem>
                       {hierarchyEntities.map((entity) => (
