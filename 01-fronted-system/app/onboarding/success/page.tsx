@@ -9,6 +9,7 @@ import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { completeOnboarding } from "@/actions/organization"
+import { sendWelcomeEmail } from "@/lib/email"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OnboardingProgress, createOnboardingStages, updateStageStatus, completeStageAndMoveNext, type ProgressStage } from "@/components/onboarding-progress"
 
@@ -128,6 +129,31 @@ function SuccessContent() {
       }
       if (result.backendApiKey) {
         setApiKey(result.backendApiKey)
+      }
+
+      // Send welcome email (non-blocking - don't fail if email fails)
+      try {
+        const userMetadata = user.user_metadata || {}
+        const firstName = userMetadata.first_name || userMetadata.name || "there"
+        const userName = userMetadata.last_name
+          ? `${firstName} ${userMetadata.last_name}`
+          : firstName
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+        const dashboardLink = `${appUrl}/${result.orgSlug}/dashboard`
+
+        // Get org name from user metadata (pending_company_name) or fallback
+        const orgName = userMetadata.pending_company_name || result.orgSlug || "your organization"
+
+        await sendWelcomeEmail({
+          to: user.email!,
+          name: userName,
+          orgName: orgName,
+          dashboardLink: dashboardLink,
+        })
+      } catch (emailError) {
+        // Non-critical - don't fail onboarding if email fails
+        console.warn("[Onboarding Success] Failed to send welcome email:", emailError)
       }
 
       // Show success toast with appropriate message
