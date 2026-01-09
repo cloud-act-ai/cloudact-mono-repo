@@ -281,6 +281,39 @@ if [ "$HEALTH_OK" = true ]; then
         echo -e "${RED}✗ Version mismatch! Expected '$IMAGE_TAG' but got '$DEPLOYED_VERSION'${NC}"
         echo -e "${YELLOW}  This may indicate a caching issue or incorrect image tag${NC}"
     fi
+
+    # BUG-001 FIX: Verify bootstrap completion after api-service deployment
+    if [ "$SERVICE" = "api-service" ]; then
+        echo ""
+        echo -e "${YELLOW}Verifying bootstrap completion...${NC}"
+
+        # Check if bootstrap endpoint is available
+        BOOTSTRAP_STATUS=$(curl -sf "${SERVICE_URL}/api/v1/admin/bootstrap/status" \
+            -H "X-CA-Root-Key: placeholder-will-fail-if-not-bootstrapped" 2>/dev/null || echo "")
+
+        if [ -n "$BOOTSTRAP_STATUS" ]; then
+            # Parse status from JSON response
+            STATUS=$(echo "$BOOTSTRAP_STATUS" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' 2>/dev/null || echo "unknown")
+
+            if [ "$STATUS" = "bootstrapped" ] || [ "$STATUS" = "SYNCED" ]; then
+                echo -e "${GREEN}✓ Bootstrap already completed${NC}"
+            else
+                echo -e "${YELLOW}! Bootstrap status: $STATUS${NC}"
+                echo -e "${YELLOW}! WARNING: You may need to run bootstrap manually:${NC}"
+                echo "  cd ../bootstrap && ./bootstrap.sh $ENV"
+            fi
+        else
+            echo -e "${YELLOW}! WARNING: Could not check bootstrap status${NC}"
+            echo -e "${YELLOW}  Run bootstrap script to ensure system is initialized:${NC}"
+            echo "  cd ../bootstrap && ./bootstrap.sh $ENV"
+        fi
+
+        echo ""
+        echo -e "${BLUE}NEXT STEPS:${NC}"
+        echo "  1. Verify bootstrap: cd ../bootstrap && ./bootstrap.sh $ENV"
+        echo "  2. Deploy pipeline-service: ./deploy.sh pipeline-service $ENV $PROJECT_ID"
+        echo "  3. Deploy frontend: ./deploy.sh frontend $ENV $PROJECT_ID"
+    fi
 else
     echo -e "${RED}✗ Health check failed after ${MAX_RETRIES} attempts${NC}"
     echo "  Check logs at: https://console.cloud.google.com/run/detail/${REGION}/${SERVICE_NAME}/logs?project=${PROJECT_ID}"

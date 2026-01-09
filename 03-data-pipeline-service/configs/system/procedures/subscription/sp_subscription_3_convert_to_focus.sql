@@ -55,6 +55,22 @@ BEGIN
 
   BEGIN TRANSACTION;
 
+    -- PRO-012: Validate currency codes in source data (defensive check)
+    -- Supported currencies: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF
+    EXECUTE IMMEDIATE FORMAT("""
+      SELECT
+        LOGICAL_AND(
+          currency IN ('USD', 'EUR', 'GBP', 'INR', 'JPY', 'CNY', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'AUD', 'CAD', 'SGD', 'CHF')
+          OR currency IS NULL
+        ) AS all_currencies_valid
+      FROM `%s.%s.subscription_plan_costs_daily`
+      WHERE cost_date BETWEEN @p_start AND @p_end
+    """, p_project_id, p_dataset_id)
+    INTO @v_currencies_valid
+    USING p_start_date AS p_start, p_end_date AS p_end;
+
+    ASSERT @v_currencies_valid AS "Invalid currency code found in subscription_plan_costs_daily. Supported: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF";
+
     -- 2. Delete existing Subscription data for date range (only this source)
     -- Note: ChargePeriodStart is TIMESTAMP, so cast DATE params to TIMESTAMP
     EXECUTE IMMEDIATE FORMAT("""

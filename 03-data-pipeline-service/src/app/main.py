@@ -277,14 +277,42 @@ async def lifespan(app: FastAPI):
 
                     if procedures_failed:
                         logger.warning(f"Auto-sync procedures: {len(procedures_failed)} procedures failed to sync")
+                        # BUG-002 FIX: Fail startup in production if critical procedures fail to sync
+                        if settings.is_production:
+                            # List of critical procedures required for pipeline execution
+                            critical_procedures = {
+                                "sp_subscription_2_calculate_daily_costs",
+                                "sp_subscription_3_convert_to_focus",
+                                "sp_subscription_4_run_pipeline",
+                                "sp_genai_2_consolidate_costs_daily",
+                                "sp_genai_3_convert_to_focus",
+                            }
+                            failed_names = {p["name"] for p in procedures_failed}
+                            critical_failures = critical_procedures & failed_names
+
+                            if critical_failures:
+                                error_msg = (
+                                    f"CRITICAL: Failed to sync {len(critical_failures)} required procedures: "
+                                    f"{', '.join(sorted(critical_failures))}. "
+                                    "Service cannot start without these procedures."
+                                )
+                                logger.error(error_msg)
+                                raise RuntimeError(error_msg)
 
                     if not procedures_created and not procedures_failed:
                         logger.info("Auto-sync procedures: All procedures in sync")
                 else:
                     logger.debug("Auto-sync procedures: Procedures directory not found")
 
+        except RuntimeError:
+            # Re-raise RuntimeError from critical procedure failures
+            raise
         except Exception as e:
             logger.error(f"Auto-sync procedures failed: {e}", exc_info=True)
+            # BUG-002 FIX: Fail startup in production on auto-sync errors
+            if settings.is_production:
+                logger.error("CRITICAL: Auto-sync procedures failed in production environment")
+                raise RuntimeError(f"Auto-sync procedures failed: {e}") from e
             logger.warning("Continuing startup despite auto-sync procedures failure")
     else:
         logger.info("Auto-sync procedures disabled (AUTO_SYNC_PROCEDURES=false)")
@@ -784,8 +812,9 @@ async def readiness_probe():
         logger.warning(f"API service health check failed: {e}")
         checks["api"] = False
 
-    # Determine overall readiness (BigQuery is critical, others are warnings)
-    critical_checks = checks["ready"] and checks["bigquery"]
+    # BUG-003 FIX: Make procedures critical for readiness (service cannot execute pipelines without them)
+    # Determine overall readiness (BigQuery and procedures are critical, others are warnings)
+    critical_checks = checks["ready"] and checks["bigquery"] and checks["procedures"]
 
     if critical_checks:
         return {

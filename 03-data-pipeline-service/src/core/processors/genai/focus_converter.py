@@ -19,6 +19,7 @@ from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
+from src.core.utils.audit_logger import log_execute, AuditLogger
 
 
 class FOCUSConverterProcessor:
@@ -85,6 +86,21 @@ class FOCUSConverterProcessor:
         project_id = self.settings.gcp_project_id
 
         self.logger.info(f"Converting GenAI costs to FOCUS 1.3 for {org_slug}")
+
+        # SEC-005: Audit logging - Log pipeline execution start
+        run_id = context.get("run_id", "manual")
+        pipeline_id = context.get("pipeline_id", "genai_focus_converter")
+        await log_execute(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_PIPELINE,
+            resource_id=pipeline_id,
+            details={
+                "run_id": run_id,
+                "action": "START",
+                "processor": "GenAIFOCUSConverterProcessor",
+                "process_date": str(process_date)
+            }
+        )
 
         try:
             bq_client = BigQueryClient(project_id=project_id)
@@ -327,6 +343,21 @@ class FOCUSConverterProcessor:
                     "note": "Affected count includes both inserted and updated rows"
                 }
             )
+
+            # SEC-005: Audit logging - Log successful completion
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_SUCCESS,
+                details={
+                    "run_id": run_id,
+                    "rows_affected": rows_affected,
+                    "process_date": str(process_date),
+                    "target_table": "cost_data_standard_1_3"
+                }
+            )
+
             return {
                 "status": "SUCCESS",
                 "rows_inserted": rows_affected,  # Keep name for backward compatibility
@@ -337,6 +368,17 @@ class FOCUSConverterProcessor:
 
         except Exception as e:
             self.logger.error(f"FOCUS conversion failed: {e}", exc_info=True)
+
+            # SEC-005: Audit logging - Log failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=str(e),
+                details={"run_id": run_id, "process_date": str(process_date)}
+            )
+
             return {"status": "FAILED", "error": str(e)}
 
     def _parse_date(self, date_str):

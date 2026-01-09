@@ -15,6 +15,7 @@ from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
+from src.core.utils.audit_logger import log_execute, AuditLogger
 
 
 class CloudFOCUSConverterProcessor:
@@ -97,6 +98,22 @@ class CloudFOCUSConverterProcessor:
         dataset_id = self.settings.get_org_dataset_name(org_slug)
         project_id = self.settings.gcp_project_id
 
+        # SEC-005: Audit logging - Log pipeline execution start
+        run_id = context.get("run_id", "manual")
+        pipeline_id = context.get("pipeline_id", "cloud_focus_converter")
+        await log_execute(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_PIPELINE,
+            resource_id=pipeline_id,
+            details={
+                "run_id": run_id,
+                "action": "START",
+                "processor": "CloudFOCUSConverterProcessor",
+                "provider": provider,
+                "dates": len(dates_to_process)
+            }
+        )
+
         try:
             bq_client = BigQueryClient(project_id=project_id)
 
@@ -146,6 +163,20 @@ class CloudFOCUSConverterProcessor:
                 extra={"rows_inserted": total_rows_inserted, "days_processed": len(dates_to_process)}
             )
 
+            # SEC-005: Audit logging - Log successful completion
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_SUCCESS,
+                details={
+                    "run_id": run_id,
+                    "rows_inserted": total_rows_inserted,
+                    "days_processed": len(dates_to_process),
+                    "provider": provider
+                }
+            )
+
             return {
                 "status": "SUCCESS",
                 "rows_inserted": total_rows_inserted,
@@ -156,6 +187,17 @@ class CloudFOCUSConverterProcessor:
 
         except Exception as e:
             self.logger.error(f"Cloud FOCUS conversion failed: {e}", exc_info=True)
+
+            # SEC-005: Audit logging - Log failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=str(e),
+                details={"run_id": run_id, "provider": provider}
+            )
+
             return {"status": "FAILED", "error": str(e)}
 
     def _parse_date(self, date_str) -> Optional[date]:

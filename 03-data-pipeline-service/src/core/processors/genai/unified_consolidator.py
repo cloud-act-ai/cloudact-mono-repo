@@ -20,6 +20,7 @@ from google.cloud import bigquery
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
 from src.core.utils.validators import is_valid_org_slug
+from src.core.utils.audit_logger import log_execute, AuditLogger
 
 
 class UnifiedConsolidatorProcessor:
@@ -100,6 +101,22 @@ class UnifiedConsolidatorProcessor:
         dataset_id = self.settings.get_org_dataset_name(org_slug)
         project_id = self.settings.gcp_project_id
 
+        # SEC-005: Audit logging - Log pipeline execution start
+        run_id = context.get("run_id", "manual")
+        pipeline_id = context.get("pipeline_id", "genai_unified_consolidator")
+        await log_execute(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_PIPELINE,
+            resource_id=pipeline_id,
+            details={
+                "run_id": run_id,
+                "action": "START",
+                "processor": "UnifiedConsolidatorProcessor",
+                "target": target,
+                "dates": len(dates_to_process)
+            }
+        )
+
         try:
             bq_client = BigQueryClient(project_id=project_id)
             total_rows_all_dates = 0
@@ -128,6 +145,21 @@ class UnifiedConsolidatorProcessor:
                 self.logger.info(f"Consolidated {total_rows} records for {process_date}")
 
             self.logger.info(f"Consolidated {total_rows_all_dates} records across {days_processed} days")
+
+            # SEC-005: Audit logging - Log successful completion
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_SUCCESS,
+                details={
+                    "run_id": run_id,
+                    "rows_inserted": total_rows_all_dates,
+                    "days_processed": days_processed,
+                    "target": target
+                }
+            )
+
             return {
                 "status": "SUCCESS",
                 "rows_inserted": total_rows_all_dates,
@@ -136,6 +168,17 @@ class UnifiedConsolidatorProcessor:
 
         except Exception as e:
             self.logger.error(f"Consolidation failed: {e}", exc_info=True)
+
+            # SEC-005: Audit logging - Log failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=str(e),
+                details={"run_id": run_id, "target": target}
+            )
+
             return {"status": "FAILED", "error": str(e)}
 
     async def _consolidate_usage(

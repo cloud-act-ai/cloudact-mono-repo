@@ -36,12 +36,14 @@ from google.api_core import exceptions as google_exceptions
 
 from src.core.engine.bq_client import BigQueryClient, BigQueryPoolManager
 from src.app.config import get_settings
+from src.core.utils.audit_logger import log_execute, AuditLogger
 
 # BigQuery rate limit retry configuration
-BQ_MAX_RETRIES = 5
-BQ_INITIAL_BACKOFF_SECONDS = 1.0
-BQ_MAX_BACKOFF_SECONDS = 60.0
-BQ_BACKOFF_MULTIPLIER = 2.0
+# QUAL-003: Exponential backoff for 429 (Too Many Requests) and 503 (Service Unavailable) errors
+BQ_MAX_RETRIES = 5  # Maximum retry attempts: 5 tries = up to 31 seconds total wait (1+2+4+8+16)
+BQ_INITIAL_BACKOFF_SECONDS = 1.0  # First retry after 1 second
+BQ_MAX_BACKOFF_SECONDS = 60.0  # Cap backoff at 60 seconds to prevent indefinite waits
+BQ_BACKOFF_MULTIPLIER = 2.0  # Double wait time on each retry: 1s → 2s → 4s → 8s → 16s → 32s
 
 # SECURITY: Valid table name pattern for SQL injection prevention
 import re
@@ -401,6 +403,21 @@ class PAYGCostProcessor:
             if not self._validate_table_name(table):
                 return {"status": "FAILED", "error": f"Invalid table name: {table}"}
 
+        # SEC-005: Audit logging - Log pipeline execution start
+        pipeline_id = context.get("pipeline_id", "genai_payg_cost")
+        await log_execute(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_PIPELINE,
+            resource_id=pipeline_id,
+            details={
+                "run_id": run_id,
+                "action": "START",
+                "processor": "GenAIPaygCostProcessor",
+                "provider": provider or "all",
+                "dates": len(dates_to_process)
+            }
+        )
+
         try:
             bq_client = BigQueryClient(project_id=project_id)
 
@@ -657,6 +674,21 @@ class PAYGCostProcessor:
                 f"Calculated {total_rows_inserted} PAYG cost records across {len(dates_to_process)} days, "
                 f"total: ${total_cost_all_dates:.2f}"
             )
+
+            # SEC-005: Audit logging - Log successful completion
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_SUCCESS,
+                details={
+                    "run_id": run_id,
+                    "rows_inserted": total_rows_inserted,
+                    "total_cost_usd": round(total_cost_all_dates, 2),
+                    "days_processed": len(dates_to_process)
+                }
+            )
+
             return {
                 "status": "SUCCESS",
                 "rows_inserted": total_rows_inserted,
@@ -674,6 +706,17 @@ class PAYGCostProcessor:
                 exc_info=True,
                 extra={"org_slug": org_slug, "date": date_str}
             )
+
+            # SEC-005: Audit logging - Log failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=f"{type(e).__name__}: {str(e)}",
+                details={"run_id": run_id, "date": date_str}
+            )
+
             return {
                 "status": "FAILED",
                 "error": "Failed to calculate costs. Check logs for details."

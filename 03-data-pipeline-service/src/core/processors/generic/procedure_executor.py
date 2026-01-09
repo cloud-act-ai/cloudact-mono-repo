@@ -17,6 +17,7 @@ from google.api_core.exceptions import GoogleAPIError
 
 from src.app.config import get_settings
 from src.core.engine.bq_client import BigQueryClient
+from src.core.utils.audit_logger import log_execute, AuditLogger
 
 # Validation patterns for SQL injection prevention
 PROCEDURE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
@@ -240,6 +241,22 @@ class ProcedureExecutorProcessor:
             }
         )
 
+        # SEC-005: Audit logging - Log pipeline execution start
+        run_id = context.get("run_id", "manual")
+        pipeline_id = context.get("pipeline_id", f"procedure_{procedure_name}")
+        await log_execute(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_PIPELINE,
+            resource_id=pipeline_id,
+            details={
+                "run_id": run_id,
+                "action": "START",
+                "processor": "ProcedureExecutorProcessor",
+                "procedure": procedure_name,
+                "parameters": {p.name: str(p.value) for p in query_parameters}
+            }
+        )
+
         # 5. Execute the procedure with timeout and retry
         bq_client = BigQueryClient(project_id=project_id)
 
@@ -296,6 +313,20 @@ class ProcedureExecutorProcessor:
                 }
             )
 
+            # SEC-005: Audit logging - Log successful completion
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_SUCCESS,
+                details={
+                    "run_id": run_id,
+                    "procedure": procedure_name,
+                    "job_id": query_job.job_id,
+                    "rows_returned": len(result_data)
+                }
+            )
+
             return {
                 "status": "SUCCESS",
                 "procedure": procedure_name,
@@ -318,6 +349,17 @@ class ProcedureExecutorProcessor:
                     "error_type": type(e).__name__
                 }
             )
+
+            # SEC-005: Audit logging - Log failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=error_msg,
+                details={"run_id": run_id, "procedure": procedure_name, "error_type": "BigQueryAPIError"}
+            )
+
             return {
                 "status": "FAILED",
                 "procedure": procedure_name,
@@ -336,6 +378,17 @@ class ProcedureExecutorProcessor:
                     "timeout_minutes": timeout_minutes
                 }
             )
+
+            # SEC-005: Audit logging - Log timeout failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=error_msg,
+                details={"run_id": run_id, "procedure": procedure_name, "error_type": "Timeout"}
+            )
+
             return {
                 "status": "FAILED",
                 "procedure": procedure_name,
@@ -355,6 +408,16 @@ class ProcedureExecutorProcessor:
                     "error": error_msg,
                     "error_type": type(e).__name__
                 }
+            )
+
+            # SEC-005: Audit logging - Log general failure
+            await log_execute(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_PIPELINE,
+                resource_id=pipeline_id,
+                status=AuditLogger.STATUS_FAILURE,
+                error_message=error_msg,
+                details={"run_id": run_id, "procedure": procedure_name, "error_type": type(e).__name__}
             )
             return {
                 "status": "FAILED",

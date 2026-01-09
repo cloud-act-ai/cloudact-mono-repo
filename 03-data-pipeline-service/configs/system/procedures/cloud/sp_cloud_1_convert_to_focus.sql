@@ -704,5 +704,10 @@ BEGIN
 
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
-  RAISE USING MESSAGE = CONCAT('sp_cloud_1_convert_to_focus Failed: ', @@error.message);
+  -- PRO-011: Enhanced error message with provider and date context
+  RAISE USING MESSAGE = CONCAT(
+    'sp_cloud_1_convert_to_focus Failed for provider=', p_provider,
+    ', cost_date=', CAST(p_cost_date AS STRING),
+    ': ', @@error.message
+  );
 END;

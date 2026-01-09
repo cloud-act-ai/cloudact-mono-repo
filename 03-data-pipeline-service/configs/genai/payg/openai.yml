@@ -13,7 +13,7 @@ version: "15.0.0"
 
 schedule:
   cron: "0 2 * * *"
-  timezone: "UTC"
+  timezone: "UTC"  # All pipeline schedules use UTC for consistency across global deployments
   enabled: true
 
 steps:

@@ -381,7 +381,7 @@
     "name": "x_pipeline_run_date",
     "type": "DATE",
     "mode": "REQUIRED",
-    "description": "The DATA date being processed. KEY for idempotent re-runs"
+    "description": "The DATA date being processed. KEY for idempotent re-runs. CLUSTER KEY for partition pruning."
   },
   {
     "name": "x_run_id",

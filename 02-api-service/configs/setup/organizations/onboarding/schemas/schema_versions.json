@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Schema version tracking for BigQuery table definitions",
+  "version": "15.0.0",
+  "last_updated": "2026-01-08",
+  "schemas": {
+    "cost_data_standard_1_3.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "FOCUS 1.3 standard cost data with org-specific extensions and 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Added x_cloud_provider and x_cloud_account_id fields",
+        "Standardized x_* field order",
+        "Added clustering hint to x_pipeline_run_date"
+      ]
+    },
+    "cloud_gcp_billing_raw_daily.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "GCP cloud billing raw data with 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Added x_cloud_provider (REQUIRED)",
+        "Added x_cloud_account_id (NULLABLE)",
+        "Added clustering hint to x_pipeline_run_date"
+      ]
+    },
+    "cloud_aws_billing_raw_daily.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "AWS cloud billing raw data with 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Added x_cloud_provider (REQUIRED)",
+        "Added x_cloud_account_id (NULLABLE)",
+        "Added clustering hint to x_pipeline_run_date"
+      ]
+    },
+    "cloud_azure_billing_raw_daily.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "Azure cloud billing raw data with 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Added x_cloud_provider (REQUIRED)",
+        "Added x_cloud_account_id (NULLABLE)",
+        "Added clustering hint to x_pipeline_run_date"
+      ]
+    },
+    "cloud_oci_billing_raw_daily.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "OCI cloud billing raw data with 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Added x_cloud_provider (REQUIRED)",
+        "Added x_cloud_account_id (NULLABLE)",
+        "Added clustering hint to x_pipeline_run_date"
+      ]
+    },
+    "subscription_plans.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "SaaS subscription plans with version history and 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Note: billing_amount field deprecated, use unit_price instead"
+      ]
+    },
+    "subscription_plan_costs_daily.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "Daily amortized subscription costs with 10-level hierarchy",
+      "breaking_changes": false,
+      "changes": [
+        "Added pipeline lineage tracking"
+      ]
+    },
+    "genai_payg_usage_raw.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "GenAI PAYG usage raw data from provider APIs",
+      "breaking_changes": false
+    },
+    "genai_costs_daily_unified.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "Unified daily GenAI costs (PAYG + commitment + infrastructure)",
+      "breaking_changes": false
+    },
+    "org_hierarchy.json": {
+      "version": "15.0.0",
+      "last_updated": "2026-01-08",
+      "description": "N-level organizational hierarchy for cost allocation",
+      "breaking_changes": false,
+      "changes": [
+        "Supports flexible N-level hierarchy (not limited to 3 or 10 levels)",
+        "Materialized path for efficient querying",
+        "Active/inactive entity tracking via end_date"
+      ]
+    }
+  }
+}
