@@ -244,5 +244,23 @@
     "type": "FLOAT64",
     "mode": "NULLABLE",
     "description": "Data quality validation score (0.0-1.0)"
+  },
+  {
+    "name": "x_created_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Record creation timestamp"
+  },
+  {
+    "name": "x_cloud_provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cloud provider identifier (aws, azure, gcp, oci)"
+  },
+  {
+    "name": "x_cloud_account_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Normalized cloud account/subscription ID"
   }
 ]

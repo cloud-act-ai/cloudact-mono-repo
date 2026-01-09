@@ -40,6 +40,7 @@ class FOCUSConverterProcessor:
     PROVIDER_NAMES = {
         "openai": "OpenAI",
         "anthropic": "Anthropic",
+        "deepseek": "DeepSeek",
         "gemini": "Google",
         "azure_openai": "Microsoft",
         "aws_bedrock": "Amazon Web Services",

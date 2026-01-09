@@ -32,8 +32,8 @@ description: "Calculate daily amortized SaaS subscription costs and convert to F
 version: "1.0.0"
 
 # Pipeline-level timeout (minutes)
-# BUG-039 FIX: Reduced from 15min to 5min (query-only pipeline, no external API calls)
-timeout_minutes: 5
+# Monthly processing can take longer for large subscription datasets
+timeout_minutes: 15
 
 # Rate limiting (requests per minute for this pipeline)
 rate_limit_per_minute: 30

@@ -178,6 +178,77 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("KMS validation failed - encryption may not work properly (DEV/STAGING only)")
 
+    # Auto-bootstrap on startup (if enabled)
+    # Creates organizations dataset + 21 meta tables if not present
+    # Also syncs missing tables/columns if bootstrap is out of sync
+    if settings.auto_bootstrap:
+        try:
+            from src.core.processors.setup.initial.onetime_bootstrap_processor import OnetimeBootstrapProcessor
+            from src.core.engine.bq_client import get_bigquery_client
+            from pathlib import Path
+            import yaml
+
+            logger.info("Auto-bootstrap: Checking bootstrap status...")
+
+            # Check if organizations dataset exists
+            bq_client = get_bigquery_client()
+            dataset_name = "organizations"
+            dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
+
+            try:
+                bq_client.client.get_dataset(dataset_id)
+                dataset_exists = True
+            except Exception:
+                dataset_exists = False
+
+            if not dataset_exists:
+                logger.info("Auto-bootstrap: Organizations dataset not found - running full bootstrap...")
+                processor = OnetimeBootstrapProcessor()
+                result = await processor.execute(
+                    step_config={},
+                    context={
+                        "force_recreate_dataset": False,
+                        "force_recreate_tables": False
+                    }
+                )
+                logger.info(f"✓ Auto-bootstrap completed: Created dataset and {result.get('tables_created', 21)} tables")
+            else:
+                # Dataset exists - check if we need to sync
+                config_dir = Path(__file__).parent.parent.parent / "configs" / "setup" / "bootstrap"
+                config_file = config_dir / "config.yml"
+
+                with open(config_file, 'r') as f:
+                    config = yaml.safe_load(f)
+
+                expected_tables = set(config.get('tables', {}).keys())
+                existing_tables = {table.table_id for table in bq_client.client.list_tables(dataset_id)}
+                tables_missing = expected_tables - existing_tables
+
+                if tables_missing:
+                    logger.info(f"Auto-bootstrap: {len(tables_missing)} tables missing - syncing...")
+                    processor = OnetimeBootstrapProcessor()
+                    result = await processor.execute(
+                        step_config={},
+                        context={
+                            "force_recreate_dataset": False,
+                            "force_recreate_tables": False
+                        }
+                    )
+                    logger.info(f"✓ Auto-bootstrap sync completed: Created {len(tables_missing)} missing tables")
+                else:
+                    logger.info("✓ Auto-bootstrap: System already bootstrapped, no action needed")
+
+        except Exception as e:
+            logger.error(f"❌ Auto-bootstrap failed: {e}", exc_info=True)
+            if settings.environment == "production":
+                # In production, log error but continue startup
+                # Bootstrap can be run manually later
+                logger.warning("Continuing startup despite auto-bootstrap failure - run bootstrap manually if needed")
+            else:
+                logger.warning("Auto-bootstrap failed (DEV/STAGING) - continuing startup")
+    else:
+        logger.info("Auto-bootstrap disabled (AUTO_BOOTSTRAP=false)")
+
     # Auto-sync bootstrap schema on startup (if enabled)
     # Safe because BigQuery only adds columns, never deletes them
     if settings.auto_sync_schema:

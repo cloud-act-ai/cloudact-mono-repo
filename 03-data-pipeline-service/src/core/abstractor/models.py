@@ -204,7 +204,7 @@ class RetryConfig(BaseModel):
 class PipelineStepConfig(BaseModel):
     """Single pipeline step configuration."""
     step_id: str = Field(..., description="Unique step identifier")
-    name: Optional[str] = Field(None, description="Human-readable step name")
+    name: str = Field(..., description="Human-readable step name", min_length=1)
     description: Optional[str] = Field(None, description="Step description")
     ps_type: str = Field(..., description="Pipeline step type with provider prefix (e.g., 'gcp.bq_etl', 'notify_systems.email_notification')")
 
@@ -319,10 +319,10 @@ class NotificationsConfig(BaseModel):
 class PipelineConfig(BaseModel):
     """Complete pipeline configuration."""
     pipeline_id: str = Field(..., description="Unique pipeline identifier", min_length=1)
-    name: Optional[str] = Field(None, description="Issue #12: Human-readable pipeline name")
+    name: str = Field(..., description="Issue #12: Human-readable pipeline name", min_length=1)
     description: Optional[str] = Field(None, description="Pipeline description")
-    provider: Optional[str] = Field(None, description="Issue #12: Provider name (e.g., 'genai', 'gcp')")
-    domain: Optional[str] = Field(None, description="Issue #12: Domain name (e.g., 'payg', 'commitment')")
+    provider: str = Field(..., description="Issue #12: Provider name (e.g., 'genai', 'gcp')", min_length=1)
+    domain: str = Field(..., description="Issue #12: Domain name (e.g., 'payg', 'commitment')", min_length=1)
     version: Optional[str] = Field(None, description="Pipeline version")
     schedule: Optional[str | Dict[str, Any] | ScheduleConfig] = Field(None, description="Cron expression or schedule config")
     steps: List[PipelineStepConfig] = Field(..., min_length=1, description="Pipeline steps (at least 1 required)")

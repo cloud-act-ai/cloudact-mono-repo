@@ -702,6 +702,14 @@ class Settings(BaseSettings):
         description="Path to metadata table schema definitions"
     )
 
+    # ============================================
+    # Auto-Bootstrap Configuration
+    # ============================================
+    auto_bootstrap: bool = Field(
+        default=True,
+        description="Auto-run bootstrap/sync on startup. Set AUTO_BOOTSTRAP=false to disable."
+    )
+
 
     @property
     def is_production(self) -> bool:

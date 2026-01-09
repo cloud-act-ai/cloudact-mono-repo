@@ -45,6 +45,82 @@ BQ_BACKOFF_MULTIPLIER = 2.0
 
 # SECURITY: Valid table name pattern for SQL injection prevention
 import re
+import time
+from google.api_core import exceptions as google_exceptions
+from typing import Callable, TypeVar, Any
+
+T = TypeVar('T')
+
+
+def retry_with_backoff(
+    func: Callable[..., T],
+    *args: Any,
+    max_retries: int = BQ_MAX_RETRIES,
+    initial_backoff: float = BQ_INITIAL_BACKOFF_SECONDS,
+    max_backoff: float = BQ_MAX_BACKOFF_SECONDS,
+    multiplier: float = BQ_BACKOFF_MULTIPLIER,
+    logger: Any = None,
+    **kwargs: Any
+) -> T:
+    """
+    Retry a function with exponential backoff for BigQuery rate limits.
+
+    Handles 429 (Too Many Requests), 500 (Internal Server Error), and 503 (Service Unavailable).
+    Uses exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at 60s).
+
+    Args:
+        func: Function to retry
+        *args: Positional arguments to pass to func
+        max_retries: Maximum number of retry attempts
+        initial_backoff: Initial backoff delay in seconds
+        max_backoff: Maximum backoff delay in seconds
+        multiplier: Backoff multiplier for exponential backoff
+        logger: Logger instance for retry messages
+        **kwargs: Keyword arguments to pass to func
+
+    Returns:
+        Result of func call
+
+    Raises:
+        Last exception if all retries exhausted
+    """
+    last_exception = None
+    backoff = initial_backoff
+
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except (google_exceptions.TooManyRequests,
+                google_exceptions.InternalServerError,
+                google_exceptions.ServiceUnavailable) as e:
+            last_exception = e
+
+            if attempt < max_retries - 1:
+                # Calculate backoff with exponential growth
+                wait_time = min(backoff, max_backoff)
+                if logger:
+                    logger.warning(
+                        f"BigQuery rate limit/error (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {wait_time:.1f}s..."
+                    )
+                time.sleep(wait_time)
+                backoff *= multiplier
+            else:
+                if logger:
+                    logger.error(
+                        f"BigQuery operation failed after {max_retries} retries: {e}"
+                    )
+                raise
+        except Exception as e:
+            # Non-retryable exception, fail immediately
+            if logger:
+                logger.error(f"Non-retryable BigQuery error: {e}")
+            raise
+
+    # Should never reach here, but just in case
+    if last_exception:
+        raise last_exception
+    raise RuntimeError("Unexpected retry logic failure")
 VALID_TABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 VALID_PROJECT_ID_PATTERN = re.compile(r'^[a-z][a-z0-9\-]*[a-z0-9]$')
 
@@ -764,9 +840,12 @@ class PAYGCostProcessor:
         """
 
         try:
-            job = bq_client.client.query(
+            # Issue #45: Use retry wrapper for BigQuery rate limits
+            job = retry_with_backoff(
+                bq_client.client.query,
                 delete_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=query_params)
+                job_config=bigquery.QueryJobConfig(query_parameters=query_params),
+                logger=self.logger
             )
             job.result()
             if job.num_dml_affected_rows:

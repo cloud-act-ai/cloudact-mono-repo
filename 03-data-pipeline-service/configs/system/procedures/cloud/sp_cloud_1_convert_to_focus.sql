@@ -42,6 +42,15 @@ BEGIN
   -- Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
   ASSERT p_dataset_id IS NOT NULL AS "p_dataset_id cannot be NULL";
+
+  -- Security: Verify org_slug exists in org_profiles to prevent unauthorized access
+  DECLARE v_org_exists INT64 DEFAULT 0;
+  EXECUTE IMMEDIATE FORMAT("""
+    SELECT COUNT(*) FROM `%s.organizations.org_profiles`
+    WHERE org_slug = @v_org_slug
+  """, p_project_id)
+  INTO v_org_exists USING v_org_slug AS v_org_slug;
+  ASSERT v_org_exists = 1 AS "Organization not found or unauthorized access";
   ASSERT p_cost_date IS NOT NULL AS "p_cost_date cannot be NULL";
   ASSERT p_provider IN ('gcp', 'aws', 'azure', 'oci', 'all') AS "p_provider must be gcp, aws, azure, oci, or all";
   ASSERT p_pipeline_id IS NOT NULL AS "p_pipeline_id cannot be NULL";
@@ -70,6 +79,9 @@ BEGIN
 
     -- ============================================================================
     -- GCP Billing to FOCUS 1.3
+    -- PERFORMANCE NOTE: For large GCP datasets (>10M rows), consider batch
+    -- processing by date range or implementing partition-level processing
+    -- to avoid BigQuery slot exhaustion and timeout errors.
     -- ============================================================================
     IF p_provider IN ('gcp', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
