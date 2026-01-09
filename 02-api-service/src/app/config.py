@@ -710,6 +710,14 @@ class Settings(BaseSettings):
         description="Auto-run bootstrap/sync on startup. Set AUTO_BOOTSTRAP=false to disable."
     )
 
+    # ============================================
+    # Org Dataset Auto-Sync Configuration
+    # ============================================
+    auto_sync_org_datasets: bool = Field(
+        default=True,
+        description="Auto-sync org datasets on startup (idempotent, safe for concurrent instances). Set AUTO_SYNC_ORG_DATASETS=false to disable."
+    )
+
 
     @property
     def is_production(self) -> bool:

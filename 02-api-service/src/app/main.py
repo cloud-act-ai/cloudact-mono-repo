@@ -505,6 +505,26 @@ async def lifespan(app: FastAPI):
     else:
         logger.debug("Auto-sync org schema disabled (default). Set AUTO_SYNC_ORG_SCHEMA=true to enable.")
 
+    # Auto-sync org datasets on startup (if enabled)
+    # Idempotent - safe for concurrent instances
+    # Creates missing tables (differs from auto_sync_org_schema which only adds columns)
+    if settings.auto_sync_org_datasets:
+        try:
+            logger.info("Starting org dataset auto-sync task in background...")
+
+            # Import sync function
+            from src.core.services._shared.org_sync import sync_all_org_datasets_background
+
+            # Start background task (non-blocking)
+            asyncio.create_task(sync_all_org_datasets_background())
+
+            logger.info("✓ Org dataset sync task started")
+        except Exception as e:
+            logger.error(f"Failed to start org sync task: {e}", exc_info=True)
+            logger.warning("Continuing startup - org sync will be skipped")
+    else:
+        logger.info("Org dataset auto-sync disabled (AUTO_SYNC_ORG_DATASETS=false)")
+
     # Initialize Auth Metrics Aggregator background task
     try:
         auth_aggregator = get_auth_aggregator()

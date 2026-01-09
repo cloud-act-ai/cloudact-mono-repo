@@ -114,7 +114,7 @@ async function requireOrgMembershipInternal(orgSlug: string): Promise<AuthResult
 // ============================================
 
 // AUTH-002 FIX: Timeout for auth operations to prevent indefinite hanging
-const AUTH_OPERATION_TIMEOUT_MS = 10000 // 10 seconds
+const AUTH_OPERATION_TIMEOUT_MS = 30000 // 30 seconds
 
 /**
  * Get cached auth + API key in a single call.
