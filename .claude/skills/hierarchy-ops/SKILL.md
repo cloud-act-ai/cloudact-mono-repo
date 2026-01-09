@@ -8,11 +8,16 @@ description: |
 # Hierarchy Operations
 
 ## Structure
-Organization → Department → Project → Team (4-level hierarchy for cost allocation)
+**N-Level Configurable Hierarchy** (default: Organization → Department → Project → Team)
+
+- Levels are **configurable** via `hierarchy_levels` table (level_code, level_name, id_prefix)
+- Default template: Dept/Project/Team (seeded via `/levels/seed`)
+- Organizations can customize level names/codes to match their structure
 
 ## Data Architecture
 ```
 WRITES → organizations.org_hierarchy (central table)
+         organizations.hierarchy_levels (level definitions)
 READS  → {org_slug}_prod.x_org_hierarchy (materialized view, 15min refresh)
 ```
 
@@ -37,6 +42,16 @@ DELETE /api/v1/hierarchy/{org}/entities/{id}
 # Seed default levels (DEPT/PROJ/TEAM)
 POST /api/v1/hierarchy/{org}/levels/seed
 ```
+
+## Default Level Configuration
+
+| Level | level_code | level_name | id_prefix | Description |
+|-------|-----------|------------|-----------|-------------|
+| L1 | `department` | Department | `DEPT-` | C-Suite / Executive level |
+| L2 | `project` | Project | `PROJ-` | Business Units / Cost Centers |
+| L3 | `team` | Team | `TEAM-` | Functions / Teams |
+
+**Note:** Organizations can customize these via API or directly in `hierarchy_levels` table.
 
 ## Entity ID Format
 ```
