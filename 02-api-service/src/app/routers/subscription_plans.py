@@ -138,6 +138,7 @@ from src.core.utils.cache import get_cache, invalidate_org_cache, invalidate_pro
 from src.core.utils.query_performance import QueryPerformanceMonitor, log_query_performance
 from src.core.utils.audit_logger import log_create, log_update, log_delete, AuditLogger
 from src.app.models.i18n_models import DEFAULT_CURRENCY, validate_currency
+from src.core.utils.pipeline_trigger import trigger_subscription_cost_pipeline, should_trigger_cost_backfill
 
 # SEC-005: Rate limiting is handled at the middleware level (see src/app/middleware/).
 # This router relies on global rate limiting configured in the FastAPI application
@@ -2037,6 +2038,67 @@ async def create_plan(
             # Add warning to response about audit failure
             business_warnings.append("Audit log failed - operation completed but may not be fully tracked")
 
+        # TRIGGER SUBSCRIPTION COST PIPELINE (Best-effort, non-blocking)
+        # If start_date is in the past, we need to backfill historical costs
+        # Otherwise, daily schedule will handle cost calculation
+        if should_trigger_cost_backfill(effective_start_date):
+            logger.info(
+                f"Triggering cost backfill for subscription with past start_date",
+                extra={
+                    "org_slug": org_slug,
+                    "subscription_id": subscription_id,
+                    "start_date": effective_start_date.isoformat()
+                }
+            )
+            # Get org API key for triggering pipeline
+            # Note: We're already authenticated here, but pipeline service needs the key
+            api_key_query = f"""
+            SELECT api_key FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+            WHERE org_slug = @org_slug AND is_active = TRUE AND end_date IS NULL
+            ORDER BY created_at DESC LIMIT 1
+            """
+            try:
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                    ]
+                )
+                result = bq_client.client.query(api_key_query, job_config=job_config).result()
+                org_api_key = None
+                for row in result:
+                    org_api_key = row.api_key
+                    break
+
+                if org_api_key:
+                    # Trigger pipeline asynchronously (non-blocking)
+                    import asyncio
+                    pipeline_result = await trigger_subscription_cost_pipeline(
+                        org_slug=org_slug,
+                        api_key=org_api_key,
+                        start_date=effective_start_date,
+                        pipeline_service_url=settings.pipeline_service_url
+                    )
+                    if not pipeline_result.get("success"):
+                        # Log warning but don't fail subscription creation
+                        logger.warning(
+                            f"Failed to trigger subscription cost pipeline (non-critical)",
+                            extra={
+                                "org_slug": org_slug,
+                                "subscription_id": subscription_id,
+                                "pipeline_result": pipeline_result
+                            }
+                        )
+                        business_warnings.append("Cost pipeline trigger failed - costs may need manual recalculation")
+                else:
+                    logger.warning(f"No active API key found for org {org_slug} - cannot trigger pipeline")
+                    business_warnings.append("No API key found - cost pipeline not triggered")
+            except Exception as e:
+                logger.warning(
+                    f"Exception triggering subscription cost pipeline (non-critical): {e}",
+                    extra={"org_slug": org_slug, "subscription_id": subscription_id}
+                )
+                business_warnings.append("Cost pipeline trigger error - costs may need manual recalculation")
+
         return PlanResponse(
             success=True,
             plan=created_plan,
@@ -2720,6 +2782,59 @@ async def edit_plan_with_version(
                 "changed_fields": [k for k in request.model_dump(exclude_unset=True).keys() if k != "effective_date"]
             }
         )
+
+        # TRIGGER SUBSCRIPTION COST PIPELINE (Best-effort, non-blocking)
+        # When plan is edited, we need to recalculate costs from the effective_date forward
+        logger.info(
+            f"Triggering cost recalculation after plan edit",
+            extra={
+                "org_slug": org_slug,
+                "old_subscription_id": subscription_id,
+                "new_subscription_id": new_subscription_id,
+                "effective_date": request.effective_date.isoformat()
+            }
+        )
+        # Get org API key for triggering pipeline
+        api_key_query = f"""
+        SELECT api_key FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+        WHERE org_slug = @org_slug AND is_active = TRUE AND end_date IS NULL
+        ORDER BY created_at DESC LIMIT 1
+        """
+        try:
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+            result = bq_client.client.query(api_key_query, job_config=job_config).result()
+            org_api_key = None
+            for row in result:
+                org_api_key = row.api_key
+                break
+
+            if org_api_key:
+                # Trigger pipeline asynchronously (non-blocking)
+                # Start from effective_date to recalculate costs with new pricing
+                pipeline_result = await trigger_subscription_cost_pipeline(
+                    org_slug=org_slug,
+                    api_key=org_api_key,
+                    start_date=request.effective_date,
+                    pipeline_service_url=settings.pipeline_service_url
+                )
+                if not pipeline_result.get("success"):
+                    logger.warning(
+                        f"Failed to trigger subscription cost pipeline after edit (non-critical)",
+                        extra={
+                            "org_slug": org_slug,
+                            "new_subscription_id": new_subscription_id,
+                            "pipeline_result": pipeline_result
+                        }
+                    )
+        except Exception as e:
+            logger.warning(
+                f"Exception triggering subscription cost pipeline after edit (non-critical): {e}",
+                extra={"org_slug": org_slug, "new_subscription_id": new_subscription_id}
+            )
 
         return EditVersionResponse(
             success=True,
