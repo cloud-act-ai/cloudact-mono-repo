@@ -13,7 +13,7 @@
 pipeline_id: "{org_slug}-gcp-billing"
 name: "GCP Billing Sync"
 description: "Extract GCP billing costs and store in BigQuery"
-version: "1.0.0"
+version: "15.0.0"
 
 # Schedule configuration (cron expression: daily at 04:00 UTC)
 schedule: "0 4 * * *"

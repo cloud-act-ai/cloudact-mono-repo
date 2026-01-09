@@ -188,6 +188,32 @@ else
     SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
 fi
 
+# BUG-004 FIX: Validate deployment order before deploying pipeline-service
+if [ "$SERVICE" = "pipeline-service" ]; then
+    API_EXISTS=$(gcloud run services list --project=$PROJECT_ID --region=$REGION --filter="metadata.name=cloudact-api-service-${ENV}" --format="value(metadata.name)" 2>/dev/null || echo "")
+
+    if [ -z "$API_EXISTS" ]; then
+        echo -e "${RED}✗ ERROR: api-service must be deployed before pipeline-service${NC}"
+        echo ""
+        echo "Reason: pipeline-service requires:"
+        echo "  1. API_SERVICE_URL from deployed api-service"
+        echo "  2. Stored procedures created by bootstrap (which runs in api-service)"
+        echo "  3. BigQuery organizations dataset initialized"
+        echo ""
+        echo "Fix: Deploy api-service first:"
+        echo "  ./deploy.sh api-service $ENV $PROJECT_ID"
+        echo ""
+        exit 1
+    fi
+
+    # Validate API_SERVICE_URL can be retrieved
+    if [ -z "$API_URL" ] || [ "$API_URL" = "https://cloudact-api-service-${ENV}-${PROJECT_ID}.${REGION}.run.app" ]; then
+        echo -e "${YELLOW}! WARNING: Could not retrieve actual API service URL, using fallback${NC}"
+        echo -e "${YELLOW}  This may cause issues if the actual URL contains a random hash${NC}"
+        echo ""
+    fi
+fi
+
 # Deploy to Cloud Run
 echo -e "${YELLOW}Deploying to Cloud Run...${NC}"
 gcloud run deploy $SERVICE_NAME \

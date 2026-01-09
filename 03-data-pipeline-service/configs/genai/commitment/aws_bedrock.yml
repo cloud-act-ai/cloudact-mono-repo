@@ -9,7 +9,7 @@ name: "AWS Bedrock Provisioned Throughput"
 description: "Extract AWS Bedrock PT usage and calculate commitment costs"
 provider: "genai"
 domain: "commitment"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "15 3 * * *"

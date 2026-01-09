@@ -22,7 +22,10 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_3_conve
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
-  p_end_date DATE
+  p_end_date DATE,
+  p_pipeline_id STRING,
+  p_credential_id STRING,
+  p_run_id STRING
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
@@ -46,6 +49,9 @@ BEGIN
   ASSERT p_start_date IS NOT NULL AS "p_start_date cannot be NULL";
   ASSERT p_end_date IS NOT NULL AS "p_end_date cannot be NULL";
   ASSERT p_end_date >= p_start_date AS "p_end_date must be >= p_start_date";
+  ASSERT p_pipeline_id IS NOT NULL AS "p_pipeline_id cannot be NULL";
+  ASSERT p_credential_id IS NOT NULL AS "p_credential_id cannot be NULL";
+  ASSERT p_run_id IS NOT NULL AS "p_run_id cannot be NULL";
 
   BEGIN TRANSACTION;
 
@@ -301,10 +307,10 @@ BEGIN
         COALESCE(os.status, 'ACTIVE') AS x_org_subscription_status,
         -- Pipeline lineage fields (FOCUS extension)
         -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
-        'subscription_costs_pipeline' AS x_pipeline_id,
-        'internal' AS x_credential_id,
+        @p_pipeline_id AS x_pipeline_id,
+        @p_credential_id AS x_credential_id,
         spc.cost_date AS x_pipeline_run_date,
-        GENERATE_UUID() AS x_run_id,
+        @p_run_id AS x_run_id,
         CURRENT_TIMESTAMP() AS x_ingested_at,
         1.0 AS x_data_quality_score,
         CURRENT_TIMESTAMP() AS x_created_at,

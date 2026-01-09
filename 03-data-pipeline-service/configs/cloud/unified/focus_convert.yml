@@ -9,7 +9,7 @@ name: "Cloud FOCUS 1.3 Conversion"
 description: "Convert cloud billing data from GCP, AWS, Azure, OCI to FOCUS 1.3 standard"
 provider: "cloud"
 domain: "unified"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "30 6 * * *"

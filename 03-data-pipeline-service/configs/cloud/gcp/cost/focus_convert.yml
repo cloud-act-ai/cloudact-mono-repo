@@ -9,7 +9,7 @@ name: "GCP FOCUS 1.3 Conversion"
 description: "Convert GCP billing data to FOCUS 1.3 standard"
 provider: "gcp"
 domain: "cost"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "30 6 * * *"

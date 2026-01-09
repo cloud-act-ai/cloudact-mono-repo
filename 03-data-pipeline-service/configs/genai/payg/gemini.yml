@@ -9,7 +9,7 @@ name: "Gemini PAYG Usage and Cost"
 description: "Extract Gemini token usage and calculate daily costs"
 provider: "genai"
 domain: "payg"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "30 2 * * *"

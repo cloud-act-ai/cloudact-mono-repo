@@ -9,7 +9,7 @@ name: "OpenAI PAYG Usage and Cost"
 description: "Extract OpenAI token usage and calculate daily costs"
 provider: "genai"
 domain: "payg"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "0 2 * * *"
@@ -26,7 +26,7 @@ steps:
     timeout_seconds: 300
     retry:
       max_attempts: 3
-      backoff_seconds: 60
+      backoff_seconds: 30
 
   - step_id: calculate_costs
     name: "Calculate OpenAI Costs"
@@ -39,10 +39,11 @@ steps:
       - extract_usage
     timeout_seconds: 300
     retry:
-      max_attempts: 2
+      max_attempts: 3
       backoff_seconds: 30
 
 notifications:
   on_failure:
     - email
+    - slack
   on_success: []

@@ -54,7 +54,10 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_2_calcu
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
-  p_end_date DATE
+  p_end_date DATE,
+  p_pipeline_id STRING,
+  p_credential_id STRING,
+  p_run_id STRING
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
@@ -64,8 +67,6 @@ BEGIN
   DECLARE v_default_currency STRING DEFAULT 'USD';
   -- Fiscal year support: Month when FY starts (1=Jan/calendar, 4=Apr/India, 7=Jul/Australia)
   DECLARE v_fiscal_year_start_month INT64 DEFAULT 1;
-  -- BUG-034 FIX: Generate UUID once for entire pipeline run (not per row)
-  DECLARE v_run_id STRING DEFAULT GENERATE_UUID();
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -74,6 +75,9 @@ BEGIN
   ASSERT p_end_date IS NOT NULL AS "p_end_date cannot be NULL";
   ASSERT p_end_date >= p_start_date AS "p_end_date must be >= p_start_date";
   ASSERT DATE_DIFF(p_end_date, p_start_date, DAY) <= 366 AS "Date range cannot exceed 366 days";
+  ASSERT p_pipeline_id IS NOT NULL AS "p_pipeline_id cannot be NULL";
+  ASSERT p_credential_id IS NOT NULL AS "p_credential_id cannot be NULL";
+  ASSERT p_run_id IS NOT NULL AS "p_run_id cannot be NULL";
 
   -- 1b. Get org settings from org_profiles (currency + fiscal year)
   EXECUTE IMMEDIATE FORMAT("""
@@ -125,7 +129,7 @@ BEGIN
         -- N-level hierarchy fields for cost allocation
         hierarchy_entity_id, hierarchy_entity_name,
         hierarchy_level_code, hierarchy_path, hierarchy_path_names,
-        updated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
+        created_at, updated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
       )
       WITH subscriptions AS (
         -- Read all subscriptions that overlap with date range
@@ -473,17 +477,18 @@ BEGIN
         hierarchy_level_code,
         hierarchy_path,
         hierarchy_path_names,
+        CURRENT_TIMESTAMP() AS created_at,
         CURRENT_TIMESTAMP() AS updated_at,
         -- Pipeline lineage columns (x_ prefix)
-        'subscription_cost' AS x_pipeline_id,
-        'internal' AS x_credential_id,
+        @p_pipeline_id AS x_pipeline_id,
+        @p_credential_id AS x_credential_id,
         CURRENT_DATE() AS x_pipeline_run_date,
-        v_run_id AS x_run_id,  -- BUG-034 FIX: Use single UUID for entire run
+        @p_run_id AS x_run_id,
         CURRENT_TIMESTAMP() AS x_ingested_at
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency, v_fiscal_year_start_month AS fy_start_month;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency, v_fiscal_year_start_month AS fy_start_month, p_pipeline_id, p_credential_id, p_run_id;
 
   -- 4. Get row count (inside transaction for atomicity)
   EXECUTE IMMEDIATE FORMAT("""
@@ -493,6 +498,38 @@ BEGIN
   INTO v_rows_inserted USING p_start_date AS p_start, p_end_date AS p_end;
 
   COMMIT TRANSACTION;
+
+  -- PRO-010 FIX: Count subscriptions with NULL or zero seats for DQ monitoring
+  EXECUTE IMMEDIATE FORMAT("""
+    SELECT COUNT(DISTINCT subscription_id)
+    FROM `%s.%s.subscription_plans`
+    WHERE status IN ('active', 'pending')
+      AND (seats IS NULL OR seats <= 0)
+      AND (end_date IS NULL OR end_date >= CURRENT_DATE())
+  """, p_project_id, p_dataset_id)
+  INTO v_zero_seat_count;
+
+  -- PRO-010 FIX: Log DQ issue for NULL/zero seats
+  IF v_zero_seat_count > 0 THEN
+    EXECUTE IMMEDIATE FORMAT("""
+      INSERT INTO `%s.organizations.org_meta_dq_results` (
+        org_slug, table_name, check_name, check_status,
+        rows_checked, rows_passed, rows_failed, error_message,
+        ingestion_date, created_at
+      )
+      VALUES (
+        REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', ''),
+        'subscription_plans',
+        'null_seats_check',
+        'WARNING',
+        @zero_count, 0, @zero_count,
+        CONCAT('Found ', CAST(@zero_count AS STRING), ' active subscriptions with NULL or zero seats (defaulted to 1)'),
+        CURRENT_DATE(),
+        CURRENT_TIMESTAMP()
+      )
+    """, p_project_id)
+    USING p_dataset_id AS p_ds, v_zero_seat_count AS zero_count;
+  END IF;
 
   -- BUG-036 FIX: Log warning if no cost rows inserted (all plans FREE or inactive)
   IF v_rows_inserted = 0 THEN

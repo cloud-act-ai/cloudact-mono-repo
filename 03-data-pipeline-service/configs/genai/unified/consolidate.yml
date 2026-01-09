@@ -9,7 +9,7 @@ name: "GenAI Unified Consolidation"
 description: "Consolidate PAYG, Commitment, and Infrastructure costs into unified tables"
 provider: "genai"
 domain: "unified"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "0 6 * * *"

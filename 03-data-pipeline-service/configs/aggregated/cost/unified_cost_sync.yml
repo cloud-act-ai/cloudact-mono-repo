@@ -11,7 +11,7 @@
 pipeline_id: "{org_slug}-unified-cost-sync"
 name: "Unified Cost Sync (Parallel)"
 description: "Parallel extraction of all provider costs followed by aggregation"
-version: "1.0.0"
+version: "15.0.0"
 
 # Pipeline-level timeout
 timeout_minutes: 30

@@ -29,7 +29,7 @@
 pipeline_id: "{org_slug}-subscription-costs"
 name: "SaaS Subscription Costs Pipeline"
 description: "Calculate daily amortized SaaS subscription costs and convert to FOCUS 1.3 format"
-version: "1.0.0"
+version: "15.0.0"
 
 # Pipeline-level timeout (minutes)
 # Monthly processing can take longer for large subscription datasets
@@ -75,6 +75,8 @@ steps:
     ps_type: "generic.procedure_executor"
     description: "Execute SaaS subscription cost calculation and FOCUS 1.3 conversion"
     timeout_minutes: 10
+    depends_on:
+      - validate_subscription_data
     config:
       procedure:
         name: sp_subscription_4_run_pipeline
@@ -94,6 +96,15 @@ steps:
           type: DATE
           value: "${end_date}"
           default: "TODAY"  # Default to current date
+        - name: p_pipeline_id
+          type: STRING
+          value: "${pipeline_id}"
+        - name: p_credential_id
+          type: STRING
+          value: "${credential_id}"
+        - name: p_run_id
+          type: STRING
+          value: "${run_id}"
 
 requires_auth: true
 auth_type: "org_api_key"

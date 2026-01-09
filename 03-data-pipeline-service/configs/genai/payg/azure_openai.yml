@@ -9,7 +9,7 @@ name: "Azure OpenAI PAYG Usage and Cost"
 description: "Extract Azure OpenAI token usage and calculate daily costs"
 provider: "genai"
 domain: "payg"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "45 2 * * *"

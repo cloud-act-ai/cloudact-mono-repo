@@ -9,7 +9,7 @@ name: "DeepSeek PAYG Usage and Cost"
 description: "Extract DeepSeek token usage and calculate daily costs"
 provider: "genai"
 domain: "payg"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "30 2 * * *"

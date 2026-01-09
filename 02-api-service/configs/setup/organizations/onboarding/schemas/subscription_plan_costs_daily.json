@@ -132,6 +132,12 @@
     "description": "Timestamp when hierarchy entity was last validated against org_hierarchy table. FOCUS 1.3 extension field."
   },
   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was first created."
+  },
+  {
     "name": "updated_at",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",

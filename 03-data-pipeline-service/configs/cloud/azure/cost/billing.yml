@@ -13,7 +13,7 @@
 pipeline_id: "{org_slug}-azure-billing"
 name: "Azure Billing Sync"
 description: "Extract Azure Cost Management data for {org_slug}"
-version: "1.0.0"
+version: "15.0.0"
 
 # Schedule configuration (cron expression: daily at 05:30 UTC)
 schedule: "30 5 * * *"

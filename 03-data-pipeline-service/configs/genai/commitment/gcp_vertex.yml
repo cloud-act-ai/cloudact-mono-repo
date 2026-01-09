@@ -9,7 +9,7 @@ name: "GCP Vertex AI GSU Commitment"
 description: "Extract GCP Vertex AI GSU usage and calculate commitment costs"
 provider: "genai"
 domain: "commitment"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "30 3 * * *"

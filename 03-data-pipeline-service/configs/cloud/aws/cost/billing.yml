@@ -13,7 +13,7 @@
 pipeline_id: "{org_slug}-aws-billing"
 name: "AWS Billing Sync"
 description: "Extract AWS Cost & Usage Report data for {org_slug}"
-version: "1.0.0"
+version: "15.0.0"
 
 # Schedule configuration (cron expression: daily at 05:00 UTC)
 schedule: "0 5 * * *"

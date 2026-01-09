@@ -252,14 +252,43 @@ class AuthMetricsAggregator:
             # Validate all org_api_key_ids are valid UUIDs to prevent injection
             import re
             uuid_pattern = re.compile(r'^[a-f0-9-]{36}$', re.IGNORECASE)
-            valid_key_ids = [key_id for key_id in org_api_key_ids if uuid_pattern.match(key_id)]
+
+            valid_key_ids = []
+            invalid_entries = []
+
+            for key_id in org_api_key_ids:
+                # Check for None or empty string first
+                if key_id is None:
+                    invalid_entries.append(("None", "NULL value"))
+                    continue
+                if not isinstance(key_id, str):
+                    invalid_entries.append((str(key_id)[:20], f"Wrong type: {type(key_id).__name__}"))
+                    continue
+                if not key_id or not key_id.strip():
+                    invalid_entries.append(("empty", "Empty string"))
+                    continue
+
+                # Check UUID format
+                if not uuid_pattern.match(key_id):
+                    # Truncate for security logging
+                    truncated = key_id[:8] + "..." if len(key_id) > 8 else key_id
+                    invalid_entries.append((truncated, f"Invalid UUID format (length: {len(key_id)})"))
+                    continue
+
+                valid_key_ids.append(key_id)
 
             if not valid_key_ids:
-                logger.warning("No valid UUIDs in auth metrics batch - skipping flush")
+                logger.warning(
+                    f"No valid UUIDs in auth metrics batch - skipping flush. "
+                    f"Invalid entries: {invalid_entries[:5]}"  # Log first 5 invalid entries
+                )
                 return
 
-            if len(valid_key_ids) != len(org_api_key_ids):
-                logger.warning(f"Filtered out {len(org_api_key_ids) - len(valid_key_ids)} invalid key IDs from auth metrics batch")
+            if invalid_entries:
+                logger.warning(
+                    f"Filtered out {len(invalid_entries)} invalid key IDs from auth metrics batch. "
+                    f"Examples: {invalid_entries[:3]}"  # Log first 3 for debugging
+                )
 
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
@@ -544,9 +573,15 @@ async def get_current_org(
 
         # Update last_used_at timestamp (batched in background for performance)
         # This reduces auth latency from 50-100ms to <5ms by batching updates
-        aggregator = get_auth_aggregator()
-        aggregator.add_update(row["org_api_key_id"])
-        logger.debug(f"Queued last_used_at update for API key: {row['org_api_key_id']}")
+        org_api_key_id = row.get("org_api_key_id")
+        if org_api_key_id:  # Only add if not None/empty
+            aggregator = get_auth_aggregator()
+            aggregator.add_update(org_api_key_id)
+            logger.debug(f"Queued last_used_at update for API key: {org_api_key_id}")
+        else:
+            logger.warning(
+                f"Skipping auth metrics update - org_api_key_id is None for org: {row.get('org_slug')}"
+            )
 
         # Build org object
         org = {

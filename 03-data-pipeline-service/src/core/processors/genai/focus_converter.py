@@ -312,12 +312,25 @@ class FOCUSConverterProcessor:
             ))
             job.result()
 
-            rows_inserted = job.num_dml_affected_rows or 0
+            rows_affected = job.num_dml_affected_rows or 0
 
-            self.logger.info(f"Converted {rows_inserted} GenAI records to FOCUS 1.3")
+            # PROC-007: Enhanced MERGE logging with operation breakdown
+            # Note: BigQuery MERGE doesn't provide separate insert/update counts in job stats
+            # Total affected rows includes: inserted + updated (excludes matched but unchanged)
+            self.logger.info(
+                f"MERGE completed for FOCUS 1.3 conversion: {rows_affected} rows affected "
+                f"(inserts + updates) for date {process_date}",
+                extra={
+                    "rows_affected": rows_affected,
+                    "process_date": str(process_date),
+                    "operation": "MERGE",
+                    "note": "Affected count includes both inserted and updated rows"
+                }
+            )
             return {
                 "status": "SUCCESS",
-                "rows_inserted": rows_inserted,
+                "rows_inserted": rows_affected,  # Keep name for backward compatibility
+                "rows_affected": rows_affected,  # More accurate name
                 "date": str(process_date),
                 "target_table": "cost_data_standard_1_3"
             }

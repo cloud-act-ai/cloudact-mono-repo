@@ -33,7 +33,10 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_4_run_p
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
-  p_end_date DATE
+  p_end_date DATE,
+  p_pipeline_id STRING,
+  p_credential_id STRING,
+  p_run_id STRING
 )
 BEGIN
   -- Declare local variables for defaulting dates
@@ -44,6 +47,9 @@ BEGIN
   -- 1. Parameter Validation (required params)
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
   ASSERT p_dataset_id IS NOT NULL AS "p_dataset_id cannot be NULL";
+  ASSERT p_pipeline_id IS NOT NULL AS "p_pipeline_id cannot be NULL";
+  ASSERT p_credential_id IS NOT NULL AS "p_credential_id cannot be NULL";
+  ASSERT p_run_id IS NOT NULL AS "p_run_id cannot be NULL";
 
   -- 2. Get earliest start_date from active subscription plans
   -- This allows us to calculate costs from when subscriptions actually started
@@ -70,12 +76,12 @@ BEGIN
   -- 2. Stage 1: Calculate Daily Costs
   -- Note: Using direct CALL - procedures must be in same project as orchestrator
   CALL `{project_id}.organizations`.sp_subscription_2_calculate_daily_costs(
-    p_project_id, p_dataset_id, v_start_date, v_end_date
+    p_project_id, p_dataset_id, v_start_date, v_end_date, p_pipeline_id, p_credential_id, p_run_id
   );
 
   -- 3. Stage 2: Convert to FOCUS 1.3 Standard (with org-specific fields)
   CALL `{project_id}.organizations`.sp_subscription_3_convert_to_focus(
-    p_project_id, p_dataset_id, v_start_date, v_end_date
+    p_project_id, p_dataset_id, v_start_date, v_end_date, p_pipeline_id, p_credential_id, p_run_id
   );
 
   -- 4. Completion

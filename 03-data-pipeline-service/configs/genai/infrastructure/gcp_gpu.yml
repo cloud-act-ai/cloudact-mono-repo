@@ -9,7 +9,7 @@ name: "GCP GPU Infrastructure"
 description: "Extract GCP GPU/TPU usage and calculate infrastructure costs"
 provider: "genai"
 domain: "infrastructure"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "0 4 * * *"

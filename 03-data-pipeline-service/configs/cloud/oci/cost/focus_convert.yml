@@ -9,7 +9,7 @@ name: "OCI FOCUS 1.3 Conversion"
 description: "Convert OCI Cost Analysis data to FOCUS 1.3 standard"
 provider: "oci"
 domain: "cost"
-version: "1.0.0"
+version: "15.0.0"
 
 schedule:
   cron: "45 6 * * *"
