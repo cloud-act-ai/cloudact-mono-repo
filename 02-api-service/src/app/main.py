@@ -198,8 +198,15 @@ async def lifespan(app: FastAPI):
             try:
                 bq_client.client.get_dataset(dataset_id)
                 dataset_exists = True
-            except Exception:
-                dataset_exists = False
+            except Exception as e:
+                # Check if it's a "not found" error (expected case)
+                error_str = str(e).lower()
+                if "not found" in error_str or "404" in error_str:
+                    dataset_exists = False
+                else:
+                    # Unexpected error (auth, quota, network) - log and re-raise
+                    logger.error(f"Auto-bootstrap: Unexpected error checking dataset: {e}", exc_info=True)
+                    raise
 
             if not dataset_exists:
                 logger.info("Auto-bootstrap: Organizations dataset not found - running full bootstrap...")
@@ -219,6 +226,11 @@ async def lifespan(app: FastAPI):
 
                 with open(config_file, 'r') as f:
                     config = yaml.safe_load(f)
+
+                # BUG-001 FIX: Check for null/invalid config
+                if not config or not isinstance(config, dict):
+                    logger.warning(f"Auto-bootstrap: Invalid config file format in {config_file}")
+                    config = {}
 
                 expected_tables = set(config.get('tables', {}).keys())
                 existing_tables = {table.table_id for table in bq_client.client.list_tables(dataset_id)}
@@ -269,15 +281,26 @@ async def lifespan(app: FastAPI):
                 with open(config_file, 'r') as f:
                     config = yaml.safe_load(f)
 
+                # BUG-001 FIX: Check for null/invalid config
+                if not config or not isinstance(config, dict):
+                    logger.warning(f"Auto-sync: Invalid config file format in {config_file}")
+                    config = {}
+
                 dataset_name = config.get('dataset', {}).get('name', 'organizations')
                 dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
 
                 # Check if dataset exists
                 try:
                     bq_client.client.get_dataset(dataset_id)
-                except Exception:
-                    # Dataset doesn't exist - skip auto-sync, bootstrap hasn't run
-                    logger.info("Auto-sync skipped: organizations dataset not found (bootstrap not run yet)")
+                except Exception as e:
+                    # Check if it's a "not found" error (expected case)
+                    error_str = str(e).lower()
+                    if "not found" in error_str or "404" in error_str:
+                        logger.info("Auto-sync skipped: organizations dataset not found (bootstrap not run yet)")
+                    else:
+                        # Unexpected error - log and re-raise
+                        logger.error(f"Auto-sync: Unexpected error checking dataset: {e}", exc_info=True)
+                        raise
                 else:
                     # Get existing tables
                     existing_tables = {table.table_id for table in bq_client.client.list_tables(dataset_id)}
@@ -393,14 +416,21 @@ async def lifespan(app: FastAPI):
                         # Sync each org's tables (limit configurable via AUTO_SYNC_ORG_LIMIT)
                         sync_limit = settings.auto_sync_org_limit
                         for org_slug in org_slugs[:sync_limit]:
-                            dataset_suffix = "_prod" if settings.environment == "production" else "_prod"
+                            dataset_suffix = "_prod"  # All environments use _prod suffix for org datasets
                             org_dataset_id = f"{settings.gcp_project_id}.{org_slug}{dataset_suffix}"
 
                             try:
                                 bq_client.client.get_dataset(org_dataset_id)
-                            except Exception:
-                                # Org dataset doesn't exist yet - skip
-                                continue
+                            except Exception as e:
+                                # Check if it's a "not found" error (expected case)
+                                error_str = str(e).lower()
+                                if "not found" in error_str or "404" in error_str:
+                                    # Org dataset doesn't exist yet - skip
+                                    continue
+                                else:
+                                    # Unexpected error - log and continue to next org
+                                    logger.warning(f"Auto-sync org: Unexpected error checking {org_slug} dataset: {e}")
+                                    continue
 
                             # Get existing tables in org dataset
                             org_existing_tables = {t.table_id for t in bq_client.client.list_tables(org_dataset_id)}

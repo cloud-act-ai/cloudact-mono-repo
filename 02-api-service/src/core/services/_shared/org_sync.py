@@ -229,6 +229,10 @@ async def run_org_sync(org_slug: str) -> int:
             with open(schema_file, 'r') as f:
                 schema_json = json.load(f)
 
+            # Skip metadata files (schema_versions.json, etc.) that aren't field arrays
+            if not isinstance(schema_json, list):
+                continue
+
             schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
             table_id = f"{full_dataset_id}.{table_name}"
 

@@ -275,18 +275,35 @@ async def lifespan(app: FastAPI):
                     if procedures_synced:
                         logger.info(f"Auto-sync procedures: {len(procedures_synced)} procedures already exist")
 
+                    # List of critical procedures required for pipeline execution
+                    critical_procedures = {
+                        "sp_subscription_2_calculate_daily_costs",
+                        "sp_subscription_3_convert_to_focus",
+                        "sp_subscription_4_run_pipeline",
+                        "sp_genai_2_consolidate_costs_daily",
+                        "sp_genai_3_convert_to_focus",
+                    }
+
+                    # BUG-007 FIX: Check both failed AND missing critical procedures
+                    all_synced_or_created = set(procedures_created) | set(procedures_synced)
+                    missing_critical = critical_procedures - all_synced_or_created
+
+                    if missing_critical:
+                        error_msg = (
+                            f"CRITICAL: {len(missing_critical)} required procedures not found: "
+                            f"{', '.join(sorted(missing_critical))}. "
+                            "Check that procedure SQL files exist in configs/system/procedures/"
+                        )
+                        logger.error(error_msg)
+                        if settings.is_production:
+                            raise RuntimeError(error_msg)
+                        else:
+                            logger.warning("Continuing startup in non-production despite missing procedures")
+
                     if procedures_failed:
                         logger.warning(f"Auto-sync procedures: {len(procedures_failed)} procedures failed to sync")
                         # BUG-002 FIX: Fail startup in production if critical procedures fail to sync
                         if settings.is_production:
-                            # List of critical procedures required for pipeline execution
-                            critical_procedures = {
-                                "sp_subscription_2_calculate_daily_costs",
-                                "sp_subscription_3_convert_to_focus",
-                                "sp_subscription_4_run_pipeline",
-                                "sp_genai_2_consolidate_costs_daily",
-                                "sp_genai_3_convert_to_focus",
-                            }
                             failed_names = {p["name"] for p in procedures_failed}
                             critical_failures = critical_procedures & failed_names
 

@@ -343,7 +343,7 @@ async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
  * parent 30-second timeout in fetchCostData.
  */
 async function getAuthWithApiKey(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
-  const AUTH_TIMEOUT_MS = 10000 // 10 seconds - enough for Supabase queries, fails fast if issues
+  const AUTH_TIMEOUT_MS = 60000 // 60 seconds - allows time for slower Supabase queries
 
   try {
     const authPromise = getCachedAuthContext(orgSlug)

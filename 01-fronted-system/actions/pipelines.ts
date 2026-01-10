@@ -441,11 +441,14 @@ export async function runPipeline(
     }
 
     // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(validOrgSlug)
-    if (!authResult.authorized) {
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(validOrgSlug)
+    } catch (err) {
       return {
         success: false,
-        error: authResult.error || "Not authorized",
+        error: err instanceof Error ? err.message : "Not authorized",
       }
     }
 
@@ -459,7 +462,22 @@ export async function runPipeline(
       }
     }
 
-    // Step 4: Validate pipeline exists (fetch from API)
+    // Step 4: Fetch organization data (billing status, integration statuses)
+    const supabase = await createClient()
+    const { data: orgData, error: orgError } = await supabase
+      .from("organizations")
+      .select("id, org_slug, billing_status, integration_gcp_status, integration_openai_status, integration_anthropic_status")
+      .eq("org_slug", validOrgSlug)
+      .single()
+
+    if (orgError || !orgData) {
+      return {
+        success: false,
+        error: "Failed to fetch organization data. Please try again.",
+      }
+    }
+
+    // Step 5: Validate pipeline exists (fetch from API)
     const pipelinesResult = await getAvailablePipelines()
     const pipeline = pipelinesResult.pipelines.find(p => p.id === validPipelineId)
     if (!pipeline) {
@@ -469,15 +487,8 @@ export async function runPipeline(
       }
     }
 
-    // Step 5: Verify subscription is active (using data from verifyOrgMembership)
-    if (!authResult.orgData) {
-      return {
-        success: false,
-        error: "Organization data not available. Please try again.",
-      }
-    }
-
-    const org = authResult.orgData
+    // Step 6: Verify subscription is active
+    const org = orgData
     // IMPORTANT: Status values are case-insensitive to handle both frontend (lowercase)
     // and backend (UPPERCASE) conventions. Backend uses ACTIVE/TRIAL, Supabase uses active/trialing.
     const billingStatus = org.billing_status?.toLowerCase() || ""
@@ -490,7 +501,7 @@ export async function runPipeline(
       }
     }
 
-    // Step 6: Verify required integration is configured (using data from verifyOrgMembership)
+    // Step 7: Verify required integration is configured
     const requiredIntegration = pipeline.required_integration
     if (requiredIntegration) {
       const integrationStatusMap: Record<string, string | null> = {
@@ -508,7 +519,7 @@ export async function runPipeline(
       }
     }
 
-    // Step 7: Execute pipeline with validated parameters
+    // Step 8: Execute pipeline with validated parameters
     const backend = new BackendClient({ orgApiKey: apiKey })
 
     const response = await backend.runPipeline(
@@ -664,11 +675,14 @@ export async function getPipelineRuns(
     }
 
     // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
       return {
         success: false,
-        error: authResult.error || "Not authorized",
+        error: err instanceof Error ? err.message : "Not authorized",
       }
     }
 
@@ -737,11 +751,14 @@ export async function getPipelineRunDetail(
     }
 
     // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
       return {
         success: false,
-        error: authResult.error || "Not authorized",
+        error: err instanceof Error ? err.message : "Not authorized",
       }
     }
 

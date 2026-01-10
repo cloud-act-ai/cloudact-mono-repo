@@ -115,50 +115,6 @@ function isValidProvider(provider: string): provider is IntegrationProvider {
 // ============================================
 
 /**
- * Verify user is authenticated and belongs to the organization.
- * SECURITY: Prevents unauthorized access to other orgs' integrations.
- *
- * FIX: Must verify user is member of the SPECIFIC org, not just any org.
- */
-async function verifyOrgMembership(orgSlug: string): Promise<{
-  authorized: boolean
-  userId?: string
-  orgId?: string
-  error?: string
-}> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { authorized: false, error: "Not authenticated" }
-  }
-
-  // Step 1: Look up the organization by slug FIRST
-  const { data: org, error: orgError } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("org_slug", orgSlug)
-    .single()
-
-  if (orgError || !org) {
-    return { authorized: false, userId: user.id, error: "Organization not found" }
-  }
-
-  // Step 2: Check user is a member of THIS SPECIFIC organization
-  const { data: membership, error: memberError } = await supabase
-    .from("organization_members")
-    .select("id, role, status")
-    .eq("org_id", org.id)  // CRITICAL: Check membership for the TARGET org
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (memberError || !membership) {
-    return { authorized: false, userId: user.id, error: "Not a member of this organization" }
-  }
-
-  return { authorized: true, userId: user.id, orgId: org.id }
-}
 
 // ============================================
 // Helper: Get Org API Key (from secure storage)
@@ -201,9 +157,16 @@ export async function setupIntegration(
     }
 
     // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(input.orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, provider: input.provider, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(input.orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        provider: input.provider,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 2.5: Check if adding this integration would exceed the provider limit
@@ -394,9 +357,15 @@ export async function getIntegrations(
     }
 
     // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const supabase = await createClient()
@@ -587,10 +556,16 @@ export async function validateIntegration(
       return { success: false, provider, error: "Invalid provider" }
     }
 
-    // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, provider, error: authResult.error || "Not authorized" }
+    // Step 2: Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        provider,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Get org API key
@@ -655,10 +630,16 @@ export async function deleteIntegration(
       return { success: false, provider, error: "Invalid provider" }
     }
 
-    // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, provider, error: authResult.error || "Not authorized" }
+    // Step 2: Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        provider,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Get org API key
@@ -858,9 +839,15 @@ export async function listLLMPricing(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -905,9 +892,15 @@ export async function updateLLMPricing(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -950,9 +943,15 @@ export async function createLLMPricing(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -994,9 +993,15 @@ export async function deleteLLMPricing(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1035,9 +1040,15 @@ export async function resetLLMPricing(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1086,9 +1097,15 @@ export async function listSaaSSubscriptions(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1133,9 +1150,15 @@ export async function updateSaaSSubscription(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1178,9 +1201,15 @@ export async function createSaaSSubscription(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1222,9 +1251,15 @@ export async function deleteSaaSSubscription(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1263,9 +1298,15 @@ export async function resetSaaSSubscriptions(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -1399,9 +1440,15 @@ export async function toggleIntegrationEnabled(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const adminClient = createServiceRoleClient()
@@ -1516,9 +1563,15 @@ export async function getCloudIntegrations(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const supabase = await createClient()
@@ -1581,9 +1634,15 @@ export async function deleteCloudIntegration(
     }
 
     // Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const adminClient = createServiceRoleClient()

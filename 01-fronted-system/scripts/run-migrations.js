@@ -77,9 +77,11 @@ async function runMigrations() {
   try {
     log(colors.blue, '🔄 Checking for pending Supabase migrations...');
 
+    // BUG-011 FIX: Add 60 second timeout to prevent hanging
     const { stdout, stderr } = await execAsync(`bash "${migrateScript}"`, {
       cwd: path.join(__dirname, 'supabase_db'),
       env: process.env,
+      timeout: 60000, // 60 seconds
     });
 
     if (stdout) {

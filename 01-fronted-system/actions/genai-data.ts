@@ -297,9 +297,15 @@ export async function listLLMPricing(
       return { success: false, error: "Invalid LLM provider. Valid providers: openai, anthropic, gemini" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)
@@ -338,9 +344,15 @@ export async function getLLMPricing(
       return { success: false, error: "Invalid model ID" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)
@@ -385,9 +397,16 @@ export async function createLLMPricing(
       return { success: false, error: pricingValidationError }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can create pricing
@@ -438,9 +457,16 @@ export async function updateLLMPricing(
       return { success: false, error: pricingValidationError }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can update pricing
@@ -484,9 +510,16 @@ export async function deleteLLMPricing(
       return { success: false, error: "Invalid model ID" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can delete pricing
@@ -526,9 +559,16 @@ export async function resetLLMPricing(
       return { success: false, error: "Invalid LLM provider" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can reset pricing
@@ -572,9 +612,15 @@ export async function listSaaSSubscriptions(
       return { success: false, error: "Invalid LLM provider" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)
@@ -613,9 +659,15 @@ export async function getSaaSSubscription(
       return { success: false, error: "Invalid plan name" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)
@@ -660,9 +712,16 @@ export async function createSaaSSubscription(
       return { success: false, error: subscriptionValidationError }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can create subscriptions
@@ -713,9 +772,16 @@ export async function updateSaaSSubscription(
       return { success: false, error: subscriptionValidationError }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can update subscriptions
@@ -759,9 +825,16 @@ export async function deleteSaaSSubscription(
       return { success: false, error: "Invalid plan name" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can delete subscriptions
@@ -801,9 +874,16 @@ export async function resetSaaSSubscriptions(
       return { success: false, error: "Invalid LLM provider" }
     }
 
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    let authResult
+    try {
+      authResult = await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Security: Only admins and owners can reset subscriptions

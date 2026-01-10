@@ -102,10 +102,17 @@ ensure_tracking_table() {
     );" 2>/dev/null || true
 }
 
+# Escape single quotes for SQL safety
+escape_sql() {
+    local value="$1"
+    echo "${value//\'/\'\'}"
+}
+
 # Check if migration is applied
 is_applied() {
     local filename="$1"
-    local result=$(run_sql "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$filename';" 2>/dev/null | tr -d ' \n')
+    local filename_escaped=$(escape_sql "$filename")
+    local result=$(run_sql "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$filename_escaped';" 2>/dev/null | tr -d ' \n')
     [ "$result" = "1" ]
 }
 
@@ -124,11 +131,13 @@ record_migration() {
     local filename="$1"
     local checksum="$2"
     local duration="$3"
+    local filename_escaped=$(escape_sql "$filename")
+    local checksum_escaped=$(escape_sql "$checksum")
     run_sql "INSERT INTO schema_migrations (filename, checksum, execution_time_ms)
-             VALUES ('$filename', '$checksum', $duration)
+             VALUES ('$filename_escaped', '$checksum_escaped', $duration)
              ON CONFLICT (filename) DO UPDATE SET
                 applied_at = NOW(),
-                checksum = '$checksum',
+                checksum = '$checksum_escaped',
                 execution_time_ms = $duration;" 2>/dev/null
 }
 

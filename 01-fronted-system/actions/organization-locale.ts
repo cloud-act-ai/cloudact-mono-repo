@@ -22,54 +22,6 @@ import {
 } from "@/lib/i18n/constants"
 
 // ============================================
-// Authorization Helper
-// ============================================
-
-/**
- * Verify user is authenticated and belongs to the organization.
- * SECURITY: Prevents cross-tenant access to org settings.
- */
-async function verifyOrgMembership(orgSlug: string): Promise<{
-  authorized: boolean
-  userId?: string
-  orgId?: string
-  error?: string
-}> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { authorized: false, error: "Not authenticated" }
-  }
-
-  // Use join query pattern to work with RLS policies
-  const { data: membership, error: memberError } = await supabase
-    .from("organization_members")
-    .select("id, role, status, org_id, organizations!inner(id, org_slug)")
-    .eq("user_id", user.id)
-    .eq("organizations.org_slug", orgSlug)
-    .eq("status", "active")
-    .single()
-
-  if (memberError || !membership) {
-    if (memberError?.code === "PGRST116") {
-      return { authorized: false, userId: user.id, error: "Organization not found or you are not a member" }
-    }
-    return { authorized: false, userId: user.id, error: memberError?.message || "Not a member of this organization" }
-  }
-
-  // Extract org_id from the joined result
-  // Supabase single() returns object directly, not array
-  const orgData = membership.organizations as unknown as { id: string; org_slug: string } | null
-
-  if (!orgData || !orgData.id) {
-    return { authorized: false, userId: user.id, error: "Organization data incomplete" }
-  }
-
-  return { authorized: true, userId: user.id, orgId: orgData.id }
-}
-
-// ============================================
 // Input Validation
 // ============================================
 
@@ -190,10 +142,15 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Step 2: Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Fetch locale from Supabase organizations table
@@ -356,10 +313,15 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
       return { inSync: false, error: "Invalid organization identifier" }
     }
 
-    // Verify authentication
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { inSync: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        inSync: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Get Supabase locale
@@ -522,10 +484,15 @@ export async function updateOrgLocale(
       return { success: false, error: `Invalid timezone: ${timezone}` }
     }
 
-    // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Step 2: Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Update BigQuery FIRST (source of truth for cost calculations)
@@ -613,10 +580,15 @@ export async function updateFiscalYear(
       return { success: false, error: `Invalid fiscal year start month: ${fiscalYearStartMonth}. Must be 1 (Jan), 4 (Apr), 7 (Jul), or 10 (Oct).` }
     }
 
-    // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Step 2: Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Update Supabase
@@ -702,9 +674,15 @@ export async function getOrgLogo(orgSlug: string): Promise<GetOrgLogoResult> {
     }
 
     // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Fetch logo URL from Supabase
@@ -754,10 +732,15 @@ export async function updateOrgLogo(
       }
     }
 
-    // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Update logo URL in Supabase
@@ -802,10 +785,15 @@ export async function uploadOrgLogo(
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Get the file from FormData
@@ -851,12 +839,26 @@ export async function uploadOrgLogo(
       await supabase.storage.from("org-logos").remove(filesToDelete)
     }
 
-    // Upload the new file
+    // Convert File to ArrayBuffer for server-side upload
+    // Next.js server actions receive File objects that need conversion
+    // for Supabase Storage to handle them properly (fixes ECONNRESET)
+    let fileBuffer: ArrayBuffer
+    try {
+      fileBuffer = await file.arrayBuffer()
+    } catch (bufferError) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[uploadOrgLogo] Failed to read file buffer:", bufferError)
+      }
+      return { success: false, error: "Failed to read file. Please try again." }
+    }
+
+    // Upload the file buffer with explicit content type
     const { error: uploadError } = await supabase.storage
       .from("org-logos")
-      .upload(filePath, file, {
+      .upload(filePath, fileBuffer, {
         cacheControl: "3600",
         upsert: true,
+        contentType: file.type,
       })
 
     if (uploadError) {
@@ -925,10 +927,15 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const supabase = await createClient()
@@ -1003,10 +1010,15 @@ export async function getOrgDetails(orgSlug: string): Promise<{
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Fetch org details from Supabase
@@ -1063,9 +1075,15 @@ export async function getOrgContactDetails(orgSlug: string): Promise<GetOrgConta
     }
 
     // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Fetch contact details from Supabase
@@ -1171,9 +1189,15 @@ export async function updateOrgContactDetails(
     }
 
     // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Prepare update data (normalize empty strings to null)
@@ -1276,9 +1300,15 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
     }
 
     // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const supabase = await createClient()
@@ -1374,9 +1404,15 @@ export async function getOrgName(orgSlug: string): Promise<{
     }
 
     // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Fetch org name from Supabase
@@ -1461,10 +1497,15 @@ export async function updateOrgName(
     // Sanitize the name
     const sanitizedName = sanitizeOrgNameInput(newOrgName)
 
-    // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Step 2: Verify authentication AND org membership (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Update org name in Supabase

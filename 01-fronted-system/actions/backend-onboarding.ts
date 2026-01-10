@@ -710,9 +710,15 @@ export async function getOrgDataForReonboarding(orgSlug: string): Promise<{
     }
 
     // Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Get user email
@@ -771,9 +777,15 @@ export async function getApiKeyInfo(orgSlug: string): Promise<{
     }
 
     // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Check if backend URL is configured
@@ -961,10 +973,16 @@ export async function rotateApiKey(orgSlug: string): Promise<{
     lockId = lockResult.lockId
 
     // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
       await releaseRotationLock(orgSlug, lockId || "")
-      return { success: false, error: authResult.error || "Not authorized" }
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Check if backend URL is configured
@@ -1091,9 +1109,15 @@ export async function saveApiKey(
     }
 
     // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { success: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // SECURITY FIX #10: Removed org_slug prefix validation
@@ -1141,9 +1165,15 @@ export async function hasStoredApiKey(orgSlug: string): Promise<{
     }
 
     // Step 2: Verify authentication AND org membership
-    const authResult = await verifyOrgMembership(orgSlug)
-    if (!authResult.authorized) {
-      return { hasKey: false, error: authResult.error || "Not authorized" }
+    // Verify authentication (use cached auth for performance)
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        hasKey: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     const apiKey = await getOrgApiKeySecure(orgSlug)
