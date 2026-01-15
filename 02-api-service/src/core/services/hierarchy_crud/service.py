@@ -129,13 +129,22 @@ class HierarchyService:
             self.bq_client.client.get_table(view_ref)
             return (view_ref, True)
         except google.api_core.exceptions.NotFound:
-            logger.debug(f"View {view_ref} not found, falling back to central table")
+            # ERR-003 FIX: Log at info level with context when view doesn't exist
+            logger.info(
+                f"Hierarchy view '{view_ref}' not found for org '{org_slug}', "
+                f"falling back to central table"
+            )
             central_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
             try:
                 self.bq_client.client.get_table(central_ref)
                 return (central_ref, False)
             except google.api_core.exceptions.NotFound:
+                logger.error(
+                    f"ERR-003: Hierarchy tables not found for org '{org_slug}'. "
+                    f"Checked view='{view_ref}' and central='{central_ref}'. "
+                    f"Ensure bootstrap has been run and org dataset is onboarded."
+                )
                 raise BigQueryResourceNotFoundError(
                     f"Neither x_org_hierarchy view nor org_hierarchy central table found. "
                     f"Ensure bootstrap has been run and org dataset is onboarded."
@@ -248,6 +257,14 @@ class HierarchyService:
         # Get levels map for level names
         levels_map = await self.level_service.get_levels_map(org_slug)
 
+        # ERR-001 FIX: Log warning if levels configuration is empty
+        if not levels_map:
+            logger.warning(
+                f"ERR-001: No hierarchy levels configured for org '{org_slug}'. "
+                f"Entities will use level_code as display name. "
+                f"Run POST /api/v1/hierarchy/{org_slug}/levels/seed to initialize levels."
+            )
+
         # Helper to run query and get entities
         def _run_query(table_ref: str, uses_view: bool) -> List[Dict]:
             query_params = []
@@ -304,7 +321,12 @@ class HierarchyService:
                 entities=entities,
                 total=len(entities)
             )
-        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError):
+        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError) as e:
+            # ERR-003 FIX: Log error when hierarchy resource not found
+            logger.error(
+                f"ERR-003: Failed to get entities for org '{org_slug}': {e}. "
+                f"Returning empty list."
+            )
             return HierarchyListResponse(org_slug=org_slug, entities=[], total=0)
 
     async def get_entities_by_level(
@@ -329,12 +351,16 @@ class HierarchyService:
 
         query_params = [
             bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),  # MT-001: Defense in depth
         ]
         if uses_view:
+            # MT-001 FIX: Add org_slug filter even for view queries (defense in depth)
+            # View is per-org but filter prevents cross-org access if view misconfigured
             query = f"""
             SELECT *
             FROM `{table_ref}`
             WHERE entity_id = @entity_id
+              AND org_slug = @org_slug
             LIMIT 1
             """
         else:
@@ -357,9 +383,20 @@ class HierarchyService:
 
             row = results[0]
             level_name = levels_map.get(row['level_code'], {})
+            # ERR-001 FIX: Log warning when level config is missing for entity
+            if not level_name:
+                logger.warning(
+                    f"ERR-001: Level config not found for level_code='{row['level_code']}' "
+                    f"in org '{org_slug}'. Entity '{entity_id}' will use level_code as display name. "
+                    f"Run hierarchy level seed to fix."
+                )
             level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else row['level_code']
             return self._row_to_entity_response(dict(row), level_name_str)
-        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError):
+        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError) as e:
+            # ERR-003 FIX: Log error when hierarchy resource not found
+            logger.error(
+                f"ERR-003: Failed to get entity '{entity_id}' for org '{org_slug}': {e}"
+            )
             return None
 
     async def get_children(
@@ -376,12 +413,15 @@ class HierarchyService:
 
         query_params = [
             bigquery.ScalarQueryParameter("parent_id", "STRING", parent_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),  # MT-002: Defense in depth
         ]
         if uses_view:
+            # MT-002 FIX: Add org_slug filter even for view queries (defense in depth)
             query = f"""
             SELECT *
             FROM `{table_ref}`
             WHERE parent_id = @parent_id
+              AND org_slug = @org_slug
               AND is_active = TRUE
             ORDER BY sort_order ASC, entity_name ASC
             """
@@ -412,7 +452,12 @@ class HierarchyService:
                 entities=entities,
                 total=len(entities)
             )
-        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError):
+        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError) as e:
+            # ERR-003 FIX: Log error when hierarchy resource not found
+            logger.error(
+                f"ERR-003: Failed to get children of '{parent_id}' for org '{org_slug}': {e}. "
+                f"Returning empty list."
+            )
             return HierarchyListResponse(org_slug=org_slug, entities=[], total=0)
 
     async def get_ancestors(
@@ -459,12 +504,15 @@ class HierarchyService:
 
         query_params = [
             bigquery.ScalarQueryParameter("path_pattern", "STRING", path_pattern),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),  # MT-003: Defense in depth
         ]
         if uses_view:
+            # MT-003 FIX: Add org_slug filter even for view queries (defense in depth)
             query = f"""
             SELECT *
             FROM `{table_ref}`
             WHERE path LIKE @path_pattern
+              AND org_slug = @org_slug
               AND is_active = TRUE
             ORDER BY path ASC
             """
@@ -496,7 +544,12 @@ class HierarchyService:
                 descendants=descendants,
                 total=len(descendants)
             )
-        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError):
+        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError) as e:
+            # ERR-003 FIX: Log error when hierarchy resource not found
+            logger.error(
+                f"ERR-003: Failed to get descendants of '{entity_id}' for org '{org_slug}': {e}. "
+                f"Returning empty list."
+            )
             return DescendantsResponse(
                 org_slug=org_slug,
                 entity_id=entity_id,
@@ -580,7 +633,18 @@ class HierarchyService:
         # Get level configuration
         level_config = await self.level_service.get_level_by_code(org_slug, request.level_code)
         if not level_config:
-            raise ValueError(f"Level '{request.level_code}' not configured for this organization")
+            # ERR-002 FIX: Include available levels in error message for debugging
+            available_levels = await self.level_service.get_levels(org_slug)
+            available_codes = [lvl.level_code for lvl in available_levels.levels]
+            logger.error(
+                f"Level validation failed for org '{org_slug}': "
+                f"requested level_code='{request.level_code}', "
+                f"available levels={available_codes}"
+            )
+            raise ValueError(
+                f"Level '{request.level_code}' not configured for this organization. "
+                f"Available levels: {available_codes}"
+            )
 
         # Validate parent requirement
         parent = None

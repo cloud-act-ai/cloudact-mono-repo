@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, TrendingUp, Users, Plug, X } from "lucide-react"
+import { AlertTriangle, TrendingUp, Users, Plug, X, Zap } from "lucide-react"
 import { getQuotaUsage, type QuotaUsage } from "@/actions/quota"
 
 // Helper functions moved outside component to prevent re-creation on each render
@@ -139,6 +139,22 @@ export function QuotaWarningBanner({
         ? `You've used all ${quota.monthlyLimit} pipelines this month. Upgrade your plan for more.`
         : `You've used ${quota.pipelinesRunMonth} of ${quota.monthlyLimit} monthly pipelines (${quota.monthlyUsagePercent}%).`,
       action: { label: 'Upgrade Plan', href: `/${orgSlug}/billing` }
+    })
+  }
+
+  // Concurrent pipeline warning
+  if (showPipelineQuota && quota.concurrentWarningLevel && quota.concurrentWarningLevel !== 'ok') {
+    warnings.push({
+      id: 'concurrent',
+      level: quota.concurrentWarningLevel as 'warning' | 'critical' | 'exceeded',
+      icon: Zap,
+      title: quota.concurrentWarningLevel === 'exceeded'
+        ? 'Concurrent Pipeline Limit Reached'
+        : 'Approaching Concurrent Pipeline Limit',
+      description: quota.concurrentWarningLevel === 'exceeded'
+        ? `You have ${quota.concurrentRunning} pipelines running, which is your limit. Wait for some to complete.`
+        : `You have ${quota.concurrentRunning} of ${quota.concurrentLimit} concurrent pipelines running (${quota.concurrentUsagePercent}%).`,
+      action: undefined // No upgrade action for concurrent - they need to wait
     })
   }
 

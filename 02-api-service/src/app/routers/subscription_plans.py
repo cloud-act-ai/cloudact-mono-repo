@@ -818,8 +818,12 @@ def get_org_dataset(org_slug: str) -> str:
 
 
 def check_org_access(org: Dict, org_slug: str) -> None:
-    """Check if the authenticated org can access the requested org."""
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    """Check if the authenticated org can access the requested org.
+
+    SEC-001 FIX: Always validate org ownership, even in dev mode.
+    This prevents cross-tenant data access regardless of auth settings.
+    """
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access data for another organization"
@@ -1924,12 +1928,13 @@ async def create_plan(
             hierarchy_entity_id, hierarchy_entity_name,
             hierarchy_level_code, hierarchy_path, hierarchy_path_names
         FROM `{table_ref}`
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id
+        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
         verify_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
             job_timeout_ms=settings.bq_auth_timeout_ms
         )
@@ -2276,12 +2281,13 @@ async def update_plan(
             hierarchy_entity_id, hierarchy_entity_name,
             hierarchy_level_code, hierarchy_path, hierarchy_path_names
         FROM `{table_ref}`
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id
+        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
         select_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
             job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user queries (increased for large orgs)
         )

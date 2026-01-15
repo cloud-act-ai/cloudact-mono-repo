@@ -1,6 +1,6 @@
 # API Service (Port 8000)
 
-Frontend-facing API. Handles bootstrap, onboarding, integrations, subscriptions, hierarchy, cost reads. Does NOT run pipelines (8001).
+Frontend-facing API. Handles bootstrap, onboarding, integrations, subscriptions, hierarchy, quota enforcement, cost reads. Does NOT run pipelines (8001).
 
 ## Production Requirements
 
@@ -20,12 +20,13 @@ python -m pytest tests/ -v
 
 | Router | Endpoints | Purpose |
 |--------|-----------|---------|
-| Admin | `/api/v1/admin/*` | Bootstrap, sync, dev API key |
-| Organizations | `/api/v1/organizations/*` | Onboarding, locale |
+| Admin | `/api/v1/admin/*` | Bootstrap, sync |
+| Organizations | `/api/v1/organizations/*` | Onboarding, locale, quota |
 | Integrations | `/api/v1/integrations/*` | Credential setup/validate |
 | Subscriptions | `/api/v1/subscriptions/*` | SaaS plan CRUD |
 | Hierarchy | `/api/v1/hierarchy/*` | Dept/Project/Team CRUD |
 | Costs | `/api/v1/costs/*` | Polars-powered reads |
+| Validator | `/api/v1/validator/*` | Pipeline validation |
 
 ## Bootstrap Tables (21)
 
@@ -34,25 +35,31 @@ python -m pytest tests/ -v
 | `org_profiles` | Org metadata + i18n |
 | `org_api_keys` | API keys |
 | `org_subscriptions` | Plans & limits |
+| `org_usage_quotas` | Daily/monthly usage |
 | `org_integration_credentials` | KMS-encrypted creds |
 | `org_hierarchy` | Dept/Project/Team |
 | `org_meta_pipeline_runs` | Execution logs |
-| `org_notification_*` | Channels, rules, history |
 
 **Schemas:** `configs/setup/bootstrap/schemas/*.json`
 
-## Schema Evolution
+## Quota Enforcement
 
-**Add column:** Edit JSON → `POST /sync` → Safe, non-destructive
-**Never:** Use `force_recreate_*` flags (deletes data)
+**This service enforces all quotas before pipeline execution.**
 
-```bash
-# Check status
-curl GET /api/v1/admin/bootstrap/status -H "X-CA-Root-Key: $KEY"
-
-# Sync changes
-curl POST /api/v1/admin/bootstrap/sync -H "X-CA-Root-Key: $KEY"
+```python
+# Atomic check-and-reserve (prevents race conditions)
+reserve_pipeline_quota_atomic(org_slug)
 ```
+
+| Quota | Check |
+|-------|-------|
+| Daily pipelines | `pipelines_run_today < daily_limit` |
+| Monthly pipelines | `pipelines_run_month < monthly_limit` |
+| Concurrent | `concurrent_pipelines_running < concurrent_limit` |
+| Providers | Count vs `providers_limit` |
+| Seats | Member count vs `seat_limit` |
+
+**Endpoint:** `GET /api/v1/organizations/{org}/quota`
 
 ## Services Architecture
 
@@ -67,42 +74,15 @@ src/core/services/
 
 **Pattern:** `*_read/` = Polars + Cache | `*_crud/` = Direct BigQuery
 
-## Cost Read Service
-
-```python
-from src.core.services.cost_read import CostQuery, DatePeriod
-
-result = await service.get_costs(CostQuery(
-    org_slug="my_org",
-    period=DatePeriod.MTD
-))
-```
-
-| Method | Purpose |
-|--------|---------|
-| `get_cost_summary()` | Aggregated + forecasts |
-| `get_cost_by_provider()` | Provider breakdown |
-| `get_cost_by_hierarchy()` | Dept/Project/Team |
-| `get_cost_comparison()` | Period vs Period |
-
-## Date Periods
-
-```python
-DatePeriod.MTD          # Month to date
-DatePeriod.YTD          # Year to date (fiscal)
-DatePeriod.LAST_30_DAYS # Rolling 30 days
-```
-
-**Fiscal Year:** `fiscal_year_start_month=4` (April/India)
-
 ## Table Ownership
 
 | Table | Owner | Writes |
 |-------|-------|--------|
+| `org_subscriptions` | API (8000) | CRUD |
+| `org_usage_quotas` | API (8000) | Quota updates |
 | `subscription_plans` | API (8000) | CRUD |
 | `org_hierarchy` | API (8000) | CRUD |
 | `*_costs_daily` | Pipeline (8001) | Read-only |
-| `cost_data_standard_1_3` | Pipeline (8001) | Read-only |
 
 **Rule:** Tables with `x_*` fields → Pipeline writes, API reads only
 
@@ -115,17 +95,20 @@ POST /api/v1/admin/bootstrap
 # Onboard org
 POST /api/v1/organizations/onboard
 
+# Quota
+GET  /api/v1/organizations/{org}/quota
+
 # Integration setup
 POST /api/v1/integrations/{org}/{provider}/setup
 
 # Subscription CRUD
 POST /api/v1/subscriptions/{org}/providers/{p}/plans
-POST /api/v1/subscriptions/{org}/providers/{p}/plans/{id}/edit-version
 
 # Hierarchy
-POST /api/v1/hierarchy/{org}/levels/seed
-POST /api/v1/hierarchy/{org}/entities
 GET  /api/v1/hierarchy/{org}/tree
+
+# Validation (for pipeline service)
+POST /api/v1/validator/validate/{org}
 ```
 
 ## Key Files
@@ -133,9 +116,10 @@ GET  /api/v1/hierarchy/{org}/tree
 | File | Purpose |
 |------|---------|
 | `configs/setup/bootstrap/schemas/*.json` | 21 meta tables |
-| `src/app/routers/*.py` | API endpoints |
+| `src/app/routers/quota.py` | Quota endpoint |
+| `src/app/dependencies/auth.py` | Quota enforcement |
+| `src/app/models/org_models.py` | `SUBSCRIPTION_LIMITS` |
 | `src/core/services/*_read/` | Polars read services |
-| `src/lib/costs/` | Cost calculation library |
 
 ---
 **v4.1.0** | 2026-01-15

@@ -560,13 +560,14 @@ class PAYGUsageProcessor:
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
+                        -- DATA-004 FIX: Added x_hierarchy_level_1_name to INSERT
                         INSERT (org_slug, provider, model, model_family, usage_date, region,
                                 input_tokens, output_tokens, cached_input_tokens, total_tokens,
-                                request_count, is_batch, x_hierarchy_level_1_id,
+                                request_count, is_batch, x_hierarchy_level_1_id, x_hierarchy_level_1_name,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.model, S.model_family, S.usage_date, S.region,
                                 S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
-                                S.request_count, S.is_batch, S.x_hierarchy_level_1_id,
+                                S.request_count, S.is_batch, S.x_hierarchy_level_1_id, S.x_hierarchy_level_1_name,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

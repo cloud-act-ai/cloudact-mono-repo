@@ -1342,8 +1342,9 @@ async def _validate_integration(
     org: Dict
 ) -> SetupIntegrationResponse:
     """Common logic for validating any integration using authenticators."""
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    # Matches the pattern used in setup endpoints (INT-001 FIX)
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot validate integrations for another organization"

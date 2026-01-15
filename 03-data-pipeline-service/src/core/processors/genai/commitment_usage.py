@@ -368,11 +368,14 @@ class CommitmentUsageProcessor:
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
+                        -- DATA-005 FIX: Added x_hierarchy_level_1_id and x_hierarchy_level_1_name to INSERT
                         INSERT (org_slug, provider, commitment_id, commitment_type, model, usage_date, region,
                                 provisioned_units, tokens_processed, utilization_pct, hours_active,
+                                x_hierarchy_level_1_id, x_hierarchy_level_1_name,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.commitment_id, S.commitment_type, S.model, S.usage_date, S.region,
                                 S.provisioned_units, S.tokens_processed, S.utilization_pct, S.hours_active,
+                                S.x_hierarchy_level_1_id, S.x_hierarchy_level_1_name,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

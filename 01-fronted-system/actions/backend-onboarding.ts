@@ -27,40 +27,45 @@ function generateApiKeyFingerprint(apiKey: string): string {
 }
 
 // ============================================
-// Reveal Token Cache (In-Memory)
+// Reveal Token Storage (Supabase-backed)
 // ============================================
+// FIX SEC-001, SCALE-001: Use Supabase instead of in-memory cache
+// This ensures tokens work across serverless instances
 
-// In-memory cache for reveal tokens with expiration
-// Tokens expire after 30 minutes (extended from 5 min to handle Stripe checkout flow)
-// BUG FIX: Extended TTL because users may take longer than 5 min in Stripe checkout
-// FIX GAP-010: Increased from 30 minutes to 2 hours to accommodate user delays
-// User may complete Stripe checkout (5 min), onboarding (20 sec), but be distracted before copying API key
+// Token TTL: 2 hours to accommodate user delays in checkout flow
 const REVEAL_TOKEN_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours
-const revealTokenCache = new Map<string, { apiKey: string; expiresAt: Date }>()
 
 /**
- * Generate a reveal token for an API key.
- * The token can be used once to retrieve the API key within 5 minutes.
+ * Generate a reveal token for an API key and store in Supabase.
+ * FIX SEC-001: Uses Supabase table instead of in-memory cache for cross-instance support.
+ * The token can be used once to retrieve the API key.
  */
-function generateRevealToken(apiKey: string): { token: string; expiresAt: Date } {
+async function generateRevealToken(
+  orgSlug: string,
+  userId: string
+): Promise<{ token: string; expiresAt: Date }> {
   // Generate a random token
   const tokenBytes = createHash("sha256")
-    .update(`${apiKey}_${Date.now()}_${Math.random()}`)
+    .update(`${orgSlug}_${userId}_${Date.now()}_${Math.random()}`)
     .digest("hex")
   const token = `reveal_${tokenBytes.substring(0, 32)}`
   const expiresAt = new Date(Date.now() + REVEAL_TOKEN_TTL_MS)
 
-  // Store in cache
-  revealTokenCache.set(token, { apiKey, expiresAt })
+  // Store in Supabase (replaces in-memory cache)
+  const adminClient = createServiceRoleClient()
+  const { error } = await adminClient
+    .from("reveal_tokens")
+    .insert({
+      token,
+      org_slug: orgSlug,
+      user_id: userId,
+      expires_at: expiresAt.toISOString(),
+    })
 
-  // Cleanup expired tokens (limit to 100 entries)
-  if (revealTokenCache.size > 100) {
-    const now = new Date()
-    const entries = Array.from(revealTokenCache.entries())
-    for (const [key, value] of entries) {
-      if (value.expiresAt < now) {
-        revealTokenCache.delete(key)
-      }
+  if (error) {
+    // Log but don't fail - token creation is not critical
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[generateRevealToken] Failed to store token:", error.message)
     }
   }
 
@@ -68,24 +73,46 @@ function generateRevealToken(apiKey: string): { token: string; expiresAt: Date }
 }
 
 /**
- * Reveal an API key from a reveal token.
- * Token is consumed after use.
+ * Internal helper: Reveal an API key from a reveal token stored in Supabase.
+ * FIX SEC-001: Fetches from Supabase and retrieves API key from secure storage.
+ * Token is consumed (deleted) after use.
  */
-function revealApiKeyFromCache(revealToken: string): string {
-  const cached = revealTokenCache.get(revealToken)
+async function _revealApiKeyInternal(revealToken: string, userId: string): Promise<string> {
+  const adminClient = createServiceRoleClient()
 
-  if (!cached) {
+  // Fetch token from Supabase
+  const { data: tokenData, error: fetchError } = await adminClient
+    .from("reveal_tokens")
+    .select("org_slug, user_id, expires_at")
+    .eq("token", revealToken)
+    .single()
+
+  if (fetchError || !tokenData) {
     throw new Error("Token not found or already used")
   }
 
-  if (cached.expiresAt < new Date()) {
-    revealTokenCache.delete(revealToken)
+  // Verify token belongs to this user
+  if (tokenData.user_id !== userId) {
+    throw new Error("Token does not belong to this user")
+  }
+
+  // Check expiration
+  if (new Date(tokenData.expires_at) < new Date()) {
+    // Delete expired token
+    await adminClient.from("reveal_tokens").delete().eq("token", revealToken)
     throw new Error("Token has expired")
   }
 
-  // Consume the token (one-time use)
-  revealTokenCache.delete(revealToken)
-  return cached.apiKey
+  // Fetch API key from secure storage
+  const apiKey = await getOrgApiKeySecure(tokenData.org_slug)
+  if (!apiKey) {
+    throw new Error("API key not found in secure storage")
+  }
+
+  // Consume the token (one-time use) - delete it
+  await adminClient.from("reveal_tokens").delete().eq("token", revealToken)
+
+  return apiKey
 }
 
 // ============================================
@@ -442,12 +469,12 @@ export async function onboardToBackend(input: {
     }
 
     // SECURITY FIX #3: Generate reveal token instead of exposing full API key
-    // The reveal token can be used once to retrieve the API key via server action
+    // FIX SEC-002: Do NOT return apiKey directly - only via reveal token
     let revealToken: string | undefined
     let revealTokenExpiresAt: string | undefined
 
     if (response.api_key) {
-      const tokenResult = generateRevealToken(response.api_key)
+      const tokenResult = await generateRevealToken(input.orgSlug, user.id)
       revealToken = tokenResult.token
       revealTokenExpiresAt = tokenResult.expiresAt.toISOString()
     }
@@ -455,9 +482,7 @@ export async function onboardToBackend(input: {
     return {
       success: true,
       orgSlug: response.org_slug,
-      // SECURITY: For initial creation, we still return the API key
-      // Frontend should show it once and encourage user to copy it
-      apiKey: response.api_key,
+      // FIX SEC-002: Removed direct apiKey from response - use revealToken instead
       apiKeyFingerprint: response.api_key
         ? generateApiKeyFingerprint(response.api_key)
         : undefined,
@@ -522,19 +547,25 @@ export async function onboardToBackend(input: {
         // _updateError silently handled - sync attempted
 
         // SECURITY FIX #3: Generate reveal token for retry case too
+        // FIX SEC-002: Get user for token generation
         let retryRevealToken: string | undefined
         let retryRevealTokenExpiresAt: string | undefined
 
         if (retryResponse.api_key) {
-          const tokenResult = generateRevealToken(retryResponse.api_key)
-          retryRevealToken = tokenResult.token
-          retryRevealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+          // Get user from supabase for token (user variable from outer scope)
+          const supabaseForRetry = await createClient()
+          const { data: { user: retryUser } } = await supabaseForRetry.auth.getUser()
+          if (retryUser) {
+            const tokenResult = await generateRevealToken(input.orgSlug, retryUser.id)
+            retryRevealToken = tokenResult.token
+            retryRevealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+          }
         }
 
         return {
           success: true,
           orgSlug: retryResponse.org_slug,
-          apiKey: retryResponse.api_key,
+          // FIX SEC-002: Removed direct apiKey from response
           apiKeyFingerprint: newFingerprint,
           revealToken: retryRevealToken,
           revealTokenExpiresAt: retryRevealTokenExpiresAt,
@@ -1062,18 +1093,23 @@ export async function rotateApiKey(orgSlug: string): Promise<{
     await storeApiKeySecure(orgSlug, rotateResponse.api_key)
 
     // SECURITY FIX #3: Generate reveal token for rotation result
+    // FIX SEC-002: Get user for token generation
     let rotateRevealToken: string | undefined
     let rotateRevealTokenExpiresAt: string | undefined
 
     if (rotateResponse.api_key) {
-      const tokenResult = generateRevealToken(rotateResponse.api_key)
-      rotateRevealToken = tokenResult.token
-      rotateRevealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+      const supabaseForRotate = await createClient()
+      const { data: { user: rotateUser } } = await supabaseForRotate.auth.getUser()
+      if (rotateUser) {
+        const tokenResult = await generateRevealToken(orgSlug, rotateUser.id)
+        rotateRevealToken = tokenResult.token
+        rotateRevealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+      }
     }
 
     return {
       success: true,
-      apiKey: rotateResponse.api_key,
+      // FIX SEC-002: Removed direct apiKey from response
       apiKeyFingerprint: newFingerprint,
       revealToken: rotateRevealToken,
       revealTokenExpiresAt: rotateRevealTokenExpiresAt,
@@ -1189,7 +1225,8 @@ export async function hasStoredApiKey(orgSlug: string): Promise<{
 /**
  * Reveal API key from a reveal token.
  * SECURITY FIX #3: Server action to reveal API key using short-lived token.
- * Token expires after 5 minutes.
+ * FIX SEC-001: Now uses Supabase-backed token storage instead of in-memory cache.
+ * Token expires after 2 hours.
  *
  * @param revealToken - The reveal token from onboardToBackend or rotateApiKey
  * @returns The API key if token is valid, error otherwise
@@ -1204,9 +1241,17 @@ export async function revealApiKeyFromToken(revealToken: string): Promise<{
       return { success: false, error: "Reveal token is required" }
     }
 
+    // FIX SEC-001: Get current user for token verification
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: "Not authenticated" }
+    }
+
     try {
-      // Use in-memory cache for reveal tokens (no external file import)
-      const apiKey = revealApiKeyFromCache(revealToken)
+      // Use Supabase-backed token storage (FIX SEC-001)
+      const apiKey = await _revealApiKeyInternal(revealToken, user.id)
       return { success: true, apiKey }
     } catch (err) {
       const error = err instanceof Error ? err.message : "Invalid token"

@@ -550,12 +550,22 @@ class GcpApiExtractorProcessor:
             "gcp_project_id": "..."
         }
         """
+        import uuid
+        from datetime import date
+
         flatten = transform_config.get("flatten", False)
         add_fields = transform_config.get("add_fields", {})
 
         result = []
         now = datetime.now(timezone.utc).isoformat()
         gcp_project_id = self.auth.project_id if self.auth else None
+
+        # Generate lineage metadata (DATA-001/002/003 fix)
+        run_id = str(uuid.uuid4())
+        pipeline_id = context.get("pipeline_id", "gcp_api_extractor")
+        credential_id = context.get("credential_id", "")
+        pipeline_run_date = context.get("date") or date.today().isoformat()
+        ingested_at = now
 
         for row in rows:
             if flatten:
@@ -575,6 +585,13 @@ class GcpApiExtractorProcessor:
                 }
                 if gcp_project_id:
                     transformed["gcp_project_id"] = gcp_project_id
+
+            # Add standardized lineage columns (DATA-001/002/003 fix)
+            transformed["x_pipeline_id"] = pipeline_id
+            transformed["x_credential_id"] = credential_id
+            transformed["x_pipeline_run_date"] = pipeline_run_date
+            transformed["x_run_id"] = run_id
+            transformed["x_ingested_at"] = ingested_at
 
             result.append(transformed)
 

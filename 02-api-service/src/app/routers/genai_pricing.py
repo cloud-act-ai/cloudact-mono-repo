@@ -106,8 +106,12 @@ def get_org_dataset(org_slug: str) -> str:
 
 
 def check_org_access(org: Dict, org_slug: str) -> None:
-    """Check if the authenticated org can access the requested org."""
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    """Check if the authenticated org can access the requested org.
+
+    SEC-001 FIX: Always validate org ownership, even in dev mode.
+    This prevents cross-tenant data access regardless of auth settings.
+    """
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access data for another organization"

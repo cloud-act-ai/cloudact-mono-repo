@@ -38,20 +38,22 @@ CENTRAL_DATASET = "organizations"
 #
 # STANDARD HIERARCHY STRUCTURE (N-Level Configurable):
 # ┌─────────────────────────────────────────────────────────────────┐
-# │  Level 1: Department (DEPT-)  - C-Suite / Executive             │
-# │  Level 2: Project (PROJ-)     - Business Units / Cost Centers   │
-# │  Level 3: Team (TEAM-)        - Functions / Teams               │
+# │  Level 1: C-Suite (DEPT-)       - Executive leadership          │
+# │  Level 2: Business Unit (PROJ-) - Cost Centers / BUs            │
+# │  Level 3: Function (TEAM-)      - Teams / Functions             │
 # └─────────────────────────────────────────────────────────────────┘
 #
 # Entity ID Format: {PREFIX}{CODE}
-# Examples: DEPT-CFO, PROJ-ENGINEERING, TEAM-PLATFORM
+# Examples: DEPT-CFO, PROJ-CTO, TEAM-PLATFORMS
+#
+# NOTE: level_code values MUST match configs/hierarchy/seed/data/default_hierarchy.csv
 #
 DEFAULT_LEVELS = [
     {
         "level": 1,
-        "level_code": "department",
-        "level_name": "Department",
-        "level_name_plural": "Departments",
+        "level_code": "c_suite",
+        "level_name": "C-Suite",
+        "level_name_plural": "C-Suite",
         "parent_level": None,
         "is_required": False,
         "is_leaf": False,
@@ -65,9 +67,9 @@ DEFAULT_LEVELS = [
     },
     {
         "level": 2,
-        "level_code": "project",
-        "level_name": "Project",
-        "level_name_plural": "Projects",
+        "level_code": "business_unit",
+        "level_name": "Business Unit",
+        "level_name_plural": "Business Units",
         "parent_level": 1,
         "is_required": True,
         "is_leaf": False,
@@ -77,13 +79,13 @@ DEFAULT_LEVELS = [
         "metadata_schema": None,
         "display_order": 2,
         "icon": "folder-kanban",
-        "color": "#1A9FB2",  # Teal - project/BU level
+        "color": "#1A9FB2",  # Teal - business unit level
     },
     {
         "level": 3,
-        "level_code": "team",
-        "level_name": "Team",
-        "level_name_plural": "Teams",
+        "level_code": "function",
+        "level_name": "Function",
+        "level_name_plural": "Functions",
         "parent_level": 2,
         "is_required": True,
         "is_leaf": True,
@@ -93,7 +95,7 @@ DEFAULT_LEVELS = [
         "metadata_schema": None,
         "display_order": 3,
         "icon": "users",
-        "color": "#90FCA6",  # Mint - team level
+        "color": "#90FCA6",  # Mint - function/team level
     },
 ]
 

@@ -202,10 +202,12 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
 
 /**
  * Check if adding a new team member would exceed the limit.
+ * IMPORTANT: This checks members + pending invites to match inviteMember() validation.
  */
 export async function canAddTeamMember(orgSlug: string): Promise<{
   canAdd: boolean
   currentCount: number
+  pendingInvites: number
   limit: number
   message?: string
 }> {
@@ -213,26 +215,53 @@ export async function canAddTeamMember(orgSlug: string): Promise<{
 
   if (!result.success || !result.data) {
     // SECURITY: Fail closed - don't allow adding when we can't verify limits
-    return { canAdd: false, currentCount: 0, limit: 0, message: "Could not verify limits. Please try again." }
+    return { canAdd: false, currentCount: 0, pendingInvites: 0, limit: 0, message: "Could not verify limits. Please try again." }
   }
 
   const { teamMembers, seatLimit } = result.data
 
-  if (teamMembers >= seatLimit) {
+  // CONSISTENCY FIX: Also count pending invites - they reserve seats
+  // This matches the validation in inviteMember() (members.ts:264-281)
+  const adminClient = createServiceRoleClient()
+
+  // Get organization ID first
+  const { data: org } = await adminClient
+    .from("organizations")
+    .select("id")
+    .eq("org_slug", orgSlug)
+    .single()
+
+  let pendingInvites = 0
+  if (org) {
+    const { count } = await adminClient
+      .from("invites")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .eq("status", "pending")
+    pendingInvites = count || 0
+  }
+
+  const totalReserved = teamMembers + pendingInvites
+
+  if (totalReserved >= seatLimit) {
     return {
       canAdd: false,
       currentCount: teamMembers,
+      pendingInvites,
       limit: seatLimit,
-      message: `Team member limit reached (${teamMembers}/${seatLimit}). Upgrade your plan to add more members.`
+      message: pendingInvites > 0
+        ? `Seat limit reached (${teamMembers} members + ${pendingInvites} pending invites = ${totalReserved}/${seatLimit} seats). Cancel pending invites or upgrade your plan.`
+        : `Team member limit reached (${teamMembers}/${seatLimit}). Upgrade your plan to add more members.`
     }
   }
 
   return {
     canAdd: true,
     currentCount: teamMembers,
+    pendingInvites,
     limit: seatLimit,
-    message: teamMembers >= seatLimit - 1
-      ? `Warning: Adding this member will reach your team limit (${teamMembers + 1}/${seatLimit}).`
+    message: totalReserved >= seatLimit - 1
+      ? `Warning: Adding this member will reach your team limit (${totalReserved + 1}/${seatLimit}).`
       : undefined
   }
 }

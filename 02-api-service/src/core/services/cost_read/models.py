@@ -62,13 +62,19 @@ class CostQuery:
         return date_range.start_date, date_range.end_date
 
     def cache_key(self) -> str:
-        """Generate unique cache key for this query."""
+        """Generate unique cache key for this query.
+
+        CACHE-002: Includes ALL filter parameters to prevent cache collisions.
+        Different fiscal_year_start_month values can produce different date ranges
+        for the same period (e.g., YTD), so it must be included.
+        """
         # Resolve dates for consistent caching
         resolved_start, resolved_end = self.resolve_dates()
         key_parts = [
             f"org:{self.org_slug}",
             f"start:{resolved_start}",
             f"end:{resolved_end}",
+            f"fy_month:{self.fiscal_year_start_month}",  # CACHE-002: Include fiscal year start
             f"providers:{sorted(self.providers or [])}",
             f"categories:{sorted(self.service_categories or [])}",
             f"dept:{self.department_id or ''}",

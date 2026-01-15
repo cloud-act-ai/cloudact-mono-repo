@@ -38,7 +38,7 @@ class CreateLevelRequest(BaseModel):
         ...,
         min_length=2,
         max_length=30,
-        description="Machine-readable level code (e.g., 'department', 'project')"
+        description="Machine-readable level code (e.g., 'c_suite', 'business_unit')"
     )
     level_name: str = Field(
         ...,
@@ -124,9 +124,9 @@ class CreateLevelRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", json_schema_extra={
         "example": {
             "level": 1,
-            "level_code": "department",
-            "level_name": "Department",
-            "level_name_plural": "Departments",
+            "level_code": "c_suite",
+            "level_name": "C-Suite",
+            "level_name_plural": "C-Suite",
             "parent_level": None,
             "is_required": False,
             "is_leaf": False,
@@ -328,13 +328,13 @@ class CreateEntityRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", json_schema_extra={
         "example": {
-            "entity_id": "DEPT-001",
-            "entity_name": "Engineering",
-            "level_code": "department",
+            "entity_id": "DEPT-CFO",
+            "entity_name": "Group CFO",
+            "level_code": "c_suite",
             "parent_id": None,
-            "owner_name": "John Doe",
-            "owner_email": "john@example.com",
-            "description": "Engineering department"
+            "owner_name": "Sarah Mitchell",
+            "owner_email": "sarah.mitchell@acmeinc.com",
+            "description": "Finance and financial operations"
         }
     })
 
@@ -480,7 +480,7 @@ class HierarchyTreeResponse(BaseModel):
     org_slug: str
     levels: List[HierarchyLevelResponse]
     roots: List[HierarchyTreeNode]
-    stats: Dict[str, int]  # {"department": 5, "project": 12, "team": 25, "total": 42}
+    stats: Dict[str, int]  # {"c_suite": 4, "business_unit": 7, "function": 9, "total": 20}
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -499,12 +499,12 @@ class DeletionBlockedResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "example": {
-            "entity_id": "DEPT-001",
-            "level_code": "department",
+            "entity_id": "DEPT-CFO",
+            "level_code": "c_suite",
             "blocked": True,
             "reason": "Cannot delete entity with active children",
             "blocking_entities": [
-                {"entity_id": "PROJ-001", "entity_name": "Platform", "level_code": "project"}
+                {"entity_id": "PROJ-BU1", "entity_name": "Business Unit 1 IT", "level_code": "business_unit"}
             ]
         }
     })

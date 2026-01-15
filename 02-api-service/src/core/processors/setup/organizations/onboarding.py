@@ -14,6 +14,7 @@ from google.cloud.exceptions import NotFound, Conflict
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
+from src.core.services.hierarchy_crud.level_service import HierarchyLevelService
 
 
 class OrgOnboardingProcessor:
@@ -219,12 +220,21 @@ class OrgOnboardingProcessor:
         entity_lookup = {row["entity_id"]: row for row in csv_rows}
 
         def compute_path_info(entity_id: str) -> tuple:
-            """Compute path, path_ids, path_names, and depth for an entity."""
+            """Compute path, path_ids, path_names, and depth for an entity.
+            FIX EDGE-002: Added cycle detection to prevent infinite loops.
+            """
             path_ids = []
             path_names = []
             current_id = entity_id
+            visited = set()  # FIX EDGE-002: Track visited entities to detect cycles
 
             while current_id:
+                # FIX EDGE-002: Detect circular references
+                if current_id in visited:
+                    self.logger.warning(f"Circular reference detected in hierarchy: {current_id}")
+                    break
+                visited.add(current_id)
+
                 entity = entity_lookup.get(current_id)
                 if not entity:
                     break
@@ -288,15 +298,50 @@ class OrgOnboardingProcessor:
             return result
 
         try:
-            # Use BigQuery streaming insert
             client = bigquery.Client(project=self.settings.gcp_project_id)
-            errors = client.insert_rows_json(table_id, default_hierarchy)
+
+            # FIX IDEM-001: Check for existing entities before inserting (idempotency)
+            existing_query = f"""
+                SELECT entity_id FROM `{table_id}`
+                WHERE org_slug = @org_slug
+            """
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+            existing_result = client.query(existing_query, job_config=job_config).result()
+            existing_entity_ids = {row.entity_id for row in existing_result}
+
+            # Filter out entities that already exist
+            new_entities = [
+                entity for entity in default_hierarchy
+                if entity["entity_id"] not in existing_entity_ids
+            ]
+
+            if not new_entities:
+                self.logger.info(f"All hierarchy entities already exist for {org_slug}, skipping insert")
+                # Count existing entities in result
+                for entity in default_hierarchy:
+                    level_code = entity["level_code"]
+                    result["by_level"][level_code] = result["by_level"].get(level_code, 0) + 1
+                    result["entities_seeded"] += 1
+                return result
+
+            if len(new_entities) < len(default_hierarchy):
+                self.logger.info(
+                    f"Skipping {len(default_hierarchy) - len(new_entities)} existing entities, "
+                    f"inserting {len(new_entities)} new entities"
+                )
+
+            # Use BigQuery streaming insert for new entities only
+            errors = client.insert_rows_json(table_id, new_entities)
 
             if errors:
                 self.logger.error(f"Errors inserting default hierarchy: {errors}")
                 result["errors"].extend([str(e) for e in errors])
             else:
-                # Count by level_code
+                # Count by level_code (all entities, including pre-existing)
                 for entity in default_hierarchy:
                     level_code = entity["level_code"]
                     result["by_level"][level_code] = result["by_level"].get(level_code, 0) + 1
@@ -304,7 +349,7 @@ class OrgOnboardingProcessor:
 
                 self.logger.info(
                     f"Seeded hierarchy from CSV for {org_slug}: "
-                    f"{result['entities_seeded']} entities ({result['by_level']})"
+                    f"{len(new_entities)} new entities, {len(existing_entity_ids)} existing ({result['by_level']})"
                 )
 
         except Exception as e:
@@ -346,10 +391,24 @@ class OrgOnboardingProcessor:
             if subscriptions:
                 table_id = f"{self.settings.gcp_project_id}.{dataset_id}.subscriptions"
                 try:
+                    client = bigquery.Client(project=self.settings.gcp_project_id)
+
+                    # FIX IDEM-002: Check for existing subscriptions (idempotency)
+                    existing_query = f"SELECT subscription_id FROM `{table_id}`"
+                    try:
+                        existing_result = client.query(existing_query).result()
+                        existing_ids = {row.subscription_id for row in existing_result}
+                    except NotFound:
+                        existing_ids = set()
+
                     rows_to_insert = []
                     for sub in subscriptions:
+                        sub_id = sub.get("subscription_id") or str(uuid.uuid4())
+                        # FIX IDEM-002: Skip if already exists
+                        if sub_id in existing_ids:
+                            continue
                         row = {
-                            "subscription_id": sub.get("subscription_id") or str(uuid.uuid4()),
+                            "subscription_id": sub_id,
                             "provider": sub.get("provider"),
                             "plan_name": sub.get("plan_name"),
                             "is_custom": sub.get("is_custom", False),
@@ -369,16 +428,19 @@ class OrgOnboardingProcessor:
                         }
                         rows_to_insert.append(row)
 
-                    # Use BigQuery streaming insert
-                    client = bigquery.Client(project=self.settings.gcp_project_id)
-                    errors = client.insert_rows_json(table_id, rows_to_insert)
-
-                    if errors:
-                        self.logger.error(f"Errors inserting subscriptions: {errors}")
-                        result["errors"].extend([str(e) for e in errors])
+                    if not rows_to_insert:
+                        self.logger.info(f"All subscriptions already exist in {table_id}, skipping insert")
+                        result["subscriptions_seeded"] = len(existing_ids)
                     else:
-                        result["subscriptions_seeded"] = len(rows_to_insert)
-                        self.logger.info(f"Seeded {len(rows_to_insert)} subscriptions to {table_id}")
+                        # Use BigQuery streaming insert
+                        errors = client.insert_rows_json(table_id, rows_to_insert)
+
+                        if errors:
+                            self.logger.error(f"Errors inserting subscriptions: {errors}")
+                            result["errors"].extend([str(e) for e in errors])
+                        else:
+                            result["subscriptions_seeded"] = len(rows_to_insert)
+                            self.logger.info(f"Seeded {len(rows_to_insert)} new subscriptions to {table_id} ({len(existing_ids)} existing)")
 
                 except Exception as e:
                     self.logger.error(f"Failed to seed subscriptions: {e}")
@@ -390,10 +452,24 @@ class OrgOnboardingProcessor:
             if pricing_rows:
                 table_id = f"{self.settings.gcp_project_id}.{dataset_id}.genai_model_pricing"
                 try:
+                    client = bigquery.Client(project=self.settings.gcp_project_id)
+
+                    # FIX IDEM-002: Check for existing pricing records (idempotency)
+                    existing_query = f"SELECT pricing_id FROM `{table_id}`"
+                    try:
+                        existing_result = client.query(existing_query).result()
+                        existing_ids = {row.pricing_id for row in existing_result}
+                    except NotFound:
+                        existing_ids = set()
+
                     rows_to_insert = []
                     for price in pricing_rows:
+                        price_id = price.get("pricing_id") or str(uuid.uuid4())
+                        # FIX IDEM-002: Skip if already exists
+                        if price_id in existing_ids:
+                            continue
                         row = {
-                            "pricing_id": price.get("pricing_id") or str(uuid.uuid4()),
+                            "pricing_id": price_id,
                             "provider": price.get("provider"),
                             "model_id": price.get("model_id"),
                             "model_name": price.get("model_name"),
@@ -414,16 +490,19 @@ class OrgOnboardingProcessor:
                         }
                         rows_to_insert.append(row)
 
-                    # Use BigQuery streaming insert
-                    client = bigquery.Client(project=self.settings.gcp_project_id)
-                    errors = client.insert_rows_json(table_id, rows_to_insert)
-
-                    if errors:
-                        self.logger.error(f"Errors inserting pricing: {errors}")
-                        result["errors"].extend([str(e) for e in errors])
+                    if not rows_to_insert:
+                        self.logger.info(f"All pricing records already exist in {table_id}, skipping insert")
+                        result["pricing_seeded"] = len(existing_ids)
                     else:
-                        result["pricing_seeded"] = len(rows_to_insert)
-                        self.logger.info(f"Seeded {len(rows_to_insert)} pricing records to {table_id}")
+                        # Use BigQuery streaming insert
+                        errors = client.insert_rows_json(table_id, rows_to_insert)
+
+                        if errors:
+                            self.logger.error(f"Errors inserting pricing: {errors}")
+                            result["errors"].extend([str(e) for e in errors])
+                        else:
+                            result["pricing_seeded"] = len(rows_to_insert)
+                            self.logger.info(f"Seeded {len(rows_to_insert)} new pricing records to {table_id} ({len(existing_ids)} existing)")
 
                 except Exception as e:
                     self.logger.error(f"Failed to seed pricing: {e}")
@@ -516,7 +595,9 @@ class OrgOnboardingProcessor:
         # Step 3: Initial quota record (SKIPPED - handled by API endpoint)
         # NOTE: When called from /api/v1/organizations/onboard, quota record is already created
         # This step is only for standalone processor execution (testing)
+        # FIX ERR-002: Track quota creation status in result
         create_quota = config.get("create_quota_record", False)
+        quota_created = False  # FIX ERR-002: Track creation status
         if create_quota:
             self.logger.info(f"Creating initial quota record for organization {org_slug}")
             try:
@@ -577,6 +658,7 @@ class OrgOnboardingProcessor:
                     job_timeout_ms=300000  # 5 minutes for onboarding ops
                 )
                 bq_client.client.query(quota_insert_query, job_config=job_config).result()
+                quota_created = True  # FIX ERR-002: Mark as successfully created
                 self.logger.info(
                     f"Created initial quota record for organization {org_slug}",
                     extra={
@@ -588,12 +670,23 @@ class OrgOnboardingProcessor:
                 )
             except Exception as e:
                 self.logger.error(f"Failed to create initial quota record: {e}", exc_info=True)
+                # FIX ERR-002: quota_created stays False, will be reflected in result
                 # Don't fail onboarding if quota record creation fails
                 # Admin can manually add it later
         else:
             self.logger.info(f"Skipping quota creation (handled by API endpoint)")
+            quota_created = None  # FIX ERR-002: None indicates skipped (handled elsewhere)
 
-        # Step 4: Seed default hierarchy data from CSV (always enabled for new orgs)
+        # Step 4a: Seed default hierarchy LEVELS (required before seeding entities)
+        # Creates the level configuration (c_suite, business_unit, function)
+        try:
+            level_service = HierarchyLevelService(bq_client)
+            await level_service.seed_default_levels(org_slug, "system")
+            self.logger.info(f"Seeded default hierarchy levels for {org_slug}")
+        except Exception as e:
+            self.logger.warning(f"Failed to seed hierarchy levels (may already exist): {e}")
+
+        # Step 4b: Seed default hierarchy ENTITIES from CSV (always enabled for new orgs)
         # CSV file: configs/hierarchy/seed/data/default_hierarchy.csv
         # Default: FinOps Foundation enterprise structure (17 entities across 3 levels)
         hierarchy_result = await self._seed_default_hierarchy(bq_client, dataset_id, org_slug)
@@ -632,6 +725,8 @@ class OrgOnboardingProcessor:
             "views_created": views_created,
             "tables_failed": tables_failed,
             "views_failed": views_failed,
+            # FIX ERR-002: Include quota creation status in result
+            "quota_created": quota_created,  # True=created, False=failed, None=skipped
             "hierarchy_seeded": {
                 "total": hierarchy_total,
                 "by_level": hierarchy_by_level

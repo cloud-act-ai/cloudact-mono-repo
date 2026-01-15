@@ -179,8 +179,14 @@ class CostReadService:
             category: Optional category filter ("genai", "cloud", "subscription")
                      When provided, filtering happens in SQL (more efficient)
         """
+        # MT-009: Validate org_slug is present and valid before any query execution
+        if not query.org_slug:
+            raise ValueError("org_slug is required for cost queries")
         validate_org_slug(query.org_slug)
         dataset_id = self._get_dataset_id(query.org_slug)
+        # MT-009: Ensure dataset_id contains the org_slug (defensive check)
+        if query.org_slug not in dataset_id:
+            raise ValueError(f"Dataset isolation error: org_slug '{query.org_slug}' not in dataset '{dataset_id}'")
         table_ref = f"`{self._project_id}.{dataset_id}.cost_data_standard_1_3`"
 
         # Resolve dates (handles period, fiscal_year, or custom dates)
@@ -355,9 +361,10 @@ class CostReadService:
         cache_key = f"costs:{query.cache_key()}"
 
         cached_df = self._cache.get(cache_key)
-        if cached_df is not None:
+        if cached_df is not None and hasattr(cached_df, 'slice'):
             query_time = (time.time() - start_time) * 1000
-            data = cached_df.head(query.limit).to_dicts()
+            # SCALE-001: Use slice() for proper pagination (offset + limit)
+            data = cached_df.slice(query.offset, query.limit).to_dicts()
             return CostResponse(
                 success=True,
                 data=data,

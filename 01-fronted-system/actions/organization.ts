@@ -134,32 +134,67 @@ export async function createOrganization(input: CreateOrganizationInput) {
 
     // Insert organization using service role (bypasses RLS)
     // All limits come from Stripe metadata - no hardcoded values
-    const { data: orgData, error: orgError } = await adminClient
-      .from("organizations")
-      .insert({
-        org_name: sanitizedName,
-        org_slug: orgSlug,
-        org_type: input.type,
-        plan: input.planId,                    // From Stripe product metadata
-        stripe_price_id: input.priceId,        // Stripe price ID
-        billing_status: "trialing",
-        trial_ends_at: trialEndsAt.toISOString(),
-        seat_limit: input.limits.teamMembers,
-        providers_limit: input.limits.providers,
-        pipelines_per_day_limit: input.limits.pipelinesPerDay,
-        created_by: user.id,
-        // i18n fields (from signup form)
-        default_currency: defaultCurrency,
-        default_country: defaultCountry,
-        default_language: defaultLanguage,
-        default_timezone: defaultTimezone,
-      })
-      .select()
-      .single()
+    // FIX EDGE-001: Retry with new slug if unique constraint violation
+    let orgData: { id: string; org_slug: string } | null = null
+    let orgError: Error | null = null
+    const maxRetries = 3
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const { data, error } = await adminClient
+        .from("organizations")
+        .insert({
+          org_name: sanitizedName,
+          org_slug: orgSlug,
+          org_type: input.type,
+          plan: input.planId,                    // From Stripe product metadata
+          stripe_price_id: input.priceId,        // Stripe price ID
+          billing_status: "trialing",
+          trial_ends_at: trialEndsAt.toISOString(),
+          seat_limit: input.limits.teamMembers,
+          providers_limit: input.limits.providers,
+          pipelines_per_day_limit: input.limits.pipelinesPerDay,
+          created_by: user.id,
+          // i18n fields (from signup form)
+          default_currency: defaultCurrency,
+          default_country: defaultCountry,
+          default_language: defaultLanguage,
+          default_timezone: defaultTimezone,
+        })
+        .select()
+        .single()
+
+      if (!error) {
+        orgData = data
+        orgError = null
+        break
+      }
+
+      // FIX EDGE-001: Check if error is unique constraint violation on org_slug
+      const isUniqueViolation = error.message.includes("duplicate key") ||
+                                 error.message.includes("unique constraint") ||
+                                 error.code === "23505"
+
+      if (isUniqueViolation && attempt < maxRetries - 1) {
+        // Generate new slug with random suffix and retry
+        const randomSuffix = Math.random().toString(36).substring(2, 8)
+        orgSlug = `${firstWord}_${timestamp}_${randomSuffix}`
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[createOrganization] Slug collision, retrying with: ${orgSlug}`)
+        }
+        continue
+      }
+
+      orgError = error
+      break
+    }
 
     if (orgError) {
       // FIX GAP-007: User-friendly error message
       return { success: false, error: getUserFriendlyError(orgError.message) }
+    }
+
+    if (!orgData) {
+      return { success: false, error: "Failed to create organization after retries" }
     }
 
     // Note: organization_members entry is auto-created by DB trigger (on_org_created)
@@ -260,6 +295,25 @@ export async function completeOnboarding(sessionId: string) {
   // FIX GAP-003: Declare lockId at function scope for cleanup in catch block
   const lockId = `onboarding_${sessionId}`
 
+  // FIX STATE-002: Create adminClient at function scope for reuse in catch block
+  const adminClient = createServiceRoleClient()
+
+  // FIX ERR-001: Helper function for lock cleanup with retry
+  const cleanupLockWithRetry = async (retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        await adminClient.from("onboarding_locks").delete().eq("lock_id", lockId)
+        return true
+      } catch (cleanupError) {
+        if (i === retries - 1 && process.env.NODE_ENV === "development") {
+          console.warn("[completeOnboarding] Lock cleanup failed after retries:", cleanupError)
+        }
+        await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)))
+      }
+    }
+    return false
+  }
+
   try {
     // Validate session ID format
     if (!sessionId || !sessionId.startsWith("cs_")) {
@@ -276,7 +330,7 @@ export async function completeOnboarding(sessionId: string) {
 
     // FIX GAP-003: Distributed locking to prevent concurrent onboarding
     // Attempt to acquire lock for this session
-    const adminClient = createServiceRoleClient()
+    // FIX STATE-002: Reuse adminClient from function scope
     const lockExpiry = new Date(Date.now() + 60000) // 60 second lock
 
     try {
@@ -588,7 +642,9 @@ export async function completeOnboarding(sessionId: string) {
     }
 
     // Step 2: Backend onboarding (async, non-blocking)
-    let backendApiKey: string | undefined
+    // FIX SEC-002: API key is no longer returned directly - use revealToken instead
+    let backendRevealToken: string | undefined
+    let backendRevealTokenExpiresAt: string | undefined
     let backendOnboardingFailed = false
 
     try {
@@ -603,7 +659,9 @@ export async function completeOnboarding(sessionId: string) {
       })
 
       if (backendResult.success) {
-        backendApiKey = backendResult.apiKey
+        // FIX SEC-002: Use revealToken instead of direct apiKey
+        backendRevealToken = backendResult.revealToken
+        backendRevealTokenExpiresAt = backendResult.revealTokenExpiresAt
       } else {
         backendOnboardingFailed = true
       }
@@ -614,34 +672,24 @@ export async function completeOnboarding(sessionId: string) {
       }
     }
 
-    // FIX GAP-003: Release lock on success
-    try {
-      await adminClient.from("onboarding_locks").delete().eq("lock_id", lockId)
-    } catch (cleanupError) {
-      // Non-critical - lock will expire naturally after 60 seconds
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[completeOnboarding] Lock cleanup failed:", cleanupError)
-      }
-    }
+    // FIX GAP-003 + ERR-001: Release lock on success with retry
+    await cleanupLockWithRetry()
 
     return {
       success: true,
       orgSlug,
       orgId: orgData.id,
-      backendApiKey,
+      // FIX SEC-002: Return revealToken instead of direct apiKey
+      backendRevealToken,
+      backendRevealTokenExpiresAt,
       backendOnboardingFailed,
       message: backendOnboardingFailed
         ? "Organization created. Backend setup can be completed from Settings."
         : "Organization created successfully.",
     }
   } catch (err: unknown) {
-    // FIX GAP-003: Release lock on error
-    try {
-      const adminClient = createServiceRoleClient()
-      await adminClient.from("onboarding_locks").delete().eq("lock_id", lockId)
-    } catch (cleanupError) {
-      // Non-critical - lock will expire naturally
-    }
+    // FIX GAP-003 + ERR-001 + STATE-002: Release lock on error with retry using existing adminClient
+    await cleanupLockWithRetry()
 
     const technicalError = err instanceof Error ? err.message : "Failed to complete setup"
     // FIX GAP-007: User-friendly error message

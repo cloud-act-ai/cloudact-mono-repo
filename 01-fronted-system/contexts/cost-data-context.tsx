@@ -685,6 +685,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         if (process.env.NODE_ENV === "development") {
           console.log(`[CostData] Fetch aborted or unmounted, skipping state update`)
         }
+        // BUG-006 FIX: Must set isLoading to false before returning to prevent infinite loading
+        // Previously this early return left isLoading=true causing the dashboard spinner forever
+        if (isMountedRef.current) {
+          setState((prev) => ({ ...prev, isLoading: false, isInitialized: true }))
+        }
         return
       }
 

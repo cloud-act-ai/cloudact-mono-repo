@@ -478,8 +478,8 @@ export default function HierarchySettingsPage() {
           icon: IconComponent as LucideIcon,
           value: count,
           label: level.level_name_plural,
-          color: level.level_code === "department" ? "mint" as const :
-                 level.level_code === "project" ? "coral" as const : "blue" as const
+          color: level.level_code === "c_suite" ? "mint" as const :
+                 level.level_code === "business_unit" ? "coral" as const : "blue" as const
         }
       })
   }, [treeData, levels])

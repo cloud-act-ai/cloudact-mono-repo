@@ -91,7 +91,8 @@ async def list_pricing(
     """List all OpenAI model pricing for an organization."""
     validate_org_slug(org_slug)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access pricing for another organization"
@@ -154,7 +155,8 @@ async def get_pricing(
     validate_org_slug(org_slug)
     validate_model_id(model_id)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access pricing for another organization"
@@ -221,7 +223,8 @@ async def create_pricing(
     """Create a new pricing record for a model."""
     validate_org_slug(org_slug)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot create pricing for another organization"
@@ -308,7 +311,8 @@ async def update_pricing(
     validate_org_slug(org_slug)
     validate_model_id(model_id)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update pricing for another organization"
@@ -394,7 +398,8 @@ async def delete_pricing(
     validate_org_slug(org_slug)
     validate_model_id(model_id)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete pricing for another organization"
@@ -440,7 +445,8 @@ async def reset_pricing(
     """Reset all pricing to default values from CSV."""
     validate_org_slug(org_slug)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot reset pricing for another organization"
@@ -488,7 +494,8 @@ async def list_subscriptions(
     """List all OpenAI subscription records for an organization."""
     validate_org_slug(org_slug)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access subscriptions for another organization"
@@ -551,7 +558,8 @@ async def get_subscription(
     validate_org_slug(org_slug)
     validate_plan_name(plan_name)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access subscriptions for another organization"
@@ -618,7 +626,8 @@ async def create_subscription(
     """Create a new subscription record."""
     validate_org_slug(org_slug)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot create subscription for another organization"
@@ -705,7 +714,8 @@ async def update_subscription(
     validate_org_slug(org_slug)
     validate_plan_name(plan_name)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update subscription for another organization"
@@ -787,7 +797,8 @@ async def delete_subscription(
     validate_org_slug(org_slug)
     validate_plan_name(plan_name)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete subscription for another organization"
@@ -833,7 +844,8 @@ async def reset_subscriptions(
     """Reset all subscriptions to default values from CSV."""
     validate_org_slug(org_slug)
 
-    if not settings.disable_auth and org["org_slug"] != org_slug:
+    # SEC-001 FIX: Always validate org ownership, even in dev mode
+    if org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot reset subscriptions for another organization"

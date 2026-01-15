@@ -25,6 +25,7 @@ from src.core.services.hierarchy_crud.level_service import (
     get_hierarchy_level_service,
 )
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult
+from fastapi import status as http_status
 from src.app.models.hierarchy_models import (
     # Level models
     CreateLevelRequest,
@@ -48,6 +49,41 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================================
+# IDOR Protection Helpers
+# ============================================================================
+
+def check_org_access(org: dict, org_slug: str) -> None:
+    """Check if the authenticated org can access the requested org (for get_current_org).
+
+    SEC-001 FIX: Always validate org ownership, even in dev mode.
+    This prevents cross-tenant data access regardless of auth settings.
+    """
+    if org.get("org_slug") != org_slug:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Cannot access data for another organization"
+        )
+
+
+def check_auth_result_access(auth: AuthResult, org_slug: str) -> None:
+    """Check if the authenticated user can access the requested org (for AuthResult).
+
+    SEC-002 FIX: Admins can access any org, org API keys can only access their own org.
+    This prevents IDOR attacks where users try to access other orgs via URL manipulation.
+    """
+    # Admins can access any org
+    if auth.is_admin:
+        return
+
+    # Org API key must match the requested org
+    if auth.org_slug != org_slug:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Cannot access data for another organization"
+        )
+
+
+# ============================================================================
 # Level Configuration Endpoints
 # ============================================================================
 
@@ -64,6 +100,7 @@ async def list_levels(
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """List all configured hierarchy levels."""
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
     try:
         return await service.get_levels(org_slug, include_inactive)
     except ValueError as e:
@@ -89,6 +126,7 @@ async def get_level(
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """Get a specific hierarchy level."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     try:
         result = await service.get_level(org_slug, level)
         if not result:
@@ -117,6 +155,7 @@ async def create_level(
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """Create a new hierarchy level."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         return await service.create_level(org_slug, request, user_id)
@@ -143,6 +182,7 @@ async def update_level(
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """Update a hierarchy level."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         return await service.update_level(org_slug, level, request, user_id)
@@ -168,6 +208,7 @@ async def delete_level(
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """Delete a hierarchy level."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         await service.delete_level(org_slug, level, user_id)
@@ -185,15 +226,16 @@ async def delete_level(
     "/{org_slug}/levels/seed",
     response_model=HierarchyLevelsListResponse,
     summary="Seed default levels",
-    description="Seed default hierarchy levels (Department -> Project -> Team)"
+    description="Seed default hierarchy levels (C-Suite -> Business Unit -> Function). Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
 )
 async def seed_default_levels(
     org_slug: str,
-    org_data: dict = Depends(get_current_org),
+    auth: AuthResult = Depends(get_org_or_admin_auth),
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """Seed default hierarchy levels for a new organization."""
-    user_id = org_data.get("user_id", "system")
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
+    user_id = auth.org_data.get("user_id", "system") if auth.org_data else "admin"
     try:
         return await service.seed_default_levels(org_slug, user_id)
     except RuntimeError as e:
@@ -227,6 +269,7 @@ async def seed_default_entities(
 
     Authentication: Accepts either org API key (X-API-Key) or root admin key (X-CA-Root-Key).
     """
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
     user_id = "admin" if auth.is_admin else (auth.org_data.get("admin_email", "system") if auth.org_data else "system")
     try:
         result = await service.seed_default_entities(org_slug, user_id, force)
@@ -270,6 +313,7 @@ async def list_entities(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all hierarchy entities."""
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
     try:
         return await service.get_all_entities(org_slug, level_code, include_inactive)
     except ValueError as e:
@@ -294,6 +338,7 @@ async def get_hierarchy_tree(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get hierarchy as a tree structure."""
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
     try:
         return await service.get_hierarchy_tree(org_slug)
     except ValueError as e:
@@ -323,6 +368,7 @@ async def get_entity(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get a hierarchy entity by ID."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     try:
         entity = await service.get_entity(org_slug, entity_id)
         if not entity:
@@ -351,6 +397,7 @@ async def create_entity(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Create a new hierarchy entity."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         return await service.create_entity(org_slug, request, user_id)
@@ -377,6 +424,7 @@ async def update_entity(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Update a hierarchy entity."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         return await service.update_entity(org_slug, entity_id, request, user_id)
@@ -403,6 +451,7 @@ async def move_entity(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Move an entity to a new parent."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         return await service.move_entity(org_slug, entity_id, request, user_id)
@@ -428,6 +477,7 @@ async def check_can_delete(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Check if an entity can be deleted."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     try:
         return await service.check_deletion_blocked(org_slug, entity_id)
     except ValueError as e:
@@ -448,6 +498,7 @@ async def delete_entity(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Delete a hierarchy entity."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     user_id = org_data.get("user_id", "system")
     try:
         await service.delete_entity(org_slug, entity_id, user_id, force)
@@ -478,6 +529,7 @@ async def get_children(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get direct children of an entity."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     try:
         return await service.get_children(org_slug, entity_id)
     except ValueError as e:
@@ -497,6 +549,7 @@ async def get_ancestors(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get ancestor chain for an entity."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     try:
         return await service.get_ancestors(org_slug, entity_id)
     except ValueError as e:
@@ -516,6 +569,7 @@ async def get_descendants(
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get all descendants of an entity."""
+    check_org_access(org_data, org_slug)  # SEC-001: IDOR protection
     try:
         return await service.get_descendants(org_slug, entity_id)
     except ValueError as e:

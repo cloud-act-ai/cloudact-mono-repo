@@ -36,7 +36,8 @@ npx vitest      # Tests
 | Operation | Port | Header |
 |-----------|------|--------|
 | Bootstrap, Onboarding | 8000 | `X-CA-Root-Key` |
-| Integration setup | 8001 | `X-API-Key` |
+| Quota status | 8000 | `X-API-Key` |
+| Integration setup | 8000 | `X-API-Key` |
 | Pipeline execution | 8001 | `X-API-Key` |
 | Subscription CRUD | 8000 | `X-API-Key` |
 
@@ -44,6 +45,18 @@ npx vitest      # Tests
 
 **`app/(landingPages)/`** - Public: `/`, `/features`, `/pricing`
 **`app/[orgSlug]/`** - Console: `dashboard/`, `analytics/`, `settings/`
+
+## Quota Warning Banner
+
+**Component:** `components/quota-warning-banner.tsx`
+
+| Usage | Level | Color |
+|-------|-------|-------|
+| 80% | Warning | Yellow |
+| 90% | Critical | Orange |
+| 100% | Exceeded | Red |
+
+**Actions:** `actions/quota.ts` → `getQuotaUsage(orgSlug)`
 
 ## Key Directories
 
@@ -53,6 +66,7 @@ actions/                  # Server actions
 ├─ integrations.ts        # LLM/Cloud setup
 ├─ pipelines.ts          # Pipeline execution
 ├─ subscription-providers.ts # SaaS CRUD
+├─ quota.ts              # Quota status
 └─ stripe.ts             # Checkout
 
 lib/
@@ -69,37 +83,16 @@ await requireOrgMembership(orgSlug)
 await requireActiveSubscription(orgSlug)
 ```
 
-## i18n
-
-**16 Currencies:** USD, EUR, GBP, INR, JPY, CNY, AUD, CAD, SGD, AED...
-
-```typescript
-formatCurrency(100, "INR")  // "₹100.00"
-convertFromUSD(25, "INR")   // 2078.00
-```
-
 ## Design System
 
 **Brand Colors:**
 - **Mint** `#90FCA6` - Primary buttons, success
-- **Coral** `#FF6C5E` - Warnings, destructive
+- **Coral** `#FF6C5E` - Warnings, costs, alerts
 - **Obsidian** `#0a0a0b` - Dark buttons (auth)
 
 **Layout:** Apple Health pattern, `max-w-7xl`, 8px grid
 
-**Buttons:**
-- `.cloudact-btn-primary` - Mint (console CTAs)
-- `.cloudact-btn-dark` - Obsidian (auth flows)
-- `.cloudact-btn-destructive` - Coral (delete)
-
 ## Environment
-
-```bash
-# .env.local
-NEXT_PUBLIC_SUPABASE_URL=https://kwroaccbrxppfiysqlzs.supabase.co
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
-```
 
 | Environment | Supabase | Stripe |
 |-------------|----------|--------|
@@ -114,17 +107,6 @@ NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
 | Professional | `price_1SWJOYDoxINmrJKY8jEZwVuU` | $69 |
 | Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
 
-## Hierarchy
-
-```
-Org → Department → Project → Team
-
-Frontend: app/[orgSlug]/settings/hierarchy/page.tsx
-Actions: actions/hierarchy.ts
-```
-
-**Subscription Integration:** Each plan links to hierarchy via `hierarchy_entity_id`, `hierarchy_path`
-
 ## Troubleshooting
 
 | Issue | Solution |
@@ -132,6 +114,7 @@ Actions: actions/hierarchy.ts
 | Signup 400 | Disable Supabase email confirmation |
 | Stripe fails | Check STRIPE_SECRET_KEY |
 | Plans not loading | Verify LIVE price IDs |
+| Quota exceeded | Check `GET /api/v1/organizations/{org}/quota` |
 
 ---
 **v4.1.0** | 2026-01-15

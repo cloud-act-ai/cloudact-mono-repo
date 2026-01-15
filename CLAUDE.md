@@ -10,8 +10,9 @@ Multi-org cloud cost analytics. BigQuery-powered. **api-service** (8000) + **pip
 Frontend (3000)              API Service (8000)           Pipeline Service (8001)
 ├─ Next.js 16 + Supabase     ├─ Bootstrap (21 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
-└─ Dashboard UI              ├─ Subscription CRUD         └─ FOCUS 1.3 conversion
-                             ├─ Hierarchy CRUD
+├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
+└─ Dashboard UI              ├─ Hierarchy CRUD            └─ Quota reset jobs
+                             ├─ Quota enforcement
                              └─ Cost reads (Polars)
                                         ↓
                              BigQuery (organizations + {org_slug}_prod)
@@ -26,6 +27,16 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 | **SaaS** | Canva, Slack, ChatGPT Plus | `subscription/costs/subscription_cost` |
 
 All → `cost_data_standard_1_3` (FOCUS 1.3 unified)
+
+## Plan Quotas
+
+| Plan | Daily | Monthly | Seats | Providers | Price |
+|------|-------|---------|-------|-----------|-------|
+| Starter | 6 | 180 | 2 | 3 | $19 |
+| Professional | 25 | 750 | 6 | 6 | $69 |
+| Scale | 100 | 3000 | 11 | 10 | $199 |
+
+**Tables:** `org_subscriptions` (limits) + `org_usage_quotas` (usage)
 
 ## x_* Pipeline Lineage (8001 ONLY)
 
@@ -54,6 +65,7 @@ POST /api/v1/organizations/onboard
 POST /api/v1/integrations/{org}/{provider}/setup
 POST /api/v1/subscriptions/{org}/providers/{p}/plans
 GET  /api/v1/hierarchy/{org}/tree
+GET  /api/v1/organizations/{org}/quota
 
 # Pipeline Service (8001)
 POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}

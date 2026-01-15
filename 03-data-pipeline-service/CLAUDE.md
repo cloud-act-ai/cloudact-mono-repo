@@ -1,6 +1,6 @@
 # Pipeline Service (Port 8001)
 
-Pipeline execution engine. Runs ETL jobs, processes costs, converts to FOCUS 1.3. Does NOT handle integrations/onboarding (8000).
+Pipeline execution engine. Runs ETL jobs, processes costs, converts to FOCUS 1.3, handles quota resets. Does NOT handle integrations/onboarding (8000).
 
 **Core:** `API Request → configs/ → Processor → BigQuery`
 
@@ -43,15 +43,37 @@ configs/
 
 ## x_* Pipeline Lineage Fields
 
-**CRITICAL:** All pipeline tables MUST include in this order:
+**CRITICAL:** All pipeline tables MUST include:
 
-| Order | Column | Purpose |
-|-------|--------|---------|
-| 1 | `x_pipeline_id` | Pipeline template name |
-| 2 | `x_credential_id` | Credential ID |
-| 3 | `x_pipeline_run_date` | Data date |
-| 4 | `x_run_id` | Execution UUID |
-| 5 | `x_ingested_at` | Write timestamp |
+| Column | Purpose |
+|--------|---------|
+| `x_pipeline_id` | Pipeline template name |
+| `x_credential_id` | Credential ID |
+| `x_pipeline_run_date` | Data date |
+| `x_run_id` | Execution UUID |
+| `x_ingested_at` | Write timestamp |
+
+## Quota Reset Jobs
+
+**This service handles all quota reset operations via Cloud Scheduler.**
+
+| Job | Schedule | Function |
+|-----|----------|----------|
+| Daily reset | 00:00 UTC | `reset_daily_quotas()` |
+| Monthly reset | 1st 00:00 UTC | `reset_monthly_quotas()` |
+| Stale cleanup | Every 15 min | `reset_stale_concurrent_counts()` |
+
+**File:** `src/core/utils/quota_reset.py`
+
+## Pipeline Validation Flow
+
+```
+1. Pipeline request received
+2. Call API service: POST /api/v1/validator/validate/{org}
+3. API service checks subscription + quota (atomic)
+4. If valid → Execute pipeline
+5. On complete → Update usage counters
+```
 
 ## Key Endpoints
 
@@ -79,23 +101,13 @@ POST /api/v1/procedures/sync
 | GenAI | `sp_genai_1_consolidate_usage_daily`, `sp_genai_3_convert_to_focus` |
 | Cloud | `sp_cloud_1_convert_to_focus` |
 
-**Files:** `configs/system/procedures/{domain}/*.sql`
-
 ## Notification System
 
 ```
 Pipeline Event → NotificationService → Email/Slack
 ```
 
-| Event | Severity |
-|-------|----------|
-| `PIPELINE_SUCCESS` | INFO |
-| `PIPELINE_FAILURE` | ERROR |
-| `COST_THRESHOLD` | WARNING |
-
-**Split Architecture:**
-- API (8000): Settings CRUD (`notification_crud/`)
-- Pipeline (8001): Sending + history writes
+**Split:** API (8000) = Settings CRUD | Pipeline (8001) = Sending
 
 ## Project Structure
 
@@ -106,6 +118,7 @@ src/
 │  ├─ processors/    # Execution engines
 │  ├─ pipeline/      # AsyncPipelineExecutor
 │  ├─ notifications/ # Email/Slack providers
+│  ├─ utils/         # quota_reset.py
 │  └─ engine/        # BigQuery client
 └─ configs/
    ├─ {provider}/{domain}/*.yml
@@ -119,7 +132,7 @@ src/
 | `configs/{provider}/{domain}/*.yml` | Pipeline configs |
 | `configs/system/procedures/*.sql` | Stored procedures |
 | `src/core/processors/` | Execution engines |
-| `src/core/notifications/` | Alert providers |
+| `src/core/utils/quota_reset.py` | Quota reset functions |
 
 ---
 **v4.1.0** | 2026-01-15
