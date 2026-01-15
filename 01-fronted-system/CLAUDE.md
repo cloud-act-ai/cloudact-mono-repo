@@ -641,5 +641,13 @@ cost_data_standard_1_3 (x_hierarchy_* extension fields)
 | Plans not loading | Wrong price IDs | Verify LIVE price IDs in .env.production |
 | Build fails | Missing env vars | Check .env.production has all NEXT_PUBLIC_* |
 
+## Current Version
+
+| Environment | Version | URL |
+|-------------|---------|-----|
+| Production | v4.1.0 | https://cloudact.ai |
+| Stage | main | Auto-deploy |
+| Local | dev | http://localhost:3000 |
+
 ---
-**Last Updated:** 2025-12-29
+**Last Updated:** 2026-01-15

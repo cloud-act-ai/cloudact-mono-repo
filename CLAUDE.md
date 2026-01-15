@@ -169,28 +169,37 @@ export RATE_LIMIT_ENABLED="true"
 
 ## Production Deployment
 
-### Deployment Workflow (CICD)
+### Deployment Workflow (Cloud Build Triggers)
+
+**Automatic Deployments:**
+- Push to `main` → Auto-deploys to **stage**
+- Push tag `v*` → Auto-deploys to **prod**
+
 ```bash
 cd 04-inra-cicd-automation/CICD
 
-# 1. ALWAYS validate before prod deployment
+# 1. Check current version
+./releases.sh next
+
+# 2. Validate production secrets
 ./secrets/validate-env.sh prod frontend
 ./secrets/verify-secrets.sh prod
 
-# 2. Check current version
-./releases.sh next
+# 3. Commit and push changes
+git add -A && git commit -m "feat: your changes"
+git push origin main
 
-# 3. Deploy to staging first
-./release.sh v1.0.0 --deploy --env stage
+# 4. Create and push version tag (triggers prod deployment)
+git tag v4.1.0
+git push origin v4.1.0
 
-# 4. Test staging, then deploy to production
-./release.sh v1.0.0 --deploy --env prod
+# 5. Monitor Cloud Build
+gcloud builds list --project=cloudact-prod --limit=5
+gcloud builds log BUILD_ID --project=cloudact-prod --stream
 
-# 5. Monitor for 15 minutes
-./monitor/watch-all.sh prod 50
-
-# 6. Rollback if issues
-./release.sh v0.9.0 --deploy --env prod
+# 6. Rollback if issues (deploy previous tag)
+git tag v4.0.1-hotfix
+git push origin v4.0.1-hotfix
 ```
 
 ### Required Secrets (Google Secret Manager)
@@ -352,5 +361,12 @@ DELETE /api/v1/hierarchy/{org}/entities/{id}
 
 **Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with x_hierarchy_* extension fields)
 
+## Current Version
+
+| Environment | Version | Status |
+|-------------|---------|--------|
+| Production | v4.1.0 | Deployed 2026-01-15 |
+| Stage | main | Auto-deploy on push |
+
 ---
-**Last Updated:** 2026-01-06
+**Last Updated:** 2026-01-15

@@ -46,15 +46,26 @@ git push origin main
 Create and push a version tag to deploy to production:
 
 ```bash
-# Check current version
-git tag -l "v*" | tail -5
+# 1. Check current version
+./releases.sh next
 
-# Create new version tag
-git tag v3.0.6
+# 2. Validate production secrets
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
 
-# Push tag to trigger prod deployment
-git push origin v3.0.6
-# → Triggers automatic prod deployment
+# 3. Commit all changes
+git add -A
+git commit -m "feat: your changes"
+git push origin main
+
+# 4. Create and push version tag
+git tag v4.1.0
+git push origin v4.1.0
+# → Triggers automatic prod deployment via Cloud Build
+
+# 5. Monitor build progress
+gcloud builds list --project=cloudact-prod --limit=5
+gcloud builds log BUILD_ID --project=cloudact-prod --stream
 ```
 
 ### Monitor Builds
@@ -579,5 +590,12 @@ Before deploying to production:
 - [ ] Check health after deploy: `./quick/status.sh prod`
 - [ ] Monitor logs for 15 minutes: `./monitor/watch-all.sh prod 50`
 
+## Current Version
+
+| Environment | Version | Deployed |
+|-------------|---------|----------|
+| Production | v4.1.0 | 2026-01-15 |
+| Stage | main | Auto-deploy on push |
+
 ---
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-15

@@ -588,5 +588,12 @@ from src.core.services.notification_read import (
 )
 ```
 
+## Current Version
+
+| Environment | Version | URL |
+|-------------|---------|-----|
+| Production | v4.1.0 | https://api.cloudact.ai |
+| Local | dev | http://localhost:8000 |
+
 ---
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-15

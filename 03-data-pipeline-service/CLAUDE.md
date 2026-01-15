@@ -349,5 +349,12 @@ await service.notify_pipeline_failure(
 | ps_type | dot.notation | `openai.usage` |
 | BQ Table | snake_case | `openai_usage_daily_raw` |
 
+## Current Version
+
+| Environment | Version | URL |
+|-------------|---------|-----|
+| Production | v4.1.0 | https://pipeline.cloudact.ai |
+| Local | dev | http://localhost:8001 |
+
 ---
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-15
