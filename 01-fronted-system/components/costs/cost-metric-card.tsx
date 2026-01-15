@@ -171,7 +171,7 @@ export function CostMetricCard({
       </div>
 
       {/* Value */}
-      <div className={cn("font-bold text-slate-900 tracking-tight", sizes.value)}>
+      <div className={cn("font-bold text-slate-900 tracking-tight tabular-nums", sizes.value)}>
         {formattedValue}
       </div>
 
@@ -185,7 +185,7 @@ export function CostMetricCard({
         )}
         {trend && (
           <span className={cn(
-            "flex items-center gap-0.5 font-medium",
+            "flex items-center gap-0.5 font-medium tabular-nums",
             getTrendColorClass(trend.direction)
           )}>
             <span>{getTrendArrow(trend.direction)}</span>

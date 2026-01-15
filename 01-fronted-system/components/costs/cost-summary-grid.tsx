@@ -190,7 +190,7 @@ export function CostComparisonBanner({
           <p className="text-sm font-medium text-slate-700">
             {comparison.current.label} vs {comparison.previous.label}
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 tabular-nums">
             {formatCost(comparison.previous.total, currency)} →{" "}
             {formatCost(comparison.current.total, currency)}
           </p>
@@ -200,13 +200,13 @@ export function CostComparisonBanner({
       <div className="text-right">
         <p
           className={cn(
-            "text-lg font-bold",
+            "text-lg font-bold tabular-nums",
             getTrendColorClass(comparison.trend)
           )}
         >
           {getTrendArrow(comparison.trend)} {formatPercent(Math.abs(comparison.changePercent))}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 tabular-nums">
           {comparison.change >= 0 ? "+" : ""}
           {formatCost(comparison.change, currency)}
         </p>

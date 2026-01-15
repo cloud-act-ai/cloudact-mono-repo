@@ -857,12 +857,18 @@ export default function OrganizationSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-        {/* Header - Same pattern as dashboard */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+        <div
+          className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+          style={{
+            background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+          }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-4 sm:space-y-6 lg:space-y-8">
+          {/* Header */}
           <div className="flex items-start gap-3 sm:gap-4">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+            <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
+              <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
             </div>
             <div>
               <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
@@ -873,28 +879,34 @@ export default function OrganizationSettingsPage() {
               </p>
             </div>
           </div>
+          <LoadingState message="Loading organization settings..." />
         </div>
-        <LoadingState message="Loading organization settings..." />
-      </div>
+      </main>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Header - Same pattern as dashboard */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div className="flex items-start gap-3 sm:gap-4">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
-          </div>
-          <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
-              Organization Settings
-            </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
-              Manage your organization locale, branding, and backend configuration
-            </p>
-          </div>
+    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+      {/* Ultra-premium top gradient glow */}
+      <div
+        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+        }}
+      />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Premium Header */}
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
+          <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+        </div>
+        <div>
+          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            Organization Settings
+          </h1>
+          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            Manage your organization locale, branding, and backend configuration
+          </p>
         </div>
       </div>
 
@@ -1941,5 +1953,6 @@ export default function OrganizationSettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </main>
   )
 }

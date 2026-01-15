@@ -431,16 +431,27 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
+      <div className="min-h-screen bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+        <div className="max-w-7xl mx-auto py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
+    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+      {/* Ultra-premium top gradient glow - Apple Health pattern */}
+      <div
+        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+        }}
+      />
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-6 sm:space-y-8 lg:space-y-10">
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
@@ -769,5 +780,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
     </div>
+    </main>
   )
 }

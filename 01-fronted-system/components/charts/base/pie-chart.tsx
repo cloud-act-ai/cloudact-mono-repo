@@ -333,7 +333,8 @@ export function BasePieChart({
     >
       {/* Chart */}
       <div className="relative" style={{ width: chartSize, height: chartSize }}>
-        <ResponsiveContainer width="100%" height="100%">
+        {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
+        <ResponsiveContainer width="100%" height="100%" minWidth={100}>
           <RechartsPieChart>
             <Pie
               data={processedData}

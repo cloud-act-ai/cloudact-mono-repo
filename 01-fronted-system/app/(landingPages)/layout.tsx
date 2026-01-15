@@ -310,12 +310,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <header className={`ca-header ${scrolled ? 'ca-header-scrolled' : ''}`}>
         <div className="ca-header-inner">
           <Link href="/" className="ca-header-logo">
+            {/* FIX BUG-001: Remove CSS height/width overrides to prevent aspect ratio warning */}
             <Image
               src="/logos/cloudact-logo-black.svg"
               alt="CloudAct.ai"
               width={160}
               height={32}
-              className="h-7 md:h-8 w-auto"
               priority
             />
           </Link>
@@ -440,12 +440,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             {/* Brand Column */}
             <div className="ca-footer-brand">
               <Link href="/" className="ca-footer-logo">
+                {/* FIX BUG-001: Remove CSS height/width overrides */}
                 <Image
                   src="/logos/cloudact-logo-black.svg"
                   alt="CloudAct.ai"
                   width={140}
                   height={28}
-                  className="h-7 w-auto"
                 />
               </Link>
               <p className="ca-footer-tagline">

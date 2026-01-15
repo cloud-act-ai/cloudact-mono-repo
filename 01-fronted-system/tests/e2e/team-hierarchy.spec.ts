@@ -38,17 +38,17 @@ const TEST_USER = {
 const TEST_MEMBERS = {
   member1: {
     email: 'sarah.jones@example.com',
-    role: 'collaborator',
+    role: 'collaborator' as const,
     fullName: 'Sarah Jones',
   },
   member2: {
     email: 'mike.smith@example.com',
-    role: 'read_only',
+    role: 'read_only' as const,
     fullName: 'Mike Smith',
   },
   member3: {
     email: 'admin.user@example.com',
-    role: 'admin',
+    role: 'admin' as const,
     fullName: 'Admin User',
   },
 };

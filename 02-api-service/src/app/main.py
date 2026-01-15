@@ -825,16 +825,21 @@ async def rate_limit_middleware(request: Request, call_next):
         )
 
         if not is_allowed:
+            # BUG-015 FIX: Add null-safe metadata access
+            minute_meta = metadata.get("minute", {})
+            remaining = minute_meta.get("remaining", 0)
+            reset_time = minute_meta.get("reset", 60)
+
             logger.warning(
                 f"Rate limit exceeded for org {org_slug}",
                 extra={
                     "org_slug": org_slug,
                     "path": request.url.path,
-                    "remaining": metadata["minute"]["remaining"]
+                    "remaining": remaining
                 }
             )
 
-            retry_after_seconds = max(1, int(metadata["minute"]["reset"]))
+            retry_after_seconds = max(1, int(reset_time))
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={
@@ -846,7 +851,7 @@ async def rate_limit_middleware(request: Request, call_next):
                     "Retry-After": str(retry_after_seconds),
                     "X-RateLimit-Limit": str(settings.rate_limit_requests_per_minute),
                     "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": str(int(metadata["minute"]["reset"]))
+                    "X-RateLimit-Reset": str(retry_after_seconds)
                 }
             )
 
@@ -859,16 +864,21 @@ async def rate_limit_middleware(request: Request, call_next):
     )
 
     if not is_allowed:
+        # BUG-015 FIX: Add null-safe metadata access
+        minute_meta = metadata.get("minute", {})
+        remaining = minute_meta.get("remaining", 0)
+        reset_time = minute_meta.get("reset", 60)
+
         logger.warning(
             f"Global rate limit exceeded for endpoint {endpoint_key}",
             extra={
                 "endpoint": endpoint_key,
                 "path": request.url.path,
-                "remaining": metadata["minute"]["remaining"]
+                "remaining": remaining
             }
         )
 
-        retry_after_seconds = max(1, int(metadata["minute"]["reset"]))
+        retry_after_seconds = max(1, int(reset_time))
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
@@ -880,7 +890,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 "Retry-After": str(retry_after_seconds),
                 "X-RateLimit-Limit": str(settings.rate_limit_global_requests_per_minute),
                 "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(int(metadata["minute"]["reset"]))
+                "X-RateLimit-Reset": str(retry_after_seconds)
             }
         )
 

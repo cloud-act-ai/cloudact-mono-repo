@@ -42,8 +42,9 @@ async def sync_all_org_datasets_background():
         ORDER BY created_at ASC
         """.format(project=settings.gcp_project_id)
 
+        # BUG-021 FIX: Add timeout to prevent hanging
         job = bq_client.client.query(query)
-        orgs = [row['org_slug'] for row in job.result()]
+        orgs = [row['org_slug'] for row in job.result(timeout=30)]
 
         if not orgs:
             logger.info("Org sync: No active orgs found - skipping")
@@ -138,6 +139,7 @@ async def check_org_status_lightweight(org_slug: str) -> Dict:
         LIMIT 1
         """
 
+        # BUG-022 FIX: Add timeout to prevent hanging
         profile_result = list(bq_client.client.query(
             check_profile_query,
             job_config=bigquery.QueryJobConfig(
@@ -145,7 +147,7 @@ async def check_org_status_lightweight(org_slug: str) -> Dict:
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
                 ]
             )
-        ).result())
+        ).result(timeout=15))
 
         if not profile_result:
             return {"needs_sync": False, "reason": "org_not_found"}

@@ -216,7 +216,7 @@ export function BaseBarChart<T extends Record<string, unknown>>({
   const isHorizontal = layout === "horizontal"
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full min-w-0", className)}>
       {/* Legend at top */}
       {showLegend && legendPosition === "top" && (
         <ChartLegend
@@ -226,7 +226,8 @@ export function BaseBarChart<T extends Record<string, unknown>>({
         />
       )}
 
-      <ResponsiveContainer width="100%" height={height}>
+      {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
+      <ResponsiveContainer width="100%" height={height} minWidth={100}>
         <RechartsBarChart
           data={data}
           layout={isHorizontal ? "vertical" : "horizontal"}

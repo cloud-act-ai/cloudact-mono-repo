@@ -109,7 +109,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                 alt="CloudAct"
                 width={160}
                 height={32}
-                className="h-8 w-auto group-hover:scale-105 transition-transform"
+                className="group-hover:scale-105 transition-transform"
                 priority
               />
             </Link>
@@ -288,7 +288,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
               alt="CloudAct"
               width={140}
               height={28}
-              className="h-7 sm:h-8 w-auto dark:hidden"
+              className="dark:hidden"
               priority
             />
             <Image
@@ -296,7 +296,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
               alt="CloudAct"
               width={140}
               height={28}
-              className="h-7 sm:h-8 w-auto hidden dark:block"
+              className="hidden dark:block"
               priority
             />
           </Link>

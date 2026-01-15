@@ -253,13 +253,14 @@ export function BaseComboChart<T extends Record<string, unknown>>({
   const chartHeight = enableZoom ? height + brushHeight + 20 : height
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full min-w-0", className)}>
       {/* Compact legend (inline) */}
       {showLegend && compactLegend && (
         <CompactLegend items={compactLegendItems} className="mb-2" />
       )}
 
-      <ResponsiveContainer width="100%" height={chartHeight}>
+      {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
+      <ResponsiveContainer width="100%" height={chartHeight} minWidth={100}>
         <ComposedChart
           data={data}
           margin={{ top: 5, right: 20, left: 10, bottom: enableZoom ? 5 : 5 }}

@@ -482,7 +482,15 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
+    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+      {/* Ultra-premium top gradient glow */}
+      <div
+        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+        }}
+      />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-6 sm:space-y-8 pb-12">
       {reason === "subscription_required" && (
         <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
@@ -492,14 +500,19 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Header Section */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Billing & Subscription
-        </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
-          Manage your subscription plan and billing details
-        </p>
+      {/* Premium Header Section */}
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
+          <CreditCard className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+        </div>
+        <div>
+          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            Billing & Subscription
+          </h1>
+          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            Manage your subscription plan and billing details
+          </p>
+        </div>
       </div>
 
       {/* Current Subscription Banner */}
@@ -521,7 +534,7 @@ export default function BillingPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-[13px] text-slate-500">
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-slate-900 tabular-nums">
                       {formatCurrency(billingInfo.subscription.plan.price, billingInfo.subscription.plan.currency)}
                     </span>
                     <span>/ {billingInfo.subscription.plan.interval}</span>
@@ -596,7 +609,7 @@ export default function BillingPage() {
               <Users className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">
+              <p className="text-[24px] font-bold text-slate-900 leading-none tabular-nums">
                 {currentMemberCount}
                 <span className="text-[16px] text-slate-400 ml-1">
                   / {seatLimit || 'Contact us'}
@@ -611,7 +624,7 @@ export default function BillingPage() {
               <Zap className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">
+              <p className="text-[24px] font-bold text-slate-900 leading-none tabular-nums">
                 {providersLimit || 'Contact us'}
               </p>
               <p className="text-[12px] text-slate-500 font-medium mt-0.5">Integrations</p>
@@ -842,7 +855,7 @@ export default function BillingPage() {
                     {/* Pricing */}
                     <div className="mb-6">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-[36px] font-bold text-slate-900">
+                        <span className="text-[36px] font-bold text-slate-900 tabular-nums">
                           {formatCurrency(plan.price, orgCurrency)}
                         </span>
                         <span className="text-[14px] font-medium text-slate-500">
@@ -1088,7 +1101,7 @@ export default function BillingPage() {
                     >
                       <span className="font-semibold text-[13px] text-slate-900">{invoice.number || invoice.id.slice(-8)}</span>
                       <span className="text-[13px] text-slate-500">{formatDate(invoice.created)}</span>
-                      <span className="text-[13px] font-semibold text-slate-900">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
+                      <span className="text-[13px] font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
                       <span
                         className={
                           invoice.status === "paid"
@@ -1213,5 +1226,6 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </main>
   )
 }

@@ -101,7 +101,8 @@ export function SparklineChart({
 
   return (
     <div className={cn("overflow-hidden", className)} style={{ width, height }}>
-      <ResponsiveContainer width="100%" height="100%">
+      {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
+      <ResponsiveContainer width="100%" height="100%" minWidth={50}>
         <LineChart
           data={chartData}
           margin={{ top: 5, right: showEndDot ? 8 : 2, bottom: 5, left: 2 }}

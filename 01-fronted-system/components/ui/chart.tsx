@@ -66,8 +66,9 @@ function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
+        {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
         {isMounted && (
-          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={100}>
             {children}
           </ResponsiveContainer>
         )}

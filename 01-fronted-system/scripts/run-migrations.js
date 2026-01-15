@@ -32,27 +32,34 @@ function log(color, message) {
 async function loadEnv() {
   const envPath = path.join(__dirname, '../.env.local');
 
-  if (!fs.existsSync(envPath)) {
-    log(colors.yellow, '⚠ No .env.local found, skipping migrations');
+  // BUG-030 FIX: Handle race condition with try-catch
+  try {
+    if (!fs.existsSync(envPath)) {
+      log(colors.yellow, '⚠ No .env.local found, skipping migrations');
+      return false;
+    }
+
+    // Load environment variables from .env.local
+    const dotenv = require('dotenv');
+    const envConfig = dotenv.config({ path: envPath });
+
+    if (envConfig.error) {
+      // File was deleted after existence check or parse error
+      log(colors.yellow, `⚠ Error loading .env.local: ${envConfig.error.message}`);
+      return false;
+    }
+
+    // Check required variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_DB_PASSWORD) {
+      log(colors.yellow, '⚠ Missing SUPABASE environment variables, skipping migrations');
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    log(colors.yellow, `⚠ Error reading .env.local: ${error.message}`);
     return false;
   }
-
-  // Load environment variables from .env.local
-  const dotenv = require('dotenv');
-  const envConfig = dotenv.config({ path: envPath });
-
-  if (envConfig.error) {
-    log(colors.yellow, `⚠ Error loading .env.local: ${envConfig.error.message}`);
-    return false;
-  }
-
-  // Check required variables
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_DB_PASSWORD) {
-    log(colors.yellow, '⚠ Missing SUPABASE environment variables, skipping migrations');
-    return false;
-  }
-
-  return true;
 }
 
 async function checkPsql() {

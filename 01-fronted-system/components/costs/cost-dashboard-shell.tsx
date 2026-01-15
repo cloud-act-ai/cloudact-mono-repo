@@ -187,28 +187,37 @@ export function CostDashboardShell({
   return (
     <main
       className={cn(
-        "min-h-screen",
-        // Mint gradient background accent (Apple Health pattern)
-        "bg-gradient-to-b from-[#90FCA6]/5 via-white to-white",
+        "min-h-screen relative",
+        // Ultra-premium gradient background (Apple Health pattern)
+        "bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white",
         className
       )}
       role="main"
       aria-label={`${title} dashboard`}
     >
-      <div className="max-w-7xl mx-auto py-6 sm:py-8 lg:py-10 px-4 sm:px-6">
+      {/* Ultra-premium top gradient glow - Apple Fitness+ pattern */}
+      <div
+        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative max-w-7xl mx-auto py-6 sm:py-8 lg:py-10 px-4 sm:px-6">
         <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-[#90FCA6]/20 flex items-center justify-center">
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+          {/* Premium Header with enhanced typography */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center shadow-sm border border-[#90FCA6]/20">
+                <Icon className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+                <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
                   {title}
                 </h1>
                 {subtitle && (
-                  <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
+                  <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-1.5">{subtitle}</p>
                 )}
               </div>
             </div>

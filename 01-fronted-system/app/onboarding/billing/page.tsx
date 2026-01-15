@@ -182,12 +182,12 @@ export default function BillingPage() {
         {/* Header */}
         <div className="flex flex-col items-center gap-4 text-center">
           <Link href="/" className="inline-flex items-center">
+            {/* FIX BUG-001: Remove CSS height/width overrides */}
             <Image
               src="/logos/cloudact-logo-black.svg"
               alt="CloudAct"
               width={160}
               height={32}
-              className="h-8 w-auto"
               priority
             />
           </Link>

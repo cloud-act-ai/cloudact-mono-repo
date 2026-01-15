@@ -9,7 +9,7 @@ import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { completeOnboarding } from "@/actions/organization"
-import { sendWelcomeEmail } from "@/lib/email"
+import { sendWelcomeEmailAction } from "@/actions/email"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OnboardingProgress, createOnboardingStages, updateStageStatus, completeStageAndMoveNext, type ProgressStage } from "@/components/onboarding-progress"
 
@@ -145,7 +145,7 @@ function SuccessContent() {
         // Get org name from user metadata (pending_company_name) or fallback
         const orgName = userMetadata.pending_company_name || result.orgSlug || "your organization"
 
-        await sendWelcomeEmail({
+        await sendWelcomeEmailAction({
           to: user.email!,
           name: userName,
           orgName: orgName,
@@ -375,12 +375,12 @@ export default function SuccessPage() {
       {/* Header with Logo */}
       <div className="p-6 md:p-8">
         <Link href="/" className="inline-flex items-center">
+          {/* FIX BUG-001: Remove CSS height/width overrides */}
           <Image
             src="/logos/cloudact-logo-black.svg"
             alt="CloudAct"
             width={160}
             height={32}
-            className="h-8 w-auto"
             priority
           />
         </Link>

@@ -417,7 +417,7 @@ export default function PipelinesPage() {
       header: "Duration",
       accessorKey: "duration_ms",
       cell: (row) => (
-        <div className="flex items-center gap-1 text-[13px] text-slate-900">
+        <div className="flex items-center gap-1 text-[13px] text-slate-900 tabular-nums">
           <Clock className="h-3 w-3 text-slate-500" />
           {formatDuration(row.duration_ms)}
         </div>
@@ -443,19 +443,44 @@ export default function PipelinesPage() {
 
   // Loading state
   if (isLoading) {
-    return <LoadingState message="Loading pipelines..." size="lg" />
+    return (
+      <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+        <div
+          className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+          style={{
+            background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+          }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10">
+          <LoadingState message="Loading pipelines..." size="lg" />
+        </div>
+      </main>
+    )
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
-          Pipelines
-        </h1>
-        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
-          Run data pipelines to fetch your cloud data
-        </p>
+    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
+      {/* Ultra-premium top gradient glow */}
+      <div
+        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
+        }}
+      />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Premium Header */}
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
+          <Play className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+        </div>
+        <div>
+          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            Pipelines
+          </h1>
+          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            Run data pipelines to fetch your cloud data
+          </p>
+        </div>
       </div>
 
       {/* Animated Hero */}
@@ -676,5 +701,6 @@ export default function PipelinesPage() {
         </p>
       </div>
     </div>
+    </main>
   )
 }

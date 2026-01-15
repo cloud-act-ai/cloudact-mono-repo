@@ -248,14 +248,23 @@ async def lifespan(app: FastAPI):
                                 FROM `{project_id}.organizations.INFORMATION_SCHEMA.ROUTINES`
                                 WHERE routine_name = '{proc_name}' AND routine_type = 'PROCEDURE'
                                 """
-                                results = list(bq_client.client.query(check_query).result())
+                                # BUG-025 FIX: Add timeout to prevent hanging
+                                results = list(bq_client.client.query(check_query).result(timeout=30))
                                 exists = len(results) > 0
 
                                 if not exists:
                                     # Create procedure
-                                    bq_client.client.query(sql).result()
-                                    procedures_created.append(proc_name)
-                                    logger.debug(f"Created procedure: {proc_name}")
+                                    try:
+                                        bq_client.client.query(sql).result(timeout=60)
+                                        procedures_created.append(proc_name)
+                                        logger.debug(f"Created procedure: {proc_name}")
+                                    except Exception as create_error:
+                                        # BUG-027 FIX: Handle race condition where another instance created it
+                                        if "already exists" in str(create_error).lower():
+                                            procedures_synced.append(proc_name)
+                                            logger.debug(f"Procedure {proc_name} created by another instance")
+                                        else:
+                                            raise create_error
                                 else:
                                     procedures_synced.append(proc_name)
 

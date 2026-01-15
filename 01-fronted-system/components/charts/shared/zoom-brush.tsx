@@ -95,8 +95,9 @@ export function ZoomBrush<T extends Record<string, unknown>>({
   }
 
   return (
-    <div className={cn("w-full", className)}>
-      <ResponsiveContainer width="100%" height={height}>
+    <div className={cn("w-full min-w-0", className)}>
+      {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
+      <ResponsiveContainer width="100%" height={height} minWidth={100}>
         <AreaChart
           data={data}
           margin={{ top: 5, right: 10, left: 10, bottom: 5 }}

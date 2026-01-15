@@ -339,7 +339,7 @@ export default function ProviderDetailPage() {
 
       if (result.success && result.data) {
         // Sort by depth for hierarchical display, then by name
-        const sortedEntities = result.data
+        const sortedEntities = result.data.entities
           .map((e: HierarchyEntity) => ({
             entity_id: e.entity_id,
             entity_name: e.entity_name,
