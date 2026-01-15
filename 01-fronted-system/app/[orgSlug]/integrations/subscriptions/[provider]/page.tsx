@@ -71,7 +71,7 @@ import {
   type PlanCreate,
   type BillingCycle,
 } from "@/actions/subscription-providers"
-import { getHierarchy, type HierarchyEntity } from "@/actions/hierarchy"
+import { CascadingHierarchySelector, type SelectedHierarchy } from "@/components/hierarchy/cascading-hierarchy-selector"
 import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
@@ -158,15 +158,6 @@ interface FormDataWithAudit {
   hierarchy_path_names?: string
 }
 
-// Hierarchy entity for N-level dropdown
-interface HierarchyOption {
-  entity_id: string
-  entity_name: string
-  level_code: string
-  path: string
-  path_names: string[]
-  depth: number
-}
 
 export default function ProviderDetailPage() {
   const params = useParams<{ orgSlug: string; provider: string }>()
@@ -216,9 +207,8 @@ export default function ProviderDetailPage() {
   })
   const [isFromTemplate, setIsFromTemplate] = useState(false)
 
-  // N-level hierarchy state for cost allocation dropdown
-  const [hierarchyEntities, setHierarchyEntities] = useState<HierarchyOption[]>([])
-  const [loadingHierarchy, setLoadingHierarchy] = useState(false)
+  // Hierarchy selection state for cost allocation
+  const [selectedHierarchy, setSelectedHierarchy] = useState<SelectedHierarchy | null>(null)
 
   // Load plans from BigQuery
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
@@ -325,46 +315,24 @@ export default function ProviderDetailPage() {
     })
     setIsFromTemplate(true)
     setStartDate(new Date())
+    setSelectedHierarchy(null)
     setTemplateSheetOpen(false)
-    loadHierarchy()
     setCustomSheetOpen(true)
   }
 
-  // Load N-level hierarchy entities for cost allocation dropdown
-  const loadHierarchy = useCallback(async () => {
-    setLoadingHierarchy(true)
-    try {
-      // Use N-level hierarchy API: getHierarchy(orgSlug) without level filter
-      const result = await getHierarchy(orgSlug)
-
-      if (result.success && result.data) {
-        // Sort by depth for hierarchical display, then by name
-        const sortedEntities = result.data.entities
-          .map((e: HierarchyEntity) => ({
-            entity_id: e.entity_id,
-            entity_name: e.entity_name,
-            level_code: e.level_code,
-            path: e.path,
-            path_names: e.path_names || [],
-            depth: e.depth,
-          }))
-          .sort((a: HierarchyOption, b: HierarchyOption) => {
-            if (a.depth !== b.depth) return a.depth - b.depth
-            return a.entity_name.localeCompare(b.entity_name)
-          })
-        setHierarchyEntities(sortedEntities)
-      }
-    } catch (err) {
-      console.error("Failed to load hierarchy:", err)
-    } finally {
-      setLoadingHierarchy(false)
-    }
-  }, [orgSlug])
-
-  // Handle N-level hierarchy entity selection
-  const handleHierarchyChange = (entityId: string) => {
-    if (!entityId || entityId === "no_allocation") {
-      // Clear hierarchy selection
+  // Handle hierarchy selection from CascadingHierarchySelector
+  const handleHierarchyChange = (hierarchy: SelectedHierarchy | null) => {
+    setSelectedHierarchy(hierarchy)
+    if (hierarchy) {
+      setFormData({
+        ...formData,
+        hierarchy_entity_id: hierarchy.entity_id,
+        hierarchy_entity_name: hierarchy.entity_name,
+        hierarchy_level_code: hierarchy.level_code,
+        hierarchy_path: hierarchy.path,
+        hierarchy_path_names: hierarchy.path_names,
+      })
+    } else {
       setFormData({
         ...formData,
         hierarchy_entity_id: undefined,
@@ -373,25 +341,12 @@ export default function ProviderDetailPage() {
         hierarchy_path: undefined,
         hierarchy_path_names: undefined,
       })
-      return
-    }
-    const entity = hierarchyEntities.find(e => e.entity_id === entityId)
-    if (entity) {
-      setFormData({
-        ...formData,
-        hierarchy_entity_id: entity.entity_id,
-        hierarchy_entity_name: entity.entity_name,
-        hierarchy_level_code: entity.level_code,
-        hierarchy_path: entity.path,
-        hierarchy_path_names: entity.path_names.join(" > "),
-      })
     }
   }
 
   // Open custom sheet with empty form
   const openCustomSheet = () => {
     resetForm()
-    loadHierarchy()
     setCustomSheetOpen(true)
   }
 
@@ -418,6 +373,8 @@ export default function ProviderDetailPage() {
     setIsFromTemplate(false)
     setStartDate(new Date())
     setError(null)
+    // Reset hierarchy selection
+    setSelectedHierarchy(null)
   }
 
   // Handle form submission
@@ -451,6 +408,12 @@ export default function ProviderDetailPage() {
 
     if (formData.seats > 10000) {
       setError("Seats cannot exceed 10,000")
+      return
+    }
+
+    // Validate hierarchy selection (required)
+    if (!selectedHierarchy) {
+      setError("Please select a hierarchy for cost allocation. All levels are required.")
       return
     }
 
@@ -1232,58 +1195,16 @@ export default function ProviderDetailPage() {
               />
             </div>
 
-            {/* Cost Allocation - Hierarchy Selection */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm font-semibold text-foreground">Cost Allocation</h4>
-                <Badge variant="outline" className="text-[10px] bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/30">
-                  Optional
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground -mt-2">
-                Assign this subscription to a hierarchy entity for cost tracking
-              </p>
-
-              {loadingHierarchy ? (
-                <div className="flex items-center gap-2 py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#1a7a3a]" />
-                  <span className="text-sm text-muted-foreground">Loading hierarchy...</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label>Cost Allocation Entity</Label>
-                  <Select
-                    value={formData.hierarchy_entity_id || "no_allocation"}
-                    onValueChange={handleHierarchyChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select hierarchy entity...">
-                        {formData.hierarchy_entity_id && formData.hierarchy_path_names ? (
-                          <span className="truncate">{formData.hierarchy_path_names}</span>
-                        ) : null}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no_allocation">
-                        <span className="text-muted-foreground">No allocation (org-level)</span>
-                      </SelectItem>
-                      {hierarchyEntities.map((entity) => (
-                        <SelectItem key={entity.entity_id} value={entity.entity_id}>
-                          <span style={{ paddingLeft: `${entity.depth * 16}px` }} className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground capitalize">[{entity.level_code}]</span>
-                            <span>{entity.entity_name}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formData.hierarchy_path && (
-                    <p className="text-xs text-muted-foreground">
-                      Path: {formData.hierarchy_path}
-                    </p>
-                  )}
-                </div>
-              )}
+            {/* Cost Allocation - Hierarchy Selection (Required) */}
+            <div className="pt-4 border-t border-border">
+              <CascadingHierarchySelector
+                orgSlug={orgSlug}
+                value={selectedHierarchy}
+                onChange={handleHierarchyChange}
+                required={true}
+                label="Cost Allocation"
+                description="Select the organizational hierarchy for cost allocation. All levels are required."
+              />
             </div>
 
             {/* Error Message */}

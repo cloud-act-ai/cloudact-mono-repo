@@ -866,11 +866,6 @@ async def validate_hierarchy_ids(
         # Cached as valid, return immediately
         return
 
-    ids_to_validate = [("entity", hierarchy_entity_id)]
-
-    if not ids_to_validate:
-        return  # No hierarchy IDs provided, nothing to validate
-
     # Prefer x_org_hierarchy view in org dataset (pre-filtered by org_slug)
     # Fall back to central table if view doesn't exist
     # Throw error if neither view nor central table exist
@@ -896,70 +891,67 @@ async def validate_hierarchy_ids(
 
     table_ref = view_ref if uses_view else central_ref
 
-    for level_code, entity_id in ids_to_validate:
-        # View is already filtered by org_slug and end_date IS NULL
-        if uses_view:
-            query = f"""
-            SELECT entity_id FROM `{table_ref}`
-            WHERE entity_id = @entity_id
-              AND level_code = @level_code
-              AND is_active = TRUE
-            LIMIT 1
-            """
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
-                    bigquery.ScalarQueryParameter("level_code", "STRING", level_code),
-                ],
-                job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
-            )
-        else:
-            query = f"""
-            SELECT entity_id FROM `{table_ref}`
-            WHERE org_slug = @org_slug
-              AND entity_id = @entity_id
-              AND level_code = @level_code
-              AND end_date IS NULL
-              AND is_active = TRUE
-            LIMIT 1
-            """
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
-                    bigquery.ScalarQueryParameter("level_code", "STRING", level_code),
-                ],
-                job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
-            )
+    # BUG-047 FIX: N-level hierarchy - validate entity_id exists regardless of level_code
+    # entity_id is unique within an org, so no need to filter by level_code
+    # View is already filtered by org_slug and end_date IS NULL
+    if uses_view:
+        query = f"""
+        SELECT entity_id FROM `{table_ref}`
+        WHERE entity_id = @entity_id
+          AND is_active = TRUE
+        LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id),
+            ],
+            job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
+        )
+    else:
+        query = f"""
+        SELECT entity_id FROM `{table_ref}`
+        WHERE org_slug = @org_slug
+          AND entity_id = @entity_id
+          AND end_date IS NULL
+          AND is_active = TRUE
+        LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id),
+            ],
+            job_timeout_ms=60000  # BUG-017 FIX: Increased for large orgs
+        )
 
-        try:
-            result = bq_client.client.query(query, job_config=job_config).result()
-            found = False
-            for _ in result:
-                found = True
-                break
+    try:
+        result = bq_client.client.query(query, job_config=job_config).result()
+        found = False
+        for _ in result:
+            found = True
+            break
 
-            # BUG-042 FIX: Improved error message with actionable guidance
-            if not found:
-                # BUG-046 FIX: Cache invalid result for 5 minutes
-                cache.set(cache_key, "INVALID", ttl_seconds=300)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid hierarchy entity ID: '{entity_id}' not found in org_hierarchy table. "
-                           f"Please ensure the entity exists and is active. "
-                           f"Use GET /api/v1/hierarchy/{org_slug} to list valid hierarchy entities."
-                )
-            # BUG-046 FIX: Cache valid result for 5 minutes
-            cache.set(cache_key, "VALID", ttl_seconds=300)
-        except HTTPException:
-            raise
-        except Exception as e:
-            # BUG-042 FIX: Return 500 with clear message for database errors
-            logger.error(f"Failed to validate hierarchy entity ID {entity_id}: {e}")
+        # BUG-042 FIX: Improved error message with actionable guidance
+        if not found:
+            # BUG-046 FIX: Cache invalid result for 5 minutes
+            cache.set(cache_key, "INVALID", ttl_seconds=300)
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to validate hierarchy entity ID due to database error. Please try again."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid hierarchy entity ID: '{hierarchy_entity_id}' not found in org_hierarchy table. "
+                       f"Please ensure the entity exists and is active. "
+                       f"Use GET /api/v1/hierarchy/{org_slug} to list valid hierarchy entities."
             )
+        # BUG-046 FIX: Cache valid result for 5 minutes
+        cache.set(cache_key, "VALID", ttl_seconds=300)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # BUG-042 FIX: Return 500 with clear message for database errors
+        logger.error(f"Failed to validate hierarchy entity ID {hierarchy_entity_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to validate hierarchy entity ID due to database error. Please try again."
+        )
 
 
 

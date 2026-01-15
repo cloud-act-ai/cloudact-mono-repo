@@ -1093,7 +1093,8 @@ async def reserve_pipeline_quota_atomic(
 async def increment_pipeline_usage(
     org_slug: str,
     pipeline_status: str,
-    bq_client: BigQueryClient
+    bq_client: BigQueryClient,
+    reservation_date: Optional[date] = None
 ):
     """
     Increment usage counters after pipeline execution.
@@ -1107,9 +1108,14 @@ async def increment_pipeline_usage(
         org_slug: Organization identifier
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
         bq_client: BigQuery client instance
+        reservation_date: The date when quota was reserved. If None, uses current UTC date.
+                         CRITICAL: Pass this to ensure decrement happens on the same day's
+                         record that was incremented, preventing stale concurrent counts
+                         when pipelines span midnight UTC.
     """
-    # CRITICAL: Use UTC date for consistency with BigQuery
-    today = get_utc_date()
+    # CRITICAL: Use reservation_date if provided (for cross-midnight pipelines)
+    # Otherwise use current UTC date for backward compatibility
+    today = reservation_date if reservation_date else get_utc_date()
 
     # Determine which counters to increment
     if pipeline_status == "RUNNING":

@@ -45,6 +45,19 @@ interface CascadingHierarchySelectorProps {
   onChange: (hierarchy: SelectedHierarchy | null) => void
   disabled?: boolean
   error?: string
+  /**
+   * If true, all levels are required (default).
+   * If false, selection at any level is accepted (optional hierarchy).
+   */
+  required?: boolean
+  /**
+   * Custom label text. Defaults to "Hierarchy Assignment".
+   */
+  label?: string
+  /**
+   * Custom description text.
+   */
+  description?: string
 }
 
 // Icon mapping for hierarchy levels
@@ -69,6 +82,9 @@ export function CascadingHierarchySelector({
   onChange,
   disabled = false,
   error,
+  required = true,
+  label = "Hierarchy Assignment",
+  description,
 }: CascadingHierarchySelectorProps) {
   // State
   const [loading, setLoading] = useState(true)
@@ -152,6 +168,61 @@ export function CascadingHierarchySelector({
 
   // Handle selection at a specific level
   const handleLevelChange = (level: number, entityId: string) => {
+    // Handle "clear" selection for optional mode
+    if (!entityId && !required) {
+      // Is this the first level?
+      const isFirstLevel = level === levels[0]?.level
+
+      if (isFirstLevel) {
+        // Clear everything - no hierarchy selected
+        setSelections({})
+        onChange(null)
+        return
+      }
+
+      // Keep previous level selections, clear current and subsequent
+      const newSelections: Record<number, HierarchyTreeNode> = {}
+      for (const [lvl, node] of Object.entries(selections)) {
+        if (Number(lvl) < level) {
+          newSelections[Number(lvl)] = node
+        }
+      }
+      setSelections(newSelections)
+
+      // Find the deepest selected level
+      let deepestNode: HierarchyTreeNode | null = null
+      for (const lvl of [...levels].reverse()) {
+        if (newSelections[lvl.level]) {
+          deepestNode = newSelections[lvl.level]
+          break
+        }
+      }
+
+      if (!deepestNode) {
+        onChange(null)
+        return
+      }
+
+      // Emit the deepest level selection
+      const pathSegments: string[] = []
+      const pathNames: string[] = []
+      for (const lvl of levels) {
+        const node = newSelections[lvl.level]
+        if (node) {
+          pathSegments.push(node.entity_id)
+          pathNames.push(node.entity_name)
+        }
+      }
+      onChange({
+        entity_id: deepestNode.entity_id,
+        entity_name: deepestNode.entity_name,
+        level_code: deepestNode.level_code,
+        path: '/' + pathSegments.join('/'),
+        path_names: pathNames.join(' > '),
+      })
+      return
+    }
+
     const options = getOptionsForLevel(level)
     const selectedNode = options.find(n => n.entity_id === entityId)
 
@@ -170,34 +241,36 @@ export function CascadingHierarchySelector({
 
     setSelections(newSelections)
 
+    // Build the hierarchy data
+    const pathSegments: string[] = []
+    const pathNames: string[] = []
+
+    // Iterate through all levels in order
+    for (const lvl of levels) {
+      const node = newSelections[lvl.level]
+      if (node) {
+        pathSegments.push(node.entity_id)
+        pathNames.push(node.entity_name)
+      }
+    }
+
+    const hierarchyData: SelectedHierarchy = {
+      entity_id: selectedNode.entity_id,
+      entity_name: selectedNode.entity_name,
+      level_code: selectedNode.level_code,
+      path: '/' + pathSegments.join('/'),
+      path_names: pathNames.join(' > '),
+    }
+
     // Check if this is the last level (leaf level)
     const isLastLevel = level === levels[levels.length - 1]?.level
 
-    if (isLastLevel) {
-      // Build the full hierarchy data
-      const pathSegments: string[] = []
-      const pathNames: string[] = []
-
-      // Iterate through all levels in order
-      for (const lvl of levels) {
-        const node = newSelections[lvl.level]
-        if (node) {
-          pathSegments.push(node.entity_id)
-          pathNames.push(node.entity_name)
-        }
-      }
-
-      const hierarchyData: SelectedHierarchy = {
-        entity_id: selectedNode.entity_id,
-        entity_name: selectedNode.entity_name,
-        level_code: selectedNode.level_code,
-        path: '/' + pathSegments.join('/'),
-        path_names: pathNames.join(' > '),
-      }
-
+    if (isLastLevel || !required) {
+      // In optional mode, emit on any selection
+      // In required mode, only emit on last level
       onChange(hierarchyData)
     } else {
-      // Not the last level yet, clear the onChange value
+      // Required mode and not at last level - clear the value
       onChange(null)
     }
   }
@@ -258,10 +331,13 @@ export function CascadingHierarchySelector({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label className="text-[15px] font-medium">
-          Hierarchy Assignment <span className="text-[#FF6C5E]">*</span>
+          {label} {required && <span className="text-[#FF6C5E]">*</span>}
         </Label>
         <p className="text-[13px] text-muted-foreground">
-          Select the organizational hierarchy for cost allocation. All levels are required.
+          {description || (required
+            ? "Select the organizational hierarchy for cost allocation. All levels are required."
+            : "Assign this cost to a specific part of your organization. Selection at any level is accepted."
+          )}
         </p>
       </div>
 
@@ -271,13 +347,17 @@ export function CascadingHierarchySelector({
           const options = getOptionsForLevel(level.level)
           const selectedValue = selections[level.level]?.entity_id
           const levelDisabled = isLevelDisabled(level.level)
+          const isFirstLevel = index === 0
+          const showOptionalLabel = !required && !isFirstLevel
 
           return (
             <div key={level.id} className="space-y-2">
               <Label htmlFor={`level-${level.level}`} className="text-sm flex items-center gap-2">
                 {getLevelIcon(level.level_code)}
                 <span>
-                  {level.level_name} <span className="text-[#FF6C5E]">*</span>
+                  {level.level_name}
+                  {required && <span className="text-[#FF6C5E] ml-1">*</span>}
+                  {showOptionalLabel && <span className="text-muted-foreground text-xs ml-1">(optional)</span>}
                 </span>
               </Label>
               <Select
@@ -287,11 +367,27 @@ export function CascadingHierarchySelector({
               >
                 <SelectTrigger
                   id={`level-${level.level}`}
-                  className={`h-11 ${error && !selectedValue ? 'border-[#FF6C5E]' : ''}`}
+                  className={`h-11 ${error && required && !selectedValue ? 'border-[#FF6C5E]' : ''}`}
                 >
-                  <SelectValue placeholder={`Select ${level.level_name.toLowerCase()}...`} />
+                  <SelectValue placeholder={
+                    isFirstLevel && !required
+                      ? "No allocation (org-level)"
+                      : `Select ${level.level_name.toLowerCase()}...`
+                  } />
                 </SelectTrigger>
                 <SelectContent>
+                  {/* Show "keep at parent level" option for non-first levels in optional mode */}
+                  {!required && !isFirstLevel && (
+                    <SelectItem value="">
+                      <span className="text-muted-foreground">Keep at parent level</span>
+                    </SelectItem>
+                  )}
+                  {/* Show "no allocation" for first level in optional mode */}
+                  {!required && isFirstLevel && (
+                    <SelectItem value="">
+                      <span className="text-muted-foreground">No allocation (org-level)</span>
+                    </SelectItem>
+                  )}
                   {options.length === 0 ? (
                     <div className="p-2 text-sm text-muted-foreground">
                       No {level.level_name_plural.toLowerCase()} available
@@ -314,7 +410,7 @@ export function CascadingHierarchySelector({
                 </SelectContent>
               </Select>
 
-              {/* Show arrow for non-last levels */}
+              {/* Show arrow for non-last levels when selected */}
               {index < levels.length - 1 && selections[level.level] && (
                 <div className="flex justify-center py-1">
                   <ChevronRight className="h-4 w-4 text-muted-foreground rotate-90" />

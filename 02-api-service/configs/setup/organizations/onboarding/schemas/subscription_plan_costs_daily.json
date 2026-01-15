@@ -75,13 +75,13 @@
     "name": "monthly_run_rate",
     "type": "NUMERIC",
     "mode": "NULLABLE",
-    "description": "Projected monthly cost (daily_cost \u00d7 days_in_month)."
+    "description": "Projected monthly cost (daily_cost × days_in_month)."
   },
   {
     "name": "annual_run_rate",
     "type": "NUMERIC",
     "mode": "NULLABLE",
-    "description": "Projected annual cost (daily_cost \u00d7 days_in_year)."
+    "description": "Projected annual cost (daily_cost × days_in_year)."
   },
   {
     "name": "invoice_id_last",
@@ -94,6 +94,126 @@
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Source: subscription_amortization."
+  },
+  {
+    "name": "hierarchy_level_1_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_1_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 1 (root) hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_2_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_2_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 2 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_3_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity ID. Denormalized for fast aggregation."
+  },
+  {
+    "name": "hierarchy_level_3_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 3 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_4_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_4_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 4 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_5_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_5_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 5 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_6_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_6_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 6 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_7_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_7_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 7 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_8_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_8_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 8 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_9_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity ID."
+  },
+  {
+    "name": "hierarchy_level_9_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 9 hierarchy entity name."
+  },
+  {
+    "name": "hierarchy_level_10_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity ID (deepest level)."
+  },
+  {
+    "name": "hierarchy_level_10_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Level 10 hierarchy entity name (deepest level)."
   },
   {
     "name": "hierarchy_entity_id",

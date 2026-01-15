@@ -154,7 +154,8 @@ async def validate_pipeline_with_api_service(
 async def report_pipeline_completion_to_api_service(
     org_slug: str,
     pipeline_status: str,
-    api_key: str
+    api_key: str,
+    reservation_date: str = ""
 ) -> bool:
     """
     Report pipeline completion to api-service to update usage counters.
@@ -163,6 +164,10 @@ async def report_pipeline_completion_to_api_service(
         org_slug: Organization slug
         pipeline_status: "SUCCESS" or "FAILED"
         api_key: Organization API key
+        reservation_date: The UTC date (YYYY-MM-DD) when quota was reserved.
+                         CRITICAL: Pass this to ensure decrement happens on the correct
+                         day's record, preventing stale concurrent counts when pipelines
+                         span midnight UTC.
 
     Returns:
         True if successfully reported, False otherwise
@@ -170,7 +175,10 @@ async def report_pipeline_completion_to_api_service(
     api_service_url = settings.api_service_url
     timeout = settings.api_service_timeout
 
+    # Build URL with reservation_date if provided
     url = f"{api_service_url}/api/v1/validator/complete/{org_slug}?pipeline_status={pipeline_status}"
+    if reservation_date:
+        url += f"&reservation_date={reservation_date}"
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -257,7 +265,8 @@ async def run_async_pipeline_task(
     parameters: dict,
     org_slug: str,
     bq_client: BigQueryClient,
-    api_key: str = ""
+    api_key: str = "",
+    reservation_date: str = ""
 ) -> Optional[dict]:
     """
     Execute pipeline in background with proper error handling.
@@ -271,6 +280,8 @@ async def run_async_pipeline_task(
     IMPORTANT: Concurrent counter is now managed by api-service:
     - Incremented during validation (before this task starts)
     - Decremented via completion reporting (at the end of this task)
+    - reservation_date ensures decrement happens on correct day's record even if
+      pipeline spans midnight UTC
     """
     from google.cloud import bigquery as bq
 
@@ -333,12 +344,14 @@ async def run_async_pipeline_task(
     finally:
         # Report pipeline completion to api-service to update concurrent counter
         # This must run regardless of success/failure
+        # CRITICAL: Pass reservation_date to ensure decrement on correct day's record
         if api_key:
             try:
                 await report_pipeline_completion_to_api_service(
                     org_slug=org_slug,
                     pipeline_status=pipeline_status,
-                    api_key=api_key
+                    api_key=api_key,
+                    reservation_date=reservation_date
                 )
             except Exception as report_error:
                 logger.error(
@@ -346,7 +359,8 @@ async def run_async_pipeline_task(
                     extra={
                         "org_slug": org_slug,
                         "pipeline_logging_id": executor.pipeline_logging_id,
-                        "pipeline_status": pipeline_status
+                        "pipeline_status": pipeline_status,
+                        "reservation_date": reservation_date
                     }
                 )
         else:
@@ -530,6 +544,12 @@ async def trigger_templated_pipeline(
         }
     )
 
+    # CRITICAL: Capture the reservation date NOW (the date quota was reserved)
+    # This ensures the concurrent counter decrement happens on the same day's record,
+    # even if the pipeline spans midnight UTC
+    from datetime import datetime as dt, timezone
+    reservation_date = dt.now(timezone.utc).date().isoformat()
+
     # NOTE: Daily/monthly quota counters are now incremented atomically in api-service
     # when increment_pipeline_usage("RUNNING") is called. This prevents race conditions
     # where multiple concurrent requests could pass quota validation before any increments happen.
@@ -661,7 +681,8 @@ async def trigger_templated_pipeline(
         # NOTE: Concurrent counter is managed by api-service:
         # - Incremented during validation (before this task starts)
         # - Decremented via completion reporting (at the end of the task)
-        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client, api_key)
+        # - reservation_date ensures decrement happens on correct day's record
+        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client, api_key, reservation_date)
 
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,

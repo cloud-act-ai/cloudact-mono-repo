@@ -552,6 +552,7 @@ async def validate_pipeline_execution(
 async def report_pipeline_completion(
     org_slug: str,
     pipeline_status: str,
+    reservation_date: Optional[str] = None,
     org: Dict[str, Any] = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> Dict[str, Any]:
@@ -563,12 +564,18 @@ async def report_pipeline_completion(
     Args:
         org_slug: Organization slug
         pipeline_status: Pipeline status (SUCCESS, FAILED)
+        reservation_date: The UTC date (YYYY-MM-DD) when quota was reserved.
+                         CRITICAL: Pass this to ensure decrement happens on the correct
+                         day's record, preventing stale concurrent counts when pipelines
+                         span midnight UTC.
         org: Authenticated org
         bq_client: BigQuery client
 
     Returns:
         Confirmation of update
     """
+    from datetime import date as date_type
+
     # Verify org_slug matches
     if org["org_slug"] != org_slug:
         raise HTTPException(
@@ -582,13 +589,25 @@ async def report_pipeline_completion(
             detail="Invalid pipeline_status. Must be SUCCESS or FAILED"
         )
 
-    await increment_pipeline_usage(org_slug, pipeline_status, bq_client)
+    # Parse reservation_date if provided
+    parsed_reservation_date = None
+    if reservation_date:
+        try:
+            parsed_reservation_date = date_type.fromisoformat(reservation_date)
+        except ValueError:
+            logger.warning(f"Invalid reservation_date format: {reservation_date}, using current date")
 
-    logger.info(f"Pipeline completion reported: org={org_slug}, status={pipeline_status}")
+    await increment_pipeline_usage(org_slug, pipeline_status, bq_client, parsed_reservation_date)
+
+    logger.info(
+        f"Pipeline completion reported: org={org_slug}, status={pipeline_status}, "
+        f"reservation_date={reservation_date or 'current'}"
+    )
 
     return {
         "success": True,
         "org_slug": org_slug,
         "pipeline_status": pipeline_status,
+        "reservation_date": reservation_date,
         "message": "Usage counters updated"
     }
