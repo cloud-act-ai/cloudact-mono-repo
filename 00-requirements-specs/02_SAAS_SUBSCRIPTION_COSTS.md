@@ -1,122 +1,52 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED (v12.7) | **Updated**: 2026-01-01
+**v12.7** | 2026-01-15
 
-> Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.). Related: [Cloud Costs](02_CLOUD_COSTS.md) | [GenAI Costs](02_GENAI_COSTS.md)
-
----
-
-## Quick Reference
-
-| Service | Port | Role |
-|---------|------|------|
-| Frontend | 3000 | UI + Server Actions |
-| API Service | 8000 | CRUD + Validation |
-| Pipeline Service | 8001 | Cost Calculation |
+> Fixed-cost SaaS tracking (Canva, ChatGPT Plus, Slack) → FOCUS 1.3
 
 ---
 
-## DO's and DON'Ts
-
-| DO | DON'T |
-|----|-------|
-| Lock currency to org default | Never hard delete plans |
-| Use version history for edits | Never update price in place |
-| Validate provider names | Never allow currency mismatch |
-| Soft delete with `end_date` | Never skip input validation |
-| Trigger cost pipeline after changes | Never call pipeline service directly |
-
----
-
-## Data Storage
+## Architecture
 
 ```
-SUPABASE                              BIGQUERY
-subscription_providers_meta      {org}_{env}.subscription_plans (28 cols)
-├─ provider ON/OFF toggles            {org}_{env}.subscription_plan_costs_daily
-└─ NO plan data                       {org}_{env}.cost_data_standard_1_3
+Frontend (3000)        API Service (8000)           Pipeline (8001)
+UI + Actions    →      CRUD + Validation     →     Cost Calculation
+                       subscription_plans           subscription_plan_costs_daily
+                                                   cost_data_standard_1_3
 ```
 
 ---
 
-## User Flows
+## Data Flow
 
-### Enable Provider
 ```
-Toggle ON → Insert to Supabase meta → Empty BigQuery table
-         → Show "Add from Template" buttons
-```
-
-### Add Subscription
-```
-Select Template → Convert price to org currency → Create plan in BigQuery
-              → If start_date past: trigger cost backfill
+Add Plan → API validates → BigQuery subscription_plans
+        → Pipeline calculates daily costs → FOCUS 1.3
 ```
 
-### Edit Subscription (Version History)
-```
-Edit form → POST edit-version → OLD row: end_date = effective_date - 1
-                             → NEW row: new subscription_id
-```
+**Version History:** Edit creates NEW row, OLD row gets `end_date`
 
-### End Subscription (Soft Delete)
-```
-End button → Set end_date + status='cancelled'
-          → Plan remains for historical reporting
+---
+
+## API Endpoints (Port 8000)
+
+```bash
+GET/POST /api/v1/subscriptions/{org}/providers/{p}/plans           # List/Create
+POST     /api/v1/subscriptions/{org}/providers/{p}/plans/{id}/edit-version  # Edit
+DELETE   /api/v1/subscriptions/{org}/providers/{p}/plans/{id}      # Soft delete
 ```
 
 ---
 
-## Multi-Currency
+## Pipeline (Port 8001)
 
+```bash
+POST /api/v1/pipelines/run/{org}/subscription/costs/subscription_cost
 ```
-Seed CSV (USD) → Template Page converts to org currency → BigQuery stores:
-                                                         ├─ currency (org default)
-                                                         ├─ unit_price (converted)
-                                                         ├─ source_currency (USD)
-                                                         ├─ source_price (original)
-                                                         └─ exchange_rate_used
-```
-
-**16 Currencies:** USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY, INR, SGD, AED, SAR, QAR, KWD, BHD, OMR
-
----
-
-## API Endpoints
-
-```
-GET    /api/v1/subscriptions/{org}/providers/{p}/plans           # List plans
-POST   /api/v1/subscriptions/{org}/providers/{p}/plans           # Create
-POST   /api/v1/subscriptions/{org}/providers/{p}/plans/{id}/edit-version  # Edit with history
-DELETE /api/v1/subscriptions/{org}/providers/{p}/plans/{id}      # Soft delete
-GET    /api/v1/subscriptions/{org}/providers/{p}/available-plans # Get templates
-```
-
----
-
-## Cost Pipeline
-
-**Config:** `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml`
 
 **Stored Procedures:**
-| Procedure | Purpose |
-|-----------|---------|
-| `sp_subscription_2_calculate_daily_costs` | Daily amortized costs |
-| `sp_subscription_3_convert_to_focus` | FOCUS 1.3 format |
-| `sp_subscription_4_run_pipeline` | Orchestrator |
-
----
-
-## Billing Cycles
-
-| Cycle | Calculation |
-|-------|-------------|
-| monthly | unit_price / days_in_month |
-| annual | yearly_price / 365 |
-| quarterly | price / actual_days (90-92) |
-| semi-annual | price / 182-184 |
-
-**Fiscal Year:** Configurable via `fiscal_year_start_month` (1=Jan, 4=Apr/India, 7=Jul/Australia)
+- `sp_subscription_2_calculate_daily_costs` - Daily amortization
+- `sp_subscription_3_convert_to_focus` - FOCUS 1.3
 
 ---
 
@@ -124,13 +54,16 @@ GET    /api/v1/subscriptions/{org}/providers/{p}/available-plans # Get templates
 
 | Field | Purpose |
 |-------|---------|
-| subscription_id | UUID primary key |
-| plan_name | Display name |
-| unit_price | Monthly price in org currency |
-| billing_cycle | monthly, annual, quarterly, semi_annual |
-| pricing_model | PER_SEAT, FLAT_FEE |
-| status | active, cancelled, expired, pending |
-| hierarchy_* | Dept/Project/Team allocation |
+| `unit_price` | Monthly price (org currency) |
+| `billing_cycle` | monthly, annual, quarterly |
+| `pricing_model` | PER_SEAT, FLAT_FEE |
+| `hierarchy_*` | Dept/Project/Team allocation |
+
+---
+
+## Multi-Currency
+
+Templates (USD) → converted to org currency → stored with `source_currency`, `exchange_rate_used`
 
 ---
 
@@ -138,34 +71,5 @@ GET    /api/v1/subscriptions/{org}/providers/{p}/available-plans # Get templates
 
 | File | Purpose |
 |------|---------|
-| `01-fronted-system/actions/subscription-providers.ts` | Server actions |
-| `02-api-service/src/app/routers/subscription_plans.py` | CRUD endpoints |
-| `02-api-service/configs/subscription/seed/data/subscription_plans.csv` | Templates |
+| `02-api-service/src/app/routers/subscription_plans.py` | CRUD |
 | `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml` | Pipeline |
-
----
-
-## Validation
-
-```typescript
-// Provider: sanitizeProviderName() - no reserved names
-// Plan name: max 50 chars
-// Price: >= 0
-// Billing cycle: monthly, annual, quarterly, semi_annual
-// Pricing model: PER_SEAT, FLAT_FEE
-// Status: active, cancelled, expired, pending
-```
-
----
-
-## Error Handling
-
-| Error | Fix |
-|-------|-----|
-| 409 Duplicate | Plan with same name exists |
-| 400 Currency mismatch | Must use org default currency |
-| Pipeline timeout | Increase timeout for large date ranges |
-
----
-
-**v12.7** | 2026-01-01

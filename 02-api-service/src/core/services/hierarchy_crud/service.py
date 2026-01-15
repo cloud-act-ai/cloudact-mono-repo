@@ -1166,6 +1166,192 @@ class HierarchyService:
         list(self.bq_client.client.query(delete_query, job_config=delete_job_config).result())
         return True
 
+    # ==========================================================================
+    # Seed Operations
+    # ==========================================================================
+
+    async def seed_default_entities(
+        self,
+        org_slug: str,
+        created_by: str,
+        force: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Seed default hierarchy entities from CSV file.
+
+        This is the same seed data used during org onboarding. Use this to:
+        - Initialize hierarchy for orgs that didn't get seeded during onboarding
+        - Reset hierarchy to default state (with force=True)
+
+        Args:
+            org_slug: Organization to seed
+            created_by: User ID for audit trail
+            force: If True, deletes existing entities before seeding
+
+        Returns:
+            Dict with seeding results
+        """
+        import csv
+        from pathlib import Path
+
+        org_slug = validate_org_slug(org_slug)
+
+        result = {
+            "entities_seeded": 0,
+            "entities_skipped": 0,
+            "by_level": {},
+            "errors": []
+        }
+
+        # Load CSV from api-service config
+        csv_path = Path(__file__).parent.parent.parent.parent.parent / "configs" / "hierarchy" / "seed" / "data" / "default_hierarchy.csv"
+
+        if not csv_path.exists():
+            result["errors"].append(f"Seed CSV not found: {csv_path}")
+            logger.warning(f"Hierarchy seed CSV not found: {csv_path}")
+            return result
+
+        # Load CSV data
+        csv_rows = []
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    cleaned_row = {}
+                    for key, value in row.items():
+                        cleaned_row[key] = value if value else None
+                    csv_rows.append(cleaned_row)
+            logger.info(f"Loaded {len(csv_rows)} entities from seed CSV")
+        except Exception as e:
+            result["errors"].append(f"Failed to load CSV: {e}")
+            return result
+
+        if not csv_rows:
+            result["errors"].append("No entities found in seed CSV")
+            return result
+
+        # If force, delete existing entities first
+        if force:
+            try:
+                table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+                delete_query = f"""
+                DELETE FROM `{table_ref}`
+                WHERE org_slug = @org_slug
+                """
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    ]
+                )
+                self.bq_client.client.query(delete_query, job_config=job_config).result()
+                logger.info(f"Deleted existing hierarchy entities for {org_slug}")
+            except Exception as e:
+                logger.error(f"Failed to delete existing entities: {e}")
+                result["errors"].append(f"Failed to delete existing entities: {e}")
+                return result
+
+        # Get existing entity IDs to skip duplicates
+        existing_ids = set()
+        if not force:
+            try:
+                all_entities = await self.get_all_entities(org_slug, use_central_table=True)
+                existing_ids = {e.entity_id for e in all_entities.entities}
+            except Exception as e:
+                logger.warning(f"Failed to get existing entities, proceeding with seed: {e}")
+
+        # Build entity lookup for path computation
+        entity_lookup = {row["entity_id"]: row for row in csv_rows}
+
+        def compute_path_info(entity_id: str) -> tuple:
+            """Compute path, path_ids, path_names, and depth for an entity."""
+            path_ids = []
+            path_names = []
+            current_id = entity_id
+
+            while current_id:
+                entity = entity_lookup.get(current_id)
+                if not entity:
+                    break
+                path_ids.insert(0, current_id)
+                path_names.insert(0, entity["entity_name"])
+                current_id = entity.get("parent_id")
+
+            path = "/" + "/".join(path_ids)
+            depth = len(path_ids) - 1
+            return path, path_ids, path_names, depth
+
+        # Build rows to insert
+        now = datetime.utcnow().isoformat() + "Z"
+        rows_to_insert = []
+
+        for row in csv_rows:
+            entity_id = row["entity_id"]
+
+            # Skip if already exists
+            if entity_id in existing_ids:
+                result["entities_skipped"] += 1
+                continue
+
+            path, path_ids, path_names, depth = compute_path_info(entity_id)
+
+            # Parse metadata
+            metadata = row.get("metadata")
+            if metadata and isinstance(metadata, str):
+                try:
+                    import json as json_module
+                    json_module.loads(metadata)  # Validate JSON
+                except json.JSONDecodeError:
+                    metadata = json.dumps({"raw": metadata})
+
+            entity_row = {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_id": entity_id,
+                "entity_name": row["entity_name"],
+                "level": int(row["level"]),
+                "level_code": row["level_code"],
+                "parent_id": row.get("parent_id") or None,
+                "path": path,
+                "path_ids": path_ids,
+                "path_names": path_names,
+                "depth": depth,
+                "owner_id": None,
+                "owner_name": row.get("owner_name"),
+                "owner_email": row.get("owner_email"),
+                "description": row.get("description"),
+                "metadata": metadata,
+                "sort_order": int(row.get("sort_order") or 0),
+                "is_active": True,
+                "created_at": now,
+                "created_by": created_by,
+                "updated_at": now,
+                "updated_by": created_by,
+                "version": 1,
+                "end_date": None
+            }
+            rows_to_insert.append(entity_row)
+
+            # Track by level
+            level_code = row["level_code"]
+            result["by_level"][level_code] = result["by_level"].get(level_code, 0) + 1
+
+        if not rows_to_insert:
+            logger.info(f"No new entities to seed for {org_slug}")
+            return result
+
+        # Insert entities
+        try:
+            self._insert_to_central_table(ORG_HIERARCHY_TABLE, rows_to_insert)
+            result["entities_seeded"] = len(rows_to_insert)
+            logger.info(
+                f"Seeded {len(rows_to_insert)} hierarchy entities for {org_slug}: {result['by_level']}"
+            )
+        except Exception as e:
+            result["errors"].append(f"Failed to insert entities: {e}")
+            logger.error(f"Failed to seed hierarchy entities: {e}")
+
+        return result
+
 
 # ==============================================================================
 # Service Instance

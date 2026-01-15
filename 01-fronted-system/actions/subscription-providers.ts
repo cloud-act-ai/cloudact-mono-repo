@@ -699,21 +699,18 @@ export async function createCustomProviderWithPlan(
       ? startDateStr
       : getMonthStart()
 
-    
-    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
-    pipelineTriggered = pipelineResult.success
+    // Fire-and-forget: Don't block UI waiting for pipeline
+    // Pipeline runs async - main operation already succeeded
+    void triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate).then(result => {
+      if (!result.success) {
+        console.error(`[createCustomProviderWithPlan] Pipeline failed: ${result.error}`)
+      }
+    })
 
-    if (isDateInPast(startDateStr)) {
-      pipelineMessage = pipelineResult.success
-        ? `Historical costs calculated from ${startDateStr} to today`
-        : `Plan created but cost calculation failed: ${pipelineResult.error}`
-    } else {
-      pipelineMessage = pipelineResult.success
-        ? `Costs updated for current period`
-        : `Plan created but cost calculation failed: ${pipelineResult.error}`
-    }
-
-    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
+    pipelineTriggered = true // Optimistically set - pipeline was triggered
+    pipelineMessage = isDateInPast(startDateStr)
+      ? `Historical costs being calculated from ${startDateStr} to today`
+      : `Costs being updated for current period`
 
     return {
       success: true,
@@ -1624,21 +1621,18 @@ export async function createCustomPlan(
       ? startDateStr
       : getMonthStart() // Use month start for current/future plans
 
-    
-    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
-    pipelineTriggered = pipelineResult.success
+    // Fire-and-forget: Don't block UI waiting for pipeline
+    // Pipeline runs async - main operation already succeeded
+    void triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate).then(result => {
+      if (!result.success) {
+        console.error(`[createCustomPlan] Pipeline failed: ${result.error}`)
+      }
+    })
 
-    if (isDateInPast(startDateStr)) {
-      pipelineMessage = pipelineResult.success
-        ? `Historical costs calculated from ${startDateStr} to today`
-        : `Plan created but cost calculation failed: ${pipelineResult.error}`
-    } else {
-      pipelineMessage = pipelineResult.success
-        ? `Costs updated for current period`
-        : `Plan created but cost calculation failed: ${pipelineResult.error}`
-    }
-
-    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
+    pipelineTriggered = true // Optimistically set - pipeline was triggered
+    pipelineMessage = isDateInPast(startDateStr)
+      ? `Historical costs being calculated from ${startDateStr} to today`
+      : `Costs being updated for current period`
 
     return {
       success: true,
@@ -1937,21 +1931,20 @@ export async function editPlanWithVersion(
     // Start from the effective date if in past, or month start otherwise
     const pipelineStartDate = isDateInPast(effectiveDate) ? effectiveDate : getMonthStart()
 
-    
-    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
-
-    const pipelineMessage = pipelineResult.success
-      ? `Costs recalculated from ${pipelineStartDate}`
-      : `Plan updated but cost recalculation failed: ${pipelineResult.error}`
-
-    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
+    // Fire-and-forget: Don't block UI waiting for pipeline
+    // Pipeline runs async - main operation already succeeded
+    void triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate).then(pipelineResult => {
+      if (!pipelineResult.success) {
+        console.error(`[editPlanWithVersion] Pipeline failed: ${pipelineResult.error}`)
+      }
+    })
 
     return {
       success: true,
       newPlan: result.new_plan,
       oldPlan: result.old_plan,
-      pipelineTriggered: pipelineResult.success,
-      pipelineMessage,
+      pipelineTriggered: true, // Optimistically set - pipeline was triggered
+      pipelineMessage: `Costs being recalculated from ${pipelineStartDate}`,
     }
   } catch (error) {
     return { success: false, error: logError("editPlanWithVersion", error) }
@@ -2032,20 +2025,19 @@ export async function endSubscription(
     // Trigger cost pipeline to recalculate costs (will exclude dates after end_date)
     const pipelineStartDate = getMonthStart()
 
-    
-    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
-
-    const pipelineMessage = pipelineResult.success
-      ? `Costs recalculated (subscription ended on ${endDate})`
-      : `Subscription ended but cost recalculation failed: ${pipelineResult.error}`
-
-    // Pipeline failure is logged via pipelineMessage, main operation still succeeded
+    // Fire-and-forget: Don't block UI waiting for pipeline
+    // Pipeline runs async - main operation already succeeded
+    void triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate).then(pipelineResult => {
+      if (!pipelineResult.success) {
+        console.error(`[endSubscription] Pipeline failed: ${pipelineResult.error}`)
+      }
+    })
 
     return {
       success: true,
       plan: result.plan,
-      pipelineTriggered: pipelineResult.success,
-      pipelineMessage,
+      pipelineTriggered: true, // Optimistically set - pipeline was triggered
+      pipelineMessage: `Costs being recalculated (subscription ended on ${endDate})`,
     }
   } catch (error) {
     return { success: false, error: logError("endSubscription", error) }

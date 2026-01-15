@@ -1,185 +1,56 @@
 # Security
 
-**Status**: IMPLEMENTED | **Updated**: 2026-01-01
+**v2.0** | 2026-01-15
 
-> Defense-in-depth security for CloudAct.ai frontend.
+> Defense-in-depth for CloudAct
 
 ---
 
 ## Security Layers
 
-| Layer | Protection | Implementation |
-|-------|------------|----------------|
-| Input | Validation & Sanitization | Server action validators |
-| Transport | HTTPS/TLS | Hosting platform |
-| Session | JWT + Cookies | Supabase Auth (httpOnly) |
-| Authorization | RBAC + RLS | Role checks + Supabase RLS |
-| Rate Limiting | In-memory limits | Per-user throttling |
-| Webhooks | Signature verification | Stripe signature + idempotency |
+| Layer | Implementation |
+|-------|----------------|
+| Input | Server action validators |
+| Transport | HTTPS/TLS |
+| Session | Supabase Auth (httpOnly JWT) |
+| Authorization | RBAC + RLS |
+| Credentials | KMS encryption at rest |
+| Webhooks | Stripe signature verification |
 
 ---
 
 ## Input Validation
 
 ```typescript
-// Org slug: ^[a-zA-Z0-9_]{2,100}$
-isValidOrgSlug(slug)
-
-// Org name: Remove HTML, dangerous chars, limit 100
-sanitizeOrgName(name)
-
-// Email: RFC-compliant, max 254 chars
-isValidEmail(email)
-
-// Stripe price: price_* prefix, length > 10
-isValidStripePriceId(priceId)
-
-// UUID: Standard UUID format
-isValidUUID(uuid)
+isValidOrgSlug(slug)     // ^[a-zA-Z0-9_]{2,100}$
+sanitizeOrgName(name)    // Remove HTML/dangerous chars
+isValidEmail(email)      // RFC-compliant, max 254
+isValidUUID(uuid)        // Standard UUID format
 ```
 
 ---
 
 ## Rate Limiting
 
-| Operation | Limit | Window |
-|-----------|-------|--------|
-| Checkout sessions | 1 | 30 seconds |
-| Member invites | 10 | 1 hour |
-| Deletion tokens | 1000 total | Rolling cleanup |
+| Operation | Limit |
+|-----------|-------|
+| Checkout | 1 per 30s |
+| Invites | 10 per hour |
 
 ---
 
-## XSS Prevention
+## Backend Security
 
-```typescript
-// All email content escaped
-function escapeHtml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
-}
-```
+- **CA_ROOT_API_KEY**: Min 32 chars, NEVER default value
+- **DISABLE_AUTH**: MUST be false in production
+- **KMS**: All credentials encrypted
+- **API keys**: SHA256 hashed in BigQuery
 
 ---
 
-## Open Redirect Prevention
+## Key Files
 
-```typescript
-function isValidRedirect(url: string | null): boolean {
-  if (!url) return false
-  if (!url.startsWith("/")) return false     // Must be relative
-  if (url.startsWith("//")) return false     // No protocol-relative
-  if (url.includes("\\")) return false       // No backslash
-  if (url.includes("@")) return false        // No user@host
-  if (/[\x00-\x1f]/.test(url)) return false  // No control chars
-  return true
-}
-```
-
----
-
-## Webhook Security (Stripe)
-
-```typescript
-// 1. Signature verification
-stripe.webhooks.constructEvent(body, signature, secret)
-
-// 2. Content-type validation
-if (!contentType.includes("application/json")) reject
-
-// 3. Idempotency (in-memory + database)
-if (processedEvents.has(event.id)) skip
-```
-
----
-
-## Database Security
-
-```typescript
-// Pagination required
-.limit(100)  // Members
-.limit(50)   // Invites
-
-// Empty array check before IN queries
-if (userIds.length > 0) {
-  .in("id", userIds)
-}
-```
-
----
-
-## Cross-Tenant Protection
-
-```typescript
-// ALWAYS verify org membership before operations
-.eq("org_id", org.id)  // THIS org only
-.eq("user_id", memberUserId)
-.eq("status", "active")
-```
-
----
-
-## Public Routes (Middleware)
-
-```typescript
-const publicPaths = [
-  "/", "/features", "/pricing", "/solutions",
-  "/login", "/signup", "/forgot-password", "/reset-password",
-  "/invite", "/onboarding", "/unauthorized"
-]
-```
-
----
-
-## KMS Encryption (Credentials)
-
-| Measure | Detail |
-|---------|--------|
-| Algorithm | GCP KMS AES-256 |
-| Key rotation | Automatic |
-| Storage | Only encrypted blobs |
-| Logging | SHA256 fingerprint (first 8 chars) |
-
----
-
-## Error Boundaries
-
-```
-app/error.tsx                    # Global
-app/[orgSlug]/analytics/error.tsx
-app/[orgSlug]/billing/error.tsx
-app/[orgSlug]/settings/error.tsx
-app/[orgSlug]/settings/members/error.tsx
-```
-
----
-
-## Security Checklist
-
-**Input:** All inputs validated (format, length, characters)
-
-**Database:** All list queries have `.limit()`, empty array checks
-
-**Rate Limiting:** Sensitive ops limited, maps have max size
-
-**Email:** All user content uses `escapeHtml()`
-
-**Auth:** Server actions verify user, role checks for sensitive ops
-
-**Errors:** Logged via `logError()`, no sensitive info exposed
-
----
-
-## Reporting Issues
-
-**Email:** security@cloudact.ai
-
-Do NOT create public GitHub issues for security vulnerabilities.
-
----
-
-**Updated**: 2026-01-01
+| File | Purpose |
+|------|---------|
+| `lib/validators.ts` | Input validation |
+| `03-data-pipeline-service/SECURITY.md` | Full security docs |

@@ -33,10 +33,23 @@ class PipelineLockManager:
     - Prevents duplicate execution of same pipeline for same org
     - Automatic lock expiration (stale lock cleanup)
     - No external dependencies (Redis/Firestore)
-    - Works across multiple uvicorn workers via shared memory
+    - Thread-safe within a single process
 
-    Note: Locks are lost on application restart. For multi-instance deployments,
-    consider using distributed locks (Redis/Firestore).
+    IMPORTANT LIMITATION (BUG-006 FIX - Documented):
+    This in-memory lock DOES NOT work across multiple uvicorn workers or
+    multiple instances. Each worker has its own isolated memory space, so:
+    - Worker 1 acquiring a lock is invisible to Worker 2
+    - Running with --workers > 1 will cause duplicate pipelines
+
+    The true source of truth for duplicate prevention is the BigQuery atomic
+    INSERT in the deprecated endpoint (org_meta_pipeline_runs table), which
+    works correctly across all workers and instances.
+
+    For production deployments:
+    - Single worker (--workers 1): In-memory lock works
+    - Multi-worker or multi-instance: Rely on BigQuery atomicity only
+
+    Note: Locks are lost on application restart.
     """
 
     def __init__(self, lock_timeout_seconds: int = 3600):

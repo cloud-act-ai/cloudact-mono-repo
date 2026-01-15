@@ -24,7 +24,7 @@ from src.core.services.hierarchy_crud.level_service import (
     HierarchyLevelService,
     get_hierarchy_level_service,
 )
-from src.app.dependencies.auth import get_current_org
+from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult
 from src.app.models.hierarchy_models import (
     # Level models
     CreateLevelRequest,
@@ -55,12 +55,12 @@ logger = logging.getLogger(__name__)
     "/{org_slug}/levels",
     response_model=HierarchyLevelsListResponse,
     summary="List hierarchy levels",
-    description="Get all configured hierarchy levels for an organization"
+    description="Get all configured hierarchy levels for an organization. Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
 )
 async def list_levels(
     org_slug: str,
     include_inactive: bool = Query(False, description="Include inactive levels"),
-    org_data: dict = Depends(get_current_org),
+    auth: AuthResult = Depends(get_org_or_admin_auth),
     service: HierarchyLevelService = Depends(get_hierarchy_level_service)
 ):
     """List all configured hierarchy levels."""
@@ -203,6 +203,55 @@ async def seed_default_levels(
         )
 
 
+@router.post(
+    "/{org_slug}/entities/seed",
+    summary="Seed default entities",
+    description="Seed default hierarchy entities from CSV. Use force=true to reset to defaults. Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
+)
+async def seed_default_entities(
+    org_slug: str,
+    force: bool = Query(False, description="Delete existing entities before seeding"),
+    auth: AuthResult = Depends(get_org_or_admin_auth),
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
+):
+    """
+    Seed default hierarchy entities for an organization.
+
+    This loads entities from the default CSV template used during onboarding.
+    Useful for:
+    - Organizations that didn't get hierarchy seeded during onboarding
+    - Resetting hierarchy to default state (use force=true)
+
+    Without force=true, existing entities are skipped (idempotent).
+    With force=true, all existing entities are deleted first.
+
+    Authentication: Accepts either org API key (X-API-Key) or root admin key (X-CA-Root-Key).
+    """
+    user_id = "admin" if auth.is_admin else (auth.org_data.get("admin_email", "system") if auth.org_data else "system")
+    try:
+        result = await service.seed_default_entities(org_slug, user_id, force)
+
+        if result.get("errors"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Seeding completed with errors: {result['errors']}"
+            )
+
+        return {
+            "message": f"Seeded {result['entities_seeded']} entities, skipped {result['entities_skipped']} existing",
+            "entities_seeded": result["entities_seeded"],
+            "entities_skipped": result["entities_skipped"],
+            "by_level": result["by_level"]
+        }
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
 # ============================================================================
 # Entity List & Tree Endpoints
 # ============================================================================
@@ -211,13 +260,13 @@ async def seed_default_levels(
     "/{org_slug}",
     response_model=HierarchyListResponse,
     summary="List all entities",
-    description="Get all hierarchy entities for an organization"
+    description="Get all hierarchy entities for an organization. Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
 )
 async def list_entities(
     org_slug: str,
     level_code: Optional[str] = Query(None, description="Filter by level code"),
     include_inactive: bool = Query(False, description="Include inactive entities"),
-    org_data: dict = Depends(get_current_org),
+    auth: AuthResult = Depends(get_org_or_admin_auth),
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """List all hierarchy entities."""
@@ -237,11 +286,11 @@ async def list_entities(
     "/{org_slug}/tree",
     response_model=HierarchyTreeResponse,
     summary="Get hierarchy tree",
-    description="Get full organizational hierarchy as a tree structure"
+    description="Get full organizational hierarchy as a tree structure. Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
 )
 async def get_hierarchy_tree(
     org_slug: str,
-    org_data: dict = Depends(get_current_org),
+    auth: AuthResult = Depends(get_org_or_admin_auth),
     service: HierarchyService = Depends(get_hierarchy_crud_service)
 ):
     """Get hierarchy as a tree structure."""

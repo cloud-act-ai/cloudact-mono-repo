@@ -770,6 +770,12 @@ async def trigger_pipeline(
     # QUOTA ENFORCEMENT (ALL LIMITS: Daily, Monthly, Concurrent)
     # ============================================
     org_slug = org.org_slug
+
+    # BUG-003 FIX: Calculate UTC date once at the start for consistent date handling
+    # This ensures all quota operations use the same date reference
+    from datetime import datetime as dt, timezone as tz
+    utc_today = dt.now(tz.utc).date()
+
     quota_query = f"""
     SELECT
         pipelines_run_today,
@@ -780,7 +786,7 @@ async def trigger_pipeline(
         concurrent_limit
     FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
     WHERE org_slug = @org_slug
-      AND usage_date = CURRENT_DATE()
+      AND usage_date = @usage_date
     LIMIT 1
     """
 
@@ -788,7 +794,8 @@ async def trigger_pipeline(
         quota_result = list(bq_client.client.query(
             quota_query,
             job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today)
             ])
         ).result())
 
@@ -815,22 +822,34 @@ async def trigger_pipeline(
                 monthly_limit = sub_result[0].get("monthly_limit", 180) or 180
                 concurrent_limit = sub_result[0].get("concurrent_limit", 6) or 6
 
-            insert_query = f"""
-            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-             pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-             daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
-            VALUES (
-                CONCAT(@org_slug, '_', FORMAT_DATE('%Y%m%d', CURRENT_DATE())),
-                @org_slug, CURRENT_DATE(),
-                0, 0, 0, 0, 0, @daily_limit, @monthly_limit, @concurrent_limit,
-                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
-            )
+            # BUG-003 FIX: Use parameterized date instead of CURRENT_DATE()
+            # BUG-005 FIX: Use MERGE instead of INSERT to prevent race condition
+            # Multiple concurrent requests could try to create the same quota record
+            merge_query = f"""
+            MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
+            USING (
+                SELECT
+                    CONCAT(@org_slug, '_', FORMAT_DATE('%Y%m%d', @usage_date)) AS usage_id,
+                    @org_slug AS org_slug,
+                    @usage_date AS usage_date,
+                    @daily_limit AS daily_limit,
+                    @monthly_limit AS monthly_limit,
+                    @concurrent_limit AS concurrent_limit
+            ) S
+            ON T.usage_id = S.usage_id
+            WHEN NOT MATCHED THEN
+                INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+                        pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+                        daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
+                VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, 0, 0,
+                        S.daily_limit, S.monthly_limit, S.concurrent_limit,
+                        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
             """
             bq_client.client.query(
-                insert_query,
+                merge_query,
                 job_config=bigquery.QueryJobConfig(query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today),
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
                     bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
                     bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
@@ -864,12 +883,14 @@ async def trigger_pipeline(
 
         logger.info(
             f"Quota check passed for org: {org_slug}",
-            daily_used=quota["pipelines_run_today"],
-            daily_limit=quota["daily_limit"],
-            monthly_used=quota["pipelines_run_month"],
-            monthly_limit=quota["monthly_limit"],
-            concurrent_running=quota["concurrent_pipelines_running"],
-            concurrent_limit=quota["concurrent_limit"]
+            extra={
+                "daily_used": quota["pipelines_run_today"],
+                "daily_limit": quota["daily_limit"],
+                "monthly_used": quota["pipelines_run_month"],
+                "monthly_limit": quota["monthly_limit"],
+                "concurrent_running": quota["concurrent_pipelines_running"],
+                "concurrent_limit": quota["concurrent_limit"]
+            }
         )
 
     except HTTPException:
@@ -880,6 +901,12 @@ async def trigger_pipeline(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
         )
+
+    # BUG-001 FIX: Capture reservation_date and api_key for concurrent counter management
+    # This ensures the concurrent counter decrement happens on the correct day's record
+    # BUG-003 FIX: Use the already-calculated utc_today for consistency
+    deprecated_reservation_date = utc_today.isoformat()
+    deprecated_api_key = http_request.headers.get("X-API-Key", "")
 
     # Note: Org dataset and operational tables created during onboarding
     # No need to ensure_org_metadata here - it would try to create API key tables
@@ -924,10 +951,11 @@ async def trigger_pipeline(
     )
     AND (
         -- ATOMIC concurrent limit check
+        -- BUG-003 FIX: Use parameterized date instead of CURRENT_DATE()
         SELECT COALESCE(concurrent_pipelines_running, 0) < COALESCE(concurrent_limit, 999999)
         FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
         WHERE org_slug = @org_slug
-          AND usage_date = CURRENT_DATE()
+          AND usage_date = @usage_date
     )
     """
 
@@ -943,6 +971,8 @@ async def trigger_pipeline(
             bigquery.ScalarQueryParameter("user_id", "STRING", org.user_id),
             bigquery.ScalarQueryParameter("run_date", "DATE", run_date),
             bigquery.ScalarQueryParameter("parameters", "STRING", json.dumps(parameters) if parameters else "{}"),
+            # BUG-003 FIX: Add usage_date for consistent date handling
+            bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today),
         ]
     )
 
@@ -965,9 +995,32 @@ async def trigger_pipeline(
         # Override the executor's pipeline_logging_id with our pre-generated one
         executor.pipeline_logging_id = pipeline_logging_id
 
+        # BUG-001 FIX: Increment concurrent counter AFTER successful INSERT
+        # This matches what reserve_pipeline_quota_atomic() does in api-service
+        increment_concurrent_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug
+          AND usage_date = @usage_date
+        """
+        try:
+            bq_client.client.query(
+                increment_concurrent_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", dt.now(tz.utc).date())
+                ])
+            ).result()
+        except Exception as inc_err:
+            logger.warning(f"Failed to increment concurrent counter for {org_slug}: {inc_err}")
+
         # Execute pipeline in background with async error handling
-        # NOTE: Concurrent counter increment now happens INSIDE run_async_pipeline_task
-        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client)
+        # BUG-001 FIX: Pass api_key and reservation_date so decrement happens correctly
+        background_tasks.add_task(
+            run_async_pipeline_task, executor, parameters, org_slug, bq_client,
+            deprecated_api_key, deprecated_reservation_date
+        )
 
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,
@@ -1013,16 +1066,18 @@ async def trigger_pipeline(
         else:
             # No duplicate - must be concurrent limit exceeded
             # Re-fetch current quota to show accurate error message
+            # BUG-003 FIX: Use parameterized date instead of CURRENT_DATE()
             quota_check_query = f"""
             SELECT concurrent_pipelines_running, concurrent_limit
             FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
             WHERE org_slug = @org_slug
-              AND usage_date = CURRENT_DATE()
+              AND usage_date = @usage_date
             """
 
             quota_check_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today),
                 ]
             )
 

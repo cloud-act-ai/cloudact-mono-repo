@@ -1,130 +1,50 @@
-# User Management & Authentication
+# User Management
 
-**Status**: IMPLEMENTED (v2.2) | **Updated**: 2026-01-01
+**v2.2** | 2026-01-15
 
-> Supabase Auth for users, RBAC for teams. Related: [Org Onboarding](01_ORGANIZATION_ONBOARDING.md) | [Billing](01_BILLING_STRIPE.md) | [Security](05_SECURITY.md)
+> Supabase Auth + RBAC for teams
 
 ---
 
-## Quick Reference
+## Routes
 
 | Route | Purpose |
 |-------|---------|
-| `/signup` | Create account (email, password, company info) |
-| `/login` | Sign in, redirect to dashboard or onboarding |
-| `/forgot-password` → `/reset-password` | Password recovery (1-hour link) |
-| `/invite/[token]` | Accept team invite (48-hour token) |
-| `/{org}/settings/members` | Team management (owner only) |
+| `/signup` | Create account |
+| `/login` | Sign in |
+| `/{org}/settings/members` | Team management |
+
+---
+
+## Roles
+
+| Role | Billing | Members | Integrations | Pipelines |
+|------|---------|---------|--------------|-----------|
+| owner | ✓ | ✓ | ✓ | ✓ |
+| collaborator | ✗ | ✗ | ✓ | ✓ |
+| read_only | ✗ | ✗ | ✗ | ✓ (view) |
+
+**1 owner per org** - transfer required before leaving
 
 ---
 
 ## Data Storage
 
-| Table | What | Key Fields |
-|-------|------|------------|
-| `auth.users` | Supabase managed auth | id, email |
-| `profiles` | Extended user data | full_name, phone, timezone |
-| `organizations` | Org metadata | org_slug, plan, billing_status |
-| `organization_members` | User ↔ Org link | user_id, org_id, role, status |
-| `invites` | Pending invites | email, token, expires_at |
-
----
-
-## Roles & Permissions
-
-| Role | Billing | Members | Integrations | Pipelines | View Data |
-|------|---------|---------|--------------|-----------|-----------|
-| **owner** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **collaborator** | ✗ | ✗ | ✓ | ✓ | ✓ |
-| **read_only** | ✗ | ✗ | ✗ | ✗ | ✓ |
-
-- **1 owner per org** - protected by database trigger
-- Ownership transfer required before owner can leave/delete account
-
----
-
-## Auth Flow
-
-```
-Signup → Auto-signin → Onboarding (billing) → Org Created → Dashboard
-                                    ↓
-                           Backend onboarding (API key, BigQuery dataset)
-```
-
-**Signup collects:** email, password (8+ chars), phone, company name, company type
-
-**Sessions:** Cookie-based, auto-refresh tokens, server-side validation
+| Table | Purpose |
+|-------|---------|
+| `auth.users` | Supabase auth |
+| `profiles` | Extended user data |
+| `organizations` | Org metadata |
+| `organization_members` | User ↔ Org |
+| `invites` | Pending invites |
 
 ---
 
 ## Team Invites
 
-**Flow:** Owner invites → Email sent → Invitee accepts → Member added
-
-**Limits:**
-- 10 invites/hour per user (rate limited)
+- Owner invites → Email → Accept → Member added
 - 48-hour token expiry
 - Seat limit per plan
-
-**Actions:** `actions/members.ts`
-```typescript
-inviteMember(orgSlug, email, role)   // Create & send
-acceptInvite(token)                   // Join org
-cancelInvite(orgSlug, inviteId)       // Revoke
-getOrgMembers(orgSlug)                // List members
-updateMemberRole(orgSlug, userId, role)
-removeMember(orgSlug, userId)         // Soft delete
-```
-
----
-
-## Account Management
-
-**Actions:** `actions/account.ts`
-
-| Action | Requirements |
-|--------|--------------|
-| Delete Account | Own no orgs (transfer first), email confirmation, 30-min token |
-| Transfer Ownership | Must be owner, new owner must be active member |
-| Leave Org | Cannot be owner |
-
----
-
-## Validation
-
-```typescript
-// Org slug: ^[a-zA-Z0-9_]{3,50}$
-// Email: RFC-compliant, max 254 chars
-// Password: 8+ characters
-```
-
----
-
-## Security Highlights
-
-| Protection | Implementation |
-|------------|----------------|
-| XSS | `escapeHtml()` on all email content |
-| Open Redirect | Only relative paths, no `//` or `@` |
-| Rate Limit | 10 invites/hour, 30s between checkouts |
-| Cross-Tenant | Verify org membership before any operation |
-| Owner Protection | DB trigger prevents role/status changes |
-
-See [05_SECURITY.md](05_SECURITY.md) for complete security implementation.
-
----
-
-## Error Messages
-
-| Scenario | Message |
-|----------|---------|
-| Invalid email | "Please enter a valid email address" |
-| Seat limit | "Team member limit reached for your plan" |
-| Expired invite | "This invitation has expired" |
-| Email mismatch | "Please sign in with the email this invitation was sent to" |
-| Already member | "You are already a member of this organization" |
-| Rate limited | "Too many invites. Please try again later." |
-| Not owner | "Only the owner can invite members" |
 
 ---
 
@@ -132,25 +52,5 @@ See [05_SECURITY.md](05_SECURITY.md) for complete security implementation.
 
 | File | Purpose |
 |------|---------|
-| `app/login/page.tsx` | Login page |
-| `app/signup/page.tsx` | Signup page |
-| `app/invite/[token]/page.tsx` | Invite acceptance |
-| `app/[orgSlug]/settings/members/page.tsx` | Team management |
-| `actions/members.ts` | Invite/member server actions |
-| `actions/account.ts` | Account deletion, ownership transfer |
-| `lib/supabase/server.ts` | Supabase client |
-| `scripts/supabase_db/01_production_setup.sql` | Schema, RLS, triggers |
-
----
-
-## Not Implemented
-
-- MFA/TOTP
-- Social OAuth (configured, not exposed)
-- Email verification enforcement
-- Bulk invites
-- Audit log export
-
----
-
-**v2.2** | 2026-01-01
+| `01-fronted-system/actions/members.ts` | Team actions |
+| `01-fronted-system/actions/account.ts` | Account actions |

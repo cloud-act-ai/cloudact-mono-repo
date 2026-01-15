@@ -34,8 +34,12 @@ export interface QuotaUsage {
   // Warning levels
   dailyWarningLevel: 'ok' | 'warning' | 'critical' | 'exceeded'
   monthlyWarningLevel: 'ok' | 'warning' | 'critical' | 'exceeded'
+  concurrentWarningLevel: 'ok' | 'warning' | 'critical' | 'exceeded'
   seatWarningLevel: 'ok' | 'warning' | 'critical' | 'exceeded'
   providerWarningLevel: 'ok' | 'warning' | 'critical' | 'exceeded'
+
+  // Calculated percentages for concurrent
+  concurrentUsagePercent: number
 }
 
 function getWarningLevel(current: number, limit: number): 'ok' | 'warning' | 'critical' | 'exceeded' {
@@ -114,21 +118,40 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       org.integration_gcp_status === 'VALID',
     ].filter(Boolean).length
 
-    // Get pipeline usage from backend (if available)
-    const pipelinesRunToday = 0
-    const pipelinesRunMonth = 0
-    const concurrentRunning = 0
+    // Get pipeline usage from backend API
+    // Backend endpoint: GET /api/v1/organizations/{org}/quota
+    let pipelinesRunToday = 0
+    let pipelinesRunMonth = 0
+    let concurrentRunning = 0
+    let backendDailyLimit = 0
+    let backendMonthlyLimit = 0
+    let backendConcurrentLimit = 20
 
     try {
       const apiKey = await getCachedApiKey(orgSlug)
       if (apiKey) {
-        // Try to get quota info from backend
-        // This would require an endpoint on the backend - for now use defaults
-        // TODO: Implement GET /api/v1/organizations/{org}/quota endpoint in backend
-        // const _backend = new BackendClient({ orgApiKey: apiKey })
+        const apiServiceUrl = process.env.NEXT_PUBLIC_API_SERVICE_URL || "http://localhost:8000"
+        const response = await fetch(`${apiServiceUrl}/api/v1/organizations/${orgSlug}/quota`, {
+          method: "GET",
+          headers: {
+            "X-API-Key": apiKey,
+            "Content-Type": "application/json"
+          },
+          cache: "no-store"
+        })
+
+        if (response.ok) {
+          const quotaData = await response.json()
+          pipelinesRunToday = quotaData.pipelinesRunToday || 0
+          pipelinesRunMonth = quotaData.pipelinesRunMonth || 0
+          concurrentRunning = quotaData.concurrentRunning || 0
+          backendDailyLimit = quotaData.dailyLimit || 0
+          backendMonthlyLimit = quotaData.monthlyLimit || 0
+          backendConcurrentLimit = quotaData.concurrentLimit || 20
+        }
       }
     } catch (quotaError) {
-      // Backend quota check failed - use defaults
+      // Backend quota check failed - use defaults from Supabase
       if (process.env.NODE_ENV === "development") {
         console.warn("[getOrgQuotaUsage] Backend quota check failed:", quotaError)
       }
@@ -136,8 +159,9 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
 
     const seatLimit = org.seat_limit || 2
     const providersLimit = org.providers_limit || 3
-    const dailyLimit = org.pipelines_per_day_limit || 6
-    const monthlyLimit = dailyLimit * 30
+    // Use backend limits if available, otherwise fall back to Supabase/defaults
+    const dailyLimit = backendDailyLimit || org.pipelines_per_day_limit || 6
+    const monthlyLimit = backendMonthlyLimit || (dailyLimit * 30)
 
     const quotaUsage: QuotaUsage = {
       // Pipeline quotas
@@ -146,7 +170,7 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       pipelinesRunMonth,
       monthlyLimit,
       concurrentRunning,
-      concurrentLimit: 1, // Default
+      concurrentLimit: backendConcurrentLimit,
 
       // Resource quotas
       teamMembers: memberCount || 0,
@@ -157,12 +181,14 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       // Calculated percentages
       dailyUsagePercent: dailyLimit > 0 ? Math.round((pipelinesRunToday / dailyLimit) * 100) : 0,
       monthlyUsagePercent: monthlyLimit > 0 ? Math.round((pipelinesRunMonth / monthlyLimit) * 100) : 0,
+      concurrentUsagePercent: backendConcurrentLimit > 0 ? Math.round((concurrentRunning / backendConcurrentLimit) * 100) : 0,
       seatUsagePercent: seatLimit > 0 ? Math.round(((memberCount || 0) / seatLimit) * 100) : 0,
       providerUsagePercent: providersLimit > 0 ? Math.round((configuredProviders / providersLimit) * 100) : 0,
 
       // Warning levels
       dailyWarningLevel: getWarningLevel(pipelinesRunToday, dailyLimit),
       monthlyWarningLevel: getWarningLevel(pipelinesRunMonth, monthlyLimit),
+      concurrentWarningLevel: getWarningLevel(concurrentRunning, backendConcurrentLimit),
       seatWarningLevel: getWarningLevel(memberCount || 0, seatLimit),
       providerWarningLevel: getWarningLevel(configuredProviders, providersLimit),
     }

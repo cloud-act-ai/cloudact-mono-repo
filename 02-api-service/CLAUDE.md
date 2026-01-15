@@ -1,599 +1,141 @@
 # API Service (Port 8000)
 
-Frontend-facing API for org management, auth, and integrations. Handles bootstrap, onboarding, integration setup, subscription plans, and cost analytics. Does NOT run pipelines (port 8001).
+Frontend-facing API. Handles bootstrap, onboarding, integrations, subscriptions, hierarchy, cost reads. Does NOT run pipelines (8001).
 
-## PRODUCTION-READY REQUIREMENTS (CRITICAL)
+## Production Requirements
 
-**MANDATORY for all code generation and modifications:**
-
-1. **NO MOCKS OR STUBS** - Never create mock implementations, placeholder code, or TODO stubs unless explicitly requested
-2. **NO HALLUCINATED CODE** - Only reference files, functions, and APIs that actually exist in the codebase
-3. **WORKING CODE ONLY** - All generated code must be complete, functional, and production-ready
-4. **VERIFY BEFORE REFERENCE** - Always read/check files before referencing them in code or documentation
-5. **USE EXISTING PATTERNS** - Follow established patterns in the codebase, don't invent new ones
-6. **NO NEW DEPENDENCIES** - Don't add new pip packages without explicit approval
-7. **ENVIRONMENT FILES** - Use this project's environment files:
-   - Local/Testing: `02-api-service/.env.local`
-   - Staging: `02-api-service/.env.stage`
-   - Production: `02-api-service/.env.prod`
-   - **NEVER use `.env`** - always use environment-specific files
-
-**Before writing code:**
-- Read existing files to understand current patterns
-- Verify imports and dependencies exist
-- Check that referenced APIs/endpoints are real
-- Ensure schema matches actual BigQuery tables
-
-## Routers
-
-| Router | Endpoints | Purpose |
-|--------|-----------|---------|
-| Admin | `/api/v1/admin/*` | Bootstrap, dev API key |
-| Organizations | `/api/v1/organizations/*` | Onboarding, subscription, locale |
-| Integrations | `/api/v1/integrations/*` | Setup/validate credentials |
-| Subscription Plans | `/api/v1/subscriptions/*` | Subscription CRUD with version history |
-| Cost Service | `/api/v1/costs/*` | Polars-powered analytics |
+1. **NO MOCKS** - Production-ready code only
+2. **VERIFY FIRST** - Read files before referencing
+3. **ENV FILES** - Use `.env.local` (never `.env`)
 
 ## Development
 
 ```bash
 cd 02-api-service
-pip install -r requirements.txt
 python3 -m uvicorn src.app.main:app --port 8000 --reload
-
-# Tests
 python -m pytest tests/ -v
-python -m pytest tests/ -v --run-integration
 ```
 
-## Bootstrap (21 Meta Tables)
+## Routers
 
-| Table | Purpose | Partitioned |
-|-------|---------|-------------|
-| org_profiles | Org metadata + i18n | - |
-| org_api_keys | API keys | created_at |
-| org_subscriptions | Plans & limits | created_at |
-| org_usage_quotas | Quota tracking | usage_date |
-| org_integration_credentials | Encrypted creds | - |
-| org_meta_pipeline_runs | Execution logs | start_time |
-| org_meta_step_logs | Step logs | start_time |
-| org_meta_state_transitions | State history | transition_time |
-| org_meta_dq_results | DQ results | ingestion_date |
-| org_pipeline_configs | Pipeline config | - |
-| org_scheduled_pipeline_runs | Scheduled jobs | scheduled_time |
-| org_pipeline_execution_queue | Queue | scheduled_time |
-| org_cost_tracking | Cost data | usage_date |
-| org_audit_logs | Audit trail | created_at |
-| org_idempotency_keys | Deduplication | - |
-| org_notification_channels | Email/Slack/Webhook | - |
-| org_notification_rules | Alert rules | - |
-| org_notification_summaries | Digest config | - |
-| org_notification_history | Delivery log | created_at |
-| org_hierarchy | Dept/Project/Team structure | - |
+| Router | Endpoints | Purpose |
+|--------|-----------|---------|
+| Admin | `/api/v1/admin/*` | Bootstrap, sync, dev API key |
+| Organizations | `/api/v1/organizations/*` | Onboarding, locale |
+| Integrations | `/api/v1/integrations/*` | Credential setup/validate |
+| Subscriptions | `/api/v1/subscriptions/*` | SaaS plan CRUD |
+| Hierarchy | `/api/v1/hierarchy/*` | Dept/Project/Team CRUD |
+| Costs | `/api/v1/costs/*` | Polars-powered reads |
+
+## Bootstrap Tables (21)
+
+| Table | Purpose |
+|-------|---------|
+| `org_profiles` | Org metadata + i18n |
+| `org_api_keys` | API keys |
+| `org_subscriptions` | Plans & limits |
+| `org_integration_credentials` | KMS-encrypted creds |
+| `org_hierarchy` | Dept/Project/Team |
+| `org_meta_pipeline_runs` | Execution logs |
+| `org_notification_*` | Channels, rules, history |
 
 **Schemas:** `configs/setup/bootstrap/schemas/*.json`
 
-## Incremental Schema Evolution (CRITICAL)
+## Schema Evolution
 
-**Philosophy: Only ADD, never DELETE. No data loss, ever.**
-
-### Schema Change Workflow
+**Add column:** Edit JSON → `POST /sync` → Safe, non-destructive
+**Never:** Use `force_recreate_*` flags (deletes data)
 
 ```bash
-# 1. Check current status
+# Check status
 curl GET /api/v1/admin/bootstrap/status -H "X-CA-Root-Key: $KEY"
-curl GET /api/v1/organizations/{org}/status -H "X-CA-Root-Key: $KEY"
 
-# 2. Add new column to schema JSON file
-# Edit: configs/setup/bootstrap/schemas/{table}.json
-# Or:   configs/setup/organizations/onboarding/schemas/{table}.json
-
-# 3. Sync to apply changes (non-destructive)
-curl POST /api/v1/admin/bootstrap/sync \
-  -H "X-CA-Root-Key: $KEY" \
-  -d '{"sync_missing_tables": true, "sync_missing_columns": true}'
-
-curl POST /api/v1/organizations/{org}/sync \
-  -H "X-CA-Root-Key: $KEY" \
-  -d '{"sync_missing_tables": true, "sync_missing_columns": true}'
+# Sync changes
+curl POST /api/v1/admin/bootstrap/sync -H "X-CA-Root-Key: $KEY"
 ```
 
-### Status Values
-
-| Status | Meaning | Action |
-|--------|---------|--------|
-| `SYNCED` | All tables/columns match config | None needed |
-| `OUT_OF_SYNC` + `missing_columns` | New columns in config | Run `/sync` |
-| `OUT_OF_SYNC` + `extra_columns` | Old columns in BigQuery | **Ignore** - harmless |
-| `NOT_BOOTSTRAPPED` | Dataset missing | Run `/bootstrap` |
-| `PROFILE_ONLY` | Org dataset deleted | Run `/organizations/{org}/sync` |
-
-### Rules
-
-| Action | How | Data Impact |
-|--------|-----|-------------|
-| Add column | Edit JSON → `/sync` | ✅ Safe |
-| Add table | Add JSON + config.yml → `/sync` | ✅ Safe |
-| Remove column | Remove from JSON | ✅ Safe (stays in BQ as "extra") |
-| Drop column | **NOT SUPPORTED** | BigQuery limitation |
-
-**NEVER use `force_recreate_*` flags** - they delete all data.
-
-## Key Endpoints
-
-```bash
-# Bootstrap (one-time)
-curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-
-# Onboard organization
-curl -X POST "http://localhost:8000/api/v1/organizations/onboard" \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -d '{"org_slug":"my_org","company_name":"My Org","admin_email":"admin@example.com","subscription_plan":"FREE","default_currency":"USD"}'
-
-# Get API key (dev only)
-curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/my_org" -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-
-# Setup integration
-curl -X POST "http://localhost:8000/api/v1/integrations/my_org/openai/setup" \
-  -H "X-API-Key: $ORG_API_KEY" -d '{"api_key":"sk-..."}'
-
-# Subscription plan
-curl -X POST "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt_plus/plans" \
-  -H "X-API-Key: $ORG_API_KEY" -d '{"plan_name":"TEAM","price_per_user_monthly":25.00,"currency":"USD"}'
-```
-
-## i18n (Locale)
-
-**Currencies (16):** USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF
-
-**Timezones (15):** UTC, America/*, Europe/*, Asia/*, Australia/Sydney
-
-```bash
-# Get locale
-curl -X GET "http://localhost:8000/api/v1/organizations/my_org/locale" -H "X-API-Key: $ORG_API_KEY"
-
-# Update locale
-curl -X PUT "http://localhost:8000/api/v1/organizations/my_org/locale" \
-  -H "X-API-Key: $ORG_API_KEY" -d '{"default_currency":"INR","default_timezone":"Asia/Kolkata"}'
-```
-
-## SaaS Subscription Plans
-
-**Version History:** Edits create new rows. Old row gets `end_date`, new row starts from `effective_date`.
-
-**Status Values:** `active`, `pending`, `cancelled`, `expired`
-
-**Currency Enforcement:** Plans MUST match org's `default_currency`.
-
-**Audit Fields:** `source_currency`, `source_price`, `exchange_rate_used` for currency conversion tracking.
-
-```bash
-# Edit with version history
-curl -X POST "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt_plus/plans/123/edit-version" \
-  -H "X-API-Key: $ORG_API_KEY" -d '{"number_of_users":15,"effective_date":"2025-02-01"}'
-
-# End subscription (soft delete)
-curl -X DELETE "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt_plus/plans/123" \
-  -H "X-API-Key: $ORG_API_KEY" -d '{"end_date":"2025-03-31"}'
-```
-
-## Project Structure
+## Services Architecture
 
 ```
-02-api-service/
-├── src/app/
-│   ├── main.py                 # FastAPI entry
-│   ├── routers/                # API endpoints
-│   └── models/i18n_models.py   # i18n constants
-├── src/core/
-│   ├── engine/bq_client.py     # BigQuery client
-│   ├── security/               # KMS encryption
-│   ├── services/               # Read/CRUD services (see below)
-│   └── processors/             # Integration processors
-├── src/lib/                    # Centralized calculation libraries
-│   ├── costs/                  # Cost aggregation, forecasting
-│   ├── usage/                  # GenAI usage calculations
-│   └── integrations/           # Integration status/health
-├── configs/
-│   ├── setup/bootstrap/        # 21 table schemas
-│   └── subscription/seed/      # Subscription templates
-└── tests/
+src/core/services/
+├─ _shared/           # Cache, date_utils, validation
+├─ cost_read/         # Dashboard cost queries (Polars)
+├─ usage_read/        # GenAI usage metrics (Polars)
+├─ hierarchy_crud/    # Dept/Project/Team CRUD
+└─ notification_crud/ # Channels/Rules CRUD
 ```
 
-### Services Directory (`src/core/services/`)
+**Pattern:** `*_read/` = Polars + Cache | `*_crud/` = Direct BigQuery
 
-```
-services/
-├── _shared/                    # Common utilities
-│   ├── cache.py               # LRU cache with TTL
-│   ├── validation.py          # org_slug validation
-│   └── date_utils.py          # Fiscal year, periods, comparisons
-│
-│ # READ SERVICES (Polars + Cache) - Dashboard queries
-├── cost_read/                  # GET /costs/*
-│   ├── models.py              # CostQuery, CostResponse
-│   └── service.py             # CostReadService
-├── usage_read/                 # GET /usage/*
-│   ├── models.py              # UsageQuery, UsageResponse
-│   └── service.py             # UsageReadService
-├── integration_read/           # GET /integrations/*
-│   ├── models.py              # IntegrationQuery, IntegrationResponse
-│   └── service.py             # IntegrationReadService
-├── pipeline_read/              # GET /pipelines/*
-│   ├── models.py              # PipelineQuery, PipelineResponse
-│   └── service.py             # PipelineReadService
-├── notification_read/          # GET /notifications/* (stats, history)
-│   ├── models.py              # NotificationQuery, HistoryQueryParams
-│   └── service.py             # NotificationReadService
-│
-│ # CRUD SERVICES (Direct BigQuery) - Settings writes
-├── hierarchy_crud/             # Dept/Project/Team CRUD
-│   ├── models.py              # HierarchyEntity, CreateRequest
-│   └── service.py             # HierarchyService
-└── notification_crud/          # Channels/Rules/Summaries CRUD
-    ├── models.py              # NotificationChannel, NotificationRule, etc.
-    └── service.py             # NotificationSettingsService
-```
-
-**Naming Convention:**
-- `*_read/` = Polars + Cache for dashboard reads (data written by Pipeline or shared)
-- `*_crud/` = Direct BigQuery for settings writes (API-owned tables)
-
-**IMPORTANT: When Adding New Services**
-1. Dashboard queries → Create `{domain}_read/` with Polars
-2. Settings CRUD → Create `{domain}_crud/` with direct BigQuery
-3. Never mix read and write in same service
-
-## Calculation Libraries (src/lib/)
-
-Centralized Polars-based calculations. All services use these for consistent results.
+## Cost Read Service
 
 ```python
-from src.lib.costs import (
-    # Aggregations
-    aggregate_by_provider,
-    aggregate_by_service,
-    aggregate_by_category,
-    aggregate_by_date,
-    aggregate_by_hierarchy,
-    # Calculations
-    calculate_forecasts,
-    calculate_daily_rate,
-    calculate_monthly_forecast,
-    calculate_percentage_change,
-    get_date_info,
-    # Filters
-    filter_date_range,
-    filter_providers,
-    filter_hierarchy,
-    apply_cost_filters,
-)
-```
+from src.core.services.cost_read import CostQuery, DatePeriod
 
-| Module | Purpose | Key Functions |
-|--------|---------|---------------|
-| `lib/costs/aggregations.py` | Cost grouping | `aggregate_by_provider`, `aggregate_by_hierarchy`, `aggregate_by_date` |
-| `lib/costs/calculations.py` | Forecasting | `calculate_forecasts`, `calculate_percentage_change`, `get_date_info` |
-| `lib/costs/filters.py` | Data filtering | `filter_date_range`, `filter_hierarchy`, `apply_cost_filters` |
-| `lib/usage/` | GenAI metrics | `aggregate_tokens_*`, `calculate_*_rate`, `format_*` |
-| `lib/integrations/` | Provider status | `calculate_integration_health`, `aggregate_*_status` |
-
-## Cost Read Service Architecture
-
-The `cost_read/` service uses `lib/costs/` for all Polars aggregations:
-
-```
-API Request → CostQuery(resolve_dates()) → _fetch_cost_data() → lib/costs/* → Response
-                     ↓
-              DatePeriod.MTD        aggregate_by_*()      calculate_forecasts()
-              DatePeriod.YTD        filter_date_range()   calculate_percentage_change()
-              ComparisonType.*      aggregate_by_hierarchy()
-```
-
-### Available Cost Methods
-
-| Method | Purpose | Uses lib/costs/ |
-|--------|---------|-----------------|
-| `get_costs()` | Raw cost data | `filter_date_range` |
-| `get_cost_summary()` | Aggregated summary | `calculate_forecasts` |
-| `get_cost_by_provider()` | Provider breakdown | `aggregate_by_provider` |
-| `get_cost_by_service()` | Service breakdown | `aggregate_by_service` |
-| `get_cost_by_category()` | Category breakdown | `aggregate_by_category` |
-| `get_cost_trend()` | Time series | `aggregate_by_date` |
-| `get_cost_by_hierarchy()` | Dept/Project/Team | `aggregate_by_hierarchy` |
-| `get_hierarchy_rollup()` | Full hierarchy (single fetch) | `aggregate_by_hierarchy` x3 |
-| `get_cost_forecast()` | MTD → forecasts | `calculate_forecasts` |
-| `get_cost_comparison()` | Period vs Period | `get_comparison_ranges`, `calculate_percentage_change` |
-| `get_subscription_costs()` | Subscription costs | `aggregate_by_provider`, `calculate_forecasts` |
-| `get_cloud_costs()` | Cloud costs | `aggregate_by_provider`, `calculate_forecasts` |
-| `get_llm_costs()` | LLM API costs | `aggregate_by_provider`, `calculate_forecasts` |
-
-### Usage Examples
-
-```python
-from src.core.services.cost_read import (
-    get_cost_read_service,
-    CostQuery,
-    DatePeriod,
-    ComparisonType,
-)
-
-service = get_cost_read_service()
-
-# Basic cost query with period
 result = await service.get_costs(CostQuery(
     org_slug="my_org",
     period=DatePeriod.MTD
 ))
-
-# Forecasting
-forecast = await service.get_cost_forecast(CostQuery(org_slug="my_org"))
-
-# Hierarchy rollup (single fetch, 3 aggregations)
-rollup = await service.get_hierarchy_rollup(CostQuery(
-    org_slug="my_org",
-    period=DatePeriod.YTD
-))
-
-# Month-over-month comparison
-comparison = await service.get_cost_comparison(
-    CostQuery(org_slug="my_org"),
-    comparison_type=ComparisonType.MONTH_OVER_MONTH
-)
-
-# Custom fiscal year (April start)
-result = await service.get_costs(CostQuery(
-    org_slug="my_org",
-    period=DatePeriod.YTD,
-    fiscal_year_start_month=4  # India/UK fiscal
-))
 ```
 
-## Read Services (src/core/services/*_read/)
+| Method | Purpose |
+|--------|---------|
+| `get_cost_summary()` | Aggregated + forecasts |
+| `get_cost_by_provider()` | Provider breakdown |
+| `get_cost_by_hierarchy()` | Dept/Project/Team |
+| `get_cost_comparison()` | Period vs Period |
 
-Polars-powered read services for dashboard performance. All use shared date utilities.
-
-| Service | Endpoint Pattern | Cache TTL | Purpose |
-|---------|------------------|-----------|---------|
-| `cost_read/` | `GET /costs/*` | 60-300s | Cost aggregations + forecasting + comparisons |
-| `usage_read/` | `GET /usage/*` | 60s | GenAI usage metrics |
-| `integration_read/` | `GET /integrations/*` | 60s | Integration health |
-| `pipeline_read/` | `GET /pipelines/*` | 30s | Run history stats |
-
-## Date Utilities (`_shared/date_utils.py`)
-
-All read services use shared date utilities for fiscal year and period handling.
-
-### Date Periods
+## Date Periods
 
 ```python
-from src.core.services._shared import DatePeriod
-
-DatePeriod.TODAY           # Today only
-DatePeriod.YESTERDAY       # Yesterday only
-DatePeriod.LAST_7_DAYS     # Last 7 days
-DatePeriod.LAST_30_DAYS    # Last 30 days
-DatePeriod.LAST_90_DAYS    # Last 90 days
-DatePeriod.MTD             # Month to date
-DatePeriod.QTD             # Quarter to date (fiscal)
-DatePeriod.YTD             # Year to date (fiscal)
-DatePeriod.LAST_MONTH      # Full last month
-DatePeriod.LAST_QUARTER    # Full last quarter
-DatePeriod.LAST_YEAR       # Full last fiscal year
-DatePeriod.CUSTOM          # Custom date range
+DatePeriod.MTD          # Month to date
+DatePeriod.YTD          # Year to date (fiscal)
+DatePeriod.LAST_30_DAYS # Rolling 30 days
 ```
 
-### Fiscal Year Support
+**Fiscal Year:** `fiscal_year_start_month=4` (April/India)
 
-```python
-from src.core.services._shared import get_fiscal_year_range
+## Table Ownership
 
-# Calendar year (Jan start) - default
-get_fiscal_year_range(fiscal_year_start_month=1)  # Jan 1 to Dec 31
+| Table | Owner | Writes |
+|-------|-------|--------|
+| `subscription_plans` | API (8000) | CRUD |
+| `org_hierarchy` | API (8000) | CRUD |
+| `*_costs_daily` | Pipeline (8001) | Read-only |
+| `cost_data_standard_1_3` | Pipeline (8001) | Read-only |
 
-# April fiscal (India/UK/Japan)
-get_fiscal_year_range(fiscal_year_start_month=4)  # Apr 1 to Mar 31
+**Rule:** Tables with `x_*` fields → Pipeline writes, API reads only
 
-# July fiscal (Australia)
-get_fiscal_year_range(fiscal_year_start_month=7)  # Jul 1 to Jun 30
-```
-
-### Period Comparisons
-
-```python
-from src.core.services._shared import ComparisonType, get_comparison_ranges
-
-# Week over week
-get_comparison_ranges(ComparisonType.WEEK_OVER_WEEK)
-
-# Month over month
-get_comparison_ranges(ComparisonType.MONTH_OVER_MONTH)
-
-# Quarter over quarter
-get_comparison_ranges(ComparisonType.QUARTER_OVER_QUARTER)
-
-# Year over year (fiscal)
-get_comparison_ranges(ComparisonType.YEAR_OVER_YEAR)
-
-# Last N days vs previous N days
-get_comparison_ranges(ComparisonType.CUSTOM_DAYS, days=90)
-```
-
-### Query Date Resolution Priority
-
-1. `start_date` + `end_date` → Custom range (customer override)
-2. `period` → Predefined period (MTD, QTD, YTD, etc.)
-3. `fiscal_year` → Specific fiscal year
-4. Default → Current fiscal YTD (cost/usage) or Last 30 days (pipeline)
-
-## Table Ownership (API vs Pipeline)
-
-**IMPORTANT for AI coding agents**: Know which service owns which table.
-
-| Table Pattern | Owner | Field Prefix | Modifications |
-|---------------|-------|--------------|---------------|
-| `org_integration_credentials` | API (8000) | None | CRUD via routers |
-| `subscription_plans` | API (8000) | None | CRUD via routers |
-| `org_hierarchy` | API (8000) | None | CRUD via routers |
-| `org_profiles` | API (8000) | None | CRUD via routers |
-| `*_usage_raw` | Pipeline (8001) | `x_*` | Read-only from API |
-| `*_costs_daily` | Pipeline (8001) | `x_*` | Read-only from API |
-| `cost_data_standard_1_3` | Pipeline (8001) | `x_*` | Read-only from API |
-| `org_meta_pipeline_runs` | Pipeline (8001) | None | Read-only from API |
-
-**Rule**: Tables with `x_*` fields are pipeline-generated → API Service reads only.
-
-## Read vs Write Pattern
-
-```
-Dashboard Reads (Polars + Cache)     Settings CRUD (Direct BigQuery)
-────────────────────────────────     ──────────────────────────────
-GET  /costs/{org}/*       [Polars]   (no CRUD - pipeline writes)
-GET  /usage/{org}/*       [Polars]   (no CRUD - pipeline writes)
-GET  /pipelines/{org}/*   [Polars]   POST /pipelines/run (execute)
-GET  /integrations/{org}  [Polars]   POST /integrations/setup (CRUD)
-```
-
-- `GET` endpoints = Dashboard reads → use Polars services
-- `POST/PUT/DELETE` = Settings CRUD → direct BigQuery in routers
-
-## Environment (.env.local)
+## Key Endpoints
 
 ```bash
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
-GCP_PROJECT_ID=your-project
-CA_ROOT_API_KEY=your-admin-key-32chars
-KMS_KEY_NAME=projects/.../cryptoKeys/your-key
-ENVIRONMENT=development
+# Bootstrap
+POST /api/v1/admin/bootstrap
+
+# Onboard org
+POST /api/v1/organizations/onboard
+
+# Integration setup
+POST /api/v1/integrations/{org}/{provider}/setup
+
+# Subscription CRUD
+POST /api/v1/subscriptions/{org}/providers/{p}/plans
+POST /api/v1/subscriptions/{org}/providers/{p}/plans/{id}/edit-version
+
+# Hierarchy
+POST /api/v1/hierarchy/{org}/levels/seed
+POST /api/v1/hierarchy/{org}/entities
+GET  /api/v1/hierarchy/{org}/tree
 ```
 
-## Security
+## Key Files
 
-- All endpoints require auth (X-CA-Root-Key or X-API-Key)
-- Credentials encrypted via KMS
-- Rate limiting enabled
-- Dev API key endpoint blocked in production
-
-## CRUD Services (src/core/services/*_crud/)
-
-Direct BigQuery operations for settings and hierarchy management.
-
-| Service | Endpoint Pattern | Purpose |
-|---------|------------------|---------|
-| `hierarchy_crud/` | `/hierarchy/*` | Dept/Project/Team CRUD |
-| `notification_crud/` | `/notifications/channels/*`, `/notifications/rules/*`, `/notifications/summaries/*` | Notification settings CRUD |
-
-```python
-from src.core.services.hierarchy_crud import get_hierarchy_crud_service
-
-service = get_hierarchy_crud_service()
-result = await service.create_department(org_slug, request)
-```
-
-### Hierarchy Data Architecture
-
-```
-WRITES → organizations.org_hierarchy (central table in bootstrap dataset)
-READS  → {org_slug}_prod.x_org_hierarchy (per-org materialized view)
-```
-
-**Pattern:** All hierarchy reads use the `x_org_hierarchy` view for better performance:
-- View is pre-filtered by `org_slug` and `end_date IS NULL`
-- Auto-refreshed every 15 minutes
-- Fallback to central table if view doesn't exist
-- **Throws error if both view and central table fail** (no silent failures)
-
-```python
-from src.core.services.notification_crud import get_notification_settings_service
-
-service = get_notification_settings_service()
-result = await service.create_channel(org_slug, channel_data)
-```
-
-## Notification System
-
-The notification system uses a split architecture:
-
-| Component | Service | Purpose |
-|-----------|---------|---------|
-| **Settings CRUD** | `notification_crud/` (API 8000) | Channels, Rules, Summaries configuration |
-| **Dashboard Reads** | `notification_read/` (API 8000) | Stats, history queries via Polars |
-| **Sending** | Pipeline Service (8001) | Email/Slack delivery via providers |
-
-### Notification Tables (org-specific)
-
-| Table | Owner | Purpose |
-|-------|-------|---------|
-| `org_notification_channels` | API (CRUD) | Email/Slack/Webhook channel config |
-| `org_notification_rules` | API (CRUD) | Alert rules with conditions |
-| `org_notification_summaries` | API (CRUD) | Scheduled digest config |
-| `org_notification_history` | Pipeline (write) / API (read) | Notification delivery log |
-
-### Materialized Views (created during org onboarding)
-
-| View | Source | Purpose | Refresh |
-|------|--------|---------|---------|
-| `x_all_notifications` | `org_notification_history` | Consolidated history with channel/rule/summary joins | 15 min |
-| `x_notification_stats` | `org_notification_history` | Pre-computed stats for dashboard | 5 min |
-| `x_pipeline_exec_logs` | `org_meta_pipeline_runs` | Pre-filtered pipeline execution logs | 15 min |
-| `x_org_hierarchy` | `organizations.org_hierarchy` | **Org-filtered hierarchy for fast reads** | 15 min |
-
-### CRUD Endpoints
-
-```bash
-# Channels
-POST   /api/v1/notifications/{org}/channels
-GET    /api/v1/notifications/{org}/channels
-PUT    /api/v1/notifications/{org}/channels/{id}
-DELETE /api/v1/notifications/{org}/channels/{id}
-
-# Rules
-POST   /api/v1/notifications/{org}/rules
-GET    /api/v1/notifications/{org}/rules
-PUT    /api/v1/notifications/{org}/rules/{id}
-DELETE /api/v1/notifications/{org}/rules/{id}
-
-# Summaries
-POST   /api/v1/notifications/{org}/summaries
-GET    /api/v1/notifications/{org}/summaries
-PUT    /api/v1/notifications/{org}/summaries/{id}
-DELETE /api/v1/notifications/{org}/summaries/{id}
-
-# Read (Polars-powered)
-GET    /api/v1/notifications/{org}/stats
-GET    /api/v1/notifications/{org}/history
-```
-
-### Models
-
-```python
-# CRUD models (notification_crud/)
-from src.core.services.notification_crud import (
-    ChannelType,          # email, slack, webhook
-    RuleCategory,         # cost, pipeline, system, security
-    RuleType,             # threshold, anomaly, budget
-    RulePriority,         # critical, high, medium, low, info
-    SummaryType,          # daily, weekly, monthly
-    NotificationChannel,
-    NotificationRule,
-    NotificationSummary,
-)
-
-# Read models (notification_read/)
-from src.core.services.notification_read import (
-    HistoryDatePeriod,    # today, yesterday, last_7_days, etc.
-    HistoryQueryParams,
-    NotificationStatsResponse,
-    HistoryListResponse,
-)
-```
-
-## Current Version
-
-| Environment | Version | URL |
-|-------------|---------|-----|
-| Production | v4.1.0 | https://api.cloudact.ai |
-| Local | dev | http://localhost:8000 |
+| File | Purpose |
+|------|---------|
+| `configs/setup/bootstrap/schemas/*.json` | 21 meta tables |
+| `src/app/routers/*.py` | API endpoints |
+| `src/core/services/*_read/` | Polars read services |
+| `src/lib/costs/` | Cost calculation library |
 
 ---
-**Last Updated:** 2026-01-15
+**v4.1.0** | 2026-01-15

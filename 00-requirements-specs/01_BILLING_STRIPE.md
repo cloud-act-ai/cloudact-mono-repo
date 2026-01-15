@@ -1,29 +1,19 @@
 # Billing & Stripe
 
-**Status**: IMPLEMENTED (v2.1) | **Updated**: 2026-01-01
+**v2.1** | 2026-01-15
 
-> Stripe subscriptions, checkout, webhooks. Related: [Org Onboarding](01_ORGANIZATION_ONBOARDING.md) | [User Management](01_USER_MANAGEMENT.md)
-
----
-
-## Quick Reference
-
-| Route | Purpose |
-|-------|---------|
-| `/onboarding/billing` | Initial plan selection |
-| `/{org}/billing` | Billing management |
-| `/api/webhooks/stripe` | Webhook handler |
+> Stripe subscriptions, checkout, webhooks
 
 ---
 
 ## Lifecycle
 
-| Stage | Status |
-|-------|--------|
-| Checkout completes | `trialing` (14 days) |
-| Trial ends, payment succeeds | `active` |
-| Payment fails | `past_due` |
-| User cancels | `canceled` |
+| Stripe Status | BigQuery Status | Pipelines |
+|---------------|-----------------|-----------|
+| trialing | TRIAL | ✓ |
+| active | ACTIVE | ✓ |
+| past_due | SUSPENDED | ✗ |
+| canceled | CANCELLED | ✗ |
 
 ---
 
@@ -35,26 +25,12 @@
 | Professional | `price_1SWJOYDoxINmrJKY8jEZwVuU` | $69 |
 | Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
 
-**Plan Limits (from Stripe metadata):**
-```json
-{
-  "teamMembers": "2/5/10+",
-  "providers": "3/10/20+",
-  "pipelinesPerDay": "6/20/50+",
-  "concurrentPipelines": "2/3/5+"
-}
-```
-
 ---
 
 ## Checkout Flow
 
 ```
-Select Plan → Stripe Checkout → Success Page → Webhook
-                                    │              │
-                                    ▼              ▼
-                          completeOnboarding()  Update Supabase org
-                          Create org record     Sync limits to BigQuery
+Select Plan → Stripe Checkout → Webhook → Supabase + BigQuery sync
 ```
 
 ---
@@ -63,44 +39,18 @@ Select Plan → Stripe Checkout → Success Page → Webhook
 
 | Event | Action |
 |-------|--------|
-| `checkout.session.completed` | Create/update org, set limits |
-| `customer.subscription.updated` | Update status, limits |
-| `customer.subscription.deleted` | Set status = canceled |
-| `invoice.payment_succeeded` | Set status = active |
-| `invoice.payment_failed` | Set status = past_due, send email |
-| `customer.subscription.trial_will_end` | Send reminder email |
+| `checkout.session.completed` | Create org, set limits |
+| `customer.subscription.updated` | Update status |
+| `invoice.payment_failed` | Set SUSPENDED |
 
 ---
 
-## Backend Sync
+## Environment
 
-```
-Stripe Status → BigQuery Status
-─────────────   ───────────────
-trialing      → TRIAL
-active        → ACTIVE
-past_due      → SUSPENDED
-canceled      → CANCELLED
-paused        → SUSPENDED
-```
-
----
-
-## Security
-
-- **Webhook signature:** `stripe.webhooks.constructEvent()`
-- **Idempotency:** In-memory + database deduplication
-- **Rate limiting:** 30s between checkout attempts
-- **Owner only:** Billing portal requires owner role
-
----
-
-## Environment Config
-
-| Env | Key Type | Supabase Project |
-|-----|----------|------------------|
-| local/test/stage | TEST (`pk_test_*`) | kwroaccbrxppfiysqlzs |
-| prod | LIVE (`pk_live_*`) | ovfxswhkkshouhsryzaf |
+| Env | Stripe Keys | Supabase |
+|-----|-------------|----------|
+| local/test/stage | TEST (pk_test_*) | kwroaccbrxppfiysqlzs |
+| prod | LIVE (pk_live_*) | ovfxswhkkshouhsryzaf |
 
 ---
 
@@ -108,22 +58,5 @@ paused        → SUSPENDED
 
 | File | Purpose |
 |------|---------|
-| `actions/stripe.ts` | Billing server actions |
-| `app/api/webhooks/stripe/route.ts` | Webhook handler |
-| `actions/backend-onboarding.ts` | Backend sync |
-| `lib/stripe.ts` | Stripe client |
-
----
-
-## Troubleshooting
-
-| Issue | Fix |
-|-------|-----|
-| Signup 400 error | Disable Supabase email confirmation |
-| Checkout fails | Check STRIPE_SECRET_KEY in Secret Manager |
-| Plans not loading | Verify LIVE price IDs in .env.production |
-| Webhook fails | Check webhook secret matches |
-
----
-
-**v2.1** | 2026-01-01
+| `01-fronted-system/actions/stripe.ts` | Billing actions |
+| `01-fronted-system/app/api/webhooks/stripe/route.ts` | Webhook |

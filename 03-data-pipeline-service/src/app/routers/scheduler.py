@@ -200,6 +200,8 @@ async def get_pipelines_due_now(
     # Note: This assumes org_pipeline_configs table exists in organizations dataset
     # Schema should be created as part of scheduler setup
     today = get_utc_date()  # Use UTC date for consistency
+    # BUG-007 FIX: Also check concurrent limit to avoid queueing pipelines
+    # for orgs that are already at their concurrent limit
     query = f"""
     WITH due_pipelines AS (
         SELECT
@@ -215,7 +217,9 @@ async def get_pipelines_due_now(
             c.priority,
             p.status as org_status,
             s.max_pipelines_per_day,
-            COALESCE(u.pipelines_run_today, 0) as pipelines_run_today
+            s.concurrent_limit,
+            COALESCE(u.pipelines_run_today, 0) as pipelines_run_today,
+            COALESCE(u.concurrent_pipelines_running, 0) as concurrent_pipelines_running
         FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
         INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
             ON c.org_slug = p.org_slug
@@ -230,9 +234,12 @@ async def get_pipelines_due_now(
     SELECT
         config_id, org_slug, provider, domain, pipeline_template,
         schedule_cron, timezone, parameters, next_run_time, priority,
-        org_status, max_pipelines_per_day, pipelines_run_today
+        org_status, max_pipelines_per_day, pipelines_run_today,
+        concurrent_limit, concurrent_pipelines_running
     FROM due_pipelines
     WHERE pipelines_run_today < max_pipelines_per_day
+      -- BUG-007 FIX: Skip orgs at concurrent limit
+      AND concurrent_pipelines_running < COALESCE(concurrent_limit, 999999)
     ORDER BY next_run_time ASC, priority DESC
     LIMIT @limit
     """
@@ -621,6 +628,26 @@ async def process_queue(
 
             bq_client.client.query(update_query, job_config=job_config).result()
 
+            # BUG-002 FIX: Increment concurrent counter when starting pipeline
+            # Capture reservation_date for proper decrement later
+            scheduler_reservation_date = get_utc_date()
+            increment_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
+                last_updated = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug AND usage_date = @usage_date
+            """
+            try:
+                bq_client.client.query(
+                    increment_query,
+                    job_config=bigquery.QueryJobConfig(query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("usage_date", "DATE", scheduler_reservation_date)
+                    ])
+                ).result()
+            except Exception as inc_err:
+                logger.warning(f"Failed to increment scheduler concurrent counter for {org_slug}: {inc_err}")
+
             # Get pipeline configuration and parameters
             config_query = f"""
             SELECT
@@ -659,7 +686,8 @@ async def process_queue(
             parameters = json.loads(config['parameters']) if config['parameters'] else {}
 
             # Create closure with captured variables for this iteration
-            def make_execute_and_update(exec_instance, rid, cfg, bq):
+            # BUG-002 FIX: Pass org_slug and reservation_date for concurrent counter management
+            def make_execute_and_update(exec_instance, rid, cfg, bq, org_slug_captured, reservation_date_captured):
                 async def execute_and_update():
                     try:
                         result = await exec_instance.execute(parameters)
@@ -765,10 +793,34 @@ async def process_queue(
                             """
                             bq.client.query(delete_queue_query, job_config=run_job_config).result()
 
+                    finally:
+                        # BUG-002 FIX: Always decrement concurrent counter regardless of success/failure
+                        # Use captured reservation_date to ensure we decrement the correct day's record
+                        try:
+                            decrement_query = f"""
+                            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+                            SET concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
+                                last_updated = CURRENT_TIMESTAMP()
+                            WHERE org_slug = @org_slug AND usage_date = @usage_date
+                            """
+                            bq.client.query(
+                                decrement_query,
+                                job_config=bigquery.QueryJobConfig(query_parameters=[
+                                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug_captured),
+                                    bigquery.ScalarQueryParameter("usage_date", "DATE", reservation_date_captured)
+                                ])
+                            ).result()
+                            logger.debug(f"Decremented concurrent counter for {org_slug_captured} on {reservation_date_captured}")
+                        except Exception as dec_err:
+                            logger.error(f"Failed to decrement scheduler concurrent counter for {org_slug_captured}: {dec_err}")
+
                 return execute_and_update
 
             # Spawn background task (returns immediately)
-            background_tasks.add_task(make_execute_and_update(executor, run_id, config, bq_client))
+            # BUG-002 FIX: Pass org_slug and reservation_date for concurrent counter decrement
+            background_tasks.add_task(make_execute_and_update(
+                executor, run_id, config, bq_client, org_slug, scheduler_reservation_date
+            ))
 
             # Track for response
             processed_count += 1
