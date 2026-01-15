@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
 Create organizational hierarchy for demo org.
-Org → Departments → Projects → Teams
+Org → C-Suite → Business Units → Functions
+
+NOTE: level_code values MUST match level_service.py DEFAULT_LEVELS:
+  - c_suite (level 1, prefix DEPT-)
+  - business_unit (level 2, prefix PROJ-)
+  - function (level 3, prefix TEAM-)
 """
 
 import sys
@@ -10,26 +15,26 @@ from google.cloud import bigquery
 ORG_SLUG = "acme_inc_01062026"
 PROJECT_ID = "cloudact-testing-1"
 
-# Hierarchy structure matching the assignments we made
+# Hierarchy structure matching actual schema and level_service.py
 HIERARCHY_DATA = [
-    # Department: CIO
+    # C-Suite: CIO (level 1)
     {
         "org_slug": ORG_SLUG,
         "entity_id": "DEPT-CIO",
         "entity_name": "Group CIO",
-        "level_code": "department",
+        "level_code": "c_suite",
         "parent_entity_id": None,
         "entity_path": "/DEPT-CIO",
         "entity_path_names": "Group CIO",
         "is_active": True
     },
 
-    # Projects under CIO
+    # Business Units under CIO (level 2)
     {
         "org_slug": ORG_SLUG,
         "entity_id": "PROJ-CTO",
         "entity_name": "Engineering",
-        "level_code": "project",
+        "level_code": "business_unit",
         "parent_entity_id": "DEPT-CIO",
         "entity_path": "/DEPT-CIO/PROJ-CTO",
         "entity_path_names": "Group CIO > Engineering",
@@ -39,7 +44,7 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "PROJ-BU1",
         "entity_name": "Business Unit 1 IT",
-        "level_code": "project",
+        "level_code": "business_unit",
         "parent_entity_id": "DEPT-CIO",
         "entity_path": "/DEPT-CIO/PROJ-BU1",
         "entity_path_names": "Group CIO > Business Unit 1 IT",
@@ -49,7 +54,7 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "PROJ-BU2",
         "entity_name": "Business Unit 2 IT",
-        "level_code": "project",
+        "level_code": "business_unit",
         "parent_entity_id": "DEPT-CIO",
         "entity_path": "/DEPT-CIO/PROJ-BU2",
         "entity_path_names": "Group CIO > Business Unit 2 IT",
@@ -59,21 +64,21 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "PROJ-ITCOO",
         "entity_name": "IT Operations",
-        "level_code": "project",
+        "level_code": "business_unit",
         "parent_entity_id": "DEPT-CIO",
         "entity_path": "/DEPT-CIO/PROJ-ITCOO",
         "entity_path_names": "Group CIO > IT Operations",
         "is_active": True
     },
 
-    # Teams under Engineering (PROJ-CTO)
+    # Functions under Engineering (PROJ-CTO) - level 3
     {
         "org_slug": ORG_SLUG,
-        "entity_id": "TEAM-PLAT",
+        "entity_id": "TEAM-PLATFORMS",
         "entity_name": "Platforms",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-CTO",
-        "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-PLAT",
+        "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-PLATFORMS",
         "entity_path_names": "Group CIO > Engineering > Platforms",
         "is_active": True
     },
@@ -81,7 +86,7 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-DATA",
         "entity_name": "Data",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-CTO",
         "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-DATA",
         "entity_path_names": "Group CIO > Engineering > Data",
@@ -91,7 +96,7 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-ARCH",
         "entity_name": "Architecture",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-CTO",
         "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-ARCH",
         "entity_path_names": "Group CIO > Engineering > Architecture",
@@ -101,7 +106,7 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-INFRA",
         "entity_name": "Infrastructure",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-CTO",
         "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-INFRA",
         "entity_path_names": "Group CIO > Engineering > Infrastructure",
@@ -109,45 +114,45 @@ HIERARCHY_DATA = [
     },
     {
         "org_slug": ORG_SLUG,
-        "entity_id": "TEAM-TC",
+        "entity_id": "TEAM-TECHCTR",
         "entity_name": "Technology Centres",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-CTO",
-        "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-TC",
+        "entity_path": "/DEPT-CIO/PROJ-CTO/TEAM-TECHCTR",
         "entity_path_names": "Group CIO > Engineering > Technology Centres",
         "is_active": True
     },
 
-    # Teams under BU1 (PROJ-BU1)
+    # Functions under BU1 (PROJ-BU1) - level 3
     {
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-BU1APP",
         "entity_name": "BU1 Applications",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-BU1",
         "entity_path": "/DEPT-CIO/PROJ-BU1/TEAM-BU1APP",
         "entity_path_names": "Group CIO > Business Unit 1 IT > BU1 Applications",
         "is_active": True
     },
 
-    # Teams under BU2 (PROJ-BU2)
+    # Functions under BU2 (PROJ-BU2) - level 3
     {
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-BU2APP",
         "entity_name": "BU2 Applications",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-BU2",
         "entity_path": "/DEPT-CIO/PROJ-BU2/TEAM-BU2APP",
         "entity_path_names": "Group CIO > Business Unit 2 IT > BU2 Applications",
         "is_active": True
     },
 
-    # Teams under IT Operations (PROJ-ITCOO)
+    # Functions under IT Operations (PROJ-ITCOO) - level 3
     {
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-FINOPS",
         "entity_name": "FinOps",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-ITCOO",
         "entity_path": "/DEPT-CIO/PROJ-ITCOO/TEAM-FINOPS",
         "entity_path_names": "Group CIO > IT Operations > FinOps",
@@ -157,7 +162,7 @@ HIERARCHY_DATA = [
         "org_slug": ORG_SLUG,
         "entity_id": "TEAM-ITSUPPORT",
         "entity_name": "IT Support",
-        "level_code": "team",
+        "level_code": "function",
         "parent_entity_id": "PROJ-ITCOO",
         "entity_path": "/DEPT-CIO/PROJ-ITCOO/TEAM-ITSUPPORT",
         "entity_path_names": "Group CIO > IT Operations > IT Support",
@@ -215,7 +220,7 @@ def main():
             ]
         ))
         job.result()
-        print(f"  ✓ {record['level_code']:12} {record['entity_id']:15} {record['entity_name']}")
+        print(f"  {record['level_code']:15} {record['entity_id']:15} {record['entity_name']}")
 
     # Verify hierarchy
     verify_query = f"""
@@ -225,9 +230,9 @@ def main():
         GROUP BY level_code
         ORDER BY
             CASE level_code
-                WHEN 'department' THEN 1
-                WHEN 'project' THEN 2
-                WHEN 'team' THEN 3
+                WHEN 'c_suite' THEN 1
+                WHEN 'business_unit' THEN 2
+                WHEN 'function' THEN 3
             END
     """
 
@@ -241,7 +246,7 @@ def main():
     print("SUMMARY")
     print("=" * 70)
     for row in result:
-        print(f"{row.level_code:12}: {row.count} entities")
+        print(f"{row.level_code:15}: {row.count} entities")
 
     print(f"\nTotal: {len(HIERARCHY_DATA)} hierarchy entities created")
     print("=" * 70)

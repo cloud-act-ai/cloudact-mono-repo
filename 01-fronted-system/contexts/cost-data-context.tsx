@@ -44,6 +44,7 @@ import {
   type GranularCostRow,
   type GranularFiltersAvailable,
 } from "@/actions/costs"
+import { getOrgLocale } from "@/actions/organization-locale"
 import {
   getYesterdayRange,
   getWTDRange,
@@ -166,6 +167,7 @@ export interface CostDataState {
 
   // Metadata
   currency: string
+  fiscalYearStartMonth: number  // EDGE-002 FIX: Track org's fiscal year
   lastFetchedAt: Date | null
   dataAsOf: string | null
   cachedDateRange: { start: string; end: string } | null
@@ -566,6 +568,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
 
     // Metadata
     currency: DEFAULT_CURRENCY,
+    fiscalYearStartMonth: 1,  // EDGE-002 FIX: Default to January, will be updated from org locale
     lastFetchedAt: null,
     dataAsOf: null,
     cachedDateRange: null,
@@ -657,13 +660,15 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         }, FETCH_TIMEOUT_MS)
       })
 
-      // PERF-001: Fetch core data in parallel (reduced from 5+12=17 to 4 API calls)
+      // PERF-001: Fetch core data in parallel (reduced from 5+12=17 to 5 API calls)
       // Period costs now calculated client-side from granular data
+      // EDGE-002 FIX: Added getOrgLocale to get fiscal year settings
       const fetchPromise = Promise.all([
         getTotalCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
         getHierarchy(orgSlug),
         getCostTrendGranular(orgSlug, 365, clearBackendCache),
+        getOrgLocale(orgSlug),
       ])
 
       // Race between fetch and timeout (ENT-003 fix)
@@ -672,6 +677,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         providerResult,
         hierarchyResult,
         granularResult,
+        orgLocaleResult,
       ] = await Promise.race([fetchPromise, timeoutPromise])
 
       // BUG-005 FIX: Clear timeout when fetch completes successfully
@@ -792,19 +798,26 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         ? granularResult.summary.available_filters
         : null
 
+      // EDGE-002 FIX: Extract fiscal year from org locale (default to January if not set)
+      const fiscalYearStartMonth = orgLocaleResult.success && orgLocaleResult.locale?.fiscal_year_start_month
+        ? orgLocaleResult.locale.fiscal_year_start_month
+        : 1
+
       // PERF-001: Calculate period costs from granular data (client-side)
       // This replaces 12 API calls with instant client-side calculation
-      const periodCosts = calculatePeriodCostsFromGranular(granularData)
+      // EDGE-002 FIX: Use org's fiscal year instead of hardcoded April
+      const periodCosts = calculatePeriodCostsFromGranular(granularData, fiscalYearStartMonth)
 
       // Log successful fetch in dev mode
       if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Data loaded (PERF-001: 17→4 API calls):`, {
+        console.log(`[CostData] Data loaded (PERF-001: 17→5 API calls):`, {
           providers: providerData.length,
           categories: availableCategories.length,
           granularRows: granularData.length,
           granularCacheHit: granularResult.cache_hit,
           cachedRange: `${startDate} to ${endDate}`,
           periodCostsCalculated: 'client-side',
+          fiscalYearStartMonth, // EDGE-002 FIX: Log fiscal year for debugging
         })
       }
 
@@ -825,6 +838,8 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           totalCosts?.currency ??
           (providerResult.success ? providerResult.currency : null) ??
           DEFAULT_CURRENCY,
+        // EDGE-002 FIX: Store org's fiscal year for period calculations
+        fiscalYearStartMonth,
         lastFetchedAt: new Date(),
         dataAsOf: periodCosts.dataAsOf || null,
         cachedDateRange: { start: startDate, end: endDate },
@@ -1077,6 +1092,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         availableFilters: { categories: [], providers: [], hierarchy: [] },
         // Metadata
         currency: DEFAULT_CURRENCY,
+        fiscalYearStartMonth: 1,  // EDGE-002 FIX: Will be updated from org locale
         lastFetchedAt: null,
         dataAsOf: null,
         cachedDateRange: null,

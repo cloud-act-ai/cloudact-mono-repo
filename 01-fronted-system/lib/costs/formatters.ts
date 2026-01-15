@@ -6,6 +6,7 @@
  */
 
 import type { PeriodComparison } from "./types"
+import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 
 // ============================================
 // Cost Formatting
@@ -31,10 +32,14 @@ export function formatCost(
     amount = 0
   }
 
+  // VAL-001 FIX: Validate currency code before passing to Intl.NumberFormat
+  // Invalid codes cause RangeError, fall back to DEFAULT_CURRENCY
+  const safeCurrency = isValidCurrency(currency) ? currency : DEFAULT_CURRENCY
+
   // FORMAT-001 FIX: Use undefined to respect user's browser locale
   const formatter = new Intl.NumberFormat(undefined, {
     style: "currency",
-    currency,
+    currency: safeCurrency,
     minimumFractionDigits: compact ? 0 : decimals,
     maximumFractionDigits: compact ? 1 : decimals,
     notation: compact ? "compact" : "standard",
@@ -60,12 +65,14 @@ export function formatCostWithSign(amount: number, currency: string = "USD"): st
 
 /**
  * Format cost range (e.g., "$100 - $500")
+ * VAL-002 FIX: Currency validation happens in formatCost
  */
 export function formatCostRange(
   min: number,
   max: number,
   currency: string = "USD"
 ): string {
+  // Currency is validated in formatCost, safe to pass through
   return `${formatCost(min, currency)} - ${formatCost(max, currency)}`
 }
 

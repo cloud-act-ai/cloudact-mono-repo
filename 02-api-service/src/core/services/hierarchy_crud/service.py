@@ -153,22 +153,40 @@ class HierarchyService:
     def _insert_to_central_table(self, table_name: str, rows: List[Dict[str, Any]]) -> None:
         """Insert rows into a central dataset table using streaming insert."""
         table_id = self._get_central_table_ref(table_name)
-        errors = self.bq_client.client.insert_rows_json(table_id, rows)
+
+        # BUG-006 FIX: Serialize metadata dict to JSON string for BigQuery JSON type
+        # BigQuery streaming insert expects JSON columns as serialized JSON strings
+        processed_rows = []
+        for row in rows:
+            processed_row = row.copy()
+            if 'metadata' in processed_row and processed_row['metadata'] is not None:
+                if isinstance(processed_row['metadata'], dict):
+                    processed_row['metadata'] = json.dumps(processed_row['metadata'])
+            processed_rows.append(processed_row)
+
+        errors = self.bq_client.client.insert_rows_json(table_id, processed_rows)
         if errors:
             raise ValueError(f"Failed to insert rows into {table_id}: {errors}")
 
     async def _get_entity_from_central(
         self,
         org_slug: str,
-        entity_id: str
+        entity_id: str,
+        allow_ended: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         Get entity directly from central table (bypasses MV for fresh data).
 
         Used for parent validation during create/move operations where
         we need to see recently inserted data in the streaming buffer.
+
+        Args:
+            allow_ended: If True, also finds entities where end_date is set but no
+                        newer version exists (handles broken state from failed updates).
         """
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+
+        # First try to find current version (end_date IS NULL)
         query = f"""
         SELECT *
         FROM `{table_ref}`
@@ -186,6 +204,24 @@ class HierarchyService:
             results = list(self.bq_client.client.query(query, job_config=job_config).result())
             if results:
                 return dict(results[0])
+
+            # BUG-007 FIX: If allow_ended, find the latest version even if ended
+            # This handles broken state from failed updates where end_date was set
+            # but new version insert failed
+            if allow_ended:
+                fallback_query = f"""
+                SELECT *
+                FROM `{table_ref}`
+                WHERE org_slug = @org_slug
+                  AND entity_id = @entity_id
+                ORDER BY version DESC
+                LIMIT 1
+                """
+                results = list(self.bq_client.client.query(fallback_query, job_config=job_config).result())
+                if results:
+                    logger.warning(f"Entity {entity_id} found with end_date set (broken state recovery)")
+                    return dict(results[0])
+
             return None
         except Exception as e:
             logger.error(f"Error querying central table for entity {entity_id}: {e}")
@@ -794,9 +830,19 @@ class HierarchyService:
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
 
-        existing = await self.get_entity(org_slug, entity_id)
-        if not existing:
+        # BUG-005 FIX: Query central table directly to handle streaming buffer lag
+        # Newly created entities may not be visible in MV yet
+        # BUG-007 FIX: Use allow_ended=True to recover from broken state
+        # (where previous update set end_date but failed to insert new version)
+        existing_row = await self._get_entity_from_central(org_slug, entity_id, allow_ended=True)
+        if not existing_row:
             raise ValueError(f"Entity {entity_id} does not exist")
+
+        # Convert row dict to response object for compatibility with existing code
+        levels_map = await self.level_service.get_levels_map(org_slug)
+        level_name = levels_map.get(existing_row['level_code'], {})
+        level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else existing_row['level_code']
+        existing = self._row_to_entity_response(existing_row, level_name_str)
 
         now = datetime.utcnow()
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
@@ -866,7 +912,9 @@ class HierarchyService:
         if request.entity_name and request.entity_name != existing.entity_name:
             await self._update_descendant_path_names(org_slug, entity_id, updated_by)
 
-        return await self.get_entity(org_slug, entity_id)
+        # BUG-008 FIX: Return the response from the row dict directly
+        # instead of calling get_entity (which queries MV and may not see streaming buffer data)
+        return self._row_to_entity_response(row, level_name_str)
 
     async def _update_descendant_path_names(
         self,
@@ -1121,9 +1169,17 @@ class HierarchyService:
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
 
-        entity = await self.get_entity(org_slug, entity_id)
-        if not entity:
+        # BUG-005 FIX: Query central table directly to handle streaming buffer lag
+        # BUG-007 FIX: Use allow_ended=True to recover from broken state
+        entity_row = await self._get_entity_from_central(org_slug, entity_id, allow_ended=True)
+        if not entity_row:
             raise ValueError(f"Entity {entity_id} does not exist")
+
+        # Convert to response for level_code
+        levels_map = await self.level_service.get_levels_map(org_slug)
+        level_name = levels_map.get(entity_row['level_code'], {})
+        level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else entity_row['level_code']
+        entity = self._row_to_entity_response(entity_row, level_name_str)
 
         blocking_entities = []
 
@@ -1202,9 +1258,17 @@ class HierarchyService:
             if block_check.blocked:
                 raise ValueError(block_check.reason)
 
-        existing = await self.get_entity(org_slug, entity_id)
-        if not existing:
+        # BUG-005 FIX: Query central table directly to handle streaming buffer lag
+        # BUG-007 FIX: Use allow_ended=True to recover from broken state
+        existing_row = await self._get_entity_from_central(org_slug, entity_id, allow_ended=True)
+        if not existing_row:
             raise ValueError(f"Entity {entity_id} does not exist")
+
+        # Convert to response for entity.id
+        levels_map = await self.level_service.get_levels_map(org_slug)
+        level_name = levels_map.get(existing_row['level_code'], {})
+        level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else existing_row['level_code']
+        existing = self._row_to_entity_response(existing_row, level_name_str)
 
         now = datetime.utcnow()
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)

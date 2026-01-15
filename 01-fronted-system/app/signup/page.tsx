@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2, Mail, Lock, Phone, Building2, Briefcase, DollarSign, Globe, ArrowRight, ChevronDown, CheckCircle2, Shield, User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { AuthLayout } from "@/components/auth/auth-layout"
+import { checkSignupRateLimit, logSignupSuccess, logSignupFailure } from "@/actions/auth"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
 import { COUNTRY_CODES } from "@/lib/constants/countries"
@@ -174,6 +175,15 @@ function SignupForm() {
     setServerError(null) // AUTH-001 FIX: Clear error before validation
     setIsLoading(true)
 
+    // Check rate limiting first
+    const normalizedEmail = email.trim().toLowerCase()
+    const rateLimitCheck = await checkSignupRateLimit(normalizedEmail)
+    if (!rateLimitCheck.allowed) {
+      setServerError(rateLimitCheck.error || "Too many signup attempts. Please try again later.")
+      setIsLoading(false)
+      return
+    }
+
     if (!isInviteFlow && !isValidOrgName(companyName)) {
       setServerError("Please enter a valid company name (2-100 characters)")
       setIsLoading(false)
@@ -186,7 +196,6 @@ function SignupForm() {
     try {
       const supabase = createClient()
       const finalRedirect = redirectTo || "/onboarding/billing"
-      const normalizedEmail = email.trim().toLowerCase()
 
       // Combine first and last name for full_name (used by database trigger)
       const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ")
@@ -216,8 +225,17 @@ function SignupForm() {
         },
       })
 
-      if (signupError) throw new Error(signupError.message)
-      if (!authData.user) throw new Error("Signup failed")
+      if (signupError) {
+        await logSignupFailure(normalizedEmail, signupError.message)
+        throw new Error(signupError.message)
+      }
+      if (!authData.user) {
+        await logSignupFailure(normalizedEmail, "No user returned")
+        throw new Error("Signup failed")
+      }
+
+      // Log signup success
+      await logSignupSuccess(normalizedEmail, authData.user.id)
 
       // AUTH-002 FIX: Wrap signin in try-catch to handle partial auth state gracefully
       try {

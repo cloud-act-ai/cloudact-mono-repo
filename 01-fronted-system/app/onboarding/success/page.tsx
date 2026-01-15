@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { completeOnboarding } from "@/actions/organization"
 import { sendWelcomeEmailAction } from "@/actions/email"
+import { revealApiKeyFromToken } from "@/actions/backend-onboarding"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OnboardingProgress, createOnboardingStages, updateStageStatus, completeStageAndMoveNext, type ProgressStage } from "@/components/onboarding-progress"
 
@@ -127,8 +128,17 @@ function SuccessContent() {
       if (result.backendOnboardingFailed) {
         setBackendFailed(true)
       }
-      if (result.backendApiKey) {
-        setApiKey(result.backendApiKey)
+      // SEC-002 FIX: Use reveal token to retrieve API key (one-time reveal)
+      if (result.backendRevealToken) {
+        try {
+          const revealResult = await revealApiKeyFromToken(result.backendRevealToken)
+          if (revealResult.success && revealResult.apiKey) {
+            setApiKey(revealResult.apiKey)
+          }
+        } catch (revealError) {
+          // Non-critical - user can still access dashboard
+          console.warn("[Onboarding Success] Failed to reveal API key:", revealError)
+        }
       }
 
       // Send welcome email (non-blocking - don't fail if email fails)
@@ -172,7 +182,8 @@ function SuccessContent() {
       // Redirect to dashboard after a short delay (longer if showing API key)
       // Note: This timeout doesn't need cleanup since it only runs after success
       // and the component will be unmounted by the redirect
-      const redirectDelay = result.backendApiKey ? 10000 : 2000  // 10s if showing API key
+      // SEC-002 FIX: Check for reveal token presence instead of direct API key
+      const redirectDelay = result.backendRevealToken ? 10000 : 2000  // 10s if showing API key
       setTimeout(() => {
         router.push(`/${result.orgSlug}/dashboard?welcome=true`)
       }, redirectDelay)

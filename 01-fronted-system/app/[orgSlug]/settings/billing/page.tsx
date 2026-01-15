@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   CreditCard,
@@ -14,6 +14,7 @@ import {
   Sparkles,
   Zap,
   Building2,
+  Loader2,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,9 @@ import { Badge } from "@/components/ui/badge"
 import { StatRow } from "@/components/ui/stat-row"
 import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
 import { LoadingState } from "@/components/ui/loading-state"
+
+// STATE-001 FIX: Import billing actions to fetch actual payment method
+import { getBillingInfo, createBillingPortalSession, type BillingInfo } from "@/actions/stripe"
 
 interface OrgData {
   id: string
@@ -67,10 +71,15 @@ const DEFAULT_PLAN = {
 export default function BillingPage() {
   const params = useParams<{ orgSlug: string }>()
   const orgSlug = params.orgSlug
+  const router = useRouter()
 
   const [isLoading, setIsLoading] = useState(true)
   const [orgData, setOrgData] = useState<OrgData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // STATE-001 FIX: Add state for billing info (payment method, invoices)
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
+  // STATE-003 FIX: Add state for portal redirect loading
+  const [isRedirectingToPortal, setIsRedirectingToPortal] = useState(false)
 
   useEffect(() => {
     document.title = `Billing | ${orgSlug}`
@@ -81,15 +90,31 @@ export default function BillingPage() {
       setIsLoading(true)
       const supabase = createClient()
 
+      // STATE-002 FIX: Select only needed columns instead of "*"
       const { data: org, error: orgError } = await supabase
         .from("organizations")
-        .select("*")
+        .select("id, org_name, org_slug, plan, billing_status, seat_limit, stripe_customer_id, stripe_subscription_id")
         .eq("org_slug", orgSlug)
         .single()
 
       if (orgError) throw orgError
 
-      setOrgData(org)
+      setOrgData({
+        id: org.id,
+        name: org.org_name,
+        slug: org.org_slug,
+        plan: org.plan,
+        billing_status: org.billing_status,
+        seat_limit: org.seat_limit,
+        stripe_customer_id: org.stripe_customer_id,
+        stripe_subscription_id: org.stripe_subscription_id,
+      })
+
+      // STATE-001 FIX: Fetch billing info from Stripe (payment method, invoices)
+      const billingResult = await getBillingInfo(orgSlug)
+      if (billingResult.data) {
+        setBillingInfo(billingResult.data)
+      }
     } catch (fetchError) {
       if (process.env.NODE_ENV === "development") {
         console.warn("[BillingPage] Failed to fetch org data:", fetchError)
@@ -103,6 +128,26 @@ export default function BillingPage() {
   useEffect(() => {
     void fetchOrgData()
   }, [fetchOrgData])
+
+  // STATE-003 FIX: Handler for opening Stripe billing portal
+  const handleOpenBillingPortal = async () => {
+    if (isRedirectingToPortal) return
+    setIsRedirectingToPortal(true)
+    try {
+      const result = await createBillingPortalSession(orgSlug)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      if (result.url) {
+        router.push(result.url)
+      }
+    } catch (portalError) {
+      setError("Failed to open billing portal")
+    } finally {
+      setIsRedirectingToPortal(false)
+    }
+  }
 
   // Stats for StatRow component - same pattern as dashboard/pipelines
   const currentPlan = orgData?.plan || "starter"
@@ -219,7 +264,7 @@ export default function BillingPage() {
         </PremiumCard>
       </div>
 
-      {/* Payment Method */}
+      {/* Payment Method - STATE-001 FIX: Show actual payment method from Stripe */}
       <div className="space-y-4 sm:space-y-6">
         <SectionHeader title="Payment Method" icon={CreditCard} />
 
@@ -232,38 +277,100 @@ export default function BillingPage() {
                   <CreditCard className="h-5 w-5 text-slate-500" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
-                    No payment method on file
-                  </h3>
-                  <p className="text-[12px] text-slate-500 mt-0.5">
-                    Add a payment method to upgrade your plan
-                  </p>
+                  {billingInfo?.paymentMethod ? (
+                    <>
+                      <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                        {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} •••• {billingInfo.paymentMethod.last4}
+                      </h3>
+                      <p className="text-[12px] text-slate-500 mt-0.5">
+                        Expires {billingInfo.paymentMethod.expMonth.toString().padStart(2, "0")}/{billingInfo.paymentMethod.expYear}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                        No payment method on file
+                      </h3>
+                      <p className="text-[12px] text-slate-500 mt-0.5">
+                        Add a payment method to upgrade your plan
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <button className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Add Payment Method
+              {/* STATE-003 FIX: Add onClick handler to open Stripe portal */}
+              <button
+                onClick={handleOpenBillingPortal}
+                disabled={isRedirectingToPortal || !orgData?.stripe_customer_id}
+                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRedirectingToPortal ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4" />
+                )}
+                {billingInfo?.paymentMethod ? "Manage Payment" : "Add Payment Method"}
               </button>
             </div>
           </div>
         </PremiumCard>
       </div>
 
-      {/* Billing History */}
+      {/* Billing History - STATE-001 FIX: Show actual invoices from Stripe */}
       <div className="space-y-4 sm:space-y-6">
         <SectionHeader title="Billing History" icon={Receipt} />
 
         <PremiumCard hover={false}>
-          <div className="py-8 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Receipt className="h-7 w-7 text-slate-400" />
+          {billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {billingInfo.invoices.map((invoice) => (
+                <div key={invoice.id} className="py-4 px-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                      <Receipt className="h-5 w-5 text-slate-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-[14px] font-semibold text-slate-900">
+                        Invoice {invoice.number || invoice.id.slice(-8)}
+                      </h4>
+                      <p className="text-[12px] text-slate-500">
+                        {new Date(invoice.created).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-[14px] font-semibold text-slate-900">
+                      {invoice.currency} {invoice.amountPaid.toFixed(2)}
+                    </span>
+                    <Badge className={`text-[11px] px-2 py-0.5 ${invoice.status === "paid" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"}`}>
+                      {invoice.status}
+                    </Badge>
+                    {invoice.hostedInvoiceUrl && (
+                      <a
+                        href={invoice.hostedInvoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[12px] text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                      >
+                        View <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-            <h3 className="text-[17px] font-semibold text-slate-900 mb-1">No invoices yet</h3>
-            <p className="text-[13px] text-slate-500 max-w-xs mx-auto">
-              Your billing history will appear here once you upgrade to a paid plan
-            </p>
-          </div>
+          ) : (
+            <div className="py-8 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <Receipt className="h-7 w-7 text-slate-400" />
+              </div>
+              <h3 className="text-[17px] font-semibold text-slate-900 mb-1">No invoices yet</h3>
+              <p className="text-[13px] text-slate-500 max-w-xs mx-auto">
+                Your billing history will appear here once you upgrade to a paid plan
+              </p>
+            </div>
+          )}
         </PremiumCard>
       </div>
 

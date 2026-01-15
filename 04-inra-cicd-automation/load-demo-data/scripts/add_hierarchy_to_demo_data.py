@@ -19,20 +19,24 @@ DATASET = settings.get_org_dataset_name(ORG_SLUG)
 PROJECT_ID = settings.gcp_project_id
 
 # Hierarchy entity assignments (from hierarchy_template.csv)
+# NOTE: level_code values MUST match level_service.py DEFAULT_LEVELS:
+#   - c_suite (level 1, prefix DEPT-)
+#   - business_unit (level 2, prefix PROJ-)
+#   - function (level 3, prefix TEAM-)
 HIERARCHY_ASSIGNMENTS = {
     # GenAI Usage distribution across teams
     "genai_platforms": {
-        "entity_id": "TEAM-PLAT",
+        "entity_id": "TEAM-PLATFORMS",
         "entity_name": "Platforms",
-        "level_code": "team",
-        "path": "/DEPT-CIO/PROJ-CTO/TEAM-PLAT",
+        "level_code": "function",
+        "path": "/DEPT-CIO/PROJ-CTO/TEAM-PLATFORMS",
         "path_names": "Group CIO > Engineering > Platforms",
         "description": "Platform engineering using OpenAI for code generation"
     },
     "genai_data": {
         "entity_id": "TEAM-DATA",
         "entity_name": "Data",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-CTO/TEAM-DATA",
         "path_names": "Group CIO > Engineering > Data",
         "description": "Data team using GenAI for analytics"
@@ -40,7 +44,7 @@ HIERARCHY_ASSIGNMENTS = {
     "genai_bu1": {
         "entity_id": "TEAM-BU1APP",
         "entity_name": "BU1 Applications",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-BU1/TEAM-BU1APP",
         "path_names": "Group CIO > Business Unit 1 IT > BU1 Applications",
         "description": "BU1 applications using GenAI"
@@ -48,7 +52,7 @@ HIERARCHY_ASSIGNMENTS = {
     "genai_bu2": {
         "entity_id": "TEAM-BU2APP",
         "entity_name": "BU2 Applications",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-BU2/TEAM-BU2APP",
         "path_names": "Group CIO > Business Unit 2 IT > BU2 Applications",
         "description": "BU2 applications using GenAI"
@@ -56,7 +60,7 @@ HIERARCHY_ASSIGNMENTS = {
     "genai_arch": {
         "entity_id": "TEAM-ARCH",
         "entity_name": "Architecture",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-CTO/TEAM-ARCH",
         "path_names": "Group CIO > Engineering > Architecture",
         "description": "Architecture team using GenAI for design"
@@ -66,24 +70,24 @@ HIERARCHY_ASSIGNMENTS = {
     "cloud_infra": {
         "entity_id": "TEAM-INFRA",
         "entity_name": "Infrastructure",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-CTO/TEAM-INFRA",
         "path_names": "Group CIO > Engineering > Infrastructure",
         "description": "Cloud infrastructure and services"
     },
     "cloud_platforms": {
-        "entity_id": "TEAM-PLAT",
+        "entity_id": "TEAM-PLATFORMS",
         "entity_name": "Platforms",
-        "level_code": "team",
-        "path": "/DEPT-CIO/PROJ-CTO/TEAM-PLAT",
+        "level_code": "function",
+        "path": "/DEPT-CIO/PROJ-CTO/TEAM-PLATFORMS",
         "path_names": "Group CIO > Engineering > Platforms",
         "description": "Platform services on cloud"
     },
     "cloud_tc": {
-        "entity_id": "TEAM-TC",
+        "entity_id": "TEAM-TECHCTR",
         "entity_name": "Technology Centres",
-        "level_code": "team",
-        "path": "/DEPT-CIO/PROJ-CTO/TEAM-TC",
+        "level_code": "function",
+        "path": "/DEPT-CIO/PROJ-CTO/TEAM-TECHCTR",
         "path_names": "Group CIO > Engineering > Technology Centres",
         "description": "Technology centres innovation projects"
     },
@@ -92,7 +96,7 @@ HIERARCHY_ASSIGNMENTS = {
     "sub_finops": {
         "entity_id": "TEAM-FINOPS",
         "entity_name": "FinOps",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-ITCOO/TEAM-FINOPS",
         "path_names": "Group CIO > IT Operations > FinOps",
         "description": "Cost management and FinOps tools"
@@ -100,7 +104,7 @@ HIERARCHY_ASSIGNMENTS = {
     "sub_support": {
         "entity_id": "TEAM-ITSUPPORT",
         "entity_name": "IT Support",
-        "level_code": "team",
+        "level_code": "function",
         "path": "/DEPT-CIO/PROJ-ITCOO/TEAM-ITSUPPORT",
         "path_names": "Group CIO > IT Operations > IT Support",
         "description": "IT support and monitoring tools"

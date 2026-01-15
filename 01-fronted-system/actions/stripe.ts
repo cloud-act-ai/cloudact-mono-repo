@@ -13,7 +13,7 @@
  */
 
 import Stripe from "stripe"
-import { stripe } from "@/lib/stripe"
+import { stripe, getStripe } from "@/lib/stripe"
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { headers } from "next/headers"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
@@ -39,51 +39,45 @@ const safeParseInt = (value: string | undefined, defaultValue: number): number =
   return parsed
 }
 
-// Simple in-memory rate limiting for checkout sessions
-// NOTE: This is per-instance only. In serverless/multi-instance deployments,
-// this provides basic protection but is not a full rate limiter.
-// For production at scale, consider Redis-based rate limiting.
-const checkoutRateLimits = new Map<string, number>()
-const CHECKOUT_RATE_LIMIT_MS = 30000 // 30 seconds between checkout attempts
-const MAX_RATE_LIMIT_ENTRIES = 1000
+// SCALE-001 FIX: Use Supabase-backed rate limiting instead of in-memory Map
+// In-memory rate limiting doesn't work across serverless instances
+// The check_rate_limit function is defined in migration 08_rate_limiting_and_cleanup.sql
+const CHECKOUT_RATE_LIMIT_MAX = 2 // Max 2 checkout attempts per window
+const CHECKOUT_RATE_LIMIT_WINDOW = 30 // 30 second window
 
 /**
  * Check if user is rate limited for checkout operations.
  * Returns true if allowed, false if rate limited.
- * Thread-safety note: Map operations are atomic in single-threaded JS,
- * but this doesn't protect against concurrent requests in serverless.
+ * Uses Supabase-backed rate limiting that works across serverless instances.
  */
-function checkRateLimit(userId: string): boolean {
+async function checkRateLimit(userId: string): Promise<boolean> {
   if (!userId || typeof userId !== "string") {
     return false // Invalid userId should be rate limited
   }
 
-  const now = Date.now()
-  const lastAttempt = checkoutRateLimits.get(userId)
+  try {
+    const adminClient = createServiceRoleClient()
 
-  if (lastAttempt && now - lastAttempt < CHECKOUT_RATE_LIMIT_MS) {
-    return false // Rate limited
-  }
+    // Call the Supabase function for atomic rate limit check
+    const { data, error } = await adminClient.rpc("check_rate_limit", {
+      p_user_id: userId,
+      p_action_type: "checkout",
+      p_max_requests: CHECKOUT_RATE_LIMIT_MAX,
+      p_window_seconds: CHECKOUT_RATE_LIMIT_WINDOW,
+    })
 
-  // Clean up old entries periodically with LRU eviction (do this BEFORE adding new entry)
-  if (checkoutRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
-    const cutoff = now - CHECKOUT_RATE_LIMIT_MS * 2
-    const entries = Array.from(checkoutRateLimits.entries())
-
-    // Remove expired entries first
-    const expiredKeys = entries.filter(([_, time]) => time < cutoff).map(([key]) => key)
-    expiredKeys.forEach(key => checkoutRateLimits.delete(key))
-
-    // If still over limit, remove oldest entries (LRU)
-    if (checkoutRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
-      const sortedEntries = Array.from(checkoutRateLimits.entries()).sort((a, b) => a[1] - b[1])
-      const toRemove = sortedEntries.slice(0, Math.max(1, checkoutRateLimits.size - MAX_RATE_LIMIT_ENTRIES + 1))
-      toRemove.forEach(([key]) => checkoutRateLimits.delete(key))
+    if (error) {
+      // On error, allow request but log warning (fail open for checkout)
+      console.warn("[Stripe] Rate limit check failed, allowing request:", error.message)
+      return true
     }
-  }
 
-  checkoutRateLimits.set(userId, now)
-  return true
+    return data === true
+  } catch (rateLimitError) {
+    // On error, allow request but log warning
+    console.warn("[Stripe] Rate limit check error:", rateLimitError)
+    return true
+  }
 }
 
 export interface BillingInfo {
@@ -148,8 +142,8 @@ export async function createOnboardingCheckoutSession(priceId: string) {
       return { url: null, error: "Unauthorized" }
     }
 
-    // Rate limit checkout session creation
-    if (!checkRateLimit(user.id)) {
+    // Rate limit checkout session creation (SCALE-001: now Supabase-backed)
+    if (!(await checkRateLimit(user.id))) {
       return { url: null, error: "Please wait before creating another checkout session" }
     }
 
@@ -298,8 +292,8 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
       return { url: null, error: "Unauthorized" }
     }
 
-    // Rate limit checkout session creation
-    if (!checkRateLimit(user.id)) {
+    // Rate limit checkout session creation (SCALE-001: now Supabase-backed)
+    if (!(await checkRateLimit(user.id))) {
       return { url: null, error: "Please wait before creating another checkout session" }
     }
 
@@ -549,7 +543,7 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
           },
         }
 
-        // Get payment method
+        // Get payment method from subscription
         if (subscription.default_payment_method && typeof subscription.default_payment_method === "object") {
           const pm = subscription.default_payment_method
           if (pm.card) {
@@ -565,6 +559,35 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
         // Error processing subscription details - subscription remains with partial data
         if (process.env.NODE_ENV === "development") {
           console.warn("[getBillingInfo] Error processing subscription details:", subscriptionProcessError)
+        }
+      }
+    }
+
+    // EDGE-003 FIX: Fetch payment method from customer if not found on subscription
+    // Payment methods can be attached to customer without being subscription default
+    if (!billingInfo.paymentMethod && org.stripe_customer_id) {
+      try {
+        // Use getStripe() for paymentMethods (not in facade)
+        const paymentMethods = await getStripe().paymentMethods.list({
+          customer: org.stripe_customer_id,
+          type: "card",
+          limit: 1,
+        })
+        if (paymentMethods.data.length > 0) {
+          const pm = paymentMethods.data[0]
+          if (pm.card) {
+            billingInfo.paymentMethod = {
+              brand: pm.card.brand || "unknown",
+              last4: pm.card.last4 || "****",
+              expMonth: pm.card.exp_month || 0,
+              expYear: pm.card.exp_year || 0,
+            }
+          }
+        }
+      } catch (pmFetchError) {
+        // Non-critical - continue without payment method
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[getBillingInfo] Payment method fetch failed:", pmFetchError)
         }
       }
     }
@@ -779,7 +802,11 @@ export async function changeSubscriptionPlan(
       return { success: false, subscription: null, error: "Subscription item not found" }
     }
 
-    // Generate idempotency key to prevent duplicate plan changes
+    // RACE-002: Idempotency key prevents duplicate plan changes at Stripe level
+    // Key format: plan_change_{orgId}_{newPriceId} - same org+plan combo = same key
+    // Stripe behavior: If same idempotency key is used within 24 hours, Stripe returns cached result
+    // This protects against: rapid clicks, network retries, browser back button
+    // Note: Local DB updates happen AFTER Stripe update, so they always reflect latest state
     const idempotencyKey = `plan_change_${org.id}_${newPriceId}`
 
     // ============================================
@@ -1076,8 +1103,9 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
       const metadata = stripeProduct.metadata || {}
       const features = metadata.features?.split("|").map(f => f.trim()).filter(Boolean) || []
 
-      // Skip products without required metadata
+      // EDGE-001 FIX: Log warning and skip products without required metadata
       if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay) {
+        console.warn(`[Stripe] Skipping product "${stripeProduct.name}" (${stripeProduct.id}): Missing required metadata (teamMembers, providers, or pipelinesPerDay)`)
         continue
       }
 
@@ -1087,8 +1115,9 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
         pipelinesPerDay: safeParseInt(metadata.pipelinesPerDay, 6),
       }
 
-      // Skip plans with invalid limits
+      // EDGE-001 FIX: Log warning and skip plans with invalid limits
       if (limits.teamMembers <= 0 || limits.providers <= 0 || limits.pipelinesPerDay <= 0) {
+        console.warn(`[Stripe] Skipping product "${stripeProduct.name}" (${stripeProduct.id}): Invalid limits (teamMembers=${limits.teamMembers}, providers=${limits.providers}, pipelinesPerDay=${limits.pipelinesPerDay})`)
         continue
       }
 

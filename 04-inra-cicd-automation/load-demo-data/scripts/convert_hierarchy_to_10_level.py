@@ -12,6 +12,9 @@ import sys
 from pathlib import Path
 
 # Hierarchy template mapping (from hierarchy_template.csv)
+# NOTE: Entity IDs must match default_hierarchy.csv:
+#   - TEAM-PLATFORMS (not TEAM-PLAT)
+#   - TEAM-TECHCTR (not TEAM-TC)
 HIERARCHY_MAP = {
     "DEPT-CFO": {"level": 1, "name": "Group CFO", "parent": None},
     "DEPT-CIO": {"level": 1, "name": "Group CIO", "parent": None},
@@ -24,10 +27,10 @@ HIERARCHY_MAP = {
     "PROJ-BIZCOO": {"level": 2, "name": "Business Operations", "parent": "DEPT-COO"},
     "PROJ-PROC": {"level": 2, "name": "Procurement", "parent": "DEPT-COO"},
     "PROJ-GRPOPS": {"level": 2, "name": "Group Operations", "parent": "DEPT-COO"},
-    "TEAM-PLAT": {"level": 3, "name": "Platforms", "parent": "PROJ-CTO"},
+    "TEAM-PLATFORMS": {"level": 3, "name": "Platforms", "parent": "PROJ-CTO"},
     "TEAM-ARCH": {"level": 3, "name": "Architecture", "parent": "PROJ-CTO"},
     "TEAM-INFRA": {"level": 3, "name": "Infrastructure", "parent": "PROJ-CTO"},
-    "TEAM-TC": {"level": 3, "name": "Technology Centres", "parent": "PROJ-CTO"},
+    "TEAM-TECHCTR": {"level": 3, "name": "Technology Centres", "parent": "PROJ-CTO"},
     "TEAM-DATA": {"level": 3, "name": "Data", "parent": "PROJ-CTO"},
     "TEAM-FINOPS": {"level": 3, "name": "FinOps", "parent": "PROJ-ITCOO"},
     "TEAM-ITSUPPORT": {"level": 3, "name": "IT Support", "parent": "PROJ-ITCOO"},

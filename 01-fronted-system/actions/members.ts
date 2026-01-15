@@ -22,37 +22,48 @@ const isValidOrgSlug = (slug: string): boolean => {
   return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
 }
 
-// Simple in-memory rate limiting for invite operations
-const inviteRateLimits = new Map<string, { count: number; resetTime: number }>()
+// SCALE-002 + MT-001 FIX: Use Supabase-backed rate limiting instead of in-memory Map
+// In-memory rate limiting doesn't work across serverless instances
+// Also now org-scoped to prevent cross-org rate limit conflicts
 const INVITE_RATE_LIMIT = 10 // Max invites per window
-const INVITE_RATE_WINDOW = 3600000 // 1 hour in milliseconds
-const RATE_LIMIT_MAX_ENTRIES = 10000 // Prevent memory leak
+const INVITE_RATE_WINDOW = 3600 // 1 hour in seconds
 
-function checkInviteRateLimit(userId: string): boolean {
-  const now = Date.now()
-
-  // MT-001 FIX: Cleanup expired entries to prevent memory leak
-  if (inviteRateLimits.size > RATE_LIMIT_MAX_ENTRIES) {
-    for (const [id, limit] of inviteRateLimits.entries()) {
-      if (now > limit.resetTime) {
-        inviteRateLimits.delete(id)
-      }
-    }
-  }
-
-  const userLimit = inviteRateLimits.get(userId)
-
-  if (!userLimit || now > userLimit.resetTime) {
-    inviteRateLimits.set(userId, { count: 1, resetTime: now + INVITE_RATE_WINDOW })
-    return true
-  }
-
-  if (userLimit.count >= INVITE_RATE_LIMIT) {
+/**
+ * Check if user is rate limited for invite operations.
+ * Uses Supabase-backed rate limiting that works across serverless instances.
+ * MT-001 FIX: Rate limit is now org-scoped (userId + orgSlug)
+ */
+async function checkInviteRateLimit(userId: string, orgSlug?: string): Promise<boolean> {
+  if (!userId || typeof userId !== "string") {
     return false
   }
 
-  userLimit.count++
-  return true
+  try {
+    const adminClient = createServiceRoleClient()
+
+    // MT-001 FIX: Include orgSlug in action_type for org-scoped rate limiting
+    const actionType = orgSlug ? `invite_${orgSlug}` : "invite"
+
+    // Call the Supabase function for atomic rate limit check
+    const { data, error } = await adminClient.rpc("check_rate_limit", {
+      p_user_id: userId,
+      p_action_type: actionType,
+      p_max_requests: INVITE_RATE_LIMIT,
+      p_window_seconds: INVITE_RATE_WINDOW,
+    })
+
+    if (error) {
+      // On error, allow request but log warning (fail open)
+      console.warn("[Members] Rate limit check failed, allowing request:", error.message)
+      return true
+    }
+
+    return data === true
+  } catch (rateLimitError) {
+    // On error, allow request but log warning
+    console.warn("[Members] Rate limit check error:", rateLimitError)
+    return true
+  }
 }
 
 // Fetch all members and invites for an organization
@@ -222,8 +233,8 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       return { success: false, error: "Not authenticated" }
     }
 
-    // Rate limit check
-    if (!checkInviteRateLimit(user.id)) {
+    // Rate limit check (SCALE-002 + MT-001: now Supabase-backed and org-scoped)
+    if (!(await checkInviteRateLimit(user.id, orgSlug))) {
       return { success: false, error: "Too many invites. Please try again later." }
     }
 
@@ -677,15 +688,16 @@ export async function acceptInvite(token: string) {
       return { success: false, error: "Organization seat limit not configured. Please contact support." }
     }
 
-    // Get current active member count
+    // RACE-001 FIX: Application-level check for better UX error messages
+    // Note: Database trigger `enforce_seat_limit` provides atomic protection against race conditions
+    // This pre-check gives users a clear error message before the insert attempt
     const { count: currentMembers } = await adminClient
       .from("organization_members")
       .select("*", { count: "exact", head: true })
       .eq("org_id", invite.org_id)
       .eq("status", "active")
 
-    // For reactivation, the user is already counted if they were previously inactive
-    // so we only check for NEW members
+    // Pre-check for better UX (actual enforcement is done by database trigger)
     if (!existingMember && (currentMembers || 0) >= org.seat_limit) {
       return {
         success: false,

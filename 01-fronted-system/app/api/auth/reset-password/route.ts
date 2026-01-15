@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { sendPasswordResetEmail } from "@/lib/email"
+import { checkForgotPasswordRateLimit, logPasswordResetRequest } from "@/actions/auth"
 
 // Lazy initialization - client created on first use, not at module load
 // This prevents build-time errors when env vars aren't available
@@ -20,49 +21,6 @@ function getSupabaseAdmin(): SupabaseClient {
   return supabaseAdmin
 }
 
-// Simple in-memory rate limiting for password reset (per IP)
-// NOTE: This is per-instance only. In serverless/multi-instance deployments,
-// this provides basic protection but is not a full rate limiter.
-// Additional protection provided by:
-// 1. Supabase Auth has built-in rate limiting for auth operations
-// 2. Always returning same response regardless of email existence (prevents enumeration)
-// 3. Password reset links expire after 24 hours
-// For production at scale, consider Redis-based rate limiting or Cloudflare WAF rules.
-const resetRateLimits = new Map<string, { count: number; resetAt: number }>()
-const MAX_RESETS_PER_HOUR = 5
-const MAX_RATE_LIMIT_ENTRIES = 1000 // Prevent unbounded memory growth
-
-function checkResetRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const record = resetRateLimits.get(ip)
-
-  // Clean up old entries periodically to prevent memory growth
-  if (resetRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
-    const entries = Array.from(resetRateLimits.entries())
-    const expiredKeys = entries.filter(([_, r]) => now > r.resetAt).map(([key]) => key)
-    expiredKeys.forEach(key => resetRateLimits.delete(key))
-
-    // If still over limit, remove oldest entries
-    if (resetRateLimits.size >= MAX_RATE_LIMIT_ENTRIES) {
-      const sortedEntries = Array.from(resetRateLimits.entries()).sort((a, b) => a[1].resetAt - b[1].resetAt)
-      const toRemove = sortedEntries.slice(0, Math.max(1, resetRateLimits.size - MAX_RATE_LIMIT_ENTRIES + 1))
-      toRemove.forEach(([key]) => resetRateLimits.delete(key))
-    }
-  }
-
-  if (!record || now > record.resetAt) {
-    resetRateLimits.set(ip, { count: 1, resetAt: now + 3600000 }) // 1 hour
-    return true
-  }
-
-  if (record.count >= MAX_RESETS_PER_HOUR) {
-    return false
-  }
-
-  record.count++
-  return true
-}
-
 // Email validation
 const isValidEmail = (email: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254
@@ -70,20 +28,23 @@ const isValidEmail = (email: string): boolean => {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit by IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown"
-    if (!checkResetRateLimit(ip)) {
-      return NextResponse.json(
-        { error: "Too many password reset requests. Please try again later." },
-        { status: 429 }
-      )
-    }
-
     const { email } = await request.json()
 
     if (!email || !isValidEmail(email)) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
+
+    // Database-backed rate limiting (works across instances)
+    const rateLimitCheck = await checkForgotPasswordRateLimit(email)
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json(
+        { error: rateLimitCheck.error || "Too many password reset requests. Please try again later." },
+        { status: 429 }
+      )
+    }
+
+    // Log the password reset request for security audit
+    await logPasswordResetRequest(email)
 
     // Require valid app URL - only fallback to localhost in development
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3000" : null)

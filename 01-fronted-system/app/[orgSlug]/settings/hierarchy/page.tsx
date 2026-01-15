@@ -491,6 +491,8 @@ export default function HierarchySettingsPage() {
   const selectedLevelConfig = levels.find(l => l.level_code === formData.level_code)
   const requiresParent = selectedLevelConfig ? selectedLevelConfig.parent_level !== null : false
   const parentOptions = requiresParent ? getParentsForLevel(formData.level_code) : []
+  // BUG-004 FIX: Check if entity_id is required based on level's id_auto_generate setting
+  const requiresEntityId = selectedLevelConfig ? !selectedLevelConfig.id_auto_generate : true
 
   if (isLoading) {
     return (
@@ -794,13 +796,18 @@ export default function HierarchySettingsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="entity_id">ID (optional)</Label>
+                {/* BUG-004 FIX: Show required indicator when id_auto_generate is false */}
+                <Label htmlFor="entity_id">ID {requiresEntityId ? "*" : "(optional)"}</Label>
                 <Input
                   id="entity_id"
                   value={formData.entity_id}
                   onChange={(e) => setFormData({ ...formData, entity_id: e.target.value.toUpperCase() })}
-                  placeholder={selectedLevelConfig?.id_prefix ? `${selectedLevelConfig.id_prefix}001` : "Auto-generated"}
+                  placeholder={selectedLevelConfig?.id_prefix ? `${selectedLevelConfig.id_prefix}001` : (requiresEntityId ? "Enter ID" : "Auto-generated")}
+                  className={requiresEntityId && !formData.entity_id ? "border-amber-300" : ""}
                 />
+                {requiresEntityId && !formData.entity_id && (
+                  <p className="text-xs text-amber-600">ID is required for {selectedLevelConfig?.level_name_plural || "this level"}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="entity_name">Name *</Label>
@@ -851,7 +858,7 @@ export default function HierarchySettingsPage() {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={isSaving || !formData.entity_name || !formData.level_code || (requiresParent && !formData.parent_id)}
+              disabled={isSaving || !formData.entity_name || !formData.level_code || (requiresParent && !formData.parent_id) || (requiresEntityId && !formData.entity_id)}
               className="console-button-primary"
             >
               {isSaving ? (

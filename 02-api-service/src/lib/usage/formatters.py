@@ -7,6 +7,8 @@ Consistent formatting for tokens, requests, latency.
 
 from typing import Optional
 
+from src.app.models.i18n_models import get_currency_symbol
+
 
 # ==============================================================================
 # Token Formatting
@@ -241,12 +243,13 @@ def format_cost_per_1m(
 
     Args:
         cost: Cost per 1M tokens
-        currency: Currency code
+        currency: Currency code (ISO 4217)
 
     Returns:
-        Formatted string
+        Formatted string with proper currency symbol
     """
-    symbol = "$" if currency == "USD" else currency
+    # ERR-001 FIX: Use proper currency symbol lookup instead of hardcoded "$"
+    symbol = get_currency_symbol(currency)
     return f"{symbol}{cost:.4f}/1M"
 
 
@@ -259,12 +262,13 @@ def format_cost_per_token(
 
     Args:
         cost: Cost per token
-        currency: Currency code
+        currency: Currency code (ISO 4217)
 
     Returns:
-        Formatted string
+        Formatted string with proper currency symbol
     """
-    symbol = "$" if currency == "USD" else currency
+    # ERR-002 FIX: Use proper currency symbol lookup instead of hardcoded "$"
+    symbol = get_currency_symbol(currency)
     if cost < 0.000001:
         return f"{symbol}{cost:.2e}"
     return f"{symbol}{cost:.8f}"

@@ -958,6 +958,124 @@ async def validate_hierarchy_ids(
         )
 
 
+async def get_hierarchy_denormalized(
+    bq_client: BigQueryClient,
+    org_slug: str,
+    hierarchy_entity_id: str
+) -> Dict[str, Optional[str]]:
+    """
+    Fetch hierarchy entity and return denormalized level fields (level_1 through level_10).
+
+    Uses path_ids and path_names arrays from org_hierarchy to populate:
+    - hierarchy_level_1_id through hierarchy_level_10_id
+    - hierarchy_level_1_name through hierarchy_level_10_name
+
+    Also returns the 5 path-based fields for backward compatibility:
+    - hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code
+    - hierarchy_path, hierarchy_path_names
+
+    Returns empty dict with all keys set to None if entity not found.
+    """
+    result_dict: Dict[str, Optional[str]] = {
+        "hierarchy_entity_id": None,
+        "hierarchy_entity_name": None,
+        "hierarchy_level_code": None,
+        "hierarchy_path": None,
+        "hierarchy_path_names": None,
+    }
+    # Initialize all 10 levels to None
+    for i in range(1, 11):
+        result_dict[f"hierarchy_level_{i}_id"] = None
+        result_dict[f"hierarchy_level_{i}_name"] = None
+
+    if not hierarchy_entity_id:
+        return result_dict
+
+    # Prefer x_org_hierarchy view in org dataset (pre-filtered by org_slug)
+    org_dataset = settings.get_org_dataset_name(org_slug)
+    view_ref = f"{settings.gcp_project_id}.{org_dataset}.x_org_hierarchy"
+    central_ref = f"{settings.gcp_project_id}.organizations.org_hierarchy"
+
+    # Check if view exists
+    uses_view = True
+    try:
+        bq_client.client.get_table(view_ref)
+    except google.api_core.exceptions.NotFound:
+        uses_view = False
+
+    table_ref = view_ref if uses_view else central_ref
+
+    if uses_view:
+        query = f"""
+        SELECT
+            entity_id,
+            entity_name,
+            level_code,
+            path,
+            path_ids,
+            path_names
+        FROM `{table_ref}`
+        WHERE entity_id = @entity_id
+          AND is_active = TRUE
+        LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id),
+            ],
+            job_timeout_ms=60000
+        )
+    else:
+        query = f"""
+        SELECT
+            entity_id,
+            entity_name,
+            level_code,
+            path,
+            path_ids,
+            path_names
+        FROM `{table_ref}`
+        WHERE org_slug = @org_slug
+          AND entity_id = @entity_id
+          AND end_date IS NULL
+          AND is_active = TRUE
+        LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id),
+            ],
+            job_timeout_ms=60000
+        )
+
+    try:
+        query_result = bq_client.client.query(query, job_config=job_config).result()
+        for row in query_result:
+            # Path-based fields
+            result_dict["hierarchy_entity_id"] = row.entity_id
+            result_dict["hierarchy_entity_name"] = row.entity_name
+            result_dict["hierarchy_level_code"] = row.level_code
+            result_dict["hierarchy_path"] = row.path
+            # Convert path_names array to " > " separated string
+            if row.path_names:
+                result_dict["hierarchy_path_names"] = " > ".join(row.path_names)
+
+            # Denormalize path_ids and path_names into level-indexed fields
+            if row.path_ids:
+                for i, entity_id in enumerate(row.path_ids):
+                    if i < 10:  # Max 10 levels
+                        result_dict[f"hierarchy_level_{i+1}_id"] = entity_id
+            if row.path_names:
+                for i, entity_name in enumerate(row.path_names):
+                    if i < 10:  # Max 10 levels
+                        result_dict[f"hierarchy_level_{i+1}_name"] = entity_name
+            break
+    except Exception as e:
+        logger.warning(f"Failed to fetch hierarchy data for {hierarchy_entity_id}: {e}")
+        # Return empty dict - caller should handle missing data
+
+    return result_dict
 
 
 # ============================================
@@ -1795,6 +1913,13 @@ async def create_plan(
         hierarchy_entity_id=plan.hierarchy_entity_id
     )
 
+    # BUG-002 FIX: Fetch and denormalize hierarchy data for 10-level aggregation
+    hierarchy_data = await get_hierarchy_denormalized(
+        bq_client=bq_client,
+        org_slug=org_slug,
+        hierarchy_entity_id=plan.hierarchy_entity_id
+    )
+
     # BUG-030 FIX: Validate currency conversion math if provided
     validate_currency_conversion(
         source_price=plan.source_price,
@@ -1820,7 +1945,18 @@ async def create_plan(
         discount_value, auto_renew, payment_method, owner_email, department,
         renewal_date, contract_id, notes, source_currency, source_price,
         exchange_rate_used, hierarchy_entity_id, hierarchy_entity_name,
-        hierarchy_level_code, hierarchy_path, hierarchy_path_names, updated_at
+        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+        hierarchy_level_1_id, hierarchy_level_1_name,
+        hierarchy_level_2_id, hierarchy_level_2_name,
+        hierarchy_level_3_id, hierarchy_level_3_name,
+        hierarchy_level_4_id, hierarchy_level_4_name,
+        hierarchy_level_5_id, hierarchy_level_5_name,
+        hierarchy_level_6_id, hierarchy_level_6_name,
+        hierarchy_level_7_id, hierarchy_level_7_name,
+        hierarchy_level_8_id, hierarchy_level_8_name,
+        hierarchy_level_9_id, hierarchy_level_9_name,
+        hierarchy_level_10_id, hierarchy_level_10_name,
+        updated_at
     ) VALUES (
         @org_slug,
         @subscription_id,
@@ -1853,6 +1989,16 @@ async def create_plan(
         @hierarchy_level_code,
         @hierarchy_path,
         @hierarchy_path_names,
+        @hierarchy_level_1_id, @hierarchy_level_1_name,
+        @hierarchy_level_2_id, @hierarchy_level_2_name,
+        @hierarchy_level_3_id, @hierarchy_level_3_name,
+        @hierarchy_level_4_id, @hierarchy_level_4_name,
+        @hierarchy_level_5_id, @hierarchy_level_5_name,
+        @hierarchy_level_6_id, @hierarchy_level_6_name,
+        @hierarchy_level_7_id, @hierarchy_level_7_name,
+        @hierarchy_level_8_id, @hierarchy_level_8_name,
+        @hierarchy_level_9_id, @hierarchy_level_9_name,
+        @hierarchy_level_10_id, @hierarchy_level_10_name,
         CURRENT_TIMESTAMP()
     )
     """
@@ -1887,11 +2033,33 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("source_currency", "STRING", plan.source_currency),
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", plan.source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", plan.exchange_rate_used),
-                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", plan.hierarchy_entity_id),
-                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", plan.hierarchy_entity_name),
-                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", plan.hierarchy_level_code),
-                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", plan.hierarchy_path),
-                bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", plan.hierarchy_path_names),
+                # Path-based hierarchy fields (use denormalized data from lookup)
+                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_data.get("hierarchy_entity_id") or plan.hierarchy_entity_id),
+                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", hierarchy_data.get("hierarchy_entity_name") or plan.hierarchy_entity_name),
+                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", hierarchy_data.get("hierarchy_level_code") or plan.hierarchy_level_code),
+                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", hierarchy_data.get("hierarchy_path") or plan.hierarchy_path),
+                bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", hierarchy_data.get("hierarchy_path_names") or plan.hierarchy_path_names),
+                # BUG-002 FIX: 10-level denormalized hierarchy for fast aggregation
+                bigquery.ScalarQueryParameter("hierarchy_level_1_id", "STRING", hierarchy_data.get("hierarchy_level_1_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_1_name", "STRING", hierarchy_data.get("hierarchy_level_1_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_2_id", "STRING", hierarchy_data.get("hierarchy_level_2_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_2_name", "STRING", hierarchy_data.get("hierarchy_level_2_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_3_id", "STRING", hierarchy_data.get("hierarchy_level_3_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_3_name", "STRING", hierarchy_data.get("hierarchy_level_3_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_4_id", "STRING", hierarchy_data.get("hierarchy_level_4_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_4_name", "STRING", hierarchy_data.get("hierarchy_level_4_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_5_id", "STRING", hierarchy_data.get("hierarchy_level_5_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_5_name", "STRING", hierarchy_data.get("hierarchy_level_5_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_6_id", "STRING", hierarchy_data.get("hierarchy_level_6_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_6_name", "STRING", hierarchy_data.get("hierarchy_level_6_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_7_id", "STRING", hierarchy_data.get("hierarchy_level_7_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_7_name", "STRING", hierarchy_data.get("hierarchy_level_7_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_8_id", "STRING", hierarchy_data.get("hierarchy_level_8_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_8_name", "STRING", hierarchy_data.get("hierarchy_level_8_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_9_id", "STRING", hierarchy_data.get("hierarchy_level_9_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_9_name", "STRING", hierarchy_data.get("hierarchy_level_9_name")),
+                bigquery.ScalarQueryParameter("hierarchy_level_10_id", "STRING", hierarchy_data.get("hierarchy_level_10_id")),
+                bigquery.ScalarQueryParameter("hierarchy_level_10_name", "STRING", hierarchy_data.get("hierarchy_level_10_name")),
             ],
             job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user operations (increased for large orgs)
         )

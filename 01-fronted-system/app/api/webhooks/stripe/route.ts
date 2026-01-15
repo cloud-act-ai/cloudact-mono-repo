@@ -32,8 +32,10 @@ import { sendTrialEndingEmail, sendPaymentFailedEmail } from "@/lib/email";
 import { syncSubscriptionToBackend } from "@/actions/backend-onboarding";
 import type Stripe from "stripe";
 
-// In-memory cache for idempotency (fast path for same-instance duplicates)
-// Database-backed idempotency provides cross-instance protection (via stripe_webhook_last_event_id)
+// SCALE-003: In-memory cache is OPTIMIZATION ONLY for same-instance duplicates
+// In serverless (Cloud Run, Vercel), this cache resets on cold starts and doesn't share across instances
+// ACTUAL DEDUPLICATION is handled by database (stripe_webhook_events table with unique event_id)
+// This cache prevents redundant DB lookups when Stripe retries to the same instance quickly
 const processedEvents = new Map<string, number>();
 const processingEvents = new Set<string>(); // Track events currently being processed
 const EVENT_CACHE_TTL = 60 * 60 * 1000; // 1 hour

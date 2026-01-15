@@ -4,9 +4,9 @@ import type React from "react"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { Loader2, Mail, Lock, ArrowRight, Sparkles } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { Loader2, Mail, Lock, ArrowRight, Sparkles, ShieldAlert } from "lucide-react"
 import { AuthLayout } from "@/components/auth/auth-layout"
+import { loginWithSecurity } from "@/actions/auth"
 
 /**
  * Validate redirect URL to prevent open redirect attacks.
@@ -33,93 +33,50 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [sessionCleared, setSessionCleared] = useState(false)
   const [focusedField, setFocusedField] = useState<string | null>(null)
+  const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null)
 
   useEffect(() => {
-    // Just show error message if redirected with a reason - don't clear any session
+    // Show error message if redirected with a reason
     if (reason === 'session_expired') {
       setError("Your session has expired. Please sign in again.")
     } else if (reason === 'auth_error') {
       setError("Authentication error. Please try again or contact support.")
+    } else if (reason === 'account_locked') {
+      setError("Your account has been temporarily locked due to too many failed login attempts.")
     }
-    setSessionCleared(true)
   }, [reason])
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
-
-    let supabase
-    try {
-      supabase = createClient()
-    } catch (configError) {
-      setError("Supabase is not configured. Please set up .env.local with your Supabase credentials.")
-      setIsLoading(false)
-      return
-    }
+    setRateLimitWarning(null)
 
     try {
-      const normalizedEmail = email.trim().toLowerCase()
+      // Use server action with integrated security
+      const result = await loginWithSecurity(email, password)
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      })
+      // Show rate limit warning if getting close
+      if (result.rateLimitRemaining !== undefined && result.rateLimitRemaining <= 2 && result.rateLimitRemaining > 0) {
+        setRateLimitWarning(`${result.rateLimitRemaining} login attempt${result.rateLimitRemaining === 1 ? '' : 's'} remaining`)
+      }
 
-      if (authError) throw new Error(authError.message)
-      if (!authData.user) throw new Error("Login failed")
-
-      // Update last login timestamp (non-blocking, errors logged but not thrown)
-      // Fire-and-forget with proper error handling - don't block navigation
-      void (async () => {
-        try {
-          await supabase.rpc("update_last_login", { p_user_id: authData.user.id })
-        } catch (err: unknown) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[Login] Failed to update last login:", err)
-          }
-        }
-      })()
-
-      if (redirectTo) {
-        if (typeof window !== "undefined") {
-          setIsLoading(false) // Reset before redirect
-          window.location.href = redirectTo
-        }
+      if (!result.success) {
+        setError(result.error || "Invalid email or password")
+        setIsLoading(false)
         return
       }
 
-      const { data: orgData, error: orgError } = await supabase
-        .from("organization_members")
-        .select(`org_id, organizations!inner(org_slug)`)
-        .eq("user_id", authData.user.id)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle()
-
-      if (orgError) {
-        console.error("[Login] Failed to fetch organization:", orgError)
-        // Still redirect to onboarding if we can't determine org
-      }
-
-      // Safe extraction of org_slug with proper type checking
-      let targetPath = "/onboarding/billing"
-      if (orgData?.organizations) {
-        const orgs = orgData.organizations
-        const org = Array.isArray(orgs) ? orgs[0] : orgs
-        if (org && typeof org === "object" && "org_slug" in org && typeof org.org_slug === "string") {
-          targetPath = `/${org.org_slug}/dashboard`
-        }
-      }
+      // Use custom redirect if provided and valid
+      const targetPath = redirectTo || result.redirectTo || "/onboarding/billing"
 
       if (typeof window !== "undefined") {
         setIsLoading(false) // Reset before redirect
         window.location.href = targetPath
       }
     } catch (err: unknown) {
-      setError("Invalid email or password")
+      setError("An unexpected error occurred. Please try again.")
       setIsLoading(false)
     }
   }
@@ -204,6 +161,16 @@ function LoginForm() {
               />
             </div>
           </div>
+
+          {/* Rate Limit Warning */}
+          {rateLimitWarning && !error && (
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-[13px] sm:text-[14px] font-medium text-amber-700 dark:text-amber-400">{rateLimitWarning}</p>
+              </div>
+            </div>
+          )}
 
           {/* Error Alert */}
           {error && (

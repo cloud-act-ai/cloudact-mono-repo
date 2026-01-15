@@ -143,24 +143,29 @@ export function clearExchangeRateCache(): void {
  * @param amount - Amount to convert
  * @param fromCurrency - Source currency code (e.g., "USD")
  * @param toCurrency - Target currency code (e.g., "INR")
+ * @param options.strict - If true, throws error for unsupported currencies (VAL-003 FIX)
  * @returns Converted amount rounded to currency-specific decimals
  *
  * NOTE: Uses hardcoded rates. For CSV-based conversion, use convertCurrencyAsync().
  *
- * WARNING: If either currency is not supported, returns original amount unchanged.
- * Always validate currencies with isCurrencySupported() before conversion if
- * you need to detect unsupported currencies.
+ * WARNING: If either currency is not supported:
+ * - With strict=false (default): returns original amount unchanged (logs warning)
+ * - With strict=true: throws Error
+ *
+ * For detailed conversion info including success status, use convertWithAudit().
  *
  * @example
  * convertCurrency(100, "USD", "INR") // 8312.00
  * convertCurrency(100, "INR", "USD") // 1.20
  * convertCurrency(100, "EUR", "GBP") // 85.87
  * convertCurrency(100, "USD", "XYZ") // 100 (unsupported - returns original!)
+ * convertCurrency(100, "USD", "XYZ", { strict: true }) // throws Error
  */
 export function convertCurrency(
   amount: number,
   fromCurrency: string,
-  toCurrency: string
+  toCurrency: string,
+  options?: { strict?: boolean }
 ): number {
   // Same currency - no conversion needed
   if (fromCurrency === toCurrency) return amount
@@ -170,7 +175,15 @@ export function convertCurrency(
   const toRate = EXCHANGE_RATES[toCurrency]
 
   if (!fromRate || !toRate) {
-    // Always log warning - silent currency failures cause data integrity issues
+    // VAL-003 FIX: Add strict mode that throws error for unsupported currencies
+    if (options?.strict) {
+      throw new Error(
+        `Unsupported currency conversion: ${fromCurrency} → ${toCurrency}. ` +
+        `Use isCurrencySupported() to validate currencies before conversion.`
+      )
+    }
+
+    // Default: log warning and return original amount
     if (typeof console !== "undefined") {
       console.warn(
         `[Currency] Unsupported currency conversion: ${fromCurrency} → ${toCurrency}. ` +

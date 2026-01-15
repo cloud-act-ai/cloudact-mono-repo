@@ -32,6 +32,7 @@ BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_slug STRING;
   DECLARE v_org_exists INT64 DEFAULT 0;
+  DECLARE v_currencies_valid BOOL DEFAULT TRUE;
 
   -- Extract org_slug from dataset_id using safe extraction
   -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
@@ -66,10 +67,10 @@ BEGIN
       FROM `%s.%s.subscription_plan_costs_daily`
       WHERE cost_date BETWEEN @p_start AND @p_end
     """, p_project_id, p_dataset_id)
-    INTO @v_currencies_valid
+    INTO v_currencies_valid
     USING p_start_date AS p_start, p_end_date AS p_end;
 
-    ASSERT @v_currencies_valid AS "Invalid currency code found in subscription_plan_costs_daily. Supported: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF";
+    ASSERT v_currencies_valid AS "Invalid currency code found in subscription_plan_costs_daily. Supported: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF";
 
     -- 2. Delete existing Subscription data for date range (only this source)
     -- Note: ChargePeriodStart is TIMESTAMP, so cast DATE params to TIMESTAMP
