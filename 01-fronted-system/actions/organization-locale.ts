@@ -773,7 +773,8 @@ export async function updateOrgLogo(
  * Stores file in org-logos bucket at path: {org_slug}/logo-{timestamp}.{ext}
  * Automatically updates the logo_url in organizations table.
  *
- * SECURITY: Requires org membership.
+ * SECURITY: Requires org membership (verified before storage operations).
+ * Uses service role for storage to avoid RLS complexity with server actions.
  */
 export async function uploadOrgLogo(
   orgSlug: string,
@@ -786,6 +787,7 @@ export async function uploadOrgLogo(
     }
 
     // Verify authentication AND org membership (use cached auth for performance)
+    // This is the security gate - we verify membership BEFORE any storage operations
     const { requireOrgMembership } = await import("@/lib/auth-cache")
     try {
       await requireOrgMembership(orgSlug)
@@ -826,17 +828,20 @@ export async function uploadOrgLogo(
     const fileName = `logo-${timestamp}.${ext}`
     const filePath = `${orgSlug}/${fileName}`
 
-    // Upload to Supabase Storage
-    const supabase = await createClient()
+    // Use service role client for storage operations
+    // SECURITY: Membership was verified above via requireOrgMembership
+    // This bypasses RLS which can have issues with server action sessions
+    const { createServiceRoleClient } = await import("@/lib/supabase/server")
+    const storageClient = createServiceRoleClient()
 
     // First, try to delete any existing logo files for this org
-    const { data: existingFiles } = await supabase.storage
+    const { data: existingFiles } = await storageClient.storage
       .from("org-logos")
       .list(orgSlug)
 
     if (existingFiles && existingFiles.length > 0) {
       const filesToDelete = existingFiles.map(f => `${orgSlug}/${f.name}`)
-      await supabase.storage.from("org-logos").remove(filesToDelete)
+      await storageClient.storage.from("org-logos").remove(filesToDelete)
     }
 
     // Convert File to ArrayBuffer for server-side upload
@@ -853,7 +858,7 @@ export async function uploadOrgLogo(
     }
 
     // Upload the file buffer with explicit content type
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await storageClient.storage
       .from("org-logos")
       .upload(filePath, fileBuffer, {
         cacheControl: "3600",
@@ -868,8 +873,8 @@ export async function uploadOrgLogo(
       return { success: false, error: `Failed to upload logo: ${uploadError.message}` }
     }
 
-    // Get the public URL
-    const { data: urlData } = supabase.storage
+    // Get the public URL (bucket is public)
+    const { data: urlData } = storageClient.storage
       .from("org-logos")
       .getPublicUrl(filePath)
 
@@ -880,6 +885,8 @@ export async function uploadOrgLogo(
     const logoUrl = urlData.publicUrl
 
     // Update the organizations table with the new logo URL
+    // Use regular client for DB operations (has proper RLS for org updates)
+    const supabase = await createClient()
     const { error: updateError } = await supabase
       .from("organizations")
       .update({ logo_url: logoUrl })
@@ -918,7 +925,8 @@ export async function uploadOrgLogo(
  * Delete organization logo from Supabase Storage.
  * Removes the file and clears the logo_url in organizations table.
  *
- * SECURITY: Requires org membership.
+ * SECURITY: Requires org membership (verified before storage operations).
+ * Uses service role for storage to avoid RLS complexity with server actions.
  */
 export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResult> {
   try {
@@ -928,6 +936,7 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
     }
 
     // Verify authentication AND org membership (use cached auth for performance)
+    // This is the security gate - we verify membership BEFORE any storage operations
     const { requireOrgMembership } = await import("@/lib/auth-cache")
     try {
       await requireOrgMembership(orgSlug)
@@ -938,16 +947,19 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
       }
     }
 
-    const supabase = await createClient()
+    // Use service role client for storage operations
+    // SECURITY: Membership was verified above via requireOrgMembership
+    const { createServiceRoleClient } = await import("@/lib/supabase/server")
+    const storageClient = createServiceRoleClient()
 
     // List and delete all files in the org's folder
-    const { data: existingFiles } = await supabase.storage
+    const { data: existingFiles } = await storageClient.storage
       .from("org-logos")
       .list(orgSlug)
 
     if (existingFiles && existingFiles.length > 0) {
       const filesToDelete = existingFiles.map(f => `${orgSlug}/${f.name}`)
-      const { error: deleteError } = await supabase.storage
+      const { error: deleteError } = await storageClient.storage
         .from("org-logos")
         .remove(filesToDelete)
 
@@ -960,6 +972,8 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
     }
 
     // Clear the logo_url in database
+    // Use regular client for DB operations (has proper RLS for org updates)
+    const supabase = await createClient()
     const { error: updateError } = await supabase
       .from("organizations")
       .update({ logo_url: null })
