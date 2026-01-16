@@ -77,6 +77,7 @@ done
 # Grant Cloud Build SA permission to impersonate service account
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
 CLOUD_BUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 echo ""
 echo -e "${YELLOW}Granting Cloud Build SA permission to use service account...${NC}"
@@ -86,9 +87,50 @@ gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL \
     --project=$PROJECT_ID \
     --quiet 2>/dev/null || true
 
+# ============================================
+# Cloud Build Permissions (for gcloud builds submit)
+# ============================================
+echo ""
+echo -e "${YELLOW}Granting Cloud Build permissions for deployments...${NC}"
+
+# Cloud Build SA needs these for building and deploying
+CLOUDBUILD_ROLES=(
+    "roles/storage.admin"
+    "roles/run.admin"
+    "roles/iam.serviceAccountUser"
+    "roles/artifactregistry.admin"
+)
+
+for role in "${CLOUDBUILD_ROLES[@]}"; do
+    echo -n "Granting $role to Cloud Build SA... "
+    if gcloud projects add-iam-policy-binding $PROJECT_ID \
+        --member="serviceAccount:$CLOUD_BUILD_SA" \
+        --role="$role" \
+        --quiet 2>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${YELLOW}Already granted${NC}"
+    fi
+done
+
+# Compute SA also needs storage access for Cloud Run source deploys
+echo ""
+echo -e "${YELLOW}Granting Compute SA permissions for Cloud Run deploys...${NC}"
+echo -n "Granting storage.admin to Compute SA... "
+if gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$COMPUTE_SA" \
+    --role="roles/storage.admin" \
+    --quiet 2>/dev/null; then
+    echo -e "${GREEN}✓${NC}"
+else
+    echo -e "${YELLOW}Already granted${NC}"
+fi
+
 echo ""
 echo -e "${GREEN}IAM setup complete for $ENV environment!${NC}"
 echo ""
 echo "Service Account: $SA_EMAIL"
+echo "Cloud Build SA: $CLOUD_BUILD_SA"
+echo "Compute SA: $COMPUTE_SA"
 echo ""
 echo "Next: Run 06-cloud-run-setup.sh"

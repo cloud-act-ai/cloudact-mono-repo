@@ -247,6 +247,41 @@ gcloud run services describe cloudact-<service>-<env> \
 | Timeout errors | Slow startup | Increase timeout or optimize startup |
 | Secret not found | Missing secret | Run `setup-secrets.sh` |
 | Permission denied | IAM issue | Run `05-iam-setup.sh` |
+| `storage.objects.get` denied | Cloud Build IAM | Run `fix-cloudbuild-permissions.sh` |
+
+### Fix Cloud Build Permissions
+
+If you see `storage.objects.get access denied` during builds:
+
+```bash
+# Get project number
+PROJECT_NUMBER=$(gcloud projects describe <project-id> --format="value(projectNumber)")
+
+# Grant storage admin to compute service account
+gcloud projects add-iam-policy-binding <project-id> \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/storage.admin"
+
+# Grant storage admin to Cloud Build service account
+gcloud projects add-iam-policy-binding <project-id> \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/storage.admin"
+
+# Grant Cloud Run admin to Cloud Build
+gcloud projects add-iam-policy-binding <project-id> \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+# Grant service account user to Cloud Build
+gcloud projects add-iam-policy-binding <project-id> \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+Or run the script:
+```bash
+./04-inra-cicd-automation/gcp-setup/fix-cloudbuild-permissions.sh <project-id>
+```
 
 ### Health Check URLs
 ```bash
