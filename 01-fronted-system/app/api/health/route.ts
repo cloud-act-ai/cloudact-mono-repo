@@ -1,13 +1,59 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
+import { readFileSync } from "fs"
+import { join } from "path"
 
 export const runtime = "nodejs" // Need nodejs for Stripe SDK
 export const dynamic = "force-dynamic"
 
-// Release info - matches backend services format
-const RELEASE_VERSION = "v4.1.1"
-const RELEASE_TIMESTAMP = "2026-01-15T20:00:00-08:00" // PST timezone
+// Dynamic version info - reads from version.json or env vars
+function getVersionInfo(): { release: string; release_timestamp: string } {
+  // First check environment variables (set by CI/CD)
+  const envRelease = process.env.RELEASE_VERSION
+  const envTimestamp = process.env.RELEASE_TIMESTAMP
+
+  if (envRelease && envTimestamp) {
+    return { release: envRelease, release_timestamp: envTimestamp }
+  }
+
+  // Try to read from version.json at repo root
+  try {
+    const versionPaths = [
+      join(process.cwd(), "version.json"),
+      join(process.cwd(), "..", "version.json"),
+    ]
+
+    for (const versionPath of versionPaths) {
+      try {
+        const versionData = JSON.parse(readFileSync(versionPath, "utf8"))
+        if (versionData.release && versionData.release_timestamp) {
+          return {
+            release: versionData.release,
+            release_timestamp: versionData.release_timestamp
+          }
+        }
+      } catch {
+        // Try next path
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+
+  // Generate dynamic timestamp as fallback (PST timezone)
+  const now = new Date()
+  const pstOffset = -8 * 60 // PST is UTC-8
+  const pstDate = new Date(now.getTime() + (now.getTimezoneOffset() + pstOffset) * 60000)
+  const dynamicTimestamp = pstDate.toISOString().replace("Z", "-0800")
+
+  return {
+    release: envRelease || "v4.1.1",
+    release_timestamp: envTimestamp || dynamicTimestamp
+  }
+}
+
+const versionInfo = getVersionInfo()
 
 interface ServiceHealth {
   status: "healthy" | "unhealthy" | "degraded"
@@ -157,8 +203,8 @@ export async function GET() {
     status: overallStatus,
     service: "frontend",
     version: "1.0.0",
-    release: RELEASE_VERSION,
-    release_timestamp: RELEASE_TIMESTAMP,
+    release: versionInfo.release,
+    release_timestamp: versionInfo.release_timestamp,
     environment: process.env.NODE_ENV === "production" ? "production" : "development",
     checks,
   }

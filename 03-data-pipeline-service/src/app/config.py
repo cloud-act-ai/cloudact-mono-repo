@@ -6,6 +6,8 @@ Centralized settings using Pydantic Settings with environment variable support.
 import os
 import yaml
 import re
+import json
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from functools import lru_cache
 from pathlib import Path
@@ -15,6 +17,58 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Module-level cache for dataset types configuration
 _DATASET_TYPES_CACHE: Optional[List[Dict[str, Any]]] = None
+
+
+def _get_version_info() -> dict:
+    """
+    Load version info from version.json at repo root.
+    Returns defaults if file not found.
+    """
+    # Try to find version.json (repo root is 3 levels up from this file)
+    version_paths = [
+        Path(__file__).parent.parent.parent.parent / "version.json",  # From src/app/config.py
+        Path(__file__).parent.parent.parent / "version.json",          # Fallback
+        Path("version.json"),                                           # Current dir
+    ]
+
+    for version_path in version_paths:
+        if version_path.exists():
+            try:
+                with open(version_path) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+    return {}
+
+
+def _get_dynamic_timestamp() -> str:
+    """
+    Generate current timestamp in ISO 8601 format with PST timezone.
+    Used as default when RELEASE_TIMESTAMP env var not set.
+    """
+    # Use PST timezone (UTC-8)
+    from datetime import timedelta
+    pst = timezone(timedelta(hours=-8))
+    return datetime.now(pst).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def _get_release_version() -> str:
+    """Get release version from env var or version.json."""
+    if env_val := os.environ.get("RELEASE_VERSION"):
+        return env_val
+    version_info = _get_version_info()
+    return version_info.get("release", "v4.1.1")
+
+
+def _get_release_timestamp() -> str:
+    """Get release timestamp from env var, version.json, or generate dynamically."""
+    if env_val := os.environ.get("RELEASE_TIMESTAMP"):
+        return env_val
+    version_info = _get_version_info()
+    if ts := version_info.get("release_timestamp"):
+        return ts
+    return _get_dynamic_timestamp()
 
 
 class Settings(BaseSettings):
@@ -52,12 +106,12 @@ class Settings(BaseSettings):
         description="Application version"
     )
     release_version: str = Field(
-        default="v4.1.1",
-        description="Git release tag version (e.g., v1.0.0)"
+        default_factory=_get_release_version,
+        description="Git release tag version (e.g., v1.0.0). Set via RELEASE_VERSION env var or version.json"
     )
     release_timestamp: str = Field(
-        default="2026-01-15T20:00:00-08:00",
-        description="Release build timestamp in ISO 8601 format (PST timezone)"
+        default_factory=_get_release_timestamp,
+        description="Release build timestamp in ISO 8601 format. Auto-generated if not set via RELEASE_TIMESTAMP env var"
     )
     environment: str = Field(
         default="development",
