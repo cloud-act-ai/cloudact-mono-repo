@@ -122,7 +122,7 @@ cd 01-fronted-system && npm run dev
 
 ```bash
 git push origin main           # → Stage
-git tag v4.1.2 && git push origin v4.1.2  # → Prod
+git tag v4.1.3 && git push origin v4.1.3  # → Prod
 ```
 
 ## Supabase Migrations
@@ -159,4 +159,4 @@ cd 01-fronted-system/scripts/supabase_db
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.1.2** | 2026-01-15
+**v4.1.3** | 2026-01-16
