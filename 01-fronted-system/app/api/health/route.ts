@@ -8,13 +8,14 @@ export const runtime = "nodejs" // Need nodejs for Stripe SDK
 export const dynamic = "force-dynamic"
 
 // Dynamic version info - reads from version.json or env vars
-function getVersionInfo(): { release: string; release_timestamp: string } {
+function getVersionInfo(): { version: string; release: string; release_timestamp: string } {
   // First check environment variables (set by CI/CD)
+  const envVersion = process.env.APP_VERSION
   const envRelease = process.env.RELEASE_VERSION
   const envTimestamp = process.env.RELEASE_TIMESTAMP
 
-  if (envRelease && envTimestamp) {
-    return { release: envRelease, release_timestamp: envTimestamp }
+  if (envVersion && envRelease && envTimestamp) {
+    return { version: envVersion, release: envRelease, release_timestamp: envTimestamp }
   }
 
   // Try to read from version.json at repo root
@@ -29,6 +30,7 @@ function getVersionInfo(): { release: string; release_timestamp: string } {
         const versionData = JSON.parse(readFileSync(versionPath, "utf8"))
         if (versionData.release && versionData.release_timestamp) {
           return {
+            version: versionData.version || versionData.release,
             release: versionData.release,
             release_timestamp: versionData.release_timestamp
           }
@@ -48,7 +50,8 @@ function getVersionInfo(): { release: string; release_timestamp: string } {
   const dynamicTimestamp = pstDate.toISOString().replace("Z", "-0800")
 
   return {
-    release: envRelease || "v4.1.1",
+    version: envVersion || "v4.1.2",
+    release: envRelease || "v4.1.2",
     release_timestamp: envTimestamp || dynamicTimestamp
   }
 }
@@ -202,7 +205,7 @@ export async function GET() {
   const response: HealthResponse = {
     status: overallStatus,
     service: "frontend",
-    version: "1.0.0",
+    version: versionInfo.version,
     release: versionInfo.release,
     release_timestamp: versionInfo.release_timestamp,
     environment: process.env.NODE_ENV === "production" ? "production" : "development",

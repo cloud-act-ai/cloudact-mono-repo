@@ -133,12 +133,20 @@ def _get_dynamic_timestamp() -> str:
     return datetime.now(pst).strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
+def _get_app_version() -> str:
+    """Get app version from env var or version.json."""
+    if env_val := os.environ.get("APP_VERSION"):
+        return env_val
+    version_info = _get_version_info()
+    return version_info.get("version", "v4.1.2")
+
+
 def _get_release_version() -> str:
     """Get release version from env var or version.json."""
     if env_val := os.environ.get("RELEASE_VERSION"):
         return env_val
     version_info = _get_version_info()
-    return version_info.get("release", "v4.1.1")
+    return version_info.get("release", "v4.1.2")
 
 
 def _get_release_timestamp() -> str:
@@ -182,8 +190,8 @@ class Settings(BaseSettings):
         description="Application name"
     )
     app_version: str = Field(
-        default="1.0.0",
-        description="Application version"
+        default_factory=_get_app_version,
+        description="Application version from version.json"
     )
     release_version: str = Field(
         default_factory=_get_release_version,
