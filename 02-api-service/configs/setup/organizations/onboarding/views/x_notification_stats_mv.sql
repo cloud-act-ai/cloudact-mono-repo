@@ -1,26 +1,20 @@
--- Organization Notification Stats Materialized View
+-- Organization Notification Stats View
 -- Aggregated statistics for notification dashboard
 --
 -- Architecture:
 --   organizations.org_notification_* tables
 --   -> {org_dataset}.x_notification_stats (aggregated by org_slug)
 --
--- Benefits:
---   - Pre-computed stats for dashboard performance
---   - Auto-refreshed every 5 minutes
---   - Single row per org with all key metrics
+-- Note: Using regular VIEW instead of MATERIALIZED VIEW because
+-- BigQuery doesn't support incremental MVs with JOINs + aggregations.
+-- For dashboards, this is fine as queries are still fast with proper indexing.
 --
 -- Placeholders:
 --   {project_id} - GCP project ID
 --   {dataset_id} - Organization dataset (e.g., acmecorp_prod)
 --   {org_slug}   - Organization slug for filtering
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS `{project_id}.{dataset_id}.x_notification_stats`
-OPTIONS (
-  enable_refresh = true,
-  refresh_interval_minutes = 5,
-  max_staleness = INTERVAL "30" MINUTE
-)
+CREATE OR REPLACE VIEW `{project_id}.{dataset_id}.x_notification_stats`
 AS
 WITH channel_stats AS (
   SELECT

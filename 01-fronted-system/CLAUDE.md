@@ -107,6 +107,58 @@ await requireActiveSubscription(orgSlug)
 | Professional | `price_1SWJOYDoxINmrJKY8jEZwVuU` | $69 |
 | Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
 
+## Supabase Migrations
+
+**Script:** `scripts/supabase_db/migrate.sh`
+
+Uses Supabase Management API (not psql) - requires `SUPABASE_ACCESS_TOKEN` in env files.
+
+### Quick Commands
+
+```bash
+cd 01-fronted-system/scripts/supabase_db
+
+# Check status
+./migrate.sh --status              # Local
+./migrate.sh --status --stage      # Stage
+./migrate.sh --status --prod       # Production
+
+# Run migrations
+./migrate.sh                       # Local (default)
+./migrate.sh --stage               # Stage (confirms)
+./migrate.sh --prod                # Production (confirms)
+./migrate.sh --yes --prod          # Production (skip confirm)
+
+# Dry run (see what would run)
+./migrate.sh --dry-run --prod
+
+# Force re-run specific migration
+./migrate.sh --force 37 --prod     # Re-run 37_*.sql
+```
+
+### Project References
+
+| Environment | Supabase Project | Env File |
+|-------------|------------------|----------|
+| local | `kwroaccbrxppfiysqlzs` | `.env.local` |
+| stage | `kwroaccbrxppfiysqlzs` | `.env.stage` |
+| prod | `ovfxswhkkshouhsryzaf` | `.env.prod` |
+
+### Required Env Variable
+
+```bash
+# Same token works for all environments (personal access token)
+SUPABASE_ACCESS_TOKEN=sbp_xxx...
+```
+
+Get token from: https://supabase.com/dashboard/account/tokens
+
+### Migration Files
+
+Location: `scripts/supabase_db/[0-9][0-9]_*.sql`
+
+Tracked in: `schema_migrations` table
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -115,6 +167,7 @@ await requireActiveSubscription(orgSlug)
 | Stripe fails | Check STRIPE_SECRET_KEY |
 | Plans not loading | Verify LIVE price IDs |
 | Quota exceeded | Check `GET /api/v1/organizations/{org}/quota` |
+| Migration auth fails | Check `SUPABASE_ACCESS_TOKEN` in env file |
 
 ---
-**v4.1.0** | 2026-01-15
+**v4.1.1** | 2026-01-15

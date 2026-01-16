@@ -816,7 +816,7 @@ class OrgOnboardingProcessor:
 
                 views_created.append(mv_name)
                 self.logger.info(
-                    f"Created materialized view: {self.settings.gcp_project_id}.{dataset_id}.{mv_name}"
+                    f"Created view: {self.settings.gcp_project_id}.{dataset_id}.{mv_name}"
                 )
 
             except Exception as e:
