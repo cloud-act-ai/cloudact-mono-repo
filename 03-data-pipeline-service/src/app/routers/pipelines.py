@@ -615,7 +615,7 @@ async def trigger_templated_pipeline(
 
     insert_query = f"""
     INSERT INTO `{org_pipeline_runs_table}`
-    (pipeline_logging_id, pipeline_id, org_slug, org_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
+    (pipeline_logging_id, pipeline_id, org_slug, org_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters, created_at)
     SELECT * FROM (
         SELECT
             @pipeline_logging_id AS pipeline_logging_id,
@@ -628,7 +628,8 @@ async def trigger_templated_pipeline(
             @user_id AS user_id,
             CURRENT_TIMESTAMP() AS start_time,
             @run_date AS run_date,
-            PARSE_JSON(@parameters) AS parameters
+            PARSE_JSON(@parameters) AS parameters,
+            CURRENT_TIMESTAMP() AS created_at
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
@@ -995,28 +996,12 @@ async def trigger_pipeline(
         # Override the executor's pipeline_logging_id with our pre-generated one
         executor.pipeline_logging_id = pipeline_logging_id
 
-        # BUG-001 FIX: Increment concurrent counter AFTER successful INSERT
-        # This matches what reserve_pipeline_quota_atomic() does in api-service
-        increment_concurrent_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-            last_updated = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug
-          AND usage_date = @usage_date
-        """
-        try:
-            bq_client.client.query(
-                increment_concurrent_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", dt.now(tz.utc).date())
-                ])
-            ).result()
-        except Exception as inc_err:
-            logger.warning(f"Failed to increment concurrent counter for {org_slug}: {inc_err}")
+        # NOTE: DO NOT increment concurrent counter here!
+        # The API service's reserve_pipeline_quota_atomic() already incremented it during validation.
+        # The counter is decremented when the pipeline completes (via completion reporting to API service).
+        # Previous "BUG-001 FIX" was incorrectly doing a double-increment, causing counter leaks.
 
         # Execute pipeline in background with async error handling
-        # BUG-001 FIX: Pass api_key and reservation_date so decrement happens correctly
         background_tasks.add_task(
             run_async_pipeline_task, executor, parameters, org_slug, bq_client,
             deprecated_api_key, deprecated_reservation_date

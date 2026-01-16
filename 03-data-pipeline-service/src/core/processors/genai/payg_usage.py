@@ -131,7 +131,11 @@ class PAYGUsageProcessor:
                 return {
                     "status": "SUCCESS",
                     "provider": provider,
-                    "message": f"No credentials found for {provider}. Skipping."
+                    "message": f"No credentials found for {provider}. Skipping.",
+                    # CRITICAL: Include dates for dependent steps even when skipping
+                    "start_date": str(start_date),
+                    "end_date": str(end_date),
+                    "rows_inserted": 0
                 }
 
             # HIGH FIX #4: Generate idempotency key BEFORE processing to prevent TOCTOU
@@ -155,7 +159,10 @@ class PAYGUsageProcessor:
                         "provider": provider,
                         "rows_inserted": 0,
                         "skipped": True,
-                        "message": f"Already processed for {start_date}"
+                        "message": f"Already processed for {start_date}",
+                        # CRITICAL: Include dates for dependent steps even when skipping
+                        "start_date": str(start_date),
+                        "end_date": str(end_date)
                     }
 
                 if not key_registered:
@@ -168,7 +175,10 @@ class PAYGUsageProcessor:
                         "provider": provider,
                         "rows_inserted": 0,
                         "skipped": True,
-                        "message": "Concurrent processing detected, skipping"
+                        "message": "Concurrent processing detected, skipping",
+                        # CRITICAL: Include dates for dependent steps even when skipping
+                        "start_date": str(start_date),
+                        "end_date": str(end_date)
                     }
 
             # Initialize adapter and extract usage
@@ -190,7 +200,10 @@ class PAYGUsageProcessor:
                     "status": "SUCCESS",
                     "provider": provider,
                     "rows_inserted": 0,
-                    "message": f"No usage data for {provider} in date range"
+                    "message": f"No usage data for {provider} in date range",
+                    # CRITICAL: Include dates for dependent steps even when no data
+                    "start_date": str(start_date),
+                    "end_date": str(end_date)
                 }
 
             # Add lineage metadata to records (standardized x_ prefix columns)
@@ -235,6 +248,9 @@ class PAYGUsageProcessor:
                 "provider": provider,
                 "rows_inserted": rows_inserted,
                 "date_range": f"{start_date} to {end_date}",
+                # CRITICAL: Include start_date/end_date for dependent steps (e.g., calculate_costs)
+                "start_date": str(start_date),
+                "end_date": str(end_date),
                 "successful_record_ids": successful_ids  # MEDIUM FIX #11: Return successful IDs
             }
 

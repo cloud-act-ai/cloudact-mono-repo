@@ -184,7 +184,8 @@ export interface PipelineConfig {
   id: string
   name: string
   description: string
-  provider: string
+  category: string  // Top-level category (cloud, genai, subscription)
+  provider: string  // Provider within category (gcp, aws, openai, anthropic)
   domain: string
   pipeline: string
   required_integration: string
@@ -1060,17 +1061,25 @@ export class PipelineBackendClient {
   /**
    * Run a pipeline.
    * Uses the pipeline service URL (convergence-data-pipeline) for execution.
+   *
+   * URL structure:
+   * - Cloud (4 segments): /api/v1/pipelines/run/{org}/{category}/{provider}/{domain}/{pipeline}
+   *   Example: /api/v1/pipelines/run/acme_inc/cloud/gcp/cost/billing
+   * - GenAI/SaaS (3 segments): /api/v1/pipelines/run/{org}/{category}/{domain}/{pipeline}
+   *   Example: /api/v1/pipelines/run/acme_inc/genai/payg/openai
    */
   async runPipeline(
     orgSlug: string,
+    category: string,
     provider: string,
     domain: string,
     pipeline: string,
     params?: PipelineRunRequest
   ): Promise<PipelineRunResponse> {
     validateOrgSlug(orgSlug)
-    // Build URL path, handling empty domain (avoids double slash)
-    const pathParts = [provider, domain, pipeline].filter(Boolean)
+    // Build URL path: category/provider/domain/pipeline (4 segments) or category/domain/pipeline (3 segments)
+    // Provider is empty for genai/subscription pipelines
+    const pathParts = [category, provider, domain, pipeline].filter(Boolean)
     const response = await fetchWithRetry(
       `${this.pipelineServiceUrl}/api/v1/pipelines/run/${orgSlug}/${pathParts.join("/")}`,
       {
@@ -1086,13 +1095,13 @@ export class PipelineBackendClient {
 
   /**
    * Run the GCP billing pipeline.
-   * Note: Uses empty string for domain since config is at configs/gcp/billing.yml
+   * URL: /api/v1/pipelines/run/{org}/cloud/gcp/cost/billing
    */
   async runBillingPipeline(
     orgSlug: string,
     date?: string
   ): Promise<PipelineRunResponse> {
-    return this.runPipeline(orgSlug, "gcp", "", "billing", { date })
+    return this.runPipeline(orgSlug, "cloud", "gcp", "cost", "billing", { date })
   }
 
   // Legacy alias for backward compatibility

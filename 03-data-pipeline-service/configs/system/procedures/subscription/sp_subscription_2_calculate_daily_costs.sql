@@ -488,7 +488,7 @@ BEGIN
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency, v_fiscal_year_start_month AS fy_start_month, p_pipeline_id, p_credential_id, p_run_id;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency, v_fiscal_year_start_month AS fy_start_month, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
 
   -- 4. Get row count (inside transaction for atomicity)
   EXECUTE IMMEDIATE FORMAT("""

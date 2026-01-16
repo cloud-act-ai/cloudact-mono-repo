@@ -64,8 +64,9 @@ class PipelineConfig(BaseModel):
     id: str = Field(..., description="Unique pipeline identifier")
     name: str = Field(..., description="Human-readable pipeline name")
     description: str = Field(..., description="Pipeline description")
-    provider: str = Field(..., description="Provider (GCP, OpenAI, Anthropic)")
-    domain: str = Field(..., description="Domain (Billing, Usage, Cost)")
+    category: str = Field(..., description="Top-level category (cloud, genai, subscription)")
+    provider: str = Field(..., description="Provider within category (gcp, aws, openai, anthropic)")
+    domain: str = Field(..., description="Domain (cost, payg, commitment, etc.)")
     pipeline: str = Field(..., description="Pipeline template name")
     required_integration: str = Field(..., description="Required integration to run")
     schedule: Optional[str] = Field(None, description="Default schedule (daily, monthly)")
@@ -265,7 +266,10 @@ async def list_pipelines(
                 id=p["id"],
                 name=p["name"],
                 description=p["description"],
-                provider=p["provider"],
+                category=p.get("category", ""),
+                # For genai/subscription pipelines, provider equals category in config
+                # but should be empty in URL path (e.g., /genai/payg/openai not /genai/genai/payg/openai)
+                provider="" if p["provider"] == p.get("category", "") else p["provider"],
                 domain=p["domain"],
                 pipeline=p["pipeline"],
                 required_integration=p["required_integration"],
@@ -310,7 +314,10 @@ async def get_pipeline(pipeline_id: str) -> PipelineConfig:
         id=pipeline["id"],
         name=pipeline["name"],
         description=pipeline["description"],
-        provider=pipeline["provider"],
+        category=pipeline.get("category", ""),
+        # For genai/subscription pipelines, provider equals category in config
+        # but should be empty in URL path
+        provider="" if pipeline["provider"] == pipeline.get("category", "") else pipeline["provider"],
         domain=pipeline["domain"],
         pipeline=pipeline["pipeline"],
         required_integration=pipeline["required_integration"],

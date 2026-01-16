@@ -736,6 +736,7 @@ class MetadataLogger:
             metadata_serialized = _serialize_datetime_values(metadata) if metadata else None
             metadata_json_str = json.dumps(metadata_serialized) if metadata_serialized is not None else None
 
+            now = datetime.utcnow()
             log_entry = {
                 "insertId": f"{step_logging_id}_start",  # Idempotency
                 "json": {
@@ -746,13 +747,14 @@ class MetadataLogger:
                     "step_type": step_type,
                     "step_index": step_index,
                     "status": StepStatus.RUNNING.value,
-                    "start_time": datetime.utcnow().isoformat(),
+                    "start_time": now.isoformat(),
                     "end_time": None,
                     "duration_ms": None,
                     "rows_processed": None,
                     "error_message": None,
                     "user_id": user_id,
-                    "metadata": metadata_json_str
+                    "metadata": metadata_json_str,
+                    "created_at": now.isoformat()
                 }
             }
 
@@ -877,7 +879,8 @@ class MetadataLogger:
                     "error_message": error_message,
                     "error_context": error_context_json_str,
                     "user_id": user_id,
-                    "metadata": metadata_json_str
+                    "metadata": metadata_json_str,
+                    "created_at": end_time.isoformat()
                 }
             }
 
@@ -996,7 +999,8 @@ class MetadataLogger:
                     "trigger_type": trigger_type,
                     "user_id": user_id,
                     "metadata": metadata_json_str,
-                    "transition_date": transition_time.date().isoformat()
+                    "transition_date": transition_time.date().isoformat(),
+                    "created_at": transition_time.isoformat()
                 }
             }
 

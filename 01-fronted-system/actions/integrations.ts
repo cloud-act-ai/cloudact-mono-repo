@@ -294,8 +294,12 @@ export async function setupIntegration(
 
     // Save integration status to Supabase (all states: VALID, INVALID, PENDING)
     // This ensures UI reflects actual state even when validation fails
+    // CRITICAL: Pass credential_id from backend to ensure Supabase record matches BigQuery
     if (response.validation_status) {
-      await saveIntegrationStatus(input.orgSlug, input.provider, response.validation_status)
+      await saveIntegrationStatus(input.orgSlug, input.provider, response.validation_status, {
+        credentialId: response.credential_id || undefined,
+        credentialName: input.credentialName,
+      })
     }
 
     return {
@@ -778,8 +782,9 @@ async function saveCloudIntegrationStatus(
     // Normalize provider name (gcp_service_account -> gcp)
     const normalizedProvider = provider === "gcp_service_account" ? "gcp" : provider
 
-    // Generate credential ID if not provided
-    const credentialId = options?.credentialId || `${normalizedProvider}_${Date.now()}`
+    // Use provided credential ID or default to stable pattern (provider_primary)
+    // IMPORTANT: Don't use timestamp - that creates duplicate records on each setup
+    const credentialId = options?.credentialId || `${normalizedProvider}_primary`
     const credentialName = options?.credentialName || `${normalizedProvider.toUpperCase()} Integration`
 
     // Upsert integration record
@@ -806,6 +811,37 @@ async function saveCloudIntegrationStatus(
 
     if (upsertError) {
       return { success: false, error: upsertError.message }
+    }
+
+    // CRITICAL FIX: Also update the organizations table integration status column
+    // The pipelines.ts checks organizations.integration_*_status for required integrations
+    // Without this update, pipelines will fail with "Required integration not configured"
+    const orgColumnMap: Record<string, string> = {
+      gcp: "integration_gcp_status",
+      aws: "integration_aws_status",
+      azure: "integration_azure_status",
+      oci: "integration_oci_status",
+    }
+
+    const orgColumn = orgColumnMap[normalizedProvider]
+    if (orgColumn) {
+      const orgUpdate: Record<string, string> = {
+        [orgColumn]: status,
+      }
+      // Add configured_at timestamp for successful setup
+      if (status === "VALID") {
+        orgUpdate[`integration_${normalizedProvider}_configured_at`] = new Date().toISOString()
+      }
+
+      const { error: orgUpdateError } = await adminClient
+        .from("organizations")
+        .update(orgUpdate)
+        .eq("org_slug", orgSlug)
+
+      if (orgUpdateError) {
+        console.warn(`[saveCloudIntegrationStatus] Failed to update org status column: ${orgUpdateError.message}`)
+        // Don't fail the overall operation - junction table is the source of truth
+      }
     }
 
     return { success: true }

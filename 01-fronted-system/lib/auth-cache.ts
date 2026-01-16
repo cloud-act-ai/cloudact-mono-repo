@@ -9,7 +9,10 @@
  * Before: Each action = 4 Supabase queries (auth + org + member + key)
  * After:  First action = 4 queries, subsequent = 0 (cache hit)
  *
- * Cache TTL: 5 seconds (enough for parallel requests, expires quickly for security)
+ * Cache TTL: 60 seconds (balances security with performance)
+ *
+ * AUTH-003 FIX: Removed broken timeout mechanism that was causing cascading failures.
+ * Now uses longer cache TTL and proper request deduplication without timeouts.
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
@@ -42,10 +45,11 @@ interface CacheEntry {
 // Cache Configuration
 // ============================================
 
-// Short-lived cache (5 seconds) - enough for parallel requests, expires quickly for security
-const AUTH_CACHE_TTL_MS = 5000
+// AUTH-003 FIX: Increased cache TTL from 5s to 60s to reduce Supabase load
+// 60 seconds is safe for auth caching - membership changes are rare
+const AUTH_CACHE_TTL_MS = 60000
 const authCache = new Map<string, CacheEntry>()
-const MAX_CACHE_ENTRIES = 50
+const MAX_CACHE_ENTRIES = 100
 
 // In-flight request deduplication - prevents multiple parallel requests from all fetching
 // fresh data simultaneously, which can cause connection pool exhaustion and timeouts
@@ -117,22 +121,23 @@ async function requireOrgMembershipInternal(orgSlug: string): Promise<AuthResult
 // Cached Auth Functions (PUBLIC API)
 // ============================================
 
-// AUTH-002 FIX: Reduced timeout from 60s to 15s - if auth takes longer, something is wrong
-const AUTH_OPERATION_TIMEOUT_MS = 15000 // 15 seconds
-
 /**
  * Get cached auth + API key in a single call.
  * PERFORMANCE: Use this instead of separate auth + getOrgApiKeySecure calls.
  *
  * Features:
- * - 5-second request-level cache
+ * - 60-second request-level cache (AUTH-003 FIX: increased from 5s)
  * - Request deduplication for parallel requests (prevents connection pool exhaustion)
- * - 15-second timeout to fail fast on Supabase issues
+ * - No artificial timeout - let Supabase handle its own timeouts
+ *
+ * AUTH-003 FIX: Removed broken timeout mechanism that was causing cascading failures.
+ * The timeout was returning null but not canceling underlying operations, leading to
+ * resource exhaustion and "Auth timeout" spam in logs.
  *
  * @param orgSlug - Organization slug
- * @returns Auth context with API key, or null if auth fails or times out
+ * @returns Auth context with API key, or null if auth fails
  */
-export async function getAuthWithApiKey(orgSlug: string): Promise<CachedAuthContext | null> {
+export async function getAuthContext(orgSlug: string): Promise<CachedAuthContext | null> {
   const cacheKey = orgSlug
   const cached = authCache.get(cacheKey)
   const now = Date.now()
@@ -150,57 +155,53 @@ export async function getAuthWithApiKey(orgSlug: string): Promise<CachedAuthCont
   const inFlight = inFlightRequests.get(cacheKey)
   if (inFlight) {
     if (process.env.NODE_ENV === "development") {
-      console.log(`[getAuthWithApiKey] Waiting for in-flight request for org: ${orgSlug}`)
+      console.log(`[getAuthContext] Waiting for in-flight request for org: ${orgSlug}`)
     }
     return inFlight
   }
 
-  // Fetch fresh auth + API key with timeout
+  // Fetch fresh auth + API key (no artificial timeout - let Supabase handle it)
   const fetchPromise = (async (): Promise<CachedAuthContext | null> => {
     try {
-      const fetchAuthPromise = async (): Promise<CachedAuthContext | null> => {
-        const auth = await requireOrgMembershipInternal(orgSlug)
-        const apiKey = await getOrgApiKeySecure(orgSlug)
+      const auth = await requireOrgMembershipInternal(orgSlug)
+      const apiKey = await getOrgApiKeySecure(orgSlug)
 
-        if (!apiKey) {
-          return null
+      if (!apiKey) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[getAuthContext] No API key found for org: ${orgSlug}`)
         }
-
-        // Cache the result
-        const cacheTime = Date.now()
-        authCache.set(cacheKey, {
-          userId: auth.user.id,
-          orgId: auth.orgId,
-          role: auth.role,
-          apiKey,
-          cachedAt: cacheTime,
-        })
-
-        // Cleanup old entries
-        if (authCache.size > MAX_CACHE_ENTRIES) {
-          const entries = Array.from(authCache.entries())
-          for (const [key, value] of entries) {
-            if (cacheTime - value.cachedAt > AUTH_CACHE_TTL_MS) {
-              authCache.delete(key)
-            }
-          }
-        }
-
-        return { auth, apiKey }
+        return null
       }
 
-      // Race between auth fetch and timeout
-      const timeoutPromise = new Promise<null>((resolve) => {
-        setTimeout(() => {
-          if (process.env.NODE_ENV === "development") {
-            console.warn(`[getAuthWithApiKey] Auth timeout after ${AUTH_OPERATION_TIMEOUT_MS}ms for org: ${orgSlug}`)
-          }
-          resolve(null)
-        }, AUTH_OPERATION_TIMEOUT_MS)
+      // Cache the result
+      const cacheTime = Date.now()
+      authCache.set(cacheKey, {
+        userId: auth.user.id,
+        orgId: auth.orgId,
+        role: auth.role,
+        apiKey,
+        cachedAt: cacheTime,
       })
 
-      return await Promise.race([fetchAuthPromise(), timeoutPromise])
-    } catch {
+      // Cleanup old entries
+      if (authCache.size > MAX_CACHE_ENTRIES) {
+        const entries = Array.from(authCache.entries())
+        for (const [key, value] of entries) {
+          if (cacheTime - value.cachedAt > AUTH_CACHE_TTL_MS) {
+            authCache.delete(key)
+          }
+        }
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[getAuthContext] Auth cached for org: ${orgSlug}`)
+      }
+
+      return { auth, apiKey }
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error(`[getAuthContext] Auth failed for org: ${orgSlug}`, error)
+      }
       return null
     } finally {
       // Always clean up the in-flight request
@@ -215,15 +216,20 @@ export async function getAuthWithApiKey(orgSlug: string): Promise<CachedAuthCont
 }
 
 /**
+ * @deprecated Use getAuthContext instead. This alias exists for backward compatibility.
+ */
+export const getAuthWithApiKey = getAuthContext
+
+/**
  * Cached version of requireOrgMembership.
- * Uses 5-second request-level cache to avoid redundant Supabase queries.
+ * Uses 60-second request-level cache to avoid redundant Supabase queries.
  *
  * @param orgSlug - Organization slug
  * @returns Auth result with user, orgId, and role
  * @throws Error if not authenticated or not a member
  */
 export async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
-  const cached = await getAuthWithApiKey(orgSlug)
+  const cached = await getAuthContext(orgSlug)
   if (cached) {
     return cached.auth
   }
@@ -233,13 +239,13 @@ export async function requireOrgMembership(orgSlug: string): Promise<AuthResult>
 
 /**
  * Get cached API key for an organization.
- * PERFORMANCE: Prefer getAuthWithApiKey() when you also need auth.
+ * PERFORMANCE: Prefer getAuthContext() when you also need auth.
  *
  * @param orgSlug - Organization slug
  * @returns API key or null if not found
  */
 export async function getCachedApiKey(orgSlug: string): Promise<string | null> {
-  const cached = await getAuthWithApiKey(orgSlug)
+  const cached = await getAuthContext(orgSlug)
   return cached?.apiKey ?? null
 }
 

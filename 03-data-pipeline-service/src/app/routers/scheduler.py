@@ -1491,3 +1491,80 @@ async def cleanup_orphaned_pipelines(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
         )
+
+
+@router.post(
+    "/scheduler/reset-concurrent-counter/{org_slug}",
+    summary="Reset concurrent counter for an org (Admin)",
+    description="Reset the concurrent_pipelines_running counter to 0 for a specific org (ADMIN ONLY)"
+)
+async def reset_concurrent_counter(
+    org_slug: str,
+    admin_context: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Reset concurrent_pipelines_running counter to 0 for a specific org.
+
+    Use this when the counter is stuck due to pipeline crashes or bugs.
+    This does NOT affect actual running pipelines - use cleanup-orphaned-pipelines for that.
+    """
+    try:
+        today = get_utc_date()
+
+        # First get current value for logging
+        check_query = f"""
+        SELECT concurrent_pipelines_running
+        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        WHERE org_slug = @org_slug AND usage_date = @usage_date
+        """
+
+        check_results = list(bq_client.client.query(
+            check_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+            ])
+        ).result())
+
+        old_value = check_results[0]['concurrent_pipelines_running'] if check_results else 0
+
+        # Reset to 0
+        reset_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET concurrent_pipelines_running = 0,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug AND usage_date = @usage_date
+        """
+
+        job = bq_client.client.query(
+            reset_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+            ])
+        )
+        job.result()
+
+        rows_affected = job.num_dml_affected_rows or 0
+
+        logger.info(
+            f"Reset concurrent counter for org {org_slug}: {old_value} -> 0",
+            extra={"org_slug": org_slug, "old_value": old_value, "rows_affected": rows_affected}
+        )
+
+        return {
+            "status": "SUCCESS",
+            "org_slug": org_slug,
+            "old_value": old_value,
+            "new_value": 0,
+            "rows_affected": rows_affected,
+            "message": f"Reset concurrent counter from {old_value} to 0"
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to reset concurrent counter for {org_slug}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Operation failed. Please check server logs for details."
+        )

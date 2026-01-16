@@ -43,7 +43,8 @@ interface PipelineConfig {
   id: string
   name: string
   description: string
-  provider: string
+  category: string  // Top-level category (cloud, genai, subscription)
+  provider: string  // Provider within category (gcp, aws, openai, etc.)
   domain: string
   pipeline: string
   required_integration: string

@@ -409,6 +409,8 @@ function calculatePeriodCostsFromGranular(
 
 /**
  * Determine if a custom date range is within the L1 cached 365-day window.
+ * FIX-TZ-001: Use string comparison (YYYY-MM-DD) instead of timestamps
+ * to avoid timezone-related cache decision errors.
  */
 function isRangeWithinL1Cache(
   customRange: CustomDateRange | undefined,
@@ -416,13 +418,11 @@ function isRangeWithinL1Cache(
 ): boolean {
   if (!customRange || !cachedRange) return true // Non-custom ranges always use L1 cache
 
-  const requestedStart = new Date(customRange.startDate).getTime()
-  const requestedEnd = new Date(customRange.endDate).getTime()
-  const cachedStart = new Date(cachedRange.start).getTime()
-  const cachedEnd = new Date(cachedRange.end).getTime()
-
-  // Check if requested range is fully within L1 cached range
-  return requestedStart >= cachedStart && requestedEnd <= cachedEnd
+  // FIX-TZ-001: Use string comparison for YYYY-MM-DD format (timezone-agnostic)
+  // This avoids issues where new Date("2024-01-15") creates different timestamps
+  // depending on user's timezone, causing incorrect cache decisions.
+  return customRange.startDate >= cachedRange.start &&
+         customRange.endDate <= cachedRange.end
 }
 
 /**
@@ -609,11 +609,6 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      // Calculate 365-day date range for consistent data
-      const today = new Date()
-      const startOfRange = new Date(today)
-      startOfRange.setDate(startOfRange.getDate() - 365)
-
       // TZ-005 FIX: Use local date formatting instead of toISOString() to avoid timezone shifts
       // toISOString() converts to UTC which can shift the date by one day for users in
       // negative UTC offsets (e.g., 2024-01-15 00:00:00 PST becomes 2024-01-14 in UTC)
@@ -623,8 +618,27 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         const day = String(d.getDate()).padStart(2, "0")
         return `${year}-${month}-${day}`
       }
-      const endDate = formatLocalDate(today)
-      const startDate = formatLocalDate(startOfRange)
+
+      const today = new Date()
+      let startDate: string
+      let endDate: string
+
+      // FIX: Use custom date range from filters if provided (for L1_NO_CACHE scenarios)
+      // When user selects a custom range outside the 365-day cache, we fetch that range from API
+      if (filtersOverride?.timeRange === "custom" && filtersOverride?.customRange?.startDate && filtersOverride?.customRange?.endDate) {
+        startDate = filtersOverride.customRange.startDate
+        endDate = filtersOverride.customRange.endDate
+
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[CostData] Using custom date range: ${startDate} to ${endDate}`)
+        }
+      } else {
+        // Default: Calculate 365-day date range from today
+        const startOfRange = new Date(today)
+        startOfRange.setDate(startOfRange.getDate() - 365)
+        endDate = formatLocalDate(today)
+        startDate = formatLocalDate(startOfRange)
+      }
 
       // CTX-001 FIX: Use filtersOverride if provided to avoid stale closure
       // When setUnifiedFilters calls fetchCostData, React hasn't committed
@@ -642,7 +656,8 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
 
       // Log fetch in dev mode
       if (process.env.NODE_ENV === "development") {
-        console.log(`[CostData] Fetching 365-day data: ${startDate} to ${endDate}`, {
+        console.log(`[CostData] Fetching data: ${startDate} to ${endDate}`, {
+          isCustomRange: filtersOverride?.timeRange === "custom",
           filters: apiFilters,
           clearBackendCache,
         })
@@ -663,11 +678,12 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       // PERF-001: Fetch core data in parallel (reduced from 5+12=17 to 5 API calls)
       // Period costs now calculated client-side from granular data
       // EDGE-002 FIX: Added getOrgLocale to get fiscal year settings
+      // FIX: Pass startDate/endDate to getCostTrendGranular for custom date range support
       const fetchPromise = Promise.all([
         getTotalCosts(orgSlug, startDate, endDate, apiFilters),
         getCostByProvider(orgSlug, startDate, endDate, apiFilters),
         getHierarchy(orgSlug),
-        getCostTrendGranular(orgSlug, 365, clearBackendCache),
+        getCostTrendGranular(orgSlug, 365, clearBackendCache, startDate, endDate),
         getOrgLocale(orgSlug),
       ])
 

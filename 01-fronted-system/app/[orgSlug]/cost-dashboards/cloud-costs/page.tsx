@@ -96,9 +96,15 @@ export default function CloudCostsPage() {
   })
 
   // Time range handlers using unified filters (instant, no API call)
+  // FIX-CUSTOM-001: When range is "custom", don't include customRange in the update.
+  // The customRange is already set by handleCustomRangeChange before this is called.
   const handleTimeRangeChange = useCallback((range: TimeRange) => {
-    setUnifiedFilters({ timeRange: range, customRange: range === "custom" ? customRange : undefined })
-  }, [setUnifiedFilters, customRange])
+    if (range === "custom") {
+      setUnifiedFilters({ timeRange: range })
+    } else {
+      setUnifiedFilters({ timeRange: range, customRange: undefined })
+    }
+  }, [setUnifiedFilters])
 
   const handleCustomRangeChange = useCallback((range: CustomDateRange | undefined) => {
     setUnifiedFilters({ customRange: range })

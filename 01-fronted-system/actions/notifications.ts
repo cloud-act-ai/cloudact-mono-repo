@@ -8,7 +8,7 @@
  */
 
 import { logError } from "@/lib/utils"
-import { getAuthWithApiKey } from "@/lib/auth-cache"
+import { getAuthContext } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -301,7 +301,7 @@ export async function listNotificationChannels(
 ): Promise<ActionResponse<NotificationChannel[]>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -336,7 +336,7 @@ export async function createNotificationChannel(
 ): Promise<ActionResponse<NotificationChannel>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -374,7 +374,7 @@ export async function updateNotificationChannel(
 ): Promise<ActionResponse<NotificationChannel>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -411,7 +411,7 @@ export async function deleteNotificationChannel(
 ): Promise<ActionResponse<void>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -443,7 +443,7 @@ export async function testNotificationChannel(
 ): Promise<ActionResponse<{ message: string }>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -482,7 +482,7 @@ export async function listNotificationRules(
 ): Promise<ActionResponse<NotificationRule[]>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -518,7 +518,7 @@ export async function createNotificationRule(
 ): Promise<ActionResponse<NotificationRule>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -556,7 +556,7 @@ export async function updateNotificationRule(
 ): Promise<ActionResponse<NotificationRule>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -593,7 +593,7 @@ export async function deleteNotificationRule(
 ): Promise<ActionResponse<void>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -625,7 +625,7 @@ export async function pauseNotificationRule(
 ): Promise<ActionResponse<NotificationRule>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -658,7 +658,7 @@ export async function resumeNotificationRule(
 ): Promise<ActionResponse<NotificationRule>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -696,7 +696,7 @@ export async function listNotificationSummaries(
 ): Promise<ActionResponse<NotificationSummary[]>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -731,7 +731,7 @@ export async function createNotificationSummary(
 ): Promise<ActionResponse<NotificationSummary>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -769,7 +769,7 @@ export async function updateNotificationSummary(
 ): Promise<ActionResponse<NotificationSummary>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -806,7 +806,7 @@ export async function deleteNotificationSummary(
 ): Promise<ActionResponse<void>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -838,7 +838,7 @@ export async function sendNotificationSummaryNow(
 ): Promise<ActionResponse<{ message: string }>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -882,7 +882,7 @@ export async function listNotificationHistory(
 ): Promise<ActionResponse<NotificationHistoryEntry[]>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -921,7 +921,7 @@ export async function acknowledgeNotification(
 ): Promise<ActionResponse<NotificationHistoryEntry>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }
@@ -957,7 +957,7 @@ export async function getNotificationStats(
 ): Promise<ActionResponse<NotificationStats>> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return { success: false, error: "Organization API key not found." }
     }

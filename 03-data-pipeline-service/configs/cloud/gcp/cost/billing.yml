@@ -13,6 +13,8 @@
 pipeline_id: "{org_slug}-gcp-billing"
 name: "GCP Billing Sync"
 description: "Extract GCP billing costs and store in BigQuery"
+provider: "gcp"
+domain: "cost"
 version: "15.0.0"
 
 # Schedule configuration (cron expression: daily at 04:00 UTC)
@@ -29,6 +31,7 @@ variables:
 steps:
   # Step 1 (Optional): Decrypt GCP credentials for customer's billing data
   - step_id: "decrypt_credentials"
+    name: "Decrypt Credentials"
     ps_type: "integrations.kms_decrypt"
     description: "Load organization GCP credentials"
     enabled: "{use_org_credentials}"
@@ -40,7 +43,8 @@ steps:
 
   # Step 2: Extract billing data from GCP billing export
   - step_id: "extract_billing"
-    ps_type: "gcp.external_bq_extractor"
+    name: "Extract Billing Data"
+    ps_type: "cloud.gcp.external_bq_extractor"
     description: "Extract GCP billing costs for date range"
     depends_on:
       - "decrypt_credentials"
@@ -103,6 +107,7 @@ steps:
 
   # Step 3: Notification on failure
   - step_id: "notify_on_failure"
+    name: "Notify on Failure"
     ps_type: "notify_systems.email_notification"
     description: "Send failure notification"
     trigger: "on_failure"

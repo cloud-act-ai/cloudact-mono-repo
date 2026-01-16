@@ -23,7 +23,7 @@
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
-import { getAuthWithApiKey, requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
+import { getAuthContext, requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,

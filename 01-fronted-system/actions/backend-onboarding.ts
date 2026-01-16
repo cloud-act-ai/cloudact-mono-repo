@@ -1670,3 +1670,89 @@ export async function syncSubscriptionToBackend(input: {
 }): Promise<SyncSubscriptionResult> {
   return syncSubscriptionToBackendInternal(input, true)
 }
+
+/**
+ * Retry backend onboarding for an existing organization.
+ * Use this when the initial backend onboarding failed but Supabase org exists.
+ *
+ * This will:
+ * 1. Get org data from Supabase
+ * 2. Call backend onboarding endpoint (creates org + API key in BigQuery)
+ * 3. Save the new API key to Supabase secure storage
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function retryBackendOnboarding(orgSlug: string): Promise<{
+  success: boolean
+  error?: string
+  apiKey?: string
+  revealToken?: string
+}> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
+    }
+
+    // Get org data from Supabase
+    const orgDataResult = await getOrgDataForReonboarding(orgSlug)
+    if (!orgDataResult.success || !orgDataResult.data) {
+      return { success: false, error: orgDataResult.error || "Failed to get organization data" }
+    }
+
+    // Get plan from Supabase
+    const adminClient = createServiceRoleClient()
+    const { data: orgPlanData, error: planError } = await adminClient
+      .from("organizations")
+      .select("plan")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (planError) {
+      return { success: false, error: "Failed to get organization plan" }
+    }
+
+    // Map frontend plan to backend plan
+    const planMap: Record<string, "STARTER" | "PROFESSIONAL" | "SCALE"> = {
+      "starter": "STARTER",
+      "professional": "PROFESSIONAL",
+      "scale": "SCALE",
+    }
+    const subscriptionPlan = planMap[orgPlanData.plan?.toLowerCase() || "starter"] || "STARTER"
+
+    // Call backend onboarding
+    const backendResult = await onboardToBackend({
+      orgSlug,
+      companyName: orgDataResult.data.orgName,
+      adminEmail: orgDataResult.data.adminEmail,
+      subscriptionPlan,
+      defaultCurrency: orgDataResult.data.currency,
+      defaultTimezone: orgDataResult.data.timezone,
+    })
+
+    if (!backendResult.success) {
+      return { success: false, error: backendResult.error || "Backend onboarding failed" }
+    }
+
+    return {
+      success: true,
+      revealToken: backendResult.revealToken,
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[retryBackendOnboarding] Failed:", error)
+    }
+    return { success: false, error: error instanceof Error ? error.message : "Failed to retry backend onboarding" }
+  }
+}

@@ -486,6 +486,12 @@ def aggregate_granular(
             item[f"level_{level}_id"] = row.get(level_id_col)
             item[f"level_{level}_name"] = row.get(level_name_col)
 
+        # FIX-HIERARCHY-001: Add backward-compatible aliases for 3-level hierarchy
+        # Frontend uses dept_id/project_id/team_id for filtering, maps to levels 1/2/3
+        item["dept_id"] = item.get("level_1_id")
+        item["project_id"] = item.get("level_2_id")
+        item["team_id"] = item.get("level_3_id")
+
         # Derive category from source_system or provider
         source_system = row.get("x_source_system", "")
         if source_system == "subscription_costs_daily":

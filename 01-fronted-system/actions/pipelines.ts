@@ -234,36 +234,17 @@ export async function getAvailablePipelines(): Promise<{
 
 // Fallback pipelines if API is unavailable
 // NOTE: These should match api-service's pipeline_validator.py defaults
-// Domain must match config path: configs/{provider}/{domain}/{pipeline}.yml
+// URL structure: configs/{category}/{provider}/{domain}/{pipeline}.yml
 const FALLBACK_PIPELINES: PipelineConfig[] = [
   {
-    id: "gcp_billing",
+    id: "cloud_gcp_cost_billing",
     name: "GCP Billing",
     description: "Extract daily billing cost data from GCP Cloud Billing export",
+    category: "cloud",
     provider: "gcp",
-    domain: "cost",  // configs/gcp/cost/billing.yml
+    domain: "cost",
     pipeline: "billing",
     required_integration: "GCP_SA",
-    enabled: true,
-  },
-  {
-    id: "openai_usage_cost",
-    name: "OpenAI Usage & Cost",
-    description: "Extract usage data and calculate costs from OpenAI API",
-    provider: "openai",
-    domain: "",  // configs/openai/usage_cost.yml (no subdomain)
-    pipeline: "usage_cost",
-    required_integration: "OPENAI",
-    enabled: true,
-  },
-  {
-    id: "anthropic_usage_cost",
-    name: "Anthropic Usage & Cost",
-    description: "Extract usage data and calculate costs from Anthropic API",
-    provider: "anthropic",
-    domain: "",  // configs/anthropic/usage_cost.yml (no subdomain)
-    pipeline: "usage_cost",
-    required_integration: "ANTHROPIC",
     enabled: true,
   },
   // GenAI PAYG Pipelines
@@ -271,7 +252,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_payg_openai",
     name: "OpenAI Usage & Cost",
     description: "Extract OpenAI token usage and calculate daily costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",  // Provider is empty for genai (provider is in pipeline name)
     domain: "payg",
     pipeline: "openai",
     required_integration: "OPENAI",
@@ -281,7 +263,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_payg_anthropic",
     name: "Anthropic Usage & Cost",
     description: "Extract Anthropic token usage and calculate daily costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "payg",
     pipeline: "anthropic",
     required_integration: "ANTHROPIC",
@@ -291,7 +274,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_payg_gemini",
     name: "Gemini Usage & Cost",
     description: "Extract Gemini token usage and calculate daily costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "payg",
     pipeline: "gemini",
     required_integration: "GEMINI",
@@ -301,7 +285,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_payg_deepseek",
     name: "DeepSeek Usage & Cost",
     description: "Extract DeepSeek token usage and calculate daily costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "payg",
     pipeline: "deepseek",
     required_integration: "DEEPSEEK",
@@ -311,7 +296,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_payg_azure_openai",
     name: "Azure OpenAI Usage & Cost",
     description: "Extract Azure OpenAI token usage and calculate daily costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "payg",
     pipeline: "azure_openai",
     required_integration: "AZURE_OPENAI",
@@ -322,7 +308,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_commitment_aws_bedrock",
     name: "AWS Bedrock Provisioned Throughput",
     description: "Extract AWS Bedrock PT usage and calculate commitment costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "commitment",
     pipeline: "aws_bedrock",
     required_integration: "AWS_BEDROCK",
@@ -332,7 +319,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_commitment_azure_ptu",
     name: "Azure OpenAI PTU Commitment",
     description: "Extract Azure OpenAI PTU usage and calculate commitment costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "commitment",
     pipeline: "azure_ptu",
     required_integration: "AZURE_OPENAI",
@@ -342,7 +330,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_commitment_gcp_vertex",
     name: "GCP Vertex AI GSU Commitment",
     description: "Extract GCP Vertex AI GSU usage and calculate commitment costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "commitment",
     pipeline: "gcp_vertex",
     required_integration: "GCP_VERTEX",
@@ -353,7 +342,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_infrastructure_gcp_gpu",
     name: "GCP GPU Infrastructure",
     description: "Extract GCP GPU/TPU usage and calculate infrastructure costs",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "infrastructure",
     pipeline: "gcp_gpu",
     required_integration: "GCP_SA",
@@ -364,20 +354,23 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "genai_unified_consolidate",
     name: "GenAI Unified Consolidation",
     description: "Consolidate PAYG, Commitment, and Infrastructure costs into unified tables and FOCUS 1.3",
-    provider: "genai",
+    category: "genai",
+    provider: "",
     domain: "unified",
     pipeline: "consolidate",
     required_integration: "",
     enabled: true,
   },
+  // Subscription Pipeline
   {
     id: "subscription_costs",
     name: "Subscription Costs",
     description: "Calculate daily amortized costs from subscription plans",
-    provider: "subscription",
-    domain: "costs",  // configs/subscription/costs/subscription_cost.yml
+    category: "subscription",
+    provider: "",
+    domain: "costs",
     pipeline: "subscription_cost",
-    required_integration: "",  // No external integration needed
+    required_integration: "",
     enabled: true,
   },
 ]
@@ -524,7 +517,8 @@ export async function runPipeline(
 
     const response = await backend.runPipeline(
       validOrgSlug,
-      pipeline.provider,
+      pipeline.category,  // Top-level category (cloud, genai, subscription)
+      pipeline.provider,  // Provider within category (gcp, aws, openai, etc.)
       pipeline.domain,
       pipeline.pipeline,
       validParams || {}

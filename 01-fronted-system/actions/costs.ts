@@ -8,13 +8,14 @@
  *
  * All cost data comes from cost_data_standard_1_3 (FOCUS 1.3 format).
  *
- * PERFORMANCE: Uses request-level caching for auth/API key to avoid
- * redundant Supabase queries when multiple cost actions run in parallel.
+ * PERFORMANCE: Uses shared auth cache from lib/auth-cache.ts for auth/API key
+ * to avoid redundant Supabase queries when multiple cost actions run in parallel.
+ *
+ * AUTH-003 FIX: Removed duplicate auth cache implementation - now uses shared getAuthContext.
  */
 
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
-import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { getAuthContext, requireOrgMembership } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -25,102 +26,8 @@ import {
 // Note: unstable_cache was considered for cost trend caching but skipped
 // to avoid stale data issues. Client-side caching via CostDataContext is sufficient.
 
-// ============================================
-// Request-Level Auth Cache (Performance Fix)
-// ============================================
-
-interface CachedAuth {
-  userId: string
-  orgId: string
-  role: string
-  apiKey: string
-  cachedAt: number
-}
-
-// Short-lived cache (5 seconds) - enough for parallel requests, expires quickly for security
-const AUTH_CACHE_TTL_MS = 5000
-const authCache = new Map<string, CachedAuth>()
-
-/**
- * Get current user ID from Supabase auth (fast, no DB query).
- * Returns null if not authenticated.
- *
- * AUTH-001 FIX: Used to include userId in cache key to prevent cross-user auth leakage.
- */
-async function getCurrentUserId(): Promise<string | null> {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    return user?.id ?? null
-  } catch {
-    return null
-  }
-}
-
-/**
- * Get cached auth context for an org.
- * This dramatically reduces Supabase queries when multiple cost actions run in parallel.
- * Cache is invalidated after 5 seconds to ensure fresh auth checks.
- *
- * AUTH-001 FIX: Cache key now includes userId to prevent cross-user auth context leakage.
- * Previously, User A (admin) could have their auth cached, and User B (member) accessing
- * the same org within 5 seconds would incorrectly get User A's admin role.
- */
-async function getCachedAuthContext(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
-  // AUTH-001 FIX: Get current user ID first to include in cache key
-  const currentUserId = await getCurrentUserId()
-  if (!currentUserId) {
-    return null // Not authenticated
-  }
-
-  // CACHE-001 FIX: Cache key includes both userId AND orgSlug for complete isolation
-  // This prevents cross-org role leakage (e.g., admin in org-A, member in org-B)
-  const cacheKey = `${currentUserId}:${orgSlug}`
-  const cached = authCache.get(cacheKey)
-  const now = Date.now()
-
-  // ASYNC-001 FIX: Proactive cleanup BEFORE cache grows too large
-  if (authCache.size >= 95) {
-    const entries = Array.from(authCache.entries())
-    for (const [key, value] of entries) {
-      if (now - value.cachedAt > AUTH_CACHE_TTL_MS) {
-        authCache.delete(key)
-      }
-    }
-  }
-
-  // Return cached if still valid AND matches current user AND orgSlug
-  if (cached && (now - cached.cachedAt) < AUTH_CACHE_TTL_MS && cached.userId === currentUserId) {
-    return {
-      auth: { user: { id: cached.userId }, orgId: cached.orgId, role: cached.role },
-      apiKey: cached.apiKey,
-    }
-  }
-
-  // Fetch fresh auth + API key
-  try {
-    const auth = await requireOrgMembershipInternal(orgSlug)
-    const apiKey = await getOrgApiKeySecure(orgSlug)
-
-    if (!apiKey) {
-      return null
-    }
-
-    // Cache the result with user-specific key
-    authCache.set(cacheKey, {
-      userId: auth.user.id,
-      orgId: auth.orgId,
-      role: auth.role,
-      apiKey,
-      cachedAt: now,
-    })
-
-    // ASYNC-001 FIX: Cleanup moved to before cache check (proactive cleanup)
-    return { auth, apiKey }
-  } catch {
-    return null
-  }
-}
+// AUTH-003 FIX: Removed duplicate auth cache implementation.
+// Now uses shared getAuthContext from lib/auth-cache.ts
 
 // ============================================
 // Types
@@ -260,110 +167,9 @@ export interface CostFilterParams {
 // Auth Helpers
 // ============================================
 
+// AUTH-003 FIX: Removed duplicate auth functions.
+// Now uses shared getAuthContext from lib/auth-cache.ts
 const isValidOrgSlug = isValidOrgSlugHelper
-
-interface AuthResult {
-  user: { id: string; user_metadata?: Record<string, unknown> }
-  orgId: string
-  role: string
-}
-
-/**
- * Internal auth check - makes actual Supabase queries.
- * Use getCachedAuthContext() for cached version in parallel requests.
- */
-async function requireOrgMembershipInternal(orgSlug: string): Promise<AuthResult> {
-  if (!isValidOrgSlug(orgSlug)) {
-    throw new Error("Invalid organization slug")
-  }
-
-  const supabase = await createClient()
-  const adminClient = createServiceRoleClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error("Not authenticated")
-  }
-
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id")
-    .eq("org_slug", orgSlug)
-    .single()
-
-  if (orgError) {
-    if (orgError.code === "PGRST116") {
-      throw new Error("Organization not found")
-    }
-    throw new Error(`Database error: ${orgError.message}`)
-  }
-
-  if (!org) {
-    throw new Error("Organization not found")
-  }
-
-  const { data: membership, error: membershipError } = await adminClient
-    .from("organization_members")
-    .select("role")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (membershipError && membershipError.code !== "PGRST116") {
-    throw new Error(`Database error: ${membershipError.message}`)
-  }
-
-  if (!membership) {
-    throw new Error("Not a member of this organization")
-  }
-
-  return { user, orgId: org.id, role: membership.role }
-}
-
-/**
- * Cached version of requireOrgMembership.
- * Uses 5-second request-level cache to avoid redundant Supabase queries.
- */
-async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
-  const cached = await getCachedAuthContext(orgSlug)
-  if (cached) {
-    return cached.auth
-  }
-  // Fallback to direct call if caching fails
-  return requireOrgMembershipInternal(orgSlug)
-}
-
-/**
- * Get cached auth + API key in a single call.
- * PERFORMANCE: Use this instead of separate requireOrgMembership + getOrgApiKeySecure calls.
- *
- * AUTH-002 FIX: Added 10-second timeout to prevent indefinite hanging on Supabase issues.
- * This ensures the caller gets a null result quickly rather than waiting for the
- * parent 30-second timeout in fetchCostData.
- */
-async function getAuthWithApiKey(orgSlug: string): Promise<{ auth: AuthResult; apiKey: string } | null> {
-  const AUTH_TIMEOUT_MS = 60000 // 60 seconds - allows time for slower Supabase queries
-
-  try {
-    const authPromise = getCachedAuthContext(orgSlug)
-    const timeoutPromise = new Promise<null>((resolve) => {
-      setTimeout(() => {
-        if (process.env.NODE_ENV === "development") {
-          console.warn(`[getAuthWithApiKey] Auth timeout after ${AUTH_TIMEOUT_MS}ms for org: ${orgSlug}`)
-        }
-        resolve(null)
-      }, AUTH_TIMEOUT_MS)
-    })
-
-    return await Promise.race([authPromise, timeoutPromise])
-  } catch (err) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("[getAuthWithApiKey] Auth failed:", err)
-    }
-    return null
-  }
-}
 
 // ============================================
 // GenAI/LLM Costs
@@ -381,7 +187,7 @@ export async function getGenAICosts(
 ): Promise<CostDataResponse> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,
@@ -530,7 +336,7 @@ export async function getCloudCosts(
 ): Promise<CostDataResponse> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,
@@ -684,7 +490,7 @@ export async function getTotalCosts(
   try {
     // PERFORMANCE: Use cached auth + API key to avoid redundant Supabase queries
     // AUTH-002 FIX: This now includes a 10-second timeout to fail fast
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,
@@ -806,7 +612,7 @@ export async function getCostTrend(
 }> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,
@@ -972,14 +778,18 @@ export interface GranularFiltersAvailable {
  * enabling the frontend to perform ALL filtering client-side without new API calls.
  *
  * @param orgSlug - Organization slug
- * @param days - Number of days (default 365)
+ * @param days - Number of days (default 365) - used when startDate/endDate not provided
  * @param clearCache - Force backend to clear Polars LRU cache and fetch fresh data from BigQuery
+ * @param startDate - Optional start date for custom range (YYYY-MM-DD format)
+ * @param endDate - Optional end date for custom range (YYYY-MM-DD format)
  * @returns Granular data with available filter options
  */
 export async function getCostTrendGranular(
   orgSlug: string,
   days: number = 365,
-  clearCache: boolean = false
+  clearCache: boolean = false,
+  startDate?: string,
+  endDate?: string
 ): Promise<{
   success: boolean
   data: GranularCostRow[]
@@ -996,7 +806,7 @@ export async function getCostTrendGranular(
 }> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,
@@ -1010,7 +820,15 @@ export async function getCostTrendGranular(
     const { apiKey: orgApiKey } = authContext
 
     const apiUrl = getApiServiceUrl()
-    const params = new URLSearchParams({ days: days.toString() })
+    const params = new URLSearchParams()
+
+    // Use custom date range if provided, otherwise use days parameter
+    if (startDate && endDate) {
+      params.append("start_date", startDate)
+      params.append("end_date", endDate)
+    } else {
+      params.append("days", days.toString())
+    }
 
     // Add clear_cache parameter if requested (forces backend to bypass cache)
     if (clearCache) {
@@ -1076,7 +894,7 @@ export async function getCostByProvider(
 }> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,
@@ -1240,7 +1058,7 @@ export async function getCostByService(
 }> {
   try {
     // PERFORMANCE: Use cached auth + API key
-    const authContext = await getAuthWithApiKey(orgSlug)
+    const authContext = await getAuthContext(orgSlug)
     if (!authContext) {
       return {
         success: false,

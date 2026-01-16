@@ -1250,23 +1250,46 @@ class AsyncPipelineExecutor:
 
             # Check for failures and aggregate errors
             failed_steps = []
+            continued_steps = []  # Steps that failed but have on_failure: continue
             for idx, (step_id, result) in enumerate(zip(level_step_ids, results)):
                 if isinstance(result, Exception):
-                    failed_steps.append({
-                        'step_id': step_id,
-                        'error': str(result),
-                        'exception_type': type(result).__name__
-                    })
-                    self.logger.error(
-                        f"Step {step_id} failed in level {level_idx + 1}",
-                        extra={"error": str(result), "exception_type": type(result).__name__}
-                    )
+                    # Check if step has on_failure: continue
+                    step_config = self.step_dag[step_id].step_config
+                    on_failure = step_config.get('on_failure', 'stop')
 
-            # If any steps failed, raise aggregated error
+                    if on_failure == 'continue':
+                        # Log warning but don't fail pipeline
+                        continued_steps.append({
+                            'step_id': step_id,
+                            'error': str(result),
+                            'exception_type': type(result).__name__
+                        })
+                        self.logger.warning(
+                            f"Step {step_id} failed in level {level_idx + 1} but on_failure=continue, continuing pipeline",
+                            extra={"error": str(result), "exception_type": type(result).__name__, "on_failure": "continue"}
+                        )
+                    else:
+                        failed_steps.append({
+                            'step_id': step_id,
+                            'error': str(result),
+                            'exception_type': type(result).__name__
+                        })
+                        self.logger.error(
+                            f"Step {step_id} failed in level {level_idx + 1}",
+                            extra={"error": str(result), "exception_type": type(result).__name__}
+                        )
+
+            # If any steps failed (without on_failure: continue), raise aggregated error
             if failed_steps:
                 error_summary = "; ".join([f"{s['step_id']}: {s['error']}" for s in failed_steps])
                 raise ValueError(
                     f"{len(failed_steps)} step(s) failed in level {level_idx + 1}: {error_summary}"
+                )
+
+            # Log continued steps info
+            if continued_steps:
+                self.logger.info(
+                    f"Level {level_idx + 1}: {len(continued_steps)} step(s) failed but continued (on_failure=continue)"
                 )
 
             self.logger.info(f"Completed level {level_idx + 1}/{len(execution_levels)}")
@@ -1583,6 +1606,28 @@ class AsyncPipelineExecutor:
                 context.update(self.config["variables"])
             if "parameters" in self.config:
                 context.update(self.config["parameters"])
+
+            # CRITICAL FIX: Merge results from dependency steps into context
+            # This ensures outputs from previous steps (like start_date, end_date) are available
+            # to dependent steps (e.g., calculate_costs depends_on extract_usage)
+            depends_on = step_config.get('depends_on', [])
+            for dep_step_id in depends_on:
+                if dep_step_id in self._step_execution_results:
+                    dep_result = self._step_execution_results[dep_step_id]
+                    # Merge selected keys from dependency output into context
+                    # These are commonly needed by downstream processors
+                    for key in ['start_date', 'end_date', 'date', 'provider', 'credential_id',
+                                'rows_processed', 'rows_written', 'output_table', 'dataset_id']:
+                        if key in dep_result and key not in context:
+                            context[key] = dep_result[key]
+                    # Also merge any context key explicitly prefixed with 'output_'
+                    for key, value in dep_result.items():
+                        if key.startswith('output_') and key not in context:
+                            context[key] = value
+                    self.logger.debug(
+                        f"Merged context from dependency {dep_step_id}",
+                        extra={"keys_merged": list(dep_result.keys())}
+                    )
 
             # Set core context values LAST to ensure they override any template placeholders
             context["org_slug"] = self.org_slug

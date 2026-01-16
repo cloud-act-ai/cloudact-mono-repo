@@ -579,7 +579,9 @@ async def get_cost_trend(
 async def get_granular_trend(
     org_slug: str,
     request: Request,
-    days: int = Query(365, ge=1, le=730, description="Number of days (default 365)"),
+    days: int = Query(365, ge=1, le=730, description="Number of days (default 365, used when start_date/end_date not provided)"),
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). When provided with end_date, overrides days parameter."),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). When provided with start_date, overrides days parameter."),
     clear_cache: bool = Query(False, description="Force backend to clear Polars LRU cache and fetch fresh data from BigQuery"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
@@ -624,20 +626,40 @@ async def get_granular_trend(
         endpoint_name="get_granular_trend"
     )
 
-    # FIX: VAL-001 - Validate days parameter
-    if days < 1 or days > 730:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="days must be between 1 and 730"
-        )
-
-    # Build query for last N days
+    # Build query - use custom date range if provided, otherwise use days parameter
     today = date.today()
-    query = CostQuery(
-        org_slug=org_slug,
-        start_date=today - timedelta(days=days),
-        end_date=today
-    )
+
+    if start_date and end_date:
+        # Use custom date range
+        if end_date < start_date:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="end_date must be >= start_date"
+            )
+        # Limit custom range to 730 days max
+        if (end_date - start_date).days > 730:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Custom date range cannot exceed 730 days"
+            )
+        query = CostQuery(
+            org_slug=org_slug,
+            start_date=start_date,
+            end_date=end_date
+        )
+    else:
+        # FIX: VAL-001 - Validate days parameter
+        if days < 1 or days > 730:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="days must be between 1 and 730"
+            )
+        # Build query for last N days
+        query = CostQuery(
+            org_slug=org_slug,
+            start_date=today - timedelta(days=days),
+            end_date=today
+        )
 
     # Log clear_cache request in dev mode
     if clear_cache:

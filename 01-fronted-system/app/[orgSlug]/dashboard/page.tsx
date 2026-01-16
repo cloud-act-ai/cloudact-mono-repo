@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
+import { listEnabledProviders } from "@/actions/subscription-providers"
 import type { PipelineRunSummary } from "@/lib/api/backend"
 
 // New unified chart library
@@ -58,6 +59,7 @@ interface IntegrationItem {
   name: string
   provider: string
   status: "connected" | "pending" | "not_connected"
+  type?: "api" | "subscription"
 }
 
 // Move color classes outside component to prevent recreation on every render
@@ -106,28 +108,40 @@ export default function DashboardPage() {
   const customRange = contextFilters.customRange
 
   // Time range handlers using unified filters (instant, no API call)
+  // FIX-CUSTOM-001: When range is "custom", don't include customRange in the update.
+  // The customRange is already set by handleCustomRangeChange before this is called.
+  // Using the closure value would cause a race condition (stale value).
   const handleTimeRangeChange = useCallback((range: TimeRange) => {
-    setUnifiedFilters({ timeRange: range, customRange: range === "custom" ? customRange : undefined })
-  }, [setUnifiedFilters, customRange])
+    if (range === "custom") {
+      // Only set timeRange - customRange is already set by handleCustomRangeChange
+      setUnifiedFilters({ timeRange: range })
+    } else {
+      // Clear customRange when switching to preset range
+      setUnifiedFilters({ timeRange: range, customRange: undefined })
+    }
+  }, [setUnifiedFilters])
 
   const handleCustomRangeChange = useCallback((range: CustomDateRange | undefined) => {
     setUnifiedFilters({ customRange: range })
   }, [setUnifiedFilters])
 
-  // Load non-cost data (pipelines, integrations)
+  // Load non-cost data (pipelines, integrations, subscription providers)
   const loadNonCostData = useCallback(async () => {
     try {
-      const [pipelinesResult, integrationsResult] = await Promise.all([
+      const [pipelinesResult, integrationsResult, subscriptionProvidersResult] = await Promise.all([
         getPipelineRuns(orgSlug, { limit: 5 }),
         getIntegrations(orgSlug),
+        listEnabledProviders(orgSlug),
       ])
 
       if (pipelinesResult.success && pipelinesResult.data?.runs) {
         setRecentPipelines(pipelinesResult.data.runs.slice(0, 5))
       }
 
+      const integrationList: IntegrationItem[] = []
+
+      // Add API integrations (LLM + Cloud)
       if (integrationsResult.success && integrationsResult.integrations) {
-        const integrationList: IntegrationItem[] = []
         const intData = integrationsResult.integrations.integrations
 
         // Map provider names to display names
@@ -157,16 +171,35 @@ export default function DashboardPage() {
             name: providerNames[key] || key,
             provider: key,
             status,
+            type: "api",
           })
         }
-
-        integrationList.sort((a, b) => {
-          const order = { connected: 0, pending: 1, not_connected: 2 }
-          return order[a.status] - order[b.status]
-        })
-
-        setIntegrations(integrationList.slice(0, 4))
       }
+
+      // Add subscription providers (SaaS subscriptions)
+      if (subscriptionProvidersResult.success && subscriptionProvidersResult.providers) {
+        for (const provider of subscriptionProvidersResult.providers) {
+          // Format display name (e.g., "chatgpt" -> "ChatGPT", "chatgpt_plus" -> "Chatgpt Plus")
+          const displayName = provider.provider_name
+            .split('_')
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ')
+
+          integrationList.push({
+            name: displayName,
+            provider: `SUB_${provider.provider_name.toUpperCase()}`,
+            status: "connected",
+            type: "subscription",
+          })
+        }
+      }
+
+      integrationList.sort((a, b) => {
+        const order = { connected: 0, pending: 1, not_connected: 2 }
+        return order[a.status] - order[b.status]
+      })
+
+      setIntegrations(integrationList.slice(0, 6)) // Show up to 6 integrations
     } catch (err) {
       console.error("[Dashboard] Failed to load data:", err instanceof Error ? err.message : "Unknown error")
     } finally {
@@ -607,7 +640,7 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-6">
-          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {integrations.length > 0 ? (
               integrations.map((integration) => (
                 <div
@@ -616,7 +649,9 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md sm:rounded-lg bg-[#90FCA6]/10 shrink-0">
-                      {integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") ? (
+                      {integration.type === "subscription" ? (
+                        <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
+                      ) : integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") || integration.provider.includes("OCI") ? (
                         <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
                       ) : (
                         <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
