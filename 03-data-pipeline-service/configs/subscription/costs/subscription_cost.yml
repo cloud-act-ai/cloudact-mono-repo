@@ -68,7 +68,7 @@ steps:
         - name: p_dataset_id
           type: STRING
           value: "${org_dataset}"
-    on_failure: continue  # Skip validation failures for now (BUG-031: table_name column missing)
+    on_failure: continue # Skip validation failures for now (BUG-031: table_name column missing)
 
   # Single step that runs the orchestrator procedure
   # The procedure internally calls:
@@ -84,7 +84,7 @@ steps:
     config:
       procedure:
         name: sp_subscription_4_run_pipeline
-        dataset: organizations  # Central dataset where procedure lives
+        dataset: organizations # Central dataset where procedure lives
       parameters:
         - name: p_project_id
           type: STRING
@@ -95,11 +95,11 @@ steps:
         - name: p_start_date
           type: DATE
           value: "${start_date}"
-          default: "MONTH_START"  # Default to earliest effective_date from active plans, or month start
+          default: "AUTO" # Default to earliest effective_date from active plans (handled by procedure)
         - name: p_end_date
           type: DATE
           value: "${end_date}"
-          default: "TODAY"  # Default to current date
+          default: "TODAY" # Default to current date
         - name: p_pipeline_id
           type: STRING
           value: "${pipeline_id}"
@@ -125,7 +125,7 @@ category: "subscription_analytics"
 # This pipeline requires the organization to have:
 # - subscription_plans table with active subscriptions
 # - Procedures synced to organizations dataset
-integration_required: false  # No external API needed, uses internal data
+integration_required: false # No external API needed, uses internal data
 
 # Output tables (for documentation)
 output_tables:

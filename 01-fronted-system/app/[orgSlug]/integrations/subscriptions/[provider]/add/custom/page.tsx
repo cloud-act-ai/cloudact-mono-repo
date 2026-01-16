@@ -60,6 +60,7 @@ export default function AddCustomSubscriptionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<Date | undefined>(new Date())
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
   const [selectedHierarchy, setSelectedHierarchy] = useState<SelectedHierarchy | null>(null)
   const [formData, setFormData] = useState<FormDataWithAudit>(getDefaultFormData("USD"))
   const [isFromTemplate, setIsFromTemplate] = useState(false)
@@ -144,7 +145,7 @@ export default function AddCustomSubscriptionPage() {
     setError(null)
 
     // Validate form
-    const validation = validateForm(formData, startDate, selectedHierarchy, orgCurrency)
+    const validation = validateForm(formData, startDate, selectedHierarchy, orgCurrency, endDate)
     if (!validation.isValid) {
       setError(validation.error || "Validation failed")
       return
@@ -157,6 +158,7 @@ export default function AddCustomSubscriptionPage() {
 
     try {
       const startDateStr = format(startDate!, "yyyy-MM-dd")
+      const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined
 
       // Build plan data including audit trail if from template
       const planData: PlanCreate & {
@@ -173,6 +175,7 @@ export default function AddCustomSubscriptionPage() {
         currency: formData.currency,
         notes: formData.notes?.trim() || "",
         start_date: startDateStr,
+        end_date: endDateStr,
         // REQUIRED: Include hierarchy fields for cost allocation
         hierarchy_entity_id: selectedHierarchy!.entity_id,
         hierarchy_entity_name: selectedHierarchy!.entity_name,
@@ -310,6 +313,8 @@ export default function AddCustomSubscriptionPage() {
               setFormData={setFormData}
               startDate={startDate}
               setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
               error={error}
               setError={setError}
               submitting={submitting}

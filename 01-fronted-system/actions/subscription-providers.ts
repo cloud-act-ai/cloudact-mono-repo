@@ -360,6 +360,7 @@ export interface PlanCreate {
   owner_email?: string
   department?: string
   start_date?: string  // YYYY-MM-DD format
+  end_date?: string    // YYYY-MM-DD format (optional, for fixed-term subscriptions)
   renewal_date?: string
   contract_id?: string
   notes?: string

@@ -190,6 +190,7 @@ export default function ProviderDetailPage() {
   const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [startDate, setStartDate] = useState<Date | undefined>(new Date())
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
 
   // Custom form state
   const [formData, setFormData] = useState<FormDataWithAudit>({
@@ -315,6 +316,7 @@ export default function ProviderDetailPage() {
     })
     setIsFromTemplate(true)
     setStartDate(new Date())
+    setEndDate(undefined)
     setSelectedHierarchy(null)
     setTemplateSheetOpen(false)
     setCustomSheetOpen(true)
@@ -372,6 +374,7 @@ export default function ProviderDetailPage() {
     })
     setIsFromTemplate(false)
     setStartDate(new Date())
+    setEndDate(undefined)
     setError(null)
     // Reset hierarchy selection
     setSelectedHierarchy(null)
@@ -388,6 +391,12 @@ export default function ProviderDetailPage() {
 
     if (!startDate) {
       setError("Start date is required")
+      return
+    }
+
+    // Validate end date if provided
+    if (endDate && startDate && endDate < startDate) {
+      setError("End date must be after start date")
       return
     }
 
@@ -422,6 +431,7 @@ export default function ProviderDetailPage() {
 
     try {
       const startDateStr = format(startDate, "yyyy-MM-dd")
+      const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined
 
       // Ensure required fields are defined
       if (formData.unit_price === undefined || formData.seats === undefined) {
@@ -449,6 +459,7 @@ export default function ProviderDetailPage() {
         currency: formData.currency,
         notes: formData.notes,
         start_date: startDateStr,
+        end_date: endDateStr,
       }
 
       // Add audit trail for currency conversion
@@ -1174,14 +1185,29 @@ export default function ProviderDetailPage() {
               )}
             </div>
 
-            {/* Start Date */}
-            <div className="space-y-2">
-              <Label>Start Date *</Label>
-              <DatePicker
-                date={startDate}
-                onSelect={setStartDate}
-              />
-              <p className="text-xs text-muted-foreground">When does this subscription become active?</p>
+            {/* Start Date & End Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date *</Label>
+                <DatePicker
+                  date={startDate}
+                  onSelect={setStartDate}
+                />
+                <p className="text-xs text-muted-foreground">When does this subscription become active?</p>
+              </div>
+              <div className="space-y-2">
+                <Label>End Date (optional)</Label>
+                <DatePicker
+                  date={endDate}
+                  onSelect={setEndDate}
+                  placeholder="No end date"
+                />
+                {endDate && startDate && endDate < startDate ? (
+                  <p className="text-xs text-[#FF6C5E]">End date must be after start date.</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Leave empty for ongoing subscriptions.</p>
+                )}
+              </div>
             </div>
 
             {/* Notes */}

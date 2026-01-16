@@ -17,6 +17,7 @@ import {
   getTrendColorClass,
 } from "@/lib/costs"
 import type { PeriodComparison } from "@/lib/costs"
+import type { TimeRange } from "@/contexts/cost-data-context"
 
 // ============================================
 // Types
@@ -46,6 +47,8 @@ export interface CostSummaryGridProps {
   className?: string
   /** Card click handler */
   onCardClick?: (metric: "mtd" | "daily" | "forecast" | "ytd") => void
+  /** Current time range for dynamic labels */
+  timeRange?: TimeRange
 }
 
 // ============================================
@@ -72,16 +75,13 @@ function SummarySkeleton() {
   )
 }
 
-// ============================================
-// Main Component
-// ============================================
-
 export function CostSummaryGrid({
   data,
   comparison,
   loading = false,
   className,
   onCardClick,
+  timeRange,
 }: CostSummaryGridProps) {
   if (loading) {
     return <SummarySkeleton />
@@ -97,14 +97,22 @@ export function CostSummaryGrid({
       }
     : undefined
 
+  // Dynamic labels based on time range
+  const isMtd = timeRange === "mtd"
+  const isYtd = timeRange === "ytd"
+  const isCustom = timeRange === "custom" || (timeRange && timeRange !== "mtd" && timeRange !== "ytd")
+
+  const spendLabel = isMtd ? "MTD Spend" : isYtd ? "YTD Spend" : "Period Spend"
+  const spendSubtitle = isMtd ? "This month" : isYtd ? "Year to date" : "Selected period"
+
   return (
     <CostMetricGrid columns={4} className={className}>
       <CostMetricCard
         icon={CalendarDays}
-        label="MTD Spend"
+        label={spendLabel}
         value={mtd}
         currency={currency}
-        subtitle="This month"
+        subtitle={spendSubtitle}
         trend={trend}
         iconColor="text-emerald-600"
         onClick={onCardClick ? () => onCardClick("mtd") : undefined}

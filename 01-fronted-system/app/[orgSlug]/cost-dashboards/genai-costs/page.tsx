@@ -188,18 +188,28 @@ export default function GenAICostsPage() {
     const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
 
     // Transform to chart format
-    return timeSeries.map((point) => {
-      const date = new Date(point.date)
-      // LOCALE-001 FIX: Use undefined to respect user's browser locale
-      const label = date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    return timeSeries
+      .filter((point) => {
+        // EDGE-001 FIX: Skip entries with invalid dates
+        if (!point.date) return false
+        const date = new Date(point.date)
+        return !isNaN(date.getTime())
+      })
+      .map((point) => {
+        const date = new Date(point.date)
+        // LOCALE-001 FIX: Use undefined to respect user's browser locale
+        // BUG-001 FIX: Format label based on data length - short format for large datasets
+        const label = timeSeries.length >= 90
+          ? date.toLocaleDateString(undefined, { day: "numeric" })  // Just day number for 90+ days
+          : date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
-      return {
-        label,
-        value: point.total,
-        lineValue: Math.round(rollingAvg * 100) / 100,
-        date: point.date,
-      }
-    })
+        return {
+          label,
+          value: Number.isFinite(point.total) ? point.total : 0, // EDGE-001 FIX: Validate value
+          lineValue: Math.round(rollingAvg * 100) / 100,
+          date: point.date,
+        }
+      })
   }, [getFilteredTimeSeries])
 
   // PERF-001 FIX: Memoize dateInfo to avoid redundant calculations
@@ -347,7 +357,7 @@ export default function GenAICostsPage() {
           <CostRingChart
             title="LLM Spend"
             segments={ringSegments}
-            centerLabel="MTD"
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
             insight={`Spending across ${ringSegments.length} AI provider${ringSegments.length > 1 ? "s" : ""}.`}
             size={200}
             thickness={22}
@@ -361,7 +371,7 @@ export default function GenAICostsPage() {
           <CostBreakdownChart
             title="Cost by Provider"
             items={providerBreakdownItems}
-            countLabel="records"
+            countLabel="providers"
             maxItems={5}
             className="premium-card"
           />

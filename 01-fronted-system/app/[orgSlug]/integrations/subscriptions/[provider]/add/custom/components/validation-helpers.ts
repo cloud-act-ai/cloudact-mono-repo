@@ -18,7 +18,8 @@ export function validateForm(
   formData: FormDataWithAudit,
   startDate: Date | undefined,
   selectedHierarchy: SelectedHierarchy | null,
-  orgCurrency: string
+  orgCurrency: string,
+  endDate?: Date | undefined
 ): ValidationResult {
   // Validate plan name
   if (!formData.plan_name || !formData.plan_name.trim()) {
@@ -32,6 +33,11 @@ export function validateForm(
   // Validate start date
   if (!startDate) {
     return { isValid: false, error: "Start date is required" }
+  }
+
+  // Validate end date if provided
+  if (endDate && startDate && endDate < startDate) {
+    return { isValid: false, error: "End date must be after start date" }
   }
 
   // Validate hierarchy selection (all levels required)

@@ -21,6 +21,7 @@ export type FormDataWithAudit = {
   owner_email?: string
   department?: string
   start_date?: string
+  end_date?: string
   renewal_date?: string
   contract_id?: string
   notes?: string

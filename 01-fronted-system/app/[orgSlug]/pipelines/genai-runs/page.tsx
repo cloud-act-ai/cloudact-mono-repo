@@ -35,6 +35,9 @@ import { getIntegrations } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import { PipelineRunSummary, PipelineRunDetail as PipelineRunDetailType } from "@/lib/api/backend"
 
+// Pipeline run modal
+import { PipelineRunModal } from "@/components/pipelines/pipeline-run-modal"
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -149,6 +152,10 @@ export default function GenAIRunsPage() {
   // Active tab state
   const [activeTab, setActiveTab] = useState("payg")
 
+  // Run modal state
+  const [runModalOpen, setRunModalOpen] = useState(false)
+  const [selectedPipeline, setSelectedPipeline] = useState<PipelineConfig | null>(null)
+
   const MAX_RUNS = 100
 
   // Load pipeline runs
@@ -191,7 +198,7 @@ export default function GenAIRunsPage() {
 
     if (pipelinesResult.success && pipelinesResult.pipelines) {
       const filtered = pipelinesResult.pipelines.filter(
-        (p: PipelineConfig) => p.enabled && p.provider === "genai"
+        (p: PipelineConfig) => p.enabled && p.category === "genai"
       )
       setPipelines(filtered)
     }
@@ -235,32 +242,43 @@ export default function GenAIRunsPage() {
     }
   }, [lastResult])
 
-  // Run pipeline handler
-  const handleRun = async (pipelineId: string) => {
-    setRunningPipeline(pipelineId)
+  // Open run modal for pipeline
+  const handleRunClick = (pipeline: PipelineConfig) => {
+    setSelectedPipeline(pipeline)
+    setRunModalOpen(true)
+  }
+
+  // Actually run the pipeline with date range
+  const handleRunPipeline = async (startDate: string, endDate: string) => {
+    if (!selectedPipeline) return
+
+    setRunningPipeline(selectedPipeline.id)
     setLastResult(null)
 
     try {
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const startDate = yesterday.toISOString().split("T")[0]
-
-      const result = await runPipeline(orgSlug, pipelineId, { start_date: startDate })
-      setLastResult({
-        pipelineId,
-        success: result.success,
-        message: result.success ? "Pipeline triggered successfully!" : result.error,
+      const result = await runPipeline(orgSlug, selectedPipeline.id, {
+        start_date: startDate,
+        end_date: endDate,
       })
+      setLastResult({
+        pipelineId: selectedPipeline.id,
+        success: result.success,
+        message: result.success
+          ? `Pipeline triggered for ${startDate} to ${endDate}!`
+          : result.error,
+      })
+      setRunModalOpen(false)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to run pipeline"
       setLastResult({
-        pipelineId,
+        pipelineId: selectedPipeline.id,
         success: false,
         message: errorMessage,
       })
     }
 
     setRunningPipeline(null)
+    setSelectedPipeline(null)
     setTimeout(() => loadPipelineRuns(), 2000)
   }
 
@@ -540,7 +558,7 @@ export default function GenAIRunsPage() {
                     provider={pipeline.pipeline}
                     status={isConnected ? "ready" : "disabled"}
                     running={runningPipeline === pipeline.id}
-                    onRun={isConnected ? () => handleRun(pipeline.id) : undefined}
+                    onRun={isConnected ? () => handleRunClick(pipeline) : undefined}
                     runIcon={isConnected ? Play : Plug}
                     runLabel={isConnected ? "Run Now" : "Connect"}
                   />
@@ -655,6 +673,19 @@ export default function GenAIRunsPage() {
           />
         </div>
       )}
+
+      {/* Pipeline Run Modal */}
+      <PipelineRunModal
+        open={runModalOpen}
+        onClose={() => {
+          setRunModalOpen(false)
+          setSelectedPipeline(null)
+        }}
+        onRun={handleRunPipeline}
+        pipelineName={selectedPipeline?.name || ""}
+        provider={selectedPipeline?.pipeline || ""}
+        isRunning={runningPipeline !== null}
+      />
     </div>
   )
 }

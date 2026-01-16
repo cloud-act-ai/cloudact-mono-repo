@@ -519,7 +519,7 @@ export default function DashboardPage() {
 
       {/* Summary Metrics */}
       <div className="animate-fade-up">
-        <CostSummaryGrid data={summaryData} />
+        <CostSummaryGrid data={summaryData} timeRange={timeRange} />
       </div>
 
       {/* Daily Cost Trend Chart */}
@@ -552,7 +552,7 @@ export default function DashboardPage() {
         <CostRingChart
           title="Total Spend"
           segments={ringSegments}
-          centerLabel="MTD"
+          centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "custom" ? "Period" : timeRange === "365" ? "365D" : timeRange === "90" ? "90D" : timeRange === "30" ? "30D" : "Total"}
           insight={!hasData
             ? "No cost data yet. Connect providers and run pipelines."
             : `Spending across ${ringSegments.filter(s => s.value > 0).length} cost categories.`
