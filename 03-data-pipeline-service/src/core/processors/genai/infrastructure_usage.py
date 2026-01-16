@@ -335,8 +335,6 @@ class InfrastructureUsageProcessor:
                         {escape_str(record.get('pricing_type') or 'on_demand')} as pricing_type,
                         {escape_float(record.get('avg_gpu_utilization_pct'))} as avg_gpu_utilization_pct,
                         {escape_float(record.get('avg_memory_utilization_pct'))} as avg_memory_utilization_pct,
-                        {escape_str(record.get('x_hierarchy_level_1_id'))} as x_hierarchy_level_1_id,
-                        {escape_str(record.get('x_hierarchy_level_1_name'))} as x_hierarchy_level_1_name,
                         {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
                         {escape_str(record.get('x_credential_id'))} as x_credential_id,
                         DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
@@ -367,24 +365,19 @@ class InfrastructureUsageProcessor:
                             pricing_type = S.pricing_type,
                             avg_gpu_utilization_pct = S.avg_gpu_utilization_pct,
                             avg_memory_utilization_pct = S.avg_memory_utilization_pct,
-                            x_hierarchy_level_1_id = S.x_hierarchy_level_1_id,
-                            x_hierarchy_level_1_name = S.x_hierarchy_level_1_name,
                             x_pipeline_id = S.x_pipeline_id,
                             x_credential_id = S.x_credential_id,
                             x_pipeline_run_date = S.x_pipeline_run_date,
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
-                        -- DATA-006 FIX: Added x_hierarchy_level_1_id and x_hierarchy_level_1_name to INSERT
                         INSERT (usage_date, org_slug, provider, resource_type, instance_type,
                                 instance_id, gpu_type, region, instance_count, hours_used,
                                 gpu_hours, pricing_type, avg_gpu_utilization_pct, avg_memory_utilization_pct,
-                                x_hierarchy_level_1_id, x_hierarchy_level_1_name,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.usage_date, S.org_slug, S.provider, S.resource_type, S.instance_type,
                                 S.instance_id, S.gpu_type, S.region, S.instance_count, S.hours_used,
                                 S.gpu_hours, S.pricing_type, S.avg_gpu_utilization_pct, S.avg_memory_utilization_pct,
-                                S.x_hierarchy_level_1_id, S.x_hierarchy_level_1_name,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

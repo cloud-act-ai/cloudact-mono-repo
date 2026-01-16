@@ -535,8 +535,6 @@ class PAYGUsageProcessor:
                         {escape_int(record.get('total_tokens'))} as total_tokens,
                         {escape_int(record.get('request_count'))} as request_count,
                         {escape_bool(record.get('is_batch'))} as is_batch,
-                        {escape_str(record.get('x_hierarchy_level_1_id'))} as x_hierarchy_level_1_id,
-                        {escape_str(record.get('x_hierarchy_level_1_name'))} as x_hierarchy_level_1_name,
                         {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
                         {escape_str(record.get('x_credential_id'))} as x_credential_id,
                         DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
@@ -571,19 +569,16 @@ class PAYGUsageProcessor:
                             total_tokens = S.total_tokens,
                             request_count = S.request_count,
                             is_batch = S.is_batch,
-                            x_hierarchy_level_1_id = S.x_hierarchy_level_1_id,
-                            x_hierarchy_level_1_name = S.x_hierarchy_level_1_name,
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
-                        -- DATA-004 FIX: Added x_hierarchy_level_1_name to INSERT
                         INSERT (org_slug, provider, model, model_family, usage_date, region,
                                 input_tokens, output_tokens, cached_input_tokens, total_tokens,
-                                request_count, is_batch, x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+                                request_count, is_batch,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.model, S.model_family, S.usage_date, S.region,
                                 S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
-                                S.request_count, S.is_batch, S.x_hierarchy_level_1_id, S.x_hierarchy_level_1_name,
+                                S.request_count, S.is_batch,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 

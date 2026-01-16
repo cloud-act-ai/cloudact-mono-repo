@@ -213,27 +213,27 @@ class InfrastructureCostProcessor:
                             4
                         ) as effective_hourly_rate,
 
-                        -- Issue #43: Handle NULL hierarchy fields (10 levels)
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_1_id, '')), '') as hierarchy_level_1_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_1_name, '')), '') as hierarchy_level_1_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_2_id, '')), '') as hierarchy_level_2_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_2_name, '')), '') as hierarchy_level_2_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_3_id, '')), '') as hierarchy_level_3_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_3_name, '')), '') as hierarchy_level_3_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_4_id, '')), '') as hierarchy_level_4_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_4_name, '')), '') as hierarchy_level_4_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_5_id, '')), '') as hierarchy_level_5_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_5_name, '')), '') as hierarchy_level_5_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_6_id, '')), '') as hierarchy_level_6_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_6_name, '')), '') as hierarchy_level_6_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_7_id, '')), '') as hierarchy_level_7_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_7_name, '')), '') as hierarchy_level_7_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_8_id, '')), '') as hierarchy_level_8_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_8_name, '')), '') as hierarchy_level_8_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_9_id, '')), '') as hierarchy_level_9_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_9_name, '')), '') as hierarchy_level_9_name,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_10_id, '')), '') as hierarchy_level_10_id,
-                        NULLIF(TRIM(COALESCE(u.hierarchy_level_10_name, '')), '') as hierarchy_level_10_name,
+                        -- Issue #43: Hierarchy columns (populated during cost allocation, NULL at calculation time)
+                        CAST(NULL AS STRING) as hierarchy_level_1_id,
+                        CAST(NULL AS STRING) as hierarchy_level_1_name,
+                        CAST(NULL AS STRING) as hierarchy_level_2_id,
+                        CAST(NULL AS STRING) as hierarchy_level_2_name,
+                        CAST(NULL AS STRING) as hierarchy_level_3_id,
+                        CAST(NULL AS STRING) as hierarchy_level_3_name,
+                        CAST(NULL AS STRING) as hierarchy_level_4_id,
+                        CAST(NULL AS STRING) as hierarchy_level_4_name,
+                        CAST(NULL AS STRING) as hierarchy_level_5_id,
+                        CAST(NULL AS STRING) as hierarchy_level_5_name,
+                        CAST(NULL AS STRING) as hierarchy_level_6_id,
+                        CAST(NULL AS STRING) as hierarchy_level_6_name,
+                        CAST(NULL AS STRING) as hierarchy_level_7_id,
+                        CAST(NULL AS STRING) as hierarchy_level_7_name,
+                        CAST(NULL AS STRING) as hierarchy_level_8_id,
+                        CAST(NULL AS STRING) as hierarchy_level_8_name,
+                        CAST(NULL AS STRING) as hierarchy_level_9_id,
+                        CAST(NULL AS STRING) as hierarchy_level_9_name,
+                        CAST(NULL AS STRING) as hierarchy_level_10_id,
+                        CAST(NULL AS STRING) as hierarchy_level_10_name,
 
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_infrastructure_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
@@ -474,17 +474,17 @@ class InfrastructureCostProcessor:
             self.logger.warning(f"Missing pricing check failed: {e}")
 
         # Issue #5: Check for orphan hierarchy allocations (warning only)
-        # N-level hierarchy: Check if hierarchy_level_1_id exists in x_org_hierarchy
+        # Check if hierarchy_entity_id exists in x_org_hierarchy
         hierarchy_check_query = f"""
             SELECT DISTINCT
-                u.hierarchy_level_1_id,
-                u.hierarchy_level_1_name
+                u.hierarchy_entity_id,
+                u.hierarchy_entity_name
             FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw` u
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
-                ON h.entity_id = u.hierarchy_level_1_id
+                ON h.entity_id = u.hierarchy_entity_id
             WHERE u.usage_date = @process_date
                 AND u.org_slug = @org_slug
-                AND u.hierarchy_level_1_id IS NOT NULL
+                AND u.hierarchy_entity_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}
         """
@@ -492,11 +492,11 @@ class InfrastructureCostProcessor:
         try:
             orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
             for row in orphan_results:
-                entity_id = row.get("hierarchy_level_1_id")
-                entity_name = row.get("hierarchy_level_1_name")
+                entity_id = row.get("hierarchy_entity_id")
+                entity_name = row.get("hierarchy_entity_name")
                 self.logger.warning(
                     f"Issue #5: Orphan hierarchy allocation detected - "
-                    f"entity_id={entity_id}, name={entity_name}, level=1. "
+                    f"entity_id={entity_id}, name={entity_name}. "
                     f"This entity may not exist in x_org_hierarchy view."
                 )
         except Exception as e:
