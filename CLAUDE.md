@@ -122,8 +122,32 @@ cd 01-fronted-system && npm run dev
 
 ```bash
 git push origin main           # → Stage
-git tag v4.1.0 && git push origin v4.1.0  # → Prod
+git tag v4.1.2 && git push origin v4.1.2  # → Prod
 ```
+
+## Supabase Migrations
+
+```bash
+cd 01-fronted-system/scripts/supabase_db
+
+# Check status
+./migrate.sh --status              # Local (default)
+./migrate.sh --status --stage      # Stage
+./migrate.sh --status --prod       # Production
+
+# Run migrations
+./migrate.sh                       # Local
+./migrate.sh --stage               # Stage
+./migrate.sh --prod                # Production
+./migrate.sh --yes --prod          # Production (skip confirmation)
+```
+
+**Requires:** `SUPABASE_ACCESS_TOKEN` in env files (same token for all environments)
+
+| Environment | Supabase Project |
+|-------------|------------------|
+| local/stage | `kwroaccbrxppfiysqlzs` |
+| prod | `ovfxswhkkshouhsryzaf` |
 
 ## Docs
 
@@ -135,4 +159,4 @@ git tag v4.1.0 && git push origin v4.1.0  # → Prod
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.1.0** | 2026-01-15
+**v4.1.2** | 2026-01-15
