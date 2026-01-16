@@ -32,28 +32,41 @@ REGION="us-central1"
 case $SERVICE in
     api-service)
         PORT=8000
-        MEMORY="2Gi"
+        MEMORY="8Gi"
         CPU=2
         TIMEOUT=300
         MAX_INSTANCES=10
         ;;
     pipeline-service)
         PORT=8001
-        MEMORY="2Gi"
+        MEMORY="8Gi"
         CPU=2
         TIMEOUT=300
         MAX_INSTANCES=10
         ;;
     frontend)
         PORT=3000
-        MEMORY="1Gi"
-        CPU=1
+        MEMORY="8Gi"
+        CPU=2
         TIMEOUT=60
         MAX_INSTANCES=20
         ;;
     *)
         echo -e "${RED}Error: Invalid service. Use: api-service, pipeline-service, frontend${NC}"
         exit 1
+        ;;
+esac
+
+# Environment-specific min instances (prod ramps up, stage/test minimal)
+case $ENV in
+    prod)
+        MIN_INSTANCES=2
+        ;;
+    stage)
+        MIN_INSTANCES=1
+        ;;
+    test)
+        MIN_INSTANCES=0
         ;;
 esac
 
@@ -226,6 +239,7 @@ gcloud run deploy $SERVICE_NAME \
     --memory=$MEMORY \
     --cpu=$CPU \
     --timeout=$TIMEOUT \
+    --min-instances=$MIN_INSTANCES \
     --max-instances=$MAX_INSTANCES \
     --port=$PORT \
     --set-env-vars="$ENV_VARS" \

@@ -119,9 +119,10 @@ steps:
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --memory=2Gi \
+          --memory=8Gi \
           --cpu=2 \
           --timeout=300 \
+          --min-instances=2 \
           --max-instances=10 \
           --port=8000 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
@@ -147,9 +148,10 @@ steps:
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --memory=2Gi \
+          --memory=8Gi \
           --cpu=2 \
           --timeout=300 \
+          --min-instances=2 \
           --max-instances=10 \
           --port=8001 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
@@ -177,9 +179,10 @@ steps:
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --memory=1Gi \
-          --cpu=1 \
+          --memory=8Gi \
+          --cpu=2 \
           --timeout=60 \
+          --min-instances=2 \
           --max-instances=20 \
           --port=3000 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
