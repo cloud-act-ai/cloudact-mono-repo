@@ -170,4 +170,4 @@ Tracked in: `schema_migrations` table
 | Migration auth fails | Check `SUPABASE_ACCESS_TOKEN` in env file |
 
 ---
-**v4.1.1** | 2026-01-15
+**v4.1.8** | 2026-01-16

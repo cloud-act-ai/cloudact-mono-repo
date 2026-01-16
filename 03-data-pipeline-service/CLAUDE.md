@@ -135,4 +135,4 @@ src/
 | `src/core/utils/quota_reset.py` | Quota reset functions |
 
 ---
-**v4.1.0** | 2026-01-15
+**v4.1.8** | 2026-01-16
