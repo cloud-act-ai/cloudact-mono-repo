@@ -159,4 +159,4 @@ cd 01-fronted-system/scripts/supabase_db
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.1.8** | 2026-01-16
+**v4.1.9** | 2026-01-18
