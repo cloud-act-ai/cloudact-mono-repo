@@ -36,6 +36,14 @@ from .models import (
     NotificationSummaryUpdate,
     NotificationHistoryEntry,
     NotificationStats,
+    # Scheduled Alerts (Unified)
+    AlertType,
+    AlertSeverity,
+    AlertHistoryStatus,
+    ScheduledAlert,
+    ScheduledAlertCreate,
+    ScheduledAlertUpdate,
+    AlertHistoryEntry,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +77,9 @@ class NotificationSettingsService:
         self.rules_table = f"{project_id}.{dataset_id}.org_notification_rules"
         self.summaries_table = f"{project_id}.{dataset_id}.org_notification_summaries"
         self.history_table = f"{project_id}.{dataset_id}.org_notification_history"
+        # Unified Scheduled Alerts tables
+        self.scheduled_alerts_table = f"{project_id}.{dataset_id}.org_scheduled_alerts"
+        self.alert_history_table = f"{project_id}.{dataset_id}.org_alert_history"
 
     # ==========================================================================
     # Encryption Helpers
@@ -1043,6 +1054,445 @@ class NotificationSettingsService:
         except Exception as e:
             logger.error(f"Failed to get stats for {org_slug}: {e}")
             raise
+
+    # ==========================================================================
+    # Scheduled Alert Operations (Unified with YAML alerts)
+    # ==========================================================================
+
+    async def list_scheduled_alerts(
+        self,
+        org_slug: str,
+        alert_type: Optional[AlertType] = None,
+        enabled_only: bool = False,
+    ) -> List[ScheduledAlert]:
+        """List scheduled alerts for an organization."""
+        query = f"""
+            SELECT *
+            FROM `{self.scheduled_alerts_table}`
+            WHERE org_slug = @org_slug
+        """
+        params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
+
+        if alert_type:
+            query += " AND alert_type = @alert_type"
+            params.append(bigquery.ScalarQueryParameter("alert_type", "STRING", alert_type.value))
+
+        if enabled_only:
+            query += " AND is_enabled = TRUE"
+
+        query += " ORDER BY created_at DESC"
+
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            results = self.client.query(query, job_config=job_config).result()
+            alerts = []
+            for row in results:
+                alert_data = dict(row)
+                # Parse JSON fields
+                if alert_data.get("source_params"):
+                    alert_data["source_params"] = json.loads(alert_data["source_params"])
+                if alert_data.get("conditions"):
+                    alert_data["conditions"] = json.loads(alert_data["conditions"])
+                if alert_data.get("recipient_config"):
+                    alert_data["recipient_config"] = json.loads(alert_data["recipient_config"])
+                if alert_data.get("channel_config"):
+                    alert_data["channel_config"] = json.loads(alert_data["channel_config"])
+                alerts.append(ScheduledAlert(**alert_data))
+            return alerts
+        except Exception as e:
+            logger.error(f"Failed to list scheduled alerts for {org_slug}: {e}")
+            raise
+
+    async def get_scheduled_alert(
+        self, org_slug: str, alert_id: str
+    ) -> Optional[ScheduledAlert]:
+        """Get a specific scheduled alert."""
+        query = f"""
+            SELECT *
+            FROM `{self.scheduled_alerts_table}`
+            WHERE org_slug = @org_slug AND alert_id = @alert_id
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("alert_id", "STRING", alert_id),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            results = list(self.client.query(query, job_config=job_config).result())
+            if not results:
+                return None
+            alert_data = dict(results[0])
+            # Parse JSON fields
+            if alert_data.get("source_params"):
+                alert_data["source_params"] = json.loads(alert_data["source_params"])
+            if alert_data.get("conditions"):
+                alert_data["conditions"] = json.loads(alert_data["conditions"])
+            if alert_data.get("recipient_config"):
+                alert_data["recipient_config"] = json.loads(alert_data["recipient_config"])
+            if alert_data.get("channel_config"):
+                alert_data["channel_config"] = json.loads(alert_data["channel_config"])
+            return ScheduledAlert(**alert_data)
+        except Exception as e:
+            logger.error(f"Failed to get scheduled alert {alert_id}: {e}")
+            raise
+
+    async def _check_scheduled_alert_exists(self, org_slug: str, name: str) -> bool:
+        """Check if scheduled alert with same name already exists."""
+        query = f"""
+            SELECT COUNT(*) as cnt
+            FROM `{self.scheduled_alerts_table}`
+            WHERE org_slug = @org_slug AND name = @name
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("name", "STRING", name),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        results = list(self.client.query(query, job_config=job_config).result())
+        return results[0].cnt > 0 if results else False
+
+    async def create_scheduled_alert(
+        self,
+        org_slug: str,
+        alert: ScheduledAlertCreate,
+        created_by: Optional[str] = None,
+    ) -> ScheduledAlert:
+        """
+        Create a new scheduled alert.
+
+        Raises:
+            ValueError: If alert name already exists for this org
+        """
+        # Check for existing alert with same name
+        if await self._check_scheduled_alert_exists(org_slug, alert.name):
+            raise ValueError(
+                f"Alert with name '{alert.name}' already exists for organization '{org_slug}'"
+            )
+
+        alert_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+
+        # Encrypt Slack webhook if provided
+        channel_config_json = None
+        if alert.channel_config:
+            config_dict = alert.channel_config.model_dump()
+            if config_dict.get("webhook_url_encrypted"):
+                # This is plaintext, encrypt it
+                config_dict["webhook_url_encrypted"] = self._encrypt_credential(
+                    config_dict["webhook_url_encrypted"]
+                )
+            channel_config_json = json.dumps(config_dict)
+
+        row = {
+            "alert_id": alert_id,
+            "org_slug": org_slug,
+            "name": alert.name,
+            "description": alert.description,
+            "alert_type": alert.alert_type.value,
+            "is_enabled": alert.is_enabled,
+            "schedule_cron": alert.schedule_cron,
+            "schedule_timezone": alert.schedule_timezone,
+            "source_type": alert.source_type.value,
+            "source_query_template": alert.source_query_template.value,
+            "source_params": json.dumps(alert.source_params) if alert.source_params else None,
+            "conditions": json.dumps([c.model_dump() for c in alert.conditions]),
+            "recipient_type": alert.recipient_type.value,
+            "recipient_config": json.dumps(alert.recipient_config.model_dump()) if alert.recipient_config else None,
+            "severity": alert.severity.value,
+            "channels": alert.channels,
+            "channel_config": channel_config_json,
+            "cooldown_enabled": alert.cooldown_enabled,
+            "cooldown_hours": alert.cooldown_hours,
+            "tags": alert.tags or [],
+            "last_evaluated_at": None,
+            "last_triggered_at": None,
+            "trigger_count": 0,
+            "created_at": now.isoformat(),
+            "updated_at": None,
+            "created_by": created_by,
+            "updated_by": None,
+        }
+
+        try:
+            errors = self.client.insert_rows_json(self.scheduled_alerts_table, [row])
+            if errors:
+                raise Exception(f"BigQuery insert errors: {errors}")
+
+            return await self.get_scheduled_alert(org_slug, alert_id)
+        except Exception as e:
+            logger.error(f"Failed to create scheduled alert: {e}")
+            raise
+
+    async def update_scheduled_alert(
+        self,
+        org_slug: str,
+        alert_id: str,
+        update: ScheduledAlertUpdate,
+        updated_by: Optional[str] = None,
+    ) -> Optional[ScheduledAlert]:
+        """Update a scheduled alert."""
+        existing = await self.get_scheduled_alert(org_slug, alert_id)
+        if not existing:
+            return None
+
+        updates = []
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("alert_id", "STRING", alert_id),
+        ]
+
+        update_data = update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            if value is not None:
+                if field == "conditions":
+                    updates.append("conditions = @conditions")
+                    params.append(bigquery.ScalarQueryParameter(
+                        "conditions", "STRING",
+                        json.dumps([c.model_dump() for c in value])
+                    ))
+                elif field == "recipient_config":
+                    updates.append("recipient_config = @recipient_config")
+                    params.append(bigquery.ScalarQueryParameter(
+                        "recipient_config", "STRING", json.dumps(value.model_dump())
+                    ))
+                elif field == "channel_config":
+                    config_dict = value.model_dump()
+                    if config_dict.get("webhook_url_encrypted"):
+                        config_dict["webhook_url_encrypted"] = self._encrypt_credential(
+                            config_dict["webhook_url_encrypted"]
+                        )
+                    updates.append("channel_config = @channel_config")
+                    params.append(bigquery.ScalarQueryParameter(
+                        "channel_config", "STRING", json.dumps(config_dict)
+                    ))
+                elif field == "source_params":
+                    updates.append("source_params = @source_params")
+                    params.append(bigquery.ScalarQueryParameter(
+                        "source_params", "STRING", json.dumps(value)
+                    ))
+                elif field in ("recipient_type", "severity"):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "STRING", value.value))
+                elif isinstance(value, list):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ArrayQueryParameter(field, "STRING", value))
+                elif isinstance(value, bool):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "BOOL", value))
+                elif isinstance(value, int):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "INT64", value))
+                else:
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "STRING", str(value)))
+
+        if not updates:
+            return existing
+
+        updates.append("updated_at = CURRENT_TIMESTAMP()")
+        if updated_by:
+            updates.append("updated_by = @updated_by")
+            params.append(bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by))
+
+        query = f"""
+            UPDATE `{self.scheduled_alerts_table}`
+            SET {", ".join(updates)}
+            WHERE org_slug = @org_slug AND alert_id = @alert_id
+        """
+
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            self.client.query(query, job_config=job_config).result()
+            return await self.get_scheduled_alert(org_slug, alert_id)
+        except Exception as e:
+            logger.error(f"Failed to update scheduled alert {alert_id}: {e}")
+            raise
+
+    async def delete_scheduled_alert(self, org_slug: str, alert_id: str) -> bool:
+        """Delete a scheduled alert."""
+        query = f"""
+            DELETE FROM `{self.scheduled_alerts_table}`
+            WHERE org_slug = @org_slug AND alert_id = @alert_id
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("alert_id", "STRING", alert_id),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            result = self.client.query(query, job_config=job_config).result()
+            return result.num_dml_affected_rows > 0
+        except Exception as e:
+            logger.error(f"Failed to delete scheduled alert {alert_id}: {e}")
+            raise
+
+    async def enable_scheduled_alert(
+        self, org_slug: str, alert_id: str
+    ) -> Optional[ScheduledAlert]:
+        """Enable a scheduled alert."""
+        return await self.update_scheduled_alert(
+            org_slug, alert_id, ScheduledAlertUpdate(is_enabled=True)
+        )
+
+    async def disable_scheduled_alert(
+        self, org_slug: str, alert_id: str
+    ) -> Optional[ScheduledAlert]:
+        """Disable a scheduled alert."""
+        return await self.update_scheduled_alert(
+            org_slug, alert_id, ScheduledAlertUpdate(is_enabled=False)
+        )
+
+    # ==========================================================================
+    # Alert History Operations
+    # ==========================================================================
+
+    async def list_alert_history(
+        self,
+        org_slug: str,
+        alert_id: Optional[str] = None,
+        status: Optional[AlertHistoryStatus] = None,
+        days: int = 7,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[AlertHistoryEntry]:
+        """List alert history for an organization."""
+        query = f"""
+            SELECT *
+            FROM `{self.alert_history_table}`
+            WHERE org_slug = @org_slug
+            AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("days", "INT64", days),
+        ]
+
+        if alert_id:
+            query += " AND alert_id = @alert_id"
+            params.append(bigquery.ScalarQueryParameter("alert_id", "STRING", alert_id))
+
+        if status:
+            query += " AND status = @status"
+            params.append(bigquery.ScalarQueryParameter("status", "STRING", status.value))
+
+        query += f" ORDER BY created_at DESC LIMIT {limit} OFFSET {offset}"
+
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            results = self.client.query(query, job_config=job_config).result()
+            history = []
+            for row in results:
+                entry_data = dict(row)
+                if entry_data.get("trigger_data"):
+                    entry_data["trigger_data"] = json.loads(entry_data["trigger_data"])
+                if entry_data.get("condition_results"):
+                    entry_data["condition_results"] = json.loads(entry_data["condition_results"])
+                history.append(AlertHistoryEntry(**entry_data))
+            return history
+        except Exception as e:
+            logger.error(f"Failed to list alert history for {org_slug}: {e}")
+            raise
+
+    async def record_alert_evaluation(
+        self,
+        org_slug: str,
+        alert_id: str,
+        status: AlertHistoryStatus,
+        severity: AlertSeverity,
+        trigger_data: Optional[dict] = None,
+        condition_results: Optional[dict] = None,
+        recipients: Optional[List[str]] = None,
+        error_message: Optional[str] = None,
+    ) -> str:
+        """Record an alert evaluation in history."""
+        history_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+
+        row = {
+            "alert_history_id": history_id,
+            "alert_id": alert_id,
+            "org_slug": org_slug,
+            "status": status.value,
+            "severity": severity.value,
+            "trigger_data": json.dumps(trigger_data) if trigger_data else None,
+            "condition_results": json.dumps(condition_results) if condition_results else None,
+            "recipients": recipients or [],
+            "recipient_count": len(recipients) if recipients else 0,
+            "sent_at": now.isoformat() if status == AlertHistoryStatus.SENT else None,
+            "error_message": error_message,
+            "created_at": now.isoformat(),
+        }
+
+        try:
+            errors = self.client.insert_rows_json(self.alert_history_table, [row])
+            if errors:
+                raise Exception(f"BigQuery insert errors: {errors}")
+            return history_id
+        except Exception as e:
+            logger.error(f"Failed to record alert evaluation: {e}")
+            raise
+
+    async def update_alert_trigger_stats(
+        self, org_slug: str, alert_id: str
+    ) -> None:
+        """Update last_triggered_at and increment trigger_count for an alert."""
+        query = f"""
+            UPDATE `{self.scheduled_alerts_table}`
+            SET
+                last_triggered_at = CURRENT_TIMESTAMP(),
+                last_evaluated_at = CURRENT_TIMESTAMP(),
+                trigger_count = trigger_count + 1
+            WHERE org_slug = @org_slug AND alert_id = @alert_id
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("alert_id", "STRING", alert_id),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            self.client.query(query, job_config=job_config).result()
+        except Exception as e:
+            logger.error(f"Failed to update alert trigger stats: {e}")
+            raise
+
+    async def check_alert_cooldown(
+        self, org_slug: str, alert_id: str, cooldown_hours: int
+    ) -> bool:
+        """
+        Check if alert is in cooldown period.
+
+        Returns:
+            True if alert is in cooldown (should NOT trigger)
+            False if alert can trigger
+        """
+        query = f"""
+            SELECT last_triggered_at
+            FROM `{self.scheduled_alerts_table}`
+            WHERE org_slug = @org_slug AND alert_id = @alert_id
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("alert_id", "STRING", alert_id),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            results = list(self.client.query(query, job_config=job_config).result())
+            if not results or not results[0].last_triggered_at:
+                return False  # Never triggered, not in cooldown
+
+            last_triggered = results[0].last_triggered_at
+            cooldown_until = last_triggered + timedelta(hours=cooldown_hours)
+            return datetime.now(timezone.utc) < cooldown_until.replace(tzinfo=timezone.utc)
+        except Exception as e:
+            logger.error(f"Failed to check alert cooldown: {e}")
+            return False  # On error, allow trigger
 
 
 # Thread-safe global service instance

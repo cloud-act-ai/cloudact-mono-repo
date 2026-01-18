@@ -474,6 +474,10 @@ tags_metadata = [
     {
         "name": "LLM Data",
         "description": "LLM provider pricing and subscription CRUD endpoints under /integrations/{org_slug}/{provider}/. Supports OpenAI and Anthropic. Manage pricing models and subscription plans for usage-based cost calculations."
+    },
+    {
+        "name": "Alerts",
+        "description": "Scheduled alert evaluation endpoints. Triggered by Cloud Scheduler to evaluate cost thresholds and send notifications to org owners. Requires admin API key."
     }
 ]
 
@@ -901,11 +905,12 @@ async def metrics():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, scheduler, procedures
+from src.app.routers import pipelines, scheduler, procedures, alerts
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
 app.include_router(procedures.router, prefix="/api/v1", tags=["Procedures"])
+app.include_router(alerts.router, prefix="/api/v1", tags=["Alerts"])
 # Note: Integration setup/validate and LLM Data CRUD endpoints are in api-service (port 8000), not here
 
 

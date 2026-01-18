@@ -1,0 +1,155 @@
+# ============================================
+# Subscription Cost Alerts
+# ============================================
+# Threshold-based alerts for subscription costs
+# Evaluated daily by Cloud Scheduler
+# ============================================
+
+version: "1.0"
+
+alerts:
+  # ============================================
+  # Primary Alert: Subscription Cost > $20
+  # ============================================
+  - id: subscription_cost_threshold_20
+    name: "Subscription Cost Threshold Alert"
+    description: "Alert when monthly subscription costs exceed $20"
+    enabled: true
+
+    # Schedule: Daily at 8 AM UTC
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    # Data source: BigQuery subscription costs
+    source:
+      type: bigquery
+      query_template: subscription_costs
+      params:
+        period: current_month
+        aggregation: sum
+
+    # Condition: total_cost > 20
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 20
+        unit: USD
+
+    # Recipients: Org owners from Supabase
+    recipients:
+      type: org_owners
+
+    # Notification: Email with warning severity
+    notification:
+      template: subscription_cost_alert
+      severity: warning
+      channels:
+        - email
+
+    # Cooldown: Don't re-alert same org within 24 hours
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    # Tags for categorization
+    tags:
+      - subscription
+      - cost
+      - daily
+      - threshold
+
+  # ============================================
+  # Critical Alert: Subscription Cost > $100
+  # With Email + Slack (dual channel example)
+  # ============================================
+  - id: subscription_cost_critical_100
+    name: "Critical Subscription Spend Alert"
+    description: "Critical alert for subscription costs exceeding $100"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: subscription_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 100
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    # Both email and Slack channels for critical alerts
+    notification:
+      template: subscription_cost_alert
+      severity: critical
+      channels:
+        - email
+        - slack
+      # Optional Slack configuration (falls back to SLACK_WEBHOOK_URL env var if not set)
+      slack:
+        channel: "#cost-alerts"          # Override default channel
+        mention_channel: true             # @channel mention for critical
+        mention_users: []                 # Add Slack user IDs to mention
+
+    cooldown:
+      enabled: true
+      hours: 12  # More aggressive re-alerts for critical
+      scope: org
+
+    tags:
+      - subscription
+      - cost
+      - critical
+
+  # ============================================
+  # High Subscription Spend Alert: > $50
+  # ============================================
+  - id: subscription_cost_warning_50
+    name: "High Subscription Spend Alert"
+    description: "Warning when subscription costs exceed $50"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: subscription_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 50
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: subscription_cost_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - subscription
+      - cost
+      - warning

@@ -32,6 +32,13 @@ from src.core.services.notification_crud import (
     NotificationHistoryEntry,
     NotificationStats,
     get_notification_settings_service,
+    # Org-specific Scheduled Alerts
+    AlertType,
+    AlertHistoryStatus,
+    ScheduledAlert,
+    ScheduledAlertCreate,
+    ScheduledAlertUpdate,
+    AlertHistoryEntry as OrgAlertHistoryEntry,
 )
 # Read operations - Polars-powered queries
 from src.core.services.notification_read import (
@@ -1071,3 +1078,460 @@ async def get_stats(
     except Exception as e:
         logger.error(f"Failed to get stats: {e}")
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+
+
+# ==============================================================================
+# Scheduled Alerts Endpoints (Pipeline Service Integration)
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/scheduled-alerts",
+    summary="List scheduled alert configurations",
+    description="List all scheduled alert configurations from the pipeline service",
+)
+async def list_scheduled_alerts(
+    org_slug: str = Path(..., description="Organization slug"),
+    enabled_only: bool = Query(False, description="Only return enabled alerts"),
+    current_org: dict = Depends(get_current_org),
+):
+    """List scheduled alert configurations from pipeline service."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    settings = get_settings()
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{settings.pipeline_service_url}/api/v1/alerts/configs",
+                headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
+            )
+
+            if response.status_code == 200:
+                alerts = response.json().get("alerts", [])
+                if enabled_only:
+                    alerts = [a for a in alerts if a.get("enabled", False)]
+                return {"success": True, "alerts": alerts}
+            else:
+                logger.warning(f"Pipeline service returned {response.status_code}")
+                return {"success": False, "alerts": [], "message": "Could not fetch alerts"}
+
+    except httpx.RequestError as e:
+        logger.warning(f"Pipeline service unreachable: {e}")
+        return {"success": False, "alerts": [], "message": "Pipeline service unreachable"}
+    except Exception as e:
+        logger.error(f"Failed to list scheduled alerts: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+
+
+@router.get(
+    "/{org_slug}/scheduled-alerts/{alert_id}",
+    summary="Get scheduled alert configuration",
+    description="Get a specific scheduled alert configuration",
+)
+async def get_scheduled_alert(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert configuration ID"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Get a specific scheduled alert configuration."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    settings = get_settings()
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{settings.pipeline_service_url}/api/v1/alerts/configs",
+                headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
+            )
+
+            if response.status_code == 200:
+                alerts = response.json().get("alerts", [])
+                alert = next((a for a in alerts if a.get("id") == alert_id), None)
+                if alert:
+                    return {"success": True, "alert": alert}
+                else:
+                    raise HTTPException(status_code=404, detail="Alert not found")
+            else:
+                raise HTTPException(status_code=502, detail="Could not fetch alert from pipeline service")
+
+    except HTTPException:
+        raise
+    except httpx.RequestError as e:
+        logger.warning(f"Pipeline service unreachable: {e}")
+        raise HTTPException(status_code=503, detail="Pipeline service unreachable")
+    except Exception as e:
+        logger.error(f"Failed to get scheduled alert: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+
+
+@router.post(
+    "/{org_slug}/scheduled-alerts/{alert_id}/test",
+    summary="Test scheduled alert",
+    description="Test a scheduled alert by evaluating and optionally sending",
+)
+async def test_scheduled_alert(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert configuration ID"),
+    dry_run: bool = Query(True, description="If true, evaluate without sending"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Test a scheduled alert by evaluating its conditions."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    settings = get_settings()
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{settings.pipeline_service_url}/api/v1/alerts/configs/{alert_id}/test",
+                params={"dry_run": dry_run},
+                headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Alert not found")
+            else:
+                return {
+                    "success": False,
+                    "alert_id": alert_id,
+                    "message": f"Pipeline service returned {response.status_code}",
+                }
+
+    except HTTPException:
+        raise
+    except httpx.RequestError as e:
+        logger.warning(f"Pipeline service unreachable: {e}")
+        raise HTTPException(status_code=503, detail="Pipeline service unreachable")
+    except Exception as e:
+        logger.error(f"Failed to test scheduled alert: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+
+
+@router.get(
+    "/{org_slug}/alert-history",
+    summary="Get alert history",
+    description="Get history of scheduled alert evaluations",
+)
+async def get_alert_history(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: Optional[str] = Query(None, description="Filter by alert ID"),
+    status: Optional[str] = Query(None, description="Filter by status: SENT, FAILED, COOLDOWN"),
+    days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
+    limit: int = Query(50, ge=1, le=500, description="Max results"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Get alert history for an organization."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    from google.cloud import bigquery as bq
+
+    project_id = os.environ.get("GCP_PROJECT_ID", "cloudact-testing-1")
+
+    try:
+        client = bq.Client(project=project_id)
+
+        # Build query with filters
+        conditions = ["org_slug = @org_slug"]
+        params = [
+            bq.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bq.ScalarQueryParameter("days", "INT64", days),
+            bq.ScalarQueryParameter("limit", "INT64", limit),
+        ]
+
+        if alert_id:
+            conditions.append("alert_id = @alert_id")
+            params.append(bq.ScalarQueryParameter("alert_id", "STRING", alert_id))
+
+        if status:
+            conditions.append("status = @status")
+            params.append(bq.ScalarQueryParameter("status", "STRING", status))
+
+        where_clause = " AND ".join(conditions)
+
+        query = f"""
+        SELECT
+            alert_history_id,
+            alert_id,
+            org_slug,
+            status,
+            severity,
+            trigger_data,
+            recipients,
+            recipient_count,
+            sent_at,
+            error_message,
+            created_at
+        FROM `{project_id}.organizations.org_alert_history`
+        WHERE {where_clause}
+          AND created_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
+        ORDER BY created_at DESC
+        LIMIT @limit
+        """
+
+        job_config = bq.QueryJobConfig(query_parameters=params)
+        job = client.query(query, job_config=job_config)
+        rows = list(job.result())
+
+        history = []
+        for row in rows:
+            entry = {
+                "alert_history_id": row.alert_history_id,
+                "alert_id": row.alert_id,
+                "org_slug": row.org_slug,
+                "status": row.status,
+                "severity": row.severity,
+                "trigger_data": row.trigger_data,
+                "recipients": row.recipients,
+                "recipient_count": row.recipient_count,
+                "sent_at": row.sent_at.isoformat() if row.sent_at else None,
+                "error_message": row.error_message,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            history.append(entry)
+
+        return {"success": True, "history": history, "count": len(history)}
+
+    except Exception as e:
+        logger.error(f"Failed to get alert history: {e}")
+        # Return empty list if table doesn't exist yet
+        if "Not found" in str(e):
+            return {"success": True, "history": [], "count": 0, "message": "No alert history yet"}
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+
+
+# ==============================================================================
+# Org-Specific Scheduled Alerts CRUD (Unified with YAML alerts)
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/org-alerts",
+    response_model=List[ScheduledAlert],
+    summary="List org-specific scheduled alerts",
+    description="List all scheduled alerts configured for this organization",
+)
+async def list_org_alerts(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_type: Optional[AlertType] = Query(None, description="Filter by alert type"),
+    enabled_only: bool = Query(False, description="Only return enabled alerts"),
+    current_org: dict = Depends(get_current_org),
+):
+    """List org-specific scheduled alerts."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        alerts = await service.list_scheduled_alerts(org_slug, alert_type, enabled_only)
+        return alerts
+    except Exception as e:
+        logger.error(f"Failed to list org alerts for {org_slug}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve scheduled alerts")
+
+
+@router.get(
+    "/{org_slug}/org-alerts/{alert_id}",
+    response_model=ScheduledAlert,
+    summary="Get org-specific scheduled alert",
+    description="Get a specific scheduled alert for this organization",
+)
+async def get_org_alert(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert ID"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Get a specific org-specific scheduled alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        alert = await service.get_scheduled_alert(org_slug, alert_id)
+        if not alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return alert
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get org alert {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve scheduled alert")
+
+
+@router.post(
+    "/{org_slug}/org-alerts",
+    response_model=ScheduledAlert,
+    summary="Create org-specific scheduled alert",
+    description="Create a new scheduled alert for this organization",
+    status_code=201,
+)
+async def create_org_alert(
+    alert: ScheduledAlertCreate,
+    org_slug: str = Path(..., description="Organization slug"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Create a new org-specific scheduled alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        created = await service.create_scheduled_alert(
+            org_slug, alert, current_org.get("admin_email")
+        )
+        return created
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to create org alert: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create scheduled alert")
+
+
+@router.put(
+    "/{org_slug}/org-alerts/{alert_id}",
+    response_model=ScheduledAlert,
+    summary="Update org-specific scheduled alert",
+    description="Update a scheduled alert for this organization",
+)
+async def update_org_alert(
+    update: ScheduledAlertUpdate,
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert ID"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Update an org-specific scheduled alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        updated = await service.update_scheduled_alert(
+            org_slug, alert_id, update, current_org.get("admin_email")
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return updated
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update org alert {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update scheduled alert")
+
+
+@router.delete(
+    "/{org_slug}/org-alerts/{alert_id}",
+    summary="Delete org-specific scheduled alert",
+    description="Delete a scheduled alert from this organization",
+)
+async def delete_org_alert(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert ID"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Delete an org-specific scheduled alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        deleted = await service.delete_scheduled_alert(org_slug, alert_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return {"success": True, "message": "Alert deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete org alert {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete scheduled alert")
+
+
+@router.post(
+    "/{org_slug}/org-alerts/{alert_id}/enable",
+    response_model=ScheduledAlert,
+    summary="Enable scheduled alert",
+    description="Enable a scheduled alert",
+)
+async def enable_org_alert(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert ID"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Enable an org-specific scheduled alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        alert = await service.enable_scheduled_alert(org_slug, alert_id)
+        if not alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return alert
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to enable org alert {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to enable scheduled alert")
+
+
+@router.post(
+    "/{org_slug}/org-alerts/{alert_id}/disable",
+    response_model=ScheduledAlert,
+    summary="Disable scheduled alert",
+    description="Disable a scheduled alert",
+)
+async def disable_org_alert(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert ID"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Disable an org-specific scheduled alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        alert = await service.disable_scheduled_alert(org_slug, alert_id)
+        if not alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return alert
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to disable org alert {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to disable scheduled alert")
+
+
+@router.get(
+    "/{org_slug}/org-alerts/{alert_id}/history",
+    response_model=List[OrgAlertHistoryEntry],
+    summary="Get alert evaluation history",
+    description="Get evaluation history for a specific alert",
+)
+async def get_org_alert_history(
+    org_slug: str = Path(..., description="Organization slug"),
+    alert_id: str = Path(..., description="Alert ID"),
+    status: Optional[AlertHistoryStatus] = Query(None, description="Filter by status"),
+    days: int = Query(7, ge=1, le=90, description="Days to look back"),
+    limit: int = Query(50, ge=1, le=500, description="Max results"),
+    current_org: dict = Depends(get_current_org),
+):
+    """Get evaluation history for a specific alert."""
+    if current_org.get("org_slug") != org_slug:
+        raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    service = get_service()
+    try:
+        history = await service.list_alert_history(
+            org_slug, alert_id, status, days, limit, 0
+        )
+        return history
+    except Exception as e:
+        logger.error(f"Failed to get alert history for {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve alert history")

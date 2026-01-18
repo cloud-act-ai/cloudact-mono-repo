@@ -993,3 +993,218 @@ export async function getNotificationStats(
     return { success: false, error: logError("getNotificationStats", error) }
   }
 }
+
+// ============================================
+// Scheduled Alerts Types
+// ============================================
+
+export interface ScheduledAlertConfig {
+  id: string
+  name: string
+  description?: string
+  enabled: boolean
+  schedule: {
+    cron: string
+    timezone: string
+  }
+  source: {
+    type: string
+    query_template: string
+    params: Record<string, unknown>
+  }
+  conditions: Array<{
+    field: string
+    operator: string
+    value: number | string
+    unit?: string
+  }>
+  recipients: {
+    type: string
+    node_code?: string
+    emails?: string[]
+  }
+  notification: {
+    template: string
+    severity: string
+    channels: string[]
+    slack?: {
+      channel?: string
+      mention_channel?: boolean
+      mention_users?: string[]
+    }
+  }
+  cooldown: {
+    enabled: boolean
+    hours: number
+    scope: string
+  }
+  tags: string[]
+}
+
+export interface AlertHistoryEntry {
+  alert_history_id: string
+  alert_id: string
+  org_slug: string
+  status: string
+  severity: string
+  trigger_data?: string
+  recipients: string[]
+  recipient_count: number
+  sent_at?: string
+  error_message?: string
+  created_at: string
+}
+
+// ============================================
+// Scheduled Alerts Actions
+// ============================================
+
+export async function listScheduledAlerts(
+  orgSlug: string,
+  enabledOnly?: boolean
+): Promise<ActionResponse<ScheduledAlertConfig[]>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) {
+      return { success: false, error: "Organization API key not found." }
+    }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const params = new URLSearchParams()
+    if (enabledOnly) params.append("enabled_only", "true")
+
+    const url = `${apiUrl}/api/v1/notifications/${orgSlug}/scheduled-alerts${params.toString() ? `?${params.toString()}` : ""}`
+
+    const response = await fetchWithTimeout(url, {
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const result = await safeJsonParse<{ success: boolean; alerts: ScheduledAlertConfig[] }>(
+      response,
+      { success: false, alerts: [] }
+    )
+    return { success: result.success, data: result.alerts }
+  } catch (error) {
+    return { success: false, error: logError("listScheduledAlerts", error) }
+  }
+}
+
+export async function getScheduledAlert(
+  orgSlug: string,
+  alertId: string
+): Promise<ActionResponse<ScheduledAlertConfig>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) {
+      return { success: false, error: "Organization API key not found." }
+    }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/v1/notifications/${orgSlug}/scheduled-alerts/${alertId}`,
+      {
+        headers: { "X-API-Key": orgApiKey },
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const result = await safeJsonParse<{ success: boolean; alert: ScheduledAlertConfig }>(
+      response,
+      { success: false, alert: {} as ScheduledAlertConfig }
+    )
+    return { success: result.success, data: result.alert }
+  } catch (error) {
+    return { success: false, error: logError("getScheduledAlert", error) }
+  }
+}
+
+export async function testScheduledAlert(
+  orgSlug: string,
+  alertId: string,
+  dryRun: boolean = true
+): Promise<ActionResponse<{ triggered: boolean; message: string; data?: unknown }>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) {
+      return { success: false, error: "Organization API key not found." }
+    }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/v1/notifications/${orgSlug}/scheduled-alerts/${alertId}/test?dry_run=${dryRun}`,
+      {
+        method: "POST",
+        headers: { "X-API-Key": orgApiKey },
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<{ triggered: boolean; message: string; data?: unknown }>(
+      response,
+      { triggered: false, message: "" }
+    )
+    return { success: true, data }
+  } catch (error) {
+    return { success: false, error: logError("testScheduledAlert", error) }
+  }
+}
+
+export async function getAlertHistory(
+  orgSlug: string,
+  options?: {
+    alertId?: string
+    status?: string
+    days?: number
+    limit?: number
+  }
+): Promise<ActionResponse<AlertHistoryEntry[]>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) {
+      return { success: false, error: "Organization API key not found." }
+    }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const params = new URLSearchParams()
+    if (options?.alertId) params.append("alert_id", options.alertId)
+    if (options?.status) params.append("status", options.status)
+    if (options?.days) params.append("days", options.days.toString())
+    if (options?.limit) params.append("limit", options.limit.toString())
+
+    const url = `${apiUrl}/api/v1/notifications/${orgSlug}/alert-history${params.toString() ? `?${params.toString()}` : ""}`
+
+    const response = await fetchWithTimeout(url, {
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const result = await safeJsonParse<{ success: boolean; history: AlertHistoryEntry[] }>(
+      response,
+      { success: false, history: [] }
+    )
+    return { success: result.success, data: result.history }
+  } catch (error) {
+    return { success: false, error: logError("getAlertHistory", error) }
+  }
+}

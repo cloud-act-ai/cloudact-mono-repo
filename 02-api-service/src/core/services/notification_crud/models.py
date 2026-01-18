@@ -509,3 +509,191 @@ class NotificationStats(BaseModel):
     alerts_24h: int = Field(default=0, description="Alerts in last 24h")
     delivery_rate: float = Field(default=0.0, description="Delivery success rate (0-1)")
     pending_acknowledgments: int = Field(default=0, description="Pending acknowledgments")
+
+
+# ==============================================================================
+# Scheduled Alert Models (Unified with YAML alerts)
+# ==============================================================================
+
+class AlertType(str, Enum):
+    """Scheduled alert types"""
+    COST_THRESHOLD = "cost_threshold"
+    QUOTA_USAGE = "quota_usage"
+    ANOMALY_DETECTION = "anomaly_detection"
+    PIPELINE_HEALTH = "pipeline_health"
+
+
+class SourceType(str, Enum):
+    """Alert data source types"""
+    BIGQUERY = "bigquery"
+    API = "api"
+    METRIC = "metric"
+
+
+class QueryTemplate(str, Enum):
+    """Pre-defined query templates"""
+    SUBSCRIPTION_COSTS = "subscription_costs"
+    CLOUD_COSTS = "cloud_costs"
+    GENAI_COSTS = "genai_costs"
+    TOTAL_COSTS = "total_costs"
+    QUOTA_USAGE = "quota_usage"
+
+
+class RecipientType(str, Enum):
+    """Recipient resolution types"""
+    ORG_OWNERS = "org_owners"
+    HIERARCHY_NODE = "hierarchy_node"
+    ALL_MEMBERS = "all_members"
+    CUSTOM = "custom"
+
+
+class AlertSeverity(str, Enum):
+    """Alert severity levels"""
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+class AlertCondition(BaseModel):
+    """Single alert condition"""
+    field: str = Field(..., description="Field to evaluate")
+    operator: str = Field(..., description="Operator: gt, lt, eq, gte, lte, between")
+    value: float = Field(..., description="Threshold value")
+    unit: str = Field(default="USD", description="Unit for the value")
+
+    @field_validator("operator")
+    @classmethod
+    def validate_operator(cls, v: str) -> str:
+        """Validate operator is supported."""
+        valid_ops = {"gt", "lt", "eq", "gte", "lte", "between"}
+        if v not in valid_ops:
+            raise ValueError(f"Invalid operator: {v}. Must be one of {valid_ops}")
+        return v
+
+
+class RecipientConfig(BaseModel):
+    """Recipient configuration"""
+    node_code: Optional[str] = Field(default=None, description="Hierarchy node code")
+    include_children: bool = Field(default=False, description="Include child hierarchy members")
+    emails: Optional[List[str]] = Field(default=None, description="Custom email list")
+
+
+class SlackAlertConfig(BaseModel):
+    """Slack-specific alert configuration"""
+    channel: Optional[str] = Field(default=None, description="Slack channel")
+    webhook_url_encrypted: Optional[str] = Field(default=None, description="Encrypted webhook URL")
+    mention_channel: bool = Field(default=False, description="Mention @channel on critical")
+    mention_users: Optional[List[str]] = Field(default=None, description="User IDs to mention")
+
+
+class ScheduledAlertBase(BaseModel):
+    """Base scheduled alert model"""
+    name: str = Field(..., min_length=1, max_length=100, description="Alert name")
+    description: Optional[str] = Field(default=None, max_length=500, description="Alert description")
+    alert_type: AlertType = Field(..., description="Alert type")
+    is_enabled: bool = Field(default=True, description="Alert is active")
+
+    # Schedule
+    schedule_cron: str = Field(..., description="Cron expression (e.g., '0 8 * * *')")
+    schedule_timezone: str = Field(default="UTC", description="Timezone for schedule")
+
+    # Source
+    source_type: SourceType = Field(default=SourceType.BIGQUERY, description="Data source type")
+    source_query_template: QueryTemplate = Field(..., description="Query template")
+    source_params: Optional[Dict[str, Any]] = Field(default=None, description="Query parameters")
+
+    # Conditions
+    conditions: List[AlertCondition] = Field(..., min_length=1, description="Alert conditions")
+
+    # Recipients
+    recipient_type: RecipientType = Field(default=RecipientType.ORG_OWNERS, description="Recipient type")
+    recipient_config: Optional[RecipientConfig] = Field(default=None, description="Recipient config")
+
+    # Notification
+    severity: AlertSeverity = Field(default=AlertSeverity.WARNING, description="Alert severity")
+    channels: List[str] = Field(default=["email"], description="Notification channels")
+    channel_config: Optional[SlackAlertConfig] = Field(default=None, description="Channel-specific config")
+
+    # Cooldown
+    cooldown_enabled: bool = Field(default=True, description="Enable cooldown")
+    cooldown_hours: int = Field(default=24, ge=1, le=168, description="Cooldown hours")
+
+    # Tags
+    tags: Optional[List[str]] = Field(default=None, description="Tags for categorization")
+
+    @field_validator("schedule_cron")
+    @classmethod
+    def validate_cron(cls, v: str) -> str:
+        """Validate cron expression format."""
+        parts = v.split()
+        if len(parts) != 5:
+            raise ValueError("Cron expression must have 5 parts: minute hour day month weekday")
+        return v
+
+
+class ScheduledAlertCreate(ScheduledAlertBase):
+    """Create scheduled alert request"""
+    pass
+
+
+class ScheduledAlertUpdate(BaseModel):
+    """Update scheduled alert request"""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=500)
+    is_enabled: Optional[bool] = None
+    schedule_cron: Optional[str] = None
+    schedule_timezone: Optional[str] = None
+    source_params: Optional[Dict[str, Any]] = None
+    conditions: Optional[List[AlertCondition]] = None
+    recipient_type: Optional[RecipientType] = None
+    recipient_config: Optional[RecipientConfig] = None
+    severity: Optional[AlertSeverity] = None
+    channels: Optional[List[str]] = None
+    channel_config: Optional[SlackAlertConfig] = None
+    cooldown_enabled: Optional[bool] = None
+    cooldown_hours: Optional[int] = Field(default=None, ge=1, le=168)
+    tags: Optional[List[str]] = None
+
+
+class ScheduledAlert(ScheduledAlertBase):
+    """Full scheduled alert model"""
+    alert_id: str = Field(..., description="Unique alert ID")
+    org_slug: str = Field(..., description="Organization slug")
+    last_evaluated_at: Optional[datetime] = Field(default=None, description="Last evaluation time")
+    last_triggered_at: Optional[datetime] = Field(default=None, description="Last trigger time")
+    trigger_count: int = Field(default=0, description="Total trigger count")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
+    created_by: Optional[str] = Field(default=None, description="Creator user ID")
+    updated_by: Optional[str] = Field(default=None, description="Last updater user ID")
+
+    class Config:
+        from_attributes = True
+
+
+class AlertHistoryStatus(str, Enum):
+    """Alert history status"""
+    SENT = "SENT"
+    FAILED = "FAILED"
+    COOLDOWN = "COOLDOWN"
+    NO_MATCH = "NO_MATCH"
+    ERROR = "ERROR"
+
+
+class AlertHistoryEntry(BaseModel):
+    """Alert history entry"""
+    alert_history_id: str = Field(..., description="Unique history ID")
+    alert_id: str = Field(..., description="Alert configuration ID")
+    org_slug: str = Field(..., description="Organization slug")
+    status: AlertHistoryStatus = Field(..., description="Alert status")
+    severity: AlertSeverity = Field(..., description="Alert severity")
+    trigger_data: Optional[Dict[str, Any]] = Field(default=None, description="Trigger data")
+    condition_results: Optional[Dict[str, Any]] = Field(default=None, description="Condition results")
+    recipients: List[str] = Field(default=[], description="Recipients")
+    recipient_count: int = Field(default=0, description="Recipient count")
+    sent_at: Optional[datetime] = Field(default=None, description="Send time")
+    error_message: Optional[str] = Field(default=None, description="Error message")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+    class Config:
+        from_attributes = True

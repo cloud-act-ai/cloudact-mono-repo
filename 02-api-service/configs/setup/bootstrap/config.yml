@@ -139,6 +139,20 @@ tables:
       field: "created_at"
     clustering: ["org_slug", "notification_type", "status"]
 
+  org_scheduled_alerts:
+    description: "Org-specific scheduled alert configurations (unified with YAML alerts)"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "alert_type", "is_enabled"]
+
+  org_alert_history:
+    description: "Alert evaluation and delivery history"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "alert_id", "status"]
+
   # ============================================
   # Organizational Hierarchy (N-Level Configurable)
   # Flexible hierarchy structure with configurable levels

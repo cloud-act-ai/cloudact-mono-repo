@@ -1,0 +1,164 @@
+[
+  {
+    "name": "alert_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the alert (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug - ensures multi-tenancy isolation"
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Human-readable alert name"
+  },
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Alert description"
+  },
+  {
+    "name": "alert_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Alert type: cost_threshold, quota_usage, anomaly_detection, pipeline_health"
+  },
+  {
+    "name": "is_enabled",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether alert is active"
+  },
+  {
+    "name": "schedule_cron",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cron expression for schedule (e.g., '0 8 * * *')"
+  },
+  {
+    "name": "schedule_timezone",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Timezone for cron schedule (e.g., 'UTC', 'America/Los_Angeles')"
+  },
+  {
+    "name": "source_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Data source type: bigquery, api, metric"
+  },
+  {
+    "name": "source_query_template",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Query template name: subscription_costs, cloud_costs, genai_costs, total_costs, quota_usage"
+  },
+  {
+    "name": "source_params",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON object with query parameters (period, aggregation, filters)"
+  },
+  {
+    "name": "conditions",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "JSON array of condition objects: [{field, operator, value, unit}]"
+  },
+  {
+    "name": "recipient_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Recipient resolution type: org_owners, hierarchy_node, all_members, custom"
+  },
+  {
+    "name": "recipient_config",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON object with recipient config: {node_code, include_children, emails}"
+  },
+  {
+    "name": "severity",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Alert severity: info, warning, critical"
+  },
+  {
+    "name": "channels",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Notification channels: email, slack, webhook"
+  },
+  {
+    "name": "channel_config",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON object with channel-specific config: {slack_channel, mention_channel, webhook_url}"
+  },
+  {
+    "name": "cooldown_enabled",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether cooldown is enabled"
+  },
+  {
+    "name": "cooldown_hours",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Cooldown period in hours"
+  },
+  {
+    "name": "tags",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "Tags for categorization"
+  },
+  {
+    "name": "last_evaluated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When alert was last evaluated"
+  },
+  {
+    "name": "last_triggered_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When alert was last triggered"
+  },
+  {
+    "name": "trigger_count",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Total times alert has triggered"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Last update timestamp"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who created the alert"
+  },
+  {
+    "name": "updated_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who last updated the alert"
+  }
+]

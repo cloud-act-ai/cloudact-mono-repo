@@ -34,6 +34,20 @@ from .models import (
     NotificationHistoryEntry,
     # Stats
     NotificationStats,
+    # Scheduled Alerts (Unified)
+    AlertType,
+    SourceType,
+    QueryTemplate,
+    RecipientType,
+    AlertSeverity,
+    AlertCondition,
+    RecipientConfig,
+    SlackAlertConfig,
+    ScheduledAlert,
+    ScheduledAlertCreate,
+    ScheduledAlertUpdate,
+    AlertHistoryStatus,
+    AlertHistoryEntry,
 )
 
 from .service import (
@@ -66,6 +80,20 @@ __all__ = [
     "NotificationHistoryEntry",
     # Stats
     "NotificationStats",
+    # Scheduled Alerts (Unified)
+    "AlertType",
+    "SourceType",
+    "QueryTemplate",
+    "RecipientType",
+    "AlertSeverity",
+    "AlertCondition",
+    "RecipientConfig",
+    "SlackAlertConfig",
+    "ScheduledAlert",
+    "ScheduledAlertCreate",
+    "ScheduledAlertUpdate",
+    "AlertHistoryStatus",
+    "AlertHistoryEntry",
     # Service
     "NotificationSettingsService",
     "get_notification_settings_service",
