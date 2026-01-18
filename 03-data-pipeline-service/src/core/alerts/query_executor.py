@@ -182,7 +182,7 @@ class AlertQueryExecutor:
         end_date: date
     ) -> Optional[Dict[str, Any]]:
         """
-        Execute query for a single organization.
+        Execute query for a single organization with configurable timeout.
 
         Args:
             query: Formatted SQL query
@@ -194,11 +194,16 @@ class AlertQueryExecutor:
             Single result row or None
         """
         from google.cloud import bigquery
+        import asyncio
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
 
         # Get or create BigQuery client
         if self._bq_client is None:
             from src.core.engine.bq_client import get_bigquery_client
             self._bq_client = get_bigquery_client()
+
+        # GAP-006 FIX: Use configurable query timeout
+        query_timeout = settings.alert_query_timeout_seconds
 
         # Build query parameters
         job_config = bigquery.QueryJobConfig(
@@ -212,12 +217,21 @@ class AlertQueryExecutor:
 
         try:
             job = self._bq_client.client.query(query, job_config=job_config)
-            rows = list(job.result())
+
+            # GAP-006 FIX: Apply timeout to query result
+            loop = asyncio.get_running_loop()
+            rows = await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: list(job.result(timeout=query_timeout))),
+                timeout=query_timeout + 5  # Extra 5s buffer for network
+            )
 
             if rows:
                 return dict(rows[0])
             return None
 
+        except (asyncio.TimeoutError, FuturesTimeoutError):
+            logger.error(f"Query timed out after {query_timeout}s for {org_slug}")
+            return None
         except Exception as e:
             logger.debug(f"Query execution failed for {org_slug}: {e}")
             return None

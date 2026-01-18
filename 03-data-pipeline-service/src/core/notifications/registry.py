@@ -9,13 +9,42 @@ Unified provider management with:
 """
 
 import os
+import re
 import logging
+import threading
 from typing import Dict, Type, Optional, List, Any, Protocol
 from dataclasses import dataclass, field
 from enum import Enum
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
+
+# ==============================================================================
+# Validation Constants
+# ==============================================================================
+
+# Org slug must be alphanumeric with underscores/hyphens, 1-64 chars
+ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
+
+
+def _validate_org_slug(org_slug: str) -> str:
+    """
+    Validate org_slug format to prevent injection attacks.
+
+    Args:
+        org_slug: Organization slug to validate
+
+    Returns:
+        The validated org_slug
+
+    Raises:
+        ValueError: If org_slug format is invalid
+    """
+    if not org_slug:
+        raise ValueError("org_slug cannot be empty")
+    if not ORG_SLUG_PATTERN.match(org_slug):
+        raise ValueError(f"Invalid org_slug format: {org_slug}")
+    return org_slug
 
 
 # ============================================
@@ -59,7 +88,10 @@ class EmailProviderConfig(BaseProviderConfig):
 
     @classmethod
     def from_env(cls) -> "EmailProviderConfig":
-        """Create config from environment variables."""
+        """Create config from environment variables.
+
+        Supports both EMAIL_* and SMTP_*/FROM_* prefixes for compatibility.
+        """
         return cls(
             enabled=os.environ.get("EMAIL_ENABLED", "true").lower() == "true",
             smtp_host=os.environ.get("EMAIL_SMTP_HOST", os.environ.get("SMTP_HOST", "smtp.gmail.com")),
@@ -67,8 +99,8 @@ class EmailProviderConfig(BaseProviderConfig):
             smtp_username=os.environ.get("EMAIL_SMTP_USERNAME", os.environ.get("SMTP_USERNAME")),
             smtp_password=os.environ.get("EMAIL_SMTP_PASSWORD", os.environ.get("SMTP_PASSWORD")),
             smtp_use_tls=os.environ.get("EMAIL_SMTP_USE_TLS", "true").lower() == "true",
-            from_email=os.environ.get("EMAIL_FROM_ADDRESS", "alerts@cloudact.ai"),
-            from_name=os.environ.get("EMAIL_FROM_NAME", "CloudAct.AI"),
+            from_email=os.environ.get("EMAIL_FROM_ADDRESS", os.environ.get("FROM_EMAIL", "alerts@cloudact.ai")),
+            from_name=os.environ.get("EMAIL_FROM_NAME", os.environ.get("FROM_NAME", "CloudAct.AI")),
         )
 
 
@@ -198,7 +230,7 @@ class NotificationProviderRegistry:
     """
     Central registry for notification providers.
 
-    MT-FIX: Multi-tenant aware with org-specific provider caching.
+    Thread-safe, multi-tenant aware with org-specific provider caching.
 
     Provides:
     - Provider registration and lookup
@@ -220,13 +252,17 @@ class NotificationProviderRegistry:
     """
 
     _instance: Optional["NotificationProviderRegistry"] = None
+    _singleton_lock = threading.Lock()  # BUG-001 FIX: Thread-safe singleton
     MAX_CACHE_SIZE = 100  # Prevent memory exhaustion
 
     def __new__(cls) -> "NotificationProviderRegistry":
-        """Singleton pattern."""
+        """Thread-safe singleton pattern with double-checked locking."""
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            with cls._singleton_lock:
+                # Double-check inside lock
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
@@ -239,10 +275,16 @@ class NotificationProviderRegistry:
         # MT-FIX: Store global configs (fallback) and org-specific configs separately
         self._global_configs: Dict[ProviderType, BaseProviderConfig] = {}
         self._org_configs: Dict[str, BaseProviderConfig] = {}  # key: org_slug:provider_type
+        # BUG-004 FIX: Thread-safe cache operations
+        self._cache_lock = threading.RLock()
         self._initialized = True
 
         # Auto-register built-in providers
         self._register_builtin_providers()
+
+    def __repr__(self) -> str:
+        """Return string representation for debugging."""
+        return f"<NotificationProviderRegistry providers={list(self._providers.keys())} cached={len(self._instances)}>"
 
     def _register_builtin_providers(self):
         """Register built-in providers with default configs."""
@@ -264,16 +306,22 @@ class NotificationProviderRegistry:
     def _make_cache_key(self, provider_type: ProviderType, org_slug: Optional[str] = None) -> str:
         """Create composite cache key for provider instances."""
         if org_slug:
-            return f"{org_slug}:{provider_type.value}"
+            # BUG-003 FIX: Validate org_slug before using in cache key
+            validated_slug = _validate_org_slug(org_slug)
+            return f"{validated_slug}:{provider_type.value}"
         return f"__global__:{provider_type.value}"
 
     def _evict_oldest_if_needed(self):
-        """MT-FIX: Prevent memory exhaustion by evicting old entries."""
-        while len(self._instances) > self.MAX_CACHE_SIZE:
-            # Evict first entry (oldest)
-            oldest_key = next(iter(self._instances))
-            del self._instances[oldest_key]
-            logger.debug(f"Evicted provider instance: {oldest_key}")
+        """Thread-safe cache eviction to prevent memory exhaustion."""
+        # BUG-004 FIX: Use lock for thread-safe cache operations
+        with self._cache_lock:
+            while len(self._instances) > self.MAX_CACHE_SIZE:
+                try:
+                    oldest_key = next(iter(self._instances))
+                    del self._instances[oldest_key]
+                    logger.debug(f"Evicted provider instance: {oldest_key}")
+                except (StopIteration, KeyError):
+                    break
 
     def register(
         self,
@@ -361,7 +409,7 @@ class NotificationProviderRegistry:
         """
         Get or create a provider instance.
 
-        MT-FIX: Org-aware provider caching for multi-tenant isolation.
+        Thread-safe, org-aware provider caching for multi-tenant isolation.
 
         Args:
             provider_type: The type of provider
@@ -374,24 +422,30 @@ class NotificationProviderRegistry:
             logger.warning(f"Provider not registered: {provider_type.value}")
             return None
 
-        cache_key = self._make_cache_key(provider_type, org_slug)
-
-        # Return cached instance if exists
-        if cache_key in self._instances:
-            return self._instances[cache_key]
-
-        # Create new instance with appropriate config
-        provider_class = self._providers[provider_type]
-        config = self.get_config(provider_type, org_slug)
-
         try:
-            instance = provider_class(config)
-            self._evict_oldest_if_needed()
-            self._instances[cache_key] = instance
-            return instance
-        except Exception as e:
-            logger.error(f"Failed to create provider {provider_type.value}: {e}")
+            cache_key = self._make_cache_key(provider_type, org_slug)
+        except ValueError as e:
+            logger.error(f"Invalid org_slug: {e}")
             return None
+
+        # Thread-safe cache access
+        with self._cache_lock:
+            # Return cached instance if exists
+            if cache_key in self._instances:
+                return self._instances[cache_key]
+
+            # Create new instance with appropriate config
+            provider_class = self._providers[provider_type]
+            config = self.get_config(provider_type, org_slug)
+
+            try:
+                instance = provider_class(config)
+                self._evict_oldest_if_needed()
+                self._instances[cache_key] = instance
+                return instance
+            except Exception as e:
+                logger.error(f"Failed to create provider {provider_type.value}: {e}")
+                return None
 
     def get_available_providers(self) -> List[ProviderType]:
         """Get list of registered provider types."""
@@ -417,28 +471,39 @@ class NotificationProviderRegistry:
         self,
         payload: NotificationPayload,
         channels: List[str],
-        org_slug: Optional[str] = None
+        org_slug: Optional[str] = None,
+        parallel: bool = True
     ) -> Dict[str, bool]:
         """
         Send notification to multiple channels.
 
         MT-FIX: Uses org-specific providers for multi-tenant isolation.
+        GAP-007 FIX: Supports parallel channel sending for better performance.
 
         Args:
             payload: Notification payload
             channels: List of channel names ("email", "slack", "webhook")
             org_slug: Optional org slug for org-specific provider
+            parallel: If True, send to all channels concurrently (default: True)
 
         Returns:
             Dict mapping channel name to success status
         """
+        import asyncio
+
         # Use org_slug from payload if not provided
         if not org_slug and payload.org_slug:
             org_slug = payload.org_slug
 
-        results = {}
+        # Check config for parallel setting
+        try:
+            from src.app.config import settings
+            parallel = settings.alert_parallel_channels
+        except ImportError:
+            pass  # Use default if settings not available
 
-        for channel in channels:
+        async def _send_to_channel(channel: str) -> tuple:
+            """Send to a single channel and return (channel, success)."""
             try:
                 provider_type = ProviderType(channel)
                 # MT-FIX: Get org-specific provider
@@ -446,46 +511,94 @@ class NotificationProviderRegistry:
 
                 if not provider:
                     logger.warning(f"Provider not available: {channel}")
-                    results[channel] = False
-                    continue
+                    return (channel, False)
 
                 if not provider.is_configured:
                     logger.warning(f"Provider not configured: {channel}")
-                    results[channel] = False
-                    continue
+                    return (channel, False)
 
                 success = await provider.send(payload)
-                results[channel] = success
+                return (channel, success)
 
             except ValueError:
                 logger.warning(f"Unknown channel: {channel}")
-                results[channel] = False
+                return (channel, False)
             except Exception as e:
                 logger.error(f"Failed to send via {channel}: {e}")
-                results[channel] = False
+                return (channel, False)
+
+        if parallel and len(channels) > 1:
+            # GAP-007 FIX: Send to all channels concurrently
+            tasks = [_send_to_channel(ch) for ch in channels]
+            results_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+            results = {}
+            for i, result in enumerate(results_list):
+                if isinstance(result, Exception):
+                    logger.error(f"Channel {channels[i]} raised exception: {result}")
+                    results[channels[i]] = False
+                elif isinstance(result, tuple) and len(result) == 2:
+                    results[result[0]] = result[1]
+                else:
+                    results[channels[i]] = False
+        else:
+            # Sequential sending (for single channel or when parallel=False)
+            results = {}
+            for channel in channels:
+                channel_name, success = await _send_to_channel(channel)
+                results[channel_name] = success
 
         return results
 
+    async def close_all_sessions(self):
+        """
+        GAP-002/GAP-004 FIX: Close all adapter sessions gracefully.
+
+        Call this on application shutdown to release resources.
+        """
+        from .adapters import SlackNotificationAdapter, WebhookNotificationAdapter
+
+        try:
+            await SlackNotificationAdapter.close_session()
+            logger.debug("Closed Slack adapter session")
+        except Exception as e:
+            logger.warning(f"Error closing Slack session: {e}")
+
+        try:
+            await WebhookNotificationAdapter.close_session()
+            logger.debug("Closed Webhook adapter session")
+        except Exception as e:
+            logger.warning(f"Error closing Webhook session: {e}")
+
     def clear_cache(self, org_slug: Optional[str] = None):
         """
-        Clear cached provider instances.
-
-        MT-FIX: Can clear all or org-specific cache.
+        Clear cached provider instances (thread-safe).
 
         Args:
             org_slug: If provided, only clear cache for this org
         """
-        if org_slug:
-            # Clear only org-specific entries
-            keys_to_delete = [
-                k for k in self._instances
-                if k.startswith(f"{org_slug}:")
-            ]
-            for key in keys_to_delete:
-                del self._instances[key]
-        else:
-            # Clear all
-            self._instances.clear()
+        with self._cache_lock:
+            if org_slug:
+                # Validate org_slug
+                try:
+                    validated = _validate_org_slug(org_slug)
+                except ValueError:
+                    logger.warning(f"Invalid org_slug for cache clear: {org_slug}")
+                    return
+
+                # Clear only org-specific entries
+                keys_to_delete = [
+                    k for k in self._instances
+                    if k.startswith(f"{validated}:")
+                ]
+                for key in keys_to_delete:
+                    del self._instances[key]
+                logger.debug(f"Cleared {len(keys_to_delete)} cache entries for org: {validated}")
+            else:
+                # Clear all
+                count = len(self._instances)
+                self._instances.clear()
+                logger.debug(f"Cleared all {count} provider cache entries")
 
     def clear_org_cache(self, org_slug: str):
         """Clear cache for a specific org."""

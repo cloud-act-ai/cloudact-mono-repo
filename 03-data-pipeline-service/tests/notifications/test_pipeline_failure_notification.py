@@ -11,7 +11,6 @@ from pathlib import Path
 
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
 from src.core.notifications.service import NotificationService
-from src.core.notifications.config import NotificationEvent, NotificationSeverity
 
 
 @pytest.mark.asyncio
@@ -148,26 +147,12 @@ async def test_notification_failure_does_not_break_pipeline():
     mock_notification_service.notify_pipeline_failure.assert_called_once()
 
 
-def test_notification_config_resolution():
+def test_notification_service_initialization():
     """
-    Test notification configuration resolution order.
-
-    Tests:
-    1. Org-specific config takes precedence
-    2. Falls back to root config
-    3. Disables if neither exists
+    Test notification service can be initialized.
     """
-
-    # Test with root config only
     service = NotificationService(config_base_path=Path("configs"))
-
-    # Should use root config for org without specific config
-    config = service.get_config("test_org_no_config")
-    assert config is not None
-
-    # Test org-specific config (if it exists)
-    # config = service.get_config("acme_corp")
-    # assert config.org_slug == "acme_corp"
+    assert service._registry is not None
 
 
 @pytest.mark.asyncio
@@ -206,7 +191,7 @@ async def test_email_notification_integration():
 
     Requires:
     - SMTP_USERNAME and SMTP_PASSWORD env vars
-    - configs/notifications/config.json with valid SMTP settings
+    - Valid SMTP settings in environment
 
     To run:
         pytest tests/notifications/test_pipeline_failure_notification.py::test_email_notification_integration --run-integration
@@ -241,7 +226,7 @@ if __name__ == "__main__":
     asyncio.run(test_pipeline_failure_sends_notification())
     asyncio.run(test_pipeline_timeout_sends_notification())
     asyncio.run(test_notification_failure_does_not_break_pipeline())
-    test_notification_config_resolution()
+    test_notification_service_initialization()
     asyncio.run(test_notification_cooldown())
 
     print("\nAll notification tests passed!")

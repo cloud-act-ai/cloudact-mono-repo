@@ -1,10 +1,12 @@
 """
 Notification System
 
-Multi-provider notification system with org-specific configuration support.
-Includes unified registry pattern for multi-tenant isolation.
+Enterprise-grade multi-tenant notification system with:
+- Unified provider registry pattern
+- Org-specific configuration isolation
+- Extensible provider architecture (Email, Slack, Webhook)
 
-## Recommended Usage (New Pattern)
+## Usage
 
 Use the unified registry for multi-tenant aware notifications:
 
@@ -43,76 +45,47 @@ Use the unified registry for multi-tenant aware notifications:
         channels=["email", "slack"],
     )
 
-## Legacy Usage (Deprecated)
+## Architecture
 
-The following pattern is deprecated but still available:
-
-    from core.notifications import (
-        get_notification_service,
-        NotificationEvent,
-        NotificationSeverity
-    )
-
-    # Get service instance
-    service = get_notification_service()
-
-    # Send notification
-    await service.notify(
-        org_slug="acme_corp",
-        event=NotificationEvent.PIPELINE_FAILURE,
-        severity=NotificationSeverity.ERROR,
-        title="Pipeline Failed",
-        message="Pipeline execution failed with error",
-        pipeline_id="daily_ingestion",
-        pipeline_logging_id="abc123"
-    )
+    ┌─────────────────────────────────────────────────────────────┐
+    │              NotificationProviderRegistry                   │
+    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+    │  │  Email      │  │  Slack      │  │ Webhook     │         │
+    │  │ Adapter     │  │ Adapter     │  │ Adapter     │         │
+    │  └─────────────┘  └─────────────┘  └─────────────┘         │
+    └─────────────────────────────────────────────────────────────┘
+                              │
+    ┌─────────────────────────────────────────────────────────────┐
+    │                  AlertNotificationSender                    │
+    │   send_cost_alert()  send_quota_alert()  send_anomaly()    │
+    └─────────────────────────────────────────────────────────────┘
 
 ## Configuration
 
-Root configuration: ./configs/notifications/config.json
-Org configuration: ./configs/{org_slug}/notifications.json
+- Global config: Environment variables (EMAIL_*, SLACK_*)
+- Org config: Set via registry.set_config(provider_type, config, org_slug)
 """
 
-from .config import (
-    NotificationConfig,
-    NotificationMessage,
-    NotificationProvider,
-    NotificationEvent,
-    NotificationSeverity,
-    EmailConfig,
-    SlackConfig,
-    EventTriggerConfig,
-    NotificationRetryConfig
-)
+# ==============================================================================
+# Core Unified System
+# ==============================================================================
 
-from .service import (
-    NotificationService,
-    get_notification_service
-)
-
-from .base import (
-    BaseNotificationProvider,
-    NotificationError,
-    NotificationTimeoutError,
-    NotificationProviderError
-)
-
-from .providers import (
-    EmailNotificationProvider,
-    SlackNotificationProvider
-)
-
-# New unified provider registry
+# Provider Registry - Central provider management
 from .registry import (
     NotificationProviderRegistry,
     get_notification_registry,
+    reset_registry,
     ProviderType,
     NotificationPayload,
+    NotificationProviderInterface,
+    # Provider Configs
+    BaseProviderConfig,
     EmailProviderConfig,
     SlackProviderConfig,
     WebhookProviderConfig,
 )
 
+# Provider Adapters - Provider implementations
 from .adapters import (
     EmailNotificationAdapter,
     SlackNotificationAdapter,
@@ -120,55 +93,66 @@ from .adapters import (
     send_notification,
 )
 
+# Alert Sender - High-level alert helpers
 from .alert_sender import (
     AlertNotificationSender,
     AlertNotificationData,
     get_alert_sender,
+    reset_alert_sender,
 )
 
+# Notification Service - Convenience wrapper
+from .service import (
+    NotificationService,
+    get_notification_service,
+    reset_notification_service,
+)
+
+# Exception Classes
+from .base import (
+    NotificationError,
+    NotificationTimeoutError,
+    NotificationProviderError,
+)
+
+# ==============================================================================
+# Public API
+# ==============================================================================
+
 __all__ = [
-    # Configuration models
-    "NotificationConfig",
-    "NotificationMessage",
-    "NotificationProvider",
-    "NotificationEvent",
-    "NotificationSeverity",
-    "EmailConfig",
-    "SlackConfig",
-    "EventTriggerConfig",
-    "NotificationRetryConfig",
-
-    # Service
-    "NotificationService",
-    "get_notification_service",
-
-    # Base classes
-    "BaseNotificationProvider",
-    "NotificationError",
-    "NotificationTimeoutError",
-    "NotificationProviderError",
-
-    # Providers
-    "EmailNotificationProvider",
-    "SlackNotificationProvider",
-
-    # Unified Registry (new)
+    # Core Registry
     "NotificationProviderRegistry",
     "get_notification_registry",
+    "reset_registry",
     "ProviderType",
     "NotificationPayload",
+    "NotificationProviderInterface",
+
+    # Provider Configs
+    "BaseProviderConfig",
     "EmailProviderConfig",
     "SlackProviderConfig",
     "WebhookProviderConfig",
 
-    # Adapters (new)
+    # Provider Adapters
     "EmailNotificationAdapter",
     "SlackNotificationAdapter",
     "WebhookNotificationAdapter",
     "send_notification",
 
-    # Alert Sender (new)
+    # Alert Sender
     "AlertNotificationSender",
     "AlertNotificationData",
     "get_alert_sender",
+    "reset_alert_sender",
+
+    # Notification Service
+    "NotificationService",
+    "get_notification_service",
+    "reset_notification_service",
+
+    # Exceptions
+    "NotificationError",
+    "NotificationTimeoutError",
+    "NotificationProviderError",
 ]

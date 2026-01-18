@@ -1,486 +1,103 @@
 """
 Notification Service
 
-Main notification service with:
-- Org-specific configuration lookup with root fallback
-- Multi-provider support (Email, Slack)
-- Async batch notifications
-- Configuration caching
+Simplified service that uses the unified provider registry.
+Provides convenience methods for common notification patterns.
 """
 
-import json
-import os
-import re
+import logging
 import threading
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-import logging
-from datetime import datetime
-import asyncio
-from collections import OrderedDict
 
-from .config import (
-    NotificationConfig,
-    NotificationMessage,
-    NotificationProvider,
-    NotificationEvent,
-    NotificationSeverity
+from .registry import (
+    get_notification_registry,
+    NotificationPayload,
 )
-from .base import BaseNotificationProvider
-from .providers import EmailNotificationProvider, SlackNotificationProvider
 
 logger = logging.getLogger(__name__)
-
-# SCALE-002 FIX: Maximum cache sizes to prevent memory exhaustion
-MAX_CONFIG_CACHE_SIZE = 100
-MAX_PROVIDER_CACHE_SIZE = 100
-
-
-class BoundedLRUCache(OrderedDict):
-    """
-    SCALE-002 FIX: Bounded LRU cache with thread-safe operations.
-    Evicts least recently used items when max_size is exceeded.
-    """
-
-    def __init__(self, max_size: int = 100):
-        super().__init__()
-        self.max_size = max_size
-        self._lock = threading.RLock()
-
-    def get(self, key: str, default=None):
-        with self._lock:
-            if key not in self:
-                return default
-            # Move to end (most recently used)
-            self.move_to_end(key)
-            return self[key]
-
-    def set(self, key: str, value: Any):
-        with self._lock:
-            if key in self:
-                self.move_to_end(key)
-            self[key] = value
-            # Evict oldest if over max_size
-            while len(self) > self.max_size:
-                self.popitem(last=False)
-
-    def remove(self, key: str):
-        with self._lock:
-            if key in self:
-                del self[key]
-
-    def clear_all(self):
-        with self._lock:
-            self.clear()
 
 
 class NotificationService:
     """
-    Main notification service
+    Notification service using the unified registry.
 
-    Features:
-    - Loads org-specific configurations with root fallback
-    - Manages multiple notification providers
-    - Supports async batch notifications
-    - Caches configurations for performance
+    Provides convenience methods for pipeline notifications.
     """
 
     def __init__(self, config_base_path: Optional[Path] = None):
-        """
-        Initialize notification service
-
-        Args:
-            config_base_path: Base path for configuration files
-                             Defaults to ./configs relative to project root
-
-        MT-001/SCALE-001/SCALE-002 FIX: Use bounded, thread-safe caches
-        """
-        self.config_base_path = config_base_path or Path("./configs")
-
-        # SCALE-002 FIX: Use bounded LRU caches instead of unbounded dicts
-        self._config_cache = BoundedLRUCache(max_size=MAX_CONFIG_CACHE_SIZE)
-        self._provider_cache = BoundedLRUCache(max_size=MAX_PROVIDER_CACHE_SIZE)
-        self._root_config: Optional[NotificationConfig] = None
-
-        # SCALE-001 FIX: Thread lock for singleton initialization
-        self._init_lock = threading.Lock()
-
-        # Load root configuration
-        self._load_root_config()
-
-    def _resolve_env_vars(self, obj: Any) -> Any:
-        """
-        Recursively resolve environment variables in config data.
-
-        Supports ${VAR_NAME} syntax. Unresolved vars are replaced with empty string.
-
-        Args:
-            obj: Config data (dict, list, or scalar)
-
-        Returns:
-            Config data with env vars resolved
-        """
-        if isinstance(obj, dict):
-            return {k: self._resolve_env_vars(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._resolve_env_vars(item) for item in obj]
-        elif isinstance(obj, str):
-            # Match ${VAR_NAME} pattern
-            pattern = r'\$\{([^}]+)\}'
-
-            def replace_var(match):
-                var_name = match.group(1)
-                value = os.environ.get(var_name, "")
-                if not value:
-                    logger.warning(f"Environment variable {var_name} not set, using empty string")
-                return value
-
-            resolved = re.sub(pattern, replace_var, obj)
-            return resolved
-        else:
-            return obj
-
-    def _load_root_config(self):
-        """Load root/global notification configuration"""
-        root_config_path = self.config_base_path / "notifications" / "config.json"
-
-        try:
-            if root_config_path.exists():
-                with open(root_config_path, "r") as f:
-                    config_data = json.load(f)
-                    # Resolve environment variables in config
-                    config_data = self._resolve_env_vars(config_data)
-                    # Filter out empty email addresses
-                    if "email" in config_data and "to_emails" in config_data["email"]:
-                        config_data["email"]["to_emails"] = [
-                            e for e in config_data["email"]["to_emails"]
-                            if e and "@" in e
-                        ]
-                        # If no valid emails, disable email notifications
-                        if not config_data["email"]["to_emails"]:
-                            config_data["email"]["enabled"] = False
-                            logger.warning("No valid email addresses configured, disabling email notifications")
-                    self._root_config = NotificationConfig(**config_data)
-                    logger.info(f"Loaded root notification configuration from {root_config_path}")
-            else:
-                # Create default root configuration
-                self._root_config = NotificationConfig(
-                    enabled=False,
-                    description="Root/global notification configuration (fallback)"
-                )
-                logger.warning(
-                    f"Root notification configuration not found at {root_config_path}. "
-                    "Using default configuration."
-                )
-        except Exception as e:
-            logger.error(f"Failed to load root notification configuration: {str(e)}", exc_info=True)
-            self._root_config = NotificationConfig(enabled=False)
-
-    def _load_org_config(self, org_slug: str) -> Optional[NotificationConfig]:
-        """
-        Load org-specific notification configuration
-
-        Args:
-            org_slug: Organization slug identifier
-
-        Returns:
-            NotificationConfig or None if not found
-        """
-        org_config_path = self.config_base_path / org_slug / "notifications.json"
-
-        try:
-            if org_config_path.exists():
-                with open(org_config_path, "r") as f:
-                    config_data = json.load(f)
-                    # Resolve environment variables in config
-                    config_data = self._resolve_env_vars(config_data)
-                    # Filter out empty email addresses
-                    if "email" in config_data and "to_emails" in config_data["email"]:
-                        config_data["email"]["to_emails"] = [
-                            e for e in config_data["email"]["to_emails"]
-                            if e and "@" in e
-                        ]
-                    config = NotificationConfig(**config_data, org_slug=org_slug)
-                    logger.info(
-                        f"Loaded org-specific notification configuration for {org_slug} "
-                        f"from {org_config_path}"
-                    )
-                    return config
-            else:
-                logger.debug(
-                    f"Org-specific notification configuration not found for {org_slug} "
-                    f"at {org_config_path}"
-                )
-                return None
-        except Exception as e:
-            logger.error(
-                f"Failed to load org notification configuration for {org_slug}: {str(e)}",
-                exc_info=True
-            )
-            return None
-
-    def get_config(self, org_slug: str) -> NotificationConfig:
-        """
-        Get notification configuration for organization with fallback to root
-
-        Resolution order:
-        1. Org-specific configuration (./configs/{org_slug}/notifications.json)
-        2. Root configuration (./configs/notifications/config.json)
-
-        Args:
-            org_slug: Organization slug identifier
-
-        Returns:
-            NotificationConfig: Org-specific or root configuration
-        """
-        # MT-001 FIX: Check cache using thread-safe method
-        cached_config = self._config_cache.get(org_slug)
-        if cached_config is not None:
-            logger.debug(f"Using cached notification configuration for org: {org_slug}")
-            return cached_config
-
-        # Try to load org-specific configuration
-        org_config = self._load_org_config(org_slug)
-
-        if org_config and org_config.enabled:
-            logger.info(f"Using org-specific notification configuration for: {org_slug}")
-            self._config_cache.set(org_slug, org_config)
-            return org_config
-
-        # Fall back to root configuration
-        if self._root_config:
-            logger.info(
-                f"Using root notification configuration (fallback) for org: {org_slug}"
-            )
-            # MT-003 FIX: Store a copy for this org, not the shared root config reference
-            self._config_cache.set(org_slug, self._root_config)
-            return self._root_config
-
-        # Return disabled configuration as last resort
-        logger.warning(
-            f"No notification configuration found for org {org_slug}. "
-            "Notifications disabled."
-        )
-        disabled_config = NotificationConfig(enabled=False, org_slug=org_slug)
-        self._config_cache.set(org_slug, disabled_config)
-        return disabled_config
-
-    def _get_provider(
-        self,
-        org_slug: str,
-        provider_type: NotificationProvider
-    ) -> Optional[BaseNotificationProvider]:
-        """
-        Get notification provider instance for organization
-
-        MT-004 FIX: Validate org context before returning cached provider.
-
-        Args:
-            org_slug: Organization slug identifier
-            provider_type: Type of notification provider
-
-        Returns:
-            BaseNotificationProvider instance or None
-        """
-        # Check provider cache using thread-safe method
-        cache_key = f"{org_slug}:{provider_type.value}"
-        cached_provider = self._provider_cache.get(cache_key)
-        if cached_provider is not None:
-            return cached_provider
-
-        # Get configuration
-        config = self.get_config(org_slug)
-
-        if not config.enabled:
-            logger.debug(f"Notifications disabled for org: {org_slug}")
-            return None
-
-        # Create provider instance
-        try:
-            provider: Optional[BaseNotificationProvider] = None
-
-            if provider_type == NotificationProvider.EMAIL:
-                if config.email and config.email.enabled:
-                    provider = EmailNotificationProvider(config)
-                else:
-                    logger.debug(f"Email notifications disabled for org: {org_slug}")
-
-            elif provider_type == NotificationProvider.SLACK:
-                if config.slack and config.slack.enabled:
-                    provider = SlackNotificationProvider(config)
-                else:
-                    logger.debug(f"Slack notifications disabled for org: {org_slug}")
-
-            # Cache provider using flat key to avoid nested dict issues
-            if provider:
-                self._provider_cache.set(cache_key, provider)
-
-            return provider
-
-        except Exception as e:
-            logger.error(
-                f"Failed to create {provider_type.value} provider for org {org_slug}: {str(e)}",
-                exc_info=True
-            )
-            return None
+        """Initialize notification service."""
+        self._registry = get_notification_registry()
 
     async def notify(
         self,
         org_slug: str,
-        event: NotificationEvent,
-        severity: NotificationSeverity,
         title: str,
         message: str,
+        severity: str = "info",
         pipeline_id: Optional[str] = None,
         pipeline_logging_id: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        providers: Optional[List[NotificationProvider]] = None
+        channels: Optional[List[str]] = None,
+        recipients: Optional[List[str]] = None,
     ) -> Dict[str, bool]:
         """
-        Send notification to configured providers
+        Send notification using the unified registry.
 
         Args:
-            org_slug: Organization slug identifier
-            event: Notification event type
-            severity: Notification severity
+            org_slug: Organization slug
             title: Notification title
             message: Notification message
+            severity: Notification severity (info, warning, error, critical)
             pipeline_id: Optional pipeline ID
             pipeline_logging_id: Optional pipeline logging ID
             details: Optional additional details
-            providers: Optional list of specific providers to use
-                      If None, uses providers configured for the event
+            channels: Channels to send to (default: ["email"])
+            recipients: Email recipients (for email channel)
 
         Returns:
-            Dict mapping provider name to success status
+            Dict mapping channel name to success status
         """
-        # Get configuration
-        config = self.get_config(org_slug)
+        # Build unified payload
+        data = details or {}
+        if pipeline_id:
+            data["pipeline_id"] = pipeline_id
+        if pipeline_logging_id:
+            data["pipeline_logging_id"] = pipeline_logging_id
 
-        if not config.enabled:
-            logger.debug(f"Notifications disabled for org: {org_slug}")
-            return {}
-
-        # Get event configuration
-        event_config = config.get_event_config(event)
-        if not event_config:
-            logger.debug(
-                f"No configuration found for event {event.value} "
-                f"(org: {org_slug})"
-            )
-            return {}
-
-        # Determine which providers to use
-        target_providers = providers or event_config.providers
-
-        # Create notification message
-        notification_message = NotificationMessage(
-            event=event,
-            severity=severity,
-            org_slug=org_slug,
+        payload = NotificationPayload(
             title=title,
             message=message,
-            pipeline_id=pipeline_id,
-            pipeline_logging_id=pipeline_logging_id,
-            details=details,
-            timestamp=datetime.utcnow().isoformat()
+            severity=severity,
+            org_slug=org_slug,
+            recipients=recipients or [],
+            data=data,
         )
 
-        # Send notifications to all providers
-        results = {}
-        tasks = []
-
-        for provider_type in target_providers:
-            # Skip BOTH as it's not a real provider
-            if provider_type == NotificationProvider.BOTH:
-                # Send to both email and slack
-                for actual_provider in [NotificationProvider.EMAIL, NotificationProvider.SLACK]:
-                    provider = self._get_provider(org_slug, actual_provider)
-                    if provider:
-                        tasks.append(self._send_to_provider(provider, notification_message))
-            else:
-                provider = self._get_provider(org_slug, provider_type)
-                if provider:
-                    tasks.append(self._send_to_provider(provider, notification_message))
-
-        # Execute all notification tasks concurrently
-        if tasks:
-            send_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for i, result in enumerate(send_results):
-                provider_name = f"provider_{i}"
-                if isinstance(result, Exception):
-                    logger.error(f"Notification failed for {provider_name}: {str(result)}")
-                    results[provider_name] = False
-                else:
-                    results[provider_name] = result
-
-        return results
-
-    async def _send_to_provider(
-        self,
-        provider: BaseNotificationProvider,
-        message: NotificationMessage
-    ) -> bool:
-        """
-        Send notification to a specific provider
-
-        Args:
-            provider: Notification provider instance
-            message: Notification message
-
-        Returns:
-            bool: True if successful
-        """
-        try:
-            return await provider.send(message)
-        except Exception as e:
-            logger.error(
-                f"Failed to send notification via {provider.provider_name}: {str(e)}",
-                exc_info=True
-            )
-            return False
-
-    def clear_cache(self, org_slug: Optional[str] = None):
-        """
-        Clear configuration cache.
-
-        STATE-005 FIX: Clear both config and provider caches properly.
-
-        Args:
-            org_slug: Optional organization slug to clear specific cache
-                     If None, clears all caches
-        """
-        if org_slug:
-            # Clear org-specific config
-            self._config_cache.remove(org_slug)
-            # Clear all provider entries for this org (flat key format: org_slug:provider_type)
-            for provider_type in ["email", "slack"]:
-                cache_key = f"{org_slug}:{provider_type}"
-                self._provider_cache.remove(cache_key)
-            logger.info(f"Cleared notification cache for org: {org_slug}")
-        else:
-            self._config_cache.clear_all()
-            self._provider_cache.clear_all()
-            self._load_root_config()
-            logger.info("Cleared all notification caches and reloaded root configuration")
+        # Send via unified registry
+        return await self._registry.send_to_channels(
+            payload,
+            channels or ["email"],
+            org_slug=org_slug
+        )
 
     async def notify_pipeline_started(
         self,
         org_slug: str,
         pipeline_id: str,
         pipeline_logging_id: str,
+        recipients: Optional[List[str]] = None,
         **kwargs
-    ):
-        """Convenience method for pipeline started event"""
+    ) -> Dict[str, bool]:
+        """Convenience method for pipeline started event."""
         return await self.notify(
             org_slug=org_slug,
-            event=NotificationEvent.PIPELINE_STARTED,
-            severity=NotificationSeverity.INFO,
             title=f"Pipeline Started: {pipeline_id}",
             message=f"Pipeline {pipeline_id} has started execution",
+            severity="info",
             pipeline_id=pipeline_id,
             pipeline_logging_id=pipeline_logging_id,
+            recipients=recipients,
             **kwargs
         )
 
@@ -490,28 +107,24 @@ class NotificationService:
         pipeline_id: str,
         pipeline_logging_id: str,
         duration_ms: Optional[int] = None,
+        recipients: Optional[List[str]] = None,
         **kwargs
-    ):
-        """Convenience method for pipeline success event"""
-        # Build base details
-        details = {}
+    ) -> Dict[str, bool]:
+        """Convenience method for pipeline success event."""
+        details = kwargs.pop("details", {}) or {}
         if duration_ms:
             details["duration_ms"] = duration_ms
             details["duration_readable"] = f"{duration_ms / 1000:.2f} seconds"
 
-        # Merge with any details passed in kwargs
-        if "details" in kwargs:
-            details.update(kwargs.pop("details"))
-
         return await self.notify(
             org_slug=org_slug,
-            event=NotificationEvent.PIPELINE_SUCCESS,
-            severity=NotificationSeverity.INFO,
             title=f"Pipeline Completed: {pipeline_id}",
             message=f"Pipeline {pipeline_id} completed successfully",
+            severity="info",
             pipeline_id=pipeline_id,
             pipeline_logging_id=pipeline_logging_id,
             details=details if details else None,
+            recipients=recipients,
             **kwargs
         )
 
@@ -521,25 +134,22 @@ class NotificationService:
         pipeline_id: str,
         pipeline_logging_id: str,
         error_message: str,
+        recipients: Optional[List[str]] = None,
         **kwargs
-    ):
-        """Convenience method for pipeline failure event"""
-        # Build base details
-        details = {"error": error_message}
-
-        # Merge with any details passed in kwargs
-        if "details" in kwargs:
-            details.update(kwargs.pop("details"))
+    ) -> Dict[str, bool]:
+        """Convenience method for pipeline failure event."""
+        details = kwargs.pop("details", {}) or {}
+        details["error"] = error_message
 
         return await self.notify(
             org_slug=org_slug,
-            event=NotificationEvent.PIPELINE_FAILURE,
-            severity=NotificationSeverity.ERROR,
             title=f"Pipeline Failed: {pipeline_id}",
             message=f"Pipeline {pipeline_id} failed with error: {error_message}",
+            severity="error",
             pipeline_id=pipeline_id,
             pipeline_logging_id=pipeline_logging_id,
             details=details,
+            recipients=recipients,
             **kwargs
         )
 
@@ -549,33 +159,33 @@ class NotificationService:
         pipeline_id: str,
         table_name: str,
         failed_checks: List[str],
+        recipients: Optional[List[str]] = None,
         **kwargs
-    ):
-        """Convenience method for data quality failure event"""
-        # Build base details
-        details = {
-            "table": table_name,
-            "failed_checks": ", ".join(failed_checks),
-            "check_count": len(failed_checks)
-        }
-
-        # Merge with any details passed in kwargs
-        if "details" in kwargs:
-            details.update(kwargs.pop("details"))
+    ) -> Dict[str, bool]:
+        """Convenience method for data quality failure event."""
+        details = kwargs.pop("details", {}) or {}
+        details["table"] = table_name
+        details["failed_checks"] = ", ".join(failed_checks)
+        details["check_count"] = len(failed_checks)
 
         return await self.notify(
             org_slug=org_slug,
-            event=NotificationEvent.DATA_QUALITY_FAILURE,
-            severity=NotificationSeverity.WARNING,
             title=f"Data Quality Check Failed: {table_name}",
             message=f"Data quality checks failed for table {table_name}",
+            severity="warning",
             pipeline_id=pipeline_id,
             details=details,
+            recipients=recipients,
             **kwargs
         )
 
+    def clear_cache(self, org_slug: Optional[str] = None):
+        """Clear provider cache."""
+        self._registry.clear_cache(org_slug)
+        logger.info(f"Cleared notification cache{f' for org: {org_slug}' if org_slug else ''}")
 
-# SCALE-001 FIX: Thread-safe singleton with lock
+
+# Thread-safe singleton
 _notification_service: Optional[NotificationService] = None
 _service_lock = threading.Lock()
 
@@ -583,23 +193,18 @@ _service_lock = threading.Lock()
 def get_notification_service(
     config_base_path: Optional[Path] = None
 ) -> NotificationService:
-    """
-    Get global notification service instance.
-
-    SCALE-001 FIX: Thread-safe singleton initialization.
-
-    Args:
-        config_base_path: Optional base path for configurations
-
-    Returns:
-        NotificationService instance
-    """
+    """Get global notification service instance."""
     global _notification_service
 
     if _notification_service is None:
         with _service_lock:
-            # Double-check locking pattern
             if _notification_service is None:
                 _notification_service = NotificationService(config_base_path)
 
     return _notification_service
+
+
+def reset_notification_service():
+    """Reset the global service (for testing)."""
+    global _notification_service
+    _notification_service = None

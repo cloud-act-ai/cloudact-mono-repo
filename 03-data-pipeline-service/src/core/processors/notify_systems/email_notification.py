@@ -1,40 +1,41 @@
 """
 Email Notification Engine (Notify Systems)
-Processes notify_systems.email_notification ps_type for sending pipeline notifications
+
+Processes notify_systems.email_notification ps_type for sending pipeline notifications.
+Uses the unified notification registry.
 """
+
 import logging
-from typing import Dict, Any, Optional
-from src.core.notifications.service import get_notification_service
-from src.core.notifications.config import NotificationMessage, NotificationSeverity, NotificationEvent
+from typing import Dict, Any, List
+
+from src.core.notifications import (
+    get_notification_registry,
+    NotificationPayload,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class EmailNotificationEngine:
     """
-    Engine for processing email notifications
-    Integrates with existing notification system
+    Engine for processing email notifications.
+
+    Uses the unified notification registry for sending.
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.notification_service = get_notification_service()
+        self._registry = get_notification_registry()
 
-    def _determine_severity(self, trigger: str) -> NotificationSeverity:
-        """Map trigger to notification severity"""
-        if "failure" in trigger.lower() or "error" in trigger.lower():
-            return NotificationSeverity.ERROR
-        elif "warning" in trigger.lower():
-            return NotificationSeverity.WARNING
-        elif "success" in trigger.lower():
-            return NotificationSeverity.INFO
-        return NotificationSeverity.INFO
-
-    def _determine_event(self, trigger: str) -> NotificationEvent:
-        """Map trigger to notification event"""
-        if "failure" in trigger.lower():
-            return NotificationEvent.PIPELINE_FAILURE
-        elif "success" in trigger.lower():
-            return NotificationEvent.PIPELINE_SUCCESS
-        return NotificationEvent.PIPELINE_COMPLETION
+    def _determine_severity(self, trigger: str) -> str:
+        """Map trigger to notification severity."""
+        trigger_lower = trigger.lower()
+        if "failure" in trigger_lower or "error" in trigger_lower:
+            return "error"
+        elif "warning" in trigger_lower:
+            return "warning"
+        elif "success" in trigger_lower:
+            return "info"
+        return "info"
 
     async def execute(
         self,
@@ -42,7 +43,7 @@ class EmailNotificationEngine:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Execute email notification
+        Execute email notification.
 
         Args:
             step_config: Step configuration from pipeline YAML
@@ -73,9 +74,8 @@ class EmailNotificationEngine:
         subject = step_config.get("subject", f"Pipeline {pipeline_id} Notification")
         message_body = step_config.get("message", context.get("error_message", "Pipeline notification"))
 
-        # Determine severity and event
+        # Determine severity
         severity = self._determine_severity(trigger)
-        event = self._determine_event(trigger)
 
         # Build notification details
         details = {
@@ -91,49 +91,35 @@ class EmailNotificationEngine:
         if context.get("pipeline_logging_id"):
             details["pipeline_logging_id"] = context["pipeline_logging_id"]
 
-        # Send notification using existing service
-        self.logger.info(
+        logger.info(
             "Sending email notification",
             extra={
                 "trigger": trigger,
                 "recipients": to_emails,
                 "org_slug": org_slug,
                 "pipeline_id": pipeline_id,
-                "severity": severity.value,
-                "event": event.value
+                "severity": severity,
             }
         )
 
-        if trigger == "on_failure" and context.get("error_message"):
-            # Use convenience method for failures
-            success = await self.notification_service.notify_pipeline_failure(
-                org_slug=org_slug,
-                pipeline_id=pipeline_id,
-                pipeline_logging_id=context.get("pipeline_logging_id", "unknown"),
-                error_message=context["error_message"],
-                details=details
-            )
-        elif trigger == "on_success":
-            # Use convenience method for success
-            success = await self.notification_service.notify_pipeline_success(
-                org_slug=org_slug,
-                pipeline_id=pipeline_id,
-                pipeline_logging_id=context.get("pipeline_logging_id", "unknown"),
-                details=details
-            )
-        else:
-            # Use generic notify method
-            message = NotificationMessage(
-                event=event,
-                severity=severity,
-                title=subject,
-                message=message_body,
-                details=details
-            )
-            success = await self.notification_service.notify(
-                org_slug=org_slug,
-                message=message
-            )
+        # Build unified payload
+        payload = NotificationPayload(
+            title=subject,
+            message=message_body,
+            severity=severity,
+            org_slug=org_slug,
+            recipients=to_emails,
+            data=details,
+        )
+
+        # Send via unified registry
+        results = await self._registry.send_to_channels(
+            payload,
+            channels=["email"],
+            org_slug=org_slug
+        )
+
+        success = results.get("email", False)
 
         return {
             "status": "SUCCESS" if success else "FAILED",
@@ -143,7 +129,7 @@ class EmailNotificationEngine:
         }
 
     def _should_send_notification(self, trigger: str, pipeline_status: str) -> bool:
-        """Determine if notification should be sent based on trigger and status"""
+        """Determine if notification should be sent based on trigger and status."""
         trigger_lower = trigger.lower()
         status_lower = pipeline_status.lower()
 
@@ -159,7 +145,6 @@ class EmailNotificationEngine:
         return False
 
 
-# Factory function to get engine instance
 def get_engine():
-    """Get EmailNotificationEngine instance"""
+    """Get EmailNotificationEngine instance."""
     return EmailNotificationEngine()

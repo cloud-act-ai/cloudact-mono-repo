@@ -550,187 +550,6 @@ class AlertEngine:
             logger.error(f"Failed to send alert: {e}", exc_info=True)
             return False
 
-    async def _send_email_directly(
-        self,
-        recipients: List[str],
-        subject: str,
-        body: str,
-        org_slug: str,
-        alert_config: AlertConfig,
-        data: Dict[str, Any]
-    ):
-        """
-        Send email directly using the email notification provider.
-
-        Args:
-            recipients: List of email addresses
-            subject: Email subject
-            body: Email body (HTML)
-            org_slug: Organization slug
-            alert_config: Alert configuration
-            data: Alert data for template
-        """
-        from src.core.notifications.providers.email import EmailNotificationProvider
-        from src.core.notifications.config import (
-            NotificationConfig,
-            EmailConfig,
-            NotificationMessage,
-            NotificationEvent,
-            NotificationSeverity,
-        )
-        import os
-
-        # Build email config from environment
-        email_config = EmailConfig(
-            enabled=True,
-            smtp_host=os.environ.get("EMAIL_SMTP_HOST", os.environ.get("SMTP_HOST", "smtp.gmail.com")),
-            smtp_port=int(os.environ.get("EMAIL_SMTP_PORT", os.environ.get("SMTP_PORT", "587"))),
-            smtp_username=os.environ.get("EMAIL_SMTP_USERNAME", os.environ.get("SMTP_USERNAME")),
-            smtp_password=os.environ.get("EMAIL_SMTP_PASSWORD", os.environ.get("SMTP_PASSWORD")),
-            from_email=os.environ.get("EMAIL_FROM_ADDRESS", "alerts@cloudact.ai"),
-            to_emails=recipients,
-        )
-
-        # Create notification config with email settings
-        config = NotificationConfig(
-            enabled=True,
-            email=email_config,
-        )
-
-        # Create email provider
-        provider = EmailNotificationProvider(config)
-
-        # Create message with alert details
-        severity_map = {
-            "info": NotificationSeverity.INFO,
-            "warning": NotificationSeverity.WARNING,
-            "critical": NotificationSeverity.ERROR,
-        }
-
-        message = NotificationMessage(
-            event=NotificationEvent.PIPELINE_SUCCESS,  # Using existing event type
-            severity=severity_map.get(alert_config.notification.severity.value, NotificationSeverity.WARNING),
-            org_slug=org_slug,
-            title=subject,
-            message=body,
-            details={
-                "alert_id": alert_config.id,
-                "alert_name": alert_config.name,
-                "total_cost": data.get("total_cost"),
-                "currency": data.get("currency", "USD"),
-                "threshold": alert_config.conditions[0].value if alert_config.conditions else None,
-            },
-            timestamp=datetime.now(timezone.utc).isoformat(),
-        )
-
-        # Send email
-        await provider.send(message)
-
-    async def _send_slack_directly(
-        self,
-        org_slug: str,
-        alert_config: AlertConfig,
-        data: Dict[str, Any],
-        eval_result
-    ):
-        """
-        Send Slack notification directly using the Slack provider.
-
-        Args:
-            org_slug: Organization slug
-            alert_config: Alert configuration
-            data: Alert data
-            eval_result: Condition evaluation result
-        """
-        from src.core.notifications.providers.slack import SlackNotificationProvider
-        from src.core.notifications.config import (
-            NotificationConfig as NotifConfig,
-            SlackConfig,
-            NotificationMessage,
-            NotificationEvent,
-            NotificationSeverity,
-        )
-        import os
-
-        # Get webhook URL from alert config or environment
-        webhook_url = None
-        slack_channel = None
-        mention_channel = False
-        mention_users = None
-
-        if alert_config.notification.slack:
-            webhook_url = alert_config.notification.slack.webhook_url
-            slack_channel = alert_config.notification.slack.channel
-            mention_channel = alert_config.notification.slack.mention_channel
-            mention_users = alert_config.notification.slack.mention_users
-
-        # Fall back to environment variable
-        if not webhook_url:
-            webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
-
-        if not webhook_url:
-            logger.warning("No Slack webhook URL configured, skipping Slack notification")
-            return
-
-        # Build Slack config
-        slack_config = SlackConfig(
-            enabled=True,
-            webhook_url=webhook_url,
-            channel=slack_channel,
-            username="CloudAct Alerts",
-            icon_emoji=":bell:",
-            mention_channel=mention_channel,
-            mention_users=mention_users
-        )
-
-        # Create notification config with Slack settings
-        config = NotifConfig(
-            enabled=True,
-            slack=slack_config,
-        )
-
-        # Create Slack provider
-        provider = SlackNotificationProvider(config)
-
-        # Map severity
-        severity_map = {
-            "info": NotificationSeverity.INFO,
-            "warning": NotificationSeverity.WARNING,
-            "critical": NotificationSeverity.CRITICAL,
-        }
-
-        # Format cost data
-        total_cost = data.get("total_cost", 0)
-        currency = data.get("currency", "USD")
-        threshold = alert_config.conditions[0].value if alert_config.conditions else 0
-
-        if currency == "USD":
-            cost_formatted = f"${total_cost:,.2f}"
-            threshold_formatted = f"${threshold:,.2f}"
-        else:
-            cost_formatted = f"{total_cost:,.2f} {currency}"
-            threshold_formatted = f"{threshold:,.2f} {currency}"
-
-        # Create message
-        message = NotificationMessage(
-            event=NotificationEvent.PIPELINE_WARNING,
-            severity=severity_map.get(alert_config.notification.severity.value, NotificationSeverity.WARNING),
-            org_slug=org_slug,
-            title=f"{alert_config.name}",
-            message=f"Total cost {cost_formatted} exceeds threshold {threshold_formatted}",
-            details={
-                "Alert ID": alert_config.id,
-                "Organization": org_slug,
-                "Total Cost": cost_formatted,
-                "Threshold": threshold_formatted,
-                "Currency": currency,
-            },
-            timestamp=datetime.now(timezone.utc).isoformat(),
-        )
-
-        # Send Slack notification
-        await provider.send(message)
-
     async def _record_history(
         self,
         alert_config: AlertConfig,
@@ -750,13 +569,20 @@ class AlertEngine:
                 from src.core.engine.bq_client import get_bigquery_client
                 self._bq_client = get_bigquery_client()
 
+            # BUG-001 FIX: Convert Decimal types to float for JSON serialization
+            def decimal_serializer(obj):
+                from decimal import Decimal
+                if isinstance(obj, Decimal):
+                    return float(obj)
+                raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
             history_entry = AlertHistoryEntry(
                 alert_history_id=str(uuid.uuid4()),
                 alert_id=alert_config.id,
                 org_slug=org_slug,
                 status="SENT" if success else "FAILED",
                 severity=alert_config.notification.severity.value,
-                trigger_data=json.dumps(data),
+                trigger_data=json.dumps(data, default=decimal_serializer),
                 recipients=recipients,
                 recipient_count=len(recipients),
                 sent_at=datetime.now(timezone.utc) if success else None,

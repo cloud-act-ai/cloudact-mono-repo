@@ -403,6 +403,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Error shutting down BigQuery executor: {e}")
 
+    # GAP-002 FIX: Close notification adapter sessions gracefully
+    try:
+        from src.core.notifications.registry import get_notification_registry
+        registry = get_notification_registry()
+        await registry.close_all_sessions()
+        logger.info("Notification adapter sessions closed")
+    except Exception as e:
+        logger.warning(f"Error closing notification sessions: {e}")
+
     await graceful_shutdown()
 
 

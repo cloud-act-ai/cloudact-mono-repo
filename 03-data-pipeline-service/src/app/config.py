@@ -392,6 +392,38 @@ class Settings(BaseSettings):
         default="./configs/notifications",
         description="Path to notification configurations"
     )
+    notification_retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for failed notifications"
+    )
+    notification_retry_delay_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        le=30.0,
+        description="Initial delay between notification retries (exponential backoff)"
+    )
+    notification_timeout_seconds: int = Field(
+        default=30,
+        ge=5,
+        le=120,
+        description="Timeout for individual notification sends"
+    )
+
+    # ============================================
+    # Alert Configuration
+    # ============================================
+    alert_query_timeout_seconds: int = Field(
+        default=60,
+        ge=10,
+        le=600,
+        description="Timeout for alert BigQuery queries"
+    )
+    alert_parallel_channels: bool = Field(
+        default=True,
+        description="Send to multiple notification channels in parallel"
+    )
 
     # Email notification defaults (root fallback)
     email_notifications_enabled: bool = Field(

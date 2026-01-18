@@ -45,7 +45,10 @@ OPERATORS: Dict[str, Callable[[Any, Any], bool]] = {
     "not_in": lambda a, b: a not in b,
     "is_null": lambda a, b: a is None,
     "is_not_null": lambda a, b: a is not None,
-    "percentage_of": lambda a, b: (float(a) / float(b)) * 100 if b and float(b) > 0 else 0,
+    # BUG-003 FIX: percentage_of now returns bool (checks if percentage exceeds threshold)
+    # Usage: { "field": "usage", "operator": "percentage_of_exceeds", "value": [limit_field, threshold_percent] }
+    # e.g., usage is 80% of limit, threshold is 90% -> False (80 < 90)
+    "percentage_of_exceeds": lambda a, b: (float(a) / float(b[0])) * 100 >= float(b[1]) if b[0] and float(b[0]) > 0 else False,
 }
 
 

@@ -1,11 +1,15 @@
 """
 Alert Notification Sender
 
-Reusable helper for sending alert notifications through the unified provider registry.
-Used by the alert engine and other alert-related functionality.
+Enterprise-grade alert notification helper with:
+- XSS protection in HTML templates
+- Multi-tenant isolation
+- Multiple channel support
 """
 
 import logging
+import threading
+from html import escape as html_escape
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
@@ -309,13 +313,24 @@ class AlertNotificationSender:
         cost_formatted: str,
         threshold_formatted: str
     ) -> str:
-        """Build HTML email body for cost alerts."""
+        """Build HTML email body for cost alerts with XSS protection."""
         severity_colors = {
             "info": "#36a64f",
             "warning": "#FF6C5E",
             "critical": "#dc2626",
         }
         color = severity_colors.get(data.severity, "#FF6C5E")
+
+        # BUG-008 FIX: Escape all user-provided content to prevent XSS
+        safe_alert_name = html_escape(data.alert_name)
+        safe_severity = html_escape(data.severity.upper())
+        safe_description = html_escape(data.description or 'Your costs have exceeded the configured threshold.')
+        safe_org_slug = html_escape(data.org_slug)
+        safe_alert_id = html_escape(data.alert_id)
+        safe_currency = html_escape(data.currency)
+        safe_period = html_escape(data.period.replace('_', ' ').title())
+        safe_cost = html_escape(cost_formatted)
+        safe_threshold = html_escape(threshold_formatted)
 
         return f"""
 <!DOCTYPE html>
@@ -331,10 +346,10 @@ class AlertNotificationSender:
             <td style="padding: 0;">
               <div style="background: linear-gradient(135deg, {color} 0%, {color}cc 100%); padding: 24px 40px; border-radius: 12px 12px 0 0;">
                 <p style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.9);">
-                  {data.severity.upper()} ALERT
+                  {safe_severity} ALERT
                 </p>
                 <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff;">
-                  {data.alert_name}
+                  {safe_alert_name}
                 </h1>
               </div>
             </td>
@@ -345,30 +360,30 @@ class AlertNotificationSender:
             <td style="padding: 32px 40px;">
               <!-- Cost Card -->
               <div style="background: #f8f9fa; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid {color};">
-                <p style="margin: 0 0 8px 0; font-size: 14px; color: #71717a;">Total Cost ({data.period.replace('_', ' ').title()})</p>
-                <p style="margin: 0; font-size: 36px; font-weight: 700; color: #18181b;">{cost_formatted}</p>
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: #71717a;">Total Cost ({safe_period})</p>
+                <p style="margin: 0; font-size: 36px; font-weight: 700; color: #18181b;">{safe_cost}</p>
               </div>
 
               <!-- Threshold Warning -->
               <div style="margin: 0 0 24px 0; padding: 16px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid #f59e0b;">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
-                  <strong>Threshold exceeded:</strong> {threshold_formatted}
+                  <strong>Threshold exceeded:</strong> {safe_threshold}
                 </p>
               </div>
 
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
-                {data.description or 'Your costs have exceeded the configured threshold.'}
+                {safe_description}
               </p>
 
               <p style="margin: 0 0 24px 0; font-size: 14px; color: #71717a;">
-                Organization: <strong style="color: #18181b;">{data.org_slug}</strong>
+                Organization: <strong style="color: #18181b;">{safe_org_slug}</strong>
               </p>
 
               <!-- CTA Button -->
               <table role="presentation" style="width: 100%; margin: 24px 0;">
                 <tr>
                   <td align="center">
-                    <a href="https://cloudact.ai/{data.org_slug}/cost-dashboards/subscription-costs"
+                    <a href="https://cloudact.ai/{safe_org_slug}/cost-dashboards/subscription-costs"
                        style="display: inline-block; padding: 14px 32px; background-color: #90FCA6; color: #000000; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
                       View Cost Dashboard
                     </a>
@@ -382,11 +397,11 @@ class AlertNotificationSender:
                 <table style="width: 100%; font-size: 14px; color: #3f3f46;">
                   <tr>
                     <td style="padding: 4px 0;">Alert ID:</td>
-                    <td style="padding: 4px 0; text-align: right; font-family: monospace; color: #71717a;">{data.alert_id}</td>
+                    <td style="padding: 4px 0; text-align: right; font-family: monospace; color: #71717a;">{safe_alert_id}</td>
                   </tr>
                   <tr>
                     <td style="padding: 4px 0;">Currency:</td>
-                    <td style="padding: 4px 0; text-align: right;">{data.currency}</td>
+                    <td style="padding: 4px 0; text-align: right;">{safe_currency}</td>
                   </tr>
                 </table>
               </div>
@@ -419,15 +434,30 @@ class AlertNotificationSender:
 
 
 # ============================================
-# Global Instance
+# Global Instance (Thread-Safe Singleton)
 # ============================================
 
 _sender: Optional[AlertNotificationSender] = None
+_sender_lock = threading.Lock()  # BUG-004 FIX: Thread-safe singleton
 
 
 def get_alert_sender() -> AlertNotificationSender:
-    """Get the global alert notification sender."""
+    """Get the global alert notification sender (thread-safe)."""
     global _sender
     if _sender is None:
-        _sender = AlertNotificationSender()
+        with _sender_lock:
+            # Double-check inside lock
+            if _sender is None:
+                _sender = AlertNotificationSender()
     return _sender
+
+
+def reset_alert_sender():
+    """
+    Reset the global alert sender (for testing).
+
+    BUG-005 FIX: Provide reset mechanism for test isolation.
+    """
+    global _sender
+    with _sender_lock:
+        _sender = None

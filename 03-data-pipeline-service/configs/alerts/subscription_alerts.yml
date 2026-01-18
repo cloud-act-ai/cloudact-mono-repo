@@ -9,6 +9,53 @@ version: "1.0"
 
 alerts:
   # ============================================
+  # Test Alert: Subscription Cost > $3
+  # Used for testing alert delivery
+  # ============================================
+  - id: subscription_cost_test_3
+    name: "Subscription Cost Test Alert ($3)"
+    description: "Test alert for subscription costs exceeding $3"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: subscription_costs
+      params:
+        period: current_month
+        aggregation: sum
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 3
+        unit: USD
+
+    recipients:
+      type: custom
+      emails:
+        - surasani.rama@gmail.com
+
+    notification:
+      template: subscription_cost_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: false
+      hours: 1
+      scope: org
+
+    tags:
+      - subscription
+      - cost
+      - test
+
+  # ============================================
   # Primary Alert: Subscription Cost > $20
   # ============================================
   - id: subscription_cost_threshold_20
