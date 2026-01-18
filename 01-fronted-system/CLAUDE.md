@@ -169,5 +169,43 @@ Tracked in: `schema_migrations` table
 | Quota exceeded | Check `GET /api/v1/organizations/{org}/quota` |
 | Migration auth fails | Check `SUPABASE_ACCESS_TOKEN` in env file |
 
+## Deployment
+
+### Build & Deploy
+
+```bash
+cd 04-inra-cicd-automation/CICD
+
+# Deploy frontend only
+./cicd.sh frontend prod cloudact-prod
+
+# Or use quick deploy
+./quick/deploy-prod.sh frontend
+```
+
+### Environment Variables
+
+**Build-time (NEXT_PUBLIC_*)** - Baked into Docker image:
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_STRIPE_*_PRICE_ID`
+- `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_SERVICE_URL`, `NEXT_PUBLIC_PIPELINE_SERVICE_URL`
+
+**Runtime (Secrets)** - From GCP Secret Manager:
+- `STRIPE_SECRET_KEY` → `stripe-secret-key-{env}`
+- `STRIPE_WEBHOOK_SECRET` → `stripe-webhook-secret-{env}`
+- `SUPABASE_SERVICE_ROLE_KEY` → `supabase-service-role-key-{env}`
+- `CA_ROOT_API_KEY` → `ca-root-api-key-{env}`
+
+### Cloud Run Config
+
+| Setting | Value |
+|---------|-------|
+| Port | 3000 |
+| CPU | 2 |
+| Memory | 8Gi |
+| Timeout | 60s |
+| Min Instances | 2 (prod) |
+| Max Instances | 20 (prod) |
+
 ---
-**v4.1.8** | 2026-01-16
+**v4.1.9** | 2026-01-18

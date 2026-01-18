@@ -594,8 +594,47 @@ Before deploying to production:
 
 | Environment | Version | Deployed |
 |-------------|---------|----------|
-| Production | v4.1.0 | 2026-01-15 |
+| Production | v4.1.9 | 2026-01-18 |
 | Stage | main | Auto-deploy on push |
 
+## GCP Infrastructure Setup
+
+Scripts located in `../gcp-setup/`:
+
+```bash
+# Sequential setup for new environment
+./00-gcp-enable-apis.sh      # Enable required GCP APIs
+./01-setup-cloud-build.sh    # Configure Cloud Build
+./02-artifactory-setup.sh    # Container Registry
+./03-kms-setup.sh            # KMS encryption keys
+./04-secrets-setup.sh        # Secret Manager secrets
+./05-iam-setup.sh            # IAM roles & permissions
+./06-cloud-run-setup.sh      # Cloud Run services
+```
+
+## Cron Jobs
+
+Scripts located in `../cron-jobs/`:
+
+| Job | Purpose | Schedule |
+|-----|---------|----------|
+| `billing-sync-retry.sh` | Retry failed Stripe syncs | Every 5 min |
+| `billing-reconciliation.sh` | Full Stripe↔Supabase reconciliation | Daily 2 AM UTC |
+| `run-all-cleanup.sh` | Database cleanup | Daily 3 AM UTC |
+
+## Demo Data
+
+Scripts located in `../load-demo-data/`:
+
+```bash
+./scripts/load-all.sh              # Load all demo data
+./scripts/00-load-pricing-seed.sh  # GenAI pricing
+./scripts/01-load-genai-data.sh    # GenAI usage (~4k records)
+./scripts/02-load-cloud-data.sh    # Cloud billing (~12k records)
+./scripts/03-load-subscriptions.sh # SaaS plans
+./scripts/04-run-pipelines.sh      # Calculate costs
+./scripts/99-cleanup-demo-data.sh  # Delete demo data
+```
+
 ---
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-18

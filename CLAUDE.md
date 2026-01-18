@@ -120,10 +120,83 @@ cd 01-fronted-system && npm run dev
 
 ## Deployment
 
+### Quick Deploy
+
 ```bash
-git push origin main           # → Stage
-git tag v4.1.5 && git push origin v4.1.5  # → Prod
+# Stage (automatic on push to main)
+git push origin main
+
+# Production (via git tag)
+git tag v4.1.9 && git push origin v4.1.9
 ```
+
+### Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CloudAct Deployment Flow                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Developer                    Cloud Build                    Cloud Run     │
+│   ─────────                    ───────────                    ─────────     │
+│                                                                             │
+│   git push main ──────────────▶ cloudbuild-stage.yaml ──────▶ Stage Env    │
+│                                  (Auto-trigger)               (3 services)  │
+│                                                                             │
+│   git tag v* ─────────────────▶ cloudbuild-prod.yaml ───────▶ Prod Env     │
+│   git push origin v*            (Auto-trigger)               (3 services)  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Manual Deploy Scripts
+
+```bash
+cd 04-inra-cicd-automation/CICD
+
+# Quick deploys
+./quick/deploy-test.sh           # All services to test
+./quick/deploy-stage.sh          # All services to stage
+./quick/deploy-prod.sh           # All services to prod (confirmation required)
+
+# Single service
+./cicd.sh api-service prod cloudact-prod
+
+# Release workflow
+./releases.sh next               # Check next version
+./release.sh v4.2.0 --deploy --env prod
+```
+
+### Pre-Deployment Checklist
+
+```bash
+# 1. Validate secrets
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
+
+# 2. Check health after deploy
+./quick/status.sh prod
+
+# 3. Monitor logs
+./monitor/watch-all.sh prod 50
+```
+
+### Cloud Run Services
+
+| Service | Port | CPU | Memory | URL (Prod) |
+|---------|------|-----|--------|------------|
+| frontend | 3000 | 2 | 8Gi | cloudact.ai |
+| api-service | 8000 | 2 | 8Gi | api.cloudact.ai |
+| pipeline-service | 8001 | 2 | 8Gi | pipeline.cloudact.ai |
+
+### Secrets (GCP Secret Manager)
+
+| Secret | Service | Description |
+|--------|---------|-------------|
+| `ca-root-api-key-{env}` | All | System root API key |
+| `stripe-secret-key-{env}` | Frontend | Stripe secret (sk_live_*) |
+| `stripe-webhook-secret-{env}` | Frontend | Stripe webhook (whsec_*) |
+| `supabase-service-role-key-{env}` | Frontend | Supabase service role JWT |
 
 ## Supabase Migrations
 

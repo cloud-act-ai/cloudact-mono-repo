@@ -121,5 +121,47 @@ POST /api/v1/validator/validate/{org}
 | `src/app/models/org_models.py` | `SUBSCRIPTION_LIMITS` |
 | `src/core/services/*_read/` | Polars read services |
 
+## Deployment
+
+### Build & Deploy
+
+```bash
+cd 04-inra-cicd-automation/CICD
+
+# Deploy api-service only
+./cicd.sh api-service prod cloudact-prod
+
+# Or use quick deploy
+./quick/deploy-prod.sh api-service
+```
+
+### Environment Variables
+
+Set via Cloud Run at deploy time:
+- `GCP_PROJECT_ID` - GCP project
+- `BIGQUERY_LOCATION` - BigQuery region (US)
+- `ENVIRONMENT` - production/staging/test
+- `CA_ROOT_API_KEY` - From Secret Manager
+- `PIPELINE_SERVICE_URL` - Auto-discovered
+
+### Cloud Run Config
+
+| Setting | Value |
+|---------|-------|
+| Port | 8000 |
+| CPU | 2 |
+| Memory | 8Gi |
+| Timeout | 300s |
+| Min Instances | 2 (prod) |
+| Max Instances | 10 (prod) |
+
+### Version Update
+
+Before creating release tag, update version in `src/app/config.py`:
+```python
+release_version: str = Field(default="v4.1.9")
+release_timestamp: str = Field(default="2026-01-18T00:00:00Z")
+```
+
 ---
-**v4.1.8** | 2026-01-16
+**v4.1.9** | 2026-01-18
