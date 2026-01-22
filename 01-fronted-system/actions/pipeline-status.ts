@@ -88,7 +88,7 @@ export async function getPipelineStatus(
           "X-API-Key": orgApiKey,
         },
       },
-      15000 // 15 second timeout for status check
+      30000 // 30 second timeout for status check (BigQuery can be slow on cold start)
     )
 
     if (!response.ok) {

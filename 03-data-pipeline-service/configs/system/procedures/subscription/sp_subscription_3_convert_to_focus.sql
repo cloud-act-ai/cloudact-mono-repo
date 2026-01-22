@@ -58,6 +58,7 @@ BEGIN
 
     -- PRO-012: Validate currency codes in source data (defensive check)
     -- Supported currencies: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF
+    -- MT-FIX: Added org_slug filter for defense-in-depth multi-tenant isolation
     EXECUTE IMMEDIATE FORMAT("""
       SELECT
         LOGICAL_AND(
@@ -66,20 +67,23 @@ BEGIN
         ) AS all_currencies_valid
       FROM `%s.%s.subscription_plan_costs_daily`
       WHERE cost_date BETWEEN @p_start AND @p_end
+        AND org_slug = @org_slug
     """, p_project_id, p_dataset_id)
     INTO v_currencies_valid
-    USING p_start_date AS p_start, p_end_date AS p_end;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
     ASSERT v_currencies_valid AS "Invalid currency code found in subscription_plan_costs_daily. Supported: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF";
 
     -- 2. Delete existing Subscription data for date range (only this source)
     -- Note: ChargePeriodStart is TIMESTAMP, so cast DATE params to TIMESTAMP
+    -- MT-FIX: Added SubAccountId filter for defense-in-depth multi-tenant isolation
     EXECUTE IMMEDIATE FORMAT("""
       DELETE FROM `%s.%s.cost_data_standard_1_3`
       WHERE DATE(ChargePeriodStart) BETWEEN @p_start AND @p_end
         AND x_source_system = 'subscription_costs_daily'
+        AND SubAccountId = @org_slug
     """, p_project_id, p_dataset_id)
-    USING p_start_date AS p_start, p_end_date AS p_end;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
     -- 3. Insert mapped data with ALL fields populated (FOCUS 1.3 compliant)
     EXECUTE IMMEDIATE FORMAT("""

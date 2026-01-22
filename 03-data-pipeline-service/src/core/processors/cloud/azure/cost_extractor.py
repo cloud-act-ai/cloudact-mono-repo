@@ -16,6 +16,11 @@ import httpx
 
 from src.core.processors.cloud.azure.authenticator import AzureAuthenticator
 from src.app.config import get_settings
+from src.core.utils.validators import (
+    is_valid_org_slug,
+    is_valid_date_format,
+    is_valid_azure_subscription_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +58,17 @@ class AzureCostExtractor:
         if not self.org_slug:
             return {"status": "FAILED", "error": "org_slug is required"}
 
+        # MT-FIX: Validate org_slug format to prevent injection attacks
+        if not is_valid_org_slug(self.org_slug):
+            return {"status": "FAILED", "error": f"Invalid org_slug format: {self.org_slug}"}
+
         config = step_config.get("config", {})
         date_filter = config.get("date_filter") or context.get("date")
         granularity = config.get("granularity", "Daily")
+
+        # MT-FIX: Validate date format to prevent injection
+        if date_filter and not is_valid_date_format(date_filter):
+            return {"status": "FAILED", "error": f"Invalid date format: {date_filter}. Expected YYYY-MM-DD"}
 
         logger.info(
             f"Extracting Azure cost data",
@@ -70,6 +83,11 @@ class AzureCostExtractor:
             # Authenticate with Azure
             self._auth = AzureAuthenticator(self.org_slug)
             client_config = await self._auth.get_cost_management_client()
+
+            # MT-FIX: Validate subscription ID format from retrieved credentials
+            subscription_id = client_config.get("subscription_id")
+            if not is_valid_azure_subscription_id(subscription_id):
+                return {"status": "FAILED", "error": f"Invalid Azure subscription ID format: {subscription_id}"}
 
             # Parse date range
             if date_filter:

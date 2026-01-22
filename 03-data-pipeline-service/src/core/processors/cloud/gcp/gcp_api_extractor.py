@@ -142,6 +142,8 @@ class GcpApiExtractorProcessor:
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
         self.auth: Optional[GCPAuthenticator] = None
+        # Lock for thread-safe token refresh to prevent race conditions
+        self._token_refresh_lock = asyncio.Lock()
 
     async def execute(
         self,
@@ -420,10 +422,11 @@ class GcpApiExtractorProcessor:
                 last_request_time = time.time()
 
                 if response.status_code == 401:
-                    # Token expired - refresh and retry
-                    self.logger.info("GCP token expired, refreshing...")
-                    access_token = await self.auth.get_access_token()
-                    headers["Authorization"] = f"Bearer {access_token}"
+                    # Token expired - refresh with lock to prevent race conditions
+                    async with self._token_refresh_lock:
+                        self.logger.info("GCP token expired, refreshing with lock...")
+                        access_token = await self.auth.get_access_token()
+                        headers["Authorization"] = f"Bearer {access_token}"
                     continue
 
                 if response.status_code != 200:
@@ -461,9 +464,9 @@ class GcpApiExtractorProcessor:
 
                 page_number += 1
 
-                # Safety: prevent infinite loops
-                if page_number > 10000:
-                    self.logger.warning("GCP pagination limit reached (10000 pages)")
+                # Safety: prevent infinite loops (reduced from 10000 to 1000 for quota protection)
+                if page_number > 1000:
+                    self.logger.warning("GCP pagination limit reached (1000 pages) - stopping to protect quota")
                     break
 
     async def _make_request_with_retry(

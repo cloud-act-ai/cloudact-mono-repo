@@ -67,6 +67,8 @@ BEGIN
   DECLARE v_default_currency STRING DEFAULT 'USD';
   -- Fiscal year support: Month when FY starts (1=Jan/calendar, 4=Apr/India, 7=Jul/Australia)
   DECLARE v_fiscal_year_start_month INT64 DEFAULT 1;
+  -- MT-FIX: Extract org_slug for defense-in-depth filtering
+  DECLARE v_org_slug STRING;
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -79,17 +81,20 @@ BEGIN
   ASSERT p_credential_id IS NOT NULL AS "p_credential_id cannot be NULL";
   ASSERT p_run_id IS NOT NULL AS "p_run_id cannot be NULL";
 
+  -- MT-FIX: Extract org_slug from dataset_id (e.g., 'acme_corp_prod' -> 'acme_corp')
+  SET v_org_slug = REGEXP_REPLACE(p_dataset_id, '_prod$|_stage$|_dev$|_local$', '');
+
   -- 1b. Get org settings from org_profiles (currency + fiscal year)
   EXECUTE IMMEDIATE FORMAT("""
     SELECT
       default_currency,
       COALESCE(fiscal_year_start_month, 1) AS fiscal_year_start_month
     FROM `%s.organizations.org_profiles`
-    WHERE REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', '') = org_slug
+    WHERE org_slug = @org_slug
     LIMIT 1
   """, p_project_id)
   INTO v_org_currency, v_fiscal_year_start_month
-  USING p_dataset_id AS p_ds;
+  USING v_org_slug AS org_slug;
 
   -- FIX: Validate org was found (v_org_currency would be NULL if no rows returned)
   -- If org not found, use default currency but log warning
@@ -102,11 +107,13 @@ BEGIN
   BEGIN TRANSACTION;
 
     -- 2. Delete existing data for date range (idempotent)
+    -- MT-FIX: Added org_slug filter for defense-in-depth multi-tenant isolation
     EXECUTE IMMEDIATE FORMAT("""
       DELETE FROM `%s.%s.subscription_plan_costs_daily`
       WHERE cost_date BETWEEN @p_start AND @p_end
+        AND org_slug = @org_slug
     """, p_project_id, p_dataset_id)
-    USING p_start_date AS p_start, p_end_date AS p_end;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
     -- 3. Insert daily costs (skip zero-cost rows like FREE plans)
     EXECUTE IMMEDIATE FORMAT("""

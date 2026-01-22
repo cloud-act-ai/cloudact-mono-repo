@@ -15,6 +15,12 @@ import uuid
 
 from src.core.processors.cloud.aws.authenticator import AWSAuthenticator
 from src.app.config import get_settings
+from src.core.utils.validators import (
+    is_valid_org_slug,
+    is_valid_date_format,
+    is_valid_s3_bucket,
+    is_valid_s3_prefix,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +61,10 @@ class AWSCURExtractor:
         if not self.org_slug:
             return {"status": "FAILED", "error": "org_slug is required"}
 
+        # MT-FIX: Validate org_slug format to prevent injection attacks
+        if not is_valid_org_slug(self.org_slug):
+            return {"status": "FAILED", "error": f"Invalid org_slug format: {self.org_slug}"}
+
         config = step_config.get("config", {})
         source_bucket = config.get("source_bucket")
         source_prefix = config.get("source_prefix", "")
@@ -63,6 +73,18 @@ class AWSCURExtractor:
 
         if not source_bucket:
             return {"status": "FAILED", "error": "source_bucket is required"}
+
+        # MT-FIX: Validate S3 bucket name format
+        if not is_valid_s3_bucket(source_bucket):
+            return {"status": "FAILED", "error": f"Invalid S3 bucket name format: {source_bucket}"}
+
+        # MT-FIX: Validate S3 prefix for path traversal attacks
+        if not is_valid_s3_prefix(source_prefix):
+            return {"status": "FAILED", "error": f"Invalid S3 prefix - path traversal detected: {source_prefix}"}
+
+        # MT-FIX: Validate date format to prevent injection
+        if date_filter and not is_valid_date_format(date_filter):
+            return {"status": "FAILED", "error": f"Invalid date format: {date_filter}. Expected YYYY-MM-DD"}
 
         logger.info(
             f"Extracting AWS CUR data",

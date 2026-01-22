@@ -4,26 +4,18 @@ import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
-  Server,
   Brain,
   CreditCard,
   ChevronRight,
   Cloud,
-  Sparkles,
-  Cpu,
-  Gem,
   Shield,
-  Palette,
-  FileText,
-  MessageSquare,
-  Code,
-  Database,
   AlertCircle,
 } from "lucide-react"
 import { getIntegrations } from "@/actions/integrations"
 import { LoadingState } from "@/components/ui/loading-state"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import { getAllProviders, type ProviderInfo } from "@/actions/subscription-providers"
+import { ProviderLogo } from "@/components/ui/provider-logo"
 
 interface Integration {
   provider: string
@@ -49,18 +41,18 @@ interface ProviderConfig {
 }
 
 const ALL_PROVIDERS: ProviderConfig[] = [
-  { id: "gcp", name: "Google Cloud", icon: <Cloud className="h-4 w-4" />, category: "cloud" },
-  { id: "aws", name: "AWS", icon: <Server className="h-4 w-4" />, category: "cloud" },
-  { id: "azure", name: "Azure", icon: <Database className="h-4 w-4" />, category: "cloud" },
-  { id: "openai", name: "OpenAI", icon: <Brain className="h-4 w-4" />, category: "genai" },
-  { id: "anthropic", name: "Claude", icon: <Sparkles className="h-4 w-4" />, category: "genai" },
-  { id: "gemini", name: "Gemini", icon: <Gem className="h-4 w-4" />, category: "genai" },
-  { id: "deepseek", name: "DeepSeek", icon: <Cpu className="h-4 w-4" />, category: "genai" },
-  { id: "slack", name: "Slack", icon: <MessageSquare className="h-4 w-4" />, category: "saas" },
-  { id: "notion", name: "Notion", icon: <FileText className="h-4 w-4" />, category: "saas" },
-  { id: "figma", name: "Figma", icon: <Palette className="h-4 w-4" />, category: "saas" },
-  { id: "github", name: "GitHub", icon: <Code className="h-4 w-4" />, category: "saas" },
-  { id: "canva", name: "Canva", icon: <Palette className="h-4 w-4" />, category: "saas" },
+  { id: "gcp", name: "Google Cloud", icon: <ProviderLogo provider="gcp" size={16} />, category: "cloud" },
+  { id: "aws", name: "AWS", icon: <ProviderLogo provider="aws" size={16} />, category: "cloud" },
+  { id: "azure", name: "Azure", icon: <ProviderLogo provider="azure" size={16} />, category: "cloud" },
+  { id: "openai", name: "OpenAI", icon: <ProviderLogo provider="openai" size={16} />, category: "genai" },
+  { id: "anthropic", name: "Claude", icon: <ProviderLogo provider="anthropic" size={16} />, category: "genai" },
+  { id: "gemini", name: "Gemini", icon: <ProviderLogo provider="gemini" size={16} />, category: "genai" },
+  { id: "deepseek", name: "DeepSeek", icon: <ProviderLogo provider="deepseek" size={16} />, category: "genai" },
+  { id: "slack", name: "Slack", icon: <ProviderLogo provider="slack" size={16} />, category: "saas" },
+  { id: "notion", name: "Notion", icon: <ProviderLogo provider="notion" size={16} />, category: "saas" },
+  { id: "figma", name: "Figma", icon: <ProviderLogo provider="figma" size={16} />, category: "saas" },
+  { id: "github", name: "GitHub", icon: <ProviderLogo provider="github" size={16} />, category: "saas" },
+  { id: "canva", name: "Canva", icon: <ProviderLogo provider="canva" size={16} />, category: "saas" },
 ]
 
 // Use semantic accent names that map to CSS variables in globals.css

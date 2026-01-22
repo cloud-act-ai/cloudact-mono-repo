@@ -45,6 +45,7 @@ import {
   deleteIntegration,
   IntegrationProvider,
 } from "@/actions/integrations"
+import { ProviderLogo } from "@/components/ui/provider-logo"
 
 import { GenAIPAYGPricing } from "@/lib/data/genai/genai-payg-pricing"
 import { GenAICommitmentPricing } from "@/lib/data/genai/genai-commitment-pricing"
@@ -895,13 +896,8 @@ export function GenAIProviderPageTemplate({
         />
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <div
-              className="h-14 w-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${config.color}15` }}
-            >
-              <div style={{ color: config.color }} className="[&>svg]:h-7 [&>svg]:w-7">
-                {config.icon}
-              </div>
+            <div className="h-14 w-14 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center flex-shrink-0">
+              <ProviderLogo provider={config.id} size={32} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
@@ -949,7 +945,6 @@ export function GenAIProviderPageTemplate({
         provider={config.id}
         providerName={config.name}
         providerDescription={config.description}
-        icon={config.icon}
         placeholder={config.placeholder}
         inputType="text"
         helperText={config.helperText}

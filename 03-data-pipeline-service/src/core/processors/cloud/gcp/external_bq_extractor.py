@@ -231,38 +231,24 @@ class ExternalBqExtractor:
         if 'date' not in variables:
             variables['date'] = date.today().isoformat()
 
-        # Build query with variable substitution
-        query_template = source.get("query", "")
-
-        # IMPORTANT: BigQuery doesn't support parameterized table names.
-        # We must use string substitution for table/dataset/project identifiers,
-        # but can parameterize WHERE clause values for security.
-        #
-        # Strategy:
-        # 1. First, replace table-related variables using string substitution
-        # 2. Then use simple string substitution for remaining variables
-        #    (parameterization is complex and table names break it)
-
-        # List of variables that are SQL identifiers (tables, datasets, projects)
-        # These MUST be replaced via string substitution, not parameterization
-        identifier_vars = ['source_billing_table', 'source_table', 'target_table',
-                          'dataset', 'project_id', 'bq_project_id']
-
-        # Replace all variables using string substitution
-        # This is safe for this use case because:
-        # 1. Table names come from config files, not user input
-        # 2. Date values are validated/generated internally
-        query = self._replace_variables(query_template, variables)
-        query_params = []
-        use_parameterized = False
-
-        self.logger.info(
-            "Query prepared with variable substitution",
-            extra={"query_preview": query[:200], "org_slug": org_slug}
-        )
+        # Add system variables (project_id, etc.) for template substitution
+        if 'gcp_project_id' not in variables:
+            variables['gcp_project_id'] = self.settings.gcp_project_id
+        if 'project_id' not in variables:
+            variables['project_id'] = self.settings.gcp_project_id
 
         # Initialize SOURCE BigQuery client (customer's GCP or CloudAct's)
-        use_org_credentials = source.get("use_org_credentials", False)
+        # Handle string "true"/"false" values from YAML
+        use_org_credentials_raw = source.get("use_org_credentials", False)
+        if isinstance(use_org_credentials_raw, str):
+            use_org_credentials = use_org_credentials_raw.lower() in ("true", "1", "yes")
+        else:
+            use_org_credentials = bool(use_org_credentials_raw)
+
+        # Authenticate BEFORE query substitution to get integration metadata
+        auth = None
+        source_bq_client = None
+        source_project_id = None
 
         if use_org_credentials:
             # Use customer's GCP Service Account credentials
@@ -280,10 +266,141 @@ class ExternalBqExtractor:
             auth = GCPAuthenticator(org_slug)
             source_bq_client = await auth.get_bigquery_client()
             source_project_id = auth.project_id  # Customer's project from SA
+
+            # Add integration metadata to variables for query substitution
+            # This provides billing_export_table and other customer-specific config
+            # MT-FIX: Only allow specific metadata keys to prevent injection attacks
+            # GCP Billing Export Table Types (configured in UI):
+            # - billing_export_table: Standard export (gcp_billing_export_v1_*) - REQUIRED
+            # - detailed_export_table: Resource export (gcp_billing_export_resource_v1_*) - Optional
+            # - pricing_export_table: Pricing catalog (cloud_pricing_export) - Optional
+            ALLOWED_METADATA_KEYS = {
+                # GCP billing exports (primary)
+                'billing_export_table',    # Standard billing export (REQUIRED for cost data)
+                'detailed_export_table',   # Detailed/resource export (optional, resource-level data)
+                'pricing_export_table',    # Pricing export (optional, pricing catalog)
+                'committed_use_discount_table',  # CUD table (optional, for commitment analysis)
+                # Multi-billing account support
+                'additional_billing_accounts',  # Array of additional billing accounts
+                'billing_dataset',         # GCP billing dataset (legacy)
+                'billing_project',         # GCP billing project (if different from SA project)
+                # AWS
+                'cur_bucket',              # AWS CUR S3 bucket
+                'cur_prefix',              # AWS CUR prefix
+                # Azure
+                'subscription_id',         # Azure subscription
+                'resource_group',          # Azure resource group
+                # OCI
+                'compartment_id',          # OCI compartment
+                'tenancy_ocid',            # OCI tenancy
+            }
+            if auth.metadata:
+                allowed_metadata = {k: v for k, v in auth.metadata.items() if k in ALLOWED_METADATA_KEYS}
+                blocked_keys = set(auth.metadata.keys()) - ALLOWED_METADATA_KEYS
+                if blocked_keys:
+                    self.logger.warning(
+                        "Blocked potentially unsafe metadata keys",
+                        extra={
+                            "org_slug": org_slug,
+                            "blocked_keys": list(blocked_keys)
+                        }
+                    )
+                for key, value in allowed_metadata.items():
+                    if key not in variables:
+                        variables[key] = value
+                self.logger.info(
+                    "Added integration metadata to variables",
+                    extra={
+                        "org_slug": org_slug,
+                        "metadata_keys": list(allowed_metadata.keys()),
+                        "billing_export_table": auth.billing_export_table
+                    }
+                )
         else:
             # Use CloudAct's default credentials
-            source_project_id = source.get("bq_project_id", self.settings.gcp_project_id)
+            # Apply variable substitution to bq_project_id (handles {gcp_project_id} templates)
+            raw_project_id = source.get("bq_project_id", self.settings.gcp_project_id)
+            source_project_id = self._replace_variables(str(raw_project_id), variables)
             source_bq_client = BigQueryClient(project_id=source_project_id).client
+
+        # Build query with variable substitution (AFTER credentials are loaded)
+        # This ensures integration metadata (like billing_export_table) is available
+        query_template = source.get("query", "")
+
+        # MT-FIX: Validate date format before substitution to prevent SQL injection
+        # Date must be YYYY-MM-DD format
+        if 'date' in variables:
+            date_str = str(variables['date'])
+            import re
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+                raise ValueError(f"Invalid date format: {date_str}. Expected YYYY-MM-DD")
+
+        # MT-FIX: Validate billing export tables format (must be project.dataset.table)
+        def validate_export_table(table_name: str, table_path: str, required: bool = False) -> None:
+            """Validate GCP billing export table path format."""
+            if not table_path or table_path == 'None' or '{' in table_path:
+                if required:
+                    raise ValueError(
+                        f"{table_name} is not configured. "
+                        "Please configure the billing export table in Settings → Integrations → GCP → Billing Export Tables"
+                    )
+                return  # Skip validation for optional unconfigured tables
+
+            if table_path.count('.') < 2:
+                raise ValueError(f"Invalid {table_name} format: {table_path}. Expected project.dataset.table")
+            # Check for path traversal attempts
+            if '..' in table_path or table_path.startswith('/'):
+                raise ValueError(f"Invalid {table_name}: path traversal detected")
+
+        # Validate billing_export_table (REQUIRED)
+        if 'billing_export_table' in variables:
+            validate_export_table('billing_export_table', str(variables['billing_export_table']), required=True)
+
+        # Validate detailed_export_table (optional)
+        if 'detailed_export_table' in variables:
+            validate_export_table('detailed_export_table', str(variables['detailed_export_table']), required=False)
+
+        # Validate pricing_export_table (optional)
+        if 'pricing_export_table' in variables:
+            validate_export_table('pricing_export_table', str(variables['pricing_export_table']), required=False)
+
+        # Validate committed_use_discount_table (optional)
+        if 'committed_use_discount_table' in variables:
+            validate_export_table('committed_use_discount_table', str(variables['committed_use_discount_table']), required=False)
+
+        # MT-FIX: Pre-validate billing export table exists before executing query
+        if use_org_credentials and 'billing_export_table' in variables:
+            billing_table = str(variables['billing_export_table'])
+            if billing_table and billing_table != 'None' and '{' not in billing_table:
+                try:
+                    table_parts = billing_table.split('.')
+                    if len(table_parts) >= 3:
+                        table_ref = f"{table_parts[0]}.{table_parts[1]}.{'.'.join(table_parts[2:])}"
+                        source_bq_client.get_table(table_ref)
+                        self.logger.info(
+                            "Pre-validated billing export table exists",
+                            extra={"table": billing_table, "org_slug": org_slug}
+                        )
+                except NotFound:
+                    raise ValueError(
+                        f"Billing export table not found: {billing_table}. "
+                        "Please verify the table path in Settings → Integrations → GCP → Billing Export Tables. "
+                        "Ensure the table exists and the Service Account has access."
+                    )
+                except Exception as e:
+                    self.logger.warning(
+                        f"Could not pre-validate billing table: {type(e).__name__}",
+                        extra={"table": billing_table, "org_slug": org_slug}
+                    )
+
+        query = self._replace_variables(query_template, variables)
+        query_params = []
+        use_parameterized = False
+
+        self.logger.info(
+            "Query prepared with variable substitution",
+            extra={"query_preview": query[:200], "org_slug": org_slug}
+        )
 
         # Execute query on SOURCE (customer's GCP or CloudAct)
         self.logger.info(
@@ -312,7 +429,48 @@ class ExternalBqExtractor:
                 extra={"param_count": len(query_params), "org_slug": org_slug}
             )
 
+        # GCP-005 FIX: Pre-check BigQuery quota before executing query
+        try:
+            # Check if we can list jobs (indicates quota is available)
+            # This is a lightweight check that fails fast if quota exceeded
+            list(source_bq_client.list_jobs(max_results=1, state_filter="RUNNING"))
+            self.logger.debug(
+                "BigQuery quota check passed",
+                extra={"org_slug": org_slug, "source_project": source_project_id}
+            )
+        except core_exceptions.ResourceExhausted as e:
+            self.logger.error(
+                "BigQuery quota exceeded - cannot execute query",
+                extra={
+                    "org_slug": org_slug,
+                    "source_project": source_project_id,
+                    "error": str(e)
+                }
+            )
+            raise ValueError(
+                f"BigQuery quota exceeded for project {source_project_id}. "
+                "Please wait and retry, or request quota increase in GCP Console."
+            )
+        except Exception as e:
+            # Non-quota errors - log but continue (quota check is best-effort)
+            self.logger.warning(
+                f"BigQuery quota pre-check failed (non-blocking): {type(e).__name__}",
+                extra={"org_slug": org_slug}
+            )
+
         query_job = source_bq_client.query(query, job_config=job_config)
+        job_id = query_job.job_id
+
+        # GCP-010 FIX: Enhanced timeout logging with job details
+        self.logger.info(
+            "BigQuery job started",
+            extra={
+                "job_id": job_id,
+                "org_slug": org_slug,
+                "source_project": source_project_id,
+                "timeout_seconds": 600
+            }
+        )
 
         # Wait for query to complete with timeout (10 minutes = 600 seconds)
         try:
@@ -322,8 +480,45 @@ class ExternalBqExtractor:
             # Validate that we got results
             if not result_rows:
                 return []
+        except core_exceptions.ResourceExhausted as e:
+            # GCP-005 FIX: Specific handling for quota exceeded during query
+            self.logger.error(
+                "BigQuery query failed due to quota exceeded",
+                extra={
+                    "job_id": job_id,
+                    "org_slug": org_slug,
+                    "source_project": source_project_id,
+                    "error": str(e)
+                }
+            )
+            raise ValueError(
+                f"BigQuery quota exceeded during query execution. "
+                f"Job ID: {job_id}. Please retry later or increase quota."
+            )
         except Exception as e:
-            self.logger.error(f"Query execution failed or timed out: {e}", exc_info=True)
+            # GCP-010 FIX: Enhanced error logging with job details
+            error_type = type(e).__name__
+            is_timeout = "timeout" in str(e).lower() or "deadline" in str(e).lower()
+
+            self.logger.error(
+                f"BigQuery query {'timed out' if is_timeout else 'failed'}",
+                extra={
+                    "job_id": job_id,
+                    "org_slug": org_slug,
+                    "source_project": source_project_id,
+                    "error_type": error_type,
+                    "error_message": str(e)[:500],
+                    "is_timeout": is_timeout,
+                    "query_preview": query[:200]
+                },
+                exc_info=True
+            )
+
+            if is_timeout:
+                raise ValueError(
+                    f"BigQuery query timed out after 10 minutes. "
+                    f"Job ID: {job_id}. Consider filtering by smaller date range or optimizing query."
+                )
             raise ValueError(f"BigQuery query failed: {str(e)}")
 
         row_count = len(result_rows)

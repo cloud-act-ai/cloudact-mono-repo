@@ -27,7 +27,8 @@
 
 CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_subscription_1_validate_data(
   p_project_id STRING,
-  p_dataset_id STRING
+  p_dataset_id STRING,
+  p_pipeline_logging_id STRING
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
@@ -43,6 +44,9 @@ BEGIN
   DECLARE v_billing_anchor_error_count INT64 DEFAULT 0;
   DECLARE v_org_currency STRING DEFAULT NULL;
   DECLARE v_validation_errors ARRAY<STRING>;
+  DECLARE v_dq_result_id STRING;
+  DECLARE v_expectations_passed INT64 DEFAULT 0;
+  DECLARE v_expectations_failed INT64 DEFAULT 0;
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -154,8 +158,66 @@ BEGIN
     ]);
   END IF;
 
-  -- 8. Raise error if any validations failed
+  -- 8. Calculate expectations passed/failed
+  -- Total validations checked: 8 (table_exists, null_org_slug, null_subscription_id, currency_mismatch,
+  -- invalid_status, invalid_billing_cycle, date_range_error, discount_error, billing_anchor_error)
+  SET v_expectations_failed = 0;
+  IF v_null_org_slug_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_null_subscription_id_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_currency_mismatch_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_invalid_status_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_invalid_billing_cycle_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_date_range_error_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_discount_error_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  IF v_billing_anchor_error_count > 0 THEN SET v_expectations_failed = v_expectations_failed + 1; END IF;
+  SET v_expectations_passed = 8 - v_expectations_failed;
+
+  -- Generate DQ result ID
+  SET v_dq_result_id = GENERATE_UUID();
+
+  -- 9. Raise error if any validations failed
   IF ARRAY_LENGTH(v_validation_errors) > 0 THEN
+    -- Log failure to org_meta_dq_results before raising error
+    EXECUTE IMMEDIATE FORMAT("""
+      INSERT INTO `%s.organizations.org_meta_dq_results` (
+        dq_result_id,
+        pipeline_logging_id,
+        org_slug,
+        target_table,
+        dq_config_id,
+        executed_at,
+        expectations_passed,
+        expectations_failed,
+        failed_expectations,
+        overall_status,
+        user_id,
+        ingestion_date,
+        created_at
+      )
+      VALUES (
+        @dq_result_id,
+        @pipeline_logging_id,
+        REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', ''),
+        CONCAT(@p_project_id, '.', @p_ds, '.subscription_plans'),
+        'subscription_pre_pipeline_validation',
+        CURRENT_TIMESTAMP(),
+        @expectations_passed,
+        @expectations_failed,
+        PARSE_JSON(@failed_expectations_json),
+        'FAIL',
+        NULL,
+        CURRENT_DATE(),
+        CURRENT_TIMESTAMP()
+      )
+    """, p_project_id)
+    USING v_dq_result_id AS dq_result_id,
+          COALESCE(p_pipeline_logging_id, GENERATE_UUID()) AS pipeline_logging_id,
+          p_dataset_id AS p_ds,
+          p_project_id AS p_project_id,
+          v_expectations_passed AS expectations_passed,
+          v_expectations_failed AS expectations_failed,
+          TO_JSON_STRING(v_validation_errors) AS failed_expectations_json;
+
     RAISE USING MESSAGE = FORMAT(
       "Subscription data validation FAILED with %d errors:\n%s",
       ARRAY_LENGTH(v_validation_errors),
@@ -163,33 +225,44 @@ BEGIN
     );
   END IF;
 
-  -- 9. Log success to org_meta_dq_results (BUG-052 FIX)
+  -- 10. Log success to org_meta_dq_results (BUG-052 FIX)
   EXECUTE IMMEDIATE FORMAT("""
     INSERT INTO `%s.organizations.org_meta_dq_results` (
+      dq_result_id,
+      pipeline_logging_id,
       org_slug,
-      table_name,
-      check_name,
-      check_status,
-      rows_checked,
-      rows_passed,
-      rows_failed,
-      error_message,
+      target_table,
+      dq_config_id,
+      executed_at,
+      expectations_passed,
+      expectations_failed,
+      failed_expectations,
+      overall_status,
+      user_id,
       ingestion_date,
       created_at
     )
     VALUES (
+      @dq_result_id,
+      @pipeline_logging_id,
       REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', ''),
-      'subscription_plans',
-      'pre_pipeline_validation',
+      CONCAT(@p_project_id, '.', @p_ds, '.subscription_plans'),
+      'subscription_pre_pipeline_validation',
+      CURRENT_TIMESTAMP(),
+      @expectations_passed,
+      @expectations_failed,
+      NULL,
       'PASS',
-      @row_count,
-      @row_count,
-      0,
-      'All validations passed',
+      NULL,
       CURRENT_DATE(),
       CURRENT_TIMESTAMP()
     )
   """, p_project_id)
-  USING p_dataset_id AS p_ds, v_row_count AS row_count;
+  USING v_dq_result_id AS dq_result_id,
+        COALESCE(p_pipeline_logging_id, GENERATE_UUID()) AS pipeline_logging_id,
+        p_dataset_id AS p_ds,
+        p_project_id AS p_project_id,
+        v_expectations_passed AS expectations_passed,
+        v_expectations_failed AS expectations_failed;
 
 END;

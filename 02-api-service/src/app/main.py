@@ -912,7 +912,20 @@ async def security_headers_middleware(request: Request, call_next):
     Add security headers to all responses (OWASP recommendations).
     These headers help prevent XSS, clickjacking, MIME-type sniffing, and other attacks.
     """
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except RuntimeError as e:
+        # Handle client disconnection gracefully
+        if "No response returned" in str(e):
+            logger.warning(
+                f"Client disconnected before response",
+                extra={"path": request.url.path, "method": request.method}
+            )
+            return JSONResponse(
+                status_code=499,  # Client Closed Request (nginx convention)
+                content={"error": "Client disconnected"}
+            )
+        raise
 
     # Prevent clickjacking
     response.headers["X-Frame-Options"] = "DENY"
@@ -988,7 +1001,26 @@ async def log_requests(request: Request, call_next):
         }
     )
 
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except RuntimeError as e:
+        # Handle client disconnection gracefully
+        if "No response returned" in str(e):
+            duration = time.time() - start_time
+            logger.warning(
+                f"Client disconnected before response",
+                extra={
+                    "method": request.method,
+                    "path": request.url.path,
+                    "duration_ms": round(duration * 1000, 2),
+                    "org_slug": org_slug
+                }
+            )
+            return JSONResponse(
+                status_code=499,  # Client Closed Request
+                content={"error": "Client disconnected"}
+            )
+        raise
 
     duration = time.time() - start_time
 

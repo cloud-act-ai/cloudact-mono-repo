@@ -162,6 +162,16 @@ export interface IntegrationStatus {
   last_error?: string
   created_at?: string
   is_enabled?: boolean
+  metadata?: Record<string, unknown> // Integration-specific metadata (e.g., billing_export_table for GCP)
+}
+
+/**
+ * Request to update integration metadata.
+ * Only updates metadata, not credentials.
+ */
+export interface UpdateIntegrationMetadataRequest {
+  metadata: Record<string, unknown>
+  skip_validation?: boolean
 }
 
 export interface AllIntegrationsResponse {
@@ -979,6 +989,33 @@ export class PipelineBackendClient {
       {
         method: "POST",
         headers: this.getHeaders(),
+      },
+      DEFAULT_TIMEOUT
+    )
+
+    return handleResponse<SetupIntegrationResponse>(response)
+  }
+
+  /**
+   * Update integration metadata (without re-uploading credentials).
+   * URL: PUT /api/v1/integrations/{org}/{provider}
+   *
+   * Use this to update metadata like billing_export_table, detailed_export_table, etc.
+   */
+  async updateIntegrationMetadata(
+    orgSlug: string,
+    provider: string,
+    request: UpdateIntegrationMetadataRequest
+  ): Promise<SetupIntegrationResponse> {
+    validateOrgSlug(orgSlug)
+    const providerUrl = this.normalizeProviderForUrl(provider)
+
+    const response = await fetchWithTimeout(
+      `${this.baseUrl}/api/v1/integrations/${orgSlug}/${providerUrl}`,
+      {
+        method: "PUT",
+        headers: this.getHeaders(),
+        body: JSON.stringify(request),
       },
       DEFAULT_TIMEOUT
     )

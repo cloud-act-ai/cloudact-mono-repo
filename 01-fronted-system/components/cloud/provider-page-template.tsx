@@ -50,6 +50,7 @@ import {
   deleteIntegration,
   IntegrationProvider,
 } from "@/actions/integrations"
+import { ProviderLogo } from "@/components/ui/provider-logo"
 
 // ============================================================================
 // SECURITY HELPERS
@@ -558,13 +559,8 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
 
       {/* Provider Header */}
       <div className="flex items-center gap-5">
-        <div
-          className="h-16 w-16 rounded-2xl flex items-center justify-center shadow-lg"
-          style={{ background: `linear-gradient(135deg, ${config.color}, ${config.color}cc)` }}
-        >
-          <div className="text-white [&>svg]:h-8 [&>svg]:w-8">
-            {config.icon}
-          </div>
+        <div className="h-16 w-16 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center shadow-lg">
+          <ProviderLogo provider={config.id} size={40} />
         </div>
         <div>
           <h1 className="text-[32px] font-bold text-black tracking-tight">{config.name}</h1>
@@ -610,9 +606,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                 className="h-12 w-12 rounded-xl flex items-center justify-center"
                 style={{ backgroundColor: `${config.color}15` }}
               >
-                <div style={{ color: config.color }} className="[&>svg]:h-6 [&>svg]:w-6">
-                  {config.icon}
-                </div>
+                <Key className="h-6 w-6" style={{ color: config.color }} />
               </div>
               <div>
                 <h2 className="text-[18px] font-bold text-black">Integration Connection</h2>
@@ -866,9 +860,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                 className="h-20 w-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
                 style={{ backgroundColor: `${config.color}15` }}
               >
-                <div style={{ color: config.color }} className="[&>svg]:h-10 [&>svg]:w-10">
-                  {config.icon}
-                </div>
+                <Upload className="h-10 w-10" style={{ color: config.color }} />
               </div>
               <p className="text-[18px] font-bold text-black mb-3">No Integration Connected</p>
               <p className="text-[15px] text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
@@ -977,9 +969,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
             className="h-10 w-10 rounded-xl flex items-center justify-center"
             style={{ backgroundColor: `${config.color}15` }}
           >
-            <div style={{ color: config.color }} className="[&>svg]:h-5 [&>svg]:w-5">
-              {config.icon}
-            </div>
+            <ExternalLink className="h-5 w-5" style={{ color: config.color }} />
           </div>
           <h3 className="text-[18px] font-bold text-black">
             How to set up {config.name}
@@ -996,8 +986,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
           href={config.docsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 mt-5 text-[14px] font-semibold hover:underline"
-          style={{ color: config.color }}
+          className="inline-flex items-center gap-1.5 mt-5 text-[14px] font-semibold text-[#007AFF] hover:underline"
         >
           View full documentation
           <ExternalLink className="h-4 w-4" />

@@ -58,6 +58,7 @@ class GCPAuthenticator:
         self._sa_info: Optional[Dict[str, Any]] = None
         self._project_id: Optional[str] = None
         self._client_email: Optional[str] = None
+        self._metadata: Optional[Dict[str, Any]] = None
 
     @property
     def project_id(self) -> Optional[str]:
@@ -68,6 +69,18 @@ class GCPAuthenticator:
     def client_email(self) -> Optional[str]:
         """Service account email (available after authenticate())."""
         return self._client_email
+
+    @property
+    def metadata(self) -> Optional[Dict[str, Any]]:
+        """Integration metadata (available after authenticate()). Contains billing_export_table, etc."""
+        return self._metadata
+
+    @property
+    def billing_export_table(self) -> Optional[str]:
+        """Billing export table path from integration metadata (e.g., 'project.dataset.table')."""
+        if self._metadata:
+            return self._metadata.get("billing_export_table")
+        return None
 
     async def authenticate(self) -> service_account.Credentials:
         """
@@ -135,9 +148,24 @@ class GCPAuthenticator:
             self.logger.error(f"Failed to decrypt/parse GCP credentials: {e}")
             raise
 
-        # Extract metadata
+        # Extract metadata from service account
         self._project_id = self._sa_info.get("project_id")
         self._client_email = self._sa_info.get("client_email")
+
+        # Extract integration metadata (contains billing_export_table, etc.)
+        raw_metadata = row.get("metadata")
+        if raw_metadata:
+            if isinstance(raw_metadata, str):
+                try:
+                    self._metadata = json.loads(raw_metadata)
+                except json.JSONDecodeError:
+                    self._metadata = {}
+            elif isinstance(raw_metadata, dict):
+                self._metadata = raw_metadata
+            else:
+                self._metadata = {}
+        else:
+            self._metadata = {}
 
         if not self._project_id:
             raise ValueError("Service account JSON missing project_id")

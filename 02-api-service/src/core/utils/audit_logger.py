@@ -9,7 +9,6 @@ import logging
 import uuid
 import json
 from typing import Optional, Dict, Any
-from datetime import datetime
 from google.cloud import bigquery
 
 from src.app.config import settings

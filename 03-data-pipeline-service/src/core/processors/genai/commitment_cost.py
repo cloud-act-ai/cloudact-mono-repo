@@ -26,6 +26,7 @@ from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
+from src.core.utils.validators import is_valid_org_slug
 
 
 class CommitmentCostProcessor:
@@ -72,6 +73,10 @@ class CommitmentCostProcessor:
 
         if not org_slug:
             return {"status": "FAILED", "error": "org_slug is required"}
+
+        # MT-FIX: Validate org_slug format to prevent injection attacks
+        if not is_valid_org_slug(org_slug):
+            return {"status": "FAILED", "error": f"Invalid org_slug format: {org_slug}"}
 
         provider = config.get("provider")
         process_date = self._parse_date(config.get("date") or context.get("start_date"))

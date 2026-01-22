@@ -179,6 +179,10 @@ class IntegrationStatusResponse(BaseModel):
     last_validated_at: Optional[datetime] = None
     last_error: Optional[str] = None
     created_at: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Integration metadata (e.g., billing_export_table for GCP)"
+    )
 
 
 class SetupIntegrationResponse(BaseModel):
@@ -729,6 +733,7 @@ async def get_all_integrations(
                     last_validated_at=datetime.fromisoformat(data["last_validated"]) if data.get("last_validated") else None,
                     last_error=data.get("last_error"),
                     created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
+                    metadata=data.get("metadata"),
                 )
             else:
                 integrations[provider] = IntegrationStatusResponse(
@@ -738,6 +743,7 @@ async def get_all_integrations(
                     last_validated_at=None,
                     last_error=None,
                     created_at=None,
+                    metadata=None,
                 )
 
         return AllIntegrationsResponse(
@@ -861,7 +867,7 @@ async def update_integration(
     # Check if integration exists
     try:
         check_query = f"""
-        SELECT credential_id, credential_name
+        SELECT credential_id, credential_name, metadata
         FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
         WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
         LIMIT 1
@@ -887,6 +893,19 @@ async def update_integration(
 
         existing_credential_id = check_result[0]["credential_id"]
         existing_name = check_result[0]["credential_name"]
+        existing_metadata_raw = check_result[0].get("metadata")
+
+        # Parse existing metadata
+        existing_metadata = {}
+        if existing_metadata_raw:
+            import json
+            try:
+                if isinstance(existing_metadata_raw, str):
+                    existing_metadata = json.loads(existing_metadata_raw)
+                elif isinstance(existing_metadata_raw, dict):
+                    existing_metadata = existing_metadata_raw
+            except json.JSONDecodeError:
+                existing_metadata = {}
 
         # BUG-004 FIX: Verify credential_id belongs to this org (paranoid check)
         # The query already filters by org_slug, but explicitly validate for security
@@ -939,8 +958,22 @@ async def update_integration(
             import json
             # BUG-007 FIX: Validate metadata size before JSON serialization
             enforce_metadata_size_limit(update_request.metadata, org_slug)
-            update_fields.append("metadata = @metadata")
-            query_params.append(bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(update_request.metadata)))
+
+            # Merge new metadata with existing metadata (preserve project_id, client_email, etc.)
+            merged_metadata = existing_metadata.copy()
+            merged_metadata.update(update_request.metadata)
+
+            # BUG-020 FIX: Validate merged metadata JSON schema before update
+            is_valid, error_msg = validate_metadata(provider_upper, merged_metadata)
+            if not is_valid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid metadata structure: {error_msg}"
+                )
+
+            # Use PARSE_JSON to convert string to JSON type for BigQuery
+            update_fields.append("metadata = PARSE_JSON(@metadata)")
+            query_params.append(bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(merged_metadata)))
 
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_integration_credentials`
@@ -948,10 +981,33 @@ async def update_integration(
         WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
         """
 
-        bq_client.client.query(
-            update_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=query_params)
-        ).result()
+        logger.info(
+            f"Executing metadata update query",
+            extra={
+                "org_slug": org_slug,
+                "provider": provider_upper,
+                "update_fields": update_fields,
+                "query_preview": update_query[:200]
+            }
+        )
+
+        try:
+            query_job = bq_client.client.query(
+                update_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=query_params)
+            )
+            query_job.result()
+        except Exception as query_error:
+            logger.error(
+                f"BigQuery UPDATE failed: {str(query_error)}",
+                extra={
+                    "org_slug": org_slug,
+                    "provider": provider_upper,
+                    "error_type": type(query_error).__name__,
+                    "error_message": str(query_error)
+                }
+            )
+            raise
 
         logger.info(f"Updated {provider_upper} integration metadata for {org_slug}")
 
@@ -968,14 +1024,20 @@ async def update_integration(
         raise
     except Exception as e:
         # SECURITY: Log full details but return generic message to client
+        error_msg = str(e)
         logger.error(
-            f"Error updating integration for {org_slug}/{provider_upper}",
-            extra={"error_type": type(e).__name__},
+            f"Error updating integration for {org_slug}/{provider_upper}: {error_msg}",
+            extra={
+                "error_type": type(e).__name__,
+                "error_message": error_msg[:500],
+                "org_slug": org_slug,
+                "provider": provider_upper
+            },
             exc_info=True
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update integration. Please try again or contact support."
+            detail=f"Failed to update integration: {error_msg[:200]}"
         )
 
 

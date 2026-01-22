@@ -88,17 +88,18 @@ mkdir -p $REPO_ROOT/logs
 
 **API Service (8000):**
 ```bash
-cd $REPO_ROOT/02-api-service && python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload > ../logs/api.log 2>&1 &
+cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload > ../logs/api.log 2>&1 &
 ```
 
 **Pipeline Service (8001):**
 ```bash
-cd $REPO_ROOT/03-data-pipeline-service && python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload > ../logs/pipeline.log 2>&1 &
+cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload > ../logs/pipeline.log 2>&1 &
 ```
 
 **Frontend (3000):**
 ```bash
-cd $REPO_ROOT/01-fronted-system && npm run dev > ../logs/frontend.log 2>&1 &
+# Use wrapper script to add timestamps and strip ANSI codes
+$REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
 ```
 
 **Step 5: Wait and Verify Health**
@@ -178,7 +179,7 @@ curl -s "$API_URL/health" | python3 -m json.tool
 pkill -9 -f "uvicorn.*8000" 2>/dev/null || true
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 sleep 1
-cd $REPO_ROOT/02-api-service && python3 -m uvicorn src.app.main:app --port 8000 --reload &
+cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8000 --reload > ../logs/api.log 2>&1 &
 ```
 
 ### Local Pipeline Only
@@ -186,17 +187,18 @@ cd $REPO_ROOT/02-api-service && python3 -m uvicorn src.app.main:app --port 8000 
 pkill -9 -f "uvicorn.*8001" 2>/dev/null || true
 lsof -ti:8001 | xargs kill -9 2>/dev/null || true
 sleep 1
-cd $REPO_ROOT/03-data-pipeline-service && python3 -m uvicorn src.app.main:app --port 8001 --reload &
+cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8001 --reload > ../logs/pipeline.log 2>&1 &
 ```
 
 ### Local Frontend Only
 ```bash
 pkill -9 -f "next-server" 2>/dev/null || true
 pkill -9 -f "node.*next" 2>/dev/null || true
+pkill -9 -f "run-frontend.sh" 2>/dev/null || true
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 rm -rf $REPO_ROOT/01-fronted-system/.next
 sleep 1
-cd $REPO_ROOT/01-fronted-system && npm run dev &
+$REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
 ```
 
 ---

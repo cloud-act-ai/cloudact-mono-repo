@@ -121,6 +121,29 @@ KNOWN_DAILY_PIPELINES = [
 
 
 # ============================================
+# Pipeline Status Cache (60 second TTL to reduce BigQuery load)
+# ============================================
+import time
+
+_pipeline_status_cache: Dict[str, tuple] = {}  # org_slug -> (timestamp, response)
+PIPELINE_STATUS_CACHE_TTL = 60  # seconds
+
+
+def _get_cached_status(org_slug: str) -> Optional[PipelineStatusResponse]:
+    """Get cached pipeline status if still valid."""
+    if org_slug in _pipeline_status_cache:
+        cached_time, cached_response = _pipeline_status_cache[org_slug]
+        if time.time() - cached_time < PIPELINE_STATUS_CACHE_TTL:
+            return cached_response
+    return None
+
+
+def _set_cached_status(org_slug: str, response: PipelineStatusResponse) -> None:
+    """Cache pipeline status response."""
+    _pipeline_status_cache[org_slug] = (time.time(), response)
+
+
+# ============================================
 # Pipeline Status Endpoint (for auto-trigger)
 # ============================================
 
@@ -152,6 +175,13 @@ async def get_pipeline_status(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: org_slug mismatch"
         )
+
+    # Check cache first (60 second TTL)
+    cached = _get_cached_status(org_slug)
+    if cached:
+        logger.debug(f"Pipeline status cache hit for {org_slug}")
+        cached.cached = True
+        return cached
 
     from datetime import date as date_type
     today = date_type.today()
@@ -232,12 +262,17 @@ async def get_pipeline_status(
 
         logger.info(f"Pipeline status check for {org_slug}: {len(pipelines_status)} pipelines checked")
 
-        return PipelineStatusResponse(
+        response = PipelineStatusResponse(
             org_slug=org_slug,
             check_date=today_str,
             pipelines=pipelines_status,
             cached=False
         )
+
+        # Cache the response (60 second TTL)
+        _set_cached_status(org_slug, response)
+
+        return response
 
     except Exception as e:
         logger.error(f"Error checking pipeline status: {e}")

@@ -14,6 +14,11 @@ import uuid
 
 from src.core.processors.cloud.oci.authenticator import OCIAuthenticator
 from src.app.config import get_settings
+from src.core.utils.validators import (
+    is_valid_org_slug,
+    is_valid_date_format,
+    is_valid_oci_ocid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +56,17 @@ class OCICostExtractor:
         if not self.org_slug:
             return {"status": "FAILED", "error": "org_slug is required"}
 
+        # MT-FIX: Validate org_slug format to prevent injection attacks
+        if not is_valid_org_slug(self.org_slug):
+            return {"status": "FAILED", "error": f"Invalid org_slug format: {self.org_slug}"}
+
         config = step_config.get("config", {})
         date_filter = config.get("date_filter") or context.get("date")
         granularity = config.get("granularity", "DAILY")
+
+        # MT-FIX: Validate date format to prevent injection
+        if date_filter and not is_valid_date_format(date_filter):
+            return {"status": "FAILED", "error": f"Invalid date format: {date_filter}. Expected YYYY-MM-DD"}
 
         logger.info(
             f"Extracting OCI cost data",
@@ -68,6 +81,10 @@ class OCICostExtractor:
             # Authenticate with OCI
             self._auth = OCIAuthenticator(self.org_slug)
             await self._auth.authenticate()
+
+            # MT-FIX: Validate tenancy OCID format from retrieved credentials
+            if self._auth.tenancy_ocid and not is_valid_oci_ocid(self._auth.tenancy_ocid, "tenancy"):
+                return {"status": "FAILED", "error": f"Invalid OCI tenancy OCID format: {self._auth.tenancy_ocid}"}
 
             # Parse date range
             if date_filter:

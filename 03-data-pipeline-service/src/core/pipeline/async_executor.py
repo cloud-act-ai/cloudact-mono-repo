@@ -1398,7 +1398,12 @@ class AsyncPipelineExecutor:
 
             # FIX: Check processor result status - processors may return {"status": "FAILED", "error": "..."}
             # instead of raising exceptions (e.g., procedure_executor.py catches BigQuery errors)
-            processor_status = result.get('status', 'SUCCESS')
+            # NOTE: Some processors (like external_bq_extractor) return a list of rows, not a dict
+            if isinstance(result, dict):
+                processor_status = result.get('status', 'SUCCESS')
+            else:
+                # Result is a list or other type - assume success if no exception was raised
+                processor_status = 'SUCCESS'
             if processor_status == "FAILED":
                 # Processor reported failure - extract error and fail the step
                 error_message = result.get('error', 'Unknown error from processor')

@@ -9,7 +9,6 @@ import logging
 import uuid
 import json
 from typing import Optional, Dict, Any
-from datetime import datetime
 from google.cloud import bigquery
 
 from src.app.config import settings
@@ -101,13 +100,14 @@ class AuditLogger:
             details_json = json.dumps(details) if details else None
 
             # Insert audit log entry
+            # Note: details column is JSON type, so we use PARSE_JSON() to convert the string
             insert_query = f"""
             INSERT INTO `{settings.gcp_project_id}.organizations.org_audit_logs`
             (audit_id, org_slug, user_id, api_key_id, action, resource_type, resource_id,
              details, ip_address, user_agent, request_id, status, error_message, created_at)
             VALUES
             (@audit_id, @org_slug, @user_id, @api_key_id, @action, @resource_type, @resource_id,
-             @details, @ip_address, @user_agent, @request_id, @status, @error_message, CURRENT_TIMESTAMP())
+             PARSE_JSON(@details), @ip_address, @user_agent, @request_id, @status, @error_message, CURRENT_TIMESTAMP())
             """
 
             bq_client = self._get_bq_client()

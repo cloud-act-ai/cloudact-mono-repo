@@ -68,7 +68,10 @@ steps:
         - name: p_dataset_id
           type: STRING
           value: "${org_dataset}"
-    on_failure: continue # Skip validation failures for now (BUG-031: table_name column missing)
+        - name: p_pipeline_logging_id
+          type: STRING
+          value: "${run_id}"
+    on_failure: continue # Continue on validation failures to avoid blocking pipelines
 
   # Single step that runs the orchestrator procedure
   # The procedure internally calls:

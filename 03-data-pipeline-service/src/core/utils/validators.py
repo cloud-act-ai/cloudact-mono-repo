@@ -384,3 +384,170 @@ def sanitize_sql_identifier(identifier: str, field_name: str = "identifier") -> 
         )
 
     return identifier
+
+
+# ============================================================================
+# Cloud Provider-Specific Validation (MT-FIX: Multi-tenancy security)
+# ============================================================================
+
+# AWS S3 bucket name pattern (per AWS documentation)
+AWS_S3_BUCKET_PATTERN = re.compile(r'^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
+
+# Azure subscription ID is a GUID
+AZURE_SUBSCRIPTION_PATTERN = re.compile(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+)
+
+# OCI OCID pattern
+OCI_OCID_PATTERN = re.compile(r'^ocid1\.[a-z]+\.[a-z0-9]+\.[a-z0-9-]*\.[a-zA-Z0-9]+$')
+
+
+def is_valid_date_format(date_str: str) -> bool:
+    """
+    Check if date string is valid YYYY-MM-DD format without raising exception.
+
+    MT-FIX: Prevents SQL injection via malformed date strings.
+
+    Args:
+        date_str: Date string to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not date_str:
+        return False
+    if not DATE_PATTERN.match(date_str):
+        return False
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+        return True
+    except ValueError:
+        return False
+
+
+def is_valid_s3_bucket(bucket_name: str) -> bool:
+    """
+    Validate AWS S3 bucket name format.
+
+    MT-FIX: Prevents bucket name injection attacks.
+
+    Args:
+        bucket_name: S3 bucket name to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not bucket_name:
+        return False
+    # S3 bucket names: 3-63 chars, lowercase alphanumeric, dots, hyphens
+    # Cannot start/end with dot or hyphen, no consecutive dots
+    if len(bucket_name) < 3 or len(bucket_name) > 63:
+        return False
+    if not AWS_S3_BUCKET_PATTERN.match(bucket_name):
+        return False
+    if '..' in bucket_name:
+        return False
+    if bucket_name.startswith('.') or bucket_name.endswith('.'):
+        return False
+    return True
+
+
+def is_valid_s3_prefix(prefix: str) -> bool:
+    """
+    Validate S3 prefix for path traversal attacks.
+
+    MT-FIX: Prevents cross-tenant bucket access via path traversal.
+
+    Args:
+        prefix: S3 prefix to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not prefix:
+        return True  # Empty prefix is valid
+    # Prevent path traversal
+    if '..' in prefix:
+        return False
+    # Prevent absolute paths that could escape bucket
+    if prefix.startswith('/'):
+        return False
+    # Check for null bytes
+    if '\x00' in prefix:
+        return False
+    # Check max length
+    if len(prefix) > 1024:
+        return False
+    return True
+
+
+def is_valid_azure_subscription_id(subscription_id: str) -> bool:
+    """
+    Validate Azure subscription ID format (GUID).
+
+    MT-FIX: Ensures subscription ID is properly formatted.
+
+    Args:
+        subscription_id: Azure subscription ID to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not subscription_id:
+        return False
+    return bool(AZURE_SUBSCRIPTION_PATTERN.match(subscription_id))
+
+
+def is_valid_oci_ocid(ocid: str, resource_type: Optional[str] = None) -> bool:
+    """
+    Validate OCI OCID format.
+
+    MT-FIX: Ensures OCID is properly formatted to prevent injection.
+
+    Args:
+        ocid: OCI OCID to validate
+        resource_type: Optional resource type (tenancy, compartment, etc.)
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not ocid:
+        return False
+    if not OCI_OCID_PATTERN.match(ocid):
+        return False
+    # If resource type specified, verify it matches
+    if resource_type:
+        expected_prefix = f'ocid1.{resource_type}.'
+        if not ocid.startswith(expected_prefix):
+            return False
+    return True
+
+
+def is_valid_bigquery_table_path(table_path: str) -> bool:
+    """
+    Validate BigQuery fully-qualified table path.
+
+    MT-FIX: Prevents SQL injection via malformed table paths.
+
+    Args:
+        table_path: BigQuery table path (project.dataset.table)
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not table_path:
+        return False
+    # Prevent path traversal
+    if '..' in table_path or table_path.startswith('/'):
+        return False
+    # Must have exactly 3 parts
+    parts = table_path.split('.')
+    if len(parts) != 3:
+        return False
+    # Each part must be valid identifier (alphanumeric, underscore, hyphen)
+    for part in parts:
+        if not part:
+            return False
+        if not re.match(r'^[a-zA-Z0-9_-]+$', part):
+            return False
+    return True

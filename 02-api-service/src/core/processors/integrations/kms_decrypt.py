@@ -608,6 +608,7 @@ class GetIntegrationStatusProcessor:
 
         try:
             # BUG-024 FIX: Query with pagination
+            # Include metadata for UI display (e.g., billing_export_table for GCP)
             query = f"""
             SELECT
                 provider,
@@ -616,7 +617,8 @@ class GetIntegrationStatusProcessor:
                 last_validated_at,
                 last_error,
                 created_at,
-                updated_at
+                updated_at,
+                metadata
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug AND is_active = TRUE
             ORDER BY provider
@@ -635,14 +637,25 @@ class GetIntegrationStatusProcessor:
                 )
             ).result())
 
+            import json
+
             integrations = {}
             for row in results:
+                # Parse metadata JSON if present
+                metadata = None
+                if row.get("metadata"):
+                    try:
+                        metadata = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+                    except (json.JSONDecodeError, TypeError):
+                        metadata = None
+
                 integrations[row["provider"]] = {
                     "status": row["validation_status"],
                     "name": row.get("credential_name"),
                     "last_validated": row["last_validated_at"].isoformat() if row.get("last_validated_at") else None,
                     "last_error": row.get("last_error"),
                     "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+                    "metadata": metadata,
                 }
 
             return {

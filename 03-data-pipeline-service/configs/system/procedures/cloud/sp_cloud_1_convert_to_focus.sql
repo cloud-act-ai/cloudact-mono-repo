@@ -85,6 +85,34 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('gcp', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- INSERT with CTE for hierarchy lookup (BigQuery requires INSERT before WITH)
+        INSERT INTO `%s.%s.cost_data_standard_1_3`
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+         InvoiceIssuerName, ServiceProviderName, HostProviderName,
+         ServiceCategory, ServiceName, ServiceSubcategory,
+         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ChargeCategory, ChargeType, ChargeFrequency,
+         SubAccountId, SubAccountName,
+         SkuId, SkuPriceDetails,
+         Tags,
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to expand hierarchy from tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -114,33 +142,6 @@ BEGIN
           WHERE org_slug = @v_org_slug
             AND end_date IS NULL
         )
-        INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
-         InvoiceIssuerName, ServiceProviderName, HostProviderName,
-         ServiceCategory, ServiceName, ServiceSubcategory,
-         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
-         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
-         SubAccountId, SubAccountName,
-         SkuId, SkuPriceDetails,
-         Tags,
-         x_source_system, x_source_record_id, x_updated_at,
-         -- Issue #3 FIX: snake_case for x_* fields
-         x_cloud_provider, x_cloud_account_id,
-         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
-         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
-         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
-         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
-         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
-         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
-         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
-         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
-         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
-         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
-         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
-         x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           billing_account_id as BillingAccountId,
           TIMESTAMP(usage_start_time) as ChargePeriodStart,
@@ -240,7 +241,7 @@ BEGIN
         )
         WHERE DATE(b.usage_start_time) = @p_date
           AND b.cost > 0
-      """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
+      """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
@@ -251,6 +252,35 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('aws', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- INSERT with CTE for hierarchy lookup (BigQuery requires INSERT before WITH)
+        INSERT INTO `%s.%s.cost_data_standard_1_3`
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+         InvoiceIssuerName, ServiceProviderName, HostProviderName,
+         ServiceCategory, ServiceName, ServiceSubcategory,
+         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ChargeCategory, ChargeType, ChargeFrequency,
+         SubAccountId, SubAccountName,
+         SkuId, SkuPriceDetails,
+         Tags,
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
+         CommitmentDiscountId, CommitmentDiscountType,
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to expand hierarchy from tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -280,34 +310,6 @@ BEGIN
           WHERE org_slug = @v_org_slug
             AND end_date IS NULL
         )
-        INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
-         InvoiceIssuerName, ServiceProviderName, HostProviderName,
-         ServiceCategory, ServiceName, ServiceSubcategory,
-         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
-         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
-         SubAccountId, SubAccountName,
-         SkuId, SkuPriceDetails,
-         Tags,
-         x_source_system, x_source_record_id, x_updated_at,
-         -- Issue #3 FIX: snake_case for x_* fields
-         x_cloud_provider, x_cloud_account_id,
-         CommitmentDiscountId, CommitmentDiscountType,
-         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
-         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
-         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
-         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
-         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
-         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
-         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
-         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
-         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
-         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
-         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
-         x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           b.payer_account_id as BillingAccountId,
           COALESCE(b.usage_start_time, TIMESTAMP(b.usage_date)) as ChargePeriodStart,
@@ -420,7 +422,7 @@ BEGIN
         )
         WHERE b.usage_date = @p_date
           AND b.unblended_cost > 0
-      """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
+      """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
@@ -431,6 +433,35 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('azure', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- INSERT with CTE for hierarchy lookup (BigQuery requires INSERT before WITH)
+        INSERT INTO `%s.%s.cost_data_standard_1_3`
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+         InvoiceIssuerName, ServiceProviderName, HostProviderName,
+         ServiceCategory, ServiceName, ServiceSubcategory,
+         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ChargeCategory, ChargeType, ChargeFrequency,
+         SubAccountId, SubAccountName,
+         SkuId, SkuPriceDetails,
+         Tags,
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
+         CommitmentDiscountId, CommitmentDiscountName, CommitmentDiscountType,
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
+         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to expand hierarchy from tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -460,34 +491,6 @@ BEGIN
           WHERE org_slug = @v_org_slug
             AND end_date IS NULL
         )
-        INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
-         InvoiceIssuerName, ServiceProviderName, HostProviderName,
-         ServiceCategory, ServiceName, ServiceSubcategory,
-         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
-         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
-         SubAccountId, SubAccountName,
-         SkuId, SkuPriceDetails,
-         Tags,
-         x_source_system, x_source_record_id, x_updated_at,
-         -- Issue #3 FIX: snake_case for x_* fields
-         x_cloud_provider, x_cloud_account_id,
-         CommitmentDiscountId, CommitmentDiscountName, CommitmentDiscountType,
-         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
-         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
-         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
-         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
-         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
-         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
-         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
-         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
-         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
-         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
-         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
-         x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           b.subscription_id as BillingAccountId,
           TIMESTAMP(b.usage_date) as ChargePeriodStart,
@@ -589,7 +592,7 @@ BEGIN
         )
         WHERE b.usage_date = @p_date
           AND b.cost_in_billing_currency > 0
-      """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
+      """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
@@ -600,6 +603,34 @@ BEGIN
     -- ============================================================================
     IF p_provider IN ('oci', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
+        -- INSERT with CTE for hierarchy lookup (BigQuery requires INSERT before WITH)
+        INSERT INTO `%s.%s.cost_data_standard_1_3`
+        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+         InvoiceIssuerName, ServiceProviderName, HostProviderName,
+         ServiceCategory, ServiceName, ServiceSubcategory,
+         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
+         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
+         ChargeCategory, ChargeType, ChargeFrequency,
+         SubAccountId, SubAccountName,
+         SkuId, SkuPriceDetails,
+         Tags,
+         x_source_system, x_source_record_id, x_updated_at,
+         -- Issue #3 FIX: snake_case for x_* fields
+         x_cloud_provider, x_cloud_account_id,
+         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
+         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
+         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
+         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
+         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
+         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
+         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
+         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
+         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
+         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
+         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+         x_hierarchy_validated_at,
+                  x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to expand hierarchy from tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -629,33 +660,6 @@ BEGIN
           WHERE org_slug = @v_org_slug
             AND end_date IS NULL
         )
-        INSERT INTO `%s.%s.cost_data_standard_1_3`
-        (BillingAccountId, ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
-         InvoiceIssuerName, ServiceProviderName, HostProviderName,
-         ServiceCategory, ServiceName, ServiceSubcategory,
-         ResourceId, ResourceName, ResourceType, RegionId, RegionName,
-         ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
-         ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
-         SubAccountId, SubAccountName,
-         SkuId, SkuPriceDetails,
-         Tags,
-         x_source_system, x_source_record_id, x_updated_at,
-         -- Issue #3 FIX: snake_case for x_* fields
-         x_cloud_provider, x_cloud_account_id,
-         -- 10-level hierarchy extension fields (v15.0) - populated from resource tags
-         x_hierarchy_level_1_id, x_hierarchy_level_1_name,
-         x_hierarchy_level_2_id, x_hierarchy_level_2_name,
-         x_hierarchy_level_3_id, x_hierarchy_level_3_name,
-         x_hierarchy_level_4_id, x_hierarchy_level_4_name,
-         x_hierarchy_level_5_id, x_hierarchy_level_5_name,
-         x_hierarchy_level_6_id, x_hierarchy_level_6_name,
-         x_hierarchy_level_7_id, x_hierarchy_level_7_name,
-         x_hierarchy_level_8_id, x_hierarchy_level_8_name,
-         x_hierarchy_level_9_id, x_hierarchy_level_9_name,
-         x_hierarchy_level_10_id, x_hierarchy_level_10_name,
-         x_hierarchy_validated_at,
-                  x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         SELECT
           b.tenancy_id as BillingAccountId,
           TIMESTAMP(b.usage_date) as ChargePeriodStart,
@@ -756,7 +760,7 @@ BEGIN
         )
         WHERE b.usage_date = @p_date
           AND b.cost > 0
-      """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
+      """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;

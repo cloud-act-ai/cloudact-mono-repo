@@ -692,6 +692,13 @@ async def _call_pipeline_service_with_retry(
     - /trigger/acme/gcp/cost/billing
     """
 )
+@router.post(
+    "/run/{org_slug}/{provider}/{domain}/{pipeline}",
+    response_model=PipelineTriggerResponse,
+    summary="Run a pipeline (alias for /trigger)",
+    description="Alias for /trigger endpoint for backward compatibility.",
+    include_in_schema=False,  # Hide from docs to avoid confusion
+)
 async def trigger_pipeline(
     org_slug: str,
     provider: str,
@@ -804,6 +811,175 @@ async def trigger_pipeline(
             )
         else:
             # Other errors
+            try:
+                error_detail = proxy_response.json().get("detail", proxy_response.text)
+            except Exception:
+                error_detail = proxy_response.text
+
+            logger.error(
+                f"Pipeline service returned error",
+                extra={
+                    "request_id": request_id,
+                    "status_code": proxy_response.status_code,
+                    "detail": error_detail,
+                    "org_slug": org_slug
+                }
+            )
+            raise HTTPException(
+                status_code=proxy_response.status_code,
+                detail=f"Pipeline service error: {error_detail}",
+                headers={"X-Request-ID": request_id}
+            )
+
+    except httpx.TimeoutException:
+        logger.error(
+            f"Pipeline service timeout after retries",
+            extra={"request_id": request_id, "org_slug": org_slug}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Pipeline service timed out after retries",
+            headers={"X-Request-ID": request_id}
+        )
+    except httpx.RequestError as e:
+        logger.error(
+            f"Pipeline service connection error after retries",
+            extra={"request_id": request_id, "org_slug": org_slug, "error": str(e)}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to connect to pipeline service after retries: {str(e)}",
+            headers={"X-Request-ID": request_id}
+        )
+
+
+# ==============================================================================
+# Cloud Pipeline Trigger (5-segment path: /run/{org}/cloud/{provider}/{domain}/{pipeline})
+# ==============================================================================
+
+@router.post(
+    "/run/{org_slug}/{category}/{provider}/{domain}/{pipeline}",
+    response_model=PipelineTriggerResponse,
+    summary="Run a cloud pipeline (5-segment path)",
+    description="Cloud pipeline path with category: /run/{org}/cloud/{provider}/{domain}/{pipeline}",
+    include_in_schema=False,  # Hide from docs to avoid duplication
+)
+async def trigger_cloud_pipeline(
+    org_slug: str,
+    category: str,
+    provider: str,
+    domain: str,
+    pipeline: str,
+    request: Request,
+    response: Response,
+    body: PipelineTriggerRequest = PipelineTriggerRequest(),
+    org_context: OrgContext = Depends(verify_api_key)
+) -> PipelineTriggerResponse:
+    """
+    Proxy cloud pipeline trigger to pipeline-service (8001).
+
+    Handles 5-segment paths like: /run/{org}/cloud/gcp/cost/billing
+    Forwards as: /api/v1/pipelines/run/{org}/{category}/{provider}/{domain}/{pipeline}
+    """
+    # E2: Get request ID for tracing
+    request_id = get_request_id(request)
+    response.headers["X-Request-ID"] = request_id
+
+    # Validate access
+    validate_org_access(org_slug, org_context)
+
+    # E4: Validate scope (backward compatible)
+    validate_scope(org_context, PIPELINE_EXECUTE_SCOPE)
+
+    # Validate path segments to prevent path traversal/injection
+    validate_path_segment(category, "category")
+    validate_path_segment(provider, "provider")
+    validate_path_segment(domain, "domain")
+    validate_path_segment(pipeline, "pipeline")
+
+    # Apply rate limiting (30 requests per minute per org for pipeline triggers)
+    is_allowed, rate_metadata = await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=30,
+        endpoint_name="pipeline_trigger"
+    )
+
+    # E1: Add rate limit headers
+    add_rate_limit_headers(response, rate_metadata, 30)
+
+    if not is_allowed:
+        retry_after = int(rate_metadata.get("minute", {}).get("reset", 60))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded for pipeline triggers",
+            headers={
+                "Retry-After": str(retry_after),
+                "X-Request-ID": request_id
+            }
+        )
+
+    # Get API key from request headers for forwarding
+    api_key = request.headers.get("x-api-key", "")
+
+    # Build pipeline service URL with 5-segment path
+    pipeline_url = f"{settings.pipeline_service_url}/api/v1/pipelines/run/{org_slug}/{category}/{provider}/{domain}/{pipeline}"
+
+    logger.info(
+        f"Proxying cloud pipeline trigger",
+        extra={
+            "request_id": request_id,
+            "org_slug": org_slug,
+            "category": category,
+            "provider": provider,
+            "domain": domain,
+            "pipeline": pipeline,
+            "target_url": pipeline_url
+        }
+    )
+
+    # Build request body
+    request_body = {}
+    if body.start_date:
+        request_body["start_date"] = body.start_date
+    if body.end_date:
+        request_body["end_date"] = body.end_date
+
+    try:
+        client = await get_http_client()
+        proxy_response = await _call_pipeline_service_with_retry(
+            client=client,
+            url=pipeline_url,
+            headers={
+                "X-API-Key": api_key,
+                "X-Request-ID": request_id,
+                "Content-Type": "application/json"
+            },
+            body=request_body
+        )
+
+        # Parse response
+        if proxy_response.status_code == 200:
+            data = proxy_response.json()
+
+            # Invalidate cache after successful trigger
+            cache_delete_for_org(org_slug)
+
+            return PipelineTriggerResponse(
+                pipeline_logging_id=data.get("pipeline_logging_id"),
+                pipeline_id=data.get("pipeline_id"),
+                org_slug=org_slug,
+                status=data.get("status", "PENDING"),
+                message=data.get("message", "Pipeline triggered successfully"),
+                request_id=request_id
+            )
+        elif proxy_response.status_code == 429:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=proxy_response.json().get("detail", "Pipeline rate limit exceeded"),
+                headers={"X-Request-ID": request_id}
+            )
+        else:
             try:
                 error_detail = proxy_response.json().get("detail", proxy_response.text)
             except Exception:

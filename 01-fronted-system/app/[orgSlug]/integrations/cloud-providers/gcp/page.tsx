@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
-import { Cloud, Loader2, Check, AlertCircle, ArrowLeft, Upload, FileJson, X, Key, Clock, Shield, RefreshCw, Trash2, CheckCircle2 } from "lucide-react"
+import { Loader2, Check, AlertCircle, ArrowLeft, Upload, FileJson, X, Key, Clock, Shield, RefreshCw, Trash2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
+import { ProviderLogo } from "@/components/ui/provider-logo"
 
 import {
   Dialog,
@@ -19,7 +20,17 @@ import {
   setupIntegration,
   validateIntegration,
   deleteIntegration,
+  updateIntegrationMetadata,
 } from "@/actions/integrations"
+
+// Additional billing account type (for multi-billing-account support)
+interface BillingAccount {
+  name: string
+  billing_export_table: string
+  detailed_export_table?: string
+  pricing_export_table?: string
+  committed_use_discount_table?: string
+}
 
 interface IntegrationStatus {
   provider: string
@@ -28,6 +39,23 @@ interface IntegrationStatus {
   last_validated_at?: string
   last_error?: string
   created_at?: string
+  metadata?: {
+    billing_export_table?: string
+    detailed_export_table?: string
+    pricing_export_table?: string
+    committed_use_discount_table?: string
+    additional_billing_accounts?: BillingAccount[]
+    project_id?: string
+    client_email?: string
+    region?: string
+    environment?: string
+    [key: string]: unknown
+  }
+}
+
+// Helper to check if billing tables are configured
+function hasBillingTablesConfigured(metadata?: IntegrationStatus['metadata']): boolean {
+  return !!(metadata?.billing_export_table)
 }
 
 // Step Indicator Component
@@ -104,6 +132,16 @@ export default function GCPIntegrationPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
+  // Billing export table configuration (primary)
+  const [billingExportTable, setBillingExportTable] = useState("")
+  const [detailedExportTable, setDetailedExportTable] = useState("")
+  const [pricingExportTable, setPricingExportTable] = useState("")
+  const [cudTable, setCudTable] = useState("")
+  // Additional billing accounts (multi-billing-account support)
+  const [additionalAccounts, setAdditionalAccounts] = useState<BillingAccount[]>([])
+  const [showBillingConfig, setShowBillingConfig] = useState(false)
+  const [savingConfig, setSavingConfig] = useState(false)
+
   const status = integration?.status || "NOT_CONFIGURED"
   const isConfigured = status !== "NOT_CONFIGURED"
 
@@ -117,6 +155,18 @@ export default function GCPIntegrationPage() {
     if (result.success && result.integrations) {
       const gcpIntegration = result.integrations?.integrations?.["GCP_SA"]
       setIntegration(gcpIntegration)
+
+      // Populate billing export fields from metadata
+      if (gcpIntegration?.metadata) {
+        setBillingExportTable(String(gcpIntegration.metadata.billing_export_table || ""))
+        setDetailedExportTable(String(gcpIntegration.metadata.detailed_export_table || ""))
+        setPricingExportTable(String(gcpIntegration.metadata.pricing_export_table || ""))
+        setCudTable(String(gcpIntegration.metadata.committed_use_discount_table || ""))
+        // Load additional billing accounts
+        if (Array.isArray(gcpIntegration.metadata.additional_billing_accounts)) {
+          setAdditionalAccounts(gcpIntegration.metadata.additional_billing_accounts)
+        }
+      }
     } else {
       setError(result.error || "Failed to load integration status")
     }
@@ -301,6 +351,72 @@ export default function GCPIntegrationPage() {
     }
   }
 
+  // Handle save billing export configuration
+  const handleSaveBillingConfig = async () => {
+    setError(null)
+    setSuccessMessage(null)
+    setSavingConfig(true)
+
+    try {
+      // Validate table paths (must be project.dataset.table format)
+      const validateTablePath = (path: string, fieldName: string) => {
+        if (path && path.trim()) {
+          const trimmed = path.trim()
+          if (trimmed.split('.').length !== 3) {
+            throw new Error(`${fieldName} must be in format: project.dataset.table`)
+          }
+          if (trimmed.includes('..') || trimmed.startsWith('/')) {
+            throw new Error(`Invalid ${fieldName}: path traversal not allowed`)
+          }
+        }
+      }
+
+      validateTablePath(billingExportTable, "Billing Export Table")
+      validateTablePath(detailedExportTable, "Detailed Export Table")
+      validateTablePath(pricingExportTable, "Pricing Export Table")
+      validateTablePath(cudTable, "Committed Use Discount Table")
+
+      // Validate additional billing accounts
+      for (const account of additionalAccounts) {
+        if (!account.name.trim()) {
+          throw new Error("Additional billing account must have a name")
+        }
+        validateTablePath(account.billing_export_table, `${account.name} Billing Export Table`)
+        if (account.detailed_export_table) {
+          validateTablePath(account.detailed_export_table, `${account.name} Detailed Export Table`)
+        }
+      }
+
+      const result = await updateIntegrationMetadata({
+        orgSlug,
+        provider: "gcp",
+        metadata: {
+          // Preserve existing metadata fields
+          ...(integration?.metadata || {}),
+          // Update billing export tables
+          billing_export_table: billingExportTable.trim() || undefined,
+          detailed_export_table: detailedExportTable.trim() || undefined,
+          pricing_export_table: pricingExportTable.trim() || undefined,
+          committed_use_discount_table: cudTable.trim() || undefined,
+          // Additional billing accounts (multi-account support)
+          additional_billing_accounts: additionalAccounts.length > 0 ? additionalAccounts : undefined,
+        },
+      })
+
+      if (result.success) {
+        setSuccessMessage("Billing export configuration saved successfully!")
+        setShowBillingConfig(false)
+        await loadIntegration()
+      } else {
+        setError(result.error || "Failed to save configuration")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save configuration")
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return "Never"
     const date = new Date(dateString)
@@ -332,10 +448,8 @@ export default function GCPIntegrationPage() {
 
       {/* Header Section */}
       <div className="flex items-center gap-5">
-        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#4285F4] to-[#3367D6] flex items-center justify-center shadow-lg">
-          <svg className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12.19 2.38a9.344 9.344 0 0 1 9.426 9.428 9.344 9.344 0 0 1-9.426 9.428 9.344 9.344 0 0 1-9.426-9.428A9.344 9.344 0 0 1 12.19 2.38m-.012 2.544a6.751 6.751 0 0 0-6.768 6.76c0 1.745.675 3.408 1.9 4.686l4.796-4.796v-.001a2.423 2.423 0 0 1-.489-1.449c0-1.326 1.07-2.4 2.392-2.4a2.385 2.385 0 0 1 1.447.49v.001l4.796-4.796a6.733 6.733 0 0 0-4.686-1.9 6.705 6.705 0 0 0-3.388.905m0 9.56a2.388 2.388 0 0 1-2.398-2.396c0-.492.149-.965.424-1.364l-1.904-1.904A5.844 5.844 0 0 0 6.388 12c0 3.197 2.593 5.79 5.79 5.79.927 0 1.802-.224 2.578-.619l-1.904-1.904c-.399.275-.872.424-1.364.424m9.228-2.396a5.844 5.844 0 0 0-1.912-3.182l-1.904 1.904c.275.399.424.872.424 1.364a2.388 2.388 0 0 1-2.398 2.398c-.492 0-.965-.149-1.364-.424l-1.904 1.904a5.807 5.807 0 0 0 2.578.619 5.798 5.798 0 0 0 5.79-5.79z"/>
-          </svg>
+        <div className="h-16 w-16 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center shadow-lg">
+          <ProviderLogo provider="gcp" size={40} />
         </div>
         <div>
           <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Google Cloud Platform</h1>
@@ -380,7 +494,7 @@ export default function GCPIntegrationPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-xl bg-[#4285F4]/15 flex items-center justify-center">
-                <Cloud className="h-6 w-6 text-[#4285F4]" />
+                <Key className="h-6 w-6 text-[#4285F4]" />
               </div>
               <div>
                 <h2 className="text-[18px] font-bold text-slate-900">Service Account Connection</h2>
@@ -581,7 +695,7 @@ export default function GCPIntegrationPage() {
             /* Not configured state */
             <div className="text-center py-12">
               <div className="h-20 w-20 rounded-2xl bg-[#4285F4]/15 flex items-center justify-center mx-auto mb-6">
-                <Cloud className="h-10 w-10 text-[#4285F4]" />
+                <Upload className="h-10 w-10 text-[#4285F4]" />
               </div>
               <p className="text-[18px] font-bold text-slate-900 mb-3">
                 No Service Account Connected
@@ -669,11 +783,340 @@ export default function GCPIntegrationPage() {
         )}
       </div>
 
+      {/* Billing Export Configuration - Only show when connected */}
+      {isConfigured && (
+        <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm">
+          <div className="p-6 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center">
+                  <svg className="h-6 w-6 text-[#1a7a3a]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-[18px] font-bold text-slate-900">Billing Export Tables</h2>
+                  <p className="text-[14px] text-slate-500 mt-1">
+                    Configure your GCP billing export tables for cost data extraction
+                  </p>
+                </div>
+              </div>
+              {!showBillingConfig && (
+                <button
+                  onClick={() => setShowBillingConfig(true)}
+                  className="h-10 px-4 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  Configure
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="p-6">
+            {showBillingConfig ? (
+              <div className="space-y-6">
+                {/* Billing Export Table */}
+                <div>
+                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                    Standard Billing Export Table
+                    <span className="text-slate-400 font-normal ml-1">(Required)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={billingExportTable}
+                    onChange={(e) => setBillingExportTable(e.target.value)}
+                    placeholder="project-id.dataset.gcp_billing_export_v1_XXXXXX"
+                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                  />
+                  <p className="mt-2 text-[13px] text-slate-500">
+                    Standard billing export table (gcp_billing_export_v1_*). Found in BigQuery under your billing export dataset.
+                  </p>
+                </div>
+
+                {/* Detailed Export Table */}
+                <div>
+                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                    Detailed/Resource Export Table
+                  </label>
+                  <input
+                    type="text"
+                    value={detailedExportTable}
+                    onChange={(e) => setDetailedExportTable(e.target.value)}
+                    placeholder="project-id.dataset.gcp_billing_export_resource_v1_XXXXXX"
+                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                  />
+                  <p className="mt-2 text-[13px] text-slate-500">
+                    Detailed billing export with resource-level data (gcp_billing_export_resource_v1_*). Provides more granular cost breakdown.
+                  </p>
+                </div>
+
+                {/* Pricing Export Table */}
+                <div>
+                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                    Pricing Export Table
+                  </label>
+                  <input
+                    type="text"
+                    value={pricingExportTable}
+                    onChange={(e) => setPricingExportTable(e.target.value)}
+                    placeholder="project-id.dataset.cloud_pricing_export"
+                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                  />
+                  <p className="mt-2 text-[13px] text-slate-500">
+                    GCP pricing catalog export (cloud_pricing_export). Used for pricing lookups and cost optimization analysis.
+                  </p>
+                </div>
+
+                {/* Committed Use Discounts Table */}
+                <div>
+                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                    Committed Use Discounts Table
+                  </label>
+                  <input
+                    type="text"
+                    value={cudTable}
+                    onChange={(e) => setCudTable(e.target.value)}
+                    placeholder="project-id.dataset.committed_use_discount_export"
+                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                  />
+                  <p className="mt-2 text-[13px] text-slate-500">
+                    GCP Committed Use Discounts (CUD) export. Used for analyzing commitment utilization and savings.
+                  </p>
+                </div>
+
+                {/* Additional Billing Accounts Section */}
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-[15px] font-semibold text-slate-900">Additional Billing Accounts</h4>
+                      <p className="text-[13px] text-slate-500 mt-1">
+                        Enterprise organizations can configure multiple billing accounts for different business units
+                      </p>
+                    </div>
+                    {additionalAccounts.length < 10 && (
+                      <button
+                        onClick={() => {
+                          setAdditionalAccounts([
+                            ...additionalAccounts,
+                            { name: "", billing_export_table: "" }
+                          ])
+                        }}
+                        className="h-9 px-4 text-[13px] font-semibold rounded-lg border-2 border-[#90FCA6] text-[#1a7a3a] hover:bg-[#90FCA6]/10 transition-colors"
+                      >
+                        + Add Account
+                      </button>
+                    )}
+                  </div>
+
+                  {additionalAccounts.length > 0 && (
+                    <div className="space-y-4">
+                      {additionalAccounts.map((account, index) => (
+                        <div key={index} className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[13px] font-semibold text-slate-600">Billing Account {index + 1}</span>
+                            <button
+                              onClick={() => {
+                                setAdditionalAccounts(additionalAccounts.filter((_, i) => i !== index))
+                              }}
+                              className="text-[#FF6C5E] hover:bg-[#FF6C5E]/10 h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="block text-[13px] font-medium text-slate-600 mb-1">
+                              Account Name
+                            </label>
+                            <input
+                              type="text"
+                              value={account.name}
+                              onChange={(e) => {
+                                const updated = [...additionalAccounts]
+                                updated[index] = { ...updated[index], name: e.target.value }
+                                setAdditionalAccounts(updated)
+                              }}
+                              placeholder="e.g., Production, Development, Marketing"
+                              className="w-full h-10 px-3 text-[13px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[13px] font-medium text-slate-600 mb-1">
+                              Standard Billing Export Table
+                            </label>
+                            <input
+                              type="text"
+                              value={account.billing_export_table}
+                              onChange={(e) => {
+                                const updated = [...additionalAccounts]
+                                updated[index] = { ...updated[index], billing_export_table: e.target.value }
+                                setAdditionalAccounts(updated)
+                              }}
+                              placeholder="project-id.dataset.gcp_billing_export_v1_XXXXXX"
+                              className="w-full h-10 px-3 text-[13px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[13px] font-medium text-slate-600 mb-1">
+                              Detailed/Resource Export Table
+                            </label>
+                            <input
+                              type="text"
+                              value={account.detailed_export_table || ""}
+                              onChange={(e) => {
+                                const updated = [...additionalAccounts]
+                                updated[index] = { ...updated[index], detailed_export_table: e.target.value || undefined }
+                                setAdditionalAccounts(updated)
+                              }}
+                              placeholder="project-id.dataset.gcp_billing_export_resource_v1_XXXXXX"
+                              className="w-full h-10 px-3 text-[13px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Help Info */}
+                <div className="p-4 rounded-xl bg-[#4285F4]/10 border border-[#4285F4]/20">
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    <strong className="text-slate-800">How to find your billing export tables:</strong><br />
+                    1. Go to <a href="https://console.cloud.google.com/bigquery" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] hover:underline">BigQuery Console</a><br />
+                    2. Find your billing export dataset (usually named like <code className="bg-slate-200 px-1 rounded">cloudact_cost_usage</code>)<br />
+                    3. Copy the full table path: <code className="bg-slate-200 px-1 rounded">project.dataset.table_name</code>
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={handleSaveBillingConfig}
+                    disabled={savingConfig || !billingExportTable.trim()}
+                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {savingConfig && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Save Configuration
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBillingConfig(false)
+                      // Reset to saved values
+                      if (integration?.metadata) {
+                        setBillingExportTable(String(integration.metadata.billing_export_table || ""))
+                        setDetailedExportTable(String(integration.metadata.detailed_export_table || ""))
+                        setPricingExportTable(String(integration.metadata.pricing_export_table || ""))
+                        setCudTable(String(integration.metadata.committed_use_discount_table || ""))
+                        // Reset additional billing accounts
+                        if (Array.isArray(integration.metadata.additional_billing_accounts)) {
+                          setAdditionalAccounts(integration.metadata.additional_billing_accounts)
+                        } else {
+                          setAdditionalAccounts([])
+                        }
+                      }
+                    }}
+                    className="h-12 px-6 text-[15px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Display current configuration */
+              <div className="space-y-4">
+                {hasBillingTablesConfigured(integration?.metadata) ? (
+                  <>
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[13px] font-semibold text-slate-500 mb-1">Standard Billing Export</p>
+                        <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration?.metadata?.billing_export_table)}</p>
+                      </div>
+                    </div>
+                    {integration?.metadata?.detailed_export_table && (
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[13px] font-semibold text-slate-500 mb-1">Detailed Export</p>
+                          <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration.metadata.detailed_export_table)}</p>
+                        </div>
+                      </div>
+                    )}
+                    {integration?.metadata?.pricing_export_table && (
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[13px] font-semibold text-slate-500 mb-1">Pricing Export</p>
+                          <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration.metadata.pricing_export_table)}</p>
+                        </div>
+                      </div>
+                    )}
+                    {integration?.metadata?.committed_use_discount_table && (
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[13px] font-semibold text-slate-500 mb-1">Committed Use Discounts</p>
+                          <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration.metadata.committed_use_discount_table)}</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Additional Billing Accounts Display */}
+                    {integration?.metadata?.additional_billing_accounts && integration.metadata.additional_billing_accounts.length > 0 && (
+                      <div className="pt-4 mt-4 border-t border-slate-200">
+                        <p className="text-[14px] font-semibold text-slate-700 mb-3">Additional Billing Accounts ({integration.metadata.additional_billing_accounts.length})</p>
+                        <div className="space-y-3">
+                          {integration.metadata.additional_billing_accounts.map((account, index) => (
+                            <div key={index} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="h-6 w-6 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center">
+                                  <Check className="h-4 w-4 text-[#1a7a3a]" />
+                                </div>
+                                <span className="text-[14px] font-semibold text-slate-900">{account.name}</span>
+                              </div>
+                              <div className="ml-8 space-y-1">
+                                <p className="text-[12px] text-slate-500">Standard: <span className="font-mono text-slate-700">{account.billing_export_table}</span></p>
+                                {account.detailed_export_table && (
+                                  <p className="text-[12px] text-slate-500">Detailed: <span className="font-mono text-slate-700">{account.detailed_export_table}</span></p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <AlertCircle className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <p className="text-[16px] font-bold text-slate-900 mb-2">
+                      No Billing Tables Configured
+                    </p>
+                    <p className="text-[14px] text-slate-500 mb-6 max-w-md mx-auto">
+                      Configure your GCP billing export tables to enable cost data extraction
+                    </p>
+                    <button
+                      onClick={() => setShowBillingConfig(true)}
+                      className="h-11 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[14px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
+                    >
+                      Configure Tables
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Help Section */}
       <div className="rounded-2xl border-2 border-[#4285F4]/20 p-6 bg-white shadow-sm">
         <div className="flex items-center gap-3 mb-5">
           <div className="h-10 w-10 rounded-xl bg-[#4285F4]/15 flex items-center justify-center">
-            <Cloud className="h-5 w-5 text-[#4285F4]" />
+            <FileJson className="h-5 w-5 text-[#4285F4]" />
           </div>
           <h3 className="text-[18px] font-bold text-slate-900">
             How to get your Service Account JSON

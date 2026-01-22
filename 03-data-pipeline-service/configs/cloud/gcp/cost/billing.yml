@@ -9,6 +9,13 @@
 # PREREQUISITES:
 # 1. Organization must have a valid GCP_SA integration configured
 # 2. The GCP Service Account must have BigQuery read access to billing export
+# 3. billing_export_table must be configured in the integration metadata
+#
+# GCP BILLING EXPORT TABLE TYPES (configured in Settings → Integrations → GCP):
+# - billing_export_table: Standard export (gcp_billing_export_v1_*) - REQUIRED for cost data
+# - detailed_export_table: Resource export (gcp_billing_export_resource_v1_*)
+# - pricing_export_table: Pricing catalog (cloud_pricing_export)
+# - committed_use_discount_table: CUD data for commitment analysis
 
 pipeline_id: "{org_slug}-gcp-billing"
 name: "GCP Billing Sync"
@@ -24,9 +31,10 @@ variables:
   org_slug: "{org_slug}"
   provider: "gcp"
   # NOTE: source_billing_table should be configured per-org via integration settings
-  # This default is for development/testing only
+  # This comes from the org's GCP integration credentials
   source_billing_table: "{billing_export_table}"
-  use_org_credentials: "false"
+  # Multi-tenant: Use customer's GCP Service Account credentials to access their billing export
+  use_org_credentials: "true"
 
 steps:
   # Step 1 (Optional): Decrypt GCP credentials for customer's billing data
@@ -51,8 +59,8 @@ steps:
     timeout_minutes: 20
 
     source:
-      # bq_project_id is resolved from org credentials or env var
-      bq_project_id: "{gcp_project_id}"
+      # Multi-tenant: Use customer's GCP SA credentials to read their billing export
+      use_org_credentials: true
       query: |
         SELECT
           billing_account_id,
@@ -68,8 +76,11 @@ steps:
           location.location AS location_location,
           location.region AS location_region,
           location.zone AS location_zone,
-          resource.name AS resource_name,
-          resource.global_name AS resource_global_name,
+          -- NOTE: resource.name and resource.global_name only exist in detailed export (gcp_billing_export_resource_v1_*)
+          -- They are NOT available in standard export (gcp_billing_export_v1_*)
+          -- Use NULL placeholders for compatibility with destination schema
+          CAST(NULL AS STRING) AS resource_name,
+          CAST(NULL AS STRING) AS resource_global_name,
           cost,
           currency,
           currency_conversion_rate,
