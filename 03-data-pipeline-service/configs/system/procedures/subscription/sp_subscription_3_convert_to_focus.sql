@@ -60,7 +60,7 @@ BEGIN
 
     -- PRO-012: Validate currency codes in source data (defensive check)
     -- Supported currencies: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF
-    -- MT-FIX: Added org_slug filter for defense-in-depth multi-tenant isolation
+    -- MT-FIX: Added x_org_slug filter for defense-in-depth multi-tenant isolation
     EXECUTE IMMEDIATE FORMAT("""
       SELECT
         LOGICAL_AND(
@@ -69,7 +69,7 @@ BEGIN
         ) AS all_currencies_valid
       FROM `%s.%s.subscription_plan_costs_daily`
       WHERE cost_date BETWEEN @p_start AND @p_end
-        AND org_slug = @org_slug
+        AND x_org_slug = @org_slug
     """, p_project_id, p_dataset_id)
     INTO v_currencies_valid
     USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
@@ -157,8 +157,8 @@ BEGIN
         CASE WHEN sp.contract_id IS NOT NULL THEN 'Contract' ELSE 'Subscription' END AS BillingAccountType,
 
         -- Sub Account (Org) - ALWAYS populated from spc
-        spc.org_slug AS SubAccountId,
-        COALESCE(op.company_name, spc.org_slug) AS SubAccountName,
+        spc.x_org_slug AS SubAccountId,
+        COALESCE(op.company_name, spc.x_org_slug) AS SubAccountName,
         'Organization' AS SubAccountType,
 
         -- Cost Allocation (Direct costs - no allocation needed)
@@ -312,8 +312,8 @@ BEGIN
         CURRENT_TIMESTAMP() AS x_updated_at,
 
         -- Org-specific extension fields (with fallbacks from spc when org_profiles is NULL)
-        spc.org_slug AS x_org_slug,
-        COALESCE(op.company_name, spc.org_slug) AS x_org_name,
+        spc.x_org_slug AS x_org_slug,
+        COALESCE(op.company_name, spc.x_org_slug) AS x_org_name,
         COALESCE(op.admin_email, 'noreply@cloudact.ai') AS x_org_owner_email,
         COALESCE(op.default_currency, spc.currency, 'USD') AS x_org_default_currency,
         COALESCE(op.default_timezone, 'UTC') AS x_org_default_timezone,
@@ -352,11 +352,11 @@ BEGIN
       FROM `%s.%s.subscription_plan_costs_daily` spc
       LEFT JOIN `%s.%s.subscription_plans` sp
         ON spc.subscription_id = sp.subscription_id
-        AND spc.org_slug = sp.org_slug
+        AND spc.x_org_slug = sp.x_org_slug
       LEFT JOIN `%s.organizations.org_profiles` op
-        ON spc.org_slug = op.org_slug
+        ON spc.x_org_slug = op.org_slug
       LEFT JOIN `%s.organizations.org_subscriptions` os
-        ON spc.org_slug = os.org_slug
+        ON spc.x_org_slug = os.org_slug
         AND os.status = 'ACTIVE'
       WHERE spc.cost_date BETWEEN @p_start AND @p_end
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_project_id)

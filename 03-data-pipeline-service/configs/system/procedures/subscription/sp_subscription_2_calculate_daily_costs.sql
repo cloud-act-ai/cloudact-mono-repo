@@ -109,11 +109,11 @@ BEGIN
   BEGIN TRANSACTION;
 
     -- 2. Delete existing data for date range (idempotent)
-    -- MT-FIX: Added org_slug filter for defense-in-depth multi-tenant isolation
+    -- MT-FIX: Added x_org_slug filter for defense-in-depth multi-tenant isolation
     EXECUTE IMMEDIATE FORMAT("""
       DELETE FROM `%s.%s.subscription_plan_costs_daily`
       WHERE cost_date BETWEEN @p_start AND @p_end
-        AND org_slug = @org_slug
+        AND x_org_slug = @org_slug
     """, p_project_id, p_dataset_id)
     USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
@@ -121,20 +121,23 @@ BEGIN
     -- Uses 5-field x_hierarchy_* model
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.subscription_plan_costs_daily` (
-        org_slug, provider, subscription_id, plan_name, display_name,
+        provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
         invoice_id_last, source,
         -- 5-field hierarchy model (NEW design)
         x_hierarchy_entity_id, x_hierarchy_entity_name,
         x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
+        x_hierarchy_validated_at,
+        -- x_* fields
+        x_ingestion_id, x_ingestion_date, x_org_slug, x_subscription_provider,
         created_at, updated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
       )
       WITH subscriptions AS (
         -- Read all subscriptions that overlap with date range
         -- Include active, expired, and cancelled to calculate historical costs
         SELECT
-          org_slug,
+          x_org_slug,
           provider,
           subscription_id,
           plan_name,
@@ -177,7 +180,8 @@ BEGIN
           x_hierarchy_entity_name,
           x_hierarchy_level_code,
           x_hierarchy_path,
-          x_hierarchy_path_names
+          x_hierarchy_path_names,
+          x_hierarchy_validated_at
         FROM `%s.%s.subscription_plans`
         WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
@@ -402,7 +406,9 @@ BEGIN
           s.x_hierarchy_entity_name,
           s.x_hierarchy_level_code,
           s.x_hierarchy_path,
-          s.x_hierarchy_path_names
+          s.x_hierarchy_path_names,
+          s.x_hierarchy_validated_at,
+          s.x_org_slug
         FROM with_cycle_cost s
         CROSS JOIN UNNEST(
           GENERATE_DATE_ARRAY(
@@ -412,7 +418,6 @@ BEGIN
         ) AS day
       )
       SELECT
-        org_slug,
         provider,
         subscription_id,
         plan_name,
@@ -443,6 +448,12 @@ BEGIN
         x_hierarchy_level_code,
         x_hierarchy_path,
         x_hierarchy_path_names,
+        x_hierarchy_validated_at,
+        -- x_* fields
+        GENERATE_UUID() AS x_ingestion_id,
+        cost_date AS x_ingestion_date,
+        x_org_slug,
+        provider AS x_subscription_provider,
         CURRENT_TIMESTAMP() AS created_at,
         CURRENT_TIMESTAMP() AS updated_at,
         -- Pipeline lineage columns (x_ prefix)

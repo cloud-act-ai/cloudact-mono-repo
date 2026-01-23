@@ -114,7 +114,7 @@ BEGIN
         TIMESTAMP(LAST_DAY(cost_date, MONTH)) as BillingPeriodEnd,
 
         -- Required billing fields
-        org_slug as BillingAccountId,
+        x_org_slug as BillingAccountId,
         @v_currency as BillingCurrency,  -- FIX #4: Use org's currency
         'CloudAct' as HostProviderName,
 
@@ -206,8 +206,8 @@ BEGIN
         END as ChargeFrequency,
 
         -- Account
-        org_slug as SubAccountId,
-        org_slug as SubAccountName,
+        x_org_slug as SubAccountId,
+        x_org_slug as SubAccountName,
 
         -- Extension fields
         cost_type as x_genai_cost_type,

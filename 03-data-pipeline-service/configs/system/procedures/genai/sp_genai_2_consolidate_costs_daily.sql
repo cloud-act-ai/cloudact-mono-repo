@@ -61,17 +61,18 @@ BEGIN
     -- Uses 5-field x_hierarchy_* model
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_costs_daily_unified`
-      (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
+      (cost_date, x_org_slug, cost_type, provider, model, instance_type, gpu_type,
        region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
        infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
        usage_quantity, usage_unit,
        x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
        x_hierarchy_path, x_hierarchy_path_names,
        source_table, consolidated_at,
+       x_ingestion_id, x_ingestion_date, x_genai_provider,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
         cost_date,
-        org_slug,
+        x_org_slug,
         'payg' as cost_type,
         provider,
         model,
@@ -91,6 +92,9 @@ BEGIN
         x_hierarchy_path, x_hierarchy_path_names,
         'genai_payg_costs_daily' as source_table,
         CURRENT_TIMESTAMP() as consolidated_at,
+        GENERATE_UUID() as x_ingestion_id,
+        @p_date as x_ingestion_date,
+        x_genai_provider,
         COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
         COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
@@ -106,17 +110,18 @@ BEGIN
     -- Step 3: Insert Commitment costs
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_costs_daily_unified`
-      (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
+      (cost_date, x_org_slug, cost_type, provider, model, instance_type, gpu_type,
        region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
        infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
        usage_quantity, usage_unit,
        x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
        x_hierarchy_path, x_hierarchy_path_names,
        source_table, consolidated_at,
+       x_ingestion_id, x_ingestion_date, x_genai_provider,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
         cost_date,
-        org_slug,
+        x_org_slug,
         'commitment' as cost_type,
         provider,
         model,
@@ -136,6 +141,9 @@ BEGIN
         x_hierarchy_path, x_hierarchy_path_names,
         'genai_commitment_costs_daily' as source_table,
         CURRENT_TIMESTAMP() as consolidated_at,
+        GENERATE_UUID() as x_ingestion_id,
+        @p_date as x_ingestion_date,
+        x_genai_provider,
         COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
         COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
@@ -151,17 +159,18 @@ BEGIN
     -- Step 4: Insert Infrastructure costs
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_costs_daily_unified`
-      (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
+      (cost_date, x_org_slug, cost_type, provider, model, instance_type, gpu_type,
        region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
        infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
        usage_quantity, usage_unit,
        x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
        x_hierarchy_path, x_hierarchy_path_names,
        source_table, consolidated_at,
+       x_ingestion_id, x_ingestion_date, x_genai_provider,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
         cost_date,
-        org_slug,
+        x_org_slug,
         'infrastructure' as cost_type,
         provider,
         NULL as model,
@@ -181,6 +190,9 @@ BEGIN
         x_hierarchy_path, x_hierarchy_path_names,
         'genai_infrastructure_costs_daily' as source_table,
         CURRENT_TIMESTAMP() as consolidated_at,
+        GENERATE_UUID() as x_ingestion_id,
+        @p_date as x_ingestion_date,
+        x_genai_provider,
         COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
         COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
