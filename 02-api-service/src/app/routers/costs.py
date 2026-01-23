@@ -987,6 +987,7 @@ async def get_total_costs(
 
     # Extract summaries (default to zeros if failed)
     # Include both actual billed costs AND projections for flexibility
+    # FOCUS 1.3 fields: BilledCost, EffectiveCost, Savings
     def safe_summary(result) -> Dict[str, Any]:
         if result.success and result.summary:
             # Get actual billed cost (may be under different keys depending on service)
@@ -996,11 +997,17 @@ async def get_total_costs(
                 result.summary.get("mtd_cost") or
                 0
             )
+            # FOCUS 1.3: EffectiveCost (net cost after credits)
+            total_effective = result.summary.get("total_effective_cost", total_billed)
+            # FOCUS 1.3: Savings (credits applied) = BilledCost - EffectiveCost
+            total_savings = result.summary.get("total_savings", 0)
             return {
                 "total_daily_cost": result.summary.get("total_daily_cost", result.summary.get("daily_rate", 0)),
                 "total_monthly_cost": result.summary.get("total_monthly_cost", result.summary.get("monthly_forecast", 0)),
                 "total_annual_cost": result.summary.get("total_annual_cost", result.summary.get("annual_forecast", 0)),
                 "total_billed_cost": round(total_billed, 2),  # Actual sum of BilledCost
+                "total_effective_cost": round(total_effective, 2),  # FOCUS: Net cost after credits
+                "total_savings": round(total_savings, 2),  # FOCUS: Credits applied
                 "mtd_cost": result.summary.get("mtd_cost", 0),  # Month-to-date actual
                 "record_count": result.summary.get("record_count", 0),
                 "providers": result.summary.get("providers", []),
@@ -1010,6 +1017,8 @@ async def get_total_costs(
             "total_monthly_cost": 0,
             "total_annual_cost": 0,
             "total_billed_cost": 0,
+            "total_effective_cost": 0,
+            "total_savings": 0,
             "mtd_cost": 0,
             "record_count": 0,
             "providers": [],

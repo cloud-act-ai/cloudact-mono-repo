@@ -1,306 +1,125 @@
 {
-  "description": "AWS Cost & Usage Report schema for BigQuery destination tables",
+  "description": "AWS billing cost schema - comprehensive CUR extraction with standardized x_* fields",
   "version": "3.0.0",
   "updated": "2026-01-23",
+  "inherits": "system/schemas/x_standard_fields.json",
+
   "schemas": {
-    "aws_billing_cost": {
-      "description": "AWS CUR data schema with key cost and usage metrics",
+    "billing_cost": {
+      "description": "Complete AWS Cost & Usage Report data with all available fields",
       "fields": [
-        {
-          "name": "linked_account_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "AWS Account ID where resource was used"
-        },
-        {
-          "name": "linked_account_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "AWS Account name"
-        },
-        {
-          "name": "payer_account_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Payer/Management account ID"
-        },
-        {
-          "name": "service_code",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "AWS service code (e.g., AmazonEC2)"
-        },
-        {
-          "name": "product_code",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "AWS product code"
-        },
-        {
-          "name": "product_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Human-readable product name"
-        },
-        {
-          "name": "usage_type",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Usage type (e.g., USW2-BoxUsage:m5.xlarge)"
-        },
-        {
-          "name": "operation",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Operation performed (e.g., RunInstances)"
-        },
-        {
-          "name": "region",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "AWS region (e.g., us-west-2)"
-        },
-        {
-          "name": "availability_zone",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Availability zone"
-        },
-        {
-          "name": "resource_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "AWS resource ARN or ID"
-        },
-        {
-          "name": "line_item_type",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Type of line item (Usage, Tax, Credit, etc.)"
-        },
-        {
-          "name": "usage_start_time",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "Start time of usage period"
-        },
-        {
-          "name": "usage_end_time",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "End time of usage period"
-        },
-        {
-          "name": "usage_amount",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Usage quantity"
-        },
-        {
-          "name": "usage_unit",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Unit of usage (e.g., Hrs, GB)"
-        },
-        {
-          "name": "unblended_cost",
-          "type": "FLOAT64",
-          "mode": "REQUIRED",
-          "description": "Unblended cost - primary cost metric"
-        },
-        {
-          "name": "blended_cost",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Blended cost across organization"
-        },
-        {
-          "name": "amortized_cost",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Amortized cost for reservations/savings plans"
-        },
-        {
-          "name": "net_unblended_cost",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Net unblended cost after credits"
-        },
-        {
-          "name": "currency",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing currency (e.g., USD)"
-        },
-        {
-          "name": "pricing_unit",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Pricing unit"
-        },
-        {
-          "name": "public_on_demand_cost",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Public on-demand rate cost"
-        },
-        {
-          "name": "reservation_arn",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Reserved Instance ARN if applicable"
-        },
-        {
-          "name": "savings_plan_arn",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Savings Plan ARN if applicable"
-        },
-        {
-          "name": "discount_amount",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Total discount amount"
-        },
-        {
-          "name": "invoice_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Invoice ID from AWS"
-        },
-        {
-          "name": "billing_period_start",
-          "type": "DATE",
-          "mode": "NULLABLE",
-          "description": "Billing period start date"
-        },
-        {
-          "name": "billing_period_end",
-          "type": "DATE",
-          "mode": "NULLABLE",
-          "description": "Billing period end date"
-        },
-        {
-          "name": "resource_tags_json",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Resource tags as JSON string"
-        },
-        {
-          "name": "cost_category_json",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Cost categories as JSON string"
-        },
-        {
-          "name": "x_ingestion_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Unique row identifier (UUID) for traceability"
-        },
-        {
-          "name": "x_ingestion_date",
-          "type": "DATE",
-          "mode": "REQUIRED",
-          "description": "Date when data was ingested - PARTITION KEY"
-        },
-        {
-          "name": "x_org_slug",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Organization identifier for multi-tenancy"
-        },
-        {
-          "name": "x_cloud_provider",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Cloud provider identifier (AWS)"
-        },
-        {
-          "name": "x_cloud_account_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Cloud account identifier (linked_account_id)"
-        },
-        {
-          "name": "x_pipeline_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Pipeline template name. Example: cloud_cost_aws"
-        },
-        {
-          "name": "x_credential_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation"
-        },
-        {
-          "name": "x_pipeline_run_date",
-          "type": "DATE",
-          "mode": "REQUIRED",
-          "description": "The DATA date being processed. KEY for idempotent re-runs"
-        },
-        {
-          "name": "x_run_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Unique pipeline run UUID for full traceability"
-        },
-        {
-          "name": "x_ingested_at",
-          "type": "TIMESTAMP",
-          "mode": "REQUIRED",
-          "description": "Timestamp when data was written to this table"
-        },
-        {
-          "name": "x_hierarchy_entity_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy entity ID"
-        },
-        {
-          "name": "x_hierarchy_entity_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy entity name"
-        },
-        {
-          "name": "x_hierarchy_level_code",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy level code (DEPT, PROJ, TEAM)"
-        },
-        {
-          "name": "x_hierarchy_path",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy path"
-        },
-        {
-          "name": "x_hierarchy_path_names",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy path names"
-        },
-        {
-          "name": "x_hierarchy_validated_at",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "When hierarchy was validated"
-        },
-        {
-          "name": "x_data_quality_score",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Data quality score (0-100)"
-        },
-        {
-          "name": "x_created_at",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "Original record creation timestamp"
-        }
+        {"name": "payer_account_id", "type": "STRING", "mode": "REQUIRED", "description": "AWS Payer/Management account ID - MAPS TO BillingAccountId"},
+        {"name": "linked_account_id", "type": "STRING", "mode": "REQUIRED", "description": "AWS Account ID where resource was used - MAPS TO SubAccountId"},
+        {"name": "linked_account_name", "type": "STRING", "mode": "NULLABLE", "description": "AWS Account name - MAPS TO SubAccountName"},
+
+        {"name": "service_code", "type": "STRING", "mode": "NULLABLE", "description": "AWS service code (e.g., AmazonEC2, AWSLambda)"},
+        {"name": "product_code", "type": "STRING", "mode": "NULLABLE", "description": "AWS product code"},
+        {"name": "product_name", "type": "STRING", "mode": "NULLABLE", "description": "Human-readable product name - MAPS TO ServiceName"},
+
+        {"name": "usage_type", "type": "STRING", "mode": "NULLABLE", "description": "Usage type (e.g., USW2-BoxUsage:m5.xlarge) - MAPS TO ResourceType"},
+        {"name": "operation", "type": "STRING", "mode": "NULLABLE", "description": "Operation performed (e.g., RunInstances) - MAPS TO ServiceSubcategory"},
+        {"name": "line_item_type", "type": "STRING", "mode": "NULLABLE", "description": "Type of line item (Usage, Tax, Credit, Fee, Refund, etc.) - MAPS TO ChargeCategory"},
+        {"name": "line_item_description", "type": "STRING", "mode": "NULLABLE", "description": "Description of the line item charge"},
+
+        {"name": "usage_date", "type": "DATE", "mode": "REQUIRED", "description": "Date of usage - PRIMARY filter/partition key"},
+        {"name": "usage_start_time", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Start time of usage period - MAPS TO ChargePeriodStart"},
+        {"name": "usage_end_time", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "End time of usage period - MAPS TO ChargePeriodEnd"},
+
+        {"name": "region", "type": "STRING", "mode": "NULLABLE", "description": "AWS region (e.g., us-west-2) - MAPS TO RegionId"},
+        {"name": "availability_zone", "type": "STRING", "mode": "NULLABLE", "description": "Availability zone (e.g., us-west-2a)"},
+
+        {"name": "resource_id", "type": "STRING", "mode": "NULLABLE", "description": "AWS resource ARN or ID - MAPS TO ResourceId"},
+        {"name": "resource_name", "type": "STRING", "mode": "NULLABLE", "description": "Resource name from tags - MAPS TO ResourceName"},
+
+        {"name": "usage_amount", "type": "FLOAT64", "mode": "NULLABLE", "description": "Usage quantity - MAPS TO ConsumedQuantity"},
+        {"name": "usage_unit", "type": "STRING", "mode": "NULLABLE", "description": "Unit of usage (e.g., Hrs, GB) - MAPS TO ConsumedUnit"},
+        {"name": "pricing_unit", "type": "STRING", "mode": "NULLABLE", "description": "Pricing unit - MAPS TO PricingUnit"},
+        {"name": "pricing_quantity", "type": "FLOAT64", "mode": "NULLABLE", "description": "Quantity in pricing units - MAPS TO PricingQuantity"},
+
+        {"name": "unblended_cost", "type": "FLOAT64", "mode": "REQUIRED", "description": "Unblended cost - MAPS TO BilledCost (gross cost)"},
+        {"name": "blended_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "Blended cost across organization"},
+        {"name": "amortized_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "Amortized cost for RI/SP - MAPS TO ContractedCost"},
+        {"name": "net_unblended_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "Net unblended cost after credits - MAPS TO EffectiveCost"},
+        {"name": "net_amortized_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "Net amortized cost after credits"},
+        {"name": "public_on_demand_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "Public on-demand rate cost - MAPS TO ListCost"},
+        {"name": "public_on_demand_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Public on-demand rate - MAPS TO ListUnitPrice"},
+        {"name": "unblended_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Unblended rate per unit - MAPS TO ContractedUnitPrice"},
+
+        {"name": "currency", "type": "STRING", "mode": "NULLABLE", "description": "Billing currency code (e.g., USD, EUR) - MAPS TO BillingCurrency"},
+
+        {"name": "discount_amount", "type": "FLOAT64", "mode": "NULLABLE", "description": "Total discount amount (negative value)"},
+        {"name": "discount_edp_amount", "type": "FLOAT64", "mode": "NULLABLE", "description": "Enterprise Discount Program amount"},
+        {"name": "discount_private_rate_amount", "type": "FLOAT64", "mode": "NULLABLE", "description": "Private rate discount amount"},
+        {"name": "discount_bundled_amount", "type": "FLOAT64", "mode": "NULLABLE", "description": "Bundled discount amount"},
+        {"name": "discount_total_amount", "type": "FLOAT64", "mode": "NULLABLE", "description": "Sum of all discounts"},
+
+        {"name": "reservation_arn", "type": "STRING", "mode": "NULLABLE", "description": "Reserved Instance ARN - MAPS TO CommitmentDiscountId"},
+        {"name": "reservation_amortized_upfront_cost_for_usage", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI amortized upfront cost"},
+        {"name": "reservation_amortized_upfront_fee_for_billing_period", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI amortized upfront fee"},
+        {"name": "reservation_effective_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI effective cost"},
+        {"name": "reservation_recurring_fee_for_usage", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI recurring fee"},
+        {"name": "reservation_unused_amortized_upfront_fee_for_billing_period", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI unused amortized fee"},
+        {"name": "reservation_unused_quantity", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI unused quantity"},
+        {"name": "reservation_unused_recurring_fee", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI unused recurring fee"},
+        {"name": "reservation_utilization_percent", "type": "FLOAT64", "mode": "NULLABLE", "description": "RI utilization percentage"},
+
+        {"name": "savings_plan_arn", "type": "STRING", "mode": "NULLABLE", "description": "Savings Plan ARN - MAPS TO CommitmentDiscountId"},
+        {"name": "savings_plan_effective_cost", "type": "FLOAT64", "mode": "NULLABLE", "description": "Savings Plan effective cost"},
+        {"name": "savings_plan_savings_plan_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Savings Plan rate"},
+        {"name": "savings_plan_used_commitment", "type": "FLOAT64", "mode": "NULLABLE", "description": "Savings Plan used commitment"},
+        {"name": "savings_plan_total_commitment_to_date", "type": "FLOAT64", "mode": "NULLABLE", "description": "Savings Plan total commitment"},
+        {"name": "savings_plan_recurring_commitment_for_billing_period", "type": "FLOAT64", "mode": "NULLABLE", "description": "Savings Plan recurring commitment"},
+
+        {"name": "invoice_id", "type": "STRING", "mode": "NULLABLE", "description": "Invoice ID from AWS"},
+        {"name": "billing_period_start", "type": "DATE", "mode": "NULLABLE", "description": "Billing period start date - MAPS TO BillingPeriodStart"},
+        {"name": "billing_period_end", "type": "DATE", "mode": "NULLABLE", "description": "Billing period end date - MAPS TO BillingPeriodEnd"},
+        {"name": "bill_type", "type": "STRING", "mode": "NULLABLE", "description": "Bill type (Anniversary, Purchase, Refund)"},
+        {"name": "bill_payer_account_id", "type": "STRING", "mode": "NULLABLE", "description": "Payer account ID from bill"},
+        {"name": "bill_billing_entity", "type": "STRING", "mode": "NULLABLE", "description": "Billing entity (AWS, AWS Marketplace)"},
+
+        {"name": "legal_entity", "type": "STRING", "mode": "NULLABLE", "description": "Legal entity name"},
+        {"name": "tax_type", "type": "STRING", "mode": "NULLABLE", "description": "Tax type (VAT, GST, etc.)"},
+        {"name": "product_family", "type": "STRING", "mode": "NULLABLE", "description": "Product family (Compute, Storage, etc.) - MAPS TO ServiceCategory"},
+        {"name": "product_instance_type", "type": "STRING", "mode": "NULLABLE", "description": "Instance type (e.g., m5.xlarge)"},
+        {"name": "product_instance_type_family", "type": "STRING", "mode": "NULLABLE", "description": "Instance type family (e.g., m5)"},
+        {"name": "product_operating_system", "type": "STRING", "mode": "NULLABLE", "description": "Operating system (Linux, Windows, etc.)"},
+        {"name": "product_tenancy", "type": "STRING", "mode": "NULLABLE", "description": "Tenancy (Shared, Dedicated, Host)"},
+        {"name": "product_vcpu", "type": "STRING", "mode": "NULLABLE", "description": "Number of vCPUs"},
+        {"name": "product_memory", "type": "STRING", "mode": "NULLABLE", "description": "Memory size"},
+        {"name": "product_storage", "type": "STRING", "mode": "NULLABLE", "description": "Storage type/size"},
+        {"name": "product_gpu", "type": "STRING", "mode": "NULLABLE", "description": "GPU type/count"},
+
+        {"name": "resource_tags_json", "type": "STRING", "mode": "NULLABLE", "description": "JSON array of resource tags (key, value) - MAPS TO Tags"},
+        {"name": "cost_category_json", "type": "STRING", "mode": "NULLABLE", "description": "JSON object of cost categories - Used for hierarchy lookup"},
+        {"name": "split_line_item_json", "type": "STRING", "mode": "NULLABLE", "description": "JSON object of split line item details"},
+
+        {"name": "x_ingestion_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique row identifier (UUID) for traceability"},
+        {"name": "x_ingestion_date", "type": "DATE", "mode": "REQUIRED", "description": "Date when data was ingested - PARTITION KEY"},
+        {"name": "x_org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy"},
+
+        {"name": "x_hierarchy_entity_id", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy entity ID (from tags/cost categories)"},
+        {"name": "x_hierarchy_entity_name", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy entity name"},
+        {"name": "x_hierarchy_level_code", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy level code (ORG, DEPT, PROJ, TEAM)"},
+        {"name": "x_hierarchy_path", "type": "STRING", "mode": "NULLABLE", "description": "Full hierarchy path for cost rollup"},
+        {"name": "x_hierarchy_path_names", "type": "STRING", "mode": "NULLABLE", "description": "Human-readable hierarchy path names"},
+        {"name": "x_hierarchy_validated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "When hierarchy was validated"},
+
+        {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name"},
+        {"name": "x_credential_id", "type": "STRING", "mode": "NULLABLE", "description": "Credential ID from org_integration_credentials"},
+        {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The data date being processed"},
+        {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID"},
+        {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written"},
+
+        {"name": "x_data_quality_score", "type": "FLOAT64", "mode": "NULLABLE", "description": "Data quality score (0-100)"},
+        {"name": "x_created_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Original record creation timestamp"},
+
+        {"name": "x_cloud_provider", "type": "STRING", "mode": "REQUIRED", "description": "Cloud provider identifier (AWS)"},
+        {"name": "x_cloud_account_id", "type": "STRING", "mode": "NULLABLE", "description": "Cloud billing account identifier (payer_account_id)"}
       ]
+    },
+    "default": {
+      "description": "Default schema - auto-detected from query results",
+      "fields": []
     }
   }
 }

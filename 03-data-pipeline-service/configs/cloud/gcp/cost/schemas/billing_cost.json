@@ -80,7 +80,7 @@
         {"name": "x_hierarchy_validated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "When hierarchy was validated"},
 
         {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name"},
-        {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials"},
+        {"name": "x_credential_id", "type": "STRING", "mode": "NULLABLE", "description": "Credential ID from org_integration_credentials (optional for external queries)"},
         {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The data date being processed"},
         {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID"},
         {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written"},

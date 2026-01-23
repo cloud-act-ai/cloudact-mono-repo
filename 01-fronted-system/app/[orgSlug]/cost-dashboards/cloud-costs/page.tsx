@@ -11,6 +11,7 @@ import {
   CostBreakdownChart,
   CostDataTable,
 } from "@/components/charts"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
   CostDashboardShell,
   CostSummaryGrid,
@@ -23,9 +24,7 @@ import {
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 import {
-  getDateInfo,
   transformProvidersToBreakdownItems,
-  transformProvidersToTableRows,
   CLOUD_PROVIDER_CONFIG,
   type ProviderData,
   // FinOps constants
@@ -34,7 +33,9 @@ import {
   CLOUD_CHART_PALETTE,
   getProviderColor,
   DEFAULT_COLOR,
+  formatCost,
 } from "@/lib/costs"
+import { getCostByService, type ServiceBreakdown } from "@/actions/costs"
 
 export default function CloudCostsPage() {
   const params = useParams()
@@ -94,6 +95,9 @@ export default function CloudCostsPage() {
     providers: [],
     categories: [], // Category fixed by page, not user-filterable
   })
+  // Service-level breakdown for table (fetched separately)
+  const [serviceData, setServiceData] = useState<ServiceBreakdown[]>([])
+  const [isLoadingServices, setIsLoadingServices] = useState(false)
 
   // Time range handlers using unified filters (instant, no API call)
   // FIX-CUSTOM-001: When range is "custom", don't include customRange in the update.
@@ -148,6 +152,48 @@ export default function CloudCostsPage() {
   const availableProviders = useMemo(() => {
     return cloudProviders.map(p => p.provider)
   }, [cloudProviders])
+
+  // Fetch service-level breakdown for cloud costs table
+  useEffect(() => {
+    async function fetchServices() {
+      if (!orgSlug) return
+      setIsLoadingServices(true)
+      try {
+        // Calculate date range based on time range
+        const endDate = new Date()
+        let startDate = new Date()
+        if (timeRange === "custom" && customRange) {
+          startDate = new Date(customRange.startDate)
+          endDate.setTime(new Date(customRange.endDate).getTime())
+        } else if (typeof timeRange === "number") {
+          startDate.setDate(startDate.getDate() - timeRange)
+        } else if (timeRange === "mtd") {
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+        } else if (timeRange === "ytd") {
+          startDate = new Date(endDate.getFullYear(), 0, 1)
+        } else {
+          startDate.setDate(startDate.getDate() - 365)
+        }
+
+        const result = await getCostByService(
+          orgSlug,
+          startDate.toISOString().split("T")[0],
+          endDate.toISOString().split("T")[0],
+          { categories: ["cloud"] }
+        )
+        if (result.success && result.data) {
+          // Sort by cost descending
+          const sorted = [...result.data].sort((a, b) => b.total_cost - a.total_cost)
+          setServiceData(sorted)
+        }
+      } catch (err) {
+        console.error("Failed to fetch service breakdown:", err)
+      } finally {
+        setIsLoadingServices(false)
+      }
+    }
+    fetchServices()
+  }, [orgSlug, timeRange, customRange])
 
   // Handle filter changes - sync to unified context for provider/hierarchy filters
   // FILTER-008 FIX: Sync local filters to context for consistent filtering
@@ -211,8 +257,6 @@ export default function CloudCostsPage() {
       })
   }, [getFilteredTimeSeries])
 
-  // PERF-001 FIX: Memoize dateInfo to avoid redundant calculations
-  const dateInfo = useMemo(() => getDateInfo(), [])
 
   // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
   const summaryData: CostSummaryData = useMemo(() => {
@@ -251,14 +295,30 @@ export default function CloudCostsPage() {
     [providers]
   )
 
-  // Convert providers to table rows using centralized helper
+  // Convert services to table rows with FOCUS 1.3 cost breakdown
+  // Note: API returns 'service' field (not service_name) for service breakdown
   const tableRows = useMemo(() => {
-    return transformProvidersToTableRows(
-      providers as ProviderData[],
-      dateInfo,
-      CLOUD_PROVIDER_CONFIG
-    )
-  }, [providers, dateInfo])
+    if (!serviceData || serviceData.length === 0) return []
+    // Handle both API formats: 'service' (actual) or 'service_name' (typed)
+    return serviceData.map(s => {
+      const serviceName = s.service || s.service_name || s.service_category || "Unknown"
+      // Get FOCUS cost fields from API response
+      const billedCost = s.billed_cost ?? s.total_cost ?? 0
+      const effectiveCost = s.effective_cost ?? 0
+      const savings = s.savings ?? (billedCost - effectiveCost)
+      return {
+        key: serviceName,
+        name: serviceName,
+        type: "GCP",
+        // FOCUS 1.3 cost columns
+        billedCost: billedCost,
+        effectiveCost: effectiveCost,
+        savings: savings,
+        // Formatted usage (e.g., "7.3M hrs", "122 MB")
+        usage: s.usage || undefined,
+      }
+    })
+  }, [serviceData])
 
   // Ring chart segments for provider breakdown
   // Filter first to avoid showing empty segments, then slice for top 6
@@ -328,6 +388,58 @@ export default function CloudCostsPage() {
       {/* Summary Metrics */}
       <CostSummaryGrid data={summaryData} />
 
+      {/* FOCUS 1.3 Cost Breakdown (FinOps Standard) */}
+      {totalCosts?.cloud && (
+        <Card className="border-slate-200 animate-fade-up animation-delay-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-slate-900">
+              Cost Breakdown (FOCUS 1.3)
+            </CardTitle>
+            <CardDescription>
+              FinOps FOCUS standard: BilledCost → Savings → EffectiveCost
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-6">
+              {/* BilledCost - Gross cost */}
+              <div className="text-center p-4 rounded-lg bg-slate-50">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                  BilledCost
+                </p>
+                <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                  {formatCost(totalCosts.cloud.total_billed_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">Gross (before credits)</p>
+              </div>
+
+              {/* Savings - Credits applied */}
+              <div className="text-center p-4 rounded-lg bg-emerald-50">
+                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">
+                  Savings
+                </p>
+                <p className="text-2xl font-bold text-emerald-600 tabular-nums">
+                  {totalCosts.cloud.total_savings && totalCosts.cloud.total_savings > 0
+                    ? `-${formatCost(totalCosts.cloud.total_savings, orgCurrency)}`
+                    : formatCost(totalCosts.cloud.total_savings ?? 0, orgCurrency)}
+                </p>
+                <p className="text-xs text-emerald-500 mt-1">Credits applied</p>
+              </div>
+
+              {/* EffectiveCost - Net cost */}
+              <div className="text-center p-4 rounded-lg bg-blue-50">
+                <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">
+                  EffectiveCost
+                </p>
+                <p className="text-2xl font-bold text-blue-700 tabular-nums">
+                  {formatCost(totalCosts.cloud.total_effective_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
+                </p>
+                <p className="text-xs text-blue-500 mt-1">Net (after credits)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Daily Cost Trend Chart - Bar with Moving Average Line */}
       {dailyTrendData.length > 0 && (
         <CostTrendChart
@@ -377,14 +489,16 @@ export default function CloudCostsPage() {
         )}
       </div>
 
-      {/* Provider Details Table */}
+      {/* Service Cost Details Table - FOCUS 1.3 breakdown */}
       {tableRows.length > 0 && (
         <CostDataTable
-          title="Cost Details"
+          title="Service Cost Details"
+          subtitle="FOCUS 1.3 cost breakdown by GCP service"
           rows={tableRows}
           showType
-          typeLabel="Service"
-          showCount={false}
+          typeLabel="Provider"
+          showFocusCost
+          showUsage
           maxRows={10}
         />
       )}

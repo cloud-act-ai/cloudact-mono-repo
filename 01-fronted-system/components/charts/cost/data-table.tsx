@@ -53,6 +53,19 @@ export interface CostTableRow {
   icon?: React.ReactNode
   /** Additional metadata */
   metadata?: Record<string, unknown>
+  // FOCUS 1.3 columns (FinOps standard)
+  /** Date (ChargePeriodStart) */
+  date?: string
+  /** FOCUS 1.3: BilledCost - Gross cost before credits */
+  billedCost?: number
+  /** FOCUS 1.3: EffectiveCost - Net cost after credits */
+  effectiveCost?: number
+  /** Savings = BilledCost - EffectiveCost (credits applied) */
+  savings?: number
+  /** FOCUS 1.3: ListCost - List/retail price */
+  listCost?: number
+  /** Formatted usage (e.g., "7.3M hrs", "122 MB") */
+  usage?: string
 }
 
 export interface CostDataTableProps {
@@ -78,6 +91,12 @@ export interface CostDataTableProps {
   showTrend?: boolean
   /** Show multi-column cost format (daily/monthly/annual) */
   showMultiCost?: boolean
+  /** Show FOCUS 1.3 cost columns (BilledCost, Savings, EffectiveCost) */
+  showFocusCost?: boolean
+  /** Show usage column (formatted usage like "7.3M hrs") */
+  showUsage?: boolean
+  /** Show date column */
+  showDate?: boolean
   /** Max rows to display */
   maxRows?: number
   /** Enable search */
@@ -150,6 +169,9 @@ export function CostDataTable({
   typeLabel = "Type",
   showTrend = false,
   showMultiCost = false,
+  showFocusCost = false,
+  showUsage = false,
+  showDate = false,
   maxRows = 10,
   searchable = false,
   paginated = false,
@@ -194,33 +216,54 @@ export function CostDataTable({
 
   // Build columns dynamically
   const columns = useMemo<ColumnDef<CostTableRow>[]>(() => {
-    const cols: ColumnDef<CostTableRow>[] = [
-      // Name column (always shown)
-      {
-        accessorKey: "name",
+    const cols: ColumnDef<CostTableRow>[] = []
+
+    // Date column (optional, for FOCUS detail view)
+    if (showDate) {
+      cols.push({
+        accessorKey: "date",
         header: ({ column }) => (
-          <SortableHeader column={column}>Name</SortableHeader>
+          <SortableHeader column={column}>Date</SortableHeader>
         ),
         cell: ({ row }) => {
-          const displayName = row.original.displayName || row.original.name
-          const color = row.original.color
-          const icon = row.original.icon
-
+          const date = row.original.date
+          if (!date) return <span className="text-slate-400">—</span>
+          // Format as short date
+          const d = new Date(date)
           return (
-            <div className="flex items-center gap-2">
-              {color && (
-                <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: color }}
-                />
-              )}
-              {icon}
-              <span className="font-medium text-slate-900">{displayName}</span>
-            </div>
+            <span className="text-slate-600 text-sm tabular-nums">
+              {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
           )
         },
+      })
+    }
+
+    // Name column (always shown)
+    cols.push({
+      accessorKey: "name",
+      header: ({ column }) => (
+        <SortableHeader column={column}>Name</SortableHeader>
+      ),
+      cell: ({ row }) => {
+        const displayName = row.original.displayName || row.original.name
+        const color = row.original.color
+        const icon = row.original.icon
+
+        return (
+          <div className="flex items-center gap-2">
+            {color && (
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: color }}
+              />
+            )}
+            {icon}
+            <span className="font-medium text-slate-900">{displayName}</span>
+          </div>
+        )
       },
-    ]
+    })
 
     // Type column (optional)
     if (showType) {
@@ -233,8 +276,24 @@ export function CostDataTable({
       })
     }
 
-    // Count column (optional)
-    if (showCount) {
+    // Usage column (formatted usage like "7.3M hrs")
+    if (showUsage) {
+      cols.push({
+        accessorKey: "usage",
+        header: () => <span className="text-slate-500">Usage</span>,
+        cell: ({ row }) => {
+          const usage = row.original.usage
+          return (
+            <span className="text-slate-600 tabular-nums text-sm">
+              {usage || "—"}
+            </span>
+          )
+        },
+      })
+    }
+
+    // Count column (optional) - typically hidden when showing usage
+    if (showCount && !showUsage) {
       cols.push({
         accessorKey: "count",
         header: ({ column }) => (
@@ -253,8 +312,67 @@ export function CostDataTable({
       })
     }
 
-    // Multi-cost columns (dailyCost, monthlyCost, annualCost) OR single value column
-    if (showMultiCost) {
+    // FOCUS 1.3 cost columns (BilledCost, Savings, EffectiveCost)
+    if (showFocusCost) {
+      // BilledCost - Gross cost before credits (FOCUS 1.3 standard term)
+      cols.push({
+        accessorKey: "billedCost",
+        header: ({ column }) => (
+          <div className="text-right">
+            <SortableHeader column={column}>BilledCost</SortableHeader>
+          </div>
+        ),
+        cell: ({ row }) => {
+          const value = row.original.billedCost
+          return (
+            <div className="text-right text-slate-600 tabular-nums">
+              {value !== undefined ? formatValue(value) : "—"}
+            </div>
+          )
+        },
+      })
+
+      // Savings - Credits applied (BilledCost - EffectiveCost)
+      cols.push({
+        accessorKey: "savings",
+        header: ({ column }) => (
+          <div className="text-right">
+            <SortableHeader column={column}>Savings</SortableHeader>
+          </div>
+        ),
+        cell: ({ row }) => {
+          const value = row.original.savings
+          // Green color for savings (positive = good)
+          return (
+            <div className={cn(
+              "text-right tabular-nums",
+              value && value > 0 ? "text-emerald-600 font-medium" : "text-slate-500"
+            )}>
+              {value !== undefined && value > 0 ? `-${formatValue(value)}` : formatValue(value ?? 0)}
+            </div>
+          )
+        },
+      })
+
+      // EffectiveCost - Net cost after credits (FOCUS 1.3 standard term)
+      cols.push({
+        accessorKey: "effectiveCost",
+        header: ({ column }) => (
+          <div className="text-right">
+            <SortableHeader column={column}>EffectiveCost</SortableHeader>
+          </div>
+        ),
+        cell: ({ row }) => {
+          const value = row.original.effectiveCost
+          return (
+            <div className="text-right font-semibold text-slate-900 tabular-nums">
+              {value !== undefined ? formatValue(value) : "—"}
+            </div>
+          )
+        },
+      })
+    } else if (showMultiCost) {
+      // Multi-cost columns (dailyCost, monthlyCost, annualCost)
       // Daily cost column
       cols.push({
         accessorKey: "dailyCost",
@@ -343,7 +461,7 @@ export function CostDataTable({
     }
 
     return cols
-  }, [showCount, countLabel, showType, typeLabel, showTrend, showMultiCost, formatValue])
+  }, [showCount, countLabel, showType, typeLabel, showTrend, showMultiCost, showFocusCost, showUsage, showDate, formatValue])
 
   return (
     <Card className={cn("border-slate-200", className)}>
@@ -464,6 +582,34 @@ export function SubscriptionCostTable({
       title={title}
       category="subscription"
       countLabel={countLabel}
+    />
+  )
+}
+
+/**
+ * FOCUS 1.3 Cost Detail Table
+ *
+ * Shows cost breakdown with FinOps FOCUS 1.3 standard columns:
+ * - Date (ChargePeriodStart)
+ * - Service Name
+ * - BilledCost (gross cost before credits)
+ * - Savings (credits applied = BilledCost - EffectiveCost)
+ * - EffectiveCost (net cost after credits)
+ */
+export function FocusCostDetailTable({
+  title = "Cost Details (FOCUS 1.3)",
+  subtitle = "BilledCost (gross) → Savings (credits) → EffectiveCost (net)",
+  ...props
+}: Omit<CostDataTableProps, "showFocusCost" | "showDate" | "showCount" | "showMultiCost">) {
+  return (
+    <CostDataTable
+      {...props}
+      title={title}
+      subtitle={subtitle}
+      showFocusCost
+      showDate
+      showCount={false}
+      showMultiCost={false}
     />
   )
 }

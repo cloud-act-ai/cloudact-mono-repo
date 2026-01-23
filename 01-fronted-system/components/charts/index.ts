@@ -180,6 +180,7 @@ export {
   GenAIProviderTable,
   CloudProviderTable,
   SubscriptionCostTable,
+  FocusCostDetailTable,
   type CostDataTableProps,
   type CostTableRow,
 } from "./cost/data-table"

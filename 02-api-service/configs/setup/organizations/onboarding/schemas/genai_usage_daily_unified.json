@@ -6,12 +6,6 @@
     "description": "Date of usage (partition field)."
   },
   {
-    "name": "org_slug",
-    "type": "STRING",
-    "mode": "REQUIRED",
-    "description": "Organization identifier for multi-tenancy."
-  },
-  {
     "name": "cost_type",
     "type": "STRING",
     "mode": "REQUIRED",
@@ -148,6 +142,36 @@
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
+  },
+  {
+    "name": "x_hierarchy_validated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When hierarchy was validated."
+  },
+  {
+    "name": "x_ingestion_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique row identifier (UUID) for traceability."
+  },
+  {
+    "name": "x_ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when data was ingested - PARTITION KEY."
+  },
+  {
+    "name": "x_org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy."
+  },
+  {
+    "name": "x_genai_provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "GenAI provider identifier."
   },
   {
     "name": "x_pipeline_id",

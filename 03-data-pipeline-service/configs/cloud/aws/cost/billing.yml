@@ -1,18 +1,36 @@
-# AWS Cost & Usage Report Pipeline
-# Extracts billing data from AWS CUR exports
+# AWS Billing Pipeline
+# Extracts billing data from AWS Cost & Usage Report (CUR), stores in BigQuery
 #
-# Schedule: Daily at 05:00 UTC
+# Schedule: Daily at 05:00 UTC (processes yesterday's data by default)
 # Tables: cloud_aws_billing_raw_daily
 #
-# Usage: POST /api/v1/pipelines/run/{org_slug}/cloud/aws/cost/billing
+# Usage:
+#   POST /api/v1/pipelines/run/{org_slug}/aws/cost/billing
+#   POST /api/v1/pipelines/run/{org_slug}/aws/cost/billing?start_date=2026-01-01&end_date=2026-01-22
+#
+# BEHAVIOR:
+# - Default: Processes yesterday's data (T-1) based on usage_date
+# - Idempotent: Deletes existing data for usage_date range before inserting
+# - Supports date ranges for backfill
 #
 # PREREQUISITES:
 # 1. Organization must have a valid AWS_IAM or AWS_KEYS integration configured
-# 2. IAM Role/User must have S3 read access to CUR bucket and BigQuery write access
+# 2. The AWS IAM Role/User must have:
+#    - S3 read access to CUR bucket (s3:GetObject, s3:ListBucket)
+#    - Athena query access OR direct Parquet read capability
+# 3. CUR export must be configured in AWS with Parquet format
+#
+# AWS CUR EXPORT CONFIGURATION (configured in Settings -> Integrations -> AWS):
+# - aws_cur_bucket: S3 bucket containing CUR exports
+# - aws_cur_prefix: Prefix path to CUR data (e.g., cur-reports/my-report)
+# - aws_cur_database: Athena database name (optional, for Athena-based extraction)
+# - aws_cur_table: Athena table name (optional)
 
 pipeline_id: "{org_slug}-aws-billing"
 name: "AWS Billing Sync"
-description: "Extract AWS Cost & Usage Report data for {org_slug}"
+description: "Extract AWS billing costs and store in BigQuery (idempotent, replaces existing data)"
+provider: "aws"
+domain: "cost"
 version: "18.0.0"
 
 # Schedule configuration (cron expression: daily at 05:00 UTC)
@@ -21,63 +39,213 @@ schedule: "0 5 * * *"
 variables:
   org_slug: "{org_slug}"
   provider: "aws"
-  domain: "cost"
-  template_name: "{template_name}"
-  # CUR export location - configured per-org via integration settings
+  # NOTE: source CUR location should be configured per-org via integration settings
+  # These come from the org's AWS integration credentials
   aws_cur_bucket: "{aws_cur_bucket}"
   aws_cur_prefix: "{aws_cur_prefix}"
+  aws_cur_database: "{aws_cur_database}"
+  aws_cur_table: "{aws_cur_table}"
+  # Multi-tenant: Use customer's AWS credentials to access their CUR export
+  use_org_credentials: "true"
+  # Default date: Yesterday (T-1) - overridden by request parameters
+  # Executor auto-calculates if not provided
+  default_date_offset: "-1"
 
 steps:
-  # Step 1: Authenticate with AWS
-  - step_id: "authenticate"
-    ps_type: "cloud.aws.authenticator"
-    description: "Authenticate with AWS using IAM Role or Access Keys"
+  # Step 1: Decrypt AWS credentials for customer's billing data
+  - step_id: "decrypt_credentials"
+    name: "Decrypt Credentials"
+    ps_type: "integrations.kms_decrypt"
+    description: "Load organization AWS credentials"
+    enabled: "{use_org_credentials}"
     config:
       provider: "AWS_IAM"
       require_valid: true
       context_key: "aws_credentials"
-    on_failure: "abort"
+    on_failure: "continue"
 
-  # Step 2: Extract CUR Data from S3
-  - step_id: "extract_cur"
-    ps_type: "cloud.aws.cur_extractor"
-    description: "Extract CUR Data from S3"
+  # Step 2: Delete existing data for usage_date range (idempotent - allows re-runs)
+  # Uses usage_date for filtering
+  - step_id: "delete_existing_data"
+    name: "Delete Existing Data"
+    ps_type: "generic.bq_execute"
+    description: "Delete existing billing data for usage_date range to ensure idempotency"
     depends_on:
-      - "authenticate"
-    timeout_minutes: 30
+      - "decrypt_credentials"
     config:
-      source_bucket: "{aws_cur_bucket}"
-      source_prefix: "{aws_cur_prefix}"
-      date_filter: "{date}"
+      query: |
+        DELETE FROM `{gcp_project_id}.{org_slug}_{environment}.cloud_aws_billing_raw_daily`
+        WHERE usage_date BETWEEN @start_date AND @end_date
+          AND x_org_slug = @org_slug
+      parameters:
+        - name: "start_date"
+          type: "DATE"
+          value: "{start_date}"
+        - name: "end_date"
+          type: "DATE"
+          value: "{end_date}"
+        - name: "org_slug"
+          type: "STRING"
+          value: "{org_slug}"
+    on_failure: "continue"  # Continue even if table doesn't exist yet
+
+  # Step 3: Extract billing data from AWS CUR via S3/Athena
+  - step_id: "extract_billing"
+    name: "Extract Billing Data"
+    ps_type: "cloud.aws.cur_extractor"
+    description: "Extract AWS CUR costs for date range"
+    depends_on:
+      - "delete_existing_data"
+    timeout_minutes: 30
+
+    source:
+      # Multi-tenant: Use customer's AWS credentials to read their CUR export
+      use_org_credentials: true
+      # CUR extraction configuration
+      bucket: "{aws_cur_bucket}"
+      prefix: "{aws_cur_prefix}"
+      # Optional: Use Athena for querying (if configured)
+      athena_database: "{aws_cur_database}"
+      athena_table: "{aws_cur_table}"
+      # Date range filter
+      start_date: "{start_date}"
+      end_date: "{end_date}"
       # CUR format options
       compression: "GZIP"
       format: "Parquet"
+      # Field mappings from CUR to our schema
+      field_mappings:
+        # Account identifiers
+        bill_payer_account_id: "payer_account_id"
+        line_item_usage_account_id: "linked_account_id"
+        # Service/product
+        line_item_product_code: "product_code"
+        product_product_name: "product_name"
+        product_servicecode: "service_code"
+        line_item_usage_type: "usage_type"
+        line_item_operation: "operation"
+        line_item_line_item_type: "line_item_type"
+        line_item_line_item_description: "line_item_description"
+        # Timing
+        line_item_usage_start_date: "usage_start_time"
+        line_item_usage_end_date: "usage_end_time"
+        # Location
+        product_region: "region"
+        line_item_availability_zone: "availability_zone"
+        # Resource
+        line_item_resource_id: "resource_id"
+        # Usage metrics
+        line_item_usage_amount: "usage_amount"
+        pricing_unit: "pricing_unit"
+        pricing_public_on_demand_rate: "public_on_demand_rate"
+        # Cost fields
+        line_item_unblended_cost: "unblended_cost"
+        line_item_unblended_rate: "unblended_rate"
+        line_item_blended_cost: "blended_cost"
+        pricing_public_on_demand_cost: "public_on_demand_cost"
+        # Net costs (credits applied)
+        line_item_net_unblended_cost: "net_unblended_cost"
+        # Discounts
+        discount_edp_discount: "discount_edp_amount"
+        discount_private_rate_discount: "discount_private_rate_amount"
+        discount_bundled_discount: "discount_bundled_amount"
+        discount_total_discount: "discount_total_amount"
+        # Reserved Instances
+        reservation_reservation_a_r_n: "reservation_arn"
+        reservation_amortized_upfront_cost_for_usage: "reservation_amortized_upfront_cost_for_usage"
+        reservation_amortized_upfront_fee_for_billing_period: "reservation_amortized_upfront_fee_for_billing_period"
+        reservation_effective_cost: "reservation_effective_cost"
+        reservation_recurring_fee_for_usage: "reservation_recurring_fee_for_usage"
+        reservation_unused_amortized_upfront_fee_for_billing_period: "reservation_unused_amortized_upfront_fee_for_billing_period"
+        reservation_unused_quantity: "reservation_unused_quantity"
+        reservation_unused_recurring_fee: "reservation_unused_recurring_fee"
+        reservation_net_amortized_upfront_cost_for_usage: "net_amortized_cost"
+        # Savings Plans
+        savings_plan_savings_plan_a_r_n: "savings_plan_arn"
+        savings_plan_savings_plan_effective_cost: "savings_plan_effective_cost"
+        savings_plan_savings_plan_rate: "savings_plan_savings_plan_rate"
+        savings_plan_used_commitment: "savings_plan_used_commitment"
+        savings_plan_total_commitment_to_date: "savings_plan_total_commitment_to_date"
+        # Billing period
+        bill_bill_type: "bill_type"
+        bill_billing_entity: "bill_billing_entity"
+        bill_billing_period_start_date: "billing_period_start"
+        bill_billing_period_end_date: "billing_period_end"
+        bill_invoice_id: "invoice_id"
+        # Product attributes
+        product_product_family: "product_family"
+        product_instance_type: "product_instance_type"
+        product_instance_type_family: "product_instance_type_family"
+        product_operating_system: "product_operating_system"
+        product_tenancy: "product_tenancy"
+        product_vcpu: "product_vcpu"
+        product_memory: "product_memory"
+        product_storage: "product_storage"
+        product_gpu: "product_gpu"
+        # Legal/Tax
+        legal_entity: "legal_entity"
+        line_item_tax_type: "tax_type"
 
-  # Step 3: Transform and Load to BigQuery
-  - step_id: "load_to_bq"
-    ps_type: "generic.bq_loader"
-    description: "Load to BigQuery"
-    depends_on:
-      - "extract_cur"
-    timeout_minutes: 20
-    config:
-      destination_table: "{org_slug}_prod.cloud_aws_billing_raw_daily"
-      write_disposition: "WRITE_APPEND"
-      partition_field: "x_ingestion_date"
-      schema_template: "aws_billing_cost"
+    # Destination: Always CloudAct project + org dataset ({org_slug}_{env})
+    # Processor enforces standard destination via settings.get_org_dataset_name()
+    destination:
+      dataset_type: "aws"
+      table: "cloud_aws_billing_raw_daily"
+      write_mode: "append"
+      schema_template: "billing_cost"
       table_config:
         time_partitioning:
           field: "x_ingestion_date"
           type: "DAY"
           expiration_days: 730
         clustering_fields:
+          - "payer_account_id"
           - "linked_account_id"
           - "service_code"
-          - "product_code"
           - "region"
 
-  # Step 4: Notification on failure
+  # Step 4: Convert to FOCUS 1.3 format
+  # Runs the stored procedure to transform raw billing data to FOCUS standard
+  - step_id: "convert_to_focus"
+    name: "Convert to FOCUS 1.3"
+    ps_type: "generic.bq_procedure"
+    description: "Transform raw billing data to FOCUS 1.3 standard format"
+    depends_on:
+      - "extract_billing"
+    config:
+      procedure: "sp_cloud_1_convert_to_focus"
+      dataset: "organizations"
+      parameters:
+        - name: "p_project_id"
+          type: "STRING"
+          value: "{gcp_project_id}"
+        - name: "p_dataset_id"
+          type: "STRING"
+          value: "{org_slug}_{environment}"
+        - name: "p_start_date"
+          type: "DATE"
+          value: "{start_date}"
+        - name: "p_end_date"
+          type: "DATE"
+          value: "{end_date}"
+        - name: "p_provider"
+          type: "STRING"
+          value: "aws"
+        - name: "p_pipeline_id"
+          type: "STRING"
+          value: "{pipeline_id}"
+        - name: "p_credential_id"
+          type: "STRING"
+          value: "{credential_id}"
+        - name: "p_run_id"
+          type: "STRING"
+          value: "{run_id}"
+    timeout_minutes: 30
+    on_failure: "fail"
+
+  # Step 5: Notification on failure
   - step_id: "notify_on_failure"
+    name: "Notify on Failure"
     ps_type: "notify_systems.email_notification"
     description: "Send failure notification"
     trigger: "on_failure"

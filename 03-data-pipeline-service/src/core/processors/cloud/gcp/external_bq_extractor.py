@@ -666,8 +666,8 @@ class ExternalBqExtractor:
             # Add cloud provider identification (required by schema)
             json_row["x_cloud_provider"] = "GCP"
             json_row["x_cloud_account_id"] = json_row.get("billing_account_id")
-            # Add org_slug for multi-tenancy (required by schema)
-            json_row["org_slug"] = org_slug
+            # NOTE: x_org_slug is already set by the query, don't override
+            # The schema uses x_org_slug (NOT org_slug) for multi-tenancy
             # Add x_hierarchy fields (standardized x_* naming)
             # For GCP: project_id/project_name maps to hierarchy entity
             # Query already extracts x_hierarchy_entity_id and x_hierarchy_entity_name from project
@@ -699,12 +699,12 @@ class ExternalBqExtractor:
             schema=schema,  # Use the schema template for type enforcement
         )
 
-        # Convert to newline-delimited JSON format
+        # Convert to newline-delimited JSON format (must be bytes for BigQuery)
         import io
-        json_file = io.StringIO()
+        import json as json_module
+        json_file = io.BytesIO()
         for row in json_rows:
-            import json as json_module
-            json_file.write(json_module.dumps(row) + '\n')
+            json_file.write((json_module.dumps(row) + '\n').encode('utf-8'))
         json_file.seek(0)
 
         # Write using CloudAct's credentials (dest_bq_client)

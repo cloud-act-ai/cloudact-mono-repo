@@ -137,51 +137,140 @@ GENAI_PROVIDERS = {
 
 # =============================================================================
 # Cloud Provider Configurations
+# IMPORTANT: All providers use unified GCP-like schema for consistency
+# Fields match BigQuery schema definitions in load-demo-data/schemas/
+#
+# Cost structure:
+# - ~90-95% regular COSTS (positive amounts)
+# - ~5-10% CREDITS (negative amounts)
+# - Realistic usage_amount + usage_unit values
 # =============================================================================
 
+# Credit percentage for all cloud providers
+CREDIT_PERCENTAGE = 0.07  # 7% of records will be credits
+
+# GCP Services with realistic usage patterns
+# Schema: gcp_billing_cost.json (matches 03-data-pipeline-service/configs/cloud/gcp/cost/schemas/billing_cost.json)
 GCP_SERVICES = [
-    {"service_id": "6F81-5844-456A", "service_description": "Compute Engine", "sku_id": "D2C2-5678-ABCD", "sku_description": "N2 Instance Core running in Americas", "base_cost": 150.0, "usage_unit": "hour"},
-    {"service_id": "24E6-581D-38E5", "service_description": "Cloud Storage", "sku_id": "E4F5-6789-BCDE", "sku_description": "Standard Storage US Multi-region", "base_cost": 25.0, "usage_unit": "gibibyte month"},
-    {"service_id": "95FF-2EF5-5EA1", "service_description": "BigQuery", "sku_id": "F5G6-7890-CDEF", "sku_description": "Analysis Compute Units", "base_cost": 80.0, "usage_unit": "slot hour"},
-    {"service_id": "152E-C115-5142", "service_description": "Cloud Run", "sku_id": "G6H7-8901-DEFG", "sku_description": "CPU Allocation Time", "base_cost": 45.0, "usage_unit": "vCPU second"},
-    {"service_id": "9662-B51E-5089", "service_description": "Cloud SQL", "sku_id": "H7I8-9012-EFGH", "sku_description": "N1 Standard 4 in Americas", "base_cost": 120.0, "usage_unit": "hour"},
-    {"service_id": "A1E8-BE35-7924", "service_description": "Cloud Functions", "sku_id": "I8J9-0123-FGHI", "sku_description": "Gen2 CPU Allocation", "base_cost": 15.0, "usage_unit": "GHz-second"},
-    {"service_id": "58CD-E7C3-72CA", "service_description": "Kubernetes Engine", "sku_id": "J9K0-1234-GHIJ", "sku_description": "Autopilot Pod CPU", "base_cost": 200.0, "usage_unit": "hour"},
-    {"service_id": "29E7-DA93-CA13", "service_description": "Cloud Logging", "sku_id": "K0L1-2345-HIJK", "sku_description": "Log Storage", "base_cost": 10.0, "usage_unit": "gibibyte"},
-    {"service_id": "6521-3827-A3E5", "service_description": "Vertex AI", "sku_id": "L1M2-3456-IJKL", "sku_description": "Prediction Units", "base_cost": 50.0, "usage_unit": "node hour"},
-    {"service_id": "462A-E6B5-C8D1", "service_description": "Cloud Pub/Sub", "sku_id": "M2N3-4567-JKLM", "sku_description": "Message Delivery", "base_cost": 8.0, "usage_unit": "TiB"},
+    {
+        "service_id": "6F81-5844-456A", "service_description": "Cloud Run",
+        "sku_id": "D2C2-5678-ABCD", "sku_description": "CPU Allocation Time",
+        "base_cost": 2.50, "usage_unit": "second", "usage_pricing_unit": "vCPU-second",
+        "base_usage": 86400, "price_per_unit": 0.000024
+    },
+    {
+        "service_id": "24E6-581D-38E5", "service_description": "Cloud Build",
+        "sku_id": "E4F5-6789-BCDE", "sku_description": "Build Time",
+        "base_cost": 1.80, "usage_unit": "second", "usage_pricing_unit": "build-minute",
+        "base_usage": 3600, "price_per_unit": 0.003
+    },
+    {
+        "service_id": "95FF-2EF5-5EA1", "service_description": "BigQuery",
+        "sku_id": "F5G6-7890-CDEF", "sku_description": "Analysis",
+        "base_cost": 3.50, "usage_unit": "byte", "usage_pricing_unit": "tebibyte",
+        "base_usage": 1099511627776, "price_per_unit": 5.0  # 1TB scanned
+    },
+    {
+        "service_id": "152E-C115-5142", "service_description": "Cloud Storage",
+        "sku_id": "G6H7-8901-DEFG", "sku_description": "Standard Storage US Multi-region",
+        "base_cost": 1.20, "usage_unit": "byte-seconds", "usage_pricing_unit": "gibibyte month",
+        "base_usage": 53687091200000, "price_per_unit": 0.020  # 50GB for 30 days
+    },
+    {
+        "service_id": "9662-B51E-5089", "service_description": "Cloud Key Management Service",
+        "sku_id": "H7I8-9012-EFGH", "sku_description": "Active software symmetric key versions",
+        "base_cost": 0.30, "usage_unit": "requests", "usage_pricing_unit": "key version",
+        "base_usage": 10000, "price_per_unit": 0.00003
+    },
 ]
 
+# AWS Services with realistic usage patterns
+# Schema: aws_billing_cost.json
 AWS_SERVICES = [
-    {"service_code": "AmazonEC2", "product_name": "Amazon Elastic Compute Cloud", "usage_type": "USW2-BoxUsage:m5.xlarge", "operation": "RunInstances", "base_cost": 180.0},
-    {"service_code": "AmazonS3", "product_name": "Amazon Simple Storage Service", "usage_type": "USW2-TimedStorage-ByteHrs", "operation": "StandardStorage", "base_cost": 30.0},
-    {"service_code": "AmazonRDS", "product_name": "Amazon Relational Database Service", "usage_type": "USW2-InstanceUsage:db.r5.large", "operation": "CreateDBInstance", "base_cost": 140.0},
-    {"service_code": "AWSLambda", "product_name": "AWS Lambda", "usage_type": "USW2-Lambda-GB-Second", "operation": "Invoke", "base_cost": 20.0},
-    {"service_code": "AmazonEKS", "product_name": "Amazon Elastic Kubernetes Service", "usage_type": "USW2-AmazonEKS-Hours:perCluster", "operation": "CreateCluster", "base_cost": 72.0},
-    {"service_code": "AmazonDynamoDB", "product_name": "Amazon DynamoDB", "usage_type": "USW2-WriteCapacityUnit-Hrs", "operation": "PutItem", "base_cost": 25.0},
-    {"service_code": "AmazonCloudWatch", "product_name": "Amazon CloudWatch", "usage_type": "USW2-CW:Requests", "operation": "GetMetricData", "base_cost": 12.0},
-    {"service_code": "AmazonSNS", "product_name": "Amazon Simple Notification Service", "usage_type": "USW2-DeliveryAttempts-HTTPS", "operation": "Publish", "base_cost": 5.0},
-    {"service_code": "AmazonSQS", "product_name": "Amazon Simple Queue Service", "usage_type": "USW2-Requests-Tier1", "operation": "SendMessage", "base_cost": 4.0},
-    {"service_code": "AmazonRedshift", "product_name": "Amazon Redshift", "usage_type": "USW2-DC2.Large", "operation": "RunQuery", "base_cost": 90.0},
+    {
+        "service_code": "AmazonEC2", "product_name": "Amazon Elastic Compute Cloud",
+        "usage_type": "USW2-BoxUsage:t3.medium", "operation": "RunInstances",
+        "base_cost": 3.20, "usage_unit": "Hrs", "pricing_unit": "Hrs",
+        "base_usage": 24, "price_per_unit": 0.0416
+    },
+    {
+        "service_code": "AmazonS3", "product_name": "Amazon Simple Storage Service",
+        "usage_type": "USW2-TimedStorage-ByteHrs", "operation": "StandardStorage",
+        "base_cost": 1.50, "usage_unit": "GB-Mo", "pricing_unit": "GB-Mo",
+        "base_usage": 100, "price_per_unit": 0.023
+    },
+    {
+        "service_code": "AWSLambda", "product_name": "AWS Lambda",
+        "usage_type": "USW2-Lambda-GB-Second", "operation": "Invoke",
+        "base_cost": 0.80, "usage_unit": "Lambda-GB-Second", "pricing_unit": "Lambda-GB-Second",
+        "base_usage": 400000, "price_per_unit": 0.0000166667
+    },
+    {
+        "service_code": "AmazonRDS", "product_name": "Amazon Relational Database Service",
+        "usage_type": "USW2-InstanceUsage:db.t3.medium", "operation": "CreateDBInstance",
+        "base_cost": 2.40, "usage_unit": "Hrs", "pricing_unit": "Hrs",
+        "base_usage": 24, "price_per_unit": 0.068
+    },
+    {
+        "service_code": "AmazonCloudWatch", "product_name": "Amazon CloudWatch",
+        "usage_type": "USW2-CW:Requests", "operation": "GetMetricData",
+        "base_cost": 0.50, "usage_unit": "Requests", "pricing_unit": "Requests",
+        "base_usage": 50000, "price_per_unit": 0.00001
+    },
 ]
 
+# Azure Services with realistic usage patterns
+# Schema: azure_billing_cost.json
 AZURE_SERVICES = [
-    {"meter_category": "Virtual Machines", "service_name": "Virtual Machines", "resource_type": "Microsoft.Compute/virtualMachines", "base_cost": 160.0},
-    {"meter_category": "Storage", "service_name": "Storage", "resource_type": "Microsoft.Storage/storageAccounts", "base_cost": 28.0},
-    {"meter_category": "Azure SQL Database", "service_name": "SQL Database", "resource_type": "Microsoft.Sql/servers/databases", "base_cost": 130.0},
-    {"meter_category": "Azure Kubernetes Service", "service_name": "Kubernetes Service", "resource_type": "Microsoft.ContainerService/managedClusters", "base_cost": 180.0},
-    {"meter_category": "Azure Functions", "service_name": "Functions", "resource_type": "Microsoft.Web/sites", "base_cost": 18.0},
-    {"meter_category": "Azure Cosmos DB", "service_name": "Azure Cosmos DB", "resource_type": "Microsoft.DocumentDB/databaseAccounts", "base_cost": 85.0},
-    {"meter_category": "Azure App Service", "service_name": "App Service", "resource_type": "Microsoft.Web/serverFarms", "base_cost": 55.0},
-    {"meter_category": "Azure Monitor", "service_name": "Azure Monitor", "resource_type": "Microsoft.Insights/components", "base_cost": 15.0},
+    {
+        "meter_category": "Virtual Machines", "service_name": "Virtual Machines",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "meter_subcategory": "D2s v3",
+        "base_cost": 2.80, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.096
+    },
+    {
+        "meter_category": "Storage", "service_name": "Storage",
+        "resource_type": "Microsoft.Storage/storageAccounts",
+        "meter_subcategory": "Standard HDD Managed Disks",
+        "base_cost": 1.00, "unit_of_measure": "GB/Month", "base_usage": 128, "price_per_unit": 0.04
+    },
+    {
+        "meter_category": "Azure App Service", "service_name": "App Service",
+        "resource_type": "Microsoft.Web/sites",
+        "meter_subcategory": "B1 Basic",
+        "base_cost": 1.50, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.018
+    },
+    {
+        "meter_category": "Azure SQL Database", "service_name": "SQL Database",
+        "resource_type": "Microsoft.Sql/servers/databases",
+        "meter_subcategory": "Basic",
+        "base_cost": 1.20, "unit_of_measure": "DTU-Hours", "base_usage": 720, "price_per_unit": 0.0025
+    },
 ]
 
+# OCI Services with realistic usage patterns
+# Schema: oci_billing_cost.json
 OCI_SERVICES = [
-    {"service": "COMPUTE", "sku_name": "VM.Standard.E4.Flex", "base_cost": 100.0},
-    {"service": "OBJECT_STORAGE", "sku_name": "Object Storage - Storage", "base_cost": 20.0},
-    {"service": "AUTONOMOUS_DATABASE", "sku_name": "Autonomous Transaction Processing", "base_cost": 95.0},
-    {"service": "CONTAINER_ENGINE", "sku_name": "Container Engine for Kubernetes", "base_cost": 60.0},
-    {"service": "FUNCTIONS", "sku_name": "Functions", "base_cost": 12.0},
+    {
+        "service_name": "COMPUTE", "sku_name": "VM.Standard.E4.Flex",
+        "sku_part_number": "B92484",
+        "base_cost": 2.00, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.025
+    },
+    {
+        "service_name": "OBJECT_STORAGE", "sku_name": "Object Storage - Storage",
+        "sku_part_number": "B91962",
+        "base_cost": 0.80, "unit": "GB MONTHS", "base_usage": 100, "price_per_unit": 0.0255
+    },
+    {
+        "service_name": "AUTONOMOUS_DATABASE", "sku_name": "Autonomous Transaction Processing",
+        "sku_part_number": "B91616",
+        "base_cost": 1.80, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.2546
+    },
+    {
+        "service_name": "FUNCTIONS", "sku_name": "Functions - Requests",
+        "sku_part_number": "B92166",
+        "base_cost": 0.40, "unit": "REQUESTS", "base_usage": 1000000, "price_per_unit": 0.0000002
+    },
 ]
 
 
@@ -394,131 +483,253 @@ def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict
 
 
 def generate_gcp_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate GCP billing data with realistic patterns."""
+    """
+    Generate GCP billing data with realistic patterns.
+
+    Schema matches: 04-inra-cicd-automation/load-demo-data/schemas/gcp_billing_cost.json
+    And BigQuery raw table schema: 03-data-pipeline-service/configs/cloud/gcp/cost/schemas/billing_cost.json
+
+    Cost distribution: ~93% regular costs (positive), ~7% credits (negative)
+    """
     print("Generating GCP billing data...")
     records = []
     current_date = start_date
+    record_index = 0
 
     while current_date <= end_date:
         run_id = generate_run_id("gcp", current_date)
         combined_mult = get_combined_multiplier(current_date, start_date)
 
         for service in GCP_SERVICES:
-            cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
-            usage_amount = round(cost * random.uniform(5, 20), 2)
+            record_index += 1
+            is_credit = random.random() < CREDIT_PERCENTAGE
+
+            # Calculate cost with realistic variation
+            base = service["base_cost"] * combined_mult * random.uniform(0.7, 1.3)
+            cost = round(-abs(base) if is_credit else abs(base), 4)
+
+            # Calculate realistic usage amount based on price per unit
+            usage_mult = combined_mult * random.uniform(0.8, 1.2)
+            usage_amount = round(service["base_usage"] * usage_mult, 2)
+            usage_in_pricing_units = round(usage_amount / 1000000 if service["usage_unit"] == "byte-seconds" else usage_amount, 6)
+
+            # Credits fields
+            credits_total = round(-abs(base * 0.1), 4) if is_credit else 0.0
+            credits_json = json.dumps([{
+                "name": "Sustained Use Discount",
+                "amount": credits_total,
+                "full_name": "Sustained Use Discount",
+                "id": "SUD-" + str(uuid.uuid4())[:8],
+                "type": "SUSTAINED_USAGE_DISCOUNT"
+            }]) if is_credit else None
 
             record = {
+                # Required fields
                 "billing_account_id": "01A2B3-C4D5E6-F7G8H9",
-                "service_id": service["service_id"],
-                "service_description": service["service_description"],
-                "sku_id": service["sku_id"],
-                "sku_description": service["sku_description"],
                 "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
                 "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
-                "project_id": "genai-community-prod",
-                "project_name": "GenAI Community Production",
-                "project_number": "123456789012",
-                "location_location": "us-central1",
-                "location_region": "us-central1",
-                "location_zone": "us-central1-a",
-                "resource_name": f"{service['service_description'].lower().replace(' ', '-')}-instance-1",
-                "resource_global_name": None,
                 "cost": cost,
-                "currency": "USD",
-                "currency_conversion_rate": 1.0,
-                "usage_amount": usage_amount,
-                "usage_unit": service["usage_unit"],
-                "usage_amount_in_pricing_units": usage_amount,
-                "usage_pricing_unit": service["usage_unit"],
-                "cost_type": "regular",
-                "credits_total": 0.0,
-                "cost_at_list": round(cost * 1.1, 2),
-                "invoice_month": current_date.strftime("%Y%m"),
                 "ingestion_date": current_date.isoformat(),
-                "labels_json": json.dumps({"env": "prod", "team": "genai"}),
-                "system_labels_json": None,
                 "org_slug": ORG_SLUG,
                 "x_pipeline_id": "cloud_cost_gcp",
                 "x_credential_id": "cred_gcp_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
                 "x_run_id": run_id,
                 "x_ingested_at": f"{current_date.isoformat()}T23:59:59Z",
+
+                # Service identification
+                "service_id": service["service_id"],
+                "service_description": service["service_description"],
+                "sku_id": service["sku_id"],
+                "sku_description": service["sku_description"],
+
+                # Project info
+                "project_id": "acme-production-01",
+                "project_name": "ACME Production",
+                "project_number": "123456789012",
+
+                # Location
+                "location_location": "us-central1",
+                "location_region": "us-central1",
+                "location_zone": "us-central1-a",
+
+                # Resource
+                "resource_name": f"{service['service_description'].lower().replace(' ', '-')}-{random.randint(1, 5)}",
+                "resource_global_name": f"//cloudresourcemanager.googleapis.com/projects/acme-production-01",
+
+                # Pricing and usage - REALISTIC VALUES
+                "currency": "USD",
+                "currency_conversion_rate": 1.0,
+                "usage_amount": usage_amount,
+                "usage_unit": service["usage_unit"],
+                "usage_amount_in_pricing_units": usage_in_pricing_units,
+                "usage_pricing_unit": service["usage_pricing_unit"],
+
+                # Cost categorization
+                "cost_type": "regular" if not is_credit else "credit",
+                "credits_total": credits_total,
+                "credits_json": credits_json,
+                "cost_at_list": round(abs(cost) * 1.1, 4) if not is_credit else 0.0,
+
+                # Invoice
+                "invoice_month": current_date.strftime("%Y%m"),
+
+                # Labels
+                "labels_json": json.dumps({"env": "prod", "team": "platform", "cost_center": "engineering"}),
+                "system_labels_json": json.dumps({"compute.googleapis.com/machine_spec": "n2-standard-2"}),
+
+                # Hierarchy fields (to be populated by pipeline)
+                "x_hierarchy_entity_id": None,
+                "x_hierarchy_entity_name": None,
+                "x_hierarchy_level_code": None,
+                "x_hierarchy_path": None,
+                "x_hierarchy_path_names": None,
             }
             records.append(record)
 
         current_date += timedelta(days=1)
 
+    # Summary stats
+    total_costs = sum(r["cost"] for r in records if r["cost"] > 0)
+    total_credits = sum(r["cost"] for r in records if r["cost"] < 0)
+    credit_records = len([r for r in records if r["cost"] < 0])
+
     print(f"  Generated {len(records)} records")
+    print(f"    Costs: ${total_costs:.2f} ({len(records) - credit_records} records)")
+    print(f"    Credits: ${total_credits:.2f} ({credit_records} records)")
+    print(f"    Net: ${total_costs + total_credits:.2f}")
     return records
 
 
 def generate_aws_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate AWS billing data with realistic patterns."""
+    """
+    Generate AWS billing data with realistic patterns.
+
+    Schema matches: 04-inra-cicd-automation/load-demo-data/schemas/aws_billing_cost.json
+
+    Cost distribution: ~93% regular costs (positive), ~7% credits (negative)
+    """
     print("Generating AWS billing data...")
     records = []
     current_date = start_date
+    record_index = 0
 
     while current_date <= end_date:
         run_id = generate_run_id("aws", current_date)
         combined_mult = get_combined_multiplier(current_date, start_date)
 
-        for service in AWS_SERVICES:
-            unblended_cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
-            usage_amount = round(random.uniform(10, 100), 2)
+        # Calculate billing period end
+        if current_date.month < 12:
+            billing_end = date(current_date.year, current_date.month + 1, 1).isoformat()
+        else:
+            billing_end = date(current_date.year + 1, 1, 1).isoformat()
 
-            # Calculate billing period end
-            if current_date.month < 12:
-                billing_end = date(current_date.year, current_date.month + 1, 1).isoformat()
-            else:
-                billing_end = date(current_date.year + 1, 1, 1).isoformat()
+        for service in AWS_SERVICES:
+            record_index += 1
+            is_credit = random.random() < CREDIT_PERCENTAGE
+
+            # Calculate cost with realistic variation
+            base = service["base_cost"] * combined_mult * random.uniform(0.7, 1.3)
+            unblended_cost = round(abs(base), 4)
+
+            # Calculate realistic usage amount
+            usage_mult = combined_mult * random.uniform(0.8, 1.2)
+            usage_amount = round(service["base_usage"] * usage_mult, 2)
+
+            # Line item type determines if it's a credit
+            line_item_type = "Credit" if is_credit else "Usage"
+            if is_credit:
+                unblended_cost = round(-abs(base), 4)
 
             record = {
+                # Required fields
                 "usage_date": current_date.isoformat(),
                 "org_slug": ORG_SLUG,
                 "provider": "aws",
                 "linked_account_id": "123456789012",
-                "linked_account_name": "GenAI Community Production",
-                "payer_account_id": "123456789012",
-                "service_code": service["service_code"],
-                "product_code": service["service_code"],
-                "product_name": service["product_name"],
-                "usage_type": service["usage_type"],
-                "operation": service["operation"],
-                "region": "us-west-2",
-                "availability_zone": "us-west-2a",
-                "resource_id": f"arn:aws:{service['service_code'].lower()}:us-west-2:123456789012:resource-{random.randint(1000, 9999)}",
-                "line_item_type": "Usage",
-                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
-                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
-                "usage_amount": usage_amount,
-                "usage_unit": "Hrs",
                 "unblended_cost": unblended_cost,
-                "blended_cost": round(unblended_cost * 0.95, 2),
-                "amortized_cost": round(unblended_cost * 0.9, 2),
-                "net_unblended_cost": round(unblended_cost * 0.98, 2),
-                "currency": "USD",
-                "pricing_unit": "Hrs",
-                "public_on_demand_cost": round(unblended_cost * 1.15, 2),
-                "reservation_arn": None,
-                "savings_plan_arn": None,
-                "discount_amount": 0.0,
-                "invoice_id": f"INV-{current_date.strftime('%Y%m')}-{random.randint(1000, 9999)}",
-                "billing_period_start": current_date.replace(day=1).isoformat(),
-                "billing_period_end": billing_end,
-                "resource_tags_json": json.dumps({"Environment": "Production", "Team": "GenAI"}),
-                "cost_category_json": None,
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
                 "x_pipeline_id": "cloud_cost_aws",
                 "x_credential_id": "cred_aws_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
                 "x_run_id": run_id,
                 "x_ingested_at": f"{current_date.isoformat()}T23:59:59Z",
+
+                # Account info
+                "linked_account_name": "ACME Production Account",
+                "payer_account_id": "123456789012",
+
+                # Service identification
+                "service_code": service["service_code"],
+                "product_code": service["service_code"],
+                "product_name": service["product_name"],
+                "usage_type": service["usage_type"],
+                "operation": service["operation"],
+
+                # Location
+                "region": "us-west-2",
+                "availability_zone": "us-west-2a",
+
+                # Resource
+                "resource_id": f"arn:aws:{service['service_code'].lower()}:us-west-2:123456789012:resource/{uuid.uuid4().hex[:8]}",
+
+                # Line item type (Usage, Tax, Credit, etc.)
+                "line_item_type": line_item_type,
+
+                # Time period
+                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
+                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
+
+                # Usage - REALISTIC VALUES
+                "usage_amount": usage_amount,
+                "usage_unit": service["usage_unit"],
+
+                # Cost breakdown
+                "blended_cost": round(unblended_cost * 0.95, 4) if not is_credit else unblended_cost,
+                "amortized_cost": round(unblended_cost * 0.92, 4) if not is_credit else unblended_cost,
+                "net_unblended_cost": round(unblended_cost * 0.98, 4) if not is_credit else unblended_cost,
+                "currency": "USD",
+                "pricing_unit": service["pricing_unit"],
+                "public_on_demand_cost": round(abs(unblended_cost) * 1.15, 4) if not is_credit else 0.0,
+
+                # Reservations/Savings Plans
+                "reservation_arn": None,
+                "savings_plan_arn": None,
+                "discount_amount": 0.0 if not is_credit else abs(unblended_cost),
+
+                # Billing
+                "invoice_id": f"INV-{current_date.strftime('%Y%m')}-AWS",
+                "billing_period_start": current_date.replace(day=1).isoformat(),
+                "billing_period_end": billing_end,
+
+                # Tags
+                "resource_tags_json": json.dumps({
+                    "Environment": "Production",
+                    "Team": "Platform",
+                    "CostCenter": "engineering"
+                }),
+                "cost_category_json": json.dumps({"cost_center": "engineering"}),
+
+                # Hierarchy fields (to be populated by pipeline)
+                "x_hierarchy_entity_id": None,
+                "x_hierarchy_entity_name": None,
+                "x_hierarchy_level_code": None,
+                "x_hierarchy_path": None,
+                "x_hierarchy_path_names": None,
             }
             records.append(record)
 
         current_date += timedelta(days=1)
 
+    # Summary stats
+    total_costs = sum(r["unblended_cost"] for r in records if r["unblended_cost"] > 0)
+    total_credits = sum(r["unblended_cost"] for r in records if r["unblended_cost"] < 0)
+    credit_records = len([r for r in records if r["unblended_cost"] < 0])
+
     print(f"  Generated {len(records)} records")
+    print(f"    Costs: ${total_costs:.2f} ({len(records) - credit_records} records)")
+    print(f"    Credits: ${total_credits:.2f} ({credit_records} records)")
+    print(f"    Net: ${total_costs + total_credits:.2f}")
     return records
 
 

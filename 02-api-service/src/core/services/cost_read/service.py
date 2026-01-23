@@ -285,6 +285,9 @@ class CostReadService:
             ResourceName,
             CAST(BilledCost AS FLOAT64) as BilledCost,
             CAST(EffectiveCost AS FLOAT64) as EffectiveCost,
+            -- Savings = gross cost - net cost (credits are negative, so BilledCost - EffectiveCost = savings)
+            CAST(BilledCost - EffectiveCost AS FLOAT64) as Savings,
+            CAST(ListCost AS FLOAT64) as ListCost,
             BillingCurrency,
             CAST(ConsumedQuantity AS FLOAT64) as ConsumedQuantity,
             ConsumedUnit,
@@ -431,6 +434,8 @@ class CostReadService:
             # Calculate summary using lib/costs/
             total_billed = df["BilledCost"].sum()
             total_effective = df["EffectiveCost"].sum()
+            # Savings = gross cost - net cost (credits applied)
+            total_savings = df["Savings"].sum() if "Savings" in df.columns else (total_billed - total_effective)
 
             # Filter to current month for MTD
             date_info = get_date_info()
@@ -448,6 +453,7 @@ class CostReadService:
             summary = {
                 "total_billed_cost": round(total_billed or 0, 2),
                 "total_effective_cost": round(total_effective or 0, 2),
+                "total_savings": round(total_savings or 0, 2),
                 "record_count": len(df),
                 "mtd_cost": round(mtd_cost or 0, 2),
                 "daily_rate": forecasts["daily_rate"],
@@ -671,6 +677,14 @@ class CostReadService:
         start_time = time.time()
         cache_key = f"by_hierarchy:{query.cache_key()}:{level}"
 
+        # Map level names to 5-field hierarchy level codes
+        level_code_map = {
+            "department": "DEPT",
+            "project": "PROJ",
+            "team": "TEAM",
+        }
+        level_code = level_code_map.get(level.lower(), level.upper())
+
         cached = self._cache.get(cache_key)
         if cached is not None:
             return CostResponse(
@@ -683,8 +697,8 @@ class CostReadService:
         try:
             df = await self._fetch_cost_data(query)
 
-            # Use lib/costs/ aggregation
-            breakdown = aggregate_by_hierarchy(df, level=level, include_percentage=True)
+            # Use lib/costs/ aggregation with 5-field hierarchy model
+            breakdown = aggregate_by_hierarchy(df, level_code=level_code, include_percentage=True)
 
             # Cache until midnight UTC (daily data)
             resolved_start, resolved_end = query.resolve_dates()
@@ -724,10 +738,11 @@ class CostReadService:
         try:
             df = await self._fetch_cost_data(query)
 
+            # Use 5-field hierarchy model level codes
             rollup = {
-                "by_department": aggregate_by_hierarchy(df, level="department"),
-                "by_project": aggregate_by_hierarchy(df, level="project"),
-                "by_team": aggregate_by_hierarchy(df, level="team"),
+                "by_department": aggregate_by_hierarchy(df, level_code="DEPT"),
+                "by_project": aggregate_by_hierarchy(df, level_code="PROJ"),
+                "by_team": aggregate_by_hierarchy(df, level_code="TEAM"),
                 "total_cost": round(df["BilledCost"].sum() or 0, 2),
             }
 
@@ -1084,6 +1099,10 @@ class CostReadService:
                     data=[],
                     summary={
                         "total_cost": 0,
+                        # FOCUS 1.3 fields
+                        "total_billed_cost": 0,
+                        "total_effective_cost": 0,
+                        "total_savings": 0,
                         "mtd_cost": 0,
                         "total_daily_cost": 0,
                         "total_monthly_cost": 0,
@@ -1101,16 +1120,20 @@ class CostReadService:
                 )
 
             data = df.to_dicts()
-            total_cost = df["BilledCost"].sum() or 0
+            # FOCUS 1.3 cost totals
+            total_billed = df["BilledCost"].sum() or 0
+            total_effective = df["EffectiveCost"].sum() if "EffectiveCost" in df.columns else total_billed
+            total_savings = df["Savings"].sum() if "Savings" in df.columns else (total_billed - total_effective)
+
             date_info = get_date_info()
             mtd_df = filter_date_range(df, start_date=date_info.month_start, end_date=date_info.today)
             mtd_cost = mtd_df["BilledCost"].sum() if not mtd_df.is_empty() else 0
 
             # If no MTD data, calculate forecasts from available data in requested range
             resolved_start, resolved_end = query.resolve_dates()
-            if mtd_cost == 0 and total_cost > 0:
+            if mtd_cost == 0 and total_billed > 0:
                 days_in_range = max(1, (resolved_end - resolved_start).days + 1)
-                daily_rate = total_cost / days_in_range
+                daily_rate = total_billed / days_in_range
                 forecasts = {
                     "daily_rate": round(daily_rate, 2),
                     "monthly_forecast": round(daily_rate * 30, 2),
@@ -1120,7 +1143,11 @@ class CostReadService:
                 forecasts = calculate_forecasts(mtd_cost or 0)
 
             summary = {
-                "total_cost": round(total_cost, 2),
+                "total_cost": round(total_billed, 2),
+                # FOCUS 1.3 fields (FinOps standard terminology)
+                "total_billed_cost": round(total_billed or 0, 2),      # Gross cost before credits
+                "total_effective_cost": round(total_effective or 0, 2),  # Net cost after credits
+                "total_savings": round(total_savings or 0, 2),          # Credits applied
                 "mtd_cost": round(mtd_cost or 0, 2),
                 "total_daily_cost": forecasts["daily_rate"],
                 "total_monthly_cost": forecasts["monthly_forecast"],
@@ -1184,6 +1211,10 @@ class CostReadService:
                     data=[],
                     summary={
                         "total_cost": 0,
+                        # FOCUS 1.3 fields
+                        "total_billed_cost": 0,
+                        "total_effective_cost": 0,
+                        "total_savings": 0,
                         "mtd_cost": 0,
                         "total_daily_cost": 0,
                         "total_monthly_cost": 0,
@@ -1201,16 +1232,20 @@ class CostReadService:
                 )
 
             data = df.to_dicts()
-            total_cost = df["BilledCost"].sum() or 0
+            # FOCUS 1.3 cost totals
+            total_billed = df["BilledCost"].sum() or 0
+            total_effective = df["EffectiveCost"].sum() if "EffectiveCost" in df.columns else total_billed
+            total_savings = df["Savings"].sum() if "Savings" in df.columns else (total_billed - total_effective)
+
             date_info = get_date_info()
             mtd_df = filter_date_range(df, start_date=date_info.month_start, end_date=date_info.today)
             mtd_cost = mtd_df["BilledCost"].sum() if not mtd_df.is_empty() else 0
 
             # If no MTD data, calculate forecasts from available data in requested range
             resolved_start, resolved_end = query.resolve_dates()
-            if mtd_cost == 0 and total_cost > 0:
+            if mtd_cost == 0 and total_billed > 0:
                 days_in_range = max(1, (resolved_end - resolved_start).days + 1)
-                daily_rate = total_cost / days_in_range
+                daily_rate = total_billed / days_in_range
                 forecasts = {
                     "daily_rate": round(daily_rate, 2),
                     "monthly_forecast": round(daily_rate * 30, 2),
@@ -1220,7 +1255,11 @@ class CostReadService:
                 forecasts = calculate_forecasts(mtd_cost or 0)
 
             summary = {
-                "total_cost": round(total_cost, 2),
+                "total_cost": round(total_billed, 2),
+                # FOCUS 1.3 fields (FinOps standard terminology)
+                "total_billed_cost": round(total_billed or 0, 2),      # Gross cost before credits
+                "total_effective_cost": round(total_effective or 0, 2),  # Net cost after credits
+                "total_savings": round(total_savings or 0, 2),          # Credits applied
                 "mtd_cost": round(mtd_cost or 0, 2),
                 "total_daily_cost": forecasts["daily_rate"],
                 "total_monthly_cost": forecasts["monthly_forecast"],

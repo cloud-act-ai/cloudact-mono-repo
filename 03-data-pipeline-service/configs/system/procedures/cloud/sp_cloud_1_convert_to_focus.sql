@@ -9,10 +9,17 @@
 -- INPUTS:
 --   p_project_id: GCP Project ID
 --   p_dataset_id: Customer dataset (e.g., 'acme_corp_prod')
---   p_cost_date: Date to convert costs for
+--   p_start_date: Start date for date range conversion
+--   p_end_date: End date for date range conversion (if NULL, uses p_start_date for single day)
 --   p_provider: Cloud provider ('gcp', 'aws', 'azure', 'oci', or 'all')
 --
 -- OUTPUT: Records inserted into cost_data_standard_1_3 table
+--
+-- USAGE:
+--   -- Single date:
+--   CALL sp_cloud_1_convert_to_focus('project', 'dataset', DATE('2026-01-01'), NULL, 'gcp', 'pipe', 'cred', 'run')
+--   -- Date range (60 days):
+--   CALL sp_cloud_1_convert_to_focus('project', 'dataset', DATE('2025-11-24'), DATE('2026-01-23'), 'gcp', 'pipe', 'cred', 'run')
 --
 -- HIERARCHY: Uses 5-field x_hierarchy_* model (entity_id, entity_name, level_code, path, path_names)
 -- ================================================================================
@@ -20,7 +27,8 @@
 CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_cloud_1_convert_to_focus(
   p_project_id STRING,
   p_dataset_id STRING,
-  p_cost_date DATE,
+  p_start_date DATE,
+  p_end_date DATE,  -- If NULL, uses p_start_date (single date mode)
   p_provider STRING,
   p_pipeline_id STRING,
   p_credential_id STRING,
@@ -31,6 +39,10 @@ BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_slug STRING;
   DECLARE v_org_exists INT64 DEFAULT 0;
+  DECLARE v_effective_end_date DATE;
+
+  -- If end_date is NULL, use start_date (single date mode for backward compatibility)
+  SET v_effective_end_date = COALESCE(p_end_date, p_start_date);
 
   -- Extract org_slug from dataset_id using safe extraction
   -- Pattern: {org_slug}_{env} where env is prod/stage/dev/local/test
@@ -53,7 +65,7 @@ BEGIN
   """, p_project_id)
   INTO v_org_exists USING v_org_slug AS v_org_slug;
   ASSERT v_org_exists = 1 AS "Organization not found or unauthorized access";
-  ASSERT p_cost_date IS NOT NULL AS "p_cost_date cannot be NULL";
+  ASSERT p_start_date IS NOT NULL AS "p_start_date cannot be NULL";
   ASSERT p_provider IN ('gcp', 'aws', 'azure', 'oci', 'all') AS "p_provider must be gcp, aws, azure, oci, or all";
   ASSERT p_pipeline_id IS NOT NULL AS "p_pipeline_id cannot be NULL";
   ASSERT p_credential_id IS NOT NULL AS "p_credential_id cannot be NULL";
@@ -61,22 +73,22 @@ BEGIN
 
   BEGIN TRANSACTION;
 
-    -- Delete existing cloud FOCUS records for this date and provider(s)
+    -- Delete existing cloud FOCUS records for date range and provider(s)
     IF p_provider = 'all' THEN
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
-        WHERE DATE(ChargePeriodStart) = @p_date
+        WHERE DATE(ChargePeriodStart) BETWEEN @p_start AND @p_end
           AND x_source_system IN ('cloud_gcp_billing_raw_daily', 'cloud_aws_billing_raw_daily',
                                   'cloud_azure_billing_raw_daily', 'cloud_oci_billing_raw_daily')
       """, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date;
+      USING p_start_date AS p_start, v_effective_end_date AS p_end;
     ELSE
       EXECUTE IMMEDIATE FORMAT("""
         DELETE FROM `%s.%s.cost_data_standard_1_3`
-        WHERE DATE(ChargePeriodStart) = @p_date
+        WHERE DATE(ChargePeriodStart) BETWEEN @p_start AND @p_end
           AND x_source_system = CONCAT('cloud_', @p_provider, '_billing_raw_daily')
       """, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_provider AS p_provider;
+      USING p_start_date AS p_start, v_effective_end_date AS p_end, p_provider AS p_provider;
     END IF;
 
     -- ============================================================================
@@ -205,13 +217,14 @@ BEGIN
           h.entity_name as x_hierarchy_entity_name,
           h.level_code as x_hierarchy_level_code,
           h.path as x_hierarchy_path,
-          h.path_names as x_hierarchy_path_names,
+          -- Convert ARRAY<STRING> to STRING (org_hierarchy.path_names is REPEATED)
+          ARRAY_TO_STRING(h.path_names, ' > ') as x_hierarchy_path_names,
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
-          @p_date as x_pipeline_run_date,
+          @p_start as x_pipeline_run_date,
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
@@ -222,10 +235,10 @@ BEGIN
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.department'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.entity_id')
         )
-        WHERE DATE(b.usage_start_time) = @p_date
+        WHERE DATE(b.usage_start_time) BETWEEN @p_start AND @p_end
           AND b.cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
+      USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -343,13 +356,14 @@ BEGIN
           h.entity_name as x_hierarchy_entity_name,
           h.level_code as x_hierarchy_level_code,
           h.path as x_hierarchy_path,
-          h.path_names as x_hierarchy_path_names,
+          -- Convert ARRAY<STRING> to STRING (org_hierarchy.path_names is REPEATED)
+          ARRAY_TO_STRING(h.path_names, ' > ') as x_hierarchy_path_names,
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
-          @p_date as x_pipeline_run_date,
+          @p_start as x_pipeline_run_date,
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
@@ -362,10 +376,10 @@ BEGIN
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.cost_center'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.entity_id')
         )
-        WHERE b.usage_date = @p_date
+        WHERE b.usage_date BETWEEN @p_start AND @p_end
           AND b.unblended_cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
+      USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -474,13 +488,14 @@ BEGIN
           h.entity_name as x_hierarchy_entity_name,
           h.level_code as x_hierarchy_level_code,
           h.path as x_hierarchy_path,
-          h.path_names as x_hierarchy_path_names,
+          -- Convert ARRAY<STRING> to STRING (org_hierarchy.path_names is REPEATED)
+          ARRAY_TO_STRING(h.path_names, ' > ') as x_hierarchy_path_names,
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
-          @p_date as x_pipeline_run_date,
+          @p_start as x_pipeline_run_date,
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
@@ -491,10 +506,10 @@ BEGIN
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.department'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.entity_id')
         )
-        WHERE b.usage_date = @p_date
+        WHERE b.usage_date BETWEEN @p_start AND @p_end
           AND b.cost_in_billing_currency > 0
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
+      USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -599,13 +614,14 @@ BEGIN
           h.entity_name as x_hierarchy_entity_name,
           h.level_code as x_hierarchy_level_code,
           h.path as x_hierarchy_path,
-          h.path_names as x_hierarchy_path_names,
+          -- Convert ARRAY<STRING> to STRING (org_hierarchy.path_names is REPEATED)
+          ARRAY_TO_STRING(h.path_names, ' > ') as x_hierarchy_path_names,
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
-          @p_date as x_pipeline_run_date,
+          @p_start as x_pipeline_run_date,
           @p_run_id as x_run_id,
           CURRENT_TIMESTAMP() as x_ingested_at
 
@@ -618,10 +634,10 @@ BEGIN
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.cost_center'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.entity_id')
         )
-        WHERE b.usage_date = @p_date
+        WHERE b.usage_date BETWEEN @p_start AND @p_end
           AND b.cost > 0
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
-      USING p_cost_date AS p_date, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
+      USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
       SET v_rows_inserted = v_rows_inserted + @@row_count;
     END IF;
@@ -630,7 +646,8 @@ BEGIN
 
   -- Log conversion result
   SELECT
-    p_cost_date as cost_date,
+    p_start_date as start_date,
+    v_effective_end_date as end_date,
     p_provider as provider,
     v_rows_inserted as rows_inserted,
     'cost_data_standard_1_3' as target_table,
@@ -641,7 +658,7 @@ EXCEPTION WHEN ERROR THEN
   -- PRO-011: Enhanced error message with provider and date context
   RAISE USING MESSAGE = CONCAT(
     'sp_cloud_1_convert_to_focus Failed for provider=', p_provider,
-    ', cost_date=', CAST(p_cost_date AS STRING),
+    ', date_range=', CAST(p_start_date AS STRING), ' to ', CAST(v_effective_end_date AS STRING),
     ': ', @@error.message
   );
 END;

@@ -37,7 +37,13 @@ export interface CostSummary {
   total_daily_cost: number
   total_monthly_cost: number
   total_annual_cost: number
+  // FOCUS 1.3 cost fields (FinOps standard)
+  /** BilledCost - Gross cost before credits */
   total_billed_cost: number
+  /** EffectiveCost - Net cost after credits */
+  total_effective_cost?: number
+  /** Savings - Credits applied (BilledCost - EffectiveCost) */
+  total_savings?: number
   ytd_cost: number
   mtd_cost: number
   forecast_monthly_cost: number
@@ -58,9 +64,15 @@ export interface CostRecord {
   ServiceName: string
   ServiceSubcategory: string
 
-  // Cost fields
+  // FOCUS 1.3 Cost Fields (FinOps standard terminology)
+  /** BilledCost - Gross cost before credits (FOCUS 1.3) */
   BilledCost: number
+  /** EffectiveCost - Net cost after credits (FOCUS 1.3) */
   EffectiveCost: number
+  /** Savings - Credits applied (BilledCost - EffectiveCost) */
+  Savings: number
+  /** ListCost - List/retail price (FOCUS 1.3) */
+  ListCost?: number
   BillingCurrency: string
 
   // Time
@@ -85,6 +97,15 @@ export interface ServiceBreakdown {
   provider: string
   total_cost: number
   record_count: number
+  // FOCUS 1.3 cost fields
+  billed_cost?: number      // Gross cost before credits
+  effective_cost?: number   // Net cost after credits
+  savings?: number          // Credits applied (billed - effective)
+  // Usage data (formatted)
+  usage?: string            // Formatted usage (e.g., "7.3M hrs", "122 MB")
+  usage_unit?: string       // Raw unit (e.g., "seconds", "bytes")
+  // API may return 'service' instead of 'service_name'
+  service?: string
 }
 
 export interface CostTrendPoint {
@@ -110,8 +131,10 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
-    total_billed_cost?: number  // Actual billed cost for the period
-    mtd_cost?: number           // Month-to-date actual cost
+    total_billed_cost?: number    // FOCUS: Gross cost before credits
+    total_effective_cost?: number // FOCUS: Net cost after credits
+    total_savings?: number        // FOCUS: Credits applied (BilledCost - EffectiveCost)
+    mtd_cost?: number             // Month-to-date actual cost
     record_count: number
     providers: string[]
   }
@@ -119,8 +142,10 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
-    total_billed_cost?: number  // Actual billed cost for the period
-    mtd_cost?: number           // Month-to-date actual cost
+    total_billed_cost?: number    // FOCUS: Gross cost before credits
+    total_effective_cost?: number // FOCUS: Net cost after credits
+    total_savings?: number        // FOCUS: Credits applied (BilledCost - EffectiveCost)
+    mtd_cost?: number             // Month-to-date actual cost
     record_count: number
     providers: string[]
   }
@@ -128,8 +153,10 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
-    total_billed_cost?: number  // Actual billed cost for the period
-    mtd_cost?: number           // Month-to-date actual cost
+    total_billed_cost?: number    // FOCUS: Gross cost before credits
+    total_effective_cost?: number // FOCUS: Net cost after credits
+    total_savings?: number        // FOCUS: Credits applied (BilledCost - EffectiveCost)
+    mtd_cost?: number             // Month-to-date actual cost
     record_count: number
     providers: string[]
   }
@@ -137,7 +164,9 @@ export interface TotalCostSummary {
     total_daily_cost: number
     total_monthly_cost: number
     total_annual_cost: number
-    total_billed_cost?: number  // Total actual billed cost for the period
+    total_billed_cost?: number    // FOCUS: Total gross cost
+    total_effective_cost?: number // FOCUS: Total net cost
+    total_savings?: number        // FOCUS: Total savings/credits
   }
   date_range: {
     start: string

@@ -75,6 +75,68 @@ def aggregate_by_provider(
 # Service Aggregations
 # ==============================================================================
 
+def _format_usage(quantity: float, unit: str) -> str:
+    """Format usage quantity with appropriate unit scaling.
+
+    Uses binary units (GiB, TiB) to match cloud provider billing.
+    """
+    if not quantity or not unit:
+        return ""
+
+    unit_lower = unit.lower()
+
+    # Binary unit constants (cloud providers use GiB, not GB)
+    KiB = 1024
+    MiB = 1024 ** 2
+    GiB = 1024 ** 3
+    TiB = 1024 ** 4
+
+    # Byte-seconds (memory/storage usage) - check BEFORE "second" since it contains "second"
+    if "byte-second" in unit_lower:
+        # Convert to GiB-hours for readability (binary units to match cloud billing)
+        gib_hours = quantity / (GiB * 3600)
+        if gib_hours >= 1024:
+            return f"{gib_hours / 1024:,.2f} TiB-hrs"
+        if gib_hours >= 1:
+            return f"{gib_hours:,.1f} GiB-hrs"
+        return f"{gib_hours * 1024:,.1f} MiB-hrs"
+
+    # Time units - convert to hours if seconds
+    if "second" in unit_lower:
+        if quantity >= 3600:
+            return f"{quantity / 3600:,.1f} hrs"
+        return f"{quantity:,.0f} sec"
+
+    # Byte units - convert using binary units (GiB/MiB/KiB)
+    if unit_lower in ("bytes", "byte"):
+        if quantity >= TiB:
+            return f"{quantity / TiB:,.2f} TiB"
+        if quantity >= GiB:
+            return f"{quantity / GiB:,.2f} GiB"
+        if quantity >= MiB:
+            return f"{quantity / MiB:,.2f} MiB"
+        if quantity >= KiB:
+            return f"{quantity / KiB:,.2f} KiB"
+        return f"{quantity:,.0f} B"
+
+    # Requests/calls - just format with commas
+    if "request" in unit_lower or "call" in unit_lower:
+        if quantity >= 1e6:
+            return f"{quantity / 1e6:,.2f}M reqs"
+        if quantity >= 1e3:
+            return f"{quantity / 1e3:,.1f}K reqs"
+        return f"{quantity:,.0f} reqs"
+
+    # Default formatting
+    if quantity >= 1e9:
+        return f"{quantity / 1e9:,.2f}B {unit}"
+    if quantity >= 1e6:
+        return f"{quantity / 1e6:,.2f}M {unit}"
+    if quantity >= 1e3:
+        return f"{quantity / 1e3:,.1f}K {unit}"
+    return f"{quantity:,.2f} {unit}"
+
+
 def aggregate_by_service(
     df: pl.DataFrame,
     cost_column: str = "BilledCost",
@@ -82,48 +144,131 @@ def aggregate_by_service(
     include_percentage: bool = True,
 ) -> List[Dict[str, Any]]:
     """
-    Aggregate costs by service.
+    Aggregate costs by service with FOCUS 1.3 cost breakdown and usage data.
 
     Args:
         df: Polars DataFrame with cost data
-        cost_column: Column name for cost values
+        cost_column: Column name for cost values (default: BilledCost)
         service_column: Column name for service
         include_percentage: Whether to calculate percentage of total
 
     Returns:
-        List of dicts with service, total_cost, record_count, percentage
+        List of dicts with service, billed_cost, effective_cost, savings,
+        usage (formatted), usage_unit, total_cost, percentage
     """
     if df.is_empty():
         return []
 
-    df = df.with_columns(
-        pl.col(cost_column).cast(pl.Float64).alias(cost_column)
-    )
+    # Ensure cost columns are float
+    columns_to_add = [
+        pl.col(cost_column).cast(pl.Float64).alias(cost_column),
+    ]
 
+    if "EffectiveCost" in df.columns:
+        columns_to_add.append(pl.col("EffectiveCost").cast(pl.Float64).alias("EffectiveCost"))
+    else:
+        columns_to_add.append(pl.lit(0.0).alias("EffectiveCost"))
+
+    df = df.with_columns(columns_to_add)
+
+    # Check for usage columns
+    has_usage = "ConsumedQuantity" in df.columns and "ConsumedUnit" in df.columns
+
+    # For usage, we need to group by service+unit first to get proper per-unit quantities,
+    # then pick the primary usage (highest cost) for each service
+    primary_usage_map: Dict[str, tuple] = {}  # service -> (quantity, unit)
+
+    if has_usage:
+        # Group by service and unit to get proper aggregates
+        usage_df = df.with_columns(
+            pl.col("ConsumedQuantity").cast(pl.Float64).alias("ConsumedQuantity")
+        )
+        usage_agg = (
+            usage_df.lazy()
+            .group_by([service_column, "ConsumedUnit"])
+            .agg([
+                pl.col("ConsumedQuantity").sum().alias("total_qty"),
+                pl.col(cost_column).sum().alias("unit_cost"),
+            ])
+            .collect()
+        )
+
+        # For each service, pick the most intuitive usage metric
+        # Priority: time (seconds/hours) > bytes > requests > byte-seconds
+        # - Time: CPU/build hours for compute services
+        # - Bytes: Data transfer/storage size (more meaningful than request counts)
+        # - Requests: API call counts (less meaningful for most services)
+        # - Byte-seconds: Memory-hours (confusing for users)
+        def unit_priority(unit: str) -> int:
+            u = unit.lower() if unit else ""
+            if "second" in u and "byte" not in u:
+                return 3  # Time units (most intuitive for compute)
+            if u in ("bytes", "byte"):
+                return 2  # Data transfer/storage size
+            if "request" in u or "call" in u:
+                return 1  # Request counts (less intuitive)
+            return 0  # byte-seconds, etc. (least intuitive)
+
+        for row in usage_agg.iter_rows(named=True):
+            service = row[service_column] or "Unknown"
+            unit = row["ConsumedUnit"] or ""
+            qty = row["total_qty"] or 0
+            cost = row["unit_cost"] or 0
+            priority = unit_priority(unit)
+
+            if service not in primary_usage_map:
+                primary_usage_map[service] = (qty, unit, cost, priority)
+            else:
+                existing_priority = primary_usage_map[service][3]
+                # Prefer higher priority units, or higher cost within same priority
+                if priority > existing_priority or (priority == existing_priority and cost > primary_usage_map[service][2]):
+                    primary_usage_map[service] = (qty, unit, cost, priority)
+
+    # Build aggregation expressions for costs
+    agg_exprs = [
+        pl.col(cost_column).sum().alias("billed_cost"),
+        pl.col("EffectiveCost").sum().alias("effective_cost"),
+    ]
+
+    # Aggregate with FOCUS cost fields
     result = (
         df.lazy()
         .group_by(service_column)
-        .agg([
-            pl.col(cost_column).sum().alias("total_cost"),
-            pl.count().alias("record_count"),
+        .agg(agg_exprs)
+        .with_columns([
+            # Savings = BilledCost - EffectiveCost
+            (pl.col("billed_cost") - pl.col("effective_cost")).alias("savings")
         ])
-        .sort("total_cost", descending=True)
+        .sort("billed_cost", descending=True)
         .collect()
     )
 
-    total_cost = result["total_cost"].sum()
+    total_billed = result["billed_cost"].sum()
 
     breakdown = []
     for row in result.iter_rows(named=True):
+        billed = row["billed_cost"] or 0
+        effective = row["effective_cost"] or 0
+        savings = row["savings"] or 0
+        service = row[service_column] or "Unknown"
+
         item = {
-            "service": row[service_column] or "Unknown",
-            "total_cost": round(row["total_cost"] or 0, 2),
-            "record_count": row["record_count"],
+            "service": service,
+            "billed_cost": round(billed, 2),
+            "effective_cost": round(effective, 2),
+            "savings": round(savings, 2),
+            "total_cost": round(billed, 2),  # Backward compatibility
         }
+
+        # Add formatted usage from primary usage map
+        if has_usage and service in primary_usage_map:
+            usage_qty, usage_unit, _, _ = primary_usage_map[service]
+            if usage_qty and usage_unit:
+                item["usage"] = _format_usage(usage_qty, usage_unit)
+                item["usage_unit"] = usage_unit
+
         if include_percentage:
-            item["percentage"] = calculate_percentage(
-                row["total_cost"] or 0, total_cost
-            )
+            item["percentage"] = calculate_percentage(billed, total_billed)
         breakdown.append(item)
 
     return breakdown
@@ -269,16 +414,24 @@ def aggregate_by_date(
 def aggregate_by_hierarchy(
     df: pl.DataFrame,
     cost_column: str = "BilledCost",
-    hierarchy_level: int = 1,
+    level_code: Optional[str] = None,
     include_percentage: bool = True,
 ) -> List[Dict[str, Any]]:
     """
-    Aggregate costs by organizational hierarchy (10-level support).
+    Aggregate costs by organizational hierarchy (5-field model).
+
+    Uses the 5-field hierarchy model:
+    - x_hierarchy_entity_id: Leaf entity ID
+    - x_hierarchy_entity_name: Leaf entity display name
+    - x_hierarchy_level_code: Level code (DEPT, PROJ, TEAM)
+    - x_hierarchy_path: Full path from root
+    - x_hierarchy_path_names: Human-readable path
 
     Args:
         df: Polars DataFrame with cost data
         cost_column: Column name for cost values
-        hierarchy_level: Level number to aggregate by (1-10, default=1 for department)
+        level_code: Optional level code to filter by (e.g., "DEPT", "PROJ", "TEAM")
+                   If None, aggregates all hierarchy entities
         include_percentage: Whether to calculate percentage of total
 
     Returns:
@@ -287,28 +440,31 @@ def aggregate_by_hierarchy(
     if df.is_empty():
         return []
 
-    # Validate level
-    if not 1 <= hierarchy_level <= 10:
-        raise ValueError(f"hierarchy_level must be 1-10, got {hierarchy_level}")
+    # Check if hierarchy columns exist
+    entity_id_col = "x_hierarchy_entity_id"
+    entity_name_col = "x_hierarchy_entity_name"
+    level_code_col = "x_hierarchy_level_code"
 
-    # Check if hierarchy columns exist for the specified level
-    level_id_col = f"x_hierarchy_level_{hierarchy_level}_id"
-    level_name_col = f"x_hierarchy_level_{hierarchy_level}_name"
-
-    if level_id_col not in df.columns:
+    if entity_id_col not in df.columns:
         return []
 
     df = df.with_columns(
         pl.col(cost_column).cast(pl.Float64).alias(cost_column)
     )
 
-    # Filter to non-null entities at the specified level
-    filtered = df.lazy().filter(pl.col(level_id_col).is_not_null())
+    # Filter to non-null entities
+    filtered = df.lazy().filter(pl.col(entity_id_col).is_not_null())
 
-    # Group by level ID and name
-    group_cols = [level_id_col]
-    if level_name_col in df.columns:
-        group_cols.append(level_name_col)
+    # Optionally filter by level code
+    if level_code and level_code_col in df.columns:
+        filtered = filtered.filter(pl.col(level_code_col) == level_code)
+
+    # Group by entity ID and name
+    group_cols = [entity_id_col]
+    if entity_name_col in df.columns:
+        group_cols.append(entity_name_col)
+    if level_code_col in df.columns:
+        group_cols.append(level_code_col)
 
     result = (
         filtered
@@ -325,13 +481,14 @@ def aggregate_by_hierarchy(
 
     breakdown = []
     for row in result.iter_rows(named=True):
-        entity_id = row[level_id_col]
-        entity_name = row.get(level_name_col) or entity_id
+        entity_id = row[entity_id_col]
+        entity_name = row.get(entity_name_col) or entity_id
+        entity_level = row.get(level_code_col)
 
         item = {
             "entity_id": entity_id,
             "entity_name": entity_name,
-            "hierarchy_level": hierarchy_level,
+            "level_code": entity_level,
             "total_cost": round(row["total_cost"] or 0, 2),
             "record_count": row["record_count"],
         }
@@ -415,10 +572,17 @@ def aggregate_granular(
     - Time range (filter by date)
     - Provider (filter by provider)
     - Category (filter by category, derived from provider)
-    - Hierarchy (filter by dept_id/project_id/team_id)
+    - Hierarchy (filter by entity_id, level_code, path prefix)
+
+    Uses the 5-field hierarchy model:
+    - x_hierarchy_entity_id: Leaf entity ID (e.g., "TEAM-001")
+    - x_hierarchy_entity_name: Leaf entity name (e.g., "Platform Team")
+    - x_hierarchy_level_code: Level code (DEPT, PROJ, TEAM)
+    - x_hierarchy_path: Full path from root (e.g., "/DEPT-001/PROJ-001/TEAM-001")
+    - x_hierarchy_path_names: Human-readable path (e.g., "Engineering > Platform > Backend")
 
     This enables ONE API call for 365 days, then ALL filters are client-side.
-    Data size: ~365 days × ~50 unique provider+dept combos = ~18,250 rows
+    Data size: ~365 days × ~50 unique provider+entity combos = ~18,250 rows
 
     Args:
         df: Polars DataFrame with cost data including hierarchy columns
@@ -435,15 +599,18 @@ def aggregate_granular(
     # Define grouping columns (include hierarchy if present)
     group_cols = ["_date", provider_column]
 
-    # Add 10-level hierarchy columns if they exist
+    # Add 5-field hierarchy columns if they exist
     hierarchy_cols = []
-    for level in range(1, 11):
-        level_id_col = f"x_hierarchy_level_{level}_id"
-        level_name_col = f"x_hierarchy_level_{level}_name"
-        if level_id_col in df.columns:
-            hierarchy_cols.append(level_id_col)
-        if level_name_col in df.columns:
-            hierarchy_cols.append(level_name_col)
+    hierarchy_field_mapping = {
+        "x_hierarchy_entity_id": "hierarchy_entity_id",
+        "x_hierarchy_entity_name": "hierarchy_entity_name",
+        "x_hierarchy_level_code": "hierarchy_level_code",
+        "x_hierarchy_path": "hierarchy_path",
+        "x_hierarchy_path_names": "hierarchy_path_names",
+    }
+    for db_col in hierarchy_field_mapping.keys():
+        if db_col in df.columns:
+            hierarchy_cols.append(db_col)
 
     # Add category columns if they exist
     category_cols = []
@@ -479,18 +646,9 @@ def aggregate_granular(
             "record_count": row["record_count"],
         }
 
-        # Add 10-level hierarchy fields (null if not present)
-        for level in range(1, 11):
-            level_id_col = f"x_hierarchy_level_{level}_id"
-            level_name_col = f"x_hierarchy_level_{level}_name"
-            item[f"level_{level}_id"] = row.get(level_id_col)
-            item[f"level_{level}_name"] = row.get(level_name_col)
-
-        # FIX-HIERARCHY-001: Add backward-compatible aliases for 3-level hierarchy
-        # Frontend uses dept_id/project_id/team_id for filtering, maps to levels 1/2/3
-        item["dept_id"] = item.get("level_1_id")
-        item["project_id"] = item.get("level_2_id")
-        item["team_id"] = item.get("level_3_id")
+        # Add 5-field hierarchy fields (map x_* columns to frontend field names)
+        for db_col, api_field in hierarchy_field_mapping.items():
+            item[api_field] = row.get(db_col)
 
         # Derive category from source_system or provider
         source_system = row.get("x_source_system", "")

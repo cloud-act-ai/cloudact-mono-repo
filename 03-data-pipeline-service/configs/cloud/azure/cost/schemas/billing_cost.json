@@ -1,420 +1,125 @@
 {
-  "description": "Azure Cost Management schema for BigQuery destination tables",
-  "version": "3.0.0",
+  "description": "Azure billing cost schema - comprehensive extraction with standardized x_* fields for FOCUS 1.3 conversion",
+  "version": "4.0.0",
   "updated": "2026-01-23",
+  "inherits": "system/schemas/x_standard_fields.json",
+
   "schemas": {
-    "azure_billing_cost": {
-      "description": "Azure cost export data schema with key cost and usage metrics",
+    "billing_cost": {
+      "description": "Complete Azure billing cost data with all available fields for FOCUS 1.3 conversion",
       "fields": [
-        {
-          "name": "subscription_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Azure subscription ID"
-        },
-        {
-          "name": "subscription_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Azure subscription display name"
-        },
-        {
-          "name": "resource_group",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Azure resource group name"
-        },
-        {
-          "name": "resource_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Full Azure resource ID"
-        },
-        {
-          "name": "resource_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Resource display name"
-        },
-        {
-          "name": "resource_type",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Azure resource type (e.g., Microsoft.Compute/virtualMachines)"
-        },
-        {
-          "name": "resource_location",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Azure region (e.g., eastus, westeurope)"
-        },
-        {
-          "name": "service_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Azure service name (e.g., Virtual Machines, Storage)"
-        },
-        {
-          "name": "service_tier",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Service tier (e.g., Standard, Premium)"
-        },
-        {
-          "name": "service_family",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Service family grouping"
-        },
-        {
-          "name": "meter_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Azure meter GUID"
-        },
-        {
-          "name": "meter_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Meter display name"
-        },
-        {
-          "name": "meter_category",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Meter category (e.g., Virtual Machines)"
-        },
-        {
-          "name": "meter_subcategory",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Meter subcategory"
-        },
-        {
-          "name": "meter_region",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Meter region"
-        },
-        {
-          "name": "product_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Product name"
-        },
-        {
-          "name": "product_order_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Product order identifier"
-        },
-        {
-          "name": "product_order_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Product order name"
-        },
-        {
-          "name": "consumed_service",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Consumed Azure service"
-        },
-        {
-          "name": "charge_type",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Type of charge (Usage, Purchase, Refund, etc.)"
-        },
-        {
-          "name": "billing_period_start",
-          "type": "DATE",
-          "mode": "NULLABLE",
-          "description": "Billing period start date"
-        },
-        {
-          "name": "billing_period_end",
-          "type": "DATE",
-          "mode": "NULLABLE",
-          "description": "Billing period end date"
-        },
-        {
-          "name": "usage_start_time",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "Start time of usage period"
-        },
-        {
-          "name": "usage_end_time",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "End time of usage period"
-        },
-        {
-          "name": "usage_quantity",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Usage quantity"
-        },
-        {
-          "name": "unit_of_measure",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Unit of measurement"
-        },
-        {
-          "name": "cost_in_billing_currency",
-          "type": "FLOAT64",
-          "mode": "REQUIRED",
-          "description": "Cost in billing currency - primary cost metric"
-        },
-        {
-          "name": "cost_in_usd",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Cost converted to USD"
-        },
-        {
-          "name": "billing_currency",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing currency code (e.g., USD, EUR)"
-        },
-        {
-          "name": "exchange_rate",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Exchange rate to USD"
-        },
-        {
-          "name": "effective_price",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Effective unit price"
-        },
-        {
-          "name": "unit_price",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "List unit price"
-        },
-        {
-          "name": "pricing_model",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Pricing model (OnDemand, Reservation, Spot, SavingsPlan)"
-        },
-        {
-          "name": "reservation_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Reserved Instance ID if applicable"
-        },
-        {
-          "name": "reservation_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Reserved Instance name"
-        },
-        {
-          "name": "frequency",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing frequency"
-        },
-        {
-          "name": "publisher_type",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Publisher type (Azure, Marketplace)"
-        },
-        {
-          "name": "publisher_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Publisher name for marketplace items"
-        },
-        {
-          "name": "invoice_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Invoice ID"
-        },
-        {
-          "name": "invoice_section_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Invoice section ID"
-        },
-        {
-          "name": "invoice_section_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Invoice section name"
-        },
-        {
-          "name": "billing_account_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing account ID"
-        },
-        {
-          "name": "billing_account_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing account name"
-        },
-        {
-          "name": "billing_profile_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing profile ID"
-        },
-        {
-          "name": "billing_profile_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Billing profile name"
-        },
-        {
-          "name": "cost_center",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Cost center from subscription"
-        },
-        {
-          "name": "benefit_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Benefit ID (reservation or savings plan)"
-        },
-        {
-          "name": "benefit_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Benefit name"
-        },
-        {
-          "name": "is_azure_credit_eligible",
-          "type": "BOOLEAN",
-          "mode": "NULLABLE",
-          "description": "Whether charge is eligible for Azure credits"
-        },
-        {
-          "name": "resource_tags_json",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Resource tags as JSON string"
-        },
-        {
-          "name": "x_ingestion_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Unique row identifier (UUID) for traceability"
-        },
-        {
-          "name": "x_ingestion_date",
-          "type": "DATE",
-          "mode": "REQUIRED",
-          "description": "Date when data was ingested - PARTITION KEY"
-        },
-        {
-          "name": "x_org_slug",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Organization identifier for multi-tenancy"
-        },
-        {
-          "name": "x_cloud_provider",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Cloud provider identifier (AZURE)"
-        },
-        {
-          "name": "x_cloud_account_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Cloud account identifier (subscription_id)"
-        },
-        {
-          "name": "x_pipeline_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Pipeline template name"
-        },
-        {
-          "name": "x_credential_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation"
-        },
-        {
-          "name": "x_pipeline_run_date",
-          "type": "DATE",
-          "mode": "REQUIRED",
-          "description": "The DATA date being processed. KEY for idempotent re-runs"
-        },
-        {
-          "name": "x_run_id",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Unique pipeline run UUID for full traceability"
-        },
-        {
-          "name": "x_ingested_at",
-          "type": "TIMESTAMP",
-          "mode": "REQUIRED",
-          "description": "Timestamp when data was written to this table"
-        },
-        {
-          "name": "x_hierarchy_entity_id",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy entity ID"
-        },
-        {
-          "name": "x_hierarchy_entity_name",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy entity name"
-        },
-        {
-          "name": "x_hierarchy_level_code",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy level code (DEPT, PROJ, TEAM)"
-        },
-        {
-          "name": "x_hierarchy_path",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy path"
-        },
-        {
-          "name": "x_hierarchy_path_names",
-          "type": "STRING",
-          "mode": "NULLABLE",
-          "description": "Hierarchy path names"
-        },
-        {
-          "name": "x_hierarchy_validated_at",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "When hierarchy was validated"
-        },
-        {
-          "name": "x_data_quality_score",
-          "type": "FLOAT64",
-          "mode": "NULLABLE",
-          "description": "Data quality score (0-100)"
-        },
-        {
-          "name": "x_created_at",
-          "type": "TIMESTAMP",
-          "mode": "NULLABLE",
-          "description": "Original record creation timestamp"
-        }
+        {"name": "subscription_id", "type": "STRING", "mode": "REQUIRED", "description": "Azure subscription identifier - MAPS TO SubAccountId in FOCUS"},
+        {"name": "subscription_name", "type": "STRING", "mode": "NULLABLE", "description": "Azure subscription display name - MAPS TO SubAccountName in FOCUS"},
+        {"name": "resource_group", "type": "STRING", "mode": "NULLABLE", "description": "Azure resource group name"},
+        {"name": "resource_id", "type": "STRING", "mode": "NULLABLE", "description": "Full Azure resource ID - MAPS TO ResourceId in FOCUS"},
+        {"name": "resource_name", "type": "STRING", "mode": "NULLABLE", "description": "Resource display name - MAPS TO ResourceName in FOCUS"},
+        {"name": "resource_type", "type": "STRING", "mode": "NULLABLE", "description": "Azure resource type (e.g., Microsoft.Compute/virtualMachines) - MAPS TO ResourceType in FOCUS"},
+        {"name": "resource_location", "type": "STRING", "mode": "NULLABLE", "description": "Azure region (e.g., eastus, westeurope) - MAPS TO RegionId/RegionName in FOCUS"},
+
+        {"name": "service_name", "type": "STRING", "mode": "NULLABLE", "description": "Azure service name (e.g., Virtual Machines, Storage) - MAPS TO ServiceName in FOCUS"},
+        {"name": "service_tier", "type": "STRING", "mode": "NULLABLE", "description": "Service tier (e.g., Standard, Premium)"},
+        {"name": "service_family", "type": "STRING", "mode": "NULLABLE", "description": "Service family grouping"},
+
+        {"name": "meter_id", "type": "STRING", "mode": "NULLABLE", "description": "Azure meter GUID - MAPS TO SkuId in FOCUS"},
+        {"name": "meter_name", "type": "STRING", "mode": "NULLABLE", "description": "Meter display name"},
+        {"name": "meter_category", "type": "STRING", "mode": "NULLABLE", "description": "Meter category (e.g., Virtual Machines) - MAPS TO ServiceCategory in FOCUS"},
+        {"name": "meter_subcategory", "type": "STRING", "mode": "NULLABLE", "description": "Meter subcategory - MAPS TO ServiceSubcategory in FOCUS"},
+        {"name": "meter_region", "type": "STRING", "mode": "NULLABLE", "description": "Meter region"},
+
+        {"name": "product_name", "type": "STRING", "mode": "NULLABLE", "description": "Product name"},
+        {"name": "product_order_id", "type": "STRING", "mode": "NULLABLE", "description": "Product order identifier"},
+        {"name": "product_order_name", "type": "STRING", "mode": "NULLABLE", "description": "Product order name"},
+        {"name": "consumed_service", "type": "STRING", "mode": "NULLABLE", "description": "Consumed Azure service (resource provider namespace)"},
+
+        {"name": "charge_type", "type": "STRING", "mode": "NULLABLE", "description": "Type of charge (Usage, Purchase, Refund, Credit, Tax, etc.) - MAPS TO ChargeCategory in FOCUS"},
+
+        {"name": "usage_date", "type": "DATE", "mode": "REQUIRED", "description": "Date of usage - primary date key for partitioning and FOCUS conversion"},
+        {"name": "billing_period_start", "type": "DATE", "mode": "NULLABLE", "description": "Billing period start date - MAPS TO BillingPeriodStart in FOCUS"},
+        {"name": "billing_period_end", "type": "DATE", "mode": "NULLABLE", "description": "Billing period end date - MAPS TO BillingPeriodEnd in FOCUS"},
+        {"name": "usage_start_time", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Start time of usage period - MAPS TO ChargePeriodStart in FOCUS"},
+        {"name": "usage_end_time", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "End time of usage period - MAPS TO ChargePeriodEnd in FOCUS"},
+
+        {"name": "usage_quantity", "type": "FLOAT64", "mode": "NULLABLE", "description": "Usage quantity - MAPS TO ConsumedQuantity in FOCUS"},
+        {"name": "unit_of_measure", "type": "STRING", "mode": "NULLABLE", "description": "Unit of measurement - MAPS TO ConsumedUnit in FOCUS"},
+
+        {"name": "cost_in_billing_currency", "type": "FLOAT64", "mode": "REQUIRED", "description": "Gross cost in billing currency (before credits) - MAPS TO BilledCost in FOCUS"},
+        {"name": "cost_in_usd", "type": "FLOAT64", "mode": "NULLABLE", "description": "Cost converted to USD"},
+        {"name": "billing_currency", "type": "STRING", "mode": "NULLABLE", "description": "Billing currency code (e.g., USD, EUR) - MAPS TO BillingCurrency in FOCUS"},
+        {"name": "exchange_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Exchange rate to USD"},
+        {"name": "exchange_rate_date", "type": "DATE", "mode": "NULLABLE", "description": "Date of exchange rate"},
+
+        {"name": "effective_price", "type": "FLOAT64", "mode": "NULLABLE", "description": "Effective unit price after discounts - MAPS TO ContractedUnitPrice in FOCUS"},
+        {"name": "unit_price", "type": "FLOAT64", "mode": "NULLABLE", "description": "List unit price before discounts - MAPS TO ListUnitPrice in FOCUS"},
+        {"name": "payg_price", "type": "FLOAT64", "mode": "NULLABLE", "description": "Pay-as-you-go (retail) price for comparison"},
+
+        {"name": "pricing_model", "type": "STRING", "mode": "NULLABLE", "description": "Pricing model (OnDemand, Reservation, Spot, SavingsPlan) - MAPS TO PricingCategory in FOCUS"},
+        {"name": "pricing_quantity", "type": "FLOAT64", "mode": "NULLABLE", "description": "Quantity in pricing units - MAPS TO PricingQuantity in FOCUS"},
+        {"name": "pricing_unit", "type": "STRING", "mode": "NULLABLE", "description": "Unit for pricing - MAPS TO PricingUnit in FOCUS"},
+
+        {"name": "reservation_id", "type": "STRING", "mode": "NULLABLE", "description": "Reserved Instance ID - MAPS TO CommitmentDiscountId in FOCUS"},
+        {"name": "reservation_name", "type": "STRING", "mode": "NULLABLE", "description": "Reserved Instance name - MAPS TO CommitmentDiscountName in FOCUS"},
+
+        {"name": "savings_plan_id", "type": "STRING", "mode": "NULLABLE", "description": "Azure Savings Plan ID"},
+        {"name": "savings_plan_name", "type": "STRING", "mode": "NULLABLE", "description": "Azure Savings Plan name"},
+
+        {"name": "benefit_id", "type": "STRING", "mode": "NULLABLE", "description": "Generic benefit ID (reservation or savings plan)"},
+        {"name": "benefit_name", "type": "STRING", "mode": "NULLABLE", "description": "Generic benefit name"},
+
+        {"name": "frequency", "type": "STRING", "mode": "NULLABLE", "description": "Billing frequency - MAPS TO ChargeFrequency in FOCUS"},
+        {"name": "term", "type": "STRING", "mode": "NULLABLE", "description": "Commitment term (1 year, 3 years)"},
+
+        {"name": "publisher_type", "type": "STRING", "mode": "NULLABLE", "description": "Publisher type (Azure, Marketplace) - MAPS TO InvoiceIssuerName/ServiceProviderName in FOCUS"},
+        {"name": "publisher_name", "type": "STRING", "mode": "NULLABLE", "description": "Publisher name for marketplace items"},
+
+        {"name": "invoice_id", "type": "STRING", "mode": "NULLABLE", "description": "Invoice ID"},
+        {"name": "invoice_section_id", "type": "STRING", "mode": "NULLABLE", "description": "Invoice section ID"},
+        {"name": "invoice_section_name", "type": "STRING", "mode": "NULLABLE", "description": "Invoice section name"},
+
+        {"name": "billing_account_id", "type": "STRING", "mode": "NULLABLE", "description": "Billing account ID - MAPS TO BillingAccountId in FOCUS"},
+        {"name": "billing_account_name", "type": "STRING", "mode": "NULLABLE", "description": "Billing account name"},
+        {"name": "billing_profile_id", "type": "STRING", "mode": "NULLABLE", "description": "Billing profile ID"},
+        {"name": "billing_profile_name", "type": "STRING", "mode": "NULLABLE", "description": "Billing profile name"},
+
+        {"name": "cost_center", "type": "STRING", "mode": "NULLABLE", "description": "Cost center from subscription or tags"},
+
+        {"name": "is_azure_credit_eligible", "type": "BOOLEAN", "mode": "NULLABLE", "description": "Whether charge is eligible for Azure credits"},
+        {"name": "azure_credit_applied", "type": "FLOAT64", "mode": "NULLABLE", "description": "Amount of Azure credits applied to this charge"},
+
+        {"name": "cost_allocation_rule_name", "type": "STRING", "mode": "NULLABLE", "description": "Cost allocation rule name if split costs"},
+
+        {"name": "resource_tags_json", "type": "STRING", "mode": "NULLABLE", "description": "Resource tags as JSON string - MAPS TO Tags in FOCUS"},
+
+        {"name": "additional_info_json", "type": "STRING", "mode": "NULLABLE", "description": "Additional meter info as JSON"},
+        {"name": "service_info_1", "type": "STRING", "mode": "NULLABLE", "description": "Service-specific info field 1"},
+        {"name": "service_info_2", "type": "STRING", "mode": "NULLABLE", "description": "Service-specific info field 2"},
+
+        {"name": "x_ingestion_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique row identifier (UUID) for traceability"},
+        {"name": "x_ingestion_date", "type": "DATE", "mode": "REQUIRED", "description": "Date when data was ingested - PARTITION KEY"},
+        {"name": "x_org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy"},
+
+        {"name": "x_hierarchy_entity_id", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy entity ID (= subscription_id for Azure)"},
+        {"name": "x_hierarchy_entity_name", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy entity name (= subscription_name for Azure)"},
+        {"name": "x_hierarchy_level_code", "type": "STRING", "mode": "NULLABLE", "description": "Hierarchy level code (ORG, DEPT, PROJ, TEAM)"},
+        {"name": "x_hierarchy_path", "type": "STRING", "mode": "NULLABLE", "description": "Full hierarchy path for cost rollup"},
+        {"name": "x_hierarchy_path_names", "type": "STRING", "mode": "NULLABLE", "description": "Human-readable hierarchy path names"},
+        {"name": "x_hierarchy_validated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "When hierarchy was validated"},
+
+        {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name"},
+        {"name": "x_credential_id", "type": "STRING", "mode": "NULLABLE", "description": "Credential ID from org_integration_credentials (optional for API extraction)"},
+        {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The data date being processed"},
+        {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID"},
+        {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written"},
+
+        {"name": "x_data_quality_score", "type": "FLOAT64", "mode": "NULLABLE", "description": "Data quality score (0-100)"},
+        {"name": "x_created_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Original record creation timestamp"},
+
+        {"name": "x_cloud_provider", "type": "STRING", "mode": "REQUIRED", "description": "Cloud provider identifier (AZURE)"},
+        {"name": "x_cloud_account_id", "type": "STRING", "mode": "NULLABLE", "description": "Cloud billing account identifier (subscription_id)"}
       ]
+    },
+    "default": {
+      "description": "Default schema - auto-detected from query results",
+      "fields": []
     }
   }
 }

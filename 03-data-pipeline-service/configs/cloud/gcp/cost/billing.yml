@@ -187,37 +187,34 @@ steps:
           TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value, inherited, namespace FROM UNNEST(tags))) AS tags_json,
 
           -- Pipeline lineage fields (x_* standard)
+          -- Note: Using variable substitution {var} as external_bq_extractor uses string replacement
+          -- Available vars: org_slug, pipeline_id, run_id, start_date, end_date, date
           GENERATE_UUID() AS x_ingestion_id,
           CURRENT_DATE() AS x_ingestion_date,
-          @org_slug AS x_org_slug,
-          @pipeline_id AS x_pipeline_id,
-          @credential_id AS x_credential_id,
-          @pipeline_run_date AS x_pipeline_run_date,
-          @run_id AS x_run_id,
+          '{org_slug}' AS x_org_slug,
+          '{pipeline_id}' AS x_pipeline_id,
+          CAST(NULL AS STRING) AS x_credential_id,
+          DATE('{start_date}') AS x_pipeline_run_date,
+          '{run_id}' AS x_run_id,
           CURRENT_TIMESTAMP() AS x_ingested_at,
           'GCP' AS x_cloud_provider,
           billing_account_id AS x_cloud_account_id,
 
           -- Hierarchy mapping (GCP project = hierarchy entity)
-          -- Auto-fill from org_hierarchy by matching project.name to entity_name
+          -- NOTE: Hierarchy enrichment is done in post-processing with CloudAct credentials
+          -- because this query runs under customer's SA which can't access CloudAct's tables
           project.id AS x_hierarchy_entity_id,
-          COALESCE(h.entity_name, project.name) AS x_hierarchy_entity_name,
-          h.level_code AS x_hierarchy_level_code,
-          ARRAY_TO_STRING(h.path, '/') AS x_hierarchy_path,
-          ARRAY_TO_STRING(h.path_names, ' > ') AS x_hierarchy_path_names,
-          -- Set validated_at timestamp when hierarchy is found
-          CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END AS x_hierarchy_validated_at
+          project.name AS x_hierarchy_entity_name,
+          CAST(NULL AS STRING) AS x_hierarchy_level_code,
+          CAST(NULL AS STRING) AS x_hierarchy_path,
+          CAST(NULL AS STRING) AS x_hierarchy_path_names,
+          CAST(NULL AS TIMESTAMP) AS x_hierarchy_validated_at
 
         FROM `{source_billing_table}` b
-        -- LEFT JOIN with org_hierarchy to auto-fill hierarchy details
-        -- Matches GCP project.name to hierarchy entity_name
-        LEFT JOIN `{gcp_project_id}.{org_slug}_{environment}.x_org_hierarchy` h
-          ON h.entity_name = b.project.name
-          AND h.is_active = TRUE
         -- Filter by export_time (not usage_start_time) to capture late-arriving corrections
         -- GCP may export adjustments for older usage dates with new export_time
-        -- MT-001 FIX: Use parameterized date values to prevent SQL injection
-        WHERE DATE(b.export_time) BETWEEN DATE(@start_date) AND DATE(@end_date)
+        -- Note: Using variable substitution {start_date}/{end_date} as processor handles escaping
+        WHERE DATE(b.export_time) BETWEEN DATE('{start_date}') AND DATE('{end_date}')
 
     # Destination: Always CloudAct project + org dataset ({org_slug}_{env})
     # Processor enforces standard destination via settings.get_org_dataset_name()
@@ -237,7 +234,46 @@ steps:
           - "project_id"
           - "location_region"
 
-  # Step 4: Notification on failure
+  # Step 4: Convert to FOCUS 1.3 format
+  # Runs the stored procedure to transform raw billing data to FOCUS standard
+  - step_id: "convert_to_focus"
+    name: "Convert to FOCUS 1.3"
+    ps_type: "generic.bq_procedure"
+    description: "Transform raw billing data to FOCUS 1.3 standard format"
+    depends_on:
+      - "extract_billing"
+    config:
+      procedure: "sp_cloud_1_convert_to_focus"
+      dataset: "organizations"
+      parameters:
+        - name: "p_project_id"
+          type: "STRING"
+          value: "{gcp_project_id}"
+        - name: "p_dataset_id"
+          type: "STRING"
+          value: "{org_slug}_{environment}"
+        - name: "p_start_date"
+          type: "DATE"
+          value: "{start_date}"
+        - name: "p_end_date"
+          type: "DATE"
+          value: "{end_date}"
+        - name: "p_provider"
+          type: "STRING"
+          value: "gcp"
+        - name: "p_pipeline_id"
+          type: "STRING"
+          value: "{pipeline_id}"
+        - name: "p_credential_id"
+          type: "STRING"
+          value: "{credential_id}"
+        - name: "p_run_id"
+          type: "STRING"
+          value: "{run_id}"
+    timeout_minutes: 30
+    on_failure: "fail"
+
+  # Step 5: Notification on failure
   - step_id: "notify_on_failure"
     name: "Notify on Failure"
     ps_type: "notify_systems.email_notification"
