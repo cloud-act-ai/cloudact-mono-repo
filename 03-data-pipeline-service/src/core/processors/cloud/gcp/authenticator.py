@@ -59,6 +59,9 @@ class GCPAuthenticator:
         self._project_id: Optional[str] = None
         self._client_email: Optional[str] = None
         self._metadata: Optional[Dict[str, Any]] = None
+        # STATE-002 FIX: Add cache timestamp for TTL-based invalidation
+        self._cache_timestamp: Optional[float] = None
+        self._cache_ttl_seconds: int = 300  # 5 minutes cache TTL
 
     @property
     def project_id(self) -> Optional[str]:
@@ -99,8 +102,20 @@ class GCPAuthenticator:
             ValueError: If no valid credentials found
             Exception: If decryption or parsing fails
         """
-        if self._credentials:
-            return self._credentials
+        # STATE-002 FIX: Check cache TTL before returning cached credentials
+        import time
+        if self._credentials and self._cache_timestamp:
+            cache_age = time.time() - self._cache_timestamp
+            if cache_age < self._cache_ttl_seconds:
+                return self._credentials
+            else:
+                # Cache expired, clear and re-authenticate
+                self.logger.info(
+                    f"GCP credentials cache expired after {cache_age:.0f}s, re-authenticating",
+                    extra={"org_slug": self.org_slug}
+                )
+                self._credentials = None
+                self._cache_timestamp = None
 
         self.logger.info(
             f"Authenticating GCP for {self.org_slug}",
@@ -174,6 +189,8 @@ class GCPAuthenticator:
         self._credentials = service_account.Credentials.from_service_account_info(
             self._sa_info
         )
+        # STATE-002 FIX: Set cache timestamp for TTL-based invalidation
+        self._cache_timestamp = time.time()
 
         self.logger.info(
             f"GCP authentication successful",

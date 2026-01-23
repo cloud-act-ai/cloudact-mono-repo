@@ -8,44 +8,44 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 
-# NEW N-level hierarchy fields to add
+# NEW 5-field hierarchy model (x_hierarchy_* prefix per pipeline service convention)
 NEW_HIERARCHY_FIELDS = [
     {
-        "name": "hierarchy_entity_id",
+        "name": "x_hierarchy_entity_id",
         "type": "STRING",
         "mode": "NULLABLE",
-        "description": "N-level hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
+        "description": "5-field hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
     },
     {
-        "name": "hierarchy_entity_name",
+        "name": "x_hierarchy_entity_name",
         "type": "STRING",
         "mode": "NULLABLE",
-        "description": "N-level hierarchy: Leaf entity display name. Example: 'Platform Team'."
+        "description": "5-field hierarchy: Leaf entity display name. Example: 'Platform Team'."
     },
     {
-        "name": "hierarchy_level_code",
+        "name": "x_hierarchy_level_code",
         "type": "STRING",
         "mode": "NULLABLE",
-        "description": "N-level hierarchy: Entity level code. Example: 'team', 'project', 'department'."
+        "description": "5-field hierarchy: Entity level code. Example: 'function', 'business_unit', 'c_suite'."
     },
     {
-        "name": "hierarchy_path",
+        "name": "x_hierarchy_path",
         "type": "STRING",
         "mode": "NULLABLE",
-        "description": "N-level hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
+        "description": "5-field hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
     },
     {
-        "name": "hierarchy_path_names",
+        "name": "x_hierarchy_path_names",
         "type": "STRING",
         "mode": "NULLABLE",
-        "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
+        "description": "5-field hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
     }
 ]
 
 def has_hierarchy_fields(schema: List[Dict[str, Any]]) -> bool:
-    """Check if schema already has any hierarchy fields."""
+    """Check if schema already has any x_hierarchy_* fields."""
     for field in schema:
-        if field.get("name", "").startswith("hierarchy"):
+        if field.get("name", "").startswith("x_hierarchy"):
             return True
     return False
 

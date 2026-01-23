@@ -1,10 +1,19 @@
 # GCP Billing Pipeline
 # Extracts billing data from GCP billing export, stores in BigQuery
 #
-# Schedule: Daily at 04:00 UTC
+# Schedule: Daily at 04:00 UTC (processes yesterday's data by default)
 # Tables: cloud_gcp_billing_raw_daily
 #
-# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/cost/billing
+# Usage:
+#   POST /api/v1/pipelines/run/{org_slug}/gcp/cost/billing
+#   POST /api/v1/pipelines/run/{org_slug}/gcp/cost/billing?start_date=2026-01-01&end_date=2026-01-22
+#
+# BEHAVIOR:
+# - Default: Processes yesterday's data (T-1) based on export_time
+# - Idempotent: Deletes existing data for export_time range before inserting
+# - Handles late-arriving corrections: Uses export_time (not usage_start_time)
+#   so corrections to older usage dates are captured when they're exported
+# - Supports date ranges for backfill
 #
 # PREREQUISITES:
 # 1. Organization must have a valid GCP_SA integration configured
@@ -19,10 +28,10 @@
 
 pipeline_id: "{org_slug}-gcp-billing"
 name: "GCP Billing Sync"
-description: "Extract GCP billing costs and store in BigQuery"
+description: "Extract GCP billing costs and store in BigQuery (idempotent, replaces existing data)"
 provider: "gcp"
 domain: "cost"
-version: "15.0.0"
+version: "18.0.0"
 
 # Schedule configuration (cron expression: daily at 04:00 UTC)
 schedule: "0 4 * * *"
@@ -35,6 +44,11 @@ variables:
   source_billing_table: "{billing_export_table}"
   # Multi-tenant: Use customer's GCP Service Account credentials to access their billing export
   use_org_credentials: "true"
+  # Environment for hierarchy lookup - auto-filled by processor
+  # Maps: development->local, staging->stage, production->prod
+  # Default date: Yesterday (T-1) - overridden by request parameters
+  # Executor auto-calculates if not provided
+  default_date_offset: "-1"
 
 steps:
   # Step 1 (Optional): Decrypt GCP credentials for customer's billing data
@@ -49,13 +63,39 @@ steps:
       context_key: "gcp_sa_json"
     on_failure: "continue"
 
-  # Step 2: Extract billing data from GCP billing export
+  # Step 2: Delete existing data for export_time range (idempotent - allows re-runs)
+  # NOTE: Uses export_time (not usage_start_time) to handle late-arriving corrections
+  # GCP may export corrections for older usage dates with new export_time
+  - step_id: "delete_existing_data"
+    name: "Delete Existing Data"
+    ps_type: "generic.bq_execute"
+    description: "Delete existing billing data for export_time range to ensure idempotency"
+    depends_on:
+      - "decrypt_credentials"
+    config:
+      query: |
+        DELETE FROM `{gcp_project_id}.{org_slug}_{environment}.cloud_gcp_billing_raw_daily`
+        WHERE DATE(export_time) BETWEEN @start_date AND @end_date
+          AND x_org_slug = @org_slug
+      parameters:
+        - name: "start_date"
+          type: "DATE"
+          value: "{start_date}"
+        - name: "end_date"
+          type: "DATE"
+          value: "{end_date}"
+        - name: "org_slug"
+          type: "STRING"
+          value: "{org_slug}"
+    on_failure: "continue"  # Continue even if table doesn't exist yet
+
+  # Step 3: Extract billing data from GCP billing export
   - step_id: "extract_billing"
     name: "Extract Billing Data"
     ps_type: "cloud.gcp.external_bq_extractor"
     description: "Extract GCP billing costs for date range"
     depends_on:
-      - "decrypt_credentials"
+      - "delete_existing_data"
     timeout_minutes: 20
 
     source:
@@ -63,40 +103,121 @@ steps:
       use_org_credentials: true
       query: |
         SELECT
+          -- Primary identifiers
           billing_account_id,
           service.id AS service_id,
           service.description AS service_description,
           sku.id AS sku_id,
           sku.description AS sku_description,
+
+          -- Time fields
           usage_start_time,
           usage_end_time,
+          export_time,
+
+          -- Project information
           project.id AS project_id,
           project.name AS project_name,
-          project.number AS project_number,
+          CAST(project.number AS STRING) AS project_number,
+          project.ancestry_numbers AS project_ancestry_numbers,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT resource_name, display_name FROM UNNEST(project.ancestors))) AS project_ancestors_json,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(project.labels))) AS project_labels_json,
+
+          -- Location (ALL fields)
           location.location AS location_location,
+          location.country AS location_country,
           location.region AS location_region,
           location.zone AS location_zone,
-          -- NOTE: resource.name and resource.global_name only exist in detailed export (gcp_billing_export_resource_v1_*)
-          -- They are NOT available in standard export (gcp_billing_export_v1_*)
-          -- Use NULL placeholders for compatibility with destination schema
+
+          -- Resource (only in detailed export - NULL for standard)
           CAST(NULL AS STRING) AS resource_name,
           CAST(NULL AS STRING) AS resource_global_name,
+
+          -- Cost fields
           cost,
+          cost_type,
+          cost_at_list,
+          cost_at_effective_price_default,
+          cost_at_list_consumption_model,
           currency,
           currency_conversion_rate,
+
+          -- Usage metrics
           usage.amount AS usage_amount,
           usage.unit AS usage_unit,
           usage.amount_in_pricing_units AS usage_amount_in_pricing_units,
           usage.pricing_unit AS usage_pricing_unit,
-          cost_type,
+
+          -- Price information
+          CAST(price.effective_price AS FLOAT64) AS price_effective_price,
+          CAST(price.list_price AS FLOAT64) AS price_list_price,
+          price.unit AS price_unit,
+          CAST(price.tier_start_amount AS FLOAT64) AS price_tier_start_amount,
+          CAST(price.pricing_unit_quantity AS FLOAT64) AS price_pricing_unit_quantity,
+
+          -- Credits (FULL DETAIL - not just total)
           (SELECT IFNULL(SUM(amount), 0.0) FROM UNNEST(credits)) AS credits_total,
-          cost_at_list,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT name, amount, full_name, id, type FROM UNNEST(credits))) AS credits_json,
+
+          -- Invoice
           invoice.month AS invoice_month,
-          CURRENT_DATE() AS ingestion_date,
+          invoice.publisher_type AS invoice_publisher_type,
+
+          -- Transaction & seller
+          transaction_type,
+          seller_name,
+
+          -- Adjustment info (for corrections/refunds)
+          TO_JSON_STRING(STRUCT(
+            adjustment_info.id AS id,
+            adjustment_info.description AS description,
+            adjustment_info.mode AS mode,
+            adjustment_info.type AS type
+          )) AS adjustment_info_json,
+
+          -- Consumption model (for committed use)
+          TO_JSON_STRING(STRUCT(
+            consumption_model.id AS id,
+            consumption_model.description AS description
+          )) AS consumption_model_json,
+
+          -- Labels and tags
           TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(labels))) AS labels_json,
-          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(system_labels))) AS system_labels_json
-        FROM `{source_billing_table}`
-        WHERE DATE(usage_start_time) = '{date}'
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(system_labels))) AS system_labels_json,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value, inherited, namespace FROM UNNEST(tags))) AS tags_json,
+
+          -- Pipeline lineage fields (x_* standard)
+          GENERATE_UUID() AS x_ingestion_id,
+          CURRENT_DATE() AS x_ingestion_date,
+          @org_slug AS x_org_slug,
+          @pipeline_id AS x_pipeline_id,
+          @credential_id AS x_credential_id,
+          @pipeline_run_date AS x_pipeline_run_date,
+          @run_id AS x_run_id,
+          CURRENT_TIMESTAMP() AS x_ingested_at,
+          'GCP' AS x_cloud_provider,
+          billing_account_id AS x_cloud_account_id,
+
+          -- Hierarchy mapping (GCP project = hierarchy entity)
+          -- Auto-fill from org_hierarchy by matching project.name to entity_name
+          project.id AS x_hierarchy_entity_id,
+          COALESCE(h.entity_name, project.name) AS x_hierarchy_entity_name,
+          h.level_code AS x_hierarchy_level_code,
+          ARRAY_TO_STRING(h.path, '/') AS x_hierarchy_path,
+          ARRAY_TO_STRING(h.path_names, ' > ') AS x_hierarchy_path_names,
+          -- Set validated_at timestamp when hierarchy is found
+          CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END AS x_hierarchy_validated_at
+
+        FROM `{source_billing_table}` b
+        -- LEFT JOIN with org_hierarchy to auto-fill hierarchy details
+        -- Matches GCP project.name to hierarchy entity_name
+        LEFT JOIN `{gcp_project_id}.{org_slug}_{environment}.x_org_hierarchy` h
+          ON h.entity_name = b.project.name
+          AND h.is_active = TRUE
+        -- Filter by export_time (not usage_start_time) to capture late-arriving corrections
+        -- GCP may export adjustments for older usage dates with new export_time
+        -- MT-001 FIX: Use parameterized date values to prevent SQL injection
+        WHERE DATE(b.export_time) BETWEEN DATE(@start_date) AND DATE(@end_date)
 
     # Destination: Always CloudAct project + org dataset ({org_slug}_{env})
     # Processor enforces standard destination via settings.get_org_dataset_name()
@@ -107,7 +228,7 @@ steps:
       schema_template: "billing_cost"
       table_config:
         time_partitioning:
-          field: "ingestion_date"
+          field: "x_ingestion_date"
           type: "DAY"
           expiration_days: 730
         clustering_fields:
@@ -116,7 +237,7 @@ steps:
           - "project_id"
           - "location_region"
 
-  # Step 3: Notification on failure
+  # Step 4: Notification on failure
   - step_id: "notify_on_failure"
     name: "Notify on Failure"
     ps_type: "notify_systems.email_notification"

@@ -143,10 +143,16 @@ export interface UnifiedFilters {
   // Provider/Category filters
   providers?: string[]
   categories?: ("genai" | "cloud" | "subscription" | "other")[]
-  // Hierarchy filters (same as above - just another filter dimension)
+  // Legacy hierarchy filters (keep for backwards compatibility)
   departmentId?: string
   projectId?: string
   teamId?: string
+  // New 5-field hierarchy model (FE-005, EDGE-001/002 fix)
+  hierarchyEntityId?: string
+  hierarchyEntityName?: string
+  hierarchyLevelCode?: string
+  hierarchyPath?: string
+  hierarchyPathNames?: string
 }
 
 
@@ -550,9 +556,16 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       customRange: undefined,
       providers: undefined,
       categories: undefined,
+      // Legacy hierarchy fields
       departmentId: undefined,
       projectId: undefined,
       teamId: undefined,
+      // New 5-field hierarchy model (FE-005, EDGE-001/002 fix)
+      hierarchyEntityId: undefined,
+      hierarchyEntityName: undefined,
+      hierarchyLevelCode: undefined,
+      hierarchyPath: undefined,
+      hierarchyPathNames: undefined,
     },
 
     // Aggregated data (populated from backend, filtered client-side)
@@ -729,12 +742,15 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           })),
         })
       }
+      // FE-005, EDGE-001/002 FIX: Map all 5 hierarchy fields
       const hierarchyEntities: HierarchyEntity[] =
         hierarchyResult.success && hierarchyResult.data?.entities
           ? hierarchyResult.data.entities.map((h) => ({
               entity_id: h.entity_id,
               entity_name: h.entity_name,
               level_code: h.level_code, // N-level hierarchy
+              path: h.path,
+              path_names: Array.isArray(h.path_names) ? h.path_names.join(" > ") : h.path_names,
               parent_id: h.parent_id,
             }))
           : []
@@ -1096,9 +1112,16 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           customRange: undefined,
           providers: undefined,
           categories: undefined,
+          // Legacy hierarchy fields
           departmentId: undefined,
           projectId: undefined,
           teamId: undefined,
+          // New 5-field hierarchy model (FE-005, EDGE-001/002 fix)
+          hierarchyEntityId: undefined,
+          hierarchyEntityName: undefined,
+          hierarchyLevelCode: undefined,
+          hierarchyPath: undefined,
+          hierarchyPathNames: undefined,
         },
         // Aggregated data
         totalCosts: null,

@@ -1639,6 +1639,11 @@ class AsyncPipelineExecutor:
             context["pipeline_id"] = self.pipeline_id
             context["step_id"] = step_id
             context["run_id"] = self.pipeline_logging_id  # For lineage tracking (x_run_id)
+            # ENV-001 FIX: Add environment suffix for dataset naming ({org_slug}_{environment})
+            # Maps: development->local, staging->stage, production->prod
+            context["environment"] = settings.get_environment_suffix()
+            # Add GCP project ID for BigQuery dataset references
+            context["gcp_project_id"] = settings.gcp_project_id
 
             # PIPE-002 FIX: Add x_* metadata fields required by BQ loader
             # These are used for pipeline lineage tracking in cost tables

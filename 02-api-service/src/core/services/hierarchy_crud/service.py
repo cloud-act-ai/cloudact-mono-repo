@@ -1196,13 +1196,14 @@ class HierarchyService:
         # Check for references in subscription plans
         subscription_table = self._get_table_ref(org_slug, SAAS_SUBSCRIPTION_PLANS_TABLE)
         try:
-            # Check if entity_id appears in hierarchy_entity_id or as part of hierarchy_path
+            # Check if entity_id appears in x_hierarchy_entity_id or as part of x_hierarchy_path
+            # MT-003 FIX: Use correct column names with x_ prefix (x_hierarchy_entity_id, x_hierarchy_path)
             ref_query = f"""
             SELECT subscription_id, provider, plan_name
             FROM `{subscription_table}`
-            WHERE (hierarchy_entity_id = @entity_id
-                   OR hierarchy_path LIKE CONCAT('%/', @entity_id, '/%')
-                   OR hierarchy_path LIKE CONCAT('%/', @entity_id))
+            WHERE (x_hierarchy_entity_id = @entity_id
+                   OR x_hierarchy_path LIKE CONCAT('%/', @entity_id, '/%')
+                   OR x_hierarchy_path LIKE CONCAT('%/', @entity_id))
               AND end_date IS NULL
             LIMIT 10
             """

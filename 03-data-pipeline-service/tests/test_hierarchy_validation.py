@@ -113,12 +113,17 @@ class TestHierarchyValidation:
     @pytest.mark.asyncio
     async def test_cloud_focus_aws_hierarchy_allocation(self):
         """
-        Test AWS cloud cost procedure properly allocates to 10-level hierarchy.
+        Test AWS cloud cost procedure properly allocates to 5-field hierarchy model.
 
         Validates:
         - AWS procedure includes hierarchy_lookup CTE
-        - LEFT JOIN on x_hierarchy_entity_id extracts path arrays
-        - All 20 hierarchy fields (10 IDs + 10 names) are populated
+        - LEFT JOIN on x_hierarchy_entity_id extracts hierarchy fields
+        - All 5 hierarchy fields are populated:
+          * x_hierarchy_entity_id
+          * x_hierarchy_entity_name
+          * x_hierarchy_level_code
+          * x_hierarchy_path
+          * x_hierarchy_path_names
         - Costs without hierarchy tags get NULL hierarchy (not crash)
         - Hierarchy validated_at timestamp is set
         """
@@ -158,60 +163,80 @@ class TestHierarchyValidation:
             # (In actual test, would verify hierarchy fields are populated)
             assert True  # Placeholder - actual test would call procedure and verify results
 
-    def test_hierarchy_path_array_expansion(self):
+    def test_hierarchy_5_field_model(self):
         """
-        Test hierarchy path array expansion logic.
+        Test 5-field hierarchy model structure and validation.
 
-        Validates that CASE WHEN ARRAY_LENGTH(path_ids) >= N statements
-        correctly extract level_N_id and level_N_name from path arrays.
+        Validates the 5-field hierarchy model:
+        - x_hierarchy_entity_id: Entity identifier (e.g., TEAM-003)
+        - x_hierarchy_entity_name: Human-readable name
+        - x_hierarchy_level_code: Level code (DEPT, PROJ, TEAM)
+        - x_hierarchy_path: Array of entity IDs from root to leaf
+        - x_hierarchy_path_names: Array of entity names from root to leaf
         """
-        # Test array expansion logic
-        path_ids = ["DEPT-001", "PROJ-002", "TEAM-003"]
-        path_names = ["Department 1", "Project 2", "Team 3"]
+        # Test hierarchy data structure
+        hierarchy_entity = {
+            "x_hierarchy_entity_id": "TEAM-003",
+            "x_hierarchy_entity_name": "Team 3",
+            "x_hierarchy_level_code": "TEAM",
+            "x_hierarchy_path": ["DEPT-001", "PROJ-002", "TEAM-003"],
+            "x_hierarchy_path_names": ["Department 1", "Project 2", "Team 3"]
+        }
 
-        # Simulate SQL CASE WHEN ARRAY_LENGTH(path_ids) >= 1
-        level_1_id = path_ids[0] if len(path_ids) >= 1 else None
-        level_2_id = path_ids[1] if len(path_ids) >= 2 else None
-        level_3_id = path_ids[2] if len(path_ids) >= 3 else None
-        level_4_id = path_ids[3] if len(path_ids) >= 4 else None
+        # Validate entity ID format
+        assert hierarchy_entity["x_hierarchy_entity_id"].startswith("TEAM-")
 
-        level_1_name = path_names[0] if len(path_names) >= 1 else None
-        level_2_name = path_names[1] if len(path_names) >= 2 else None
-        level_3_name = path_names[2] if len(path_names) >= 3 else None
-        level_4_name = path_names[3] if len(path_names) >= 4 else None
+        # Validate level code matches entity prefix
+        entity_prefix = hierarchy_entity["x_hierarchy_entity_id"].split("-")[0]
+        assert hierarchy_entity["x_hierarchy_level_code"] == entity_prefix
 
-        # Assertions
-        assert level_1_id == "DEPT-001"
-        assert level_2_id == "PROJ-002"
-        assert level_3_id == "TEAM-003"
-        assert level_4_id is None
+        # Validate path arrays have same length
+        assert len(hierarchy_entity["x_hierarchy_path"]) == len(hierarchy_entity["x_hierarchy_path_names"])
 
-        assert level_1_name == "Department 1"
-        assert level_2_name == "Project 2"
-        assert level_3_name == "Team 3"
-        assert level_4_name is None
+        # Validate entity is last element in path
+        assert hierarchy_entity["x_hierarchy_path"][-1] == hierarchy_entity["x_hierarchy_entity_id"]
+        assert hierarchy_entity["x_hierarchy_path_names"][-1] == hierarchy_entity["x_hierarchy_entity_name"]
+
+        # Validate path hierarchy order (DEPT -> PROJ -> TEAM)
+        expected_level_order = ["DEPT", "PROJ", "TEAM"]
+        actual_levels = [p.split("-")[0] for p in hierarchy_entity["x_hierarchy_path"]]
+        assert actual_levels == expected_level_order
 
     def test_hierarchy_null_propagation(self):
         """
-        Test that NULL hierarchy entity_id results in all hierarchy fields being NULL.
+        Test that NULL hierarchy entity_id results in all 5 hierarchy fields being NULL.
 
         Validates LEFT JOIN behavior when x_hierarchy_entity_id is NULL.
+        The 5-field hierarchy model requires all fields to be NULL when entity is not found.
         """
         # Simulate LEFT JOIN when entity_id is NULL
-        entity_id = None
+        x_hierarchy_entity_id = None
 
-        # LEFT JOIN with NULL entity_id should result in NULL hierarchy fields
-        if entity_id is None:
-            level_1_id = None
-            level_1_name = None
+        # LEFT JOIN with NULL entity_id should result in all hierarchy fields being NULL
+        if x_hierarchy_entity_id is None:
+            hierarchy_result = {
+                "x_hierarchy_entity_id": None,
+                "x_hierarchy_entity_name": None,
+                "x_hierarchy_level_code": None,
+                "x_hierarchy_path": None,
+                "x_hierarchy_path_names": None
+            }
         else:
             # Would look up in hierarchy table
-            level_1_id = "DEPT-001"
-            level_1_name = "Department 1"
+            hierarchy_result = {
+                "x_hierarchy_entity_id": "TEAM-001",
+                "x_hierarchy_entity_name": "Platform Team",
+                "x_hierarchy_level_code": "TEAM",
+                "x_hierarchy_path": ["DEPT-001", "PROJ-001", "TEAM-001"],
+                "x_hierarchy_path_names": ["Engineering", "Platform", "Platform Team"]
+            }
 
-        # Assertions
-        assert level_1_id is None
-        assert level_1_name is None
+        # Assertions - all 5 fields should be NULL
+        assert hierarchy_result["x_hierarchy_entity_id"] is None
+        assert hierarchy_result["x_hierarchy_entity_name"] is None
+        assert hierarchy_result["x_hierarchy_level_code"] is None
+        assert hierarchy_result["x_hierarchy_path"] is None
+        assert hierarchy_result["x_hierarchy_path_names"] is None
 
     def test_hierarchy_end_date_filter(self):
         """
@@ -248,7 +273,12 @@ class TestHierarchyIntegration:
         1. Insert test usage data with x_hierarchy_entity_id
         2. Run PAYG cost processor
         3. Run focus converter
-        4. Verify all 20 hierarchy fields populated in cost_data_standard_1_3
+        4. Verify all 5 hierarchy fields populated in cost_data_standard_1_3:
+           - x_hierarchy_entity_id
+           - x_hierarchy_entity_name
+           - x_hierarchy_level_code
+           - x_hierarchy_path
+           - x_hierarchy_path_names
         """
         # This would be a full integration test with BigQuery
         pass

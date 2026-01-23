@@ -964,29 +964,24 @@ async def get_hierarchy_denormalized(
     hierarchy_entity_id: str
 ) -> Dict[str, Optional[str]]:
     """
-    Fetch hierarchy entity and return denormalized level fields (level_1 through level_10).
+    Fetch hierarchy entity and return the 5-field hierarchy model.
 
-    Uses path_ids and path_names arrays from org_hierarchy to populate:
-    - hierarchy_level_1_id through hierarchy_level_10_id
-    - hierarchy_level_1_name through hierarchy_level_10_name
+    Returns the new simplified hierarchy fields:
+    - x_hierarchy_entity_id: Leaf entity ID from org_hierarchy
+    - x_hierarchy_entity_name: Leaf entity display name
+    - x_hierarchy_level_code: Entity level code (e.g., 'team', 'project', 'department')
+    - x_hierarchy_path: Materialized path from root to leaf (e.g., '/DEPT-001/PROJ-001/TEAM-001')
+    - x_hierarchy_path_names: Human-readable path (e.g., 'Engineering > Platform > Backend')
 
-    Also returns the 5 path-based fields for backward compatibility:
-    - hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code
-    - hierarchy_path, hierarchy_path_names
-
-    Returns empty dict with all keys set to None if entity not found.
+    Returns dict with all keys set to None if entity not found.
     """
     result_dict: Dict[str, Optional[str]] = {
-        "hierarchy_entity_id": None,
-        "hierarchy_entity_name": None,
-        "hierarchy_level_code": None,
-        "hierarchy_path": None,
-        "hierarchy_path_names": None,
+        "x_hierarchy_entity_id": None,
+        "x_hierarchy_entity_name": None,
+        "x_hierarchy_level_code": None,
+        "x_hierarchy_path": None,
+        "x_hierarchy_path_names": None,
     }
-    # Initialize all 10 levels to None
-    for i in range(1, 11):
-        result_dict[f"hierarchy_level_{i}_id"] = None
-        result_dict[f"hierarchy_level_{i}_name"] = None
 
     if not hierarchy_entity_id:
         return result_dict
@@ -1052,24 +1047,14 @@ async def get_hierarchy_denormalized(
     try:
         query_result = bq_client.client.query(query, job_config=job_config).result()
         for row in query_result:
-            # Path-based fields
-            result_dict["hierarchy_entity_id"] = row.entity_id
-            result_dict["hierarchy_entity_name"] = row.entity_name
-            result_dict["hierarchy_level_code"] = row.level_code
-            result_dict["hierarchy_path"] = row.path
+            # 5-field hierarchy model (x_hierarchy_* prefix for consistency with pipeline fields)
+            result_dict["x_hierarchy_entity_id"] = row.entity_id
+            result_dict["x_hierarchy_entity_name"] = row.entity_name
+            result_dict["x_hierarchy_level_code"] = row.level_code
+            result_dict["x_hierarchy_path"] = row.path
             # Convert path_names array to " > " separated string
             if row.path_names:
-                result_dict["hierarchy_path_names"] = " > ".join(row.path_names)
-
-            # Denormalize path_ids and path_names into level-indexed fields
-            if row.path_ids:
-                for i, entity_id in enumerate(row.path_ids):
-                    if i < 10:  # Max 10 levels
-                        result_dict[f"hierarchy_level_{i+1}_id"] = entity_id
-            if row.path_names:
-                for i, entity_name in enumerate(row.path_names):
-                    if i < 10:  # Max 10 levels
-                        result_dict[f"hierarchy_level_{i+1}_name"] = entity_name
+                result_dict["x_hierarchy_path_names"] = " > ".join(row.path_names)
             break
     except Exception as e:
         logger.warning(f"Failed to fetch hierarchy data for {hierarchy_entity_id}: {e}")
@@ -1131,10 +1116,12 @@ def get_subscription_plans_schema() -> List[bigquery.SchemaField]:
     defined in this file and in subscription_schema.py. Any schema changes should be
     synchronized with those models to ensure API request/response consistency.
 
-    BUG-001 FIX: Added missing fields:
-    - billing_anchor_day (for non-calendar-aligned monthly billing)
-    - N-level hierarchy fields (hierarchy_entity_id, hierarchy_entity_name, etc.)
-    - Denormalized 10-level hierarchy fields (hierarchy_level_1_id through hierarchy_level_10_id)
+    Uses the simplified 5-field hierarchy model (x_hierarchy_*):
+    - x_hierarchy_entity_id: Leaf entity ID
+    - x_hierarchy_entity_name: Leaf entity display name
+    - x_hierarchy_level_code: Entity level code (e.g., 'team', 'project', 'department')
+    - x_hierarchy_path: Materialized path from root to leaf
+    - x_hierarchy_path_names: Human-readable path
     """
     return [
         bigquery.SchemaField("org_slug", "STRING", mode="REQUIRED"),
@@ -1160,33 +1147,12 @@ def get_subscription_plans_schema() -> List[bigquery.SchemaField]:
         bigquery.SchemaField("invoice_id_last", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("owner_email", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("department", "STRING", mode="NULLABLE"),
-        # Denormalized 10-level hierarchy for fast aggregation
-        bigquery.SchemaField("hierarchy_level_1_id", "STRING", mode="NULLABLE", description="Level 1 (root) hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_1_name", "STRING", mode="NULLABLE", description="Level 1 (root) hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_2_id", "STRING", mode="NULLABLE", description="Level 2 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_2_name", "STRING", mode="NULLABLE", description="Level 2 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_3_id", "STRING", mode="NULLABLE", description="Level 3 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_3_name", "STRING", mode="NULLABLE", description="Level 3 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_4_id", "STRING", mode="NULLABLE", description="Level 4 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_4_name", "STRING", mode="NULLABLE", description="Level 4 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_5_id", "STRING", mode="NULLABLE", description="Level 5 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_5_name", "STRING", mode="NULLABLE", description="Level 5 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_6_id", "STRING", mode="NULLABLE", description="Level 6 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_6_name", "STRING", mode="NULLABLE", description="Level 6 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_7_id", "STRING", mode="NULLABLE", description="Level 7 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_7_name", "STRING", mode="NULLABLE", description="Level 7 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_8_id", "STRING", mode="NULLABLE", description="Level 8 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_8_name", "STRING", mode="NULLABLE", description="Level 8 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_9_id", "STRING", mode="NULLABLE", description="Level 9 hierarchy entity ID"),
-        bigquery.SchemaField("hierarchy_level_9_name", "STRING", mode="NULLABLE", description="Level 9 hierarchy entity name"),
-        bigquery.SchemaField("hierarchy_level_10_id", "STRING", mode="NULLABLE", description="Level 10 hierarchy entity ID (deepest level)"),
-        bigquery.SchemaField("hierarchy_level_10_name", "STRING", mode="NULLABLE", description="Level 10 hierarchy entity name (deepest level)"),
-        # N-level hierarchy fields for cost allocation (REQUIRED for proper attribution)
-        bigquery.SchemaField("hierarchy_entity_id", "STRING", mode="REQUIRED", description="Leaf entity ID from org_hierarchy (REQUIRED)"),
-        bigquery.SchemaField("hierarchy_entity_name", "STRING", mode="REQUIRED", description="Leaf entity display name (REQUIRED)"),
-        bigquery.SchemaField("hierarchy_level_code", "STRING", mode="REQUIRED", description="Entity level code (REQUIRED, e.g., 'team', 'project', 'department')"),
-        bigquery.SchemaField("hierarchy_path", "STRING", mode="REQUIRED", description="Materialized path from root to leaf (REQUIRED)"),
-        bigquery.SchemaField("hierarchy_path_names", "STRING", mode="REQUIRED", description="Human-readable path (REQUIRED)"),
+        # 5-field hierarchy model for cost allocation (x_hierarchy_* prefix)
+        bigquery.SchemaField("x_hierarchy_entity_id", "STRING", mode="REQUIRED", description="Leaf entity ID from org_hierarchy (REQUIRED)"),
+        bigquery.SchemaField("x_hierarchy_entity_name", "STRING", mode="REQUIRED", description="Leaf entity display name (REQUIRED)"),
+        bigquery.SchemaField("x_hierarchy_level_code", "STRING", mode="REQUIRED", description="Entity level code (REQUIRED, e.g., 'team', 'project', 'department')"),
+        bigquery.SchemaField("x_hierarchy_path", "STRING", mode="REQUIRED", description="Materialized path from root to leaf (REQUIRED)"),
+        bigquery.SchemaField("x_hierarchy_path_names", "STRING", mode="REQUIRED", description="Human-readable path (REQUIRED)"),
         bigquery.SchemaField("renewal_date", "DATE", mode="NULLABLE"),
         bigquery.SchemaField("contract_id", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("notes", "STRING", mode="NULLABLE"),
@@ -1500,8 +1466,8 @@ async def list_plans(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at,
         source_currency, source_price, exchange_rate_used,
-        hierarchy_entity_id, hierarchy_entity_name,
-        hierarchy_level_code, hierarchy_path, hierarchy_path_names
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND provider = @provider
         AND (status = 'active' OR status = 'pending' OR status = 'cancelled' OR status = 'expired')
@@ -1570,11 +1536,11 @@ async def list_plans(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
-                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
-                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
-                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
-                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
+                hierarchy_entity_id=row.x_hierarchy_entity_id if hasattr(row, "x_hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.x_hierarchy_entity_name if hasattr(row, "x_hierarchy_entity_name") else None,
+                hierarchy_level_code=row.x_hierarchy_level_code if hasattr(row, "x_hierarchy_level_code") else None,
+                hierarchy_path=row.x_hierarchy_path if hasattr(row, "x_hierarchy_path") else None,
+                hierarchy_path_names=row.x_hierarchy_path_names if hasattr(row, "x_hierarchy_path_names") else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)
@@ -1944,18 +1910,9 @@ async def create_plan(
         pricing_model, unit_price, yearly_price, discount_type,
         discount_value, auto_renew, payment_method, owner_email, department,
         renewal_date, contract_id, notes, source_currency, source_price,
-        exchange_rate_used, hierarchy_entity_id, hierarchy_entity_name,
-        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
-        hierarchy_level_1_id, hierarchy_level_1_name,
-        hierarchy_level_2_id, hierarchy_level_2_name,
-        hierarchy_level_3_id, hierarchy_level_3_name,
-        hierarchy_level_4_id, hierarchy_level_4_name,
-        hierarchy_level_5_id, hierarchy_level_5_name,
-        hierarchy_level_6_id, hierarchy_level_6_name,
-        hierarchy_level_7_id, hierarchy_level_7_name,
-        hierarchy_level_8_id, hierarchy_level_8_name,
-        hierarchy_level_9_id, hierarchy_level_9_name,
-        hierarchy_level_10_id, hierarchy_level_10_name,
+        exchange_rate_used,
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
         updated_at
     ) VALUES (
         @org_slug,
@@ -1984,21 +1941,11 @@ async def create_plan(
         @source_currency,
         @source_price,
         @exchange_rate_used,
-        @hierarchy_entity_id,
-        @hierarchy_entity_name,
-        @hierarchy_level_code,
-        @hierarchy_path,
-        @hierarchy_path_names,
-        @hierarchy_level_1_id, @hierarchy_level_1_name,
-        @hierarchy_level_2_id, @hierarchy_level_2_name,
-        @hierarchy_level_3_id, @hierarchy_level_3_name,
-        @hierarchy_level_4_id, @hierarchy_level_4_name,
-        @hierarchy_level_5_id, @hierarchy_level_5_name,
-        @hierarchy_level_6_id, @hierarchy_level_6_name,
-        @hierarchy_level_7_id, @hierarchy_level_7_name,
-        @hierarchy_level_8_id, @hierarchy_level_8_name,
-        @hierarchy_level_9_id, @hierarchy_level_9_name,
-        @hierarchy_level_10_id, @hierarchy_level_10_name,
+        @x_hierarchy_entity_id,
+        @x_hierarchy_entity_name,
+        @x_hierarchy_level_code,
+        @x_hierarchy_path,
+        @x_hierarchy_path_names,
         CURRENT_TIMESTAMP()
     )
     """
@@ -2033,33 +1980,12 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("source_currency", "STRING", plan.source_currency),
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", plan.source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", plan.exchange_rate_used),
-                # Path-based hierarchy fields (use denormalized data from lookup)
-                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_data.get("hierarchy_entity_id") or plan.hierarchy_entity_id),
-                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", hierarchy_data.get("hierarchy_entity_name") or plan.hierarchy_entity_name),
-                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", hierarchy_data.get("hierarchy_level_code") or plan.hierarchy_level_code),
-                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", hierarchy_data.get("hierarchy_path") or plan.hierarchy_path),
-                bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", hierarchy_data.get("hierarchy_path_names") or plan.hierarchy_path_names),
-                # BUG-002 FIX: 10-level denormalized hierarchy for fast aggregation
-                bigquery.ScalarQueryParameter("hierarchy_level_1_id", "STRING", hierarchy_data.get("hierarchy_level_1_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_1_name", "STRING", hierarchy_data.get("hierarchy_level_1_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_2_id", "STRING", hierarchy_data.get("hierarchy_level_2_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_2_name", "STRING", hierarchy_data.get("hierarchy_level_2_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_3_id", "STRING", hierarchy_data.get("hierarchy_level_3_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_3_name", "STRING", hierarchy_data.get("hierarchy_level_3_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_4_id", "STRING", hierarchy_data.get("hierarchy_level_4_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_4_name", "STRING", hierarchy_data.get("hierarchy_level_4_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_5_id", "STRING", hierarchy_data.get("hierarchy_level_5_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_5_name", "STRING", hierarchy_data.get("hierarchy_level_5_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_6_id", "STRING", hierarchy_data.get("hierarchy_level_6_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_6_name", "STRING", hierarchy_data.get("hierarchy_level_6_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_7_id", "STRING", hierarchy_data.get("hierarchy_level_7_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_7_name", "STRING", hierarchy_data.get("hierarchy_level_7_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_8_id", "STRING", hierarchy_data.get("hierarchy_level_8_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_8_name", "STRING", hierarchy_data.get("hierarchy_level_8_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_9_id", "STRING", hierarchy_data.get("hierarchy_level_9_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_9_name", "STRING", hierarchy_data.get("hierarchy_level_9_name")),
-                bigquery.ScalarQueryParameter("hierarchy_level_10_id", "STRING", hierarchy_data.get("hierarchy_level_10_id")),
-                bigquery.ScalarQueryParameter("hierarchy_level_10_name", "STRING", hierarchy_data.get("hierarchy_level_10_name")),
+                # 5-field hierarchy model (x_hierarchy_* prefix)
+                bigquery.ScalarQueryParameter("x_hierarchy_entity_id", "STRING", hierarchy_data.get("x_hierarchy_entity_id") or plan.hierarchy_entity_id),
+                bigquery.ScalarQueryParameter("x_hierarchy_entity_name", "STRING", hierarchy_data.get("x_hierarchy_entity_name") or plan.hierarchy_entity_name),
+                bigquery.ScalarQueryParameter("x_hierarchy_level_code", "STRING", hierarchy_data.get("x_hierarchy_level_code") or plan.hierarchy_level_code),
+                bigquery.ScalarQueryParameter("x_hierarchy_path", "STRING", hierarchy_data.get("x_hierarchy_path") or plan.hierarchy_path),
+                bigquery.ScalarQueryParameter("x_hierarchy_path_names", "STRING", hierarchy_data.get("x_hierarchy_path_names") or plan.hierarchy_path_names),
             ],
             job_timeout_ms=60000  # BUG-017 FIX: 60 second timeout for user operations (increased for large orgs)
         )
@@ -2093,8 +2019,8 @@ async def create_plan(
             discount_type, discount_value, auto_renew, payment_method,
             owner_email, department, renewal_date, contract_id, notes, updated_at,
             source_currency, source_price, exchange_rate_used,
-            hierarchy_entity_id, hierarchy_entity_name,
-            hierarchy_level_code, hierarchy_path, hierarchy_path_names
+            x_hierarchy_entity_id, x_hierarchy_entity_name,
+            x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
         FROM `{table_ref}`
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
@@ -2138,11 +2064,11 @@ async def create_plan(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
-                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
-                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
-                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
-                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
+                hierarchy_entity_id=row.x_hierarchy_entity_id if hasattr(row, "x_hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.x_hierarchy_entity_name if hasattr(row, "x_hierarchy_entity_name") else None,
+                hierarchy_level_code=row.x_hierarchy_level_code if hasattr(row, "x_hierarchy_level_code") else None,
+                hierarchy_path=row.x_hierarchy_path if hasattr(row, "x_hierarchy_path") else None,
+                hierarchy_path_names=row.x_hierarchy_path_names if hasattr(row, "x_hierarchy_path_names") else None,
             )
             break
 
@@ -2371,8 +2297,19 @@ async def update_plan(
         'seats', 'pricing_model', 'yearly_price', 'discount_type', 'discount_value',
         'auto_renew', 'payment_method', 'owner_email', 'department', 'renewal_date',
         'contract_id', 'notes', 'source_currency', 'source_price', 'exchange_rate_used', 'end_date',
+        # Hierarchy fields - API model uses names without x_ prefix, mapped below
         'hierarchy_entity_id', 'hierarchy_entity_name', 'hierarchy_level_code',
         'hierarchy_path', 'hierarchy_path_names'
+    }
+
+    # Map API field names (PlanUpdate model) to BigQuery column names
+    # Hierarchy fields use x_ prefix in BigQuery but not in the API model
+    FIELD_TO_COLUMN_MAPPING = {
+        "hierarchy_entity_id": "x_hierarchy_entity_id",
+        "hierarchy_entity_name": "x_hierarchy_entity_name",
+        "hierarchy_level_code": "x_hierarchy_level_code",
+        "hierarchy_path": "x_hierarchy_path",
+        "hierarchy_path_names": "x_hierarchy_path_names",
     }
 
     set_parts = ["updated_at = CURRENT_TIMESTAMP()"]
@@ -2392,7 +2329,9 @@ async def update_plan(
         if value is not None:
             param_name = f"p{param_counter}"
             param_counter += 1
-            set_parts.append(f"{field} = @{param_name}")
+            # Map API field name to BigQuery column name (for hierarchy fields)
+            column_name = FIELD_TO_COLUMN_MAPPING.get(field, field)
+            set_parts.append(f"{column_name} = @{param_name}")
 
             if isinstance(value, bool):
                 query_parameters.append(bigquery.ScalarQueryParameter(param_name, "BOOL", value))
@@ -2446,8 +2385,8 @@ async def update_plan(
             invoice_id_last, owner_email, department, renewal_date,
             contract_id, notes, updated_at,
             source_currency, source_price, exchange_rate_used,
-            hierarchy_entity_id, hierarchy_entity_name,
-            hierarchy_level_code, hierarchy_path, hierarchy_path_names
+            x_hierarchy_entity_id, x_hierarchy_entity_name,
+            x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
         FROM `{table_ref}`
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
@@ -2491,11 +2430,11 @@ async def update_plan(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
-                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
-                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
-                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
-                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
+                hierarchy_entity_id=row.x_hierarchy_entity_id if hasattr(row, "x_hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.x_hierarchy_entity_name if hasattr(row, "x_hierarchy_entity_name") else None,
+                hierarchy_level_code=row.x_hierarchy_level_code if hasattr(row, "x_hierarchy_level_code") else None,
+                hierarchy_path=row.x_hierarchy_path if hasattr(row, "x_hierarchy_path") else None,
+                hierarchy_path_names=row.x_hierarchy_path_names if hasattr(row, "x_hierarchy_path_names") else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             # Invalidate relevant caches after updating plan
@@ -2619,8 +2558,8 @@ async def edit_plan_with_version(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at,
         source_currency, source_price, exchange_rate_used,
-        hierarchy_entity_id, hierarchy_entity_name,
-        hierarchy_level_code, hierarchy_path, hierarchy_path_names
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
@@ -2748,11 +2687,11 @@ async def edit_plan_with_version(
         new_source_price = request.source_price if request.source_price is not None else (current_row.source_price if hasattr(current_row, "source_price") else None)
         new_exchange_rate_used = request.exchange_rate_used if request.exchange_rate_used is not None else (current_row.exchange_rate_used if hasattr(current_row, "exchange_rate_used") else None)
         # Hierarchy fields - carry over from current or use new values from request
-        new_hierarchy_entity_id = request.hierarchy_entity_id if request.hierarchy_entity_id is not None else (current_row.hierarchy_entity_id if hasattr(current_row, "hierarchy_entity_id") else None)
-        new_hierarchy_entity_name = request.hierarchy_entity_name if request.hierarchy_entity_name is not None else (current_row.hierarchy_entity_name if hasattr(current_row, "hierarchy_entity_name") else None)
-        new_hierarchy_level_code = request.hierarchy_level_code if request.hierarchy_level_code is not None else (current_row.hierarchy_level_code if hasattr(current_row, "hierarchy_level_code") else None)
-        new_hierarchy_path = request.hierarchy_path if request.hierarchy_path is not None else (current_row.hierarchy_path if hasattr(current_row, "hierarchy_path") else None)
-        new_hierarchy_path_names = request.hierarchy_path_names if request.hierarchy_path_names is not None else (current_row.hierarchy_path_names if hasattr(current_row, "hierarchy_path_names") else None)
+        new_hierarchy_entity_id = request.hierarchy_entity_id if request.hierarchy_entity_id is not None else (current_row.x_hierarchy_entity_id if hasattr(current_row, "x_hierarchy_entity_id") else None)
+        new_hierarchy_entity_name = request.hierarchy_entity_name if request.hierarchy_entity_name is not None else (current_row.x_hierarchy_entity_name if hasattr(current_row, "x_hierarchy_entity_name") else None)
+        new_hierarchy_level_code = request.hierarchy_level_code if request.hierarchy_level_code is not None else (current_row.x_hierarchy_level_code if hasattr(current_row, "x_hierarchy_level_code") else None)
+        new_hierarchy_path = request.hierarchy_path if request.hierarchy_path is not None else (current_row.x_hierarchy_path if hasattr(current_row, "x_hierarchy_path") else None)
+        new_hierarchy_path_names = request.hierarchy_path_names if request.hierarchy_path_names is not None else (current_row.x_hierarchy_path_names if hasattr(current_row, "x_hierarchy_path_names") else None)
 
         insert_query = f"""
         INSERT INTO `{table_ref}` (
@@ -2761,16 +2700,16 @@ async def edit_plan_with_version(
             pricing_model, unit_price, yearly_price, discount_type,
             discount_value, auto_renew, payment_method, owner_email, department,
             renewal_date, contract_id, notes, source_currency, source_price,
-            exchange_rate_used, hierarchy_entity_id, hierarchy_entity_name,
-            hierarchy_level_code, hierarchy_path, hierarchy_path_names, updated_at
+            exchange_rate_used, x_hierarchy_entity_id, x_hierarchy_entity_name,
+            x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names, updated_at
         ) VALUES (
             @org_slug, @subscription_id, @provider, @plan_name, @display_name,
             @category, @status, @start_date, @billing_cycle, @currency, @seats,
             @pricing_model, @unit_price, @yearly_price, @discount_type,
             @discount_value, @auto_renew, @payment_method, @owner_email, @department,
             @renewal_date, @contract_id, @notes, @source_currency, @source_price,
-            @exchange_rate_used, @hierarchy_entity_id, @hierarchy_entity_name,
-            @hierarchy_level_code, @hierarchy_path, @hierarchy_path_names, CURRENT_TIMESTAMP()
+            @exchange_rate_used, @x_hierarchy_entity_id, @x_hierarchy_entity_name,
+            @x_hierarchy_level_code, @x_hierarchy_path, @x_hierarchy_path_names, CURRENT_TIMESTAMP()
         )
         """
         insert_config = bigquery.QueryJobConfig(
@@ -2801,11 +2740,11 @@ async def edit_plan_with_version(
                 bigquery.ScalarQueryParameter("source_currency", "STRING", new_source_currency),
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", new_source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", new_exchange_rate_used),
-                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", new_hierarchy_entity_id),
-                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", new_hierarchy_entity_name),
-                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", new_hierarchy_level_code),
-                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", new_hierarchy_path),
-                bigquery.ScalarQueryParameter("hierarchy_path_names", "STRING", new_hierarchy_path_names),
+                bigquery.ScalarQueryParameter("x_hierarchy_entity_id", "STRING", new_hierarchy_entity_id),
+                bigquery.ScalarQueryParameter("x_hierarchy_entity_name", "STRING", new_hierarchy_entity_name),
+                bigquery.ScalarQueryParameter("x_hierarchy_level_code", "STRING", new_hierarchy_level_code),
+                bigquery.ScalarQueryParameter("x_hierarchy_path", "STRING", new_hierarchy_path),
+                bigquery.ScalarQueryParameter("x_hierarchy_path_names", "STRING", new_hierarchy_path_names),
             ],
             job_timeout_ms=60000  # Increased timeout for write operations
         )
@@ -2872,11 +2811,11 @@ async def edit_plan_with_version(
             source_currency=current_row.source_currency if hasattr(current_row, "source_currency") else None,
             source_price=float(current_row.source_price) if hasattr(current_row, "source_price") and current_row.source_price else None,
             exchange_rate_used=float(current_row.exchange_rate_used) if hasattr(current_row, "exchange_rate_used") and current_row.exchange_rate_used else None,
-            hierarchy_entity_id=current_row.hierarchy_entity_id if hasattr(current_row, "hierarchy_entity_id") else None,
-            hierarchy_entity_name=current_row.hierarchy_entity_name if hasattr(current_row, "hierarchy_entity_name") else None,
-            hierarchy_level_code=current_row.hierarchy_level_code if hasattr(current_row, "hierarchy_level_code") else None,
-            hierarchy_path=current_row.hierarchy_path if hasattr(current_row, "hierarchy_path") else None,
-            hierarchy_path_names=current_row.hierarchy_path_names if hasattr(current_row, "hierarchy_path_names") else None,
+            hierarchy_entity_id=current_row.x_hierarchy_entity_id if hasattr(current_row, "x_hierarchy_entity_id") else None,
+            hierarchy_entity_name=current_row.x_hierarchy_entity_name if hasattr(current_row, "x_hierarchy_entity_name") else None,
+            hierarchy_level_code=current_row.x_hierarchy_level_code if hasattr(current_row, "x_hierarchy_level_code") else None,
+            hierarchy_path=current_row.x_hierarchy_path if hasattr(current_row, "x_hierarchy_path") else None,
+            hierarchy_path_names=current_row.x_hierarchy_path_names if hasattr(current_row, "x_hierarchy_path_names") else None,
         )
 
         new_plan = SubscriptionPlan(
@@ -3336,8 +3275,8 @@ async def get_all_plans(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at,
         source_currency, source_price, exchange_rate_used,
-        hierarchy_entity_id, hierarchy_entity_name,
-        hierarchy_level_code, hierarchy_path, hierarchy_path_names
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
     FROM `{table_ref}`
     {where_clause}
     ORDER BY provider, plan_name
@@ -3401,11 +3340,11 @@ async def get_all_plans(
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
                 source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
                 exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
-                hierarchy_entity_id=row.hierarchy_entity_id if hasattr(row, "hierarchy_entity_id") else None,
-                hierarchy_entity_name=row.hierarchy_entity_name if hasattr(row, "hierarchy_entity_name") else None,
-                hierarchy_level_code=row.hierarchy_level_code if hasattr(row, "hierarchy_level_code") else None,
-                hierarchy_path=row.hierarchy_path if hasattr(row, "hierarchy_path") else None,
-                hierarchy_path_names=row.hierarchy_path_names if hasattr(row, "hierarchy_path_names") else None,
+                hierarchy_entity_id=row.x_hierarchy_entity_id if hasattr(row, "x_hierarchy_entity_id") else None,
+                hierarchy_entity_name=row.x_hierarchy_entity_name if hasattr(row, "x_hierarchy_entity_name") else None,
+                hierarchy_level_code=row.x_hierarchy_level_code if hasattr(row, "x_hierarchy_level_code") else None,
+                hierarchy_path=row.x_hierarchy_path if hasattr(row, "x_hierarchy_path") else None,
+                hierarchy_path_names=row.x_hierarchy_path_names if hasattr(row, "x_hierarchy_path_names") else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)

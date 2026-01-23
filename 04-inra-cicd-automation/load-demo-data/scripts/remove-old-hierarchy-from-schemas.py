@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """
 Remove ALL OLD 10-level hierarchy fields from schema files.
-Keeps ONLY NEW N-level hierarchy fields (hierarchy_entity_id, hierarchy_path, etc.)
+Keeps ONLY NEW 5-field hierarchy model (x_hierarchy_entity_id, x_hierarchy_path, etc.)
 """
 
 import json
 from pathlib import Path
 from typing import List, Dict, Any
 
-# OLD fields to remove
+# OLD fields to remove (10-level hierarchy)
 OLD_HIERARCHY_FIELDS = []
 for level in range(1, 11):
     OLD_HIERARCHY_FIELDS.append(f"hierarchy_level_{level}_id")
     OLD_HIERARCHY_FIELDS.append(f"hierarchy_level_{level}_name")
 
-# NEW fields to keep
+# NEW 5-field hierarchy model (x_hierarchy_* prefix per pipeline service convention)
 NEW_HIERARCHY_FIELDS = [
-    "hierarchy_entity_id",
-    "hierarchy_entity_name",
-    "hierarchy_level_code",
-    "hierarchy_path",
-    "hierarchy_path_names",
+    "x_hierarchy_entity_id",
+    "x_hierarchy_entity_name",
+    "x_hierarchy_level_code",
+    "x_hierarchy_path",
+    "x_hierarchy_path_names",
 ]
 
 def clean_schema(schema: List[Dict[str, Any]]):

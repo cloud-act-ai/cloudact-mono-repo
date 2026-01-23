@@ -1,27 +1,11 @@
 {
   "description": "OCI Cost Analysis schema for BigQuery destination tables",
+  "version": "3.0.0",
+  "updated": "2026-01-23",
   "schemas": {
     "oci_billing_cost": {
       "description": "OCI Usage API cost data schema with key metrics",
       "fields": [
-        {
-          "name": "usage_date",
-          "type": "DATE",
-          "mode": "REQUIRED",
-          "description": "Date of usage - partition key"
-        },
-        {
-          "name": "org_slug",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Organization identifier"
-        },
-        {
-          "name": "provider",
-          "type": "STRING",
-          "mode": "REQUIRED",
-          "description": "Cloud provider (oci)"
-        },
         {
           "name": "tenancy_id",
           "type": "STRING",
@@ -191,16 +175,40 @@
           "description": "Defined tags as JSON string"
         },
         {
-          "name": "ingestion_timestamp",
-          "type": "TIMESTAMP",
+          "name": "x_ingestion_id",
+          "type": "STRING",
           "mode": "REQUIRED",
-          "description": "When this record was ingested"
+          "description": "Unique row identifier (UUID) for traceability"
+        },
+        {
+          "name": "x_ingestion_date",
+          "type": "DATE",
+          "mode": "REQUIRED",
+          "description": "Date when data was ingested - PARTITION KEY"
+        },
+        {
+          "name": "x_org_slug",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Organization identifier for multi-tenancy"
+        },
+        {
+          "name": "x_cloud_provider",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Cloud provider identifier (OCI)"
+        },
+        {
+          "name": "x_cloud_account_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Cloud account identifier (tenancy_id)"
         },
         {
           "name": "x_pipeline_id",
           "type": "STRING",
           "mode": "REQUIRED",
-          "description": "Pipeline template name. Example: cloud_cost_oci"
+          "description": "Pipeline template name"
         },
         {
           "name": "x_credential_id",
@@ -225,6 +233,54 @@
           "type": "TIMESTAMP",
           "mode": "REQUIRED",
           "description": "Timestamp when data was written to this table"
+        },
+        {
+          "name": "x_hierarchy_entity_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Hierarchy entity ID"
+        },
+        {
+          "name": "x_hierarchy_entity_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Hierarchy entity name"
+        },
+        {
+          "name": "x_hierarchy_level_code",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Hierarchy level code (DEPT, PROJ, TEAM)"
+        },
+        {
+          "name": "x_hierarchy_path",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Hierarchy path"
+        },
+        {
+          "name": "x_hierarchy_path_names",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Hierarchy path names"
+        },
+        {
+          "name": "x_hierarchy_validated_at",
+          "type": "TIMESTAMP",
+          "mode": "NULLABLE",
+          "description": "When hierarchy was validated"
+        },
+        {
+          "name": "x_data_quality_score",
+          "type": "FLOAT64",
+          "mode": "NULLABLE",
+          "description": "Data quality score (0-100)"
+        },
+        {
+          "name": "x_created_at",
+          "type": "TIMESTAMP",
+          "mode": "NULLABLE",
+          "description": "Original record creation timestamp"
         }
       ]
     }

@@ -133,15 +133,15 @@ def update_genai_usage_hierarchies(client: bigquery.Client):
         query = f"""
             UPDATE `{PROJECT_ID}.{DATASET}.genai_payg_usage_raw`
             SET
-                hierarchy_entity_id = @entity_id,
-                hierarchy_entity_name = @entity_name,
-                hierarchy_level_code = @level_code,
-                hierarchy_path = @path,
-                hierarchy_path_names = @path_names
+                x_hierarchy_entity_id = @entity_id,
+                x_hierarchy_entity_name = @entity_name,
+                x_hierarchy_level_code = @level_code,
+                x_hierarchy_path = @path,
+                x_hierarchy_path_names = @path_names
             WHERE
                 org_slug = @org_slug
                 AND ({condition})
-                AND hierarchy_entity_id IS NULL
+                AND x_hierarchy_entity_id IS NULL
         """
 
         job_config = bigquery.QueryJobConfig(
@@ -195,15 +195,15 @@ def update_subscription_hierarchies(client: bigquery.Client):
         query = f"""
             UPDATE `{PROJECT_ID}.{DATASET}.subscription_plans`
             SET
-                hierarchy_entity_id = @entity_id,
-                hierarchy_entity_name = @entity_name,
-                hierarchy_level_code = @level_code,
-                hierarchy_path = @path,
-                hierarchy_path_names = @path_names
+                x_hierarchy_entity_id = @entity_id,
+                x_hierarchy_entity_name = @entity_name,
+                x_hierarchy_level_code = @level_code,
+                x_hierarchy_path = @path,
+                x_hierarchy_path_names = @path_names
             WHERE
                 org_slug = @org_slug
                 AND ({condition})
-                AND hierarchy_entity_id IS NULL
+                AND x_hierarchy_entity_id IS NULL
         """
 
         job_config = bigquery.QueryJobConfig(

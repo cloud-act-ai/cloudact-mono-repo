@@ -4,13 +4,12 @@ import { useEffect, useState, Suspense, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { Loader2, CheckCircle, AlertTriangle, RefreshCw, Copy, Check, AlertCircle } from "lucide-react"
+import { Loader2, AlertTriangle, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { completeOnboarding } from "@/actions/organization"
 import { sendWelcomeEmailAction } from "@/actions/email"
-import { revealApiKeyFromToken } from "@/actions/backend-onboarding"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OnboardingProgress, createOnboardingStages, updateStageStatus, completeStageAndMoveNext, type ProgressStage } from "@/components/onboarding-progress"
 
@@ -30,10 +29,6 @@ function SuccessContent() {
   const [error, setError] = useState<string | null>(null)
   const [orgSlug, setOrgSlug] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
-  // BUG FIX: Track backend onboarding status and API key to show warnings
-  const [backendFailed, setBackendFailed] = useState(false)
-  const [apiKey, setApiKey] = useState<string | null>(null)
-  const [apiKeyCopied, setApiKeyCopied] = useState(false)
   // FIX GAP-006: Track progress stages for real-time feedback
   const [progressStages, setProgressStages] = useState<ProgressStage[]>(createOnboardingStages())
 
@@ -124,23 +119,6 @@ function SuccessContent() {
       setOrgSlug(result.orgSlug || null)
       setStatus("success")
 
-      // BUG FIX: Track backend failure and API key for display
-      if (result.backendOnboardingFailed) {
-        setBackendFailed(true)
-      }
-      // SEC-002 FIX: Use reveal token to retrieve API key (one-time reveal)
-      if (result.backendRevealToken) {
-        try {
-          const revealResult = await revealApiKeyFromToken(result.backendRevealToken)
-          if (revealResult.success && revealResult.apiKey) {
-            setApiKey(revealResult.apiKey)
-          }
-        } catch (revealError) {
-          // Non-critical - user can still access dashboard
-          console.warn("[Onboarding Success] Failed to reveal API key:", revealError)
-        }
-      }
-
       // Send welcome email (non-blocking - don't fail if email fails)
       try {
         const userMetadata = user.user_metadata || {}
@@ -150,7 +128,7 @@ function SuccessContent() {
           : firstName
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-        const dashboardLink = `${appUrl}/${result.orgSlug}/dashboard`
+        const dashboardLink = `${appUrl}/${result.orgSlug}/integrations`
 
         // Get org name from user metadata (pending_company_name) or fallback
         const orgName = userMetadata.pending_company_name || result.orgSlug || "your organization"
@@ -166,27 +144,14 @@ function SuccessContent() {
         console.warn("[Onboarding Success] Failed to send welcome email:", emailError)
       }
 
-      // Show success toast with appropriate message
-      if (result.backendOnboardingFailed) {
-        toast.warning("Organization created with warnings", {
-          description: "Backend setup can be completed later from Settings.",
-          duration: 5000,
-        })
-      } else {
-        toast.success("Organization created!", {
-          description: "Redirecting to your dashboard...",
-          duration: 3000,
-        })
-      }
+      // Show success toast
+      toast.success("Organization created!", {
+        description: "Let's set up your integrations...",
+        duration: 2000,
+      })
 
-      // Redirect to dashboard after a short delay (longer if showing API key)
-      // Note: This timeout doesn't need cleanup since it only runs after success
-      // and the component will be unmounted by the redirect
-      // SEC-002 FIX: Check for reveal token presence instead of direct API key
-      const redirectDelay = result.backendRevealToken ? 10000 : 2000  // 10s if showing API key
-      setTimeout(() => {
-        router.push(`/${result.orgSlug}/dashboard?welcome=true`)
-      }, redirectDelay)
+      // Redirect immediately to integrations page (skip "Welcome aboard" screen)
+      router.push(`/${result.orgSlug}/integrations?welcome=true`)
 
     } catch (err: unknown) {
       setStatus("error")
@@ -291,76 +256,17 @@ function SuccessContent() {
     )
   }
 
-  // Copy API key to clipboard
-  const copyApiKey = () => {
-    if (apiKey) {
-      navigator.clipboard.writeText(apiKey)
-      setApiKeyCopied(true)
-      toast.success("API key copied to clipboard!")
-      setTimeout(() => setApiKeyCopied(false), 2000)
-    }
-  }
-
+  // Success state - just show brief redirect message (page redirects immediately)
   return (
     <div className="flex flex-col items-center gap-6 text-center max-w-lg">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDFA]">
-        <CheckCircle className="h-10 w-10 text-[#6EE890]" />
+        <Loader2 className="h-10 w-10 animate-spin text-[#6EE890]" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome aboard!</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Setup Complete!</h1>
         <p className="text-gray-600">
-          Your organization has been created successfully.
-          {!apiKey && " Redirecting you to your dashboard..."}
+          Redirecting to integrations...
         </p>
-      </div>
-
-      {/* BUG FIX: Show API key if available (display once!) */}
-      {apiKey && (
-        <div className="w-full p-4 bg-[#F0FDFA] border border-[#6EE890] rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-[#1a7a3a] font-medium">
-            <AlertCircle className="h-4 w-4" />
-            <span>Important: Save your API key now!</span>
-          </div>
-          <p className="text-sm text-gray-600 text-left">
-            This key is shown only once. Copy it now and store it securely.
-            You{"'"}ll need it for integrations.
-          </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 p-3 bg-white border border-gray-200 rounded-lg font-mono text-xs text-left break-all">
-              {apiKey}
-            </code>
-            <button
-              onClick={copyApiKey}
-              className="p-3 bg-[#6EE890] hover:bg-[#5dd87f] text-white rounded-lg transition-colors"
-              title="Copy to clipboard"
-            >
-              {apiKeyCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* BUG FIX: Show warning if backend onboarding failed */}
-      {backendFailed && (
-        <Alert variant="default" className="w-full bg-amber-50 border-amber-200 text-left">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-700">
-            <strong>Note:</strong> Backend setup is pending. You can complete it from Settings {">"} Organization {">"} Onboarding & Quota.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-col items-center gap-2">
-        {apiKey ? (
-          <button
-            onClick={() => router.push(`/${orgSlug}/dashboard?welcome=true`)}
-            className="cloudact-btn-primary"
-          >
-            Continue to Dashboard
-          </button>
-        ) : (
-          <Loader2 className="h-6 w-6 animate-spin text-[#6EE890]" />
-        )}
       </div>
     </div>
   )

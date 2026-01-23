@@ -151,12 +151,12 @@ export interface TotalCostSummary {
  * Filter parameters for cost queries
  */
 export interface CostFilterParams {
-  /** Filter by department ID (hierarchy) */
+  /** Filter by department ID (hierarchy) - kept for backward compatibility */
   departmentId?: string
-  /** Filter by project ID (hierarchy) */
-  projectId?: string
-  /** Filter by team ID (hierarchy) */
-  teamId?: string
+  /** Filter by hierarchy entity ID (unified hierarchy filter) */
+  hierarchyEntityId?: string
+  /** Filter by hierarchy path (e.g., "DEPT-001/PROJ-001/TEAM-001") */
+  hierarchyPath?: string
   /** Filter by providers (comma-separated) */
   providers?: string[]
   /** Filter by service categories (comma-separated) */
@@ -209,8 +209,8 @@ export async function getGenAICosts(
     if (endDate) params.append("end_date", endDate)
     // Hierarchy filters
     if (filters?.departmentId) params.append("department_id", filters.departmentId)
-    if (filters?.projectId) params.append("project_id", filters.projectId)
-    if (filters?.teamId) params.append("team_id", filters.teamId)
+    if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
+    if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
     if (filters?.providers && filters.providers.length > 0) {
       params.append("providers", filters.providers.join(","))
@@ -358,8 +358,8 @@ export async function getCloudCosts(
     if (endDate) params.append("end_date", endDate)
     // Hierarchy filters
     if (filters?.departmentId) params.append("department_id", filters.departmentId)
-    if (filters?.projectId) params.append("project_id", filters.projectId)
-    if (filters?.teamId) params.append("team_id", filters.teamId)
+    if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
+    if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
     if (filters?.providers && filters.providers.length > 0) {
       params.append("providers", filters.providers.join(","))
@@ -508,8 +508,8 @@ export async function getTotalCosts(
     if (endDate) params.append("end_date", endDate)
     // Hierarchy filters
     if (filters?.departmentId) params.append("department_id", filters.departmentId)
-    if (filters?.projectId) params.append("project_id", filters.projectId)
-    if (filters?.teamId) params.append("team_id", filters.teamId)
+    if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
+    if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
     if (filters?.providers && filters.providers.length > 0) {
       params.append("providers", filters.providers.join(","))
@@ -633,8 +633,8 @@ export async function getCostTrend(
     }
     // Hierarchy filters - server-side filtering
     if (filters?.departmentId) params.set("department_id", filters.departmentId)
-    if (filters?.projectId) params.set("project_id", filters.projectId)
-    if (filters?.teamId) params.set("team_id", filters.teamId)
+    if (filters?.hierarchyEntityId) params.set("hierarchy_entity_id", filters.hierarchyEntityId)
+    if (filters?.hierarchyPath) params.set("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
     if (filters?.providers && filters.providers.length > 0) {
       params.set("providers", filters.providers.join(","))
@@ -753,9 +753,11 @@ export interface GranularCostRow {
   date: string
   provider: string
   category: "genai" | "cloud" | "subscription" | "other"
-  dept_id: string | null
-  project_id: string | null
-  team_id: string | null
+  hierarchy_entity_id: string | null
+  hierarchy_entity_name: string | null
+  hierarchy_level_code: string | null
+  hierarchy_path: string | null
+  hierarchy_path_names: string | null
   total_cost: number
   record_count: number
 }
@@ -913,8 +915,8 @@ export async function getCostByProvider(
     if (endDate) params.append("end_date", endDate)
     // Hierarchy filters
     if (filters?.departmentId) params.append("department_id", filters.departmentId)
-    if (filters?.projectId) params.append("project_id", filters.projectId)
-    if (filters?.teamId) params.append("team_id", filters.teamId)
+    if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
+    if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
     if (filters?.providers && filters.providers.length > 0) {
       params.append("providers", filters.providers.join(","))
@@ -1077,8 +1079,8 @@ export async function getCostByService(
     if (endDate) params.append("end_date", endDate)
     // Hierarchy filters
     if (filters?.departmentId) params.append("department_id", filters.departmentId)
-    if (filters?.projectId) params.append("project_id", filters.projectId)
-    if (filters?.teamId) params.append("team_id", filters.teamId)
+    if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
+    if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
     if (filters?.providers && filters.providers.length > 0) {
       params.append("providers", filters.providers.join(","))

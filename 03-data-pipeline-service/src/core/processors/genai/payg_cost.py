@@ -541,27 +541,12 @@ class PAYGCostProcessor:
 
                         u.request_count,
 
-                        -- Issue #43: Hierarchy columns (populated during cost allocation, NULL at calculation time)
-                        CAST(NULL AS STRING) as hierarchy_level_1_id,
-                        CAST(NULL AS STRING) as hierarchy_level_1_name,
-                        CAST(NULL AS STRING) as hierarchy_level_2_id,
-                        CAST(NULL AS STRING) as hierarchy_level_2_name,
-                        CAST(NULL AS STRING) as hierarchy_level_3_id,
-                        CAST(NULL AS STRING) as hierarchy_level_3_name,
-                        CAST(NULL AS STRING) as hierarchy_level_4_id,
-                        CAST(NULL AS STRING) as hierarchy_level_4_name,
-                        CAST(NULL AS STRING) as hierarchy_level_5_id,
-                        CAST(NULL AS STRING) as hierarchy_level_5_name,
-                        CAST(NULL AS STRING) as hierarchy_level_6_id,
-                        CAST(NULL AS STRING) as hierarchy_level_6_name,
-                        CAST(NULL AS STRING) as hierarchy_level_7_id,
-                        CAST(NULL AS STRING) as hierarchy_level_7_name,
-                        CAST(NULL AS STRING) as hierarchy_level_8_id,
-                        CAST(NULL AS STRING) as hierarchy_level_8_name,
-                        CAST(NULL AS STRING) as hierarchy_level_9_id,
-                        CAST(NULL AS STRING) as hierarchy_level_9_name,
-                        CAST(NULL AS STRING) as hierarchy_level_10_id,
-                        CAST(NULL AS STRING) as hierarchy_level_10_name,
+                        -- Issue #43: Hierarchy columns (5-field model, populated during cost allocation, NULL at calculation time)
+                        CAST(NULL AS STRING) as x_hierarchy_entity_id,
+                        CAST(NULL AS STRING) as x_hierarchy_entity_name,
+                        CAST(NULL AS STRING) as x_hierarchy_level_code,
+                        CAST(NULL AS STRING) as x_hierarchy_path,
+                        CAST(NULL AS STRING) as x_hierarchy_path_names,
 
                         CURRENT_TIMESTAMP() as calculated_at,
                         -- Standardized lineage columns (x_ prefix)
@@ -601,26 +586,11 @@ class PAYGCostProcessor:
                         effective_rate_input = S.effective_rate_input,
                         effective_rate_output = S.effective_rate_output,
                         request_count = S.request_count,
-                                                hierarchy_level_1_id = S.hierarchy_level_1_id,
-                        hierarchy_level_1_name = S.hierarchy_level_1_name,
-                        hierarchy_level_2_id = S.hierarchy_level_2_id,
-                        hierarchy_level_2_name = S.hierarchy_level_2_name,
-                        hierarchy_level_3_id = S.hierarchy_level_3_id,
-                        hierarchy_level_3_name = S.hierarchy_level_3_name,
-                        hierarchy_level_4_id = S.hierarchy_level_4_id,
-                        hierarchy_level_4_name = S.hierarchy_level_4_name,
-                        hierarchy_level_5_id = S.hierarchy_level_5_id,
-                        hierarchy_level_5_name = S.hierarchy_level_5_name,
-                        hierarchy_level_6_id = S.hierarchy_level_6_id,
-                        hierarchy_level_6_name = S.hierarchy_level_6_name,
-                        hierarchy_level_7_id = S.hierarchy_level_7_id,
-                        hierarchy_level_7_name = S.hierarchy_level_7_name,
-                        hierarchy_level_8_id = S.hierarchy_level_8_id,
-                        hierarchy_level_8_name = S.hierarchy_level_8_name,
-                        hierarchy_level_9_id = S.hierarchy_level_9_id,
-                        hierarchy_level_9_name = S.hierarchy_level_9_name,
-                        hierarchy_level_10_id = S.hierarchy_level_10_id,
-                        hierarchy_level_10_name = S.hierarchy_level_10_name,
+                        x_hierarchy_entity_id = S.x_hierarchy_entity_id,
+                        x_hierarchy_entity_name = S.x_hierarchy_entity_name,
+                        x_hierarchy_level_code = S.x_hierarchy_level_code,
+                        x_hierarchy_path = S.x_hierarchy_path,
+                        x_hierarchy_path_names = S.x_hierarchy_path_names,
                         calculated_at = S.calculated_at,
                         x_pipeline_id = S.x_pipeline_id,
                         x_credential_id = S.x_credential_id,
@@ -633,7 +603,8 @@ class PAYGCostProcessor:
                             input_cost_usd, output_cost_usd, cached_cost_usd, total_cost_usd,
                             discount_applied_pct, effective_rate_input, effective_rate_output,
                             request_count,
-                            hierarchy_level_1_id, hierarchy_level_1_name, hierarchy_level_2_id, hierarchy_level_2_name, hierarchy_level_3_id, hierarchy_level_3_name, hierarchy_level_4_id, hierarchy_level_4_name, hierarchy_level_5_id, hierarchy_level_5_name, hierarchy_level_6_id, hierarchy_level_6_name, hierarchy_level_7_id, hierarchy_level_7_name, hierarchy_level_8_id, hierarchy_level_8_name, hierarchy_level_9_id, hierarchy_level_9_name, hierarchy_level_10_id, hierarchy_level_10_name,
+                            x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+                            x_hierarchy_path, x_hierarchy_path_names,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
                     VALUES (S.cost_date, S.org_slug, S.provider, S.model, S.model_family, S.region,
@@ -641,7 +612,8 @@ class PAYGCostProcessor:
                             S.input_cost_usd, S.output_cost_usd, S.cached_cost_usd, S.total_cost_usd,
                             S.discount_applied_pct, S.effective_rate_input, S.effective_rate_output,
                             S.request_count,
-                            S.hierarchy_level_1_id, S.hierarchy_level_1_name, S.hierarchy_level_2_id, S.hierarchy_level_2_name, S.hierarchy_level_3_id, S.hierarchy_level_3_name, S.hierarchy_level_4_id, S.hierarchy_level_4_name, S.hierarchy_level_5_id, S.hierarchy_level_5_name, S.hierarchy_level_6_id, S.hierarchy_level_6_name, S.hierarchy_level_7_id, S.hierarchy_level_7_name, S.hierarchy_level_8_id, S.hierarchy_level_8_name, S.hierarchy_level_9_id, S.hierarchy_level_9_name, S.hierarchy_level_10_id, S.hierarchy_level_10_name,
+                            S.x_hierarchy_entity_id, S.x_hierarchy_entity_name, S.x_hierarchy_level_code,
+                            S.x_hierarchy_path, S.x_hierarchy_path_names,
                             S.calculated_at, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
                             S.x_run_id, S.x_ingested_at)
                 """
@@ -828,14 +800,14 @@ class PAYGCostProcessor:
         # Check if hierarchy_entity_id exists in x_org_hierarchy
         hierarchy_check_query = f"""
             SELECT DISTINCT
-                u.hierarchy_entity_id,
-                u.hierarchy_entity_name
+                u.x_hierarchy_entity_id,
+                u.x_hierarchy_entity_name
             FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
-                ON h.entity_id = u.hierarchy_entity_id
+                ON h.entity_id = u.x_hierarchy_entity_id
             WHERE u.usage_date = @process_date
                 AND u.org_slug = @org_slug
-                AND u.hierarchy_entity_id IS NOT NULL
+                AND u.x_hierarchy_entity_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}
         """
@@ -844,8 +816,8 @@ class PAYGCostProcessor:
             orphan_results = list(bq_client.query(hierarchy_check_query, parameters=query_params))
             for row in orphan_results:
                 self.logger.warning(
-                    f"Orphan hierarchy allocation: entity_id={row.get('hierarchy_entity_id')}, "
-                    f"entity_name={row.get('hierarchy_entity_name')} not found in x_org_hierarchy"
+                    f"Orphan hierarchy allocation: entity_id={row.get('x_hierarchy_entity_id')}, "
+                    f"entity_name={row.get('x_hierarchy_entity_name')} not found in x_org_hierarchy"
                 )
         except Exception as e:
             self.logger.warning(f"Hierarchy validation check failed: {e}")

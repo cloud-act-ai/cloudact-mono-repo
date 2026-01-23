@@ -31,8 +31,8 @@ INSERT INTO `{project_id}.{dataset_id}.cost_data_standard_1_3`
   ServiceProviderName, ChargeClass, ChargeDescription, ChargeFrequency,
   ConsumedQuantity, ConsumedUnit, ProviderName, PublisherName,
   ResourceId, ResourceName, ResourceType, SubAccountId, SubAccountName,
-  hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-  hierarchy_path, hierarchy_path_names,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
   x_org_slug, x_source_system
 )
@@ -43,8 +43,8 @@ SELECT
   provider, 'Recurring', CONCAT(display_name, ' - ', plan_name), billing_cycle,
   CAST(seats AS NUMERIC), 'seats', provider, provider,
   subscription_id, display_name, 'SaaS Subscription', subscription_id, display_name,
-  hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-  hierarchy_path, hierarchy_path_names,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
   org_slug, 'subscription_costs'
 FROM `{project_id}.{dataset_id}.subscription_plan_costs_daily`
@@ -60,8 +60,8 @@ INSERT INTO `{project_id}.{dataset_id}.cost_data_standard_1_3`
   ServiceProviderName, ChargeClass, ChargeDescription,
   ConsumedQuantity, ConsumedUnit, ProviderName, PublisherName,
   ResourceId, ResourceName, ResourceType, RegionId,
-  hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-  hierarchy_path, hierarchy_path_names,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
   x_org_slug, x_source_system, x_genai_cost_type, x_genai_provider, x_genai_model
 )
@@ -72,8 +72,8 @@ SELECT
   provider, 'On-Demand', CONCAT(provider, ' ', model, ' - ', CAST(usage_quantity AS STRING), ' tokens'),
   usage_quantity, usage_unit, provider, provider,
   CONCAT(provider, '_', model), model, 'GenAI API', COALESCE(region, 'global'),
-  hierarchy_entity_id, hierarchy_entity_name, hierarchy_level_code,
-  hierarchy_path, hierarchy_path_names,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
   org_slug, 'genai_costs', cost_type, provider, model
 FROM `{project_id}.{dataset_id}.genai_costs_daily_unified`

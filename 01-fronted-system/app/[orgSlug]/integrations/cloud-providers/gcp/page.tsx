@@ -362,10 +362,18 @@ export default function GCPIntegrationPage() {
       const validateTablePath = (path: string, fieldName: string) => {
         if (path && path.trim()) {
           const trimmed = path.trim()
-          if (trimmed.split('.').length !== 3) {
+          // VAL-001 FIX: Use < 3 to allow tables with dots in their names (e.g., project.dataset.table_v1.0)
+          if (trimmed.split('.').length < 3) {
             throw new Error(`${fieldName} must be in format: project.dataset.table`)
           }
-          if (trimmed.includes('..') || trimmed.startsWith('/')) {
+          // SEC-002 FIX: Check for path traversal and SQL injection attempts
+          const dangerousPatterns = ['..', '`', ';', "'", '"', '--', '/*', '*/']
+          for (const pattern of dangerousPatterns) {
+            if (trimmed.includes(pattern)) {
+              throw new Error(`Invalid ${fieldName}: disallowed character sequence detected`)
+            }
+          }
+          if (trimmed.startsWith('/')) {
             throw new Error(`Invalid ${fieldName}: path traversal not allowed`)
           }
         }
@@ -398,14 +406,20 @@ export default function GCPIntegrationPage() {
           detailed_export_table: detailedExportTable.trim() || undefined,
           pricing_export_table: pricingExportTable.trim() || undefined,
           committed_use_discount_table: cudTable.trim() || undefined,
-          // Additional billing accounts (multi-account support)
-          additional_billing_accounts: additionalAccounts.length > 0 ? additionalAccounts : undefined,
+          // EDGE-001 FIX: Send empty array instead of undefined for consistent backend handling
+          additional_billing_accounts: additionalAccounts.length > 0 ? additionalAccounts : [],
         },
       })
 
       if (result.success) {
         setSuccessMessage("Billing export configuration saved successfully!")
         setShowBillingConfig(false)
+        // STATE-001 FIX: Clear local form state before reloading to prevent stale data
+        setBillingExportTable("")
+        setDetailedExportTable("")
+        setPricingExportTable("")
+        setCudTable("")
+        setAdditionalAccounts([])
         await loadIntegration()
       } else {
         setError(result.error || "Failed to save configuration")

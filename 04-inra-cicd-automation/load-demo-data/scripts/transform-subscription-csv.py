@@ -29,26 +29,26 @@ def get_new_hierarchy_fields(row):
 
     if not leaf_level:
         return {
-            "hierarchy_entity_id": "UNASSIGNED",
-            "hierarchy_entity_name": "Unassigned",
-            "hierarchy_level_code": "unassigned",
-            "hierarchy_path": "/UNASSIGNED",
-            "hierarchy_path_names": "Unassigned"
+            "x_hierarchy_entity_id": "UNASSIGNED",
+            "x_hierarchy_entity_name": "Unassigned",
+            "x_hierarchy_level_code": "unassigned",
+            "x_hierarchy_path": "/UNASSIGNED",
+            "x_hierarchy_path_names": "Unassigned"
         }
 
-    # Determine level code
+    # Determine level code (c_suite, business_unit, function)
     level_codes = {
-        1: "department",
-        2: "project",
-        3: "team",
+        1: "c_suite",
+        2: "business_unit",
+        3: "function",
     }
 
     return {
-        "hierarchy_entity_id": leaf_id,
-        "hierarchy_entity_name": leaf_name,
-        "hierarchy_level_code": level_codes.get(leaf_level, "team"),
-        "hierarchy_path": "/" + "/".join(path_parts),
-        "hierarchy_path_names": " > ".join(path_name_parts)
+        "x_hierarchy_entity_id": leaf_id,
+        "x_hierarchy_entity_name": leaf_name,
+        "x_hierarchy_level_code": level_codes.get(leaf_level, "function"),
+        "x_hierarchy_path": "/" + "/".join(path_parts),
+        "x_hierarchy_path_names": " > ".join(path_name_parts)
     }
 
 def main():
@@ -70,11 +70,11 @@ def main():
             old_hierarchy_fields.append(f"hierarchy_level_{level}_name")
 
         new_hierarchy_fields = [
-            "hierarchy_entity_id",
-            "hierarchy_entity_name",
-            "hierarchy_level_code",
-            "hierarchy_path",
-            "hierarchy_path_names"
+            "x_hierarchy_entity_id",
+            "x_hierarchy_entity_name",
+            "x_hierarchy_level_code",
+            "x_hierarchy_path",
+            "x_hierarchy_path_names"
         ]
 
         # Filter out OLD hierarchy fields from original fieldnames

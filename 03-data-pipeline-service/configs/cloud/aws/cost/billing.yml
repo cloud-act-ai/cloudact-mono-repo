@@ -13,7 +13,7 @@
 pipeline_id: "{org_slug}-aws-billing"
 name: "AWS Billing Sync"
 description: "Extract AWS Cost & Usage Report data for {org_slug}"
-version: "15.0.0"
+version: "18.0.0"
 
 # Schedule configuration (cron expression: daily at 05:00 UTC)
 schedule: "0 5 * * *"
@@ -63,11 +63,11 @@ steps:
     config:
       destination_table: "{org_slug}_prod.cloud_aws_billing_raw_daily"
       write_disposition: "WRITE_APPEND"
-      partition_field: "usage_date"
+      partition_field: "x_ingestion_date"
       schema_template: "aws_billing_cost"
       table_config:
         time_partitioning:
-          field: "usage_date"
+          field: "x_ingestion_date"
           type: "DAY"
           expiration_days: 730
         clustering_fields:

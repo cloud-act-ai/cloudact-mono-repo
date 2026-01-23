@@ -25,6 +25,8 @@
 --   - GAAP/Statutory: Fiscal year aligned calculations for India, UK, Japan, Australia
 --   - Leap year handling: Proper 400/100/4 rule for accurate daily rates
 --
+-- HIERARCHY: Uses 5-field x_hierarchy_* model (entity_id, entity_name, level_code, path, path_names)
+--
 -- INPUTS:
 --   p_project_id: GCP Project ID
 --   p_dataset_id: Customer dataset (e.g., 'acme_corp_prod')
@@ -116,26 +118,16 @@ BEGIN
     USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
     -- 3. Insert daily costs (skip zero-cost rows like FREE plans)
+    -- Uses 5-field x_hierarchy_* model
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.subscription_plan_costs_daily` (
         org_slug, provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
         invoice_id_last, source,
-        -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
-        hierarchy_level_1_id, hierarchy_level_1_name,
-        hierarchy_level_2_id, hierarchy_level_2_name,
-        hierarchy_level_3_id, hierarchy_level_3_name,
-        hierarchy_level_4_id, hierarchy_level_4_name,
-        hierarchy_level_5_id, hierarchy_level_5_name,
-        hierarchy_level_6_id, hierarchy_level_6_name,
-        hierarchy_level_7_id, hierarchy_level_7_name,
-        hierarchy_level_8_id, hierarchy_level_8_name,
-        hierarchy_level_9_id, hierarchy_level_9_name,
-        hierarchy_level_10_id, hierarchy_level_10_name,
-        -- N-level hierarchy fields for cost allocation
-        hierarchy_entity_id, hierarchy_entity_name,
-        hierarchy_level_code, hierarchy_path, hierarchy_path_names,
+        -- 5-field hierarchy model (NEW design)
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
         created_at, updated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
       )
       WITH subscriptions AS (
@@ -180,23 +172,12 @@ BEGIN
           -- NULL or 1 = calendar-aligned (1st of month)
           -- ASC 606 / IFRS 15 compliant: Track billing cycle anniversary
           COALESCE(billing_anchor_day, 1) AS billing_anchor_day,
-          -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
-          hierarchy_level_1_id, hierarchy_level_1_name,
-          hierarchy_level_2_id, hierarchy_level_2_name,
-          hierarchy_level_3_id, hierarchy_level_3_name,
-          hierarchy_level_4_id, hierarchy_level_4_name,
-          hierarchy_level_5_id, hierarchy_level_5_name,
-          hierarchy_level_6_id, hierarchy_level_6_name,
-          hierarchy_level_7_id, hierarchy_level_7_name,
-          hierarchy_level_8_id, hierarchy_level_8_name,
-          hierarchy_level_9_id, hierarchy_level_9_name,
-          hierarchy_level_10_id, hierarchy_level_10_name,
-          -- N-level hierarchy fields for cost allocation (v14.0)
-          hierarchy_entity_id,
-          hierarchy_entity_name,
-          hierarchy_level_code,
-          hierarchy_path,
-          hierarchy_path_names
+          -- 5-field hierarchy model (NEW design)
+          x_hierarchy_entity_id,
+          x_hierarchy_entity_name,
+          x_hierarchy_level_code,
+          x_hierarchy_path,
+          x_hierarchy_path_names
         FROM `%s.%s.subscription_plans`
         WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
@@ -416,23 +397,12 @@ BEGIN
             END AS NUMERIC
           ) AS daily_cost,
           s.invoice_id_last,
-          -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
-          s.hierarchy_level_1_id, s.hierarchy_level_1_name,
-          s.hierarchy_level_2_id, s.hierarchy_level_2_name,
-          s.hierarchy_level_3_id, s.hierarchy_level_3_name,
-          s.hierarchy_level_4_id, s.hierarchy_level_4_name,
-          s.hierarchy_level_5_id, s.hierarchy_level_5_name,
-          s.hierarchy_level_6_id, s.hierarchy_level_6_name,
-          s.hierarchy_level_7_id, s.hierarchy_level_7_name,
-          s.hierarchy_level_8_id, s.hierarchy_level_8_name,
-          s.hierarchy_level_9_id, s.hierarchy_level_9_name,
-          s.hierarchy_level_10_id, s.hierarchy_level_10_name,
-          -- N-level hierarchy fields for cost allocation (v14.0)
-          s.hierarchy_entity_id,
-          s.hierarchy_entity_name,
-          s.hierarchy_level_code,
-          s.hierarchy_path,
-          s.hierarchy_path_names
+          -- 5-field hierarchy model (NEW design)
+          s.x_hierarchy_entity_id,
+          s.x_hierarchy_entity_name,
+          s.x_hierarchy_level_code,
+          s.x_hierarchy_path,
+          s.x_hierarchy_path_names
         FROM with_cycle_cost s
         CROSS JOIN UNNEST(
           GENERATE_DATE_ARRAY(
@@ -467,23 +437,12 @@ BEGIN
         ) AS NUMERIC) AS annual_run_rate,
         invoice_id_last,
         'subscription_amortization' AS source,
-        -- Denormalized 10-level hierarchy for fast aggregation (BUG-002 FIX)
-        hierarchy_level_1_id, hierarchy_level_1_name,
-        hierarchy_level_2_id, hierarchy_level_2_name,
-        hierarchy_level_3_id, hierarchy_level_3_name,
-        hierarchy_level_4_id, hierarchy_level_4_name,
-        hierarchy_level_5_id, hierarchy_level_5_name,
-        hierarchy_level_6_id, hierarchy_level_6_name,
-        hierarchy_level_7_id, hierarchy_level_7_name,
-        hierarchy_level_8_id, hierarchy_level_8_name,
-        hierarchy_level_9_id, hierarchy_level_9_name,
-        hierarchy_level_10_id, hierarchy_level_10_name,
-        -- N-level hierarchy fields for cost allocation (v14.0)
-        hierarchy_entity_id,
-        hierarchy_entity_name,
-        hierarchy_level_code,
-        hierarchy_path,
-        hierarchy_path_names,
+        -- 5-field hierarchy model (NEW design)
+        x_hierarchy_entity_id,
+        x_hierarchy_entity_name,
+        x_hierarchy_level_code,
+        x_hierarchy_path,
+        x_hierarchy_path_names,
         CURRENT_TIMESTAMP() AS created_at,
         CURRENT_TIMESTAMP() AS updated_at,
         -- Pipeline lineage columns (x_ prefix)

@@ -43,24 +43,24 @@ PATH_REPLACEMENTS = {
 
 def fix_json_record(record: dict) -> dict:
     """Fix hierarchy values in a single JSON record."""
-    # Fix entity ID
-    if "hierarchy_entity_id" in record and record["hierarchy_entity_id"]:
-        old_id = record["hierarchy_entity_id"]
+    # Fix entity ID (x_hierarchy_* fields per 5-field model)
+    if "x_hierarchy_entity_id" in record and record["x_hierarchy_entity_id"]:
+        old_id = record["x_hierarchy_entity_id"]
         if old_id in ENTITY_ID_REPLACEMENTS:
-            record["hierarchy_entity_id"] = ENTITY_ID_REPLACEMENTS[old_id]
+            record["x_hierarchy_entity_id"] = ENTITY_ID_REPLACEMENTS[old_id]
 
     # Fix level code
-    if "hierarchy_level_code" in record and record["hierarchy_level_code"]:
-        old_code = record["hierarchy_level_code"]
+    if "x_hierarchy_level_code" in record and record["x_hierarchy_level_code"]:
+        old_code = record["x_hierarchy_level_code"]
         if old_code in LEVEL_CODE_REPLACEMENTS:
-            record["hierarchy_level_code"] = LEVEL_CODE_REPLACEMENTS[old_code]
+            record["x_hierarchy_level_code"] = LEVEL_CODE_REPLACEMENTS[old_code]
 
     # Fix path
-    if "hierarchy_path" in record and record["hierarchy_path"]:
-        old_path = record["hierarchy_path"]
+    if "x_hierarchy_path" in record and record["x_hierarchy_path"]:
+        old_path = record["x_hierarchy_path"]
         for old, new in PATH_REPLACEMENTS.items():
             if old in old_path:
-                record["hierarchy_path"] = old_path.replace(old, new)
+                record["x_hierarchy_path"] = old_path.replace(old, new)
                 break
 
     return record
@@ -123,24 +123,24 @@ def fix_csv_file(filepath: Path) -> int:
     for row in rows:
         original = dict(row)
 
-        # Fix entity ID
-        if "hierarchy_entity_id" in row and row["hierarchy_entity_id"]:
-            old_id = row["hierarchy_entity_id"]
+        # Fix entity ID (x_hierarchy_* fields per 5-field model)
+        if "x_hierarchy_entity_id" in row and row["x_hierarchy_entity_id"]:
+            old_id = row["x_hierarchy_entity_id"]
             if old_id in ENTITY_ID_REPLACEMENTS:
-                row["hierarchy_entity_id"] = ENTITY_ID_REPLACEMENTS[old_id]
+                row["x_hierarchy_entity_id"] = ENTITY_ID_REPLACEMENTS[old_id]
 
         # Fix level code
-        if "hierarchy_level_code" in row and row["hierarchy_level_code"]:
-            old_code = row["hierarchy_level_code"]
+        if "x_hierarchy_level_code" in row and row["x_hierarchy_level_code"]:
+            old_code = row["x_hierarchy_level_code"]
             if old_code in LEVEL_CODE_REPLACEMENTS:
-                row["hierarchy_level_code"] = LEVEL_CODE_REPLACEMENTS[old_code]
+                row["x_hierarchy_level_code"] = LEVEL_CODE_REPLACEMENTS[old_code]
 
         # Fix path
-        if "hierarchy_path" in row and row["hierarchy_path"]:
-            old_path = row["hierarchy_path"]
+        if "x_hierarchy_path" in row and row["x_hierarchy_path"]:
+            old_path = row["x_hierarchy_path"]
             for old, new in PATH_REPLACEMENTS.items():
                 if old in old_path:
-                    row["hierarchy_path"] = old_path.replace(old, new)
+                    row["x_hierarchy_path"] = old_path.replace(old, new)
                     break
 
         if row != original:

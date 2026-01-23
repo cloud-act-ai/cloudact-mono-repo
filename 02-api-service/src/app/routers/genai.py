@@ -1619,24 +1619,25 @@ async def get_usage(
     if provider:
         filter_parts.append("provider = @provider_filter")
         params.append(bigquery.ScalarQueryParameter("provider_filter", "STRING", provider.value))
-    # N-level hierarchy filters
+    # N-level hierarchy filters (MT-004: BigQuery columns use x_ prefix)
     if hierarchy_entity_id:
-        filter_parts.append("hierarchy_entity_id = @hierarchy_entity_filter")
+        filter_parts.append("x_hierarchy_entity_id = @hierarchy_entity_filter")
         params.append(bigquery.ScalarQueryParameter("hierarchy_entity_filter", "STRING", hierarchy_entity_id))
     if hierarchy_path:
-        filter_parts.append("hierarchy_path LIKE @hierarchy_path_prefix")
+        filter_parts.append("x_hierarchy_path LIKE @hierarchy_path_prefix")
         params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{hierarchy_path}%"))
 
     filter_clause = f"AND {' AND '.join(filter_parts)}" if filter_parts else ""
 
     try:
         # SECURITY: Issue #29 - Use explicit field selection to prevent leaking internal fields
+        # MT-004: BigQuery columns use x_ prefix, alias to API field names
         query = f"""
             SELECT usage_date, cost_type, provider, model, instance_type, region,
                    input_tokens, output_tokens, total_tokens, ptu_units, gpu_hours,
                    request_count,
-                   hierarchy_entity_id, hierarchy_entity_name,
-                   hierarchy_level_code, hierarchy_path, hierarchy_path_names
+                   x_hierarchy_entity_id AS hierarchy_entity_id, x_hierarchy_entity_name AS hierarchy_entity_name,
+                   x_hierarchy_level_code AS hierarchy_level_code, x_hierarchy_path AS hierarchy_path, x_hierarchy_path_names AS hierarchy_path_names
             FROM `{settings.gcp_project_id}.{dataset}.genai_usage_daily_unified`
             WHERE org_slug = @org_slug
               AND usage_date BETWEEN @start_date AND @end_date
@@ -1719,24 +1720,25 @@ async def get_costs(
     if provider:
         filter_parts.append("provider = @provider_filter")
         params.append(bigquery.ScalarQueryParameter("provider_filter", "STRING", provider.value))
-    # N-level hierarchy filters
+    # N-level hierarchy filters (MT-004: BigQuery columns use x_ prefix)
     if hierarchy_entity_id:
-        filter_parts.append("hierarchy_entity_id = @hierarchy_entity_filter")
+        filter_parts.append("x_hierarchy_entity_id = @hierarchy_entity_filter")
         params.append(bigquery.ScalarQueryParameter("hierarchy_entity_filter", "STRING", hierarchy_entity_id))
     if hierarchy_path:
-        filter_parts.append("hierarchy_path LIKE @hierarchy_path_prefix")
+        filter_parts.append("x_hierarchy_path LIKE @hierarchy_path_prefix")
         params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{hierarchy_path}%"))
 
     filter_clause = f"AND {' AND '.join(filter_parts)}" if filter_parts else ""
 
     try:
         # SECURITY: Issue #29 - Use explicit field selection to prevent leaking internal fields
+        # MT-004: BigQuery columns use x_ prefix, alias to API field names
         query = f"""
             SELECT cost_date, cost_type, provider, model, instance_type, region,
                    input_cost_usd, output_cost_usd, total_cost_usd, discount_applied_pct,
                    usage_quantity, usage_unit,
-                   hierarchy_entity_id, hierarchy_entity_name,
-                   hierarchy_level_code, hierarchy_path, hierarchy_path_names
+                   x_hierarchy_entity_id AS hierarchy_entity_id, x_hierarchy_entity_name AS hierarchy_entity_name,
+                   x_hierarchy_level_code AS hierarchy_level_code, x_hierarchy_path AS hierarchy_path, x_hierarchy_path_names AS hierarchy_path_names
             FROM `{settings.gcp_project_id}.{dataset}.genai_costs_daily_unified`
             WHERE org_slug = @org_slug
               AND cost_date BETWEEN @start_date AND @end_date

@@ -138,31 +138,31 @@
     "description": "Department or cost center for chargeback (legacy field, use hierarchy_entity_id instead)."
   },
   {
-    "name": "hierarchy_entity_id",
+    "name": "x_hierarchy_entity_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "N-level hierarchy: Leaf entity ID from org_hierarchy (REQUIRED). Example: 'TEAM-001'."
   },
   {
-    "name": "hierarchy_entity_name",
+    "name": "x_hierarchy_entity_name",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "N-level hierarchy: Leaf entity display name (REQUIRED). Example: 'Platform Team'."
   },
   {
-    "name": "hierarchy_level_code",
+    "name": "x_hierarchy_level_code",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "N-level hierarchy: Entity level code (REQUIRED). Example: 'team', 'project', 'department'."
   },
   {
-    "name": "hierarchy_path",
+    "name": "x_hierarchy_path",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "N-level hierarchy: Materialized path from root to leaf (REQUIRED). Example: '/DEPT-001/PROJ-001/TEAM-001'."
   },
   {
-    "name": "hierarchy_path_names",
+    "name": "x_hierarchy_path_names",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "N-level hierarchy: Human-readable path (REQUIRED). Example: 'Engineering > Platform > Backend Team'."

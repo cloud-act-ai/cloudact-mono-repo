@@ -358,15 +358,27 @@ class TestSchemaProcessorAlignment:
         for ext in genai_extensions:
             assert ext in column_names, f"Missing GenAI extension: {ext}"
 
-        # Check for 10-level hierarchy extension columns (v15.0+)
+        # Check for 5-field hierarchy extension columns (v16.0+)
+        # Replaces old 20-field hierarchy_level_N model
         hierarchy_extensions = [
-            "x_hierarchy_level_1_id", "x_hierarchy_level_1_name",
-            "x_hierarchy_level_2_id", "x_hierarchy_level_2_name",
-            "x_hierarchy_level_3_id", "x_hierarchy_level_3_name"
-            # Levels 4-10 are optional, so we only check 1-3
+            "x_hierarchy_entity_id",
+            "x_hierarchy_entity_name",
+            "x_hierarchy_level_code",
+            "x_hierarchy_path",
+            "x_hierarchy_path_names",
         ]
         for ext in hierarchy_extensions:
-            assert ext in column_names, f"Missing 10-level hierarchy extension: {ext}"
+            assert ext in column_names, f"Missing hierarchy extension: {ext}"
+
+        # Ensure old 20-field hierarchy columns are NOT present
+        deprecated_hierarchy_patterns = [
+            "x_hierarchy_level_1_id", "x_hierarchy_level_1_name",
+            "x_hierarchy_level_2_id", "x_hierarchy_level_2_name",
+            "hierarchy_level_1_id", "hierarchy_level_1_name",
+        ]
+        for deprecated in deprecated_hierarchy_patterns:
+            assert deprecated not in column_names, \
+                f"Deprecated hierarchy column '{deprecated}' should be removed - use 5-field model"
 
 
 # ============================================================================

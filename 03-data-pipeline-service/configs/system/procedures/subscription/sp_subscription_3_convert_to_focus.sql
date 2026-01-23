@@ -15,6 +15,8 @@
 --   - Tags stored as JSON instead of REPEATED RECORD
 --   - ContractApplied field for linking to contract_commitment_1_3
 --
+-- HIERARCHY: Uses 5-field x_hierarchy_* model (entity_id, entity_name, level_code, path, path_names)
+--
 -- UPDATED: 2026-01-01 - All x_* fields standardized to snake_case convention
 -- ================================================================================
 
@@ -86,6 +88,7 @@ BEGIN
     USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
     -- 3. Insert mapped data with ALL fields populated (FOCUS 1.3 compliant)
+    -- Uses 5-field x_hierarchy_* model
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.cost_data_standard_1_3` (
         -- Billing Account
@@ -137,20 +140,11 @@ BEGIN
         x_org_slug, x_org_name, x_org_owner_email, x_org_default_currency, x_org_default_timezone,
         x_org_default_country, x_org_subscription_plan, x_org_subscription_status,
         -- Pipeline lineage fields (FOCUS extension)
-        -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
         x_data_quality_score, x_created_at,
-        -- 10-level hierarchy extension fields for cost allocation (v15.0)
-        x_hierarchy_level_1_id, x_hierarchy_level_1_name,
-        x_hierarchy_level_2_id, x_hierarchy_level_2_name,
-        x_hierarchy_level_3_id, x_hierarchy_level_3_name,
-        x_hierarchy_level_4_id, x_hierarchy_level_4_name,
-        x_hierarchy_level_5_id, x_hierarchy_level_5_name,
-        x_hierarchy_level_6_id, x_hierarchy_level_6_name,
-        x_hierarchy_level_7_id, x_hierarchy_level_7_name,
-        x_hierarchy_level_8_id, x_hierarchy_level_8_name,
-        x_hierarchy_level_9_id, x_hierarchy_level_9_name,
-        x_hierarchy_level_10_id, x_hierarchy_level_10_name,
+        -- 5-field hierarchy model (NEW design)
+        x_hierarchy_entity_id, x_hierarchy_entity_name,
+        x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
         -- GenAI extension fields
         x_genai_cost_type, x_genai_provider, x_genai_model,
         -- Hierarchy validation timestamp
@@ -326,8 +320,8 @@ BEGIN
         COALESCE(op.default_country, 'US') AS x_org_default_country,
         COALESCE(os.plan_name, 'FREE') AS x_org_subscription_plan,
         COALESCE(os.status, 'ACTIVE') AS x_org_subscription_status,
+
         -- Pipeline lineage fields (FOCUS extension)
-        -- Standard order: x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
         @p_pipeline_id AS x_pipeline_id,
         @p_credential_id AS x_credential_id,
         spc.cost_date AS x_pipeline_run_date,
@@ -336,36 +330,21 @@ BEGIN
         1.0 AS x_data_quality_score,
         CURRENT_TIMESTAMP() AS x_created_at,
 
-        -- 10-level hierarchy extension fields for cost allocation (from subscription plans, v15.0)
-        spc.hierarchy_level_1_id AS x_hierarchy_level_1_id,
-        spc.hierarchy_level_1_name AS x_hierarchy_level_1_name,
-        spc.hierarchy_level_2_id AS x_hierarchy_level_2_id,
-        spc.hierarchy_level_2_name AS x_hierarchy_level_2_name,
-        spc.hierarchy_level_3_id AS x_hierarchy_level_3_id,
-        spc.hierarchy_level_3_name AS x_hierarchy_level_3_name,
-        spc.hierarchy_level_4_id AS x_hierarchy_level_4_id,
-        spc.hierarchy_level_4_name AS x_hierarchy_level_4_name,
-        spc.hierarchy_level_5_id AS x_hierarchy_level_5_id,
-        spc.hierarchy_level_5_name AS x_hierarchy_level_5_name,
-        spc.hierarchy_level_6_id AS x_hierarchy_level_6_id,
-        spc.hierarchy_level_6_name AS x_hierarchy_level_6_name,
-        spc.hierarchy_level_7_id AS x_hierarchy_level_7_id,
-        spc.hierarchy_level_7_name AS x_hierarchy_level_7_name,
-        spc.hierarchy_level_8_id AS x_hierarchy_level_8_id,
-        spc.hierarchy_level_8_name AS x_hierarchy_level_8_name,
-        spc.hierarchy_level_9_id AS x_hierarchy_level_9_id,
-        spc.hierarchy_level_9_name AS x_hierarchy_level_9_name,
-        spc.hierarchy_level_10_id AS x_hierarchy_level_10_id,
-        spc.hierarchy_level_10_name AS x_hierarchy_level_10_name,
+        -- 5-field hierarchy model (NEW design)
+        spc.x_hierarchy_entity_id,
+        spc.x_hierarchy_entity_name,
+        spc.x_hierarchy_level_code,
+        spc.x_hierarchy_path,
+        spc.x_hierarchy_path_names,
 
         -- GenAI extension fields (NULL for Subscriptions)
         NULL AS x_genai_cost_type,
         NULL AS x_genai_provider,
         NULL AS x_genai_model,
 
-        -- Hierarchy validation timestamp (set when hierarchy level 1 is set)
+        -- Hierarchy validation timestamp (set when entity_id is set)
         CASE
-          WHEN spc.hierarchy_level_1_id IS NOT NULL
+          WHEN spc.x_hierarchy_entity_id IS NOT NULL
           THEN CURRENT_TIMESTAMP()
           ELSE NULL
         END AS x_hierarchy_validated_at
@@ -380,7 +359,7 @@ BEGIN
         ON spc.org_slug = os.org_slug
         AND os.status = 'ACTIVE'
       WHERE spc.cost_date BETWEEN @p_start AND @p_end
-    """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_project_id)
+    """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_project_id)
     USING p_start_date AS p_start, p_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
 
   -- 4. Get row count (inside transaction for atomicity)

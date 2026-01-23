@@ -156,12 +156,6 @@
     "description": "Invoice month (YYYYMM format)"
   },
   {
-    "name": "ingestion_date",
-    "type": "DATE",
-    "mode": "REQUIRED",
-    "description": "Date when this record was ingested - partition key"
-  },
-  {
     "name": "labels_json",
     "type": "STRING",
     "mode": "NULLABLE",
@@ -174,37 +168,49 @@
     "description": "System-applied labels as JSON string"
   },
   {
-    "name": "org_slug",
+    "name": "x_ingestion_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique row identifier (UUID) for traceability"
+  },
+  {
+    "name": "x_ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when data was ingested - PARTITION KEY"
+  },
+  {
+    "name": "x_org_slug",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Organization identifier for multi-tenancy"
   },
   {
-    "name": "hierarchy_entity_id",
+    "name": "x_hierarchy_entity_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "N-level hierarchy: Leaf entity ID from org_hierarchy. Example: 'TEAM-001'."
   },
   {
-    "name": "hierarchy_entity_name",
+    "name": "x_hierarchy_entity_name",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "N-level hierarchy: Leaf entity display name. Example: 'Platform Team'."
   },
   {
-    "name": "hierarchy_level_code",
+    "name": "x_hierarchy_level_code",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "N-level hierarchy: Entity level code. Example: 'team', 'project', 'department'."
+    "description": "Hierarchy level code (DEPT, PROJ, TEAM)"
   },
   {
-    "name": "hierarchy_path",
+    "name": "x_hierarchy_path",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "N-level hierarchy: Materialized path from root to leaf. Example: '/DEPT-001/PROJ-001/TEAM-001'."
   },
   {
-    "name": "hierarchy_path_names",
+    "name": "x_hierarchy_path_names",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."

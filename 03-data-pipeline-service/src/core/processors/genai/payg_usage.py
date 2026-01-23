@@ -217,14 +217,14 @@ class PAYGUsageProcessor:
                 record["x_run_id"] = run_id
                 record["x_ingested_at"] = now
 
-                # Add hierarchy from credential (GenAI hierarchy assignment)
-                for level in range(1, 11):
-                    id_key = f"hierarchy_level_{level}_id"
-                    name_key = f"hierarchy_level_{level}_name"
-                    # Only set if not already present in record and credential has it
-                    if not record.get(id_key):
-                        record[id_key] = credentials.get(id_key)
-                        record[name_key] = credentials.get(name_key)
+                # Add 5-field hierarchy from credential (GenAI hierarchy assignment)
+                # Only set if not already present in record and credential has it
+                if not record.get("x_hierarchy_entity_id"):
+                    record["x_hierarchy_entity_id"] = credentials.get("x_hierarchy_entity_id")
+                    record["x_hierarchy_entity_name"] = credentials.get("x_hierarchy_entity_name")
+                    record["x_hierarchy_level_code"] = credentials.get("x_hierarchy_level_code")
+                    record["x_hierarchy_path"] = credentials.get("x_hierarchy_path")
+                    record["x_hierarchy_path_names"] = credentials.get("x_hierarchy_path_names")
 
             # Write to BigQuery using MERGE (CRITICAL FIX #1)
             table_id = f"{project_id}.{dataset_id}.genai_payg_usage_raw"
@@ -282,20 +282,15 @@ class PAYGUsageProcessor:
         org_slug: str,
         provider: str
     ) -> Dict[str, Any]:
-        """Get and decrypt credentials for provider, including default hierarchy."""
+        """Get and decrypt credentials for provider, including default hierarchy (5-field model)."""
         query = f"""
             SELECT
                 credential_id, encrypted_credential, provider, credential_type,
-                default_hierarchy_level_1_id, default_hierarchy_level_1_name,
-                default_hierarchy_level_2_id, default_hierarchy_level_2_name,
-                default_hierarchy_level_3_id, default_hierarchy_level_3_name,
-                default_hierarchy_level_4_id, default_hierarchy_level_4_name,
-                default_hierarchy_level_5_id, default_hierarchy_level_5_name,
-                default_hierarchy_level_6_id, default_hierarchy_level_6_name,
-                default_hierarchy_level_7_id, default_hierarchy_level_7_name,
-                default_hierarchy_level_8_id, default_hierarchy_level_8_name,
-                default_hierarchy_level_9_id, default_hierarchy_level_9_name,
-                default_hierarchy_level_10_id, default_hierarchy_level_10_name
+                default_x_hierarchy_entity_id,
+                default_x_hierarchy_entity_name,
+                default_x_hierarchy_level_code,
+                default_x_hierarchy_path,
+                default_x_hierarchy_path_names
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug
               AND provider = @provider
@@ -319,12 +314,12 @@ class PAYGUsageProcessor:
         decrypted = await decrypt_credentials(encrypted)
         decrypted["credential_id"] = credential_id
 
-        # Add hierarchy fields from credentials (for GenAI hierarchy assignment)
-        for level in range(1, 11):
-            id_key = f"hierarchy_level_{level}_id"
-            name_key = f"hierarchy_level_{level}_name"
-            decrypted[id_key] = row.get(f"default_{id_key}")
-            decrypted[name_key] = row.get(f"default_{name_key}")
+        # Add 5-field hierarchy from credentials (for GenAI hierarchy assignment)
+        decrypted["x_hierarchy_entity_id"] = row.get("default_x_hierarchy_entity_id")
+        decrypted["x_hierarchy_entity_name"] = row.get("default_x_hierarchy_entity_name")
+        decrypted["x_hierarchy_level_code"] = row.get("default_x_hierarchy_level_code")
+        decrypted["x_hierarchy_path"] = row.get("default_x_hierarchy_path")
+        decrypted["x_hierarchy_path_names"] = row.get("default_x_hierarchy_path_names")
 
         return decrypted
 

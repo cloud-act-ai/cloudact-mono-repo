@@ -467,27 +467,45 @@ export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null
 /**
  * Granular cost data row from /costs/{org}/trend-granular endpoint.
  * Pre-aggregated by date + provider + hierarchy for client-side filtering.
+ *
+ * FE-001 FIX: Updated to use new 5-field hierarchy model instead of
+ * old dept_id/project_id/team_id fields. This supports the unified
+ * hierarchy entity model with flexible levels.
  */
 export interface GranularCostRow {
   date: string  // "2024-01-15"
   provider: string  // "openai"
   category: "genai" | "cloud" | "subscription" | "other"
-  dept_id: string | null
-  project_id: string | null
-  team_id: string | null
+  // New 5-field hierarchy model (FE-001)
+  hierarchy_entity_id: string | null      // e.g., "DEPT-001", "PROJ-002", "TEAM-003"
+  hierarchy_entity_name: string | null    // e.g., "Engineering", "Project Alpha"
+  hierarchy_level_code: string | null     // "DEPT", "PROJ", "TEAM"
+  hierarchy_path: string | null           // "/DEPT-001/PROJ-002/TEAM-003"
+  hierarchy_path_names: string | null     // "/Engineering/Project Alpha/Backend Team"
   total_cost: number
   record_count: number
 }
 
 /**
  * Filter options for granular data
+ *
+ * FE-002 FIX: Updated to use new hierarchy filter options instead of
+ * separate departmentId/projectId/teamId fields.
  */
 export interface GranularFilterOptions {
   dateRange?: DateRange
   providers?: string[]
   categories?: ("genai" | "cloud" | "subscription" | "other")[]
+  // New hierarchy filter options (FE-002)
+  hierarchyEntityId?: string      // Filter by specific entity ID
+  hierarchyLevelCode?: string     // Filter by level (DEPT, PROJ, TEAM)
+  hierarchyPathPrefix?: string    // Filter by path prefix (e.g., "/DEPT-001")
+  // Deprecated - kept for backwards compatibility
+  /** @deprecated Use hierarchyEntityId with level filtering instead */
   departmentId?: string
+  /** @deprecated Use hierarchyEntityId with level filtering instead */
   projectId?: string
+  /** @deprecated Use hierarchyEntityId with level filtering instead */
   teamId?: string
 }
 
@@ -560,41 +578,77 @@ export function filterGranularByCategory(
 }
 
 /**
+ * FE-002 FIX: New generic hierarchy filter supporting the 5-field model.
+ * Filters granular data by entity ID, level code, and/or path prefix.
+ *
+ * @param data - Array of GranularCostRow to filter
+ * @param entityId - Filter by specific hierarchy_entity_id (e.g., "DEPT-001")
+ * @param levelCode - Filter by hierarchy_level_code (e.g., "DEPT", "PROJ", "TEAM")
+ * @param pathPrefix - Filter rows where hierarchy_path starts with this prefix
+ * @returns Filtered array of GranularCostRow
+ */
+export function filterGranularByHierarchy(
+  data: GranularCostRow[],
+  entityId?: string,
+  levelCode?: string,
+  pathPrefix?: string
+): GranularCostRow[] {
+  if (!data || !Array.isArray(data)) return []
+  if (!entityId && !levelCode && !pathPrefix) return data
+
+  return data.filter(row => {
+    if (entityId && row.hierarchy_entity_id !== entityId) return false
+    if (levelCode && row.hierarchy_level_code !== levelCode) return false
+    if (pathPrefix && !row.hierarchy_path?.startsWith(pathPrefix)) return false
+    return true
+  })
+}
+
+/**
  * Filter granular data by department ID
+ * @deprecated Use filterGranularByHierarchy with levelCode="DEPT" instead
  */
 export function filterGranularByDepartment(
   data: GranularCostRow[],
   departmentId: string
 ): GranularCostRow[] {
   if (!data || !departmentId) return data || []
-  return data.filter(row => row.dept_id === departmentId)
+  // FE-002 FIX: Use new hierarchy filter - filter by entity ID with DEPT level
+  return filterGranularByHierarchy(data, departmentId, "DEPT")
 }
 
 /**
  * Filter granular data by project ID
+ * @deprecated Use filterGranularByHierarchy with levelCode="PROJ" instead
  */
 export function filterGranularByProject(
   data: GranularCostRow[],
   projectId: string
 ): GranularCostRow[] {
   if (!data || !projectId) return data || []
-  return data.filter(row => row.project_id === projectId)
+  // FE-002 FIX: Use new hierarchy filter - filter by entity ID with PROJ level
+  return filterGranularByHierarchy(data, projectId, "PROJ")
 }
 
 /**
  * Filter granular data by team ID
+ * @deprecated Use filterGranularByHierarchy with levelCode="TEAM" instead
  */
 export function filterGranularByTeam(
   data: GranularCostRow[],
   teamId: string
 ): GranularCostRow[] {
   if (!data || !teamId) return data || []
-  return data.filter(row => row.team_id === teamId)
+  // FE-002 FIX: Use new hierarchy filter - filter by entity ID with TEAM level
+  return filterGranularByHierarchy(data, teamId, "TEAM")
 }
 
 /**
  * Apply all granular filters at once
  * This is the main function for client-side filtering of granular data
+ *
+ * FE-002 FIX: Updated to use new hierarchy filter while maintaining
+ * backwards compatibility with deprecated departmentId/projectId/teamId options.
  */
 export function applyGranularFilters(
   data: GranularCostRow[],
@@ -614,16 +668,30 @@ export function applyGranularFilters(
     filtered = filterGranularByCategory(filtered, options.categories)
   }
 
-  if (options.departmentId) {
-    filtered = filterGranularByDepartment(filtered, options.departmentId)
+  // FE-002 FIX: Apply new hierarchy filters first (preferred)
+  if (options.hierarchyEntityId || options.hierarchyLevelCode || options.hierarchyPathPrefix) {
+    filtered = filterGranularByHierarchy(
+      filtered,
+      options.hierarchyEntityId,
+      options.hierarchyLevelCode,
+      options.hierarchyPathPrefix
+    )
   }
 
-  if (options.projectId) {
-    filtered = filterGranularByProject(filtered, options.projectId)
-  }
+  // Backwards compatibility: Apply deprecated filters if new ones not used
+  // These use the wrapper functions which delegate to filterGranularByHierarchy
+  if (!options.hierarchyEntityId && !options.hierarchyLevelCode && !options.hierarchyPathPrefix) {
+    if (options.departmentId) {
+      filtered = filterGranularByDepartment(filtered, options.departmentId)
+    }
 
-  if (options.teamId) {
-    filtered = filterGranularByTeam(filtered, options.teamId)
+    if (options.projectId) {
+      filtered = filterGranularByProject(filtered, options.projectId)
+    }
+
+    if (options.teamId) {
+      filtered = filterGranularByTeam(filtered, options.teamId)
+    }
   }
 
   return filtered

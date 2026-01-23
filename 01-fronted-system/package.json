@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "build": "next build --webpack",
+    "clean": "rm -rf .next node_modules/.cache",
     "dev": "next dev --webpack",
+    "dev:clean": "npm run clean && npm run dev",
     "predev": "node scripts/run-migrations.js",
     "lint": "eslint .",
     "migrate": "node scripts/run-migrations.js",

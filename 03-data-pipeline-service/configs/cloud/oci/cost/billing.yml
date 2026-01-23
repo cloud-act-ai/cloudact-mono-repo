@@ -13,7 +13,7 @@
 pipeline_id: "{org_slug}-oci-billing"
 name: "OCI Billing Sync"
 description: "Extract OCI Cost Analysis data for {org_slug}"
-version: "15.0.0"
+version: "18.0.0"
 
 # Schedule configuration (cron expression: daily at 06:00 UTC)
 schedule: "0 6 * * *"
@@ -62,11 +62,11 @@ steps:
     config:
       destination_table: "{org_slug}_prod.cloud_oci_billing_raw_daily"
       write_disposition: "WRITE_APPEND"
-      partition_field: "usage_date"
+      partition_field: "x_ingestion_date"
       schema_template: "oci_billing_cost"
       table_config:
         time_partitioning:
-          field: "usage_date"
+          field: "x_ingestion_date"
           type: "DAY"
           expiration_days: 730
         clustering_fields:

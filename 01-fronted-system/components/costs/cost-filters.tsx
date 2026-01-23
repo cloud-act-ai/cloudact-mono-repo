@@ -39,13 +39,21 @@ export interface HierarchyEntity {
   entity_id: string
   entity_name: string
   level_code: string // N-level: "department", "project", "team", or custom levels
+  path?: string
+  path_names?: string
   parent_id?: string | null
 }
 
 export interface CostFiltersState {
+  // Keep legacy for backwards compatibility
   department?: string
   project?: string
   team?: string
+  // New 5-field model
+  hierarchyEntityId?: string
+  hierarchyLevelCode?: string
+  hierarchyPath?: string
+  // Other fields
   providers: string[]
   categories: string[]
 }

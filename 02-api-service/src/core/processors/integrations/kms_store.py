@@ -270,8 +270,11 @@ class KMSStoreIntegrationProcessor:
                 - plaintext_credential: The credential to store (REQUIRED)
                 - user_id: User who created the credential (optional)
                 - metadata: Additional metadata like project_id, region (optional)
-                - default_hierarchy_level_1_id through default_hierarchy_level_10_id: Hierarchy entity IDs (optional)
-                - default_hierarchy_level_1_name through default_hierarchy_level_10_name: Hierarchy entity names (optional)
+                - default_x_hierarchy_entity_id: Default hierarchy entity ID (optional)
+                - default_x_hierarchy_entity_name: Default hierarchy entity name (optional)
+                - default_x_hierarchy_level_code: Default hierarchy level code (optional)
+                - default_x_hierarchy_path: Default hierarchy path (optional)
+                - default_x_hierarchy_path_names: Default hierarchy path names (optional)
 
         Returns:
             Dict with:
@@ -292,14 +295,14 @@ class KMSStoreIntegrationProcessor:
         user_id = context.get("user_id")
         metadata = context.get("metadata", {})
 
-        # Extract hierarchy fields (10 levels, each with ID and name)
-        hierarchy = {}
-        for level in range(1, 11):
-            level_id = context.get(f"default_hierarchy_level_{level}_id")
-            level_name = context.get(f"default_hierarchy_level_{level}_name")
-            if level_id:  # Only include if ID provided
-                hierarchy[f"level_{level}_id"] = level_id
-                hierarchy[f"level_{level}_name"] = level_name or ""
+        # Extract new 5-field hierarchy model
+        hierarchy = {
+            "x_hierarchy_entity_id": context.get("default_x_hierarchy_entity_id"),
+            "x_hierarchy_entity_name": context.get("default_x_hierarchy_entity_name"),
+            "x_hierarchy_level_code": context.get("default_x_hierarchy_level_code"),
+            "x_hierarchy_path": context.get("default_x_hierarchy_path"),
+            "x_hierarchy_path_names": context.get("default_x_hierarchy_path_names"),
+        }
 
         # Validate inputs
         if not org_slug:
@@ -464,31 +467,15 @@ class KMSStoreIntegrationProcessor:
             (credential_id, org_slug, provider, credential_name, encrypted_credential,
              credential_type, validation_status, last_validated_at, last_error,
              metadata,
-             default_hierarchy_level_1_id, default_hierarchy_level_1_name,
-             default_hierarchy_level_2_id, default_hierarchy_level_2_name,
-             default_hierarchy_level_3_id, default_hierarchy_level_3_name,
-             default_hierarchy_level_4_id, default_hierarchy_level_4_name,
-             default_hierarchy_level_5_id, default_hierarchy_level_5_name,
-             default_hierarchy_level_6_id, default_hierarchy_level_6_name,
-             default_hierarchy_level_7_id, default_hierarchy_level_7_name,
-             default_hierarchy_level_8_id, default_hierarchy_level_8_name,
-             default_hierarchy_level_9_id, default_hierarchy_level_9_name,
-             default_hierarchy_level_10_id, default_hierarchy_level_10_name,
+             default_x_hierarchy_entity_id, default_x_hierarchy_entity_name,
+             default_x_hierarchy_level_code, default_x_hierarchy_path, default_x_hierarchy_path_names,
              is_active, created_by_user_id, created_at, updated_at, expires_at)
             VALUES
             (@credential_id, @org_slug, @provider, @credential_name, @encrypted_credential,
              @credential_type, @validation_status, @last_validated_at, @last_error,
              PARSE_JSON(@metadata),
-             @level_1_id, @level_1_name,
-             @level_2_id, @level_2_name,
-             @level_3_id, @level_3_name,
-             @level_4_id, @level_4_name,
-             @level_5_id, @level_5_name,
-             @level_6_id, @level_6_name,
-             @level_7_id, @level_7_name,
-             @level_8_id, @level_8_name,
-             @level_9_id, @level_9_name,
-             @level_10_id, @level_10_name,
+             @x_hierarchy_entity_id, @x_hierarchy_entity_name,
+             @x_hierarchy_level_code, @x_hierarchy_path, @x_hierarchy_path_names,
              TRUE, @user_id, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), @expires_at)
             """
 
@@ -504,27 +491,12 @@ class KMSStoreIntegrationProcessor:
                     bigquery.ScalarQueryParameter("last_validated_at", "TIMESTAMP", last_validated_at),
                     bigquery.ScalarQueryParameter("last_error", "STRING", validation_error),
                     bigquery.ScalarQueryParameter("metadata", "STRING", metadata_json_str),
-                    # Hierarchy level parameters (10 levels, each with ID and name)
-                    bigquery.ScalarQueryParameter("level_1_id", "STRING", hierarchy.get("level_1_id")),
-                    bigquery.ScalarQueryParameter("level_1_name", "STRING", hierarchy.get("level_1_name")),
-                    bigquery.ScalarQueryParameter("level_2_id", "STRING", hierarchy.get("level_2_id")),
-                    bigquery.ScalarQueryParameter("level_2_name", "STRING", hierarchy.get("level_2_name")),
-                    bigquery.ScalarQueryParameter("level_3_id", "STRING", hierarchy.get("level_3_id")),
-                    bigquery.ScalarQueryParameter("level_3_name", "STRING", hierarchy.get("level_3_name")),
-                    bigquery.ScalarQueryParameter("level_4_id", "STRING", hierarchy.get("level_4_id")),
-                    bigquery.ScalarQueryParameter("level_4_name", "STRING", hierarchy.get("level_4_name")),
-                    bigquery.ScalarQueryParameter("level_5_id", "STRING", hierarchy.get("level_5_id")),
-                    bigquery.ScalarQueryParameter("level_5_name", "STRING", hierarchy.get("level_5_name")),
-                    bigquery.ScalarQueryParameter("level_6_id", "STRING", hierarchy.get("level_6_id")),
-                    bigquery.ScalarQueryParameter("level_6_name", "STRING", hierarchy.get("level_6_name")),
-                    bigquery.ScalarQueryParameter("level_7_id", "STRING", hierarchy.get("level_7_id")),
-                    bigquery.ScalarQueryParameter("level_7_name", "STRING", hierarchy.get("level_7_name")),
-                    bigquery.ScalarQueryParameter("level_8_id", "STRING", hierarchy.get("level_8_id")),
-                    bigquery.ScalarQueryParameter("level_8_name", "STRING", hierarchy.get("level_8_name")),
-                    bigquery.ScalarQueryParameter("level_9_id", "STRING", hierarchy.get("level_9_id")),
-                    bigquery.ScalarQueryParameter("level_9_name", "STRING", hierarchy.get("level_9_name")),
-                    bigquery.ScalarQueryParameter("level_10_id", "STRING", hierarchy.get("level_10_id")),
-                    bigquery.ScalarQueryParameter("level_10_name", "STRING", hierarchy.get("level_10_name")),
+                    # New 5-field hierarchy model parameters
+                    bigquery.ScalarQueryParameter("x_hierarchy_entity_id", "STRING", hierarchy.get("x_hierarchy_entity_id")),
+                    bigquery.ScalarQueryParameter("x_hierarchy_entity_name", "STRING", hierarchy.get("x_hierarchy_entity_name")),
+                    bigquery.ScalarQueryParameter("x_hierarchy_level_code", "STRING", hierarchy.get("x_hierarchy_level_code")),
+                    bigquery.ScalarQueryParameter("x_hierarchy_path", "STRING", hierarchy.get("x_hierarchy_path")),
+                    bigquery.ScalarQueryParameter("x_hierarchy_path_names", "STRING", hierarchy.get("x_hierarchy_path_names")),
                     bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
                     bigquery.ScalarQueryParameter("expires_at", "TIMESTAMP", expires_at),
                 ],

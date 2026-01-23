@@ -16,7 +16,7 @@ import time
 import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 import uuid
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -124,8 +124,8 @@ class ExternalBqExtractor:
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        # Templates now in configs/gcp/cost/schemas/ (Refactored)
-        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "configs" / "gcp" / "cost" / "schemas"
+        # Templates in configs/cloud/gcp/cost/schemas/ (6 parents from src/core/processors/cloud/gcp/)
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "cloud" / "gcp" / "cost" / "schemas"
         self.schema_templates = self._load_schema_templates()
 
     def _load_schema_templates(self) -> Dict[str, Any]:
@@ -227,15 +227,57 @@ class ExternalBqExtractor:
         # Step-level variables have highest priority
         variables.update(step_config.get("variables", {}))
 
-        # Add default date if not provided (critical for cost_billing pipeline)
+        # Add default dates if not provided (critical for cost_billing pipeline)
+        # Support both single date (date) and date range (start_date, end_date)
+        # Default: Yesterday (T-1) for daily cost pipelines - allows GCP export lag
+        # Get date offset from variables (default to -1 for yesterday)
+        date_offset_str = variables.get('default_date_offset', '-1')
+        try:
+            date_offset = int(date_offset_str)
+        except (ValueError, TypeError):
+            date_offset = -1  # Default to yesterday
+
+        # EDGE-002 FIX: Use UTC date instead of server timezone to prevent off-by-one errors near midnight
+        default_date = (datetime.now(timezone.utc).date() + timedelta(days=date_offset)).isoformat()
+
+        # If start_date/end_date are provided, use them
+        # Otherwise, if date is provided, use it for both start and end
+        # Otherwise, default to yesterday (T-1)
+        if 'start_date' not in variables:
+            if 'date' in variables:
+                variables['start_date'] = variables['date']
+            else:
+                variables['start_date'] = default_date
+
+        if 'end_date' not in variables:
+            if 'date' in variables:
+                variables['end_date'] = variables['date']
+            else:
+                variables['end_date'] = default_date
+
+        # Keep 'date' for backwards compatibility (set to start_date if not present)
         if 'date' not in variables:
-            variables['date'] = date.today().isoformat()
+            variables['date'] = variables['start_date']
+
+        self.logger.info(
+            "Date range configured for billing extract",
+            extra={
+                "start_date": variables['start_date'],
+                "end_date": variables['end_date'],
+                "date_offset": date_offset,
+                "org_slug": org_slug
+            }
+        )
 
         # Add system variables (project_id, etc.) for template substitution
         if 'gcp_project_id' not in variables:
             variables['gcp_project_id'] = self.settings.gcp_project_id
         if 'project_id' not in variables:
             variables['project_id'] = self.settings.gcp_project_id
+        # Add environment for hierarchy table lookup (local, stage, prod)
+        # Use get_environment_suffix() to map: development->local, staging->stage, production->prod
+        if 'environment' not in variables:
+            variables['environment'] = self.settings.get_environment_suffix()
 
         # Initialize SOURCE BigQuery client (customer's GCP or CloudAct's)
         # Handle string "true"/"false" values from YAML
@@ -329,11 +371,20 @@ class ExternalBqExtractor:
 
         # MT-FIX: Validate date format before substitution to prevent SQL injection
         # Date must be YYYY-MM-DD format
-        if 'date' in variables:
-            date_str = str(variables['date'])
-            import re
-            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
-                raise ValueError(f"Invalid date format: {date_str}. Expected YYYY-MM-DD")
+        import re
+        from datetime import datetime as dt
+        date_pattern = r'^\d{4}-\d{2}-\d{2}$'
+
+        for date_key in ['date', 'start_date', 'end_date']:
+            if date_key in variables:
+                date_str = str(variables[date_key])
+                if not re.match(date_pattern, date_str):
+                    raise ValueError(f"Invalid {date_key} format: {date_str}. Expected YYYY-MM-DD")
+                # VAL-002 FIX: Validate date is actually valid (e.g., not 2026-99-99)
+                try:
+                    dt.strptime(date_str, '%Y-%m-%d')
+                except ValueError:
+                    raise ValueError(f"Invalid {date_key}: {date_str} is not a valid calendar date")
 
         # MT-FIX: Validate billing export tables format (must be project.dataset.table)
         def validate_export_table(table_name: str, table_path: str, required: bool = False) -> None:
@@ -348,8 +399,13 @@ class ExternalBqExtractor:
 
             if table_path.count('.') < 2:
                 raise ValueError(f"Invalid {table_name} format: {table_path}. Expected project.dataset.table")
-            # Check for path traversal attempts
-            if '..' in table_path or table_path.startswith('/'):
+            # SEC-002 FIX: Check for path traversal and SQL injection attempts
+            # Validate against: path traversal (..), backticks, semicolons, quotes
+            dangerous_chars = ['..', '`', ';', "'", '"', '--', '/*', '*/']
+            for char in dangerous_chars:
+                if char in table_path:
+                    raise ValueError(f"Invalid {table_name}: disallowed character sequence '{char}' detected")
+            if table_path.startswith('/'):
                 raise ValueError(f"Invalid {table_name}: path traversal detected")
 
         # Validate billing_export_table (REQUIRED)
@@ -587,8 +643,9 @@ class ExternalBqExtractor:
         run_id = str(uuid.uuid4())
         pipeline_id = context.get("pipeline_id", "cloud_cost_gcp")
         credential_id = context.get("credential_id", "")
-        pipeline_run_date = variables.get("date", date.today().isoformat())
-        ingested_at = datetime.utcnow().isoformat()
+        # EDGE-002 FIX: Use UTC for consistent date/time handling
+        pipeline_run_date = variables.get("date", datetime.now(timezone.utc).date().isoformat())
+        ingested_at = datetime.now(timezone.utc).isoformat()
 
         # Convert datetime objects to ISO format strings for JSON serialization
         # and add standardized lineage columns
@@ -600,18 +657,46 @@ class ExternalBqExtractor:
                     json_row[key] = value.isoformat()
                 else:
                     json_row[key] = value
-            # Add standardized lineage columns
+            # Add standardized x_* lineage columns (consistent across all providers)
             json_row["x_pipeline_id"] = pipeline_id
             json_row["x_credential_id"] = credential_id
             json_row["x_pipeline_run_date"] = pipeline_run_date
             json_row["x_run_id"] = run_id
             json_row["x_ingested_at"] = ingested_at
+            # Add cloud provider identification (required by schema)
+            json_row["x_cloud_provider"] = "GCP"
+            json_row["x_cloud_account_id"] = json_row.get("billing_account_id")
+            # Add org_slug for multi-tenancy (required by schema)
+            json_row["org_slug"] = org_slug
+            # Add x_hierarchy fields (standardized x_* naming)
+            # For GCP: project_id/project_name maps to hierarchy entity
+            # Query already extracts x_hierarchy_entity_id and x_hierarchy_entity_name from project
+            # Only set these if not already provided by query
+            if "x_hierarchy_entity_id" not in json_row:
+                json_row["x_hierarchy_entity_id"] = json_row.get("project_id")
+            if "x_hierarchy_entity_name" not in json_row:
+                json_row["x_hierarchy_entity_name"] = json_row.get("project_name")
+            # Hierarchy path fields (populated by hierarchy assignment job)
+            if "x_hierarchy_level_code" not in json_row:
+                json_row["x_hierarchy_level_code"] = None
+            if "x_hierarchy_path" not in json_row:
+                json_row["x_hierarchy_path"] = None
+            if "x_hierarchy_path_names" not in json_row:
+                json_row["x_hierarchy_path_names"] = None
+            if "x_hierarchy_validated_at" not in json_row:
+                json_row["x_hierarchy_validated_at"] = None
+            # Add data quality fields (optional)
+            json_row["x_data_quality_score"] = None
+            json_row["x_created_at"] = None
             json_rows.append(json_row)
 
         # Insert rows using load_table_from_json (more robust than insert_rows_json)
+        # CRITICAL: Pass schema to LoadJobConfig to enforce strict type matching
+        # Without this, BigQuery auto-detects types which can cause mismatches
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND if write_mode == "append" else bigquery.WriteDisposition.WRITE_TRUNCATE,
+            schema=schema,  # Use the schema template for type enforcement
         )
 
         # Convert to newline-delimited JSON format
@@ -629,8 +714,38 @@ class ExternalBqExtractor:
             job_config=job_config
         )
 
-        # Wait for the load job to complete
-        load_job.result()
+        # Wait for the load job to complete with detailed error capture
+        try:
+            load_job.result()
+        except Exception as load_error:
+            # Capture detailed error information from the load job
+            error_details = []
+            if load_job.errors:
+                for error in load_job.errors:
+                    error_details.append(error)
+                    self.logger.error(
+                        "BigQuery load job error detail",
+                        extra={
+                            "error": error,
+                            "table": full_table_id,
+                            "reason": error.get('reason', 'unknown'),
+                            "location": error.get('location', 'unknown'),
+                            "message": error.get('message', 'unknown')
+                        }
+                    )
+
+            # Log the first JSON row for debugging schema mismatches
+            if json_rows:
+                first_row = json_rows[0]
+                self.logger.error(
+                    "First row data for debugging",
+                    extra={
+                        "row_keys": list(first_row.keys()),
+                        "row_types": {k: type(v).__name__ for k, v in first_row.items()}
+                    }
+                )
+
+            raise ValueError(f"BigQuery load failed: {load_error}. Error details: {error_details}")
 
         if load_job.errors:
             raise ValueError(f"Failed to load rows into {full_table_id}: {load_job.errors}")

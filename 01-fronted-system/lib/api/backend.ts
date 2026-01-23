@@ -121,26 +121,12 @@ export interface SetupIntegrationRequest {
   metadata?: Record<string, unknown>
   skip_validation?: boolean
   // Default hierarchy for all usage from this integration (GenAI providers)
-  default_hierarchy_level_1_id?: string
-  default_hierarchy_level_1_name?: string
-  default_hierarchy_level_2_id?: string
-  default_hierarchy_level_2_name?: string
-  default_hierarchy_level_3_id?: string
-  default_hierarchy_level_3_name?: string
-  default_hierarchy_level_4_id?: string
-  default_hierarchy_level_4_name?: string
-  default_hierarchy_level_5_id?: string
-  default_hierarchy_level_5_name?: string
-  default_hierarchy_level_6_id?: string
-  default_hierarchy_level_6_name?: string
-  default_hierarchy_level_7_id?: string
-  default_hierarchy_level_7_name?: string
-  default_hierarchy_level_8_id?: string
-  default_hierarchy_level_8_name?: string
-  default_hierarchy_level_9_id?: string
-  default_hierarchy_level_9_name?: string
-  default_hierarchy_level_10_id?: string
-  default_hierarchy_level_10_name?: string
+  // Uses the 5-field hierarchy model with x_hierarchy prefix to match BigQuery schema
+  default_x_hierarchy_entity_id?: string      // Entity ID (e.g., "DEPT-001", "PROJ-001", "TEAM-001")
+  default_x_hierarchy_entity_name?: string    // Human-readable name (e.g., "Engineering", "AI Platform")
+  default_x_hierarchy_level_code?: string     // Level type: "ORG" | "DEPT" | "PROJ" | "TEAM"
+  default_x_hierarchy_path?: string           // Full path of IDs (e.g., "/acme/DEPT-001/PROJ-001")
+  default_x_hierarchy_path_names?: string     // Full path of names (e.g., "/Acme Inc/Engineering/AI Platform")
 }
 
 export interface SetupIntegrationResponse {

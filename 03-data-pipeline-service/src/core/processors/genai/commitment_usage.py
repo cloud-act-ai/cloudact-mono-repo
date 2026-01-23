@@ -151,14 +151,13 @@ class CommitmentUsageProcessor:
                 record["x_run_id"] = run_id
                 record["x_ingested_at"] = now
 
-                # Add hierarchy from credential (GenAI hierarchy assignment)
-                for level in range(1, 11):
-                    id_key = f"hierarchy_level_{level}_id"
-                    name_key = f"hierarchy_level_{level}_name"
-                    # Only set if not already present in record and credential has it
-                    if not record.get(id_key):
-                        record[id_key] = credentials.get(id_key)
-                        record[name_key] = credentials.get(name_key)
+                # Add hierarchy from credential (5-field hierarchy model)
+                if not record.get("x_hierarchy_entity_id"):
+                    record["x_hierarchy_entity_id"] = credentials.get("x_hierarchy_entity_id")
+                    record["x_hierarchy_entity_name"] = credentials.get("x_hierarchy_entity_name")
+                    record["x_hierarchy_level_code"] = credentials.get("x_hierarchy_level_code")
+                    record["x_hierarchy_path"] = credentials.get("x_hierarchy_path")
+                    record["x_hierarchy_path_names"] = credentials.get("x_hierarchy_path_names")
 
             # Write to BigQuery
             table_id = f"{project_id}.{dataset_id}.genai_commitment_usage_raw"
@@ -183,20 +182,15 @@ class CommitmentUsageProcessor:
             return {"status": "FAILED", "provider": provider, "error": str(e)}
 
     async def _get_provider_credentials(self, bq_client, org_slug, provider):
-        """Get credentials for provider, including default hierarchy."""
+        """Get credentials for provider, including default hierarchy (5-field model)."""
         query = f"""
             SELECT
                 credential_id, encrypted_credential,
-                default_hierarchy_level_1_id, default_hierarchy_level_1_name,
-                default_hierarchy_level_2_id, default_hierarchy_level_2_name,
-                default_hierarchy_level_3_id, default_hierarchy_level_3_name,
-                default_hierarchy_level_4_id, default_hierarchy_level_4_name,
-                default_hierarchy_level_5_id, default_hierarchy_level_5_name,
-                default_hierarchy_level_6_id, default_hierarchy_level_6_name,
-                default_hierarchy_level_7_id, default_hierarchy_level_7_name,
-                default_hierarchy_level_8_id, default_hierarchy_level_8_name,
-                default_hierarchy_level_9_id, default_hierarchy_level_9_name,
-                default_hierarchy_level_10_id, default_hierarchy_level_10_name
+                default_x_hierarchy_entity_id,
+                default_x_hierarchy_entity_name,
+                default_x_hierarchy_level_code,
+                default_x_hierarchy_path,
+                default_x_hierarchy_path_names
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
             LIMIT 1
@@ -213,12 +207,12 @@ class CommitmentUsageProcessor:
         decrypted = await decrypt_credentials(encrypted)
         decrypted["credential_id"] = row.get("credential_id")
 
-        # Add hierarchy fields from credentials (for GenAI hierarchy assignment)
-        for level in range(1, 11):
-            id_key = f"hierarchy_level_{level}_id"
-            name_key = f"hierarchy_level_{level}_name"
-            decrypted[id_key] = row.get(f"default_{id_key}")
-            decrypted[name_key] = row.get(f"default_{name_key}")
+        # Add hierarchy fields from credentials (5-field hierarchy model)
+        decrypted["x_hierarchy_entity_id"] = row.get("default_x_hierarchy_entity_id")
+        decrypted["x_hierarchy_entity_name"] = row.get("default_x_hierarchy_entity_name")
+        decrypted["x_hierarchy_level_code"] = row.get("default_x_hierarchy_level_code")
+        decrypted["x_hierarchy_path"] = row.get("default_x_hierarchy_path")
+        decrypted["x_hierarchy_path_names"] = row.get("default_x_hierarchy_path_names")
 
         return decrypted
 

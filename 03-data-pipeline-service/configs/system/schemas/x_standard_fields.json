@@ -1,0 +1,183 @@
+{
+  "description": "Standard x_* fields for all CloudAct tables - MUST be consistent across all providers",
+  "version": "1.0.0",
+  "updated": "2026-01-22",
+
+  "x_fields": {
+    "ingestion": [
+      {
+        "name": "x_ingestion_date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "Date when this record was ingested - PARTITION KEY for all tables"
+      }
+    ],
+
+    "lineage": [
+      {
+        "name": "x_pipeline_id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Pipeline template name (e.g., gcp-billing, openai-usage)"
+      },
+      {
+        "name": "x_credential_id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Credential ID from org_integration_credentials - KEY for multi-account isolation"
+      },
+      {
+        "name": "x_pipeline_run_date",
+        "type": "DATE",
+        "mode": "REQUIRED",
+        "description": "The DATA date being processed - KEY for idempotent re-runs"
+      },
+      {
+        "name": "x_run_id",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Unique pipeline run UUID for full traceability"
+      },
+      {
+        "name": "x_ingested_at",
+        "type": "TIMESTAMP",
+        "mode": "REQUIRED",
+        "description": "Exact timestamp when data was written to this table"
+      }
+    ],
+
+    "hierarchy": [
+      {
+        "name": "x_hierarchy_entity_id",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Hierarchy entity ID (e.g., GCP project_id, AWS account_id, API key ID)"
+      },
+      {
+        "name": "x_hierarchy_entity_name",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Hierarchy entity display name"
+      },
+      {
+        "name": "x_hierarchy_level_code",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Hierarchy level code (ORG, DEPT, PROJ, TEAM)"
+      },
+      {
+        "name": "x_hierarchy_path",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Full hierarchy path for cost rollup (e.g., /ORG-1/DEPT-2/PROJ-3)"
+      },
+      {
+        "name": "x_hierarchy_path_names",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Human-readable hierarchy path names"
+      },
+      {
+        "name": "x_hierarchy_validated_at",
+        "type": "TIMESTAMP",
+        "mode": "NULLABLE",
+        "description": "When hierarchy assignment was validated/updated"
+      }
+    ],
+
+    "provider_cloud": [
+      {
+        "name": "x_cloud_provider",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Cloud provider code (GCP, AWS, AZURE, OCI)"
+      },
+      {
+        "name": "x_cloud_account_id",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Cloud billing/linked account ID"
+      }
+    ],
+
+    "provider_genai": [
+      {
+        "name": "x_genai_provider",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "GenAI provider code (OPENAI, ANTHROPIC, GEMINI, AZURE_OPENAI, AWS_BEDROCK, GCP_VERTEX)"
+      },
+      {
+        "name": "x_genai_account_id",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "GenAI organization/account ID"
+      }
+    ],
+
+    "quality": [
+      {
+        "name": "x_data_quality_score",
+        "type": "FLOAT64",
+        "mode": "NULLABLE",
+        "description": "Data quality score (0-100)"
+      },
+      {
+        "name": "x_created_at",
+        "type": "TIMESTAMP",
+        "mode": "NULLABLE",
+        "description": "Original record creation timestamp from source"
+      }
+    ],
+
+    "org": [
+      {
+        "name": "org_slug",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Organization identifier for multi-tenancy"
+      }
+    ]
+  },
+
+  "hierarchy_mapping": {
+    "description": "How to map source entities to hierarchy for each provider",
+    "mappings": {
+      "GCP": {
+        "entity_id_source": "project_id",
+        "entity_name_source": "project_name",
+        "description": "GCP project maps to hierarchy entity"
+      },
+      "AWS": {
+        "entity_id_source": "linked_account_id",
+        "entity_name_source": "linked_account_name",
+        "description": "AWS linked account maps to hierarchy entity"
+      },
+      "AZURE": {
+        "entity_id_source": "subscription_id",
+        "entity_name_source": "subscription_name",
+        "description": "Azure subscription maps to hierarchy entity"
+      },
+      "OCI": {
+        "entity_id_source": "compartment_id",
+        "entity_name_source": "compartment_name",
+        "description": "OCI compartment maps to hierarchy entity"
+      },
+      "OPENAI": {
+        "entity_id_source": "api_key_id",
+        "entity_name_source": "api_key_name",
+        "description": "OpenAI API key maps to hierarchy entity"
+      },
+      "ANTHROPIC": {
+        "entity_id_source": "api_key_id",
+        "entity_name_source": "api_key_name",
+        "description": "Anthropic API key maps to hierarchy entity"
+      },
+      "GEMINI": {
+        "entity_id_source": "api_key_id",
+        "entity_name_source": "api_key_name",
+        "description": "Gemini API key maps to hierarchy entity"
+      }
+    }
+  }
+}

@@ -959,9 +959,17 @@ async def update_integration(
             # BUG-007 FIX: Validate metadata size before JSON serialization
             enforce_metadata_size_limit(update_request.metadata, org_slug)
 
-            # Merge new metadata with existing metadata (preserve project_id, client_email, etc.)
+            # CRUD-002 FIX: Filter protected fields that should only be set from credentials
+            # These are derived from the Service Account/API key and must not be overwritten
+            PROTECTED_METADATA_KEYS = {"project_id", "client_email", "credential_type", "private_key_id"}
+            filtered_metadata = {
+                k: v for k, v in update_request.metadata.items()
+                if k not in PROTECTED_METADATA_KEYS
+            }
+
+            # Merge filtered metadata with existing metadata (protected fields preserved)
             merged_metadata = existing_metadata.copy()
-            merged_metadata.update(update_request.metadata)
+            merged_metadata.update(filtered_metadata)
 
             # BUG-020 FIX: Validate merged metadata JSON schema before update
             is_valid, error_msg = validate_metadata(provider_upper, merged_metadata)

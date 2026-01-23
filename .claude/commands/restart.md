@@ -2,6 +2,24 @@
 
 Kill services, clear caches, and restart locally or trigger Cloud Run restarts.
 
+## ⚠️ CRITICAL: Port Enforcement
+
+**NEVER use fallback ports.** Services MUST run on their designated ports:
+
+| Service | Required Port | NEVER Use |
+|---------|--------------|-----------|
+| Frontend | **3000** | 3001, 3002, etc. |
+| API | **8000** | 8080, 8888, etc. |
+| Pipeline | **8001** | 8002, 8080, etc. |
+
+**Rules:**
+1. If port is in use → KILL the process and retry on same port
+2. NEVER pass `--port 3001` or any alternate port
+3. ALWAYS verify services started on correct ports after startup
+4. If a service fails to start on its port, debug and fix - don't use fallback
+
+**Why:** Frontend and other services hardcode these ports. Using fallback ports breaks inter-service communication.
+
 ## Usage
 
 ```
@@ -63,11 +81,20 @@ pkill -9 -f "uvicorn.*8000" 2>/dev/null || true
 pkill -9 -f "uvicorn.*8001" 2>/dev/null || true
 pkill -9 -f "next-server" 2>/dev/null || true
 pkill -9 -f "node.*next" 2>/dev/null || true
+pkill -9 -f "turbopack" 2>/dev/null || true
+pkill -9 -f "run-frontend.sh" 2>/dev/null || true
 
-# Kill by port (fallback)
+# Kill by CORRECT ports
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 lsof -ti:8001 | xargs kill -9 2>/dev/null || true
+
+# Also kill any WRONG port usage (cleanup from past mistakes)
+lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+lsof -ti:3002 | xargs kill -9 2>/dev/null || true
+
+# Wait for ports to fully release
+sleep 2
 ```
 
 **Step 3: Clear Caches**
@@ -96,19 +123,38 @@ cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.ma
 cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload > ../logs/pipeline.log 2>&1 &
 ```
 
-**Frontend (3000):**
+**Frontend (3000):** ⚠️ MUST be port 3000 - NEVER 3001
 ```bash
-# Use wrapper script to add timestamps and strip ANSI codes
+# Use wrapper script (explicitly runs on port 3000)
+# The script will fail if port 3000 is in use - fix the issue, don't use fallback port
 $REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
+
+# Alternative direct command (also explicit port 3000):
+# cd $REPO_ROOT/01-fronted-system && npx next dev --port 3000 > ../logs/frontend.log 2>&1 &
 ```
 
-**Step 5: Wait and Verify Health**
+**Step 5: Wait and Verify Health + Port Enforcement**
 ```bash
 sleep 8
 echo "=== Health Check ==="
 curl -s http://localhost:8000/health | python3 -m json.tool || echo "API: Not ready"
 curl -s http://localhost:8001/health | python3 -m json.tool || echo "Pipeline: Not ready"
 curl -s http://localhost:3000 -o /dev/null -w "Frontend: HTTP %{http_code}\n" || echo "Frontend: Not ready"
+```
+
+**Step 5b: Verify Correct Ports (CRITICAL)**
+```bash
+echo "=== Port Verification ==="
+# Check services are on CORRECT ports only
+lsof -i:3000 -sTCP:LISTEN | grep -q LISTEN && echo "✓ Frontend on 3000" || echo "✗ Frontend NOT on 3000"
+lsof -i:8000 -sTCP:LISTEN | grep -q LISTEN && echo "✓ API on 8000" || echo "✗ API NOT on 8000"
+lsof -i:8001 -sTCP:LISTEN | grep -q LISTEN && echo "✓ Pipeline on 8001" || echo "✗ Pipeline NOT on 8001"
+
+# FAIL if services are on wrong ports
+if lsof -i:3001 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
+    echo "❌ CRITICAL: Something on port 3001 - this is WRONG!"
+    echo "Kill it and restart frontend on port 3000"
+fi
 ```
 
 **Step 6: Check Logs for Errors**
@@ -192,13 +238,42 @@ cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn 
 
 ### Local Frontend Only
 ```bash
+# Kill ALL Node/Next processes aggressively
 pkill -9 -f "next-server" 2>/dev/null || true
 pkill -9 -f "node.*next" 2>/dev/null || true
 pkill -9 -f "run-frontend.sh" 2>/dev/null || true
+pkill -9 -f "turbopack" 2>/dev/null || true
+
+# Kill ANYTHING on port 3000 (required port)
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+
+# Also kill anything on 3001 (wrong port - cleanup from past mistakes)
+lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+
+# Clear cache
 rm -rf $REPO_ROOT/01-fronted-system/.next
-sleep 1
+
+# Wait for ports to free up
+sleep 2
+
+# Verify port 3000 is free
+if lsof -i:3000 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
+    echo "❌ Port 3000 still in use after cleanup!"
+    lsof -i:3000
+    exit 1
+fi
+
+# Start on port 3000 ONLY (never use --port 3001)
 $REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
+
+# Verify started on correct port
+sleep 5
+if ! lsof -i:3000 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
+    echo "❌ Frontend failed to start on port 3000!"
+    tail -20 $REPO_ROOT/logs/frontend.log
+    exit 1
+fi
+echo "✓ Frontend started on port 3000"
 ```
 
 ---
@@ -240,6 +315,50 @@ Report:
 | Frontend | http://localhost:3000 | https://cloudact.ai |
 | API Docs | http://localhost:8000/docs | https://api.cloudact.ai/docs |
 | Pipeline Docs | http://localhost:8001/docs | https://pipeline.cloudact.ai/docs |
+
+## Troubleshooting: Port Issues
+
+### "Port XXXX is already in use"
+```bash
+# Find what's using the port
+lsof -i:3000   # or 8000, 8001
+
+# Kill it
+lsof -ti:3000 | xargs kill -9
+
+# Then retry startup
+```
+
+### Service started on wrong port (e.g., 3001 instead of 3000)
+```bash
+# This is WRONG - kill it immediately
+lsof -ti:3001 | xargs kill -9
+
+# Kill any leftover processes
+pkill -9 -f "next-server"
+pkill -9 -f "node.*next"
+pkill -9 -f "turbopack"
+
+# Wait for cleanup
+sleep 2
+
+# Restart on correct port
+cd $REPO_ROOT/01-fronted-system && npx next dev --port 3000
+```
+
+### Multiple stale processes
+```bash
+# Nuclear option - kill everything
+pkill -9 -f "next-server" 2>/dev/null || true
+pkill -9 -f "node.*next" 2>/dev/null || true
+pkill -9 -f "turbopack" 2>/dev/null || true
+pkill -9 -f "uvicorn" 2>/dev/null || true
+lsof -ti:3000,3001,3002,8000,8001 | xargs kill -9 2>/dev/null || true
+
+# Wait and verify
+sleep 3
+lsof -i:3000,3001,8000,8001  # Should show nothing
+```
 
 ## Variables
 

@@ -220,5 +220,35 @@
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
     "description": "Timestamp when data was written to this table"
+  },
+  {
+    "name": "x_hierarchy_entity_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy entity ID"
+  },
+  {
+    "name": "x_hierarchy_entity_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy entity name"
+  },
+  {
+    "name": "x_hierarchy_level_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy level code (DEPT, PROJ, TEAM)"
+  },
+  {
+    "name": "x_hierarchy_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy path"
+  },
+  {
+    "name": "x_hierarchy_path_names",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy path names"
   }
 ]

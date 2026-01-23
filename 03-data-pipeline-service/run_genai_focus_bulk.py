@@ -154,13 +154,14 @@ def main():
         cost_type as x_genai_cost_type,
         provider as x_genai_provider,
         model as x_genai_model,
-        hierarchy_entity_id as x_hierarchy_entity_id,
-        hierarchy_entity_name as x_hierarchy_entity_name,
-        hierarchy_level_code as x_hierarchy_level_code,
-        hierarchy_path as x_hierarchy_path,
-        hierarchy_path_names as x_hierarchy_path_names,
+        -- 5-field hierarchy model (x_hierarchy_* prefix)
+        x_hierarchy_entity_id,
+        x_hierarchy_entity_name,
+        x_hierarchy_level_code,
+        x_hierarchy_path,
+        x_hierarchy_path_names,
         CASE
-          WHEN hierarchy_entity_id IS NOT NULL THEN CURRENT_TIMESTAMP()
+          WHEN x_hierarchy_entity_id IS NOT NULL THEN CURRENT_TIMESTAMP()
           ELSE NULL
         END as x_hierarchy_validated_at,
 

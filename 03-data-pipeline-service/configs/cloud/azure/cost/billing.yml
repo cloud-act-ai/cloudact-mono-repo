@@ -13,7 +13,7 @@
 pipeline_id: "{org_slug}-azure-billing"
 name: "Azure Billing Sync"
 description: "Extract Azure Cost Management data for {org_slug}"
-version: "15.0.0"
+version: "18.0.0"
 
 # Schedule configuration (cron expression: daily at 05:30 UTC)
 schedule: "30 5 * * *"
@@ -58,11 +58,11 @@ steps:
     config:
       destination_table: "{org_slug}_prod.cloud_azure_billing_raw_daily"
       write_disposition: "WRITE_APPEND"
-      partition_field: "usage_date"
+      partition_field: "x_ingestion_date"
       schema_template: "azure_billing_cost"
       table_config:
         time_partitioning:
-          field: "usage_date"
+          field: "x_ingestion_date"
           type: "DAY"
           expiration_days: 730
         clustering_fields:

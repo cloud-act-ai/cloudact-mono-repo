@@ -247,31 +247,31 @@ class CostReadService:
                 query_params.append(bigquery.ArrayQueryParameter("genai_providers", "STRING", genai_providers))
 
         # N-level hierarchy filters (NEW - v16.0+)
-        # Use hierarchy_entity_id for exact match OR hierarchy_path for parent/child matching
+        # Use x_hierarchy_entity_id for exact match OR x_hierarchy_path for parent/child matching
         if query.department_id:  # Level 1
-            where_conditions.append("(hierarchy_entity_id = @department_id OR hierarchy_path LIKE @department_path)")
+            where_conditions.append("(x_hierarchy_entity_id = @department_id OR x_hierarchy_path LIKE @department_path)")
             query_params.append(bigquery.ScalarQueryParameter("department_id", "STRING", query.department_id))
             query_params.append(bigquery.ScalarQueryParameter("department_path", "STRING", f"%/{query.department_id}/%"))
 
         if query.project_id:  # Level 2
-            where_conditions.append("(hierarchy_entity_id = @project_id OR hierarchy_path LIKE @project_path)")
+            where_conditions.append("(x_hierarchy_entity_id = @project_id OR x_hierarchy_path LIKE @project_path)")
             query_params.append(bigquery.ScalarQueryParameter("project_id", "STRING", query.project_id))
             query_params.append(bigquery.ScalarQueryParameter("project_path", "STRING", f"%/{query.project_id}/%"))
 
         if query.team_id:  # Level 3
-            where_conditions.append("(hierarchy_entity_id = @team_id OR hierarchy_path LIKE @team_path)")
+            where_conditions.append("(x_hierarchy_entity_id = @team_id OR x_hierarchy_path LIKE @team_path)")
             query_params.append(bigquery.ScalarQueryParameter("team_id", "STRING", query.team_id))
             query_params.append(bigquery.ScalarQueryParameter("team_path", "STRING", f"%/{query.team_id}/%"))
 
         # Generic entity filter (any hierarchy level)
         if query.hierarchy_entity_id:
-            where_conditions.append("(hierarchy_entity_id = @hierarchy_entity_id OR hierarchy_path LIKE @entity_path)")
+            where_conditions.append("(x_hierarchy_entity_id = @hierarchy_entity_id OR x_hierarchy_path LIKE @entity_path)")
             query_params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", query.hierarchy_entity_id))
             query_params.append(bigquery.ScalarQueryParameter("entity_path", "STRING", f"%/{query.hierarchy_entity_id}/%"))
 
         # Path filter for parent/child relationships
         if query.hierarchy_path:
-            where_conditions.append("hierarchy_path LIKE @hierarchy_path_prefix")
+            where_conditions.append("x_hierarchy_path LIKE @hierarchy_path_prefix")
             query_params.append(bigquery.ScalarQueryParameter("hierarchy_path_prefix", "STRING", f"{query.hierarchy_path}%"))
 
         where_clause = " AND ".join(where_conditions)
@@ -296,11 +296,11 @@ class CostReadService:
             DATE(ChargePeriodStart) as ChargePeriodStart,
             DATE(ChargePeriodEnd) as ChargePeriodEnd,
             x_source_system,
-            hierarchy_entity_id,
-            hierarchy_entity_name,
-            hierarchy_level_code,
-            hierarchy_path,
-            hierarchy_path_names
+            x_hierarchy_entity_id,
+            x_hierarchy_entity_name,
+            x_hierarchy_level_code,
+            x_hierarchy_path,
+            x_hierarchy_path_names
         FROM {table_ref}
         WHERE {where_clause}
         ORDER BY ChargePeriodStart DESC
@@ -1359,15 +1359,15 @@ class CostReadService:
                     "departments": [
                         {"id": e, "name": n, "level_code": lc, "path": p}
                         for e, n, lc, p in set(
-                            (row.get("hierarchy_entity_id"), row.get("hierarchy_entity_name"),
-                             row.get("hierarchy_level_code"), row.get("hierarchy_path"))
+                            (row.get("x_hierarchy_entity_id"), row.get("x_hierarchy_entity_name"),
+                             row.get("x_hierarchy_level_code"), row.get("x_hierarchy_path"))
                             for row in df.select([
-                                "hierarchy_entity_id", "hierarchy_entity_name",
-                                "hierarchy_level_code", "hierarchy_path"
+                                "x_hierarchy_entity_id", "x_hierarchy_entity_name",
+                                "x_hierarchy_level_code", "x_hierarchy_path"
                             ]).unique().to_dicts()
-                            if row.get("hierarchy_entity_id")
+                            if row.get("x_hierarchy_entity_id")
                         )
-                    ] if "hierarchy_entity_id" in df.columns else [],
+                    ] if "x_hierarchy_entity_id" in df.columns else [],
                 },
             }
 

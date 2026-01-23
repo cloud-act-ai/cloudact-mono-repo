@@ -37,34 +37,34 @@ def transform_record(record: Dict[str, Any]) -> Dict[str, Any]:
         record.pop(f"hierarchy_level_{level}_id", None)
         record.pop(f"hierarchy_level_{level}_name", None)
 
-    # Add NEW N-level hierarchy fields
+    # Add NEW 5-field hierarchy model (x_hierarchy_* prefix per pipeline service convention)
     if not leaf_level:
         # No hierarchy data, use defaults
-        record["hierarchy_entity_id"] = "UNASSIGNED"
-        record["hierarchy_entity_name"] = "Unassigned"
-        record["hierarchy_level_code"] = "unassigned"
-        record["hierarchy_path"] = "/UNASSIGNED"
-        record["hierarchy_path_names"] = "Unassigned"
+        record["x_hierarchy_entity_id"] = "UNASSIGNED"
+        record["x_hierarchy_entity_name"] = "Unassigned"
+        record["x_hierarchy_level_code"] = "unassigned"
+        record["x_hierarchy_path"] = "/UNASSIGNED"
+        record["x_hierarchy_path_names"] = "Unassigned"
     else:
-        # Determine level code based on position
+        # Determine level code based on position (c_suite, business_unit, function)
         level_codes = {
-            1: "department",
-            2: "project",
-            3: "team",
-            4: "team",  # Deeper levels default to team
-            5: "team",
-            6: "team",
-            7: "team",
-            8: "team",
-            9: "team",
-            10: "team",
+            1: "c_suite",
+            2: "business_unit",
+            3: "function",
+            4: "function",  # Deeper levels default to function
+            5: "function",
+            6: "function",
+            7: "function",
+            8: "function",
+            9: "function",
+            10: "function",
         }
 
-        record["hierarchy_entity_id"] = leaf_id
-        record["hierarchy_entity_name"] = leaf_name
-        record["hierarchy_level_code"] = level_codes.get(leaf_level, "team")
-        record["hierarchy_path"] = "/" + "/".join(path_parts) if path_parts else "/UNASSIGNED"
-        record["hierarchy_path_names"] = " > ".join(path_name_parts) if path_name_parts else "Unassigned"
+        record["x_hierarchy_entity_id"] = leaf_id
+        record["x_hierarchy_entity_name"] = leaf_name
+        record["x_hierarchy_level_code"] = level_codes.get(leaf_level, "function")
+        record["x_hierarchy_path"] = "/" + "/".join(path_parts) if path_parts else "/UNASSIGNED"
+        record["x_hierarchy_path_names"] = " > ".join(path_name_parts) if path_name_parts else "Unassigned"
 
     return record
 
