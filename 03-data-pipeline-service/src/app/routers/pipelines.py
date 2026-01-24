@@ -256,6 +256,52 @@ class TriggerPipelineResponse(BaseModel):
     message: str
 
 
+class StepLogSummary(BaseModel):
+    """Step execution log summary."""
+    step_logging_id: str
+    step_name: str
+    step_type: str
+    step_index: int
+    status: str
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+    rows_processed: Optional[int] = None
+    error_message: Optional[str] = None
+    error_context: Optional[dict] = None
+    metadata: Optional[dict] = None
+
+
+class PipelineRunSummary(BaseModel):
+    """Pipeline run summary for list responses."""
+    pipeline_logging_id: str
+    pipeline_id: str
+    status: str
+    trigger_type: str
+    trigger_by: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+    run_date: Optional[str] = None
+    error_message: Optional[str] = None
+    error_context: Optional[dict] = None
+    parameters: Optional[dict] = None
+
+
+class PipelineRunDetailResponse(PipelineRunSummary):
+    """Pipeline run detail with step logs."""
+    run_metadata: Optional[dict] = None
+    steps: List[StepLogSummary] = []
+
+
+class PipelineRunsListResponse(BaseModel):
+    """Paginated pipeline runs response."""
+    runs: List[PipelineRunSummary]
+    total: int
+    limit: int
+    offset: int
+
+
 # ============================================
 # Pipeline Execution Endpoints
 # ============================================
@@ -1209,6 +1255,264 @@ async def list_pipeline_runs(
     runs = [PipelineRunResponse(**dict(row)) for row in results]
 
     return runs
+
+
+# ============================================
+# Org-Specific Pipeline Run Endpoints (Frontend)
+# ============================================
+
+@router.get(
+    "/pipelines/{org_slug}/runs",
+    response_model=PipelineRunsListResponse,
+    summary="List pipeline runs for organization",
+    description="List pipeline runs with pagination for the specified organization"
+)
+async def list_org_pipeline_runs(
+    org_slug: str,
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    pipeline_id: Optional[str] = Query(None, description="Filter by pipeline ID"),
+    start_date: Optional[str] = Query(None, description="Filter runs after this date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="Filter runs before this date (YYYY-MM-DD)"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum results to return"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    org: OrgContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    List pipeline runs with pagination for the frontend.
+
+    - **org_slug**: Organization slug (must match authenticated org)
+    - **status_filter**: Optional filter by status (PENDING, RUNNING, COMPLETED, FAILED)
+    - **pipeline_id**: Optional filter by pipeline ID
+    - **start_date**: Optional filter runs after this date
+    - **end_date**: Optional filter runs before this date
+    - **limit**: Maximum number of results (1-100)
+    - **offset**: Pagination offset
+
+    Returns paginated list of pipeline runs.
+    """
+    # Validate org_slug matches authenticated org
+    if org_slug != org.org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Org slug mismatch: authenticated as '{org.org_slug}' but requested '{org_slug}'"
+        )
+
+    # Build query with filters
+    where_clauses = ["org_slug = @org_slug"]
+    parameters = [("org_slug", "STRING", org.org_slug)]
+
+    if status_filter:
+        where_clauses.append("status = @status_filter")
+        parameters.append(("status_filter", "STRING", status_filter.upper()))
+
+    if pipeline_id:
+        # Match pipeline_id containing the filter (for subscription pipelines)
+        where_clauses.append("pipeline_id LIKE @pipeline_id_pattern")
+        parameters.append(("pipeline_id_pattern", "STRING", f"%{pipeline_id}%"))
+
+    if start_date:
+        where_clauses.append("start_time >= @start_date")
+        parameters.append(("start_date", "TIMESTAMP", start_date))
+
+    if end_date:
+        where_clauses.append("start_time <= @end_date")
+        parameters.append(("end_date", "TIMESTAMP", end_date))
+
+    where_sql = " AND ".join(where_clauses)
+
+    # Count total matching records
+    count_query = f"""
+    SELECT COUNT(*) as total
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+    WHERE {where_sql}
+    """
+
+    from google.cloud import bigquery as bq
+
+    count_job_config = bq.QueryJobConfig(
+        query_parameters=[
+            bq.ScalarQueryParameter(name, type_, value)
+            for name, type_, value in parameters
+        ]
+    )
+
+    count_result = list(bq_client.client.query(count_query, job_config=count_job_config).result())
+    total = count_result[0]["total"] if count_result else 0
+
+    # Fetch paginated results
+    query = f"""
+    SELECT
+        pipeline_logging_id,
+        pipeline_id,
+        status,
+        trigger_type,
+        trigger_by,
+        start_time,
+        end_time,
+        duration_ms,
+        CAST(run_date AS STRING) as run_date,
+        error_message,
+        TO_JSON_STRING(parameters) as parameters_json
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+    WHERE {where_sql}
+    ORDER BY start_time DESC
+    LIMIT @limit
+    OFFSET @offset
+    """
+
+    parameters.append(("limit", "INT64", limit))
+    parameters.append(("offset", "INT64", offset))
+
+    job_config = bq.QueryJobConfig(
+        query_parameters=[
+            bq.ScalarQueryParameter(name, type_, value)
+            for name, type_, value in parameters
+        ]
+    )
+
+    results = bq_client.client.query(query, job_config=job_config).result()
+
+    runs = []
+    for row in results:
+        row_dict = dict(row)
+        # Parse parameters JSON if present
+        if row_dict.get("parameters_json"):
+            import json
+            try:
+                row_dict["parameters"] = json.loads(row_dict["parameters_json"])
+            except Exception:
+                row_dict["parameters"] = None
+        del row_dict["parameters_json"]
+        runs.append(PipelineRunSummary(**row_dict))
+
+    return PipelineRunsListResponse(
+        runs=runs,
+        total=total,
+        limit=limit,
+        offset=offset
+    )
+
+
+@router.get(
+    "/pipelines/{org_slug}/runs/{pipeline_logging_id}",
+    response_model=PipelineRunDetailResponse,
+    summary="Get pipeline run detail with steps",
+    description="Get detailed pipeline run information including step logs"
+)
+async def get_org_pipeline_run_detail(
+    org_slug: str,
+    pipeline_logging_id: str,
+    org: OrgContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get detailed pipeline run with step logs.
+
+    - **org_slug**: Organization slug (must match authenticated org)
+    - **pipeline_logging_id**: Pipeline run ID
+
+    Returns pipeline run details with step execution logs.
+    """
+    # Validate org_slug matches authenticated org
+    if org_slug != org.org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Org slug mismatch: authenticated as '{org.org_slug}' but requested '{org_slug}'"
+        )
+
+    from google.cloud import bigquery as bq
+
+    # Fetch pipeline run details
+    run_query = f"""
+    SELECT
+        pipeline_logging_id,
+        pipeline_id,
+        status,
+        trigger_type,
+        trigger_by,
+        start_time,
+        end_time,
+        duration_ms,
+        CAST(run_date AS STRING) as run_date,
+        error_message,
+        TO_JSON_STRING(parameters) as parameters_json
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+    WHERE pipeline_logging_id = @pipeline_logging_id
+      AND org_slug = @org_slug
+    LIMIT 1
+    """
+
+    run_job_config = bq.QueryJobConfig(
+        query_parameters=[
+            bq.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+            bq.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
+        ]
+    )
+
+    run_results = list(bq_client.client.query(run_query, job_config=run_job_config).result())
+
+    if not run_results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Pipeline run {pipeline_logging_id} not found for org {org.org_slug}"
+        )
+
+    run_row = dict(run_results[0])
+
+    # Parse parameters JSON if present
+    if run_row.get("parameters_json"):
+        import json
+        try:
+            run_row["parameters"] = json.loads(run_row["parameters_json"])
+        except Exception:
+            run_row["parameters"] = None
+    del run_row["parameters_json"]
+
+    # Fetch step logs
+    steps_query = f"""
+    SELECT
+        step_logging_id,
+        step_name,
+        step_type,
+        step_index,
+        status,
+        start_time,
+        end_time,
+        duration_ms,
+        rows_processed,
+        error_message,
+        TO_JSON_STRING(metadata) as metadata_json
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_step_logs`
+    WHERE pipeline_logging_id = @pipeline_logging_id
+    ORDER BY step_index ASC
+    """
+
+    steps_job_config = bq.QueryJobConfig(
+        query_parameters=[
+            bq.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+        ]
+    )
+
+    steps_results = bq_client.client.query(steps_query, job_config=steps_job_config).result()
+
+    steps = []
+    for step_row in steps_results:
+        step_dict = dict(step_row)
+        # Parse metadata JSON if present
+        if step_dict.get("metadata_json"):
+            import json
+            try:
+                step_dict["metadata"] = json.loads(step_dict["metadata_json"])
+            except Exception:
+                step_dict["metadata"] = None
+        del step_dict["metadata_json"]
+        steps.append(StepLogSummary(**step_dict))
+
+    return PipelineRunDetailResponse(
+        **run_row,
+        steps=steps
+    )
 
 
 @router.delete(

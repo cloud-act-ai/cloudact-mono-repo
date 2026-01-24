@@ -1142,6 +1142,7 @@ export class PipelineBackendClient {
   /**
    * List pipeline runs for an organization.
    * URL: /api/v1/pipelines/{org_slug}/runs
+   * Note: Uses pipelineServiceUrl (port 8001) for pipeline run data
    */
   async listPipelineRuns(
     orgSlug: string,
@@ -1164,7 +1165,7 @@ export class PipelineBackendClient {
     if (options?.offset) params.append("offset", options.offset.toString())
 
     const queryString = params.toString()
-    const url = `${this.baseUrl}/api/v1/pipelines/${orgSlug}/runs${queryString ? `?${queryString}` : ""}`
+    const url = `${this.pipelineServiceUrl}/api/v1/pipelines/${orgSlug}/runs${queryString ? `?${queryString}` : ""}`
 
     const response = await fetchWithTimeout(
       url,
@@ -1181,6 +1182,7 @@ export class PipelineBackendClient {
   /**
    * Get detailed pipeline run with step logs.
    * URL: /api/v1/pipelines/{org_slug}/runs/{pipeline_logging_id}
+   * Note: Uses pipelineServiceUrl (port 8001) for pipeline run data
    */
   async getPipelineRunDetail(
     orgSlug: string,
@@ -1188,7 +1190,7 @@ export class PipelineBackendClient {
   ): Promise<PipelineRunDetail> {
     validateOrgSlug(orgSlug)
     const response = await fetchWithTimeout(
-      `${this.baseUrl}/api/v1/pipelines/${orgSlug}/runs/${encodeURIComponent(pipelineLoggingId)}`,
+      `${this.pipelineServiceUrl}/api/v1/pipelines/${orgSlug}/runs/${encodeURIComponent(pipelineLoggingId)}`,
       {
         method: "GET",
         headers: this.getHeaders(),
