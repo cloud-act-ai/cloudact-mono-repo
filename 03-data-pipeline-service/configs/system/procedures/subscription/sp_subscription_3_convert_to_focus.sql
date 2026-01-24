@@ -359,7 +359,7 @@ BEGIN
         ON spc.x_org_slug = os.org_slug
         AND os.status = 'ACTIVE'
       WHERE spc.cost_date BETWEEN @p_start AND @p_end
-    """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_project_id)
+    """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_project_id)
     USING p_start_date AS p_start, p_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id;
 
   -- 4. Get row count (inside transaction for atomicity)

@@ -1,0 +1,13 @@
+{
+  "_comment": "Project-specific settings. Global permissions in ~/.claude/settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf 01-*)",
+      "Bash(rm -rf 02-*)",
+      "Bash(rm -rf 03-*)",
+      "Bash(rm -rf 04-*)",
+      "Bash(drop database:*)",
+      "Bash(DROP DATABASE:*)"
+    ]
+  }
+}

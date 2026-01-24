@@ -119,8 +119,10 @@ BEGIN
 
     -- 3. Insert daily costs (skip zero-cost rows like FREE plans)
     -- Uses 5-field x_hierarchy_* model
+    -- FIX: Added org_slug column to handle schema drift (table has both org_slug and x_org_slug)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.subscription_plan_costs_daily` (
+        org_slug,  -- Schema drift fix: populate legacy column
         provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
@@ -136,23 +138,25 @@ BEGIN
       WITH subscriptions AS (
         -- Read all subscriptions that overlap with date range
         -- Include active, expired, and cancelled to calculate historical costs
+        -- FIX: Use table alias 'sp' to avoid column ambiguity (table has both org_slug and x_org_slug)
+        -- FIX: Read from org_slug (populated) instead of x_org_slug (NULL due to schema drift)
         SELECT
-          x_org_slug,
-          provider,
-          subscription_id,
-          plan_name,
-          display_name,
-          LOWER(COALESCE(billing_cycle, 'monthly')) AS billing_cycle,
+          COALESCE(sp.x_org_slug, sp.org_slug) AS x_org_slug,
+          sp.provider,
+          sp.subscription_id,
+          sp.plan_name,
+          sp.display_name,
+          LOWER(COALESCE(sp.billing_cycle, 'monthly')) AS billing_cycle,
           -- Use org's default_currency from org_profiles (@org_currency), then @default_currency, then USD
-          COALESCE(currency, @org_currency, @default_currency, 'USD') AS currency,
+          COALESCE(sp.currency, @org_currency, @default_currency, 'USD') AS currency,
           -- NOTE: NULL seats treated as 1 for backward compatibility, but logged as DQ issue
           CASE
-            WHEN seats IS NULL OR seats <= 0 THEN 1
-            ELSE seats
+            WHEN sp.seats IS NULL OR sp.seats <= 0 THEN 1
+            ELSE sp.seats
           END AS seats,
           -- Track original seats for DQ monitoring
-          CASE WHEN seats IS NULL OR seats <= 0 THEN TRUE ELSE FALSE END AS _seats_defaulted,
-          COALESCE(pricing_model, 'PER_SEAT') AS pricing_model,
+          CASE WHEN sp.seats IS NULL OR sp.seats <= 0 THEN TRUE ELSE FALSE END AS _seats_defaulted,
+          COALESCE(sp.pricing_model, 'PER_SEAT') AS pricing_model,
           -- Get base price: unit_price is the price per billing cycle
           -- yearly_price is an optional override for annual plans (backwards compatibility)
           -- For all billing cycles, unit_price represents the CYCLE price:
@@ -162,29 +166,29 @@ BEGIN
           --   - Weekly: unit_price = weekly price
           -- NOTE: NULLIF(yearly_price, 0) handles cases where yearly_price is 0 (not just NULL)
           CASE
-            WHEN LOWER(COALESCE(billing_cycle, 'monthly')) IN ('annual', 'yearly', 'year')
-              THEN COALESCE(NULLIF(yearly_price, 0), unit_price)  -- Use yearly override if > 0, else use unit_price
-            ELSE unit_price  -- For monthly, quarterly, weekly - use unit_price directly
+            WHEN LOWER(COALESCE(sp.billing_cycle, 'monthly')) IN ('annual', 'yearly', 'year')
+              THEN COALESCE(NULLIF(sp.yearly_price, 0), sp.unit_price)  -- Use yearly override if > 0, else use unit_price
+            ELSE sp.unit_price  -- For monthly, quarterly, weekly - use unit_price directly
           END AS base_price,
-          discount_type,
-          discount_value,
-          start_date,
-          end_date,
-          invoice_id_last,
+          sp.discount_type,
+          sp.discount_value,
+          sp.start_date,
+          sp.end_date,
+          sp.invoice_id_last,
           -- Billing anchor day for non-calendar-aligned billing (1-28)
           -- NULL or 1 = calendar-aligned (1st of month)
           -- ASC 606 / IFRS 15 compliant: Track billing cycle anniversary
-          COALESCE(billing_anchor_day, 1) AS billing_anchor_day,
+          COALESCE(sp.billing_anchor_day, 1) AS billing_anchor_day,
           -- 5-field hierarchy model (NEW design)
-          x_hierarchy_entity_id,
-          x_hierarchy_entity_name,
-          x_hierarchy_level_code,
-          x_hierarchy_path,
-          x_hierarchy_path_names
-        FROM `%s.%s.subscription_plans`
-        WHERE status IN ('active', 'expired', 'cancelled')
-          AND (start_date <= @p_end OR start_date IS NULL)
-          AND (end_date >= @p_start OR end_date IS NULL)
+          sp.x_hierarchy_entity_id,
+          sp.x_hierarchy_entity_name,
+          sp.x_hierarchy_level_code,
+          sp.x_hierarchy_path,
+          sp.x_hierarchy_path_names
+        FROM `%s.%s.subscription_plans` sp
+        WHERE sp.status IN ('active', 'expired', 'cancelled')
+          AND (sp.start_date <= @p_end OR sp.start_date IS NULL)
+          AND (sp.end_date >= @p_start OR sp.end_date IS NULL)
       ),
       with_cycle_cost AS (
         -- Calculate cycle cost (price × seats for PER_SEAT, just price for FLAT_FEE)
@@ -407,8 +411,7 @@ BEGIN
           s.x_hierarchy_path,
           s.x_hierarchy_path_names,
           -- Compute x_hierarchy_validated_at: set timestamp if hierarchy exists
-          CASE WHEN s.x_hierarchy_entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END AS x_hierarchy_validated_at,
-          s.x_org_slug
+          CASE WHEN s.x_hierarchy_entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END AS x_hierarchy_validated_at
         FROM with_cycle_cost s
         CROSS JOIN UNNEST(
           GENERATE_DATE_ARRAY(
@@ -418,6 +421,7 @@ BEGIN
         ) AS day
       )
       SELECT
+        x_org_slug AS org_slug,  -- Schema drift fix: populate legacy column with same value
         provider,
         subscription_id,
         plan_name,

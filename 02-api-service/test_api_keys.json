@@ -1,6 +1,22 @@
 {
   "test_keys": [
     {
+      "api_key": "test_cloudact_inc_01222026_api_key",
+      "org_slug": "cloudact_inc_01222026",
+      "company_name": "CloudAct Inc",
+      "admin_email": "surasani.rama@gmail.com",
+      "status": "ACTIVE",
+      "org_dataset_id": "cloudact_inc_01222026_local",
+      "subscription": {
+        "plan_name": "SCALE",
+        "status": "ACTIVE",
+        "max_pipelines_per_day": 100,
+        "max_pipelines_per_month": 3000,
+        "max_concurrent_pipelines": 10
+      },
+      "org_api_key_id": "test-key-cloudact"
+    },
+    {
       "api_key": "test_org_123_api_testkey1234567890",
       "org_slug": "test_org_123",
       "company_name": "Test Organization",
