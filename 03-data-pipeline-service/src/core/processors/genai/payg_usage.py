@@ -518,7 +518,7 @@ class PAYGUsageProcessor:
                         return "TRUE" if v else "FALSE"
 
                     struct_values.append(f"""STRUCT(
-                        {escape_str(record.get('org_slug'))} as org_slug,
+                        {escape_str(record.get('x_org_slug'))} as x_org_slug,
                         {escape_str(record.get('provider'))} as provider,
                         {escape_str(record.get('model'))} as model,
                         {escape_str(record.get('model_family'))} as model_family,
@@ -585,7 +585,7 @@ class PAYGUsageProcessor:
 
                 # MEDIUM FIX #11: Track successful record IDs
                 for record in batch:
-                    record_id = f"{record.get('org_slug')}:{record.get('provider')}:{record.get('model')}:{record.get('usage_date')}"
+                    record_id = f"{record.get('x_org_slug')}:{record.get('provider')}:{record.get('model')}:{record.get('usage_date')}"
                     successful_ids.append(record_id)
 
             self.logger.info(

@@ -255,7 +255,7 @@ BEGIN
         INITCAP(REPLACE(spc.provider, '_', ' ')) AS PublisherName,
 
         -- Invoice (with fallback - using EXTRACT to avoid FORMAT conflicts)
-        COALESCE(spc.invoice_id_last, CONCAT('INV-', spc.org_slug, '-',
+        COALESCE(spc.invoice_id_last, CONCAT('INV-', spc.x_org_slug, '-',
           CAST(EXTRACT(YEAR FROM spc.cost_date) AS STRING),
           LPAD(CAST(EXTRACT(MONTH FROM spc.cost_date) AS STRING), 2, '0')
         )) AS InvoiceId,

@@ -144,7 +144,7 @@ class CommitmentUsageProcessor:
             pipeline_id = f"genai_commitment_usage_{provider}"
             credential_id = credentials.get("credential_id", "default")
             for record in usage_records:
-                record["org_slug"] = org_slug
+                record["x_org_slug"] = org_slug
                 record["x_pipeline_id"] = pipeline_id
                 record["x_credential_id"] = credential_id
                 record["x_pipeline_run_date"] = start_date.isoformat()
@@ -318,7 +318,7 @@ class CommitmentUsageProcessor:
                         return str(v) if v is not None else "0.0"
 
                     struct_values.append(f"""STRUCT(
-                        {escape_str(record.get('org_slug'))} as org_slug,
+                        {escape_str(record.get('x_org_slug'))} as x_org_slug,
                         {escape_str(record.get('provider'))} as provider,
                         {escape_str(record.get('commitment_id'))} as commitment_id,
                         {escape_str(record.get('commitment_type'))} as commitment_type,

@@ -246,20 +246,104 @@ def make_openai_usage_data(
 
 def make_gcp_billing_data(
     count: int = 5,
-    date: str = "2025-01-01"
+    date: str = "2025-01-01",
+    include_credits: bool = True
 ) -> List[Dict[str, Any]]:
-    """Generate sample GCP billing data for testing."""
-    services = ["Compute Engine", "Cloud Storage", "BigQuery", "Cloud Run", "Pub/Sub"]
-    return [
-        {
-            "service_description": services[i % len(services)],
-            "cost": 100.0 * (i + 1),
-            "currency": "USD",
-            "usage_date": date,
-            "project_id": f"project-{i}",
-        }
-        for i in range(count)
+    """
+    Generate sample GCP billing data for testing.
+
+    Matches schema: 03-data-pipeline-service/configs/cloud/gcp/cost/schemas/billing_cost.json
+
+    Args:
+        count: Number of records to generate
+        date: Usage date in YYYY-MM-DD format
+        include_credits: If True, ~7% of records will be credits (negative costs)
+    """
+    import uuid as uuid_mod
+    import random
+
+    services = [
+        {"service_id": "6F81-5844-456A", "service_description": "Cloud Run", "sku_id": "D2C2-5678-ABCD",
+         "sku_description": "CPU Allocation Time", "usage_unit": "second", "usage_pricing_unit": "vCPU-second"},
+        {"service_id": "24E6-581D-38E5", "service_description": "Cloud Build", "sku_id": "E4F5-6789-BCDE",
+         "sku_description": "Build Time", "usage_unit": "second", "usage_pricing_unit": "build-minute"},
+        {"service_id": "95FF-2EF5-5EA1", "service_description": "BigQuery", "sku_id": "F5G6-7890-CDEF",
+         "sku_description": "Analysis", "usage_unit": "byte", "usage_pricing_unit": "tebibyte"},
+        {"service_id": "152E-C115-5142", "service_description": "Cloud Storage", "sku_id": "G6H7-8901-DEFG",
+         "sku_description": "Standard Storage US Multi-region", "usage_unit": "byte-seconds", "usage_pricing_unit": "gibibyte month"},
+        {"service_id": "9662-B51E-5089", "service_description": "Cloud Key Management Service", "sku_id": "H7I8-9012-EFGH",
+         "sku_description": "Active software symmetric key versions", "usage_unit": "requests", "usage_pricing_unit": "key version"},
     ]
+
+    records = []
+    for i in range(count):
+        service = services[i % len(services)]
+        is_credit = include_credits and random.random() < 0.07
+        base_cost = 2.5 * (i + 1)
+        cost = -abs(base_cost) if is_credit else abs(base_cost)
+
+        records.append({
+            # Required fields
+            "billing_account_id": "01A2B3-C4D5E6-F7G8H9",
+            "usage_start_time": f"{date}T00:00:00Z",
+            "usage_end_time": f"{date}T23:59:59Z",
+            "cost": cost,
+            "ingestion_date": date,
+            "org_slug": "test_org",
+            "x_pipeline_id": "cloud_cost_gcp",
+            "x_credential_id": "cred_gcp_test_001",
+            "x_pipeline_run_date": date,
+            "x_run_id": f"run_test_{uuid_mod.uuid4().hex[:8]}",
+            "x_ingested_at": f"{date}T23:59:59Z",
+
+            # Service identification
+            "service_id": service["service_id"],
+            "service_description": service["service_description"],
+            "sku_id": service["sku_id"],
+            "sku_description": service["sku_description"],
+
+            # Project info
+            "project_id": f"project-{i}",
+            "project_name": f"Test Project {i}",
+            "project_number": f"12345678901{i}",
+
+            # Location
+            "location_location": "us-central1",
+            "location_region": "us-central1",
+            "location_zone": "us-central1-a",
+
+            # Resource
+            "resource_name": f"{service['service_description'].lower().replace(' ', '-')}-{i}",
+            "resource_global_name": f"//cloudresourcemanager.googleapis.com/projects/project-{i}",
+
+            # Pricing and usage
+            "currency": "USD",
+            "currency_conversion_rate": 1.0,
+            "usage_amount": 86400.0 * (i + 1),
+            "usage_unit": service["usage_unit"],
+            "usage_amount_in_pricing_units": 86.4 * (i + 1),
+            "usage_pricing_unit": service["usage_pricing_unit"],
+
+            # Cost categorization
+            "cost_type": "credit" if is_credit else "regular",
+            "credits_total": cost if is_credit else 0.0,
+            "cost_at_list": abs(cost) * 1.1 if not is_credit else 0.0,
+
+            # Invoice
+            "invoice_month": date[:7].replace("-", ""),
+
+            # Labels
+            "labels_json": '{"env": "test", "team": "platform"}',
+            "system_labels_json": None,
+
+            # Hierarchy
+            "x_hierarchy_entity_id": None,
+            "x_hierarchy_entity_name": None,
+            "x_hierarchy_level_code": None,
+            "x_hierarchy_path": None,
+            "x_hierarchy_path_names": None,
+        })
+    return records
 
 
 def make_anthropic_usage_data(

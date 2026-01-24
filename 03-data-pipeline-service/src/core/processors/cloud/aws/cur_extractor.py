@@ -271,7 +271,7 @@ class AWSCURExtractor:
         return {
             # Required fields
             "usage_date": safe_date(get_val("lineItem/UsageStartDate", "line_item_usage_start_date")),
-            "org_slug": self.org_slug,
+            "x_org_slug": self.org_slug,
             "provider": "aws",
             "linked_account_id": get_val("lineItem/UsageAccountId", "line_item_usage_account_id") or "",
             "unblended_cost": safe_float(get_val("lineItem/UnblendedCost", "line_item_unblended_cost")),

@@ -125,7 +125,7 @@ class InfrastructureUsageProcessor:
             pipeline_id = f"genai_infrastructure_usage_{provider}"
             credential_id = credentials.get("credential_id", "default") if credentials else "default"
             for record in usage_records:
-                record["org_slug"] = org_slug
+                record["x_org_slug"] = org_slug
                 record["x_pipeline_id"] = pipeline_id
                 record["x_credential_id"] = credential_id
                 record["x_pipeline_run_date"] = start_date.isoformat()
@@ -316,7 +316,7 @@ class InfrastructureUsageProcessor:
 
                     struct_values.append(f"""STRUCT(
                         DATE('{record.get('usage_date')}') as usage_date,
-                        {escape_str(record.get('org_slug'))} as org_slug,
+                        {escape_str(record.get('x_org_slug'))} as x_org_slug,
                         {escape_str(record.get('provider'))} as provider,
                         {escape_str(record.get('resource_type') or 'gpu')} as resource_type,
                         {escape_str(record.get('instance_type'))} as instance_type,

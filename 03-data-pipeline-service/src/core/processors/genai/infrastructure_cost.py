@@ -144,7 +144,7 @@ class InfrastructureCostProcessor:
                 USING (
                     SELECT
                         u.usage_date as cost_date,
-                        u.org_slug,
+                        u.x_org_slug,
                         u.provider,
                         u.resource_type,
                         u.instance_type,
@@ -240,11 +240,11 @@ class InfrastructureCostProcessor:
                         AND (p.effective_from IS NULL OR p.effective_from <= u.usage_date)
                         AND (p.effective_to IS NULL OR p.effective_to >= u.usage_date)
                     WHERE u.usage_date = @process_date
-                        AND u.org_slug = @org_slug
+                        AND u.x_org_slug = @org_slug
                         {provider_condition}
                 ) S
                 ON T.cost_date = S.cost_date
-                    AND T.org_slug = S.org_slug
+                    AND T.x_org_slug = S.x_org_slug
                     AND T.provider = S.provider
                     AND T.instance_type = S.instance_type
                     AND T.region = S.region
@@ -280,7 +280,7 @@ class InfrastructureCostProcessor:
                             x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
-                    VALUES (S.cost_date, S.org_slug, S.provider, S.resource_type, S.instance_type,
+                    VALUES (S.cost_date, S.x_org_slug, S.provider, S.resource_type, S.instance_type,
                             S.gpu_type, S.region, S.instance_count, S.hours_used, S.gpu_hours,
                             S.pricing_type, S.base_cost_usd, S.discount_applied_usd, S.total_cost_usd,
                             S.effective_hourly_rate,
@@ -418,7 +418,7 @@ class InfrastructureCostProcessor:
                 AND u.region = p.region
                 AND (p.status IS NULL OR p.status = 'active')
             WHERE u.usage_date = @process_date
-                AND u.org_slug = @org_slug
+                AND u.x_org_slug = @org_slug
                 AND p.provider IS NULL
                 {provider_condition}
         """
@@ -442,7 +442,7 @@ class InfrastructureCostProcessor:
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
                 ON h.entity_id = u.x_hierarchy_entity_id
             WHERE u.usage_date = @process_date
-                AND u.org_slug = @org_slug
+                AND u.x_org_slug = @org_slug
                 AND u.x_hierarchy_entity_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}

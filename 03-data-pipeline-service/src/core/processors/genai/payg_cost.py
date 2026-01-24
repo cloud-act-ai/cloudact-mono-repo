@@ -467,7 +467,7 @@ class PAYGCostProcessor:
                     USING (
                     SELECT
                         u.usage_date as cost_date,
-                        u.org_slug,
+                        u.x_org_slug,
                         u.provider,
                         u.model,
                         u.model_family,
@@ -564,11 +564,11 @@ class PAYGCostProcessor:
                         AND (p.effective_from IS NULL OR p.effective_from <= u.usage_date)
                         AND (p.effective_to IS NULL OR p.effective_to >= u.usage_date)
                     WHERE u.usage_date = @process_date
-                        AND u.org_slug = @org_slug
+                        AND u.x_org_slug = @org_slug
                         {provider_condition}
                 ) S
                 ON T.cost_date = S.cost_date
-                    AND T.org_slug = S.org_slug
+                    AND T.x_org_slug = S.x_org_slug
                     AND T.provider = S.provider
                     AND T.model = S.model
                     AND COALESCE(T.region, 'global') = COALESCE(S.region, 'global')
@@ -607,7 +607,7 @@ class PAYGCostProcessor:
                             x_hierarchy_path, x_hierarchy_path_names,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
-                    VALUES (S.cost_date, S.org_slug, S.provider, S.model, S.model_family, S.region,
+                    VALUES (S.cost_date, S.x_org_slug, S.provider, S.model, S.model_family, S.region,
                             S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
                             S.input_cost_usd, S.output_cost_usd, S.cached_cost_usd, S.total_cost_usd,
                             S.discount_applied_pct, S.effective_rate_input, S.effective_rate_output,
@@ -782,7 +782,7 @@ class PAYGCostProcessor:
                 AND (p.region = u.region OR p.region = 'global')
                 AND (p.status IS NULL OR p.status = 'active')
             WHERE u.usage_date = @process_date
-                AND u.org_slug = @org_slug
+                AND u.x_org_slug = @org_slug
                 AND p.provider IS NULL
                 {provider_condition}
         """
@@ -806,7 +806,7 @@ class PAYGCostProcessor:
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
                 ON h.entity_id = u.x_hierarchy_entity_id
             WHERE u.usage_date = @process_date
-                AND u.org_slug = @org_slug
+                AND u.x_org_slug = @org_slug
                 AND u.x_hierarchy_entity_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}

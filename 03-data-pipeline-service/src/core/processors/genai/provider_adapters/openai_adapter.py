@@ -281,7 +281,7 @@ class OpenAIAdapter(BaseGenAIAdapter):
                 if input_tokens > 0 or output_tokens > 0:
                     records.append({
                         "usage_date": usage_date,
-                        "org_slug": self.org_slug,
+                        "x_org_slug": self.org_slug,
                         "provider": self.provider_name,
                         "model": model,
                         "model_family": model_family,

@@ -176,7 +176,7 @@ class OCICostExtractor:
                 row = {
                     # Required fields
                     "usage_date": start_time[:10],
-                    "org_slug": self.org_slug,
+                    "x_org_slug": self.org_slug,
                     "provider": "oci",
                     "tenancy_id": self._auth.tenancy_ocid,
                     "cost": float(item.computed_amount) if item.computed_amount else 0.0,

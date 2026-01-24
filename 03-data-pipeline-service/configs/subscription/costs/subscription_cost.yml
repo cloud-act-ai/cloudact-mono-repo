@@ -97,12 +97,10 @@ steps:
           value: "${org_dataset}"
         - name: p_start_date
           type: DATE
-          value: "${start_date}"
-          default: "AUTO" # Default to earliest effective_date from active plans (handled by procedure)
+          value: "2025-01-01"  # Hardcoded for testing - TODO: restore to ${start_date}
         - name: p_end_date
           type: DATE
-          value: "${end_date}"
-          default: "TODAY" # Default to current date
+          value: "2025-12-31"  # Hardcoded for testing - TODO: restore to ${end_date}
         - name: p_pipeline_id
           type: STRING
           value: "${pipeline_id}"

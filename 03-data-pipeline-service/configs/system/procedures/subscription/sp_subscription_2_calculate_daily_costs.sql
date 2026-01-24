@@ -180,8 +180,7 @@ BEGIN
           x_hierarchy_entity_name,
           x_hierarchy_level_code,
           x_hierarchy_path,
-          x_hierarchy_path_names,
-          x_hierarchy_validated_at
+          x_hierarchy_path_names
         FROM `%s.%s.subscription_plans`
         WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
@@ -219,7 +218,7 @@ BEGIN
       daily_expanded AS (
         -- Generate one row per day per subscription
         SELECT
-          s.org_slug,
+          s.x_org_slug,
           s.provider,
           s.subscription_id,
           s.plan_name,
@@ -407,7 +406,8 @@ BEGIN
           s.x_hierarchy_level_code,
           s.x_hierarchy_path,
           s.x_hierarchy_path_names,
-          s.x_hierarchy_validated_at,
+          -- Compute x_hierarchy_validated_at: set timestamp if hierarchy exists
+          CASE WHEN s.x_hierarchy_entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END AS x_hierarchy_validated_at,
           s.x_org_slug
         FROM with_cycle_cost s
         CROSS JOIN UNNEST(
@@ -490,22 +490,27 @@ BEGIN
   IF v_zero_seat_count > 0 THEN
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.organizations.org_meta_dq_results` (
-        org_slug, table_name, check_name, check_status,
-        rows_checked, rows_passed, rows_failed, error_message,
-        ingestion_date, created_at
+        dq_result_id, pipeline_logging_id, org_slug, target_table, dq_config_id,
+        executed_at, expectations_passed, expectations_failed, failed_expectations,
+        overall_status, user_id, ingestion_date, created_at
       )
       VALUES (
+        GENERATE_UUID(),
+        @p_run_id,
         REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', ''),
         'subscription_plans',
         'null_seats_check',
+        CURRENT_TIMESTAMP(),
+        0,
+        @zero_count,
+        JSON_OBJECT('error_message', CONCAT('Found ', CAST(@zero_count AS STRING), ' active subscriptions with NULL or zero seats (defaulted to 1)')),
         'WARNING',
-        @zero_count, 0, @zero_count,
-        CONCAT('Found ', CAST(@zero_count AS STRING), ' active subscriptions with NULL or zero seats (defaulted to 1)'),
+        NULL,
         CURRENT_DATE(),
         CURRENT_TIMESTAMP()
       )
     """, p_project_id)
-    USING p_dataset_id AS p_ds, v_zero_seat_count AS zero_count;
+    USING p_dataset_id AS p_ds, v_zero_seat_count AS zero_count, p_run_id AS p_run_id;
   END IF;
 
   -- BUG-036 FIX: Log warning if no cost rows inserted (all plans FREE or inactive)
@@ -513,22 +518,27 @@ BEGIN
     -- Log to DQ results for monitoring
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.organizations.org_meta_dq_results` (
-        org_slug, table_name, check_name, check_status,
-        rows_checked, rows_passed, rows_failed, error_message,
-        ingestion_date, created_at
+        dq_result_id, pipeline_logging_id, org_slug, target_table, dq_config_id,
+        executed_at, expectations_passed, expectations_failed, failed_expectations,
+        overall_status, user_id, ingestion_date, created_at
       )
       VALUES (
+        GENERATE_UUID(),
+        @p_run_id,
         REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', ''),
         'subscription_plan_costs_daily',
         'zero_cost_check',
+        CURRENT_TIMESTAMP(),
+        0,
+        0,
+        JSON_OBJECT('error_message', 'No cost data generated - all subscriptions may be FREE or inactive'),
         'WARNING',
-        0, 0, 0,
-        'No cost data generated - all subscriptions may be FREE or inactive',
+        NULL,
         CURRENT_DATE(),
         CURRENT_TIMESTAMP()
       )
     """, p_project_id)
-    USING p_dataset_id AS p_ds;
+    USING p_dataset_id AS p_ds, p_run_id AS p_run_id;
   END IF;
 
   SELECT 'Daily Costs Calculated' AS status,

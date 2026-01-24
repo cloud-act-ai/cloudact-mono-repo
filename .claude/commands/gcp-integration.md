@@ -1,6 +1,6 @@
 # /gcp-integration - GCP Integration Operations
 
-Manage GCP Service Account integrations, billing export tables, and cost pipelines.
+Manage GCP Service Account integrations, billing export tables, cost pipelines, and FOCUS 1.3 conversion.
 
 ## Prerequisites
 
@@ -52,6 +52,123 @@ All credentials are stored in BigQuery only (single source of truth). See `/inte
 /gcp-integration debug <org_slug>           # Show integration status
 /gcp-integration debug <org_slug> --logs    # Show recent pipeline logs
 ```
+
+---
+
+## GCP Billing → FOCUS 1.3 Conversion
+
+### Data Flow
+
+```
+GCP Billing Export → External BQ Query → cloud_gcp_billing_raw_daily → sp_cloud_1_convert_to_focus → cost_data_standard_1_3
+```
+
+### Key Files
+
+| Type | Path |
+|------|------|
+| Pipeline Config | `03-data-pipeline-service/configs/cloud/gcp/cost/billing.yml` |
+| Schema | `03-data-pipeline-service/configs/cloud/gcp/cost/schemas/billing_cost.json` |
+| FOCUS Converter | `03-data-pipeline-service/configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql` |
+| Extractor | `03-data-pipeline-service/src/core/processors/cloud/gcp/external_bq_extractor.py` |
+
+### GCP → FOCUS 1.3 Field Mappings
+
+| FOCUS Field | GCP Source | Description |
+|-------------|------------|-------------|
+| `BilledCost` | `cost` | Gross cost before credits |
+| `EffectiveCost` | `cost + credits_total` | Net cost after credits (credits are negative) |
+| `ListCost` | `list_cost` OR `cost` (fallback) | Full retail price |
+| `ContractedCost` | `cost` | Cost at negotiated rate |
+| `ConsumedQuantity` | `usage_amount` | Raw usage amount |
+| `ConsumedUnit` | `usage_unit` | Usage unit (second, byte, byte-seconds, requests) |
+| `PricingQuantity` | `usage_amount_in_pricing_units` | Usage in pricing units |
+| `PricingUnit` | `usage_pricing_unit` | Pricing unit (vCPU-second, gibibyte month, etc.) |
+| `ChargeCategory` | `cost_type` | 'Usage', 'Credit', 'Tax', 'Adjustment' |
+| `ChargeClass` | Derived | 'Correction' for credits, NULL otherwise |
+| `SubAccountId` | `project_id` | GCP Project ID |
+| `ServiceName` | `service_description` | e.g., "Cloud Run", "BigQuery" |
+| `ServiceCategory` | Derived from service | Compute, Storage, Database, Networking, AI/ML |
+
+### GCP Credit Handling
+
+GCP credits have:
+- `cost_type = 'credit'` (or similar)
+- Negative `cost` value
+- `credits_total` field (sum of credit amounts)
+- `credits_json` field (detailed credit breakdown)
+
+**Demo data pattern:**
+```json
+{
+  "cost": -5.50,
+  "cost_type": "credit",
+  "credits_total": -5.50,
+  "credits_json": "[{\"name\": \"Sustained use discount\", \"amount\": -5.50}]"
+}
+```
+
+### GCP Usage Metrics Priority
+
+When displaying usage in the UI, use this priority order:
+1. **Time-based**: seconds, vCPU-second, build-minute
+2. **Byte-based**: byte, gibibyte, tebibyte
+3. **Request-based**: requests, queries
+4. **Byte-seconds**: byte-seconds, gibibyte month
+
+### GCP Billing Schema (Key Fields)
+
+```json
+{
+  "billing_account_id": "STRING, REQUIRED",
+  "project_id": "STRING, REQUIRED",
+  "project_name": "STRING",
+  "service_id": "STRING",
+  "service_description": "STRING",
+  "sku_id": "STRING",
+  "sku_description": "STRING",
+  "usage_start_time": "TIMESTAMP, REQUIRED",
+  "usage_end_time": "TIMESTAMP, REQUIRED",
+  "cost": "FLOAT64, REQUIRED",
+  "currency": "STRING",
+  "cost_type": "STRING",
+  "credits_total": "FLOAT64",
+  "credits_json": "STRING",
+  "usage_amount": "FLOAT64",
+  "usage_unit": "STRING",
+  "usage_amount_in_pricing_units": "FLOAT64",
+  "usage_pricing_unit": "STRING",
+  "list_cost": "FLOAT64",
+  "labels_json": "STRING",
+  "resource_name": "STRING",
+  "resource_global_name": "STRING"
+}
+```
+
+### 5-Field Hierarchy Model
+
+GCP billing integrates with the hierarchy system via tag lookups:
+
+```sql
+-- In sp_cloud_1_convert_to_focus (GCP section)
+LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+  -- GCP labels (case-insensitive)
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.cost_center'),
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.CostCenter'),
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.team'),
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.Team'),
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.department'),
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.Department'),
+  JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.labels_json), '$.entity_id')
+)
+```
+
+**Result fields in cost_data_standard_1_3:**
+- `x_hierarchy_entity_id` - TEAM-PLAT
+- `x_hierarchy_entity_name` - Platform Team
+- `x_hierarchy_level_code` - team
+- `x_hierarchy_path` - /DEPT-CTO/PROJ-ENG/TEAM-PLAT
+- `x_hierarchy_path_names` - CTO > Engineering > Platform
 
 ---
 
@@ -155,11 +272,20 @@ curl -X POST "http://localhost:8000/api/v1/integrations/{org_slug}/gcp/validate"
 
 **Run billing pipeline:**
 ```bash
+# Default (yesterday's data)
 curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: {org_api_key}" \
-  -d '{"date": "2026-01-18"}'
+  -H "X-API-Key: {org_api_key}"
+
+# Specific date range
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing?start_date=2026-01-01&end_date=2026-01-22" \
+  -H "X-API-Key: {org_api_key}"
 ```
+
+**Pipeline steps:**
+1. `decrypt_credentials` - Decrypt GCP SA from KMS
+2. `delete_existing_data` - Remove existing data for date range (idempotent)
+3. `extract_billing` - Query GCP billing export table
+4. `convert_to_focus` - Run `sp_cloud_1_convert_to_focus` procedure
 
 ### Action: run-api
 
@@ -201,6 +327,12 @@ bq query --use_legacy_sql=false \
 bq query --use_legacy_sql=false \
   "SELECT COUNT(*) as rows, MIN(usage_start_time) as min_date, MAX(usage_start_time) as max_date
    FROM \`{org_slug}_prod.cloud_gcp_billing_raw_daily\`"
+
+# 4. Check FOCUS data
+bq query --use_legacy_sql=false \
+  "SELECT COUNT(*) as rows, SUM(BilledCost) as total_billed, SUM(EffectiveCost) as total_effective
+   FROM \`{org_slug}_prod.cost_data_standard_1_3\`
+   WHERE x_cloud_provider = 'gcp'"
 ```
 
 ## Billing Export Table Types
@@ -228,6 +360,7 @@ Configure via UI: Settings → Integrations → GCP → Billing Export Tables �
 | Pipeline | Config | Destination |
 |----------|--------|-------------|
 | Billing | `cloud/gcp/cost/billing.yml` | `cloud_gcp_billing_raw_daily` |
+| FOCUS Convert | `cloud/gcp/cost/focus_convert.yml` | `cost_data_standard_1_3` |
 | Storage Buckets | `cloud/gcp/api/storage_buckets.yml` | `gcp_storage_buckets_raw` |
 | IAM Service Accounts | `cloud/gcp/api/iam_service_accounts.yml` | `gcp_iam_service_accounts_raw` |
 | Compute Instances | `cloud/gcp/api/compute_instances.yml` | `gcp_compute_instances_raw` |
@@ -241,9 +374,23 @@ Configure via UI: Settings → Integrations → GCP → Billing Export Tables �
 | API | `src/app/routers/integrations.py` | Endpoints |
 | API | `src/lib/integrations/metadata_schemas.py` | Metadata validation |
 | Pipeline | `configs/cloud/gcp/cost/billing.yml` | Billing pipeline config |
+| Pipeline | `configs/cloud/gcp/cost/schemas/billing_cost.json` | Raw billing schema |
+| Pipeline | `configs/system/procedures/cloud/sp_cloud_1_convert_to_focus.sql` | FOCUS converter |
 | Pipeline | `src/core/processors/cloud/gcp/external_bq_extractor.py` | BQ extractor |
 | Pipeline | `src/core/processors/cloud/gcp/gcp_api_extractor.py` | API extractor |
 | Pipeline | `src/core/processors/cloud/gcp/authenticator.py` | Authentication |
+
+## Stored Procedure Sync
+
+**After modifying `sp_cloud_1_convert_to_focus.sql`, sync to BigQuery:**
+
+```bash
+# Force sync all procedures
+curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
+  -H "X-CA-Root-Key: {root_key}" \
+  -H "Content-Type: application/json" \
+  -d '{"force": true}'
+```
 
 ## Issue Status
 
@@ -259,6 +406,8 @@ Configure via UI: Settings → Integrations → GCP → Billing Export Tables �
 | GCP-008 | Pagination limit too high (10000) | **FIXED** - Reduced to 1000 |
 | GCP-009 | No region enforcement | **FIXED** - Region format validation |
 | GCP-010 | Query timeout logging incomplete | **FIXED** - Enhanced job logging |
+| GCP-011 | Usage display shows wrong units | **FIXED** - Priority: time > bytes > requests |
+| GCP-012 | Credits not showing in FOCUS | **FIXED** - ChargeCategory + ChargeClass mapping |
 
 ## Data Architecture
 
@@ -278,6 +427,8 @@ Frontend ──▶ API (8000) ──▶ BigQuery (org_integration_credentials)
 | Table | Location | Purpose |
 |-------|----------|---------|
 | `org_integration_credentials` | BigQuery | Source of truth for credentials |
+| `cloud_gcp_billing_raw_daily` | Org dataset | Raw GCP billing data |
+| `cost_data_standard_1_3` | Org dataset | FOCUS 1.3 unified costs |
 | `organizations` | Supabase | User auth only (NOT integration status) |
 
 ### Debug Data Sync Issues
@@ -309,30 +460,14 @@ WHERE org_slug = '{org_slug}'
 
 ## Troubleshooting
 
-**"billing_export_table is not configured"**
-- Go to Settings → Integrations → GCP → Billing Export Tables
-- Add the fully qualified table path: `project.dataset.table_name`
-
-**"Billing export table not found"**
-- Verify the table exists in BigQuery Console
-- Check the table path format: `project.dataset.table`
-- Ensure the SA has `roles/bigquery.dataViewer` access
-
-**"Permission denied: bigquery.tables.getData"**
-- Grant `roles/bigquery.dataViewer` to the Service Account
-- Verify the SA has access to the billing export dataset
-
-**"Credential validation failed"**
-- Check if SA is disabled in IAM Console
-- Verify private key hasn't been rotated
-- Re-upload the SA JSON
-
-**"Pipeline times out"**
-- Check billing export table size
-- Consider filtering by date range
-- Default timeout is 10 minutes (600s)
-
-**"Query execution failed"**
-- Check BigQuery job quota
-- Verify dataset/table permissions
-- Review error in pipeline logs
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "billing_export_table is not configured" | Missing metadata | Settings → Integrations → GCP → Add billing table |
+| "Billing export table not found" | Wrong table path | Verify `project.dataset.table` format |
+| "Permission denied: bigquery.tables.getData" | Missing role | Grant `roles/bigquery.dataViewer` to SA |
+| "Credential validation failed" | SA disabled/rotated | Re-upload SA JSON |
+| "Pipeline times out" | Large table | Use date range filter |
+| "Query execution failed" | Quota/permissions | Check BigQuery job quota |
+| "Column X not present" | Schema mismatch | Sync stored procedures with `{"force": true}` |
+| Credits not showing | Wrong ChargeCategory | Check `cost_type` field mapping |
+| Hierarchy not resolving | Missing tags | Add `cost_center` label to GCP resources |

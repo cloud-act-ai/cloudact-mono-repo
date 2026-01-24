@@ -613,6 +613,7 @@ class PlanCreate(BaseModel):
     owner_email: Optional[str] = Field(None, max_length=200)
     department: Optional[str] = Field(None, max_length=100)
     start_date: Optional[date] = None
+    end_date: Optional[date] = None
     renewal_date: Optional[date] = None
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
@@ -1906,7 +1907,7 @@ async def create_plan(
     insert_query = f"""
     INSERT INTO `{table_ref}` (
         org_slug, subscription_id, provider, plan_name, display_name,
-        category, status, start_date, billing_cycle, currency, seats,
+        category, status, start_date, end_date, billing_cycle, currency, seats,
         pricing_model, unit_price, yearly_price, discount_type,
         discount_value, auto_renew, payment_method, owner_email, department,
         renewal_date, contract_id, notes, source_currency, source_price,
@@ -1923,6 +1924,7 @@ async def create_plan(
         @category,
         @status,
         @start_date,
+        @end_date,
         @billing_cycle,
         @currency,
         @seats,
@@ -1961,6 +1963,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("category", "STRING", category),
                 bigquery.ScalarQueryParameter("status", "STRING", initial_status),
                 bigquery.ScalarQueryParameter("start_date", "DATE", effective_start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", plan.end_date),
                 bigquery.ScalarQueryParameter("billing_cycle", "STRING", plan.billing_cycle),
                 bigquery.ScalarQueryParameter("currency", "STRING", plan.currency),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),

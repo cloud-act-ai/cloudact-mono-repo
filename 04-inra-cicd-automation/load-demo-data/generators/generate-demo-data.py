@@ -151,125 +151,129 @@ CREDIT_PERCENTAGE = 0.07  # 7% of records will be credits
 
 # GCP Services with realistic usage patterns
 # Schema: gcp_billing_cost.json (matches 03-data-pipeline-service/configs/cloud/gcp/cost/schemas/billing_cost.json)
+# Target: ~$50-200 total per provider for 30 days
 GCP_SERVICES = [
     {
         "service_id": "6F81-5844-456A", "service_description": "Cloud Run",
         "sku_id": "D2C2-5678-ABCD", "sku_description": "CPU Allocation Time",
-        "base_cost": 2.50, "usage_unit": "second", "usage_pricing_unit": "vCPU-second",
+        "base_cost": 0.80, "usage_unit": "second", "usage_pricing_unit": "vCPU-second",
         "base_usage": 86400, "price_per_unit": 0.000024
     },
     {
         "service_id": "24E6-581D-38E5", "service_description": "Cloud Build",
         "sku_id": "E4F5-6789-BCDE", "sku_description": "Build Time",
-        "base_cost": 1.80, "usage_unit": "second", "usage_pricing_unit": "build-minute",
+        "base_cost": 0.60, "usage_unit": "second", "usage_pricing_unit": "build-minute",
         "base_usage": 3600, "price_per_unit": 0.003
     },
     {
         "service_id": "95FF-2EF5-5EA1", "service_description": "BigQuery",
         "sku_id": "F5G6-7890-CDEF", "sku_description": "Analysis",
-        "base_cost": 3.50, "usage_unit": "byte", "usage_pricing_unit": "tebibyte",
+        "base_cost": 1.20, "usage_unit": "byte", "usage_pricing_unit": "tebibyte",
         "base_usage": 1099511627776, "price_per_unit": 5.0  # 1TB scanned
     },
     {
         "service_id": "152E-C115-5142", "service_description": "Cloud Storage",
         "sku_id": "G6H7-8901-DEFG", "sku_description": "Standard Storage US Multi-region",
-        "base_cost": 1.20, "usage_unit": "byte-seconds", "usage_pricing_unit": "gibibyte month",
+        "base_cost": 0.40, "usage_unit": "byte-seconds", "usage_pricing_unit": "gibibyte month",
         "base_usage": 53687091200000, "price_per_unit": 0.020  # 50GB for 30 days
     },
     {
         "service_id": "9662-B51E-5089", "service_description": "Cloud Key Management Service",
         "sku_id": "H7I8-9012-EFGH", "sku_description": "Active software symmetric key versions",
-        "base_cost": 0.30, "usage_unit": "requests", "usage_pricing_unit": "key version",
+        "base_cost": 0.10, "usage_unit": "requests", "usage_pricing_unit": "key version",
         "base_usage": 10000, "price_per_unit": 0.00003
     },
 ]
 
 # AWS Services with realistic usage patterns
 # Schema: aws_billing_cost.json
+# Target: ~$50-200 total per provider for 30 days
 AWS_SERVICES = [
     {
         "service_code": "AmazonEC2", "product_name": "Amazon Elastic Compute Cloud",
         "usage_type": "USW2-BoxUsage:t3.medium", "operation": "RunInstances",
-        "base_cost": 3.20, "usage_unit": "Hrs", "pricing_unit": "Hrs",
+        "base_cost": 1.00, "usage_unit": "Hrs", "pricing_unit": "Hrs",
         "base_usage": 24, "price_per_unit": 0.0416
     },
     {
         "service_code": "AmazonS3", "product_name": "Amazon Simple Storage Service",
         "usage_type": "USW2-TimedStorage-ByteHrs", "operation": "StandardStorage",
-        "base_cost": 1.50, "usage_unit": "GB-Mo", "pricing_unit": "GB-Mo",
+        "base_cost": 0.50, "usage_unit": "GB-Mo", "pricing_unit": "GB-Mo",
         "base_usage": 100, "price_per_unit": 0.023
     },
     {
         "service_code": "AWSLambda", "product_name": "AWS Lambda",
         "usage_type": "USW2-Lambda-GB-Second", "operation": "Invoke",
-        "base_cost": 0.80, "usage_unit": "Lambda-GB-Second", "pricing_unit": "Lambda-GB-Second",
+        "base_cost": 0.30, "usage_unit": "Lambda-GB-Second", "pricing_unit": "Lambda-GB-Second",
         "base_usage": 400000, "price_per_unit": 0.0000166667
     },
     {
         "service_code": "AmazonRDS", "product_name": "Amazon Relational Database Service",
         "usage_type": "USW2-InstanceUsage:db.t3.medium", "operation": "CreateDBInstance",
-        "base_cost": 2.40, "usage_unit": "Hrs", "pricing_unit": "Hrs",
+        "base_cost": 0.80, "usage_unit": "Hrs", "pricing_unit": "Hrs",
         "base_usage": 24, "price_per_unit": 0.068
     },
     {
         "service_code": "AmazonCloudWatch", "product_name": "Amazon CloudWatch",
         "usage_type": "USW2-CW:Requests", "operation": "GetMetricData",
-        "base_cost": 0.50, "usage_unit": "Requests", "pricing_unit": "Requests",
+        "base_cost": 0.20, "usage_unit": "Requests", "pricing_unit": "Requests",
         "base_usage": 50000, "price_per_unit": 0.00001
     },
 ]
 
 # Azure Services with realistic usage patterns
 # Schema: azure_billing_cost.json
+# Target: ~$50-200 total per provider for 30 days
 AZURE_SERVICES = [
     {
         "meter_category": "Virtual Machines", "service_name": "Virtual Machines",
         "resource_type": "Microsoft.Compute/virtualMachines",
         "meter_subcategory": "D2s v3",
-        "base_cost": 2.80, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.096
+        "base_cost": 0.90, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.096
     },
     {
         "meter_category": "Storage", "service_name": "Storage",
         "resource_type": "Microsoft.Storage/storageAccounts",
         "meter_subcategory": "Standard HDD Managed Disks",
-        "base_cost": 1.00, "unit_of_measure": "GB/Month", "base_usage": 128, "price_per_unit": 0.04
+        "base_cost": 0.35, "unit_of_measure": "GB/Month", "base_usage": 128, "price_per_unit": 0.04
     },
     {
         "meter_category": "Azure App Service", "service_name": "App Service",
         "resource_type": "Microsoft.Web/sites",
         "meter_subcategory": "B1 Basic",
-        "base_cost": 1.50, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.018
+        "base_cost": 0.50, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.018
     },
     {
         "meter_category": "Azure SQL Database", "service_name": "SQL Database",
         "resource_type": "Microsoft.Sql/servers/databases",
         "meter_subcategory": "Basic",
-        "base_cost": 1.20, "unit_of_measure": "DTU-Hours", "base_usage": 720, "price_per_unit": 0.0025
+        "base_cost": 0.40, "unit_of_measure": "DTU-Hours", "base_usage": 720, "price_per_unit": 0.0025
     },
 ]
 
 # OCI Services with realistic usage patterns
 # Schema: oci_billing_cost.json
+# Target: ~$50-200 total per provider for 30 days
 OCI_SERVICES = [
     {
         "service_name": "COMPUTE", "sku_name": "VM.Standard.E4.Flex",
         "sku_part_number": "B92484",
-        "base_cost": 2.00, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.025
+        "base_cost": 0.65, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.025
     },
     {
         "service_name": "OBJECT_STORAGE", "sku_name": "Object Storage - Storage",
         "sku_part_number": "B91962",
-        "base_cost": 0.80, "unit": "GB MONTHS", "base_usage": 100, "price_per_unit": 0.0255
+        "base_cost": 0.25, "unit": "GB MONTHS", "base_usage": 100, "price_per_unit": 0.0255
     },
     {
         "service_name": "AUTONOMOUS_DATABASE", "sku_name": "Autonomous Transaction Processing",
         "sku_part_number": "B91616",
-        "base_cost": 1.80, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.2546
+        "base_cost": 0.60, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.2546
     },
     {
         "service_name": "FUNCTIONS", "sku_name": "Functions - Requests",
         "sku_part_number": "B92166",
-        "base_cost": 0.40, "unit": "REQUESTS", "base_usage": 1000000, "price_per_unit": 0.0000002
+        "base_cost": 0.15, "unit": "REQUESTS", "base_usage": 1000000, "price_per_unit": 0.0000002
     },
 ]
 
@@ -734,152 +738,280 @@ def generate_aws_billing_data(start_date: date, end_date: date) -> List[Dict]:
 
 
 def generate_azure_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate Azure billing data with realistic patterns."""
+    """
+    Generate Azure billing data with realistic patterns.
+
+    Schema matches: 04-inra-cicd-automation/load-demo-data/schemas/azure_billing_cost.json
+
+    Cost distribution: ~93% regular costs (positive), ~7% credits (negative/refunds)
+    """
     print("Generating Azure billing data...")
     records = []
     current_date = start_date
+    record_index = 0
 
     while current_date <= end_date:
         run_id = generate_run_id("azure", current_date)
         combined_mult = get_combined_multiplier(current_date, start_date)
 
-        for service in AZURE_SERVICES:
-            cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
-            usage_quantity = round(random.uniform(10, 200), 2)
+        # Calculate billing period end
+        if current_date.month < 12:
+            billing_end = date(current_date.year, current_date.month + 1, 1).isoformat()
+        else:
+            billing_end = date(current_date.year + 1, 1, 1).isoformat()
 
-            # Calculate billing period end
-            if current_date.month < 12:
-                billing_end = date(current_date.year, current_date.month + 1, 1).isoformat()
-            else:
-                billing_end = date(current_date.year + 1, 1, 1).isoformat()
+        for service in AZURE_SERVICES:
+            record_index += 1
+            is_credit = random.random() < CREDIT_PERCENTAGE
+
+            # Calculate cost with realistic variation
+            base = service["base_cost"] * combined_mult * random.uniform(0.7, 1.3)
+            cost = round(-abs(base) if is_credit else abs(base), 4)
+
+            # Calculate realistic usage quantity
+            usage_mult = combined_mult * random.uniform(0.8, 1.2)
+            usage_quantity = round(service["base_usage"] * usage_mult, 2)
+
+            # Charge type determines if it's a refund/credit
+            charge_type = "Refund" if is_credit else "Usage"
 
             record = {
+                # Required fields
                 "usage_date": current_date.isoformat(),
                 "org_slug": ORG_SLUG,
                 "provider": "azure",
                 "subscription_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                "subscription_name": "India Inc Production",
-                "resource_group": "india-inc-prod-rg",
-                "resource_id": f"/subscriptions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/resourceGroups/india-inc-prod-rg/providers/{service['resource_type']}/resource-{random.randint(1000, 9999)}",
-                "resource_name": f"{service['service_name'].lower().replace(' ', '-')}-{random.randint(1, 5)}",
-                "resource_type": service["resource_type"],
-                "resource_location": "eastus",
-                "service_name": service["service_name"],
-                "service_tier": "Standard",
-                "service_family": "Compute",
-                "meter_id": str(uuid.uuid4()),
-                "meter_name": f"{service['service_name']} Usage",
-                "meter_category": service["meter_category"],
-                "meter_subcategory": "General Purpose",
-                "meter_region": "US East",
-                "product_name": service["service_name"],
-                "product_order_id": None,
-                "product_order_name": None,
-                "consumed_service": service["resource_type"].split("/")[0],
-                "charge_type": "Usage",
-                "billing_period_start": current_date.replace(day=1).isoformat(),
-                "billing_period_end": billing_end,
-                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
-                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
-                "usage_quantity": usage_quantity,
-                "unit_of_measure": "Hours",
                 "cost_in_billing_currency": cost,
-                "cost_in_usd": cost,
-                "billing_currency": "USD",
-                "exchange_rate": 1.0,
-                "effective_price": round(cost / max(usage_quantity, 1), 4),
-                "unit_price": round(cost / max(usage_quantity, 1) * 1.1, 4),
-                "pricing_model": "OnDemand",
-                "reservation_id": None,
-                "reservation_name": None,
-                "frequency": "UsageBased",
-                "publisher_type": "Azure",
-                "publisher_name": "Microsoft",
-                "invoice_id": f"INV-{current_date.strftime('%Y%m')}-AZURE",
-                "invoice_section_id": None,
-                "invoice_section_name": None,
-                "billing_account_id": "billing-acct-001",
-                "billing_account_name": "India Inc Billing",
-                "billing_profile_id": "profile-001",
-                "billing_profile_name": "Default Profile",
-                "cost_center": "Engineering",
-                "benefit_id": None,
-                "benefit_name": None,
-                "is_azure_credit_eligible": True,
-                "resource_tags_json": json.dumps({"env": "prod", "team": "engineering"}),
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
                 "x_pipeline_id": "cloud_cost_azure",
                 "x_credential_id": "cred_azure_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
                 "x_run_id": run_id,
                 "x_ingested_at": f"{current_date.isoformat()}T23:59:59Z",
+
+                # Subscription info
+                "subscription_name": "ACME Production Subscription",
+                "resource_group": "acme-prod-rg",
+
+                # Resource identification
+                "resource_id": f"/subscriptions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/resourceGroups/acme-prod-rg/providers/{service['resource_type']}/resource-{uuid.uuid4().hex[:6]}",
+                "resource_name": f"{service['service_name'].lower().replace(' ', '-')}-{random.randint(1, 5)}",
+                "resource_type": service["resource_type"],
+                "resource_location": "eastus",
+
+                # Service info
+                "service_name": service["service_name"],
+                "service_tier": "Standard",
+                "service_family": service["meter_category"],
+
+                # Meter info
+                "meter_id": str(uuid.uuid4()),
+                "meter_name": f"{service['service_name']} {service['meter_subcategory']}",
+                "meter_category": service["meter_category"],
+                "meter_subcategory": service["meter_subcategory"],
+                "meter_region": "US East",
+
+                # Product
+                "product_name": service["service_name"],
+                "product_order_id": None,
+                "product_order_name": None,
+                "consumed_service": service["resource_type"].split("/")[0],
+
+                # Charge type (Usage, Purchase, Refund, etc.)
+                "charge_type": charge_type,
+
+                # Billing period
+                "billing_period_start": current_date.replace(day=1).isoformat(),
+                "billing_period_end": billing_end,
+
+                # Time period
+                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
+                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
+
+                # Usage - REALISTIC VALUES
+                "usage_quantity": usage_quantity,
+                "unit_of_measure": service["unit_of_measure"],
+
+                # Cost details
+                "cost_in_usd": cost,
+                "billing_currency": "USD",
+                "exchange_rate": 1.0,
+                "effective_price": round(service["price_per_unit"], 6),
+                "unit_price": round(service["price_per_unit"] * 1.1, 6),
+
+                # Pricing model
+                "pricing_model": "OnDemand",
+                "reservation_id": None,
+                "reservation_name": None,
+                "frequency": "UsageBased",
+
+                # Publisher
+                "publisher_type": "Azure",
+                "publisher_name": "Microsoft",
+
+                # Billing account
+                "invoice_id": f"INV-{current_date.strftime('%Y%m')}-AZURE",
+                "invoice_section_id": "section-001",
+                "invoice_section_name": "Engineering",
+                "billing_account_id": "billing-acct-001",
+                "billing_account_name": "ACME Inc Billing",
+                "billing_profile_id": "profile-001",
+                "billing_profile_name": "Default Profile",
+                "cost_center": "Engineering",
+
+                # Benefits
+                "benefit_id": None,
+                "benefit_name": None,
+                "is_azure_credit_eligible": True,
+
+                # Tags
+                "resource_tags_json": json.dumps({
+                    "env": "prod",
+                    "team": "platform",
+                    "cost_center": "engineering"
+                }),
+
+                # Hierarchy fields (to be populated by pipeline)
+                "x_hierarchy_entity_id": None,
+                "x_hierarchy_entity_name": None,
+                "x_hierarchy_level_code": None,
+                "x_hierarchy_path": None,
+                "x_hierarchy_path_names": None,
             }
             records.append(record)
 
         current_date += timedelta(days=1)
 
+    # Summary stats
+    total_costs = sum(r["cost_in_billing_currency"] for r in records if r["cost_in_billing_currency"] > 0)
+    total_credits = sum(r["cost_in_billing_currency"] for r in records if r["cost_in_billing_currency"] < 0)
+    credit_records = len([r for r in records if r["cost_in_billing_currency"] < 0])
+
     print(f"  Generated {len(records)} records")
+    print(f"    Costs: ${total_costs:.2f} ({len(records) - credit_records} records)")
+    print(f"    Credits: ${total_credits:.2f} ({credit_records} records)")
+    print(f"    Net: ${total_costs + total_credits:.2f}")
     return records
 
 
 def generate_oci_billing_data(start_date: date, end_date: date) -> List[Dict]:
-    """Generate OCI billing data with realistic patterns."""
+    """
+    Generate OCI billing data with realistic patterns.
+
+    Schema matches: 04-inra-cicd-automation/load-demo-data/schemas/oci_billing_cost.json
+
+    Cost distribution: ~93% regular costs (positive), ~7% corrections/credits (negative)
+    """
     print("Generating OCI billing data...")
     records = []
     current_date = start_date
+    record_index = 0
 
     while current_date <= end_date:
         run_id = generate_run_id("oci", current_date)
         combined_mult = get_combined_multiplier(current_date, start_date)
 
         for service in OCI_SERVICES:
-            cost = round(service["base_cost"] * combined_mult * random.uniform(0.8, 1.2), 2)
-            usage_quantity = round(random.uniform(5, 50), 2)
+            record_index += 1
+            is_credit = random.random() < CREDIT_PERCENTAGE
+
+            # Calculate cost with realistic variation
+            base = service["base_cost"] * combined_mult * random.uniform(0.7, 1.3)
+            cost = round(-abs(base) if is_credit else abs(base), 4)
+
+            # Calculate realistic usage quantity
+            usage_mult = combined_mult * random.uniform(0.8, 1.2)
+            usage_quantity = round(service["base_usage"] * usage_mult, 2)
 
             record = {
+                # Required fields
                 "usage_date": current_date.isoformat(),
                 "org_slug": ORG_SLUG,
                 "provider": "oci",
-                "tenancy_id": "ocid1.tenancy.oc1..aaaaaaaaindiaincprod",
-                "tenancy_name": "India Inc Production",
-                "compartment_id": "ocid1.compartment.oc1..aaaaaaaaprod",
-                "compartment_name": "Production",
-                "compartment_path": "/Production",
-                "region": "us-ashburn-1",
-                "availability_domain": "AD-1",
-                "service_name": service["service"],
-                "sku_name": service["sku_name"],
-                "sku_part_number": f"B{random.randint(10000, 99999)}",
-                "resource_id": f"ocid1.{service['service'].lower()}.oc1..aaaaaaaademo{random.randint(1000, 9999)}",
-                "resource_name": f"{service['service'].lower()}-instance-{random.randint(1, 5)}",
-                "usage_type": "USAGE",
-                "unit": "HOURS",
-                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
-                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
-                "usage_quantity": usage_quantity,
-                "computed_quantity": usage_quantity,
+                "tenancy_id": "ocid1.tenancy.oc1..aaaaaaaademoacmeprod",
                 "cost": cost,
-                "unit_price": round(cost / max(usage_quantity, 1), 4),
-                "currency": "USD",
-                "overage_flag": "N",
-                "is_correction": False,
-                "subscription_id": "sub_oci_demo_001",
-                "platform_type": "IAAS",
-                "billing_period": current_date.strftime("%Y-%m"),
-                "freeform_tags_json": json.dumps({"env": "prod", "team": "engineering"}),
-                "defined_tags_json": json.dumps({"Oracle-Tags": {"CreatedBy": "demo"}}),
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
                 "x_pipeline_id": "cloud_cost_oci",
                 "x_credential_id": "cred_oci_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
                 "x_run_id": run_id,
                 "x_ingested_at": f"{current_date.isoformat()}T23:59:59Z",
+
+                # Tenancy info
+                "tenancy_name": "ACME Inc Production",
+
+                # Compartment info
+                "compartment_id": "ocid1.compartment.oc1..aaaaaaaaprod",
+                "compartment_name": "Production",
+                "compartment_path": "/ACME Inc/Production",
+
+                # Location
+                "region": "us-ashburn-1",
+                "availability_domain": "AD-1",
+
+                # Service identification
+                "service_name": service["service_name"],
+                "sku_name": service["sku_name"],
+                "sku_part_number": service["sku_part_number"],
+
+                # Resource
+                "resource_id": f"ocid1.{service['service_name'].lower()}.oc1..aaaaaaaademo{uuid.uuid4().hex[:8]}",
+                "resource_name": f"{service['service_name'].lower()}-{random.randint(1, 5)}",
+
+                # Usage type (USAGE for regular, CORRECTION for credits)
+                "usage_type": "CORRECTION" if is_credit else "USAGE",
+
+                # Usage - REALISTIC VALUES
+                "unit": service["unit"],
+                "usage_start_time": f"{current_date.isoformat()}T00:00:00Z",
+                "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
+                "usage_quantity": usage_quantity,
+                "computed_quantity": usage_quantity,
+
+                # Pricing
+                "unit_price": round(service["price_per_unit"], 6),
+                "currency": "USD",
+
+                # Flags
+                "overage_flag": "N",
+                "is_correction": is_credit,
+
+                # Subscription
+                "subscription_id": "sub_oci_demo_001",
+                "platform_type": "IAAS",
+                "billing_period": current_date.strftime("%Y-%m"),
+
+                # Tags
+                "freeform_tags_json": json.dumps({
+                    "env": "prod",
+                    "team": "platform",
+                    "cost_center": "engineering"
+                }),
+                "defined_tags_json": json.dumps({
+                    "Oracle-Tags": {"CreatedBy": "terraform"},
+                    "CostTracking": {"CostCenter": "engineering"}
+                }),
+
+                # Hierarchy fields (to be populated by pipeline)
+                "x_hierarchy_entity_id": None,
+                "x_hierarchy_entity_name": None,
+                "x_hierarchy_level_code": None,
+                "x_hierarchy_path": None,
+                "x_hierarchy_path_names": None,
             }
             records.append(record)
 
         current_date += timedelta(days=1)
 
+    # Summary stats
+    total_costs = sum(r["cost"] for r in records if r["cost"] > 0)
+    total_credits = sum(r["cost"] for r in records if r["cost"] < 0)
+    credit_records = len([r for r in records if r["cost"] < 0])
+
     print(f"  Generated {len(records)} records")
+    print(f"    Costs: ${total_costs:.2f} ({len(records) - credit_records} records)")
+    print(f"    Credits: ${total_credits:.2f} ({credit_records} records)")
+    print(f"    Net: ${total_costs + total_credits:.2f}")
     return records
 
 
@@ -1059,13 +1191,30 @@ def print_summary(start_date: date, end_date: date):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate demo data for CloudAct")
-    parser.add_argument("--start-date", type=str, default="2025-01-01", help="Start date (YYYY-MM-DD)")
-    parser.add_argument("--end-date", type=str, default="2026-01-02", help="End date (YYYY-MM-DD)")
+    parser.add_argument("--start-date", type=str, default=None, help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=str, default=None, help="End date (YYYY-MM-DD)")
     parser.add_argument("--seed", type=int, default=RANDOM_SEED, help="Random seed for reproducibility")
+    parser.add_argument("--demo", action="store_true", help="Generate 30 days of demo data (recommended for testing)")
+    parser.add_argument("--full-year", action="store_true", help="Generate full year of data (2025)")
     args = parser.parse_args()
 
-    start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
-    end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+    # Determine date range
+    if args.demo:
+        # Demo mode: last 30 days from today
+        end_date = date.today()
+        start_date = end_date - timedelta(days=29)
+    elif args.full_year:
+        # Full year mode: entire 2025
+        start_date = date(2025, 1, 1)
+        end_date = date(2026, 1, 2)
+    elif args.start_date and args.end_date:
+        # Custom date range
+        start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+    else:
+        # Default: last 30 days (demo mode)
+        end_date = date.today()
+        start_date = end_date - timedelta(days=29)
 
     # Set random seed for reproducibility
     random.seed(args.seed)

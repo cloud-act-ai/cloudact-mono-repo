@@ -246,6 +246,17 @@ BEGIN
     -- ============================================================================
     -- AWS Billing to FOCUS 1.3
     -- Uses 5-field x_hierarchy_* model (NEW design)
+    -- FOCUS 1.3 compliant: Includes pricing details, discounts, commitment info
+    --
+    -- AWS CUR FIELD MAPPINGS:
+    -- - BilledCost: unblended_cost (gross cost before credits)
+    -- - EffectiveCost: net_unblended_cost (net cost after credits/discounts)
+    -- - ListCost: public_on_demand_cost (full retail price)
+    -- - ContractedCost: amortized_cost (RI/SP amortized)
+    -- - ConsumedQuantity: usage_amount
+    -- - ConsumedUnit: usage_unit
+    -- - ChargeCategory: Credit for negative costs, Tax for tax line items
+    -- - SubAccountId: linked_account_id (member account in AWS Organizations)
     -- ============================================================================
     IF p_provider IN ('aws', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
@@ -255,8 +266,9 @@ BEGIN
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
          ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         PricingQuantity, ListUnitPrice, ContractedUnitPrice,
          ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
+         ChargeCategory, ChargeClass, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
@@ -291,50 +303,104 @@ BEGIN
           'AWS' as ServiceProviderName,
           'AWS' as HostProviderName,
 
+          -- ServiceCategory: Map AWS product families to FOCUS categories
           CASE
-            WHEN b.service_code LIKE '%%EC2%%' OR b.product_code LIKE '%%EC2%%' THEN 'Compute'
-            WHEN b.service_code LIKE '%%S3%%' THEN 'Storage'
-            WHEN b.service_code LIKE '%%RDS%%' THEN 'Database'
-            WHEN b.service_code LIKE '%%Lambda%%' THEN 'Compute'
+            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%COMPUTE%%' THEN 'Compute'
+            WHEN b.service_code IN ('AmazonEC2', 'AWSLambda', 'AmazonECS', 'AmazonEKS') THEN 'Compute'
+            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%STORAGE%%' THEN 'Storage'
+            WHEN b.service_code IN ('AmazonS3', 'AmazonEBS', 'AmazonEFS', 'AmazonGlacier') THEN 'Storage'
+            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%DATABASE%%' THEN 'Database'
+            WHEN b.service_code IN ('AmazonRDS', 'AmazonDynamoDB', 'AmazonRedshift', 'AmazonElastiCache') THEN 'Database'
+            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%NETWORK%%' THEN 'Networking'
+            WHEN b.service_code IN ('AmazonVPC', 'AmazonCloudFront', 'AWSDirectConnect', 'AmazonRoute53') THEN 'Networking'
+            WHEN b.service_code LIKE '%%AI%%' OR b.service_code LIKE '%%ML%%' OR b.service_code IN ('AmazonSageMaker', 'AmazonBedrock') THEN 'AI/ML'
             ELSE 'Other'
           END as ServiceCategory,
           COALESCE(b.product_name, b.service_code, b.product_code) as ServiceName,
           COALESCE(b.operation, 'Default') as ServiceSubcategory,
 
           b.resource_id as ResourceId,
-          b.resource_id as ResourceName,
+          COALESCE(b.resource_name, b.resource_id) as ResourceName,
           COALESCE(b.usage_type, 'AWS Resource') as ResourceType,
           COALESCE(b.region, 'global') as RegionId,
           COALESCE(b.region, 'Global') as RegionName,
 
+          -- Usage metrics
           CAST(b.usage_amount AS NUMERIC) as ConsumedQuantity,
           b.usage_unit as ConsumedUnit,
           CASE
             WHEN b.reservation_arn IS NOT NULL THEN 'Committed'
             WHEN b.savings_plan_arn IS NOT NULL THEN 'Committed'
+            WHEN b.line_item_type = 'SavingsPlanCoveredUsage' THEN 'Committed'
+            WHEN b.line_item_type = 'DiscountedUsage' THEN 'Committed'
             ELSE 'On-Demand'
           END as PricingCategory,
           b.pricing_unit as PricingUnit,
 
-          CAST(COALESCE(b.net_unblended_cost, b.unblended_cost) AS NUMERIC) as ContractedCost,
+          -- FOCUS 1.3: Pricing details from AWS CUR
+          CAST(COALESCE(b.pricing_quantity, b.usage_amount) AS NUMERIC) as PricingQuantity,
+          CAST(b.public_on_demand_rate AS NUMERIC) as ListUnitPrice,
+          CAST(b.unblended_rate AS NUMERIC) as ContractedUnitPrice,
+
+          -- FOCUS 1.3: Cost calculations
+          -- ContractedCost = amortized cost (spreads RI/SP upfront across usage)
+          CAST(COALESCE(b.amortized_cost, b.unblended_cost) AS NUMERIC) as ContractedCost,
+          -- EffectiveCost = net cost after credits/discounts (what you actually pay)
           CAST(COALESCE(b.net_unblended_cost, b.unblended_cost) AS NUMERIC) as EffectiveCost,
+          -- BilledCost = gross unblended cost (before credits)
           CAST(b.unblended_cost AS NUMERIC) as BilledCost,
+          -- ListCost = public on-demand cost (without any discounts)
           CAST(COALESCE(b.public_on_demand_cost, b.unblended_cost) AS NUMERIC) as ListCost,
           COALESCE(b.currency, 'USD') as BillingCurrency,
 
+          -- ChargeCategory: Map AWS line_item_type to FOCUS categories
           CASE b.line_item_type
             WHEN 'Tax' THEN 'Tax'
             WHEN 'Credit' THEN 'Credit'
+            WHEN 'Refund' THEN 'Credit'
+            WHEN 'Fee' THEN 'Fee'
+            WHEN 'RIFee' THEN 'Purchase'
+            WHEN 'SavingsPlanRecurringFee' THEN 'Purchase'
+            WHEN 'SavingsPlanUpfrontFee' THEN 'Purchase'
             ELSE 'Usage'
           END as ChargeCategory,
+          -- ChargeClass: Correction for credits/refunds
+          CASE
+            WHEN b.line_item_type IN ('Credit', 'Refund') THEN 'Correction'
+            WHEN b.unblended_cost < 0 THEN 'Correction'
+            ELSE NULL
+          END as ChargeClass,
           COALESCE(b.line_item_type, 'Usage') as ChargeType,
-          'Usage-Based' as ChargeFrequency,
+          CASE
+            WHEN b.line_item_type IN ('RIFee', 'SavingsPlanRecurringFee') THEN 'Recurring'
+            WHEN b.line_item_type = 'SavingsPlanUpfrontFee' THEN 'One-Time'
+            ELSE 'Usage-Based'
+          END as ChargeFrequency,
 
-          @v_org_slug as SubAccountId,
+          -- SubAccount: AWS linked account (member account in AWS Organizations)
+          b.linked_account_id as SubAccountId,
           COALESCE(b.linked_account_name, b.linked_account_id) as SubAccountName,
 
-          CONCAT(b.product_code, '/', b.usage_type) as SkuId,
-          JSON_OBJECT('service_code', b.service_code, 'product_code', b.product_code, 'usage_type', b.usage_type) as SkuPriceDetails,
+          -- SKU details
+          CONCAT(COALESCE(b.product_code, 'AWS'), '/', COALESCE(b.usage_type, 'Unknown')) as SkuId,
+          -- SkuPriceDetails: Include discounts, RI/SP info, and product attributes
+          JSON_OBJECT(
+            'service_code', b.service_code,
+            'product_code', b.product_code,
+            'usage_type', b.usage_type,
+            'operation', b.operation,
+            'product_family', b.product_family,
+            'instance_type', b.product_instance_type,
+            'operating_system', b.product_operating_system,
+            'tenancy', b.product_tenancy,
+            'discount_edp_amount', b.discount_edp_amount,
+            'discount_private_rate_amount', b.discount_private_rate_amount,
+            'discount_bundled_amount', b.discount_bundled_amount,
+            'discount_total_amount', b.discount_total_amount,
+            'invoice_id', b.invoice_id,
+            'bill_type', b.bill_type,
+            'line_item_description', b.line_item_description
+          ) as SkuPriceDetails,
 
           COALESCE(SAFE.PARSE_JSON(b.resource_tags_json), JSON_OBJECT()) as Tags,
 
@@ -344,6 +410,7 @@ BEGIN
           'aws' as x_cloud_provider,
           b.payer_account_id as x_cloud_account_id,
 
+          -- Commitment discounts (RI or Savings Plan)
           COALESCE(b.reservation_arn, b.savings_plan_arn) as CommitmentDiscountId,
           CASE
             WHEN b.reservation_arn IS NOT NULL THEN 'Reserved Instance'
@@ -369,15 +436,23 @@ BEGIN
 
         FROM `%s.%s.cloud_aws_billing_raw_daily` b
         LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+          -- Look for hierarchy entity in resource tags (common patterns)
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.CostCenter'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.team'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.Team'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.department'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.Department'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.entity_id'),
+          -- Also check AWS Cost Categories for hierarchy
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.CostCenter'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.entity_id')
         )
         WHERE b.usage_date BETWEEN @p_start AND @p_end
-          AND b.unblended_cost > 0
+          -- Include all line items (positive costs, credits, taxes)
+          -- Credits have negative unblended_cost
+          AND (b.unblended_cost != 0 OR b.line_item_type IN ('Credit', 'Tax', 'Refund', 'Fee'))
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
@@ -387,6 +462,17 @@ BEGIN
     -- ============================================================================
     -- Azure Billing to FOCUS 1.3
     -- Uses 5-field x_hierarchy_* model (NEW design)
+    -- FOCUS 1.3 compliant: Includes pricing details, credits, and commitment discounts
+    --
+    -- AZURE FIELD MAPPINGS:
+    -- - BilledCost: cost_in_billing_currency (gross cost before credits)
+    -- - EffectiveCost: cost_in_billing_currency - azure_credit_applied (net cost)
+    -- - ListCost: usage_quantity * payg_price (pay-as-you-go pricing)
+    -- - ConsumedQuantity: usage_quantity
+    -- - ConsumedUnit: unit_of_measure
+    -- - PricingCategory: pricing_model (OnDemand, Reservation, SavingsPlan, Spot)
+    -- - ChargeCategory: Mapped from charge_type (Usage, Credit, Tax, Purchase, Refund)
+    -- - SubAccountId: subscription_id (Azure subscription = FOCUS SubAccount)
     -- ============================================================================
     IF p_provider IN ('azure', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
@@ -396,8 +482,9 @@ BEGIN
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
          ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         PricingQuantity, ListUnitPrice, ContractedUnitPrice,
          ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
+         ChargeCategory, ChargeClass, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
@@ -422,50 +509,119 @@ BEGIN
             AND end_date IS NULL
         )
         SELECT
-          b.subscription_id as BillingAccountId,
-          TIMESTAMP(b.usage_date) as ChargePeriodStart,
-          TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
+          -- BillingAccountId: Use billing_account_id if available, else subscription_id
+          COALESCE(b.billing_account_id, b.subscription_id) as BillingAccountId,
+
+          -- Charge period from usage timestamps or derive from usage_date
+          COALESCE(b.usage_start_time, TIMESTAMP(b.usage_date)) as ChargePeriodStart,
+          COALESCE(b.usage_end_time, TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
           TIMESTAMP(b.billing_period_start) as BillingPeriodStart,
           TIMESTAMP(b.billing_period_end) as BillingPeriodEnd,
 
-          'Microsoft Azure' as InvoiceIssuerName,
-          'Microsoft Azure' as ServiceProviderName,
+          -- Invoice/Service Provider: Handle marketplace vs first-party
+          CASE
+            WHEN b.publisher_type = 'Marketplace' THEN COALESCE(b.publisher_name, 'Azure Marketplace')
+            ELSE 'Microsoft Azure'
+          END as InvoiceIssuerName,
+          CASE
+            WHEN b.publisher_type = 'Marketplace' THEN COALESCE(b.publisher_name, 'Third Party')
+            ELSE 'Microsoft Azure'
+          END as ServiceProviderName,
           'Microsoft' as HostProviderName,
 
-          COALESCE(b.meter_category, 'Other') as ServiceCategory,
-          COALESCE(b.service_name, b.meter_category) as ServiceName,
-          COALESCE(b.meter_subcategory, 'Default') as ServiceSubcategory,
+          -- Service categorization using meter_category (Azure's service taxonomy)
+          CASE
+            WHEN b.meter_category IN ('Virtual Machines', 'Container Instances', 'Azure App Service', 'Functions') THEN 'Compute'
+            WHEN b.meter_category IN ('Storage', 'Bandwidth', 'Data Lake Storage') THEN 'Storage'
+            WHEN b.meter_category IN ('Azure Cosmos DB', 'SQL Database', 'Azure Database for PostgreSQL', 'Azure Database for MySQL') THEN 'Database'
+            WHEN b.meter_category IN ('Virtual Network', 'Load Balancer', 'VPN Gateway', 'ExpressRoute', 'Azure DNS') THEN 'Networking'
+            WHEN b.meter_category IN ('Key Vault', 'Microsoft Defender for Cloud', 'Azure Active Directory') THEN 'Security'
+            WHEN b.meter_category IN ('Azure OpenAI Service', 'Cognitive Services', 'Machine Learning') THEN 'AI/ML'
+            ELSE COALESCE(b.service_family, 'Other')
+          END as ServiceCategory,
+          COALESCE(b.service_name, b.meter_category, b.consumed_service) as ServiceName,
+          COALESCE(b.meter_subcategory, b.meter_name, 'Default') as ServiceSubcategory,
 
+          -- Resource identification
           b.resource_id as ResourceId,
           b.resource_name as ResourceName,
           COALESCE(b.resource_type, 'Azure Resource') as ResourceType,
-          COALESCE(b.resource_location, 'global') as RegionId,
-          COALESCE(b.resource_location, 'Global') as RegionName,
+          COALESCE(b.resource_location, b.meter_region, 'global') as RegionId,
+          COALESCE(b.resource_location, b.meter_region, 'Global') as RegionName,
 
+          -- Usage metrics (FOCUS 1.3: ConsumedQuantity, ConsumedUnit)
           CAST(b.usage_quantity AS NUMERIC) as ConsumedQuantity,
           b.unit_of_measure as ConsumedUnit,
-          COALESCE(b.pricing_model, 'On-Demand') as PricingCategory,
-          b.unit_of_measure as PricingUnit,
 
+          -- Pricing category: Map Azure pricing_model to FOCUS PricingCategory
+          CASE b.pricing_model
+            WHEN 'Reservation' THEN 'Committed'
+            WHEN 'SavingsPlan' THEN 'Committed'
+            WHEN 'Spot' THEN 'Dynamic'
+            ELSE 'On-Demand'
+          END as PricingCategory,
+          COALESCE(b.pricing_unit, b.unit_of_measure) as PricingUnit,
+
+          -- FOCUS 1.3: Pricing details
+          CAST(COALESCE(b.pricing_quantity, b.usage_quantity) AS NUMERIC) as PricingQuantity,
+          CAST(COALESCE(b.payg_price, b.unit_price) AS NUMERIC) as ListUnitPrice,
+          CAST(b.effective_price AS NUMERIC) as ContractedUnitPrice,
+
+          -- FOCUS 1.3 Cost Fields:
+          -- ContractedCost: Cost at negotiated/effective price
           CAST(b.cost_in_billing_currency AS NUMERIC) as ContractedCost,
-          CAST(b.cost_in_billing_currency AS NUMERIC) as EffectiveCost,
+          -- EffectiveCost: Net cost after credits applied (credits reduce cost)
+          CAST(b.cost_in_billing_currency - COALESCE(b.azure_credit_applied, 0) AS NUMERIC) as EffectiveCost,
+          -- BilledCost: Gross cost as it appears on invoice
           CAST(b.cost_in_billing_currency AS NUMERIC) as BilledCost,
-          CAST(COALESCE(b.usage_quantity * b.unit_price, b.cost_in_billing_currency) AS NUMERIC) as ListCost,
+          -- ListCost: What it would cost at pay-as-you-go pricing
+          CAST(COALESCE(b.usage_quantity * b.payg_price, b.usage_quantity * b.unit_price, b.cost_in_billing_currency) AS NUMERIC) as ListCost,
           COALESCE(b.billing_currency, 'USD') as BillingCurrency,
 
+          -- FOCUS 1.3 ChargeCategory: Standardize Azure charge_type
           CASE b.charge_type
-            WHEN 'Refund' THEN 'Credit'
+            WHEN 'Usage' THEN 'Usage'
             WHEN 'Purchase' THEN 'Purchase'
+            WHEN 'Refund' THEN 'Credit'
+            WHEN 'Credit' THEN 'Credit'
+            WHEN 'RoundingAdjustment' THEN 'Adjustment'
+            WHEN 'UnusedReservation' THEN 'Usage'
+            WHEN 'UnusedSavingsPlan' THEN 'Usage'
+            WHEN 'Tax' THEN 'Tax'
             ELSE 'Usage'
           END as ChargeCategory,
+          -- ChargeClass: Identify corrections/adjustments
+          CASE
+            WHEN b.charge_type IN ('Refund', 'RoundingAdjustment') THEN 'Correction'
+            ELSE NULL
+          END as ChargeClass,
           COALESCE(b.charge_type, 'Usage') as ChargeType,
-          'Usage-Based' as ChargeFrequency,
+          COALESCE(b.frequency, 'Usage-Based') as ChargeFrequency,
 
-          @v_org_slug as SubAccountId,
+          -- SubAccount: Azure subscription = FOCUS SubAccount
+          b.subscription_id as SubAccountId,
           COALESCE(b.subscription_name, b.subscription_id) as SubAccountName,
 
+          -- SKU details with comprehensive pricing info
           b.meter_id as SkuId,
-          JSON_OBJECT('meter_name', b.meter_name, 'meter_category', b.meter_category, 'service_tier', b.service_tier) as SkuPriceDetails,
+          JSON_OBJECT(
+            'meter_name', b.meter_name,
+            'meter_category', b.meter_category,
+            'meter_subcategory', b.meter_subcategory,
+            'service_tier', b.service_tier,
+            'service_family', b.service_family,
+            'product_name', b.product_name,
+            'consumed_service', b.consumed_service,
+            'payg_price', b.payg_price,
+            'unit_price', b.unit_price,
+            'effective_price', b.effective_price,
+            'azure_credit_applied', b.azure_credit_applied,
+            'is_azure_credit_eligible', b.is_azure_credit_eligible,
+            'cost_center', b.cost_center,
+            'invoice_section_name', b.invoice_section_name,
+            'billing_profile_name', b.billing_profile_name,
+            'additional_info', SAFE.PARSE_JSON(b.additional_info_json)
+          ) as SkuPriceDetails,
 
           COALESCE(SAFE.PARSE_JSON(b.resource_tags_json), JSON_OBJECT()) as Tags,
 
@@ -475,11 +631,13 @@ BEGIN
           'azure' as x_cloud_provider,
           b.subscription_id as x_cloud_account_id,
 
-          b.reservation_id as CommitmentDiscountId,
-          b.reservation_name as CommitmentDiscountName,
+          -- Commitment Discount: Reservations and Savings Plans
+          COALESCE(b.reservation_id, b.savings_plan_id, b.benefit_id) as CommitmentDiscountId,
+          COALESCE(b.reservation_name, b.savings_plan_name, b.benefit_name) as CommitmentDiscountName,
           CASE
             WHEN b.reservation_id IS NOT NULL THEN 'Reservation'
-            WHEN b.benefit_id IS NOT NULL THEN 'Savings Plan'
+            WHEN b.savings_plan_id IS NOT NULL THEN 'Savings Plan'
+            WHEN b.benefit_id IS NOT NULL THEN 'Benefit'
             ELSE NULL
           END as CommitmentDiscountType,
 
@@ -501,13 +659,20 @@ BEGIN
 
         FROM `%s.%s.cloud_azure_billing_raw_daily` b
         LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+          -- Check cost_center field first (direct from Azure)
+          b.cost_center,
+          -- Then check resource tags
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.cost_center'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.CostCenter'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.team'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.Team'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.department'),
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.Department'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.entity_id')
         )
         WHERE b.usage_date BETWEEN @p_start AND @p_end
-          AND b.cost_in_billing_currency > 0
+          -- Include all charges: positive costs AND credits (negative values or Credit charge_type)
+          AND (b.cost_in_billing_currency != 0 OR b.charge_type IN ('Credit', 'Refund'))
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 
@@ -517,6 +682,8 @@ BEGIN
     -- ============================================================================
     -- OCI Billing to FOCUS 1.3
     -- Uses 5-field x_hierarchy_* model (NEW design)
+    -- FOCUS 1.3 compliant: Includes pricing details, credits, and charge categories
+    -- OCI-specific: Uses usage_start_time/usage_end_time, cost_type, my_cost, credits
     -- ============================================================================
     IF p_provider IN ('oci', 'all') THEN
       EXECUTE IMMEDIATE FORMAT("""
@@ -526,8 +693,9 @@ BEGIN
          ServiceCategory, ServiceName, ServiceSubcategory,
          ResourceId, ResourceName, ResourceType, RegionId, RegionName,
          ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+         PricingQuantity, ListUnitPrice, ContractedUnitPrice,
          ContractedCost, EffectiveCost, BilledCost, ListCost, BillingCurrency,
-         ChargeCategory, ChargeType, ChargeFrequency,
+         ChargeCategory, ChargeClass, ChargeType, ChargeFrequency,
          SubAccountId, SubAccountName,
          SkuId, SkuPriceDetails,
          Tags,
@@ -552,55 +720,95 @@ BEGIN
         )
         SELECT
           b.tenancy_id as BillingAccountId,
-          TIMESTAMP(b.usage_date) as ChargePeriodStart,
-          TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY)) as ChargePeriodEnd,
-          TIMESTAMP(DATE_TRUNC(b.usage_date, MONTH)) as BillingPeriodStart,
-          TIMESTAMP(LAST_DAY(b.usage_date, MONTH)) as BillingPeriodEnd,
+          -- OCI uses usage_start_time/usage_end_time (TIMESTAMP)
+          b.usage_start_time as ChargePeriodStart,
+          b.usage_end_time as ChargePeriodEnd,
+          TIMESTAMP(DATE_TRUNC(DATE(b.usage_start_time), MONTH)) as BillingPeriodStart,
+          TIMESTAMP(LAST_DAY(DATE(b.usage_start_time), MONTH)) as BillingPeriodEnd,
 
           'Oracle Cloud Infrastructure' as InvoiceIssuerName,
           'OCI' as ServiceProviderName,
           'Oracle' as HostProviderName,
 
+          -- Service categorization based on OCI service names
           CASE
-            WHEN b.service_name LIKE '%%COMPUTE%%' THEN 'Compute'
-            WHEN b.service_name LIKE '%%STORAGE%%' THEN 'Storage'
-            WHEN b.service_name LIKE '%%DATABASE%%' THEN 'Database'
-            WHEN b.service_name LIKE '%%NETWORK%%' THEN 'Networking'
+            WHEN UPPER(b.service_name) LIKE '%%COMPUTE%%' OR UPPER(b.service_name) LIKE '%%VM%%' THEN 'Compute'
+            WHEN UPPER(b.service_name) LIKE '%%STORAGE%%' OR UPPER(b.service_name) LIKE '%%OBJECT%%' THEN 'Storage'
+            WHEN UPPER(b.service_name) LIKE '%%DATABASE%%' OR UPPER(b.service_name) LIKE '%%AUTONOMOUS%%' THEN 'Database'
+            WHEN UPPER(b.service_name) LIKE '%%NETWORK%%' OR UPPER(b.service_name) LIKE '%%VCN%%' OR UPPER(b.service_name) LIKE '%%LOAD%%' THEN 'Networking'
+            WHEN UPPER(b.service_name) LIKE '%%AI%%' OR UPPER(b.service_name) LIKE '%%ML%%' OR UPPER(b.service_name) LIKE '%%GENAI%%' THEN 'AI/ML'
+            WHEN UPPER(b.service_name) LIKE '%%CONTAINER%%' OR UPPER(b.service_name) LIKE '%%KUBERNETES%%' THEN 'Containers'
             ELSE 'Other'
           END as ServiceCategory,
-          b.service_name as ServiceName,
+          COALESCE(b.service_name, 'Unknown') as ServiceName,
           COALESCE(b.sku_name, 'Default') as ServiceSubcategory,
 
           b.resource_id as ResourceId,
           b.resource_name as ResourceName,
-          'OCI Resource' as ResourceType,
+          COALESCE(b.platform_type, 'OCI Resource') as ResourceType,
           COALESCE(b.region, 'global') as RegionId,
           COALESCE(b.region, 'Global') as RegionName,
 
           CAST(b.usage_quantity AS NUMERIC) as ConsumedQuantity,
           b.unit as ConsumedUnit,
+          -- PricingCategory based on overage and cost type
           CASE
             WHEN b.overage_flag = 'Y' THEN 'Overage'
+            WHEN LOWER(COALESCE(b.cost_type, '')) = 'credit' THEN 'Credit'
             ELSE 'On-Demand'
           END as PricingCategory,
           b.unit as PricingUnit,
 
+          -- FOCUS 1.3: Pricing details from OCI
+          CAST(b.computed_quantity AS NUMERIC) as PricingQuantity,
+          CAST(b.list_rate AS NUMERIC) as ListUnitPrice,
+          CAST(b.unit_price AS NUMERIC) as ContractedUnitPrice,
+
+          -- Cost fields: BilledCost is gross, EffectiveCost is net (after credits)
           CAST(b.cost AS NUMERIC) as ContractedCost,
-          CAST(b.cost AS NUMERIC) as EffectiveCost,
+          -- EffectiveCost: Use my_cost if available (net cost), else gross + credits
+          CAST(COALESCE(b.my_cost, b.cost + COALESCE(b.credits_total, 0)) AS NUMERIC) as EffectiveCost,
           CAST(b.cost AS NUMERIC) as BilledCost,
-          CAST(COALESCE(b.usage_quantity * b.unit_price, b.cost) AS NUMERIC) as ListCost,
+          -- ListCost: Use list_rate * quantity if available, else fall back to cost
+          CAST(COALESCE(b.usage_quantity * b.list_rate, b.cost) AS NUMERIC) as ListCost,
           COALESCE(b.currency, 'USD') as BillingCurrency,
 
-          'Usage' as ChargeCategory,
-          'Usage' as ChargeType,
+          -- ChargeCategory from OCI cost_type: Usage, Credit, Tax, etc.
+          CASE LOWER(COALESCE(b.cost_type, 'usage'))
+            WHEN 'credit' THEN 'Credit'
+            WHEN 'tax' THEN 'Tax'
+            WHEN 'adjustment' THEN 'Adjustment'
+            WHEN 'refund' THEN 'Credit'
+            ELSE 'Usage'
+          END as ChargeCategory,
+          -- ChargeClass: 'Correction' if is_correction is true
+          CASE
+            WHEN b.is_correction = TRUE THEN 'Correction'
+            ELSE NULL
+          END as ChargeClass,
+          COALESCE(b.cost_type, 'Usage') as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
-          @v_org_slug as SubAccountId,
+          -- SubAccount: Use compartment for OCI account hierarchy
+          b.compartment_id as SubAccountId,
           COALESCE(b.compartment_name, b.compartment_id) as SubAccountName,
 
           b.sku_part_number as SkuId,
-          JSON_OBJECT('sku_name', b.sku_name, 'service_name', b.service_name, 'compartment_path', b.compartment_path) as SkuPriceDetails,
+          -- SkuPriceDetails: Include all OCI-specific pricing and metadata
+          JSON_OBJECT(
+            'sku_name', b.sku_name,
+            'service_name', b.service_name,
+            'compartment_path', b.compartment_path,
+            'platform_type', b.platform_type,
+            'subscription_id', b.subscription_id,
+            'billing_period', b.billing_period,
+            'overage_flag', b.overage_flag,
+            'credits_total', b.credits_total,
+            'credits_json', SAFE.PARSE_JSON(b.credits_json),
+            'availability_domain', b.availability_domain
+          ) as SkuPriceDetails,
 
+          -- Merge freeform_tags and defined_tags for Tags field
           COALESCE(SAFE.PARSE_JSON(b.freeform_tags_json), JSON_OBJECT()) as Tags,
 
           'cloud_oci_billing_raw_daily' as x_source_system,
@@ -627,15 +835,21 @@ BEGIN
 
         FROM `%s.%s.cloud_oci_billing_raw_daily` b
         LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
+          -- Try freeform tags first (user-defined)
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.cost_center'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.team'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.department'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.freeform_tags_json), '$.entity_id'),
+          -- Then try defined tags (namespace.key format may vary)
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.cost_center'),
-          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.entity_id')
+          JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.defined_tags_json), '$.entity_id'),
+          -- Fall back to compartment_id as hierarchy entity
+          b.compartment_id
         )
-        WHERE b.usage_date BETWEEN @p_start AND @p_end
-          AND b.cost > 0
+        -- Filter by usage_start_time (TIMESTAMP) for OCI data
+        WHERE DATE(b.usage_start_time) BETWEEN @p_start AND @p_end
+          -- Include all cost types for FOCUS compliance (credits have negative cost or cost_type='credit')
+          AND (b.cost != 0 OR LOWER(COALESCE(b.cost_type, '')) = 'credit')
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 

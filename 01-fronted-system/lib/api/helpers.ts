@@ -140,7 +140,16 @@ export function isDateInPastUTC(dateStr: string): boolean {
 export function extractErrorMessage(errorText: string): string {
   try {
     const json = JSON.parse(errorText)
-    return json.detail || json.message || json.error || errorText
+    // Handle nested error objects - extract string message
+    const errorField = json.detail || json.message || json.error
+    if (typeof errorField === 'string') {
+      return errorField
+    }
+    // If error field is an object, try to extract message from it
+    if (errorField && typeof errorField === 'object') {
+      return errorField.message || errorField.detail || JSON.stringify(errorField)
+    }
+    return errorText
   } catch {
     return errorText
   }

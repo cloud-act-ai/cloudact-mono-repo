@@ -143,7 +143,7 @@ class CommitmentCostProcessor:
                 USING (
                     SELECT
                         u.usage_date as cost_date,
-                        u.org_slug,
+                        u.x_org_slug,
                         u.provider,
                         u.commitment_type,
                         u.commitment_id,
@@ -245,11 +245,11 @@ class CommitmentCostProcessor:
                         AND (p.effective_from IS NULL OR p.effective_from <= u.usage_date)
                         AND (p.effective_to IS NULL OR p.effective_to >= u.usage_date)
                     WHERE u.usage_date = @process_date
-                        AND u.org_slug = @org_slug
+                        AND u.x_org_slug = @org_slug
                         {provider_condition}
                 ) S
                 ON T.cost_date = S.cost_date
-                    AND T.org_slug = S.org_slug
+                    AND T.x_org_slug = S.x_org_slug
                     AND T.provider = S.provider
                     AND T.commitment_id = S.commitment_id
                     AND COALESCE(T.region, 'global') = COALESCE(S.region, 'global')
@@ -286,7 +286,7 @@ class CommitmentCostProcessor:
                             x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
                             calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
-                    VALUES (S.cost_date, S.org_slug, S.provider, S.commitment_type, S.commitment_id,
+                    VALUES (S.cost_date, S.x_org_slug, S.provider, S.commitment_type, S.commitment_id,
                             S.model, S.region, S.provisioned_units, S.used_units, S.utilization_pct,
                             S.commitment_cost_usd, S.overage_cost_usd, S.total_cost_usd,
                             S.effective_rate_per_unit, S.tokens_processed, S.hours_active,
@@ -418,7 +418,7 @@ class CommitmentCostProcessor:
             LEFT JOIN `{project_id}.{dataset_id}.x_org_hierarchy` h
                 ON h.entity_id = u.x_hierarchy_entity_id
             WHERE u.usage_date = @process_date
-                AND u.org_slug = @org_slug
+                AND u.x_org_slug = @org_slug
                 AND u.x_hierarchy_entity_id IS NOT NULL
                 AND h.entity_id IS NULL
                 {provider_condition}

@@ -217,7 +217,7 @@ class AzureCostExtractor:
             row = {
                 # Required fields
                 "usage_date": start_date,
-                "org_slug": self.org_slug,
+                "x_org_slug": self.org_slug,
                 "provider": "azure",
                 "subscription_id": subscription_id,
                 "cost_in_billing_currency": float(api_row.get("Cost", 0) or 0),
