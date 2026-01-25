@@ -122,7 +122,6 @@ BEGIN
     -- FIX: Added org_slug column to handle schema drift (table has both org_slug and x_org_slug)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.subscription_plan_costs_daily` (
-        org_slug,  -- Schema drift fix: populate legacy column
         provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
@@ -138,10 +137,10 @@ BEGIN
       WITH subscriptions AS (
         -- Read all subscriptions that overlap with date range
         -- Include active, expired, and cancelled to calculate historical costs
-        -- FIX: Use table alias 'sp' to avoid column ambiguity (table has both org_slug and x_org_slug)
-        -- FIX: Read from org_slug (populated) instead of x_org_slug (NULL due to schema drift)
+        -- FIX: Use table alias 'sp' to avoid column ambiguity
+        -- subscription_plans table only has x_org_slug column
         SELECT
-          COALESCE(sp.x_org_slug, sp.org_slug) AS x_org_slug,
+          sp.x_org_slug,
           sp.provider,
           sp.subscription_id,
           sp.plan_name,
@@ -421,7 +420,6 @@ BEGIN
         ) AS day
       )
       SELECT
-        x_org_slug AS org_slug,  -- Schema drift fix: populate legacy column with same value
         provider,
         subscription_id,
         plan_name,

@@ -89,6 +89,63 @@ const INDUSTRY_BADGES = [
 ]
 
 // ============================================
+// SOLUTIONS BY ROLE (Apptio-Style)
+// ============================================
+function SolutionsByRole() {
+  const roles = [
+    {
+      title: "Engineering",
+      icon: Cpu,
+      description: "Ship faster without breaking the budget. Get PR-level cost checks and automated rightsizing.",
+      features: ["CI/CD Cost Checks", "K8s Rightsizing", "Shadow AI Detection"]
+    },
+    {
+      title: "Finance",
+      icon: PieChart,
+      description: "No more end-of-month surprises. Get pixel-perfect cost allocation and accurate forecasts.",
+      features: ["Granular Allocation", "Budget Anomalies", "Unit Economics"]
+    },
+    {
+      title: "Executives",
+      icon: TrendingDown,
+      description: "Align cloud investment with business value. See exactly how GenAI spend drives revenue.",
+      features: ["Board-Ready KPIs", "Margins Analysis", "SaaS ROI"]
+    }
+  ]
+
+  return (
+    <section className="py-24 bg-slate-50 border-y border-slate-200">
+      <div className="container px-4 mx-auto max-w-7xl">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <span className="text-emerald-600 font-bold tracking-wide uppercase text-sm">Built for your entire team</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mt-2">Solutions for every stakeholder</h2>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-8">
+          {roles.map((role, i) => (
+            <div key={i} className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+              <div className="w-12 h-12 bg-emerald-100/50 rounded-lg flex items-center justify-center mb-6">
+                <role.icon className="w-6 h-6 text-emerald-700" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">For {role.title}</h3>
+              <p className="text-slate-600 mb-6 text-sm leading-relaxed">{role.description}</p>
+              <ul className="space-y-3">
+                {role.features.map((feature, j) => (
+                  <li key={j} className="flex items-center text-sm font-medium text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 mr-2" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
 // HERO SECTION (Side-by-Side Refactor)
 // ============================================
 function HeroSection() {
@@ -285,6 +342,7 @@ export default function Home() {
            </div>
         </section>
 
+        <SolutionsByRole />
         <FeaturesBento />
         <IntegrationsWall />
         
@@ -326,7 +384,7 @@ export default function Home() {
                    Get Started Free
                    <ArrowRight className="w-5 h-5 ml-2" />
                  </Link>
-                 <Link href="/demo" className="px-10 h-14 inline-flex items-center justify-center rounded-xl border border-slate-700 text-white font-semibold hover:bg-white/10 transition-all text-lg">
+                   <Link href="/demo" className="flex items-center justify-center h-14 px-10 text-lg font-bold text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all shadow-md">
                    Talk to Sales
                  </Link>
               </div>

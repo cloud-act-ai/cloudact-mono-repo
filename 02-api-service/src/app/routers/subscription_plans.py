@@ -1484,7 +1484,7 @@ async def list_plans(
 
     query = f"""
     SELECT
-        org_slug, subscription_id, provider, plan_name, display_name,
+        x_org_slug AS org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency,
         seats, pricing_model, unit_price, yearly_price,
         discount_type, discount_value, auto_renew, payment_method,
@@ -2040,7 +2040,7 @@ async def create_plan(
         # immediately, but concurrent reads from other sessions may experience slight staleness.
         verify_query = f"""
         SELECT
-            org_slug, subscription_id, provider, plan_name, display_name,
+            x_org_slug AS org_slug, subscription_id, provider, plan_name, display_name,
             category, status, start_date, end_date, billing_cycle, currency,
             seats, pricing_model, unit_price, yearly_price,
             discount_type, discount_value, auto_renew, payment_method,
@@ -2405,7 +2405,7 @@ async def update_plan(
         # Fetch updated plan with explicit columns
         select_query = f"""
         SELECT
-            org_slug, subscription_id, provider, plan_name, display_name,
+            x_org_slug AS org_slug, subscription_id, provider, plan_name, display_name,
             category, status, start_date, end_date, billing_cycle, currency,
             seats, pricing_model, unit_price, yearly_price,
             discount_type, discount_value, auto_renew, payment_method,
@@ -2578,7 +2578,7 @@ async def edit_plan_with_version(
     # Step 1: Get current plan
     select_query = f"""
     SELECT
-        org_slug, subscription_id, provider, plan_name, display_name,
+        x_org_slug AS org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency,
         seats, pricing_model, unit_price, yearly_price,
         discount_type, discount_value, auto_renew, payment_method,
@@ -3295,7 +3295,7 @@ async def get_all_plans(
     # Main query with pagination (SCALE-001)
     query = f"""
     SELECT
-        org_slug, subscription_id, provider, plan_name, display_name,
+        x_org_slug AS org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency,
         seats, pricing_model, unit_price, yearly_price,
         discount_type, discount_value, auto_renew, payment_method,

@@ -20,7 +20,6 @@ import {
 import type {
   SetupIntegrationRequest,
   AllIntegrationsResponse,
-  IntegrationStatus,
   LLMPricing,
   LLMPricingCreate,
   LLMPricingUpdate,
@@ -29,9 +28,8 @@ import type {
   SaaSSubscriptionUpdate,
   LLMProvider
 } from "@/lib/api/backend"
-
-// Re-export IntegrationStatus for external consumers
-export type { IntegrationStatus }
+// Note: Do NOT re-export types from "use server" files - it causes bundling errors
+// Import IntegrationStatus directly from lib/api/backend where needed
 import { getCachedApiKey } from "@/lib/auth-cache"
 
 // ============================================
@@ -82,8 +80,6 @@ export interface IntegrationResult {
   message?: string
   lastError?: string
 }
-
-// IntegrationStatus is imported from lib/api/backend.ts
 
 // ============================================
 // Input Validation

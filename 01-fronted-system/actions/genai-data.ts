@@ -33,15 +33,9 @@ import type {
   SaaSSubscriptionListResponse,
 } from "@/lib/api/backend"
 
-// Re-export backend types for external consumers
-// NOTE: These are re-exported from lib/api/backend for type consistency
-export type {
-  BillingPeriod,
-  TierType,
-  PricingType,
-  FreeTierResetFrequency,
-  DiscountReason
-} from "@/lib/api/backend"
+// Note: Do NOT re-export types from "use server" files - it causes bundling errors
+// Import BillingPeriod, TierType, PricingType, FreeTierResetFrequency, DiscountReason
+// directly from @/lib/api/backend where needed
 import { getCachedApiKey } from "@/lib/auth-cache"
 import {
   VALID_BILLING_PERIODS,

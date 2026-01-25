@@ -363,19 +363,20 @@ export async function onboardToBackend(input: {
 
       const bootstrapStatus = await bootstrapStatusResponse.json()
 
-      // Check if bootstrap is complete and all tables exist
-      if (bootstrapStatus.status !== "SYNCED") {
-        return {
-          success: false,
-          error: "System setup is incomplete. Please contact support to complete initialization.",
-        }
-      }
-
-      // Check if any tables are missing
+      // Check if any tables are missing (critical - blocks onboarding)
       if (bootstrapStatus.tables_missing && bootstrapStatus.tables_missing.length > 0) {
         return {
           success: false,
           error: `System setup incomplete (${bootstrapStatus.tables_missing.length} tables missing). Please contact support.`,
+        }
+      }
+
+      // Allow both SYNCED and OUT_OF_SYNC (schema differences are non-critical)
+      // Only block if status indicates NOT_BOOTSTRAPPED or ERROR
+      if (bootstrapStatus.status !== "SYNCED" && bootstrapStatus.status !== "OUT_OF_SYNC") {
+        return {
+          success: false,
+          error: "System setup is incomplete. Please contact support to complete initialization.",
         }
       }
     } catch (_bootstrapCheckError) {
