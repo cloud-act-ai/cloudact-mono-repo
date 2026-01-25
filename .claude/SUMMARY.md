@@ -160,19 +160,20 @@
 
 ---
 
-## Hooks Reference (10 Total)
+## Hooks Reference (11 Total)
 
-### Root Hooks (6)
+### Root Hooks (7)
 
 | Hook | Type | Action | Purpose |
 |------|------|--------|---------|
 | `settings.json` | Permission | Deny | Block `rm -rf`, `DROP DATABASE` |
 | `validate-integration-code.py` | PreToolUse | Deny | Prevent Supabase integration writes |
-| `pipeline-metadata-fields` | Hookify | Warn | x_* fields = Pipeline Service only |
-| `service-integration-standards` | Hookify | Warn | Multi-service best practices |
-| `session-completion-checklist` | Hookify | Block | Tests/docs before session close |
+| `org-slug-isolation` | Hookify | Warn | 23 meta tables, field naming (org_slug vs x_org_slug) |
+| `pipeline-metadata-fields` | Hookify | Warn | x_* fields, service boundaries |
+| `notification-service` | Hookify | Warn | Notification architecture (CRUD vs Sending) |
+| `service-integration-standards` | Hookify | Warn | Deployment, directories, 3-service arch |
 | `encryption-flow` | Hookify | Warn | GCP KMS encryption patterns |
-| `org-slug-isolation` | Hookify | Warn | Multi-tenant isolation |
+| `session-completion-checklist` | Hookify | Block | Tests/docs before session close |
 
 ### Frontend Hooks (4)
 
@@ -206,7 +207,7 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 ### x_* Pipeline Lineage Fields
 - **API Service (8000):** NO x_* fields
 - **Pipeline Service (8001):** MUST have x_* fields
-- Fields: `x_pipeline_id`, `x_credential_id`, `x_run_id`, `x_ingested_at`
+- Fields: `x_pipeline_id`, `x_credential_id`, `x_run_id`, `x_ingested_at`, `x_org_slug`, `x_hierarchy_*`
 
 ### Multi-Tenant Isolation
 - Pattern: `^[a-zA-Z0-9_]{3,50}$`
@@ -216,13 +217,17 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 
 | Dataset | Field | Example Tables |
 |---------|-------|----------------|
-| `organizations` (meta) | `org_slug` | org_profiles, org_api_keys, org_hierarchy |
-| `{org_slug}_prod` (customer) | `x_org_slug` | genai_payg_costs_daily, cost_data_standard_1_3 |
+| `organizations` (meta - 23 tables) | `org_slug` | org_profiles, org_api_keys, org_notification_* |
+| `{org_slug}_prod` (customer - 19 tables) | `x_org_slug` | genai_*, cloud_*, cost_data_standard_1_3 |
 
-**Rule:** Customer datasets ALWAYS use `x_` prefix for org and hierarchy fields:
+**Rule:** Customer datasets ALWAYS use `x_` prefix:
 - `x_org_slug` (not `org_slug`)
 - `x_hierarchy_entity_id` (not `entity_id`)
-- `x_hierarchy_path`, `x_hierarchy_path_names`, etc.
+- `x_cloud_provider`, `x_genai_provider`
+
+### Notification Service Split
+- **API (8000):** CRUD for channels, rules, summaries (settings only)
+- **Pipeline (8001):** Actual sending (Email, Slack, Webhook)
 
 ### Credential Encryption
 - **Store:** KMSStoreIntegrationProcessor → encrypt_value()
@@ -240,13 +245,15 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 
 ---
 
-## Service URLs
+## Service URLs & Directories
 
-| Service | Local | Production |
-|---------|-------|------------|
-| Frontend | http://localhost:3000 | https://cloudact.ai |
-| API | http://localhost:8000 | https://api.cloudact.ai |
-| Pipeline | http://localhost:8001 | https://pipeline.cloudact.ai |
+| Service | Local | Production | Directory |
+|---------|-------|------------|-----------|
+| Frontend | http://localhost:3000 | https://cloudact.ai | `$REPO_ROOT/01-fronted-system` |
+| API | http://localhost:8000 | https://api.cloudact.ai | `$REPO_ROOT/02-api-service` |
+| Pipeline | http://localhost:8001 | https://pipeline.cloudact.ai | `$REPO_ROOT/03-data-pipeline-service` |
+
+**ALWAYS use `$REPO_ROOT` for commands. NEVER run npm/uvicorn from wrong directory.**
 
 ---
 

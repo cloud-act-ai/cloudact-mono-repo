@@ -2,6 +2,14 @@
 
 Kill all service instances (Docker + local), clear caches, and restart in Docker with log monitoring.
 
+## ⚠️ CRITICAL: Always Use Absolute Paths
+
+**ALWAYS use `$REPO_ROOT` for all commands.** This prevents creating artifacts in wrong directories.
+
+```bash
+$REPO_ROOT = /Users/gurukallam/prod-ready-apps/cloudact-mono-repo
+```
+
 ## Prerequisites
 
 1. **Docker Desktop running** - Start Docker Desktop before using this command
@@ -50,8 +58,13 @@ lsof -ti:8001 | xargs kill -9 2>/dev/null || true
 
 ### Step 3: Clear Caches
 ```bash
-# Next.js cache
+# Next.js cache (ONLY valid in frontend)
 rm -rf $REPO_ROOT/01-fronted-system/.next
+
+# Clean up misplaced .next directories (safety)
+rm -rf $REPO_ROOT/.next 2>/dev/null || true
+rm -rf $REPO_ROOT/02-api-service/.next 2>/dev/null || true
+rm -rf $REPO_ROOT/03-data-pipeline-service/.next 2>/dev/null || true
 
 # Python caches
 find $REPO_ROOT -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

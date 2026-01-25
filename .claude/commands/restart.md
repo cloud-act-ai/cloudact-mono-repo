@@ -2,6 +2,18 @@
 
 Kill services, clear caches, and restart locally or trigger Cloud Run restarts.
 
+## ⚠️ CRITICAL: Directory Rules
+
+**ALWAYS use absolute paths with `$REPO_ROOT`.** Running commands from the wrong directory creates artifacts in wrong places (e.g., `.next` folder in Python service).
+
+| Service | Correct Directory | Command |
+|---------|------------------|---------|
+| Frontend | `$REPO_ROOT/01-fronted-system` | `npx next dev --port 3000` |
+| API | `$REPO_ROOT/02-api-service` | `uvicorn src.app.main:app --port 8000` |
+| Pipeline | `$REPO_ROOT/03-data-pipeline-service` | `uvicorn src.app.main:app --port 8001` |
+
+**NEVER run `npm run dev`, `npx next dev`, or `uvicorn` without first changing to the correct directory using `$REPO_ROOT`.**
+
 ## ⚠️ CRITICAL: Port Enforcement
 
 **NEVER use fallback ports.** Services MUST run on their designated ports:
@@ -113,24 +125,32 @@ mkdir -p $REPO_ROOT/logs
 
 **Step 4: Start Services (Background with Logging)**
 
+> ⚠️ **CRITICAL:** ALWAYS use absolute paths. NEVER run `npm`, `npx next`, or `uvicorn` without first `cd` to the correct service directory with `$REPO_ROOT`.
+
 **API Service (8000):**
 ```bash
-cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload > ../logs/api.log 2>&1 &
+cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload > $REPO_ROOT/logs/api.log 2>&1 &
 ```
 
 **Pipeline Service (8001):**
 ```bash
-cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload > ../logs/pipeline.log 2>&1 &
+cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload > $REPO_ROOT/logs/pipeline.log 2>&1 &
 ```
 
 **Frontend (3000):** ⚠️ MUST be port 3000 - NEVER 3001
 ```bash
-# Use wrapper script (explicitly runs on port 3000)
-# The script will fail if port 3000 is in use - fix the issue, don't use fallback port
-$REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
+# ALWAYS use absolute path - prevents .next being created in wrong folder
+cd $REPO_ROOT/01-fronted-system && npx next dev --webpack --port 3000 > $REPO_ROOT/logs/frontend.log 2>&1 &
 
-# Alternative direct command (also explicit port 3000):
-# cd $REPO_ROOT/01-fronted-system && npx next dev --port 3000 > ../logs/frontend.log 2>&1 &
+# Or use wrapper script:
+# $REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
+```
+
+**NEVER DO THIS:**
+```bash
+# WRONG - runs from current directory, creates .next in wrong place
+npm run dev
+npx next dev
 ```
 
 **Step 5: Wait and Verify Health + Port Enforcement**
@@ -225,7 +245,7 @@ curl -s "$API_URL/health" | python3 -m json.tool
 pkill -9 -f "uvicorn.*8000" 2>/dev/null || true
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 sleep 1
-cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8000 --reload > ../logs/api.log 2>&1 &
+cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8000 --reload > $REPO_ROOT/logs/api.log 2>&1 &
 ```
 
 ### Local Pipeline Only
@@ -233,7 +253,7 @@ cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.ma
 pkill -9 -f "uvicorn.*8001" 2>/dev/null || true
 lsof -ti:8001 | xargs kill -9 2>/dev/null || true
 sleep 1
-cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8001 --reload > ../logs/pipeline.log 2>&1 &
+cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8001 --reload > $REPO_ROOT/logs/pipeline.log 2>&1 &
 ```
 
 ### Local Frontend Only
@@ -250,8 +270,13 @@ lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 # Also kill anything on 3001 (wrong port - cleanup from past mistakes)
 lsof -ti:3001 | xargs kill -9 2>/dev/null || true
 
-# Clear cache
+# Clear cache (ONLY from frontend directory)
 rm -rf $REPO_ROOT/01-fronted-system/.next
+
+# Also clean up any .next in wrong places (safety)
+rm -rf $REPO_ROOT/.next 2>/dev/null || true
+rm -rf $REPO_ROOT/02-api-service/.next 2>/dev/null || true
+rm -rf $REPO_ROOT/03-data-pipeline-service/.next 2>/dev/null || true
 
 # Wait for ports to free up
 sleep 2
@@ -263,8 +288,8 @@ if lsof -i:3000 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
     exit 1
 fi
 
-# Start on port 3000 ONLY (never use --port 3001)
-$REPO_ROOT/logs/run-frontend.sh > $REPO_ROOT/logs/frontend.log 2>&1 &
+# Start on port 3000 ONLY - MUST use absolute path
+cd $REPO_ROOT/01-fronted-system && npx next dev --webpack --port 3000 > $REPO_ROOT/logs/frontend.log 2>&1 &
 
 # Verify started on correct port
 sleep 5
@@ -342,8 +367,19 @@ pkill -9 -f "turbopack"
 # Wait for cleanup
 sleep 2
 
-# Restart on correct port
-cd $REPO_ROOT/01-fronted-system && npx next dev --port 3000
+# Restart on correct port - ALWAYS use absolute path
+cd $REPO_ROOT/01-fronted-system && npx next dev --webpack --port 3000
+```
+
+### .next created in wrong folder
+```bash
+# Clean up misplaced .next directories
+rm -rf $REPO_ROOT/.next
+rm -rf $REPO_ROOT/02-api-service/.next
+rm -rf $REPO_ROOT/03-data-pipeline-service/.next
+
+# The ONLY valid .next location:
+# $REPO_ROOT/01-fronted-system/.next
 ```
 
 ### Multiple stale processes

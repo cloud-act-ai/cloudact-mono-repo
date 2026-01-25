@@ -122,7 +122,7 @@ steps:
           --memory=8Gi \
           --cpu=2 \
           --timeout=300 \
-          --min-instances=2 \
+          --min-instances=1 \
           --max-instances=10 \
           --port=8000 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
@@ -141,7 +141,7 @@ steps:
       - |
         # Get API service URL (use custom domain for prod)
         API_URL="https://api.cloudact.ai"
-        
+
         gcloud run deploy cloudact-pipeline-service-${_ENV} \
           --project=${_PROJECT_ID} \
           --image=gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}:${TAG_NAME} \
@@ -151,7 +151,7 @@ steps:
           --memory=8Gi \
           --cpu=2 \
           --timeout=300 \
-          --min-instances=2 \
+          --min-instances=1 \
           --max-instances=10 \
           --port=8001 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
@@ -182,7 +182,7 @@ steps:
           --memory=8Gi \
           --cpu=2 \
           --timeout=60 \
-          --min-instances=2 \
+          --min-instances=1 \
           --max-instances=20 \
           --port=3000 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
