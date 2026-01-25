@@ -21,9 +21,9 @@
  *    subsequent fetches return fresh data.
  */
 
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
-import { getAuthContext, requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
+import { requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -47,8 +47,10 @@ import {
 // Auth Helpers
 // ============================================
 
-// Use isValidOrgSlugHelper from shared helpers, aliased for backwards compatibility
-const isValidOrgSlug = isValidOrgSlugHelper
+// Use isValidOrgSlugHelper from shared helpers
+// Currently validation happens at API layer, kept for potential direct use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _isValidOrgSlug = isValidOrgSlugHelper
 
 /**
  * Validate provider name
@@ -692,9 +694,6 @@ export async function createCustomProviderWithPlan(
     }
 
     // 4. Always trigger cost pipeline to keep costs up-to-date
-    let pipelineTriggered = false
-    let pipelineMessage: string | undefined
-
     const startDateStr = data.plan.start_date || new Date().toISOString().split("T")[0]
     const pipelineStartDate = isDateInPast(startDateStr)
       ? startDateStr
@@ -708,15 +707,14 @@ export async function createCustomProviderWithPlan(
       }
     })
 
-    pipelineTriggered = true // Optimistically set - pipeline was triggered
-    pipelineMessage = isDateInPast(startDateStr)
+    const costMessage = isDateInPast(startDateStr)
       ? `Historical costs being calculated from ${startDateStr} to today`
       : `Costs being updated for current period`
 
     return {
       success: true,
-      backfillTriggered: pipelineTriggered,
-      backfillMessage: pipelineMessage,
+      backfillTriggered: true, // Optimistically set - pipeline was triggered
+      backfillMessage: costMessage,
     }
   } catch (error) {
     return { success: false, error: logError("createCustomProviderWithPlan", error) }
@@ -1613,8 +1611,6 @@ export async function createCustomPlan(
 
     // Always trigger cost pipeline to keep costs up-to-date
     // Uses start_date for backdated plans, or current month start for new plans
-    let pipelineTriggered = false
-    let pipelineMessage: string | undefined
 
     // FIX: Use UTC helper for consistent date handling
     const startDateStr = plan.start_date || getTodayDateUTC()
@@ -1624,22 +1620,21 @@ export async function createCustomPlan(
 
     // Fire-and-forget: Don't block UI waiting for pipeline
     // Pipeline runs async - main operation already succeeded
-    void triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate).then(result => {
-      if (!result.success) {
-        console.error(`[createCustomPlan] Pipeline failed: ${result.error}`)
+    void triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate).then(pipelineResult => {
+      if (!pipelineResult.success) {
+        console.error(`[createCustomPlan] Pipeline failed: ${pipelineResult.error}`)
       }
     })
 
-    pipelineTriggered = true // Optimistically set - pipeline was triggered
-    pipelineMessage = isDateInPast(startDateStr)
+    const planCostMessage = isDateInPast(startDateStr)
       ? `Historical costs being calculated from ${startDateStr} to today`
       : `Costs being updated for current period`
 
     return {
       success: true,
       plan: result.plan,
-      backfillTriggered: pipelineTriggered,
-      backfillMessage: pipelineMessage,
+      backfillTriggered: true, // Optimistically set - pipeline was triggered
+      backfillMessage: planCostMessage,
     }
   } catch (error) {
     return { success: false, error: logError("createCustomPlan", error) }

@@ -135,9 +135,9 @@ async def async_client():
             "subscription": {
                 "plan_name": "ENTERPRISE",
                 "status": "ACTIVE",
-                "max_pipelines_per_day": 999999,
-                "max_pipelines_per_month": 999999,
-                "max_concurrent_pipelines": 999999
+                "daily_limit": 999999,
+                "monthly_limit": 999999,
+                "concurrent_limit": 999999
             },
             "org_api_key_id": "test-key-123"
         }
@@ -149,7 +149,7 @@ async def async_client():
 
         # Mock get_current_org to return test org
         with patch("src.app.dependencies.auth.get_current_org", return_value=mock_get_current_org()):
-            transport = ASGITransport(app=app)
+            transport = ASGITransport(app=app)  # type: ignore[arg-type]
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 yield client
 
@@ -175,7 +175,7 @@ async def integration_client():
 
     from src.app.main import app
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 

@@ -3,8 +3,8 @@
  */
 
 // Environment detection
-const isProduction = process.env.NODE_ENV === "production"
-const isDevelopment = process.env.NODE_ENV === "development"
+export const isProduction = process.env.NODE_ENV === "production"
+export const isDevelopment = process.env.NODE_ENV === "development"
 
 // Trial period configuration
 export const DEFAULT_TRIAL_DAYS = parseInt(

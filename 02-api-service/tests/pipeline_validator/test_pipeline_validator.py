@@ -70,11 +70,11 @@ def mock_org():
         "status": "ACTIVE",
         "org_dataset_id": f"{TEST_ORG_SLUG}_prod",
         "subscription": {
-            "plan_name": "PRO",
+            "plan_name": "PROFESSIONAL",
             "status": "ACTIVE",
-            "max_pipelines_per_day": 100,
-            "max_pipelines_per_month": 2500,
-            "max_concurrent_pipelines": 5
+            "daily_limit": 25,
+            "monthly_limit": 750,
+            "concurrent_limit": 20
         },
         "org_api_key_id": "test-key-123"
     }
@@ -90,11 +90,11 @@ def mock_org_suspended():
         "status": "ACTIVE",
         "org_dataset_id": f"{TEST_ORG_SLUG}_prod",
         "subscription": {
-            "plan_name": "PRO",
+            "plan_name": "PROFESSIONAL",
             "status": "SUSPENDED",
-            "max_pipelines_per_day": 100,
-            "max_pipelines_per_month": 2500,
-            "max_concurrent_pipelines": 5
+            "daily_limit": 25,
+            "monthly_limit": 750,
+            "concurrent_limit": 20
         },
         "org_api_key_id": "test-key-123"
     }
@@ -133,7 +133,7 @@ async def test_list_all_pipelines():
     Auth: None required (public endpoint)
     Expected: 200 OK with list of pipelines
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/validator/pipelines")
 
@@ -172,7 +172,7 @@ async def test_list_pipelines_by_provider():
     Auth: None required
     Expected: 200 OK with only GCP pipelines
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/validator/pipelines?provider=gcp")
 
@@ -195,7 +195,7 @@ async def test_list_pipelines_include_disabled():
     Auth: None required
     Expected: 200 OK with all pipelines (enabled and disabled)
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Get all pipelines
         response_all = await client.get("/api/v1/validator/pipelines?enabled_only=false")
@@ -218,7 +218,7 @@ async def test_get_specific_pipeline():
     Auth: None required
     Expected: 200 OK with pipeline details
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Use a known pipeline ID from pipelines.yml
         pipeline_id = "gcp_billing"
@@ -245,7 +245,7 @@ async def test_get_nonexistent_pipeline():
     Auth: None required
     Expected: 404 Not Found
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/validator/pipelines/nonexistent_pipeline")
 
@@ -271,7 +271,7 @@ async def test_validate_pipeline_success(mock_org, mock_quota):
     # Override authentication dependency
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     with patch("src.app.dependencies.auth.validate_quota", new_callable=AsyncMock, return_value=mock_quota):
         with patch("src.app.dependencies.auth.reserve_pipeline_quota_atomic", new_callable=AsyncMock):
@@ -315,7 +315,7 @@ async def test_validate_pipeline_org_mismatch(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Try to validate for a different org
         response = await client.post(
@@ -345,7 +345,7 @@ async def test_validate_pipeline_not_found(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/validate/{TEST_ORG_SLUG}",
@@ -373,7 +373,7 @@ async def test_validate_pipeline_subscription_inactive(mock_org_suspended):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org_suspended
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/validate/{TEST_ORG_SLUG}",
@@ -401,7 +401,7 @@ async def test_validate_pipeline_quota_exceeded(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     # Mock quota reservation to raise HTTPException
     from fastapi import HTTPException, status as http_status
@@ -439,7 +439,7 @@ async def test_validate_pipeline_integration_not_configured(mock_org, mock_quota
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     with patch("src.app.dependencies.auth.validate_quota", new_callable=AsyncMock, return_value=mock_quota):
         with patch("src.app.dependencies.auth.reserve_pipeline_quota_atomic", new_callable=AsyncMock):
@@ -476,7 +476,7 @@ async def test_validate_pipeline_with_credentials(mock_org, mock_quota):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     mock_credentials = {
         "provider": "GCP_SA",
@@ -516,7 +516,7 @@ async def test_validate_pipeline_no_integration_required(mock_org, mock_quota):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     with patch("src.app.dependencies.auth.validate_quota", new_callable=AsyncMock, return_value=mock_quota):
         with patch("src.app.dependencies.auth.reserve_pipeline_quota_atomic", new_callable=AsyncMock):
@@ -553,7 +553,7 @@ async def test_report_pipeline_completion_success(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     with patch("src.app.dependencies.auth.increment_pipeline_usage", new_callable=AsyncMock) as mock_increment:
         with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq_client:
@@ -587,7 +587,7 @@ async def test_report_pipeline_completion_failed(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     with patch("src.app.dependencies.auth.increment_pipeline_usage", new_callable=AsyncMock) as mock_increment:
         with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq_client:
@@ -616,7 +616,7 @@ async def test_report_pipeline_completion_org_mismatch(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/validator/complete/different_org?pipeline_status=SUCCESS",
@@ -635,7 +635,7 @@ async def test_report_pipeline_completion_invalid_status(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/complete/{TEST_ORG_SLUG}?pipeline_status=INVALID",
@@ -658,7 +658,7 @@ async def test_validate_pipeline_without_auth(no_auth_headers):
 
     Expected: 401 Unauthorized or 403 Forbidden
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/validate/{TEST_ORG_SLUG}",
@@ -680,7 +680,7 @@ async def test_complete_pipeline_without_auth(no_auth_headers):
 
     Expected: 401 Unauthorized or 403 Forbidden
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/complete/{TEST_ORG_SLUG}?pipeline_status=SUCCESS",
@@ -704,7 +704,7 @@ async def test_validate_pipeline_missing_pipeline_id(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/validate/{TEST_ORG_SLUG}",
@@ -727,7 +727,7 @@ async def test_validate_pipeline_invalid_json(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             f"/api/v1/validator/validate/{TEST_ORG_SLUG}",
@@ -749,7 +749,7 @@ async def test_list_pipelines_with_invalid_provider():
 
     Expected: 200 OK with empty list
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/validator/pipelines?provider=nonexistent")
 
@@ -772,7 +772,7 @@ async def test_validate_disabled_pipeline(mock_org):
     """
     app.dependency_overrides[get_current_org] = lambda: mock_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     # Mock the pipeline registry to return a disabled pipeline
     from src.app.routers.pipeline_validator import PipelineRegistry
@@ -858,7 +858,7 @@ async def test_list_openai_pipelines():
 
     Expected: Only OpenAI pipelines returned
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/validator/pipelines?provider=openai")
 
@@ -880,7 +880,7 @@ async def test_list_anthropic_pipelines():
 
     Expected: Only Anthropic pipelines returned
     """
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/validator/pipelines?provider=anthropic")
 
@@ -909,7 +909,7 @@ async def test_validate_pipeline_trial_subscription(mock_org, mock_quota):
 
     app.dependency_overrides[get_current_org] = lambda: trial_org
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
 
     with patch("src.app.dependencies.auth.validate_quota", new_callable=AsyncMock, return_value=mock_quota):
         with patch("src.app.dependencies.auth.reserve_pipeline_quota_atomic", new_callable=AsyncMock):

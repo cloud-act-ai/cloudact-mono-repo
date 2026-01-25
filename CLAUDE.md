@@ -116,7 +116,10 @@ cd 01-fronted-system && npm run dev
 |-------|-------|
 | Email | john@example.com |
 | Password | acme1234 |
-| Org | acme_inc_01032026 |
+| Company | Acme Inc |
+| Org Pattern | `acme_inc_{MMDDYYYY}` (auto-generated from company + date) |
+
+**Note:** Org slug is dynamically generated during signup as `{company_name}_{date}`. Example: `acme_inc_01252026` for signup on Jan 25, 2026.
 
 ## Deployment
 

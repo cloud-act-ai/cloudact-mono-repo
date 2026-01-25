@@ -10,7 +10,7 @@ TWO-DATASET ARCHITECTURE:
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import hashlib
 import secrets
 import re
@@ -36,7 +36,7 @@ from src.app.models.i18n_models import (
     timezone_validator,
 )
 from src.core.utils.audit_logger import log_create, log_update, log_delete, log_audit, AuditLogger
-from src.core.utils.error_handling import safe_error_response
+from src.core.utils.error_handling import safe_error_response, handle_onboarding_error
 from src.core.utils.validators import validate_org_slug, validate_email
 from google.cloud import bigquery
 import uuid
@@ -107,6 +107,23 @@ class OnboardOrgRequest(BaseModel):
             )
         return v
 
+    @field_validator('company_name')
+    @classmethod
+    def validate_company_name(cls, v: str) -> str:
+        """Validate company_name contains only allowed characters.
+
+        Allows: alphanumeric, spaces, and common business characters
+        (hyphens, periods, commas, apostrophes, ampersands, parentheses).
+        """
+        # Pattern: alphanumeric, spaces, and common business punctuation
+        pattern = r"^[a-zA-Z0-9\s\-\.\,\'\"&\(\)]+$"
+        if not re.match(pattern, v):
+            raise ValueError(
+                "company_name must contain only alphanumeric characters, spaces, "
+                "and common business characters (- . , ' \" & ( ))"
+            )
+        return v.strip()
+
     @field_validator('subscription_plan')
     @classmethod
     def validate_subscription_plan(cls, v):
@@ -132,6 +149,38 @@ class OnboardOrgRequest(BaseModel):
     def validate_default_timezone(cls, v):
         """Validate timezone is supported."""
         return timezone_validator(v)
+
+    @field_validator('dataset_location')
+    @classmethod
+    def validate_dataset_location(cls, v):
+        """Validate dataset_location is a valid BigQuery region."""
+        if v is None:
+            return v  # None is allowed, will use server default
+
+        # Valid BigQuery regions (multi-region and single regions)
+        VALID_BIGQUERY_REGIONS = {
+            # Multi-regions
+            "US", "EU",
+            # Asia regions
+            "asia-east1", "asia-east2", "asia-northeast1", "asia-northeast2",
+            "asia-northeast3", "asia-south1", "asia-southeast1", "asia-southeast2",
+            # Australia
+            "australia-southeast1",
+            # Europe regions
+            "europe-north1", "europe-west1", "europe-west2", "europe-west3",
+            "europe-west4", "europe-west6",
+            # Americas regions
+            "northamerica-northeast1", "southamerica-east1",
+            "us-central1", "us-east1", "us-east4",
+            "us-west1", "us-west2", "us-west3", "us-west4",
+        }
+
+        if v not in VALID_BIGQUERY_REGIONS:
+            raise ValueError(
+                f"Invalid BigQuery dataset_location: '{v}'. "
+                f"Valid regions: {', '.join(sorted(VALID_BIGQUERY_REGIONS))}"
+            )
+        return v
 
 
 class OnboardOrgResponse(BaseModel):
@@ -654,10 +703,13 @@ async def sync_org_dataset(
         if request.recreate_views:
             from src.core.processors.setup.organizations.onboarding import OrgOnboardingProcessor
             processor = OrgOnboardingProcessor()
-            mv_created, mv_failed = processor._create_org_materialized_views(org_slug, dataset_id)
+            mv_created, mv_failed, mv_errors = processor._create_org_materialized_views(org_slug, dataset_id)
             views_created.extend(mv_created)
             if mv_failed:
-                errors.extend([f"Failed to create view: {v}" for v in mv_failed])
+                # Include error details for better debugging
+                for view_name in mv_failed:
+                    error_detail = mv_errors.get(view_name, "Unknown error")
+                    errors.append(f"Failed to create view {view_name}: {error_detail}")
 
         # Determine status
         if errors:
@@ -796,22 +848,14 @@ async def onboard_org(
     plan_enum = SubscriptionPlan(request.subscription_plan)
     central_limits = SUBSCRIPTION_LIMITS.get(plan_enum, SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER])
 
-    # Map to expected format for this function
-    plan_limits = {
-        "max_team": central_limits["max_team_members"],
-        "max_providers": central_limits["max_providers"],
-        "max_daily": central_limits["max_pipelines_per_day"],
-        "max_monthly": central_limits["max_pipelines_per_month"],
-        "max_concurrent": central_limits["max_concurrent_pipelines"],
-        "seat_limit": central_limits["max_team_members"],
-        "providers_limit": central_limits["max_providers"]
-    }
+    # FIX: Use direct keys from SUBSCRIPTION_LIMITS without intermediate mapping
+    plan_limits = central_limits
 
     # Helper function to cleanup partial org data on failure
     async def cleanup_partial_org(org_slug: str, step_failed: str):
         """
         Cleanup partial org data if onboarding fails.
-        Removes org profile, API keys, subscription, and usage quota.
+        Removes org profile, API keys, subscription, usage quota, and org-specific dataset.
         """
         logger.warning(f"Cleaning up partial org data after failure at {step_failed}: {org_slug}")
 
@@ -820,6 +864,9 @@ async def onboard_org(
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_api_keys` WHERE org_slug = @org_slug",
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_subscriptions` WHERE org_slug = @org_slug",
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` WHERE org_slug = @org_slug",
+            # FIX ISSUE 2.1 & 2.2: Cleanup hierarchy data on partial failure
+            f"DELETE FROM `{settings.gcp_project_id}.organizations.org_hierarchy` WHERE org_slug = @org_slug",
+            f"DELETE FROM `{settings.gcp_project_id}.organizations.org_hierarchy_levels` WHERE org_slug = @org_slug",
         ]
 
         for query in cleanup_queries:
@@ -834,6 +881,20 @@ async def onboard_org(
                 ).result()
             except Exception as cleanup_error:
                 logger.error(f"Cleanup failed for query: {query[:50]}... Error: {cleanup_error}")
+
+        # Delete org-specific dataset if it was created
+        try:
+            dataset_name = settings.get_org_dataset_name(org_slug)
+            dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
+            bq_client.client.delete_dataset(
+                dataset_id,
+                delete_contents=True,  # Delete all tables in the dataset
+                not_found_ok=True  # Don't error if dataset doesn't exist
+            )
+            logger.info(f"Deleted org dataset during cleanup: {dataset_id}")
+        except Exception as dataset_error:
+            logger.error(f"Failed to delete org dataset {org_slug}: {dataset_error}")
+            # Don't fail the cleanup - meta data cleanup is still valuable
 
         logger.info(f"Partial org cleanup completed for: {org_slug}")
 
@@ -953,10 +1014,10 @@ async def onboard_org(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
-                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
+                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
                         # Use max_monthly from SUBSCRIPTION_LIMITS (single source of truth)
-                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
-                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"])
+                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
+                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"])
                     ]
                 )
             ).result()
@@ -967,12 +1028,17 @@ async def onboard_org(
             # Non-fatal - continue with API key regeneration
 
         # STEP 3: Update usage quota limits (keep current usage, update limits)
+        # FIX: Update ALL limits, not just daily_limit, to ensure quota enforcement works correctly
         try:
             update_quota_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
                 daily_limit = @daily_limit,
-                last_updated = CURRENT_TIMESTAMP()
+                monthly_limit = @monthly_limit,
+                concurrent_limit = @concurrent_limit,
+                seat_limit = @seat_limit,
+                providers_limit = @providers_limit,
+                updated_at = CURRENT_TIMESTAMP()
             WHERE org_slug = @org_slug
             """
 
@@ -981,12 +1047,16 @@ async def onboard_org(
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"])
+                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
+                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
+                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
+                        bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
+                        bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"])
                     ]
                 )
             ).result()
 
-            logger.info(f"Updated usage quota limits for: {org_slug}")
+            logger.info(f"Updated usage quota limits for: {org_slug} (all limits synced)")
         except Exception as e:
             logger.error(f"Failed to update usage quota: {e}", exc_info=True)
             # Non-fatal - continue with API key regeneration
@@ -1040,7 +1110,7 @@ async def onboard_org(
                         bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
-                        bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+                        bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]  # type: ignore[arg-type]
                         bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                     ]
                 )
@@ -1124,19 +1194,17 @@ async def onboard_org(
         )
 
     except Exception as e:
-        logger.error(
-            f"Failed to create org profile",
-            extra={
+        # Use handle_onboarding_error for actionable error messages
+        raise handle_onboarding_error(
+            error=e,
+            step_name="STEP 1: Profile Creation",
+            org_slug=org_slug,
+            resource_type="organization profile",
+            context={
                 "event_type": "org_creation_failed",
-                "org_slug": org_slug,
                 "company_name": request.company_name,
-                "error": str(e)
-            },
-            exc_info=True
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create organization profile. Please check server logs for details."
+                "table": "org_profiles"
+            }
         )
 
     # ============================================
@@ -1181,7 +1249,7 @@ async def onboard_org(
                     bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
-                    bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+                    bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]
                     bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                 ]
             )
@@ -1199,20 +1267,18 @@ async def onboard_org(
         )
 
     except Exception as e:
-        logger.error(
-            f"Failed to generate/store API key",
-            extra={
-                "event_type": "api_key_creation_failed",
-                "org_slug": org_slug,
-                "error": str(e)
-            },
-            exc_info=True
-        )
         # Cleanup partial org data
         await cleanup_partial_org(org_slug, "STEP 2: API Key Generation")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate API key. Please check server logs for details."
+        # Use handle_onboarding_error for actionable error messages
+        raise handle_onboarding_error(
+            error=e,
+            step_name="STEP 2: API Key Generation",
+            org_slug=org_slug,
+            resource_type="API key",
+            context={
+                "event_type": "api_key_creation_failed",
+                "table": "org_api_keys"
+            }
         )
 
     # ============================================
@@ -1240,9 +1306,9 @@ async def onboard_org(
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
                     bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
                     bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"]),
                     bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
@@ -1253,12 +1319,19 @@ async def onboard_org(
         logger.info(f"Subscription created: {subscription_id}")
 
     except Exception as e:
-        logger.error(f"Failed to create subscription: {e}", exc_info=True)
         # Cleanup partial org data
         await cleanup_partial_org(org_slug, "STEP 3: Subscription Creation")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create subscription. Please check server logs for details."
+        # Use handle_onboarding_error for actionable error messages
+        raise handle_onboarding_error(
+            error=e,
+            step_name="STEP 3: Subscription Creation",
+            org_slug=org_slug,
+            resource_type="subscription",
+            context={
+                "event_type": "subscription_creation_failed",
+                "table": "org_subscriptions",
+                "plan": request.subscription_plan
+            }
         )
 
     # ============================================
@@ -1267,17 +1340,19 @@ async def onboard_org(
     try:
         logger.info(f"Creating usage quota for organization: {org_slug}")
 
-        usage_id = f"{org_slug}_{date.today().strftime('%Y%m%d')}"
+        # FIX: Use UTC date to ensure consistency with BigQuery CURRENT_DATE()
+        utc_today = datetime.now(timezone.utc).date()
+        usage_id = f"{org_slug}_{utc_today.strftime('%Y%m%d')}"
 
         insert_usage_query = f"""
         INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
         (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
          pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
-         daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
-         last_updated, created_at)
+         max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+         last_updated, updated_at, created_at)
         VALUES
-        (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit, @monthly_limit,
-         @concurrent_limit, @seat_limit, @providers_limit, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, 0, @daily_limit, @monthly_limit,
+         @concurrent_limit, @seat_limit, @providers_limit, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -1286,9 +1361,9 @@ async def onboard_org(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
                     bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
                     bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"])
                 ]
@@ -1298,12 +1373,18 @@ async def onboard_org(
         logger.info(f"Usage quota created: {usage_id}")
 
     except Exception as e:
-        logger.error(f"Failed to create usage quota: {e}", exc_info=True)
         # Cleanup partial org data
         await cleanup_partial_org(org_slug, "STEP 4: Usage Quota Creation")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create usage quota. Please check server logs for details."
+        # Use handle_onboarding_error for actionable error messages
+        raise handle_onboarding_error(
+            error=e,
+            step_name="STEP 4: Usage Quota Creation",
+            org_slug=org_slug,
+            resource_type="usage quota",
+            context={
+                "event_type": "usage_quota_creation_failed",
+                "table": "org_usage_quotas"
+            }
         )
 
     # ============================================
@@ -1482,9 +1563,9 @@ async def onboard_org(
                     ],
                     # GenAI tables created empty - customers add custom plans via UI
                     "seed_genai_data": False,
-                    "default_daily_limit": plan_limits["max_daily"],
-                    "default_monthly_limit": plan_limits["max_monthly"],
-                    "default_concurrent_limit": plan_limits["max_concurrent"]
+                    "default_daily_limit": plan_limits["daily_limit"],
+                    "default_monthly_limit": plan_limits["monthly_limit"],
+                    "default_concurrent_limit": plan_limits["concurrent_limit"]
                 }
             },
             context={
@@ -1498,13 +1579,20 @@ async def onboard_org(
         logger.info(f"Onboarding processor completed: {processor_result}")
 
     except Exception as e:
-        logger.error(f"Failed to create org dataset: {e}", exc_info=True)
         # Cleanup partial org data (including BigQuery datasets)
         await cleanup_partial_org(org_slug, "STEP 5: Dataset Creation")
         # Note: Dataset deletion is handled by OrgOnboardingProcessor cleanup internally
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create organization dataset. Please check server logs for details."
+        # Use handle_onboarding_error for actionable error messages
+        raise handle_onboarding_error(
+            error=e,
+            step_name="STEP 5: Dataset Creation",
+            org_slug=org_slug,
+            resource_type="organization dataset",
+            context={
+                "event_type": "dataset_creation_failed",
+                "dataset_id": settings.get_org_dataset_name(org_slug),
+                "location": request.dataset_location or settings.bigquery_location
+            }
         )
 
     # ============================================
@@ -1525,9 +1613,9 @@ async def onboard_org(
             import json
             response_data = json.dumps({
                 "api_key": "[redacted]",  # Don't store actual key
-                "api_key_id": api_key_id if 'api_key_id' in dir() else "",
+                "api_key_id": org_api_key_id,
                 "dataset_id": settings.get_org_dataset_name(org_slug),
-                "subscription_id": subscription_id if 'subscription_id' in dir() else "",
+                "subscription_id": subscription_id,
                 "tables_created": tables_created
             })
 
@@ -1751,7 +1839,7 @@ async def rotate_api_key(
                     bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
-                    bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+                    bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]
                     bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                 ]
             )
@@ -2073,11 +2161,11 @@ async def update_subscription_limits(
         default_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
 
     # Use request values or fall back to plan defaults
-    daily_limit = request.daily_limit or default_limits["max_pipelines_per_day"]
-    monthly_limit = request.monthly_limit or default_limits["max_pipelines_per_month"]
-    concurrent_limit = request.concurrent_limit or default_limits["max_concurrent_pipelines"]
-    seat_limit = request.seat_limit or default_limits.get("max_team_members", 1)
-    providers_limit = request.providers_limit or default_limits.get("max_providers", 3)
+    daily_limit = request.daily_limit or default_limits["daily_limit"]
+    monthly_limit = request.monthly_limit or default_limits["monthly_limit"]
+    concurrent_limit = request.concurrent_limit or default_limits["concurrent_limit"]
+    seat_limit = request.seat_limit or default_limits.get("seat_limit", 1)
+    providers_limit = request.providers_limit or default_limits.get("providers_limit", 3)
 
     # Get status and trial_end_date from request
     subscription_status = request.status  # Already validated by pydantic
@@ -2211,12 +2299,12 @@ async def update_subscription_limits(
                 concurrent_limit = @concurrent_limit,
                 seat_limit = @seat_limit,
                 providers_limit = @providers_limit,
-                last_updated = CURRENT_TIMESTAMP()
+                updated_at = CURRENT_TIMESTAMP()
         WHEN NOT MATCHED THEN
             INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
                     pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
                     daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
-                    max_concurrent_reached, last_updated, created_at)
+                    max_concurrent_reached, updated_at, created_at)
             VALUES (GENERATE_UUID(), @org_slug, CURRENT_DATE(), 0, 0,
                     0, 0, 0,
                     @daily_limit, @monthly_limit, @concurrent_limit, @seat_limit, @providers_limit,
@@ -2431,9 +2519,9 @@ async def delete_organization(
 
         # Optionally delete the org's dataset
         if request.delete_dataset:
+            dataset_name = settings.get_org_dataset_name(org_slug)
+            dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
             try:
-                dataset_name = settings.get_org_dataset_name(org_slug)
-                dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
                 bq_client.client.delete_dataset(
                     dataset_id,
                     delete_contents=True,  # Delete all tables in the dataset

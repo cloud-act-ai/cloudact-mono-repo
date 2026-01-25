@@ -980,6 +980,7 @@ export async function changeSubscriptionPlan(
         monthlyLimit: limits.pipelines_per_day_limit * 30,
         seatLimit: limits.seat_limit,
         providersLimit: limits.providers_limit,
+        concurrentLimit: limits.concurrent_pipelines_limit,
         syncType: 'plan_change',
       })
 
@@ -1342,6 +1343,7 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
         monthlyLimit: limits.pipelines_per_day_limit * 30,
         seatLimit: limits.seat_limit,
         providersLimit: limits.providers_limit,
+        concurrentLimit: limits.concurrent_pipelines_limit,
         syncType: 'reconciliation',
       })
 

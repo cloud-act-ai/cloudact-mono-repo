@@ -16,7 +16,7 @@ Multi-User/Multi-Currency Support:
 """
 
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from datetime import date
 
@@ -75,7 +75,7 @@ ENV_CONFIGS = {
 # Alias docker to development
 ENV_CONFIGS["docker"] = ENV_CONFIGS["development"]
 
-def get_env_config(env: str = None) -> Dict[str, str]:
+def get_env_config(env: Optional[str] = None) -> Dict[str, str]:
     """Get configuration for the specified environment."""
     env = env or TEST_ENV
     return ENV_CONFIGS.get(env, ENV_CONFIGS["local"])
@@ -327,9 +327,9 @@ async def async_client():
             "subscription": {
                 "plan_name": "ENTERPRISE",
                 "status": "ACTIVE",
-                "max_pipelines_per_day": 999999,
-                "max_pipelines_per_month": 999999,
-                "max_concurrent_pipelines": 999999
+                "daily_limit": 999999,
+                "monthly_limit": 999999,
+                "concurrent_limit": 999999
             },
             "org_api_key_id": "test-key-123"
         }
@@ -555,9 +555,9 @@ import httpx
 
 
 def create_test_org(
-    env: str = None,
-    org_config: OrgTestConfig = None,
-    org_slug_suffix: str = None
+    env: Optional[str] = None,
+    org_config: Optional[OrgTestConfig] = None,
+    org_slug_suffix: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Dynamically create a test organization via API.
@@ -627,8 +627,8 @@ def create_test_subscriptions(
     org_slug: str,
     api_key: str,
     currency: str = "USD",
-    env: str = None,
-    subscriptions: List[Dict[str, Any]] = None
+    env: Optional[str] = None,
+    subscriptions: Optional[List[Dict[str, Any]]] = None
 ) -> List[Dict[str, Any]]:
     """
     Dynamically create test subscription plans for an org.
@@ -693,9 +693,9 @@ def create_test_subscriptions(
 def run_cost_pipeline(
     org_slug: str,
     api_key: str,
-    start_date: str = None,
-    end_date: str = None,
-    env: str = None
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    env: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Run the SaaS cost calculation pipeline for an org.
@@ -750,7 +750,7 @@ def dynamic_test_org(request):
     """
     created_orgs = []
 
-    def _create_org(org_config: OrgTestConfig = None, env: str = None):
+    def _create_org(org_config: Optional[OrgTestConfig] = None, env: Optional[str] = None):
         org = create_test_org(env=env, org_config=org_config)
         created_orgs.append(org)
         return org
@@ -775,8 +775,8 @@ def dynamic_subscriptions():
         org_slug: str,
         api_key: str,
         currency: str = "USD",
-        env: str = None,
-        subscriptions: List[Dict[str, Any]] = None
+        env: Optional[str] = None,
+        subscriptions: Optional[List[Dict[str, Any]]] = None
     ):
         return create_test_subscriptions(
             org_slug=org_slug,
@@ -802,9 +802,9 @@ def run_pipeline():
     def _run_pipeline(
         org_slug: str,
         api_key: str,
-        start_date: str = None,
-        end_date: str = None,
-        env: str = None
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        env: Optional[str] = None
     ):
         return run_cost_pipeline(
             org_slug=org_slug,
@@ -852,14 +852,15 @@ def india_test_org() -> Dict[str, Any]:
 
 
 # Make helper functions available to all tests
-pytest.calculate_expected_daily_cost = calculate_expected_daily_cost
-pytest.get_fiscal_quarter = get_fiscal_quarter
-pytest.get_fiscal_year = get_fiscal_year
-pytest.get_sample_subscriptions_for_currency = get_sample_subscriptions_for_currency
-pytest.ORG_CONFIGS = ORG_CONFIGS
-pytest.FISCAL_YEAR_CONFIGS = FISCAL_YEAR_CONFIGS
-pytest.ENV_CONFIGS = ENV_CONFIGS
-pytest.TEST_ORGS = TEST_ORGS
-pytest.create_test_org = create_test_org
-pytest.create_test_subscriptions = create_test_subscriptions
-pytest.run_cost_pipeline = run_cost_pipeline
+# These are pytest plugin patterns that work at runtime but Pyright doesn't understand
+pytest.calculate_expected_daily_cost = calculate_expected_daily_cost  # type: ignore[attr-defined]
+pytest.get_fiscal_quarter = get_fiscal_quarter  # type: ignore[attr-defined]
+pytest.get_fiscal_year = get_fiscal_year  # type: ignore[attr-defined]
+pytest.get_sample_subscriptions_for_currency = get_sample_subscriptions_for_currency  # type: ignore[attr-defined]
+pytest.ORG_CONFIGS = ORG_CONFIGS  # type: ignore[attr-defined]
+pytest.FISCAL_YEAR_CONFIGS = FISCAL_YEAR_CONFIGS  # type: ignore[attr-defined]
+pytest.ENV_CONFIGS = ENV_CONFIGS  # type: ignore[attr-defined]
+pytest.TEST_ORGS = TEST_ORGS  # type: ignore[attr-defined]
+pytest.create_test_org = create_test_org  # type: ignore[attr-defined]
+pytest.create_test_subscriptions = create_test_subscriptions  # type: ignore[attr-defined]
+pytest.run_cost_pipeline = run_cost_pipeline  # type: ignore[attr-defined]

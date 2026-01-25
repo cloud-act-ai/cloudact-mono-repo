@@ -216,7 +216,7 @@ async def get_pipelines_due_now(
             c.next_run_time,
             c.priority,
             p.status as org_status,
-            s.max_pipelines_per_day,
+            s.daily_limit,
             s.concurrent_limit,
             COALESCE(u.pipelines_run_today, 0) as pipelines_run_today,
             COALESCE(u.concurrent_pipelines_running, 0) as concurrent_pipelines_running
@@ -224,7 +224,8 @@ async def get_pipelines_due_now(
         INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
             ON c.org_slug = p.org_slug
         LEFT JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-            ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
+            -- FIX: Include TRIAL orgs, not just ACTIVE (matches auth.py validation)
+            ON p.org_slug = s.org_slug AND s.status IN ('ACTIVE', 'TRIAL')
         LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
             ON p.org_slug = u.org_slug AND u.usage_date = @usage_date
         WHERE c.is_active = TRUE
@@ -234,10 +235,10 @@ async def get_pipelines_due_now(
     SELECT
         config_id, org_slug, provider, domain, pipeline_template,
         schedule_cron, timezone, parameters, next_run_time, priority,
-        org_status, max_pipelines_per_day, pipelines_run_today,
+        org_status, daily_limit, pipelines_run_today,
         concurrent_limit, concurrent_pipelines_running
     FROM due_pipelines
-    WHERE pipelines_run_today < max_pipelines_per_day
+    WHERE pipelines_run_today < daily_limit
       -- BUG-007 FIX: Skip orgs at concurrent limit
       AND concurrent_pipelines_running < COALESCE(concurrent_limit, 999999)
     ORDER BY next_run_time ASC, priority DESC
@@ -634,7 +635,7 @@ async def process_queue(
             increment_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-                last_updated = CURRENT_TIMESTAMP()
+                updated_at = CURRENT_TIMESTAMP()
             WHERE org_slug = @org_slug AND usage_date = @usage_date
             """
             try:
@@ -800,7 +801,7 @@ async def process_queue(
                             decrement_query = f"""
                             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
                             SET concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
-                                last_updated = CURRENT_TIMESTAMP()
+                                updated_at = CURRENT_TIMESTAMP()
                             WHERE org_slug = @org_slug AND usage_date = @usage_date
                             """
                             bq.client.query(
@@ -1288,7 +1289,8 @@ async def reset_daily_quotas(
                 s.concurrent_limit
             FROM `{settings.gcp_project_id}.organizations.org_profiles` p
             INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-                ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
+                -- FIX: Include TRIAL orgs, not just ACTIVE (matches auth.py validation)
+                ON p.org_slug = s.org_slug AND s.status IN ('ACTIVE', 'TRIAL')
             WHERE p.status = 'ACTIVE'
         ) S
         ON T.usage_id = S.usage_id
@@ -1302,12 +1304,12 @@ async def reset_daily_quotas(
                 daily_limit = S.daily_limit,
                 monthly_limit = S.monthly_limit,
                 concurrent_limit = S.concurrent_limit,
-                last_updated = CURRENT_TIMESTAMP()
+                updated_at = CURRENT_TIMESTAMP()
         WHEN NOT MATCHED THEN
             INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
                     pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
                     max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
-                    created_at, last_updated)
+                    created_at, updated_at)
             VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, S.pipelines_run_month, 0, 0,
                     S.daily_limit, S.monthly_limit, S.concurrent_limit,
                     CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
@@ -1315,7 +1317,7 @@ async def reset_daily_quotas(
 
         reset_job = bq_client.client.query(reset_query)
         reset_job.result()
-        reset_count = reset_job.num_dml_affected_rows
+        reset_count = reset_job.num_dml_affected_rows or 0
 
         logger.info(f"Reset daily quotas: {reset_count} records created/updated for today")
 
@@ -1327,7 +1329,7 @@ async def reset_daily_quotas(
 
         archive_job = bq_client.client.query(archive_query)
         archive_job.result()
-        archived_count = archive_job.num_dml_affected_rows
+        archived_count = archive_job.num_dml_affected_rows or 0
 
         logger.info(f"Archived {archived_count} old quota records")
 
@@ -1434,7 +1436,7 @@ async def cleanup_orphaned_pipelines(
                 )
                 cleanup_job = bq_client.client.query(cleanup_query, job_config=cleanup_job_config)
                 cleanup_job.result()
-                cleaned_count = cleanup_job.num_dml_affected_rows
+                cleaned_count = cleanup_job.num_dml_affected_rows or 0
 
                 if cleaned_count > 0:
                     # Decrement concurrent_pipelines_running counter
@@ -1443,7 +1445,7 @@ async def cleanup_orphaned_pipelines(
                     UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
                     SET
                         concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
-                        last_updated = CURRENT_TIMESTAMP()
+                        updated_at = CURRENT_TIMESTAMP()
                     WHERE org_slug = @org_slug
                       AND usage_date = (
                           SELECT MAX(usage_date)
@@ -1533,7 +1535,7 @@ async def reset_concurrent_counter(
         reset_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET concurrent_pipelines_running = 0,
-            last_updated = CURRENT_TIMESTAMP()
+            updated_at = CURRENT_TIMESTAMP()
         WHERE org_slug = @org_slug AND usage_date = @usage_date
         """
 
@@ -1564,6 +1566,261 @@ async def reset_concurrent_counter(
 
     except Exception as e:
         logger.error(f"Failed to reset concurrent counter for {org_slug}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Operation failed. Please check server logs for details."
+        )
+
+
+@router.post(
+    "/scheduler/reset-monthly-quotas",
+    summary="Reset monthly quotas (Monthly)",
+    description="Called by Cloud Scheduler on 1st of each month to reset monthly quota counters (ADMIN ONLY)"
+)
+async def reset_monthly_quotas(
+    admin_context: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Reset monthly quota counters for all organizations.
+
+    Should be called on the 1st of each month at 00:00 UTC by Cloud Scheduler.
+    This runs AFTER the daily quota reset to ensure today's record exists.
+
+    Logic:
+    1. Check if today is the 1st of the month (skip if not)
+    2. Update all today's quota records to set pipelines_run_month = 0
+    3. Return count of records updated
+
+    Security:
+    - Requires admin API key
+    - Only resets monthly counter, preserves all other data
+
+    Schedule:
+    - Run at 00:05 UTC on 1st of month (after daily reset at 00:00)
+    """
+    try:
+        today = get_utc_date()
+
+        # Only run on the 1st of the month
+        if today.day != 1:
+            logger.warning(
+                f"Monthly quota reset called on day {today.day}, skipping (should be day 1)"
+            )
+            return {
+                "status": "SKIPPED",
+                "reason": f"Not first of month (day={today.day})",
+                "executed_at": datetime.now(timezone.utc).isoformat()
+            }
+
+        # Update today's records to reset monthly count
+        update_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET pipelines_run_month = 0,
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE usage_date = @today
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("today", "DATE", today)
+            ]
+        )
+
+        query_job = bq_client.client.query(update_query, job_config=job_config)
+        query_job.result()
+
+        rows_updated = query_job.num_dml_affected_rows or 0
+
+        logger.info(
+            f"Monthly quota reset complete",
+            extra={
+                "date": today.isoformat(),
+                "orgs_reset": rows_updated
+            }
+        )
+
+        return {
+            "status": "SUCCESS",
+            "date": today.isoformat(),
+            "orgs_reset": rows_updated,
+            "message": f"Reset monthly quotas for {rows_updated} organizations",
+            "executed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Monthly quota reset failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Operation failed. Please check server logs for details."
+        )
+
+
+@router.post(
+    "/scheduler/reset-stale-concurrent",
+    summary="Reset stale concurrent counts (Every 15 min)",
+    description="Called by Cloud Scheduler to cleanup stale concurrent counters (ADMIN ONLY)"
+)
+async def reset_stale_concurrent(
+    admin_context: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Reset concurrent pipeline counts that are stale.
+
+    Handles cases where pipelines crashed without decrementing the concurrent count.
+    Any pipeline that's been "running" for more than 1 hour is considered stale.
+
+    Also handles cross-midnight scenarios by checking the last 3 days of quota records.
+
+    Logic:
+    1. Find orgs with concurrent_pipelines_running > 0 in last 3 days
+    2. Count actually running pipelines (RUNNING/PENDING < 1 hour old)
+    3. Fix any discrepancies between counter and actual count
+    4. Mark stale pipelines as FAILED
+
+    Security:
+    - Requires admin API key
+    - Only fixes genuinely stale counters
+
+    Schedule:
+    - Run every 15 minutes
+    """
+    try:
+        today = get_utc_date()
+        from datetime import timedelta
+        yesterday = today - timedelta(days=1)
+        day_before = today - timedelta(days=2)
+
+        # Find orgs with stale concurrent counts (last 3 days for cross-midnight scenarios)
+        query = f"""
+        WITH stale_pipelines AS (
+            SELECT
+                org_slug,
+                COUNT(*) as stale_count
+            FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+            WHERE status IN ('RUNNING', 'PENDING')
+              AND start_time < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+            GROUP BY org_slug
+        ),
+        recent_quotas AS (
+            SELECT
+                org_slug,
+                usage_date,
+                concurrent_pipelines_running
+            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            WHERE usage_date IN (@today, @yesterday, @day_before)
+        )
+        SELECT
+            q.org_slug,
+            q.usage_date,
+            q.concurrent_pipelines_running,
+            COALESCE(s.stale_count, 0) as stale_count
+        FROM recent_quotas q
+        LEFT JOIN stale_pipelines s ON q.org_slug = s.org_slug
+        WHERE q.concurrent_pipelines_running > 0
+        """
+
+        results = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("today", "DATE", today),
+                bigquery.ScalarQueryParameter("yesterday", "DATE", yesterday),
+                bigquery.ScalarQueryParameter("day_before", "DATE", day_before)
+            ])
+        ).result())
+
+        orgs_fixed = 0
+
+        for row in results:
+            org_slug = row["org_slug"]
+            row_usage_date = row["usage_date"]
+            current_count = row["concurrent_pipelines_running"]
+
+            # For previous days, concurrent count should always be 0
+            if row_usage_date < today:
+                actual_count = 0
+            else:
+                # For today, calculate actual running count (recent pipelines only)
+                actual_query = f"""
+                SELECT COUNT(*) as actual_count
+                FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+                WHERE org_slug = @org_slug
+                  AND status IN ('RUNNING', 'PENDING')
+                  AND start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+                """
+
+                actual_result = list(bq_client.client.query(
+                    actual_query,
+                    job_config=bigquery.QueryJobConfig(query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                    ])
+                ).result())
+
+                actual_count = actual_result[0]["actual_count"] if actual_result else 0
+
+            if current_count != actual_count:
+                # Fix the count
+                update_query = f"""
+                UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+                SET concurrent_pipelines_running = @actual_count,
+                    updated_at = CURRENT_TIMESTAMP()
+                WHERE org_slug = @org_slug AND usage_date = @usage_date
+                """
+
+                bq_client.client.query(
+                    update_query,
+                    job_config=bigquery.QueryJobConfig(query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("actual_count", "INT64", actual_count),
+                        bigquery.ScalarQueryParameter("usage_date", "DATE", row_usage_date)
+                    ])
+                ).result()
+
+                logger.info(
+                    f"Fixed stale concurrent count for org",
+                    extra={
+                        "org_slug": org_slug,
+                        "usage_date": str(row_usage_date),
+                        "old_count": current_count,
+                        "new_count": actual_count
+                    }
+                )
+
+                orgs_fixed += 1
+
+        # Mark stale pipelines as FAILED
+        mark_stale_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        SET status = 'FAILED',
+            end_time = CURRENT_TIMESTAMP(),
+            error_message = 'Pipeline timed out (stale after 1 hour)'
+        WHERE status IN ('RUNNING', 'PENDING')
+          AND start_time < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+        """
+
+        stale_job = bq_client.client.query(mark_stale_query)
+        stale_job.result()
+        pipelines_marked_failed = stale_job.num_dml_affected_rows or 0
+
+        logger.info(
+            f"Stale concurrent count reset complete",
+            extra={
+                "orgs_fixed": orgs_fixed,
+                "pipelines_marked_failed": pipelines_marked_failed
+            }
+        )
+
+        return {
+            "status": "SUCCESS",
+            "orgs_fixed": orgs_fixed,
+            "pipelines_marked_failed": pipelines_marked_failed,
+            "message": f"Fixed {orgs_fixed} orgs, marked {pipelines_marked_failed} pipelines as failed",
+            "executed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Stale concurrent count reset failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."

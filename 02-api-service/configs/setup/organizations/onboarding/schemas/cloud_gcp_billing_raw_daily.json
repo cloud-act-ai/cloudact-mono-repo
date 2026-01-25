@@ -216,6 +216,12 @@
     "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
   },
   {
+    "name": "x_hierarchy_validated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When hierarchy was validated"
+  },
+  {
     "name": "x_pipeline_id",
     "type": "STRING",
     "mode": "REQUIRED",

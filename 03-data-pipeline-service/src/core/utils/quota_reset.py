@@ -68,7 +68,8 @@ async def reset_daily_quotas() -> Dict[str, Any]:
             s.concurrent_limit
         FROM `{settings.gcp_project_id}.organizations.org_profiles` p
         INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-            ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
+            -- FIX: Include TRIAL orgs, not just ACTIVE (matches auth.py validation)
+            ON p.org_slug = s.org_slug AND s.status IN ('ACTIVE', 'TRIAL')
         LEFT JOIN latest_monthly lm
             ON p.org_slug = lm.org_slug AND lm.rn = 1
         WHERE p.status = 'ACTIVE'
@@ -84,12 +85,12 @@ async def reset_daily_quotas() -> Dict[str, Any]:
             daily_limit = S.daily_limit,
             monthly_limit = S.monthly_limit,
             concurrent_limit = S.concurrent_limit,
-            last_updated = CURRENT_TIMESTAMP()
+            updated_at = CURRENT_TIMESTAMP()
     WHEN NOT MATCHED THEN
         INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
                 pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
                 max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
-                created_at, last_updated)
+                created_at, updated_at)
         VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, S.pipelines_run_month, 0, 0,
                 S.daily_limit, S.monthly_limit, S.concurrent_limit,
                 CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
@@ -158,7 +159,7 @@ async def reset_monthly_quotas() -> Dict[str, Any]:
     update_query = f"""
     UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
     SET pipelines_run_month = 0,
-        last_updated = CURRENT_TIMESTAMP()
+        updated_at = CURRENT_TIMESTAMP()
     WHERE usage_date = @today
     """
 
@@ -301,7 +302,7 @@ async def reset_stale_concurrent_counts() -> Dict[str, Any]:
                 update_query = f"""
                 UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
                 SET concurrent_pipelines_running = @actual_count,
-                    last_updated = CURRENT_TIMESTAMP()
+                    updated_at = CURRENT_TIMESTAMP()
                 WHERE org_slug = @org_slug AND usage_date = @usage_date
                 """
 

@@ -651,7 +651,7 @@ async def validate_quota(
                 INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
                         pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
                         max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
-                        created_at, last_updated)
+                        created_at, updated_at)
                 VALUES (@usage_id, @org_slug, @usage_date, 0, 0, 0, 0, 0, 0,
                         @daily_limit, @monthly_limit, @concurrent_limit,
                         CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
@@ -748,7 +748,15 @@ async def increment_pipeline_usage(
     bq_client: BigQueryClient
 ):
     """
-    Increment usage counters after pipeline execution.
+    DEPRECATED: This function is not used in production.
+
+    In the current architecture, quota updates are handled by the api-service:
+    - Pipeline service calls report_pipeline_completion_to_api_service()
+    - Which calls api-service's /validator/complete/{org_slug} endpoint
+    - Which calls api-service's increment_pipeline_usage()
+
+    This function is kept for backwards compatibility with tests.
+    DO NOT USE in new code - use report_pipeline_completion_to_api_service() instead.
 
     Updates organizations.org_usage_quotas.
 

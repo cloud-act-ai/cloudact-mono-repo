@@ -29,6 +29,9 @@ import type {
   SaaSSubscriptionUpdate,
   LLMProvider
 } from "@/lib/api/backend"
+
+// Re-export IntegrationStatus for external consumers
+export type { IntegrationStatus }
 import { getCachedApiKey } from "@/lib/auth-cache"
 
 // ============================================
@@ -47,7 +50,12 @@ const VALID_PROVIDERS: IntegrationProvider[] = ["openai", "anthropic", "gemini",
 
 const CLOUD_PROVIDERS: CloudProvider[] = ["gcp", "gcp_service_account", "aws", "azure", "oci"]
 
-function isCloudProvider(provider: string): provider is CloudProvider {
+/**
+ * Type guard to check if a provider is a cloud provider.
+ * Currently unused but kept for potential validation/routing logic.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _isCloudProvider(provider: string): provider is CloudProvider {
   return CLOUD_PROVIDERS.includes(provider.toLowerCase() as CloudProvider)
 }
 

@@ -729,6 +729,14 @@ class HierarchyService:
         # Generate or validate entity_id
         if request.entity_id:
             entity_id = validate_entity_id(request.entity_id)
+            # FIX ISSUE 1.1: Validate entity_id matches level's id_prefix if configured
+            if level_config.id_prefix:
+                expected_prefix = level_config.id_prefix.upper()
+                if not entity_id.startswith(expected_prefix):
+                    raise ValueError(
+                        f"Entity ID '{entity_id}' must start with prefix '{expected_prefix}' "
+                        f"for level '{level_config.level_code}'"
+                    )
         elif level_config.id_auto_generate:
             # Auto-generate ID
             prefix = level_config.id_prefix or f"{request.level_code.upper()[:4]}-"
@@ -1358,6 +1366,65 @@ class HierarchyService:
         if not csv_rows:
             result["errors"].append("No entities found in seed CSV")
             return result
+
+        # Validate parent_id references before seeding
+        # Build set of all entity_ids being created
+        all_entity_ids = {row["entity_id"] for row in csv_rows}
+
+        # Check each row's parent_id references a valid entity
+        orphan_references = []
+        for row in csv_rows:
+            parent_id = row.get("parent_id")
+            if parent_id and parent_id not in all_entity_ids:
+                orphan_references.append({
+                    "entity_id": row["entity_id"],
+                    "entity_name": row.get("entity_name"),
+                    "parent_id": parent_id
+                })
+
+        if orphan_references:
+            error_msg = f"Invalid parent_id references found in CSV: {len(orphan_references)} orphan(s)"
+            orphan_details = ", ".join(
+                f"{o['entity_id']} -> {o['parent_id']}" for o in orphan_references[:5]
+            )
+            if len(orphan_references) > 5:
+                orphan_details += f" (and {len(orphan_references) - 5} more)"
+            error_msg += f". Examples: {orphan_details}"
+            result["errors"].append(error_msg)
+            logger.error(f"Hierarchy seed validation failed for {org_slug}: {error_msg}")
+            return result
+
+        logger.info(f"Parent reference validation passed for {len(csv_rows)} entities")
+
+        # FIX ISSUE 4.2: Validate entity_id prefixes match their level_code
+        # Get level configuration to check prefixes
+        levels_map = await self.level_service.get_levels_map(org_slug)
+        prefix_violations = []
+        for row in csv_rows:
+            level_code = row.get("level_code", "").lower()
+            entity_id = row.get("entity_id", "")
+            level_config = levels_map.get(level_code)
+            if level_config and level_config.id_prefix:
+                expected_prefix = level_config.id_prefix.upper()
+                if not entity_id.upper().startswith(expected_prefix):
+                    prefix_violations.append({
+                        "entity_id": entity_id,
+                        "level_code": level_code,
+                        "expected_prefix": expected_prefix
+                    })
+
+        if prefix_violations:
+            warning_msg = f"Entity ID prefix warnings in CSV: {len(prefix_violations)} violation(s)"
+            violation_details = ", ".join(
+                f"{v['entity_id']} should start with {v['expected_prefix']}"
+                for v in prefix_violations[:5]
+            )
+            if len(prefix_violations) > 5:
+                violation_details += f" (and {len(prefix_violations) - 5} more)"
+            warning_msg += f". Details: {violation_details}"
+            # Log as warning, don't fail (for backward compatibility with existing CSVs)
+            logger.warning(f"Hierarchy seed prefix validation warnings for {org_slug}: {warning_msg}")
+            result["prefix_warnings"] = prefix_violations
 
         # If force, delete existing entities first
         if force:

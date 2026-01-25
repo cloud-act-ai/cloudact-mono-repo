@@ -623,11 +623,14 @@ async def trigger_templated_pipeline(
     from datetime import datetime as dt, timezone
     reservation_date = dt.now(timezone.utc).date().isoformat()
 
-    # NOTE: Daily/monthly quota counters are now incremented atomically in api-service
-    # when increment_pipeline_usage("RUNNING") is called. This prevents race conditions
-    # where multiple concurrent requests could pass quota validation before any increments happen.
-    # The api-service increments: concurrent_pipelines_running, pipelines_run_today, pipelines_run_month
-    # all in one atomic UPDATE query at validation time.
+    # NOTE: Quota handling flow:
+    # 1. At validation time: api-service's reserve_pipeline_quota_atomic() increments ONLY
+    #    concurrent_pipelines_running (and checks daily/monthly limits don't exceed).
+    # 2. At completion time: api-service's increment_pipeline_usage() increments:
+    #    - pipelines_run_today and pipelines_run_month ONLY on SUCCESS (not on FAILED)
+    #    - pipelines_succeeded_today or pipelines_failed_today based on status
+    #    - Decrements concurrent_pipelines_running
+    # This design prevents burning quota on failed pipeline runs.
 
     # Generate pipeline_id for tracking (includes org prefix)
     # Format: org_slug-category-provider-domain-pipeline or org_slug-category-domain-pipeline
@@ -841,146 +844,70 @@ async def trigger_pipeline(
     )
 
     # ============================================
-    # QUOTA ENFORCEMENT (ALL LIMITS: Daily, Monthly, Concurrent)
+    # VALIDATE WITH API-SERVICE (Centralized Validation)
     # ============================================
+    # Call api-service to validate and atomically reserve quota.
+    # API service performs atomic check-and-reserve via reserve_pipeline_quota_atomic().
+    # This prevents race conditions and ensures quota limits don't diverge.
+    # DO NOT duplicate quota validation here - trust the API service's reservation.
     org_slug = org.org_slug
+    deprecated_api_key = http_request.headers.get("X-API-Key", "")
 
-    # BUG-003 FIX: Calculate UTC date once at the start for consistent date handling
-    # This ensures all quota operations use the same date reference
+    logger.info(f"[DEPRECATED] Calling api-service for validation: org={org_slug}, pipeline={pipeline_id}")
+
+    validation_result = await validate_pipeline_with_api_service(
+        org_slug=org_slug,
+        pipeline_id=pipeline_id,
+        api_key=deprecated_api_key,
+        include_credentials=False
+    )
+
+    if not validation_result.get("valid", False):
+        error_code = validation_result.get("error_code", "UNKNOWN")
+        error_msg = validation_result.get("error", "Validation failed")
+
+        # Map error codes to appropriate HTTP status codes
+        status_code_map = {
+            "INVALID_API_KEY": status.HTTP_401_UNAUTHORIZED,
+            "ACCESS_FORBIDDEN": status.HTTP_403_FORBIDDEN,
+            "ORG_MISMATCH": status.HTTP_403_FORBIDDEN,
+            "SUBSCRIPTION_INACTIVE": status.HTTP_403_FORBIDDEN,
+            "SUBSCRIPTION_ERROR": status.HTTP_403_FORBIDDEN,
+            "QUOTA_EXCEEDED": status.HTTP_429_TOO_MANY_REQUESTS,
+            "INTEGRATION_NOT_CONFIGURED": status.HTTP_400_BAD_REQUEST,
+            "INTEGRATION_ERROR": status.HTTP_400_BAD_REQUEST,
+            "PIPELINE_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+            "PIPELINE_DISABLED": status.HTTP_400_BAD_REQUEST,
+            "VALIDATION_TIMEOUT": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "VALIDATION_SERVICE_UNAVAILABLE": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "VALIDATION_ERROR": status.HTTP_500_INTERNAL_SERVER_ERROR,
+        }
+
+        http_status = status_code_map.get(error_code, status.HTTP_400_BAD_REQUEST)
+
+        logger.warning(
+            f"[DEPRECATED] Pipeline validation failed: org={org_slug}, pipeline={pipeline_id}, "
+            f"error_code={error_code}, error={error_msg}"
+        )
+
+        raise HTTPException(
+            status_code=http_status,
+            detail=error_msg
+        )
+
+    logger.info(
+        f"[DEPRECATED] Pipeline validation successful: org={org_slug}, pipeline={pipeline_id}",
+        extra={
+            "subscription": validation_result.get("subscription"),
+            "quota": validation_result.get("quota")
+        }
+    )
+
+    # Capture reservation_date for concurrent counter management
+    # This ensures the concurrent counter decrement happens on the correct day's record
     from datetime import datetime as dt, timezone as tz
     utc_today = dt.now(tz.utc).date()
-
-    quota_query = f"""
-    SELECT
-        pipelines_run_today,
-        daily_limit,
-        pipelines_run_month,
-        monthly_limit,
-        concurrent_pipelines_running,
-        concurrent_limit
-    FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-    WHERE org_slug = @org_slug
-      AND usage_date = @usage_date
-    LIMIT 1
-    """
-
-    try:
-        quota_result = list(bq_client.client.query(
-            quota_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today)
-            ])
-        ).result())
-
-        if not quota_result:
-            # Auto-create quota record for today
-            sub_query = f"""
-            SELECT daily_limit, monthly_limit, concurrent_limit
-            FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-            WHERE org_slug = @org_slug AND status = 'ACTIVE'
-            LIMIT 1
-            """
-            sub_result = list(bq_client.client.query(
-                sub_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-                ])
-            ).result())
-
-            daily_limit = 6
-            monthly_limit = 180
-            concurrent_limit = 6
-            if sub_result:
-                daily_limit = sub_result[0].get("daily_limit", 6) or 6
-                monthly_limit = sub_result[0].get("monthly_limit", 180) or 180
-                concurrent_limit = sub_result[0].get("concurrent_limit", 6) or 6
-
-            # BUG-003 FIX: Use parameterized date instead of CURRENT_DATE()
-            # BUG-005 FIX: Use MERGE instead of INSERT to prevent race condition
-            # Multiple concurrent requests could try to create the same quota record
-            merge_query = f"""
-            MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
-            USING (
-                SELECT
-                    CONCAT(@org_slug, '_', FORMAT_DATE('%Y%m%d', @usage_date)) AS usage_id,
-                    @org_slug AS org_slug,
-                    @usage_date AS usage_date,
-                    @daily_limit AS daily_limit,
-                    @monthly_limit AS monthly_limit,
-                    @concurrent_limit AS concurrent_limit
-            ) S
-            ON T.usage_id = S.usage_id
-            WHEN NOT MATCHED THEN
-                INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-                        pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-                        daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
-                VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, 0, 0,
-                        S.daily_limit, S.monthly_limit, S.concurrent_limit,
-                        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
-            """
-            bq_client.client.query(
-                merge_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
-                ])
-            ).result()
-
-            quota_result = [{
-                "pipelines_run_today": 0, "daily_limit": daily_limit,
-                "pipelines_run_month": 0, "monthly_limit": monthly_limit,
-                "concurrent_pipelines_running": 0, "concurrent_limit": concurrent_limit
-            }]
-
-        quota = quota_result[0]
-
-        # ENFORCE ALL THREE LIMITS
-        if quota["pipelines_run_today"] >= quota["daily_limit"]:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily pipeline quota exceeded. Limit: {quota['daily_limit']}. Please upgrade or wait until tomorrow."
-            )
-
-        if quota["pipelines_run_month"] >= quota["monthly_limit"]:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Monthly pipeline quota exceeded. Limit: {quota['monthly_limit']}. Please upgrade or wait until next month."
-            )
-
-        # NOTE: Concurrent limit check is now ATOMIC inside the INSERT query below
-        # This prevents race conditions where multiple requests check the limit simultaneously
-        # and all increment the counter, exceeding the limit.
-
-        logger.info(
-            f"Quota check passed for org: {org_slug}",
-            extra={
-                "daily_used": quota["pipelines_run_today"],
-                "daily_limit": quota["daily_limit"],
-                "monthly_used": quota["pipelines_run_month"],
-                "monthly_limit": quota["monthly_limit"],
-                "concurrent_running": quota["concurrent_pipelines_running"],
-                "concurrent_limit": quota["concurrent_limit"]
-            }
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to check quota for org {org_slug}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
-        )
-
-    # BUG-001 FIX: Capture reservation_date and api_key for concurrent counter management
-    # This ensures the concurrent counter decrement happens on the correct day's record
-    # BUG-003 FIX: Use the already-calculated utc_today for consistency
     deprecated_reservation_date = utc_today.isoformat()
-    deprecated_api_key = http_request.headers.get("X-API-Key", "")
 
     # Note: Org dataset and operational tables created during onboarding
     # No need to ensure_org_metadata here - it would try to create API key tables

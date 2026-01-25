@@ -460,3 +460,202 @@ def safe_error_response(
         category=category,
         operation=operation
     )
+
+
+def get_actionable_error_message(
+    error: Exception,
+    operation: str,
+    resource_type: str,
+    resource_id: Optional[str] = None
+) -> str:
+    """
+    Generate actionable error messages for clients without exposing sensitive details.
+
+    Analyzes the error to provide helpful guidance while keeping internal details
+    (table names, query structures, etc.) in server logs only.
+
+    Args:
+        error: The exception that occurred
+        operation: High-level operation (e.g., "create organization profile")
+        resource_type: Type of resource (e.g., "organization", "dataset", "subscription")
+        resource_id: Optional identifier (will be included if safe to expose)
+
+    Returns:
+        User-friendly actionable message
+    """
+    error_str = str(error).lower()
+    error_type = type(error).__name__
+
+    # Build resource context for message
+    resource_context = f" for {resource_id}" if resource_id else ""
+
+    # Permission/Access errors
+    if any(x in error_str for x in ["permission denied", "access denied", "forbidden", "403"]):
+        return (
+            f"Failed to {operation}{resource_context}: Permission denied. "
+            "Verify the service account has required IAM roles (BigQuery Admin, Storage Admin)."
+        )
+
+    # Authentication errors
+    if any(x in error_str for x in ["authentication", "unauthorized", "401", "credentials"]):
+        return (
+            f"Failed to {operation}{resource_context}: Authentication error. "
+            "Check that GCP credentials are properly configured."
+        )
+
+    # Not found errors
+    if any(x in error_str for x in ["not found", "does not exist", "404", "no such"]):
+        return (
+            f"Failed to {operation}{resource_context}: Required resource not found. "
+            "Ensure prerequisite resources exist (datasets, tables, or schemas)."
+        )
+
+    # Already exists/conflict errors
+    if any(x in error_str for x in ["already exists", "duplicate", "conflict", "409"]):
+        return (
+            f"Failed to {operation}{resource_context}: Resource already exists. "
+            "Use a different identifier or delete the existing resource first."
+        )
+
+    # Quota/rate limit errors
+    if any(x in error_str for x in ["quota", "rate limit", "too many requests", "429"]):
+        return (
+            f"Failed to {operation}{resource_context}: Rate limit exceeded. "
+            "Wait a few minutes and try again, or check project quotas."
+        )
+
+    # Timeout errors
+    if any(x in error_str for x in ["timeout", "timed out", "deadline exceeded"]):
+        return (
+            f"Failed to {operation}{resource_context}: Operation timed out. "
+            "The operation may complete in the background. Wait and check status."
+        )
+
+    # Network/connectivity errors
+    if any(x in error_str for x in ["connection", "network", "unreachable", "dns"]):
+        return (
+            f"Failed to {operation}{resource_context}: Network connectivity issue. "
+            "Check network configuration and try again."
+        )
+
+    # Validation errors
+    if any(x in error_str for x in ["invalid", "validation", "malformed", "schema"]):
+        return (
+            f"Failed to {operation}{resource_context}: Validation error. "
+            "Check input data format and required fields."
+        )
+
+    # KMS/encryption errors
+    if any(x in error_str for x in ["kms", "encrypt", "decrypt", "key ring"]):
+        return (
+            f"Failed to {operation}{resource_context}: Encryption service error. "
+            "Verify KMS key configuration and service account permissions."
+        )
+
+    # Generic database/BigQuery errors
+    if any(x in error_str for x in ["bigquery", "query", "sql", "table"]):
+        return (
+            f"Failed to {operation}{resource_context}: Database operation failed. "
+            "Check that required tables exist and schema is correct."
+        )
+
+    # Default: category-based message
+    category = categorize_error(error)
+
+    category_messages = {
+        ErrorCategory.AUTH: "Authentication or authorization issue. Check credentials and permissions.",
+        ErrorCategory.VALIDATION: "Input validation failed. Check request parameters.",
+        ErrorCategory.NOT_FOUND: "Required resource not found. Ensure prerequisites exist.",
+        ErrorCategory.CONFLICT: "Resource conflict detected. The resource may already exist.",
+        ErrorCategory.RATE_LIMIT: "Rate limit exceeded. Wait and retry.",
+        ErrorCategory.INTEGRATION: "External service error. The service may be temporarily unavailable.",
+        ErrorCategory.DATABASE: "Database operation failed. Check configuration and try again.",
+        ErrorCategory.INTERNAL: "Internal error occurred. Contact support if the issue persists.",
+    }
+
+    return (
+        f"Failed to {operation}{resource_context}: "
+        f"{category_messages.get(category, 'An unexpected error occurred.')} "
+        f"See error ID for support reference."
+    )
+
+
+def handle_onboarding_error(
+    error: Exception,
+    step_name: str,
+    org_slug: str,
+    resource_type: str,
+    context: Optional[Dict[str, Any]] = None
+) -> HTTPException:
+    """
+    Handle onboarding errors with specific, actionable messages.
+
+    Provides detailed error information for debugging while keeping
+    sensitive implementation details in server logs only.
+
+    Args:
+        error: The exception that occurred
+        step_name: Onboarding step (e.g., "STEP 1: Profile Creation")
+        org_slug: Organization being onboarded
+        resource_type: Type of resource being created (e.g., "profile", "API key", "dataset")
+        context: Additional context for logging
+
+    Returns:
+        HTTPException with actionable error message and tracking ID
+    """
+    # If already an HTTPException, re-raise as-is
+    if isinstance(error, HTTPException):
+        return error
+
+    error_id = generate_error_id()
+    category = categorize_error(error)
+
+    # Generate actionable message
+    operation = f"create {resource_type}"
+    user_message = get_actionable_error_message(
+        error=error,
+        operation=operation,
+        resource_type=resource_type,
+        resource_id=org_slug
+    )
+
+    # Build detailed context for logging
+    log_context = {
+        "org_slug": org_slug,
+        "step_name": step_name,
+        "resource_type": resource_type,
+        **(context or {})
+    }
+
+    # Log full details server-side
+    log_error_details(
+        error_id=error_id,
+        error=error,
+        context=log_context,
+        user_message=user_message,
+        category=category,
+        operation=f"onboarding:{step_name}"
+    )
+
+    # Map categories to appropriate status codes
+    status_map = {
+        ErrorCategory.AUTH: status.HTTP_401_UNAUTHORIZED,
+        ErrorCategory.VALIDATION: status.HTTP_400_BAD_REQUEST,
+        ErrorCategory.NOT_FOUND: status.HTTP_404_NOT_FOUND,
+        ErrorCategory.CONFLICT: status.HTTP_409_CONFLICT,
+        ErrorCategory.RATE_LIMIT: status.HTTP_429_TOO_MANY_REQUESTS,
+        ErrorCategory.INTEGRATION: status.HTTP_502_BAD_GATEWAY,
+        ErrorCategory.DATABASE: status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ErrorCategory.INTERNAL: status.HTTP_500_INTERNAL_SERVER_ERROR,
+    }
+
+    return HTTPException(
+        status_code=status_map.get(category, status.HTTP_500_INTERNAL_SERVER_ERROR),
+        detail={
+            "error": category.value,
+            "message": user_message,
+            "error_id": error_id,
+            "step": step_name,
+            "support_message": f"Please provide error ID {error_id} when contacting support."
+        }
+    )

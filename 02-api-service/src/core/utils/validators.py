@@ -17,15 +17,41 @@ EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 API_KEY_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{32,}$')
 
-# Valid provider names (should match provider registry)
-VALID_PROVIDERS = {
-    'openai',
-    'anthropic',
-    'gemini',
-    'gcp',
-    'aws',
-    'azure'
-}
+
+def _get_valid_providers() -> set:
+    """
+    Get valid provider names from provider registry.
+
+    Uses the centralized provider registry as the single source of truth.
+    Falls back to hardcoded set if registry is unavailable.
+
+    Returns:
+        Set of valid provider names (lowercase)
+    """
+    try:
+        from src.core.providers import provider_registry
+        if provider_registry:
+            # Get all providers and their aliases
+            providers = set(p.lower() for p in provider_registry.get_all_providers())
+            aliases = provider_registry.get_provider_aliases()
+            if aliases:
+                providers.update(aliases.keys())
+            return providers
+    except ImportError:
+        pass
+
+    # Fallback if registry not available
+    return {
+        'openai',
+        'anthropic',
+        'claude',
+        'gemini',
+        'deepseek',
+        'gcp',
+        'gcp_sa',
+        'aws',
+        'azure'
+    }
 
 
 class ValidationError(HTTPException):
@@ -217,11 +243,12 @@ def validate_provider_name(provider: str, field_name: str = "provider") -> str:
         raise ValidationError(field_name, "Provider name is required")
 
     provider_lower = provider.lower()
+    valid_providers = _get_valid_providers()
 
-    if provider_lower not in VALID_PROVIDERS:
+    if provider_lower not in valid_providers:
         raise ValidationError(
             field_name,
-            f"Invalid provider. Must be one of: {', '.join(sorted(VALID_PROVIDERS))}"
+            f"Invalid provider. Must be one of: {', '.join(sorted(valid_providers))}"
         )
 
     return provider_lower

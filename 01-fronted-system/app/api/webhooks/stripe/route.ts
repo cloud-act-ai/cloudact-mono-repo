@@ -163,6 +163,7 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     pipelines_per_day_limit: number;
     pipelines_per_week_limit: number;
     pipelines_per_month_limit: number;
+    concurrent_pipelines_limit: number;
   };
 }> {
   try {
@@ -225,6 +226,8 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     const seatLimit = safeParseInt(metadata.teamMembers, 0);
     const providersLimit = safeParseInt(metadata.providers, 0);
     const pipelinesPerDayLimit = safeParseInt(metadata.pipelinesPerDay, 0);
+    // BILLING-AUDIT-001: Add concurrent pipelines limit from Stripe metadata
+    const concurrentPipelinesLimit = safeParseInt(metadata.concurrentPipelines, 2);
 
     // Validate all limits are positive after parsing
     if (seatLimit <= 0 || providersLimit <= 0 || pipelinesPerDayLimit <= 0) {
@@ -234,6 +237,17 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
           `providers: "${metadata.providers}" (parsed: ${providersLimit}), ` +
           `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesPerDayLimit}). ` +
           `All values must be positive integers (>0).`
+      );
+      console.error(error.message);
+      throw error;
+    }
+
+    // Validate concurrent pipelines limit (default to 2 if not set, which is valid)
+    if (concurrentPipelinesLimit < 1 || concurrentPipelinesLimit > 50) {
+      const error = new Error(
+        `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has invalid concurrent limit. ` +
+          `concurrentPipelines: "${metadata.concurrentPipelines}" (parsed: ${concurrentPipelinesLimit}). ` +
+          `Value must be between 1 and 50.`
       );
       console.error(error.message);
       throw error;
@@ -249,6 +263,7 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
       pipelines_per_day_limit: pipelinesPerDayLimit,
       pipelines_per_week_limit: pipelinesPerWeekLimit,
       pipelines_per_month_limit: pipelinesPerMonthLimit,
+      concurrent_pipelines_limit: concurrentPipelinesLimit,
     };
 
     console.log(`[Stripe Webhook] Fetched plan details for ${priceId}: planId=${planId}, limits=`, limits);
@@ -471,6 +486,7 @@ export async function POST(request: NextRequest) {
                 monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
                 seatLimit: planDetails.limits.seat_limit,
                 providersLimit: planDetails.limits.providers_limit,
+                concurrentLimit: planDetails.limits.concurrent_pipelines_limit,
               }),
             {
               orgSlug: updatedOrg[0].org_slug,
@@ -606,6 +622,7 @@ export async function POST(request: NextRequest) {
                       planDetails.limits.pipelines_per_day_limit * 30,
                     seatLimit: planDetails.limits.seat_limit,
                     providersLimit: planDetails.limits.providers_limit,
+                    concurrentLimit: planDetails.limits.concurrent_pipelines_limit,
                   }),
                 {
                   orgSlug: fallbackOrg[0].org_slug,
@@ -659,6 +676,7 @@ export async function POST(request: NextRequest) {
                 monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
                 seatLimit: planDetails.limits.seat_limit,
                 providersLimit: planDetails.limits.providers_limit,
+                concurrentLimit: planDetails.limits.concurrent_pipelines_limit,
               }),
             {
               orgSlug: orgForSync.org_slug,
@@ -764,6 +782,7 @@ export async function POST(request: NextRequest) {
                 monthlyLimit: 0,
                 seatLimit: 0,
                 providersLimit: 0,
+                concurrentLimit: 0,
               }),
             {
               orgSlug: orgForCancelSync.org_slug,

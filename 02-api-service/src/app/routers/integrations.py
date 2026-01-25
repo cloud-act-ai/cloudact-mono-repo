@@ -18,6 +18,7 @@ from pathlib import Path
 import logging
 import json
 import re
+import uuid
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
@@ -26,6 +27,7 @@ from src.core.providers import provider_registry
 from src.core.utils.validators import validate_org_slug, sanitize_sql_identifier
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.lib.integrations.metadata_schemas import validate_metadata  # BUG-020 FIX
+from src.core.utils.audit_logger import log_delete, log_create, AuditLogger
 from google.cloud import bigquery
 
 router = APIRouter()
@@ -64,6 +66,25 @@ async def safe_rate_limit(request: Request, org_slug: str, limit: int, action: s
             status_code=503,
             detail="Service temporarily unavailable - rate limit check failed"
         )
+
+
+def get_request_id(request: Request) -> str:
+    """
+    Get or generate request ID for distributed tracing.
+
+    Checks for existing X-Request-ID header, generates UUID if not present.
+    This enables request correlation across services and in audit logs.
+
+    Args:
+        request: FastAPI Request object
+
+    Returns:
+        Request ID string (either from header or newly generated UUID)
+    """
+    request_id = request.headers.get("x-request-id")
+    if not request_id:
+        request_id = str(uuid.uuid4())
+    return request_id
 
 
 def enforce_credential_size_limit(credential: str, org_slug: str) -> None:
@@ -174,7 +195,7 @@ class SetupIntegrationRequest(BaseModel):
 class IntegrationStatusResponse(BaseModel):
     """Response for integration status."""
     provider: str
-    status: Literal["VALID", "INVALID", "PENDING", "NOT_CONFIGURED"]
+    validation_status: Literal["VALID", "INVALID", "PENDING", "NOT_CONFIGURED"]
     credential_name: Optional[str] = None
     last_validated_at: Optional[datetime] = None
     last_error: Optional[str] = None
@@ -364,21 +385,26 @@ async def setup_gcp_integration(
     metadata["client_email"] = sa_data.get("client_email")
 
     # BUG-020 FIX: Validate metadata JSON schema AFTER adding SA fields
-    is_valid, error_msg = validate_metadata("GCP_SA", metadata)
+    # Use registry-based normalization for consistent provider naming
+    gcp_provider = normalize_provider("gcp_sa")
+    is_valid, error_msg = validate_metadata(gcp_provider, metadata)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid metadata structure: {error_msg}"
         )
 
+    request_id = get_request_id(request)
     return await _setup_integration(
         org_slug=org_slug,
-        provider="GCP_SA",
+        provider=gcp_provider,
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or f"GCP SA ({sa_data.get('project_id')})",
         metadata=metadata,
         skip_validation=setup_request.skip_validation,
-        user_id=org.get("user_id")
+        user_id=org.get("user_id"),
+        request_id=request_id,
+        api_key_id=org.get("org_api_key_id")
     )
 
 
@@ -412,21 +438,26 @@ async def setup_openai_integration(
     enforce_metadata_size_limit(setup_request.metadata, org_slug)
 
     # BUG-020 FIX: Validate metadata JSON schema
-    is_valid, error_msg = validate_metadata("OPENAI", setup_request.metadata)
+    # Use registry-based normalization for consistent provider naming
+    openai_provider = normalize_provider("openai")
+    is_valid, error_msg = validate_metadata(openai_provider, setup_request.metadata)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid metadata structure: {error_msg}"
         )
 
+    request_id = get_request_id(request)
     return await _setup_integration(
         org_slug=org_slug,
-        provider="OPENAI",
+        provider=openai_provider,
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or "OpenAI API Key",
         metadata=setup_request.metadata,
         skip_validation=setup_request.skip_validation,
-        user_id=org.get("user_id")
+        user_id=org.get("user_id"),
+        request_id=request_id,
+        api_key_id=org.get("org_api_key_id")
     )
 
 
@@ -467,6 +498,7 @@ async def setup_anthropic_integration(
             detail=f"Invalid metadata structure: {error_msg}"
         )
 
+    request_id = get_request_id(request)
     return await _setup_integration(
         org_slug=org_slug,
         provider="ANTHROPIC",
@@ -474,7 +506,9 @@ async def setup_anthropic_integration(
         credential_name=setup_request.credential_name or "Anthropic API Key",
         metadata=setup_request.metadata,
         skip_validation=setup_request.skip_validation,
-        user_id=org.get("user_id")
+        user_id=org.get("user_id"),
+        request_id=request_id,
+        api_key_id=org.get("org_api_key_id")
     )
 
 
@@ -515,6 +549,7 @@ async def setup_gemini_integration(
             detail=f"Invalid metadata structure: {error_msg}"
         )
 
+    request_id = get_request_id(request)
     return await _setup_integration(
         org_slug=org_slug,
         provider="GEMINI",
@@ -522,7 +557,9 @@ async def setup_gemini_integration(
         credential_name=setup_request.credential_name or "Gemini API Key",
         metadata=setup_request.metadata,
         skip_validation=setup_request.skip_validation,
-        user_id=org.get("user_id")
+        user_id=org.get("user_id"),
+        request_id=request_id,
+        api_key_id=org.get("org_api_key_id")
     )
 
 
@@ -563,6 +600,7 @@ async def setup_deepseek_integration(
             detail=f"Invalid metadata structure: {error_msg}"
         )
 
+    request_id = get_request_id(request)
     return await _setup_integration(
         org_slug=org_slug,
         provider="DEEPSEEK",
@@ -570,7 +608,9 @@ async def setup_deepseek_integration(
         credential_name=setup_request.credential_name or "DeepSeek API Key",
         metadata=setup_request.metadata,
         skip_validation=setup_request.skip_validation,
-        user_id=org.get("user_id")
+        user_id=org.get("user_id"),
+        request_id=request_id,
+        api_key_id=org.get("org_api_key_id")
     )
 
 
@@ -689,6 +729,7 @@ async def validate_deepseek_integration(
     description="Returns status of all configured integrations for the organization"
 )
 async def get_all_integrations(
+    request: Request,
     org_slug: str,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -696,6 +737,8 @@ async def get_all_integrations(
     """Get status of all integrations for an organization."""
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # Rate limiting: 100 requests per minute for read endpoints (prevents enumeration attacks)
+    await safe_rate_limit(request, org_slug, 100, "get_all_integrations")
 
     # INT-007 FIX: Always validate org ownership, even in dev mode
     if org.get("org_slug") != org_slug:
@@ -728,7 +771,7 @@ async def get_all_integrations(
                 data = integrations_data[provider]
                 integrations[provider] = IntegrationStatusResponse(
                     provider=provider,
-                    status=data.get("status", "INVALID"),
+                    validation_status=data.get("status", "INVALID"),
                     credential_name=data.get("name"),
                     last_validated_at=datetime.fromisoformat(data["last_validated"]) if data.get("last_validated") else None,
                     last_error=data.get("last_error"),
@@ -738,7 +781,7 @@ async def get_all_integrations(
             else:
                 integrations[provider] = IntegrationStatusResponse(
                     provider=provider,
-                    status="NOT_CONFIGURED",
+                    validation_status="NOT_CONFIGURED",
                     credential_name=None,
                     last_validated_at=None,
                     last_error=None,
@@ -774,6 +817,7 @@ async def get_all_integrations(
     summary="Get single integration status"
 )
 async def get_integration_status(
+    request: Request,
     org_slug: str,
     provider: str,
     org: Dict = Depends(get_current_org),
@@ -782,6 +826,8 @@ async def get_integration_status(
     """Get status of a specific integration."""
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # Rate limiting: 100 requests per minute for read endpoints (prevents enumeration attacks)
+    await safe_rate_limit(request, org_slug, 100, "get_integration_status")
 
     # BUG-001 FIX: Always validate org ownership, even in dev mode
     if org.get("org_slug") != org_slug:
@@ -791,7 +837,7 @@ async def get_integration_status(
         )
 
     provider_upper = normalize_provider(provider)
-    all_integrations = await get_all_integrations(org_slug, org, bq_client)
+    all_integrations = await get_all_integrations(request, org_slug, org, bq_client)
     integration = all_integrations.integrations.get(provider_upper)
 
     if not integration:
@@ -932,6 +978,7 @@ async def update_integration(
 
     # If new credential is provided, re-setup entirely
     if update_request.credential:
+        request_id = get_request_id(request)
         return await _setup_integration(
             org_slug=org_slug,
             provider=provider_upper,
@@ -939,7 +986,9 @@ async def update_integration(
             credential_name=update_request.credential_name or existing_name,
             metadata=update_request.metadata,
             skip_validation=update_request.skip_validation,
-            user_id=org.get("user_id")
+            user_id=org.get("user_id"),
+            request_id=request_id,
+            api_key_id=org.get("org_api_key_id")
         )
 
     # Otherwise, update metadata/name only
@@ -1077,6 +1126,26 @@ async def delete_integration(
     provider_upper = normalize_provider(provider)
 
     try:
+        # First, get the credential_id(s) that will be affected for audit logging
+        select_query = f"""
+        SELECT credential_id
+        FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+        WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
+        """
+
+        select_results = list(bq_client.client.query(
+            select_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider_upper),
+                ]
+            )
+        ).result())
+
+        credential_ids = [row["credential_id"] for row in select_results] if select_results else []
+
+        # Perform the soft delete
         query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_integration_credentials`
         SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP()
@@ -1094,6 +1163,20 @@ async def delete_integration(
         ).result()
 
         logger.info(f"Deleted {provider_upper} integration for {org_slug}")
+
+        # Audit log: Credential deleted (soft delete)
+        for credential_id in credential_ids:
+            await log_delete(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_CREDENTIAL,
+                resource_id=credential_id,
+                api_key_id=org.get("org_api_key_id"),
+                details={
+                    "provider": provider_upper,
+                    "action": "CREDENTIAL_DELETED",
+                    "soft_delete": True
+                }
+            )
 
         return {
             "success": True,
@@ -1125,9 +1208,27 @@ async def _setup_integration(
     credential_name: str,
     metadata: Optional[Dict],
     skip_validation: bool,
-    user_id: Optional[str]
+    user_id: Optional[str],
+    request_id: Optional[str] = None,
+    api_key_id: Optional[str] = None
 ) -> SetupIntegrationResponse:
-    """Common logic for setting up any integration."""
+    """
+    Common logic for setting up any integration.
+
+    Args:
+        org_slug: Organization identifier
+        provider: Provider name (e.g., GCP_SA, OPENAI)
+        credential: The credential string to store
+        credential_name: Human-readable name for the credential
+        metadata: Optional metadata dictionary
+        skip_validation: Whether to skip credential validation
+        user_id: Optional user ID for audit logging
+        request_id: Optional request ID for distributed tracing/correlation
+        api_key_id: Optional API key ID for audit logging
+
+    Returns:
+        SetupIntegrationResponse with setup result
+    """
     try:
         # SECURITY: Enforce credential size limit (Issue #50)
         enforce_credential_size_limit(credential, org_slug)
@@ -1237,7 +1338,7 @@ async def _setup_integration(
                     plan_name = plan_result[0]["plan_name"]
                     try:
                         plan_enum = SubscriptionPlan(plan_name)
-                        providers_limit = SUBSCRIPTION_LIMITS[plan_enum]["max_providers"]
+                        providers_limit = SUBSCRIPTION_LIMITS[plan_enum]["providers_limit"]
                         logger.info(f"Using fallback providers_limit={providers_limit} for plan {plan_name}")
                     except (ValueError, KeyError):
                         providers_limit = 3  # Default to STARTER limit
@@ -1282,6 +1383,7 @@ async def _setup_integration(
                 "plaintext_credential": credential,
                 "user_id": user_id,
                 "metadata": metadata or {},
+                "request_id": request_id,
             }
         )
 
@@ -1364,9 +1466,26 @@ async def _setup_integration(
                     "validation_status": validation_status,
                     "is_valid": is_valid,
                     "pricing_initialized": pricing_initialized,
-                    "subscriptions_initialized": subscriptions_initialized
+                    "subscriptions_initialized": subscriptions_initialized,
+                    "request_id": request_id
                 }
             )
+
+            # Audit log: Integration created/updated
+            await log_create(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_INTEGRATION,
+                resource_id=result.get("credential_id"),
+                api_key_id=api_key_id,
+                request_id=request_id,
+                details={
+                    "provider": provider,
+                    "validation_status": validation_status,
+                    "credential_name": credential_name,
+                    "action": "INTEGRATION_SETUP"
+                }
+            )
+
             return SetupIntegrationResponse(
                 success=is_valid,
                 provider=provider,
@@ -1380,7 +1499,7 @@ async def _setup_integration(
             error_detail = result.get("error", "Unknown error")
             logger.error(
                 f"Integration setup failed for {org_slug}/{provider}",
-                extra={"error_detail": error_detail}
+                extra={"error_detail": error_detail, "request_id": request_id}
             )
             return SetupIntegrationResponse(
                 success=False,
@@ -1397,7 +1516,7 @@ async def _setup_integration(
         # SECURITY: Log full details but return generic message to client
         logger.error(
             f"Integration setup error for {org_slug}/{provider}",
-            extra={"error_type": type(e).__name__},
+            extra={"error_type": type(e).__name__, "request_id": request_id},
             exc_info=True
         )
         raise HTTPException(

@@ -93,12 +93,18 @@
     "name": "last_updated",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
-    "description": "Timestamp of last quota update"
+    "description": "Timestamp of last quota update (legacy field)"
   },
   {
     "name": "created_at",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
     "description": "Timestamp when usage record was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update"
   }
 ]

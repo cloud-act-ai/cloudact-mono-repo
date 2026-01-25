@@ -246,6 +246,7 @@ async function handleReconciliation() {
               monthlyLimit: stripeLimits.pipelines_per_day_limit * 30,
               seatLimit: stripeLimits.seat_limit,
               providersLimit: stripeLimits.providers_limit,
+              concurrentLimit: stripeLimits.concurrent_pipelines_limit,
               trialEndsAt: subscription.trial_end
                 ? new Date(subscription.trial_end * 1000).toISOString()
                 : undefined,

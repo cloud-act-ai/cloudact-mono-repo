@@ -54,12 +54,6 @@
     "description": "Maximum provider integrations allowed for this subscription"
   },
   {
-    "name": "max_pipelines_per_day",
-    "type": "INTEGER",
-    "mode": "NULLABLE",
-    "description": "Maximum pipelines allowed per day"
-  },
-  {
     "name": "trial_end_date",
     "type": "DATE",
     "mode": "NULLABLE",

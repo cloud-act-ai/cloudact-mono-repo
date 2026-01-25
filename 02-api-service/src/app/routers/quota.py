@@ -43,6 +43,12 @@ class QuotaResponse(BaseModel):
     monthlyLimit: int
     concurrentRunning: int
     concurrentLimit: int
+    # Resource limits (for frontend quota display)
+    seatLimit: int
+    providersLimit: int
+    # Resource usage counts (for frontend quota display)
+    # configuredProvidersCount: count of valid integrations from BigQuery org_integration_credentials
+    configuredProvidersCount: int = 0
     usageDate: Optional[str] = None
     dailyUsagePercent: Optional[float] = None
     monthlyUsagePercent: Optional[float] = None
@@ -119,8 +125,16 @@ async def get_quota(
 
     try:
         # Query org_usage_quotas and org_subscriptions for complete quota info
+        # Also count configured providers from org_integration_credentials
         # Note: We use subscription limits as source of truth (handle subscription upgrades)
         query = f"""
+        WITH provider_count AS (
+            SELECT COUNT(DISTINCT provider) as configured_providers_count
+            FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+            WHERE org_slug = @org_slug
+              AND is_active = TRUE
+              AND validation_status = 'VALID'
+        )
         SELECT
             u.pipelines_run_today,
             u.pipelines_run_month,
@@ -129,11 +143,15 @@ async def get_quota(
             s.daily_limit,
             s.monthly_limit,
             s.concurrent_limit,
-            s.plan_name
+            s.seat_limit,
+            s.providers_limit,
+            s.plan_name,
+            COALESCE(p.configured_providers_count, 0) as configured_providers_count
         FROM `{settings.gcp_project_id}.organizations.org_subscriptions` s
         LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
             ON s.org_slug = u.org_slug
             AND u.usage_date = @usage_date
+        CROSS JOIN provider_count p
         WHERE s.org_slug = @org_slug
         LIMIT 1
         """
@@ -169,13 +187,24 @@ async def get_quota(
 
         # For limits, use SUBSCRIPTION_LIMITS defaults when NULL (not when 0)
         daily_limit = row.get("daily_limit")
-        daily_limit = daily_limit if daily_limit is not None else _DEFAULT_LIMITS["max_pipelines_per_day"]
+        daily_limit = daily_limit if daily_limit is not None else _DEFAULT_LIMITS["daily_limit"]
 
         monthly_limit = row.get("monthly_limit")
-        monthly_limit = monthly_limit if monthly_limit is not None else _DEFAULT_LIMITS["max_pipelines_per_month"]
+        monthly_limit = monthly_limit if monthly_limit is not None else _DEFAULT_LIMITS["monthly_limit"]
 
         concurrent_limit = row.get("concurrent_limit")
-        concurrent_limit = concurrent_limit if concurrent_limit is not None else _DEFAULT_LIMITS["max_concurrent_pipelines"]
+        concurrent_limit = concurrent_limit if concurrent_limit is not None else _DEFAULT_LIMITS["concurrent_limit"]
+
+        # Resource limits (seat_limit and providers_limit)
+        seat_limit = row.get("seat_limit")
+        seat_limit = seat_limit if seat_limit is not None else _DEFAULT_LIMITS["seat_limit"]
+
+        providers_limit = row.get("providers_limit")
+        providers_limit = providers_limit if providers_limit is not None else _DEFAULT_LIMITS["providers_limit"]
+
+        # Resource usage counts
+        configured_providers_count = row.get("configured_providers_count")
+        configured_providers_count = configured_providers_count if configured_providers_count is not None else 0
 
         usage_date = row.get("usage_date")
 
@@ -190,7 +219,10 @@ async def get_quota(
                 "pipelines_run_today": pipelines_run_today,
                 "daily_limit": daily_limit,
                 "pipelines_run_month": pipelines_run_month,
-                "monthly_limit": monthly_limit
+                "monthly_limit": monthly_limit,
+                "seat_limit": seat_limit,
+                "providers_limit": providers_limit,
+                "configured_providers_count": configured_providers_count
             }
         )
 
@@ -202,6 +234,9 @@ async def get_quota(
             monthlyLimit=monthly_limit,
             concurrentRunning=concurrent_running,
             concurrentLimit=concurrent_limit,
+            seatLimit=seat_limit,
+            providersLimit=providers_limit,
+            configuredProvidersCount=configured_providers_count,
             usageDate=str(usage_date) if usage_date else str(today),
             dailyUsagePercent=round(daily_usage_percent, 2),
             monthlyUsagePercent=round(monthly_usage_percent, 2)

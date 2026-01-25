@@ -688,6 +688,10 @@ html {
    ADDITIONAL BRAND COLOR UTILITIES
    ============================================ */
 
+/* ============================================
+   ADDITIONAL BRAND COLOR UTILITIES
+   ============================================ */
+
 /* CTA Button with Coral - for accent actions/warnings */
 .cloudact-btn-coral {
   display: inline-flex;
@@ -797,10 +801,66 @@ html {
   border-color: var(--cloudact-mint);
 }
 
-.cloudact-checkbox:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(144, 252, 166, 0.2);
+/* ============================================
+   PREMIUM UI ENHANCEMENTS (New)
+   ============================================ */
+
+/* Text Glow Effects */
+.text-glow-mint {
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
+
+.text-glow-white {
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+/* Glass Panels Premium */
+.glass-panel-premium {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* Mesh Gradient Animated Base */
+.mesh-gradient-animated {
+  background-color: #ffffff;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+  background-size: 150% 150%;
+  animation: mesh-pan 20s infinite alternate ease-in-out;
+}
+
+@keyframes mesh-pan {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* Infinite Marquee */
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Gradient Text Premium */
+.text-gradient-premium {
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 
 /* Link Variations - Coral (Cost/Billing) */
 .cloudact-link-coral {

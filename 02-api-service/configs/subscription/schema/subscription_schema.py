@@ -179,10 +179,10 @@ class SaaSSubscriptionBase(BaseModel):
         description="Discount type: percent or fixed"
     )
 
-    discount_value: Optional[int] = Field(
+    discount_value: Optional[float] = Field(
         default=None,
         ge=0,
-        description="Discount value (percentage 0-100 or fixed amount)"
+        description="Discount value (percentage 0-100 or fixed amount in currency units)"
     )
 
     auto_renew: bool = Field(
@@ -300,7 +300,7 @@ class SaaSSubscriptionUpdate(BaseModel):
     currency: Optional[str] = Field(None, max_length=3)
     pricing_model: Optional[PricingModelEnum] = None
     discount_type: Optional[DiscountTypeEnum] = None
-    discount_value: Optional[int] = Field(None, ge=0)
+    discount_value: Optional[float] = Field(None, ge=0)
     auto_renew: Optional[bool] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     invoice_id_last: Optional[str] = Field(None, max_length=100)

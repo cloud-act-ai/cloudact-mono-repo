@@ -106,35 +106,35 @@ class ValidationStatus(str, Enum):
 
 SUBSCRIPTION_LIMITS = {
     SubscriptionPlan.STARTER: {
-        "max_team_members": 2,
-        "max_providers": 3,
-        "max_pipelines_per_day": 6,
-        "max_pipelines_per_month": 180,
-        "max_concurrent_pipelines": 20,
+        "seat_limit": 2,
+        "providers_limit": 3,
+        "daily_limit": 6,
+        "monthly_limit": 180,
+        "concurrent_limit": 20,
         "price": 19
     },
     SubscriptionPlan.PROFESSIONAL: {
-        "max_team_members": 6,
-        "max_providers": 6,
-        "max_pipelines_per_day": 25,
-        "max_pipelines_per_month": 750,
-        "max_concurrent_pipelines": 20,
-        "price": None  # TBD
+        "seat_limit": 6,
+        "providers_limit": 6,
+        "daily_limit": 25,
+        "monthly_limit": 750,
+        "concurrent_limit": 20,
+        "price": 69
     },
     SubscriptionPlan.SCALE: {
-        "max_team_members": 11,
-        "max_providers": 10,
-        "max_pipelines_per_day": 100,
-        "max_pipelines_per_month": 3000,
-        "max_concurrent_pipelines": 20,
+        "seat_limit": 11,
+        "providers_limit": 10,
+        "daily_limit": 100,
+        "monthly_limit": 3000,
+        "concurrent_limit": 20,
         "price": 199
     },
     SubscriptionPlan.ENTERPRISE: {
-        "max_team_members": 999999,  # Unlimited
-        "max_providers": 999999,     # Unlimited
-        "max_pipelines_per_day": 999999,   # Unlimited
-        "max_pipelines_per_month": 999999, # Unlimited
-        "max_concurrent_pipelines": 999999, # Unlimited
+        "seat_limit": 999999,        # Unlimited
+        "providers_limit": 999999,   # Unlimited
+        "daily_limit": 999999,       # Unlimited
+        "monthly_limit": 999999,     # Unlimited
+        "concurrent_limit": 999999,  # Unlimited
         "price": None  # Custom pricing
     }
 }
@@ -314,25 +314,25 @@ class UpdateSubscriptionRequest(BaseModel):
         ...,
         description="New subscription plan"
     )
-    max_team_members: int = Field(
+    seat_limit: int = Field(
         ...,
         ge=1,
         le=100,
         description="Maximum users allowed"
     )
-    max_providers: int = Field(
+    providers_limit: int = Field(
         ...,
         ge=1,
         le=50,
         description="Maximum provider configurations"
     )
-    max_pipelines_per_day: int = Field(
+    daily_limit: int = Field(
         ...,
         ge=1,
         le=10000,
         description="Daily pipeline execution limit"
     )
-    max_pipelines_per_month: int = Field(
+    monthly_limit: int = Field(
         ...,
         ge=1,
         le=300000,
@@ -359,10 +359,10 @@ class UpdateSubscriptionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", json_schema_extra={
         "example": {
             "plan_name": "PROFESSIONAL",
-            "max_team_members": 6,
-            "max_providers": 6,
-            "max_pipelines_per_day": 25,
-            "max_pipelines_per_month": 750,
+            "seat_limit": 6,
+            "providers_limit": 6,
+            "daily_limit": 25,
+            "monthly_limit": 750,
             "subscription_start_date": "2025-01-01",
             "subscription_end_date": "2025-12-31"
         }
@@ -390,31 +390,31 @@ class UpgradeSubscriptionRequest(BaseModel):
 
 class UpdateLimitsRequest(BaseModel):
     """Request model for updating subscription limits (admin only)."""
-    max_team_members: Optional[int] = Field(
+    seat_limit: Optional[int] = Field(
         default=None,
         ge=1,
         le=1000,
         description="Maximum users allowed"
     )
-    max_providers: Optional[int] = Field(
+    providers_limit: Optional[int] = Field(
         default=None,
         ge=1,
         le=100,
         description="Maximum provider configurations"
     )
-    max_pipelines_per_day: Optional[int] = Field(
+    daily_limit: Optional[int] = Field(
         default=None,
         ge=1,
         le=100000,
         description="Daily pipeline execution limit"
     )
-    max_pipelines_per_month: Optional[int] = Field(
+    monthly_limit: Optional[int] = Field(
         default=None,
         ge=1,
         le=3000000,
         description="Monthly pipeline execution limit"
     )
-    max_concurrent_pipelines: Optional[int] = Field(
+    concurrent_limit: Optional[int] = Field(
         default=None,
         ge=1,
         le=100,
@@ -423,9 +423,9 @@ class UpdateLimitsRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", json_schema_extra={
         "example": {
-            "max_team_members": 15,
-            "max_pipelines_per_day": 150,
-            "max_pipelines_per_month": 4500
+            "seat_limit": 15,
+            "daily_limit": 150,
+            "monthly_limit": 4500
         }
     })
 
@@ -533,10 +533,11 @@ class SubscriptionResponse(BaseModel):
     org_slug: str
     plan_name: SubscriptionPlan
     status: SubscriptionStatus
-    max_team_members: int
-    max_providers: int
-    max_pipelines_per_day: int
-    max_pipelines_per_month: int
+    daily_limit: int
+    monthly_limit: int
+    concurrent_limit: int
+    seat_limit: Optional[int]
+    providers_limit: Optional[int]
     trial_end_date: Optional[date]
     subscription_end_date: Optional[date]
     created_at: datetime
@@ -548,10 +549,11 @@ class SubscriptionResponse(BaseModel):
             "org_slug": "acme_corp_prod",
             "plan_name": "PROFESSIONAL",
             "status": "ACTIVE",
-            "max_team_members": 6,
-            "max_providers": 6,
-            "max_pipelines_per_day": 25,
-            "max_pipelines_per_month": 750,
+            "daily_limit": 25,
+            "monthly_limit": 750,
+            "concurrent_limit": 20,
+            "seat_limit": 6,
+            "providers_limit": 6,
             "trial_end_date": None,
             "subscription_end_date": "2025-12-31",
             "created_at": "2025-01-15T10:00:00Z",
@@ -606,22 +608,22 @@ class LimitsResponse(BaseModel):
     """Response model for subscription limits."""
     org_slug: str
     subscription_plan: SubscriptionPlan
-    max_team_members: int
-    max_providers: int
-    max_pipelines_per_day: int
-    max_pipelines_per_month: int
-    max_concurrent_pipelines: int
+    seat_limit: int
+    providers_limit: int
+    daily_limit: int
+    monthly_limit: int
+    concurrent_limit: int
     current_usage: Dict[str, int]
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "example": {
             "org_slug": "acme_corp_prod",
             "subscription_plan": "PROFESSIONAL",
-            "max_team_members": 6,
-            "max_providers": 6,
-            "max_pipelines_per_day": 25,
-            "max_pipelines_per_month": 750,
-            "max_concurrent_pipelines": 3,
+            "seat_limit": 6,
+            "providers_limit": 6,
+            "daily_limit": 25,
+            "monthly_limit": 750,
+            "concurrent_limit": 3,
             "current_usage": {
                 "team_members": 3,
                 "providers": 2,

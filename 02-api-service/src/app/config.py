@@ -467,11 +467,23 @@ class Settings(BaseSettings):
     # Block these domains even if they match allowed patterns (defense-in-depth)
     blocked_external_domains: list = Field(
         default=[
-            "metadata.google.internal",  # GCP metadata service - SSRF target
-            "169.254.169.254",           # AWS/GCP metadata IP - SSRF target
+            # Cloud metadata services - primary SSRF targets
+            "metadata.google.internal",  # GCP metadata service
+            "169.254.169.254",           # AWS/GCP metadata IP (IPv4)
+            "fd00:ec2::254",             # AWS metadata IP (IPv6)
+            # Localhost variants (IPv4 and IPv6)
             "localhost",
             "127.0.0.1",
             "0.0.0.0",
+            "::1",                        # IPv6 localhost
+            "[::1]",                      # IPv6 localhost with brackets
+            # Link-local addresses
+            "169.254.0.0",               # IPv4 link-local
+            "fe80::",                    # IPv6 link-local prefix
+            # Private networks (defense-in-depth)
+            "10.0.0.0",
+            "172.16.0.0",
+            "192.168.0.0",
         ],
         description="Blocked domains that override allowed list (SSRF protection)"
     )

@@ -6,7 +6,7 @@ Endpoints for organization and API key management.
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any, Dict
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import hashlib
 import secrets
 import logging
@@ -21,9 +21,9 @@ from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
 from src.app.dependencies.rate_limit_decorator import rate_limit_global
 from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
-from src.core.utils.audit_logger import log_create, log_delete, log_audit, AuditLogger
+from src.core.utils.audit_logger import log_create, log_delete, AuditLogger
 from src.core.utils.error_handling import safe_error_response
-from src.core.utils.validators import validate_org_slug
+# Note: validate_org_slug available if needed from src.core.utils.validators
 
 logger = logging.getLogger(__name__)
 
@@ -704,14 +704,8 @@ async def create_org(
     org_slug = request.org_slug
 
     # Use centralized subscription limits from org_models.py (single source of truth)
-    central_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
-    plan_limits = {
-        "max_daily": central_limits["max_pipelines_per_day"],
-        "max_monthly": central_limits["max_pipelines_per_month"],
-        "max_concurrent": central_limits["max_concurrent_pipelines"],
-        "seat_limit": central_limits["max_team_members"],
-        "providers_limit": central_limits["max_providers"]
-    }
+    # FIX: Use direct keys without intermediate mapping for clarity
+    plan_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
 
     # Step 1: Create org profile
     try:
@@ -770,9 +764,9 @@ async def create_org(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
                     bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
                 ]
             )
@@ -810,7 +804,7 @@ async def create_org(
         (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
          pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
          daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
-         last_updated, created_at)
+         updated_at, created_at)
         VALUES
         (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit, @monthly_limit,
          @concurrent_limit, @seat_limit, @providers_limit, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
@@ -822,9 +816,9 @@ async def create_org(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
                     bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
                     bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"])
                 ]
@@ -966,7 +960,7 @@ async def get_org(
     # Count pipeline runs
     runs_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.organizations.org_pipeline_runs`
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
     WHERE org_slug = @org_slug
     """
 
@@ -1076,7 +1070,7 @@ async def create_api_key(
             bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
             bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
             bigquery.ScalarQueryParameter("org_slug", "STRING", request.org_slug),
-            bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+            bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]
             bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes),
         ]
     )
@@ -1277,7 +1271,7 @@ async def regenerate_api_key(
             bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
             bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
-            bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+            bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]
             bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes),
         ]
     )

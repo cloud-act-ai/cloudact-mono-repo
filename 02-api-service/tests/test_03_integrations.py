@@ -477,7 +477,7 @@ async def test_get_single_integration(
             integrations={
                 "OPENAI": IntegrationStatusResponse(
                     provider="OPENAI",
-                    status="VALID",
+                    validation_status="VALID",
                     credential_name="Production Key",
                     last_validated_at=datetime.fromisoformat("2025-11-29T12:00:00"),
                     last_error=None,
@@ -497,7 +497,7 @@ async def test_get_single_integration(
         data = response.json()
 
         assert data["provider"] == "OPENAI"
-        assert data["status"] == "VALID"
+        assert data["validation_status"] == "VALID"
         assert data["credential_name"] == "Production Key"
 
 
@@ -515,7 +515,7 @@ async def test_get_single_integration_not_configured(
             integrations={
                 "ANTHROPIC": IntegrationStatusResponse(
                     provider="ANTHROPIC",
-                    status="NOT_CONFIGURED",
+                    validation_status="NOT_CONFIGURED",
                     credential_name=None,
                     last_validated_at=None,
                     last_error=None,
@@ -535,7 +535,7 @@ async def test_get_single_integration_not_configured(
         data = response.json()
 
         assert data["provider"] == "ANTHROPIC"
-        assert data["status"] == "NOT_CONFIGURED"
+        assert data["validation_status"] == "NOT_CONFIGURED"
         assert data["credential_name"] is None
 
 

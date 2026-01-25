@@ -547,7 +547,7 @@ class AsyncPipelineExecutor:
         Old behavior:
         - Incremented concurrent_pipelines_running by 1
         - Updated max_concurrent_reached to maximum value seen
-        - Set last_updated to current timestamp
+        - Set updated_at to current timestamp
         """
         from google.cloud import bigquery
         from src.app.config import settings
@@ -562,7 +562,7 @@ class AsyncPipelineExecutor:
             SET
                 concurrent_pipelines_running = concurrent_pipelines_running + 1,
                 max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
-                last_updated = CURRENT_TIMESTAMP()
+                updated_at = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug
                 AND usage_date = @usage_date
@@ -626,7 +626,7 @@ class AsyncPipelineExecutor:
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
                 concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
-                last_updated = CURRENT_TIMESTAMP()
+                updated_at = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug
                 AND usage_date = @usage_date
@@ -695,7 +695,7 @@ class AsyncPipelineExecutor:
                 pipelines_failed_today = pipelines_failed_today + @failed_increment,
                 concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
                 last_pipeline_completed_at = CURRENT_TIMESTAMP(),
-                last_updated = CURRENT_TIMESTAMP()
+                updated_at = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug
                 AND usage_date = @usage_date

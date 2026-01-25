@@ -269,9 +269,8 @@ function getClientSafeErrorMessage(
 // Authorization (uses shared auth-cache module)
 // ============================================================================
 
-function isValidOrgSlug(slug: string): boolean {
-  return isValidOrgSlugHelper(slug)
-}
+// Re-export validation for external use
+export const isValidOrgSlug = isValidOrgSlugHelper
 
 // ============================================================================
 // Helper Functions
@@ -302,16 +301,16 @@ export async function getIdentifierFieldForFlow(flow: GenAIFlow): Promise<string
  * Extract the identifier value from a pricing record based on flow type
  * Issue #13, #14: Fixed to match API router expectations
  */
-export async function extractIdentifierFromPricing(flow: GenAIFlow, pricing: Record<string, any>): Promise<string> {
+export async function extractIdentifierFromPricing(flow: GenAIFlow, pricing: Record<string, unknown>): Promise<string> {
   switch (flow) {
     case "payg":
-      return pricing.model || pricing.id
+      return (pricing.model as string) || (pricing.id as string)
     case "commitment":
-      return pricing.model || pricing.id  // Fixed: API uses 'model' as identifier
+      return (pricing.model as string) || (pricing.id as string)  // Fixed: API uses 'model' as identifier
     case "infrastructure":
-      return pricing.instance_type || pricing.id
+      return (pricing.instance_type as string) || (pricing.id as string)
     default:
-      return pricing.id
+      return pricing.id as string
   }
 }
 

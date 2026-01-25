@@ -198,7 +198,8 @@ export interface CostFilterParams {
 
 // AUTH-003 FIX: Removed duplicate auth functions.
 // Now uses shared getAuthContext from lib/auth-cache.ts
-const isValidOrgSlug = isValidOrgSlugHelper
+// Note: isValidOrgSlugHelper is re-exported for external validation needs
+export const isValidOrgSlug = isValidOrgSlugHelper
 
 // ============================================
 // GenAI/LLM Costs

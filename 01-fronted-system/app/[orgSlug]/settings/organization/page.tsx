@@ -266,7 +266,7 @@ export default function OrganizationSettingsPage() {
               const supabase = createClient()
               const { data: orgLimits } = await supabase
                 .from("organizations")
-                .select("seat_limit, providers_limit, pipelines_per_day_limit")
+                .select("seat_limit, providers_limit, pipelines_per_day_limit, concurrent_pipelines_limit")
                 .eq("org_slug", orgSlug)
                 .single()
 
@@ -283,6 +283,7 @@ export default function OrganizationSettingsPage() {
                 monthlyLimit,
                 seatLimit: orgLimits?.seat_limit,
                 providersLimit: orgLimits?.providers_limit,
+                concurrentLimit: orgLimits?.concurrent_pipelines_limit,
                 syncType: 'reconciliation',
               })
 
@@ -327,7 +328,7 @@ export default function OrganizationSettingsPage() {
         const supabase = createClient()
         const { data: orgData, error: orgError } = await supabase
           .from("organizations")
-          .select("plan, billing_status, seat_limit, providers_limit, pipelines_per_day_limit")
+          .select("plan, billing_status, seat_limit, providers_limit, pipelines_per_day_limit, concurrent_pipelines_limit")
           .eq("org_slug", orgSlug)
           .single()
 
@@ -348,6 +349,7 @@ export default function OrganizationSettingsPage() {
           monthlyLimit,
           seatLimit: orgData.seat_limit,
           providersLimit: orgData.providers_limit,
+          concurrentLimit: orgData.concurrent_pipelines_limit,
           syncType: "reconciliation",
         })
 
@@ -389,7 +391,7 @@ export default function OrganizationSettingsPage() {
         const supabase = createClient()
         const { data: orgData, error: orgError } = await supabase
           .from("organizations")
-          .select("seat_limit, providers_limit, pipelines_per_day_limit")
+          .select("seat_limit, providers_limit, pipelines_per_day_limit, concurrent_pipelines_limit")
           .eq("org_slug", orgSlug)
           .single()
 
@@ -411,6 +413,7 @@ export default function OrganizationSettingsPage() {
           monthlyLimit,
           seatLimit: orgData.seat_limit,
           providersLimit: orgData.providers_limit,
+          concurrentLimit: orgData.concurrent_pipelines_limit,
           syncType: 'reconciliation',
         })
 

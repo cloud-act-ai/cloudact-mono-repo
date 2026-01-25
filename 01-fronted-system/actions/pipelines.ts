@@ -80,8 +80,12 @@ interface OrgAuthData {
  * FIX: Uses join query pattern to work with RLS policies that restrict
  * direct access to organizations table. Fetches ALL needed org data in
  * a single query to avoid redundant DB calls.
+ *
+ * @deprecated Use requireOrgMembership from @/lib/auth-cache instead.
+ * Kept for reference of the comprehensive join query pattern.
  */
-async function verifyOrgMembership(orgSlug: string): Promise<{
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _verifyOrgMembership(orgSlug: string): Promise<{
   authorized: boolean
   userId?: string
   orgId?: string

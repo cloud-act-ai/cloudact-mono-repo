@@ -160,5 +160,35 @@
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "N-level hierarchy: Human-readable path. Example: 'Engineering > Platform > Backend Team'."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "[Extension] Pipeline template name. Example: focus_convert_gcp. KEY for idempotent re-runs."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Credential ID from org_integration_credentials. KEY for multi-account isolation."
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "[Extension] The DATA date being processed. KEY for idempotent re-runs."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "[Extension] Unique pipeline run UUID for full traceability."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "[Extension] Timestamp when data was written to this table."
   }
 ]

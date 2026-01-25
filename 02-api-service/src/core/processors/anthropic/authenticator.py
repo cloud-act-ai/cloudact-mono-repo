@@ -4,6 +4,10 @@ Anthropic (Claude) Authenticator Utility
 Shared authentication utility for all Anthropic/Claude processors.
 Handles credential decryption, validation, and client factory methods.
 
+SECURITY:
+- Credential expiration is checked before use
+- All decryption operations are audit logged
+
 Usage:
     from src.core.processors.anthropic.authenticator import AnthropicAuthenticator
 
@@ -13,6 +17,8 @@ Usage:
 """
 
 import logging
+import uuid
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from google.cloud import bigquery
@@ -81,19 +87,22 @@ class AnthropicAuthenticator:
             extra={"org_slug": self.org_slug, "provider": self.PROVIDER}
         )
 
-        # Query for credential
+        # Query for credential - includes expires_at check
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 
+        # SECURITY FIX: Check credential expiration during retrieval
         query = f"""
         SELECT
             credential_id,
             encrypted_credential,
-            validation_status
+            validation_status,
+            expires_at
         FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
         WHERE org_slug = @org_slug
             AND provider = @provider
             AND is_active = TRUE
             AND validation_status = 'VALID'
+            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP())
         ORDER BY created_at DESC
         LIMIT 1
         """
@@ -118,8 +127,20 @@ class AnthropicAuthenticator:
         # Decrypt
         try:
             self._api_key = decrypt_value(encrypted_credential)
+
+            # SECURITY FIX: Audit log the credential decryption
+            await self._log_credential_access(
+                credential_id=self._credential_id,
+                success=True
+            )
         except Exception as e:
             self.logger.error(f"Failed to decrypt Anthropic credentials: {e}")
+            # Log failed decryption attempt
+            await self._log_credential_access(
+                credential_id=self._credential_id,
+                success=False,
+                error_message="Decryption failed"
+            )
             raise
 
         self.logger.info(
@@ -128,6 +149,70 @@ class AnthropicAuthenticator:
         )
 
         return self._api_key
+
+    async def _log_credential_access(
+        self,
+        credential_id: str,
+        success: bool,
+        error_message: Optional[str] = None
+    ) -> None:
+        """
+        SECURITY: Audit log credential access for compliance.
+
+        Args:
+            credential_id: The credential being accessed
+            success: Whether access succeeded
+            error_message: Error message if access failed
+        """
+        try:
+            import json
+            bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
+
+            audit_id = str(uuid.uuid4())
+            timestamp = datetime.now(timezone.utc).isoformat()
+
+            details_json = json.dumps({
+                "provider": self.PROVIDER,
+                "credential_id": credential_id,
+                "access_type": "AUTHENTICATOR",
+                "success": success,
+                "error": error_message[:200] if error_message else None,
+            })
+
+            insert_query = f"""
+            INSERT INTO `{self.settings.gcp_project_id}.organizations.org_audit_logs`
+            (audit_id, org_slug, event_type, event_subtype, resource_type, resource_id,
+             actor_id, request_id, details, created_at)
+            VALUES
+            (@audit_id, @org_slug, @event_type, @event_subtype, @resource_type, @resource_id,
+             @user_id, @request_id, PARSE_JSON(@details), @created_at)
+            """
+
+            bq_client.client.query(
+                insert_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("audit_id", "STRING", audit_id),
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                        bigquery.ScalarQueryParameter("event_type", "STRING", "CREDENTIAL_DECRYPTION"),
+                        bigquery.ScalarQueryParameter("event_subtype", "STRING", "AUTHENTICATOR_ACCESS"),
+                        bigquery.ScalarQueryParameter("resource_type", "STRING", "credential"),
+                        bigquery.ScalarQueryParameter("resource_id", "STRING", credential_id),
+                        bigquery.ScalarQueryParameter("user_id", "STRING", None),
+                        bigquery.ScalarQueryParameter("request_id", "STRING", audit_id),
+                        bigquery.ScalarQueryParameter("details", "STRING", details_json),
+                        bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", timestamp),
+                    ],
+                    job_timeout_ms=10000  # 10 seconds max for audit log
+                )
+            ).result()
+
+        except Exception as e:
+            # Don't fail the operation if audit logging fails
+            self.logger.warning(
+                f"Failed to log credential access audit: {e}",
+                extra={"org_slug": self.org_slug, "provider": self.PROVIDER}
+            )
 
     async def get_async_client(self):
         """

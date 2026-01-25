@@ -936,6 +936,30 @@ async def validate_hierarchy_ids(
             found = True
             break
 
+        # BUG-048 FIX: If view returns no results, try central table as fallback
+        # Materialized views may be stale or empty after onboarding
+        if not found and uses_view:
+            logger.debug(f"View {view_ref} returned no results, trying central table")
+            central_query = f"""
+            SELECT entity_id FROM `{central_ref}`
+            WHERE org_slug = @org_slug
+              AND entity_id = @entity_id
+              AND end_date IS NULL
+              AND is_active = TRUE
+            LIMIT 1
+            """
+            central_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id),
+                ],
+                job_timeout_ms=60000
+            )
+            central_result = bq_client.client.query(central_query, job_config=central_config).result()
+            for _ in central_result:
+                found = True
+                break
+
         # BUG-042 FIX: Improved error message with actionable guidance
         if not found:
             # BUG-046 FIX: Cache invalid result for 5 minutes
@@ -1371,7 +1395,7 @@ async def disable_provider(
     count_query = f"""
     SELECT COUNT(*) as count
     FROM `{table_ref}`
-    WHERE org_slug = @org_slug AND provider = @provider
+    WHERE x_org_slug = @org_slug AND provider = @provider
     """
 
     try:
@@ -1394,7 +1418,7 @@ async def disable_provider(
         # provider is re-enabled. Historical cost data remains accurate for reporting.
         delete_query = f"""
         DELETE FROM `{table_ref}`
-        WHERE org_slug = @org_slug AND provider = @provider
+        WHERE x_org_slug = @org_slug AND provider = @provider
         """
 
         job_config = bigquery.QueryJobConfig(
@@ -1470,7 +1494,7 @@ async def list_plans(
         x_hierarchy_entity_id, x_hierarchy_entity_name,
         x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
     FROM `{table_ref}`
-    WHERE org_slug = @org_slug AND provider = @provider
+    WHERE x_org_slug = @org_slug AND provider = @provider
         AND (status = 'active' OR status = 'pending' OR status = 'cancelled' OR status = 'expired')
     -- PERF-002: BigQuery automatically optimizes based on clustering; no index hints needed
     ORDER BY updated_at DESC
@@ -1839,7 +1863,7 @@ async def create_plan(
     # the logical duplicate via the active plan check below.
     duplicate_check_query = f"""
     SELECT COUNT(*) as count FROM `{table_ref}`
-    WHERE org_slug = @org_slug
+    WHERE x_org_slug = @org_slug
       AND provider = @provider
       AND plan_name = @plan_name
       AND status = 'active'
@@ -1906,7 +1930,7 @@ async def create_plan(
 
     insert_query = f"""
     INSERT INTO `{table_ref}` (
-        org_slug, subscription_id, provider, plan_name, display_name,
+        x_org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency, seats,
         pricing_model, unit_price, yearly_price, discount_type,
         discount_value, auto_renew, payment_method, owner_email, department,
@@ -2025,7 +2049,7 @@ async def create_plan(
             x_hierarchy_entity_id, x_hierarchy_entity_name,
             x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
         FROM `{table_ref}`
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
         verify_config = bigquery.QueryJobConfig(
             query_parameters=[
@@ -2148,7 +2172,7 @@ async def create_plan(
             # Note: We're already authenticated here, but pipeline service needs the key
             api_key_query = f"""
             SELECT api_key FROM `{settings.gcp_project_id}.organizations.org_api_keys`
-            WHERE org_slug = @org_slug AND is_active = TRUE AND end_date IS NULL
+            WHERE org_slug = @org_slug AND is_active = TRUE
             ORDER BY created_at DESC LIMIT 1
             """
             try:
@@ -2260,7 +2284,7 @@ async def update_plan(
     if "status" in updates_dict and updates_dict["status"] is not None:
         current_status_query = f"""
         SELECT status FROM `{table_ref}`
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
         try:
             status_config = bigquery.QueryJobConfig(
@@ -2360,7 +2384,7 @@ async def update_plan(
     update_query = f"""
     UPDATE `{table_ref}`
     SET {', '.join(set_parts)}
-    WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+    WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
 
     try:
@@ -2391,7 +2415,7 @@ async def update_plan(
             x_hierarchy_entity_id, x_hierarchy_entity_name,
             x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
         FROM `{table_ref}`
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
         select_config = bigquery.QueryJobConfig(
             query_parameters=[
@@ -2564,7 +2588,7 @@ async def edit_plan_with_version(
         x_hierarchy_entity_id, x_hierarchy_entity_name,
         x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names
     FROM `{table_ref}`
-    WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+    WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
 
     try:
@@ -2633,14 +2657,14 @@ async def edit_plan_with_version(
         close_query = f"""
         UPDATE `{table_ref}`
         SET end_date = @end_date, status = 'expired', updated_at = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
         # OPTIMISTIC LOCKING FIX: Add updated_at check to detect concurrent modifications
         if original_updated_at:
             close_query = f"""
             UPDATE `{table_ref}`
             SET end_date = @end_date, status = 'expired', updated_at = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+            WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
               AND (updated_at = @original_updated_at OR updated_at IS NULL)
             """
         close_config = bigquery.QueryJobConfig(
@@ -2698,7 +2722,7 @@ async def edit_plan_with_version(
 
         insert_query = f"""
         INSERT INTO `{table_ref}` (
-            org_slug, subscription_id, provider, plan_name, display_name,
+            x_org_slug, subscription_id, provider, plan_name, display_name,
             category, status, start_date, billing_cycle, currency, seats,
             pricing_model, unit_price, yearly_price, discount_type,
             discount_value, auto_renew, payment_method, owner_email, department,
@@ -2762,7 +2786,7 @@ async def edit_plan_with_version(
                 compensation_query = f"""
                 UPDATE `{table_ref}`
                 SET end_date = @original_end_date, status = @original_status, updated_at = CURRENT_TIMESTAMP()
-                WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+                WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
                 """
                 comp_config = bigquery.QueryJobConfig(
                     query_parameters=[
@@ -2905,7 +2929,7 @@ async def edit_plan_with_version(
         # Get org API key for triggering pipeline
         api_key_query = f"""
         SELECT api_key FROM `{settings.gcp_project_id}.organizations.org_api_keys`
-        WHERE org_slug = @org_slug AND is_active = TRUE AND end_date IS NULL
+        WHERE org_slug = @org_slug AND is_active = TRUE
         ORDER BY created_at DESC LIMIT 1
         """
         try:
@@ -2999,7 +3023,7 @@ async def delete_plan(
     update_query = f"""
     UPDATE `{table_ref}`
     SET end_date = @end_date, status = 'cancelled', updated_at = CURRENT_TIMESTAMP()
-    WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+    WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
 
     try:
@@ -3118,7 +3142,7 @@ async def toggle_plan(
     # Get current state
     check_query = f"""
     SELECT status FROM `{table_ref}`
-    WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+    WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
 
     try:
@@ -3150,7 +3174,7 @@ async def toggle_plan(
         update_query = f"""
         UPDATE `{table_ref}`
         SET status = @new_status, updated_at = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        WHERE x_org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
 
         job_config = bigquery.QueryJobConfig(
@@ -3254,7 +3278,7 @@ async def get_all_plans(
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     # Query all plans with optimizations - ALWAYS filter by org_slug for multi-tenant isolation
-    where_clause = "WHERE org_slug = @org_slug"
+    where_clause = "WHERE x_org_slug = @org_slug"
     if enabled_only:
         where_clause += " AND status IN ('active', 'pending')"
 

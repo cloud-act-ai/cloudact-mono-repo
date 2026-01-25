@@ -568,11 +568,11 @@ export async function completeOnboarding(sessionId: string) {
         stripe_price_id: priceItem.id,
         billing_status: subscription.status,
         trial_ends_at: trialEndsAt.toISOString(),
-        current_period_start: (subscription as any).current_period_start
-          ? new Date((subscription as any).current_period_start * 1000).toISOString()
+        current_period_start: (subscription as unknown as { current_period_start?: number }).current_period_start
+          ? new Date((subscription as unknown as { current_period_start: number }).current_period_start * 1000).toISOString()
           : new Date().toISOString(),
-        current_period_end: (subscription as any).current_period_end
-          ? new Date((subscription as any).current_period_end * 1000).toISOString()
+        current_period_end: (subscription as unknown as { current_period_end?: number }).current_period_end
+          ? new Date((subscription as unknown as { current_period_end: number }).current_period_end * 1000).toISOString()
           : trialEndsAt.toISOString(),
         seat_limit: limits.teamMembers,
         providers_limit: limits.providers,

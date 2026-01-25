@@ -126,11 +126,14 @@ class CloudFOCUSConverterProcessor:
             # Process each date
             for process_date in dates_to_process:
                 # Call stored procedure with lineage parameters
+                # FIX: Procedure expects 8 params: p_project_id, p_dataset_id, p_start_date, p_end_date,
+                #      p_provider, p_pipeline_id, p_credential_id, p_run_id
                 call_query = f"""
                     CALL `{project_id}.organizations`.sp_cloud_1_convert_to_focus(
                         @p_project_id,
                         @p_dataset_id,
-                        @p_cost_date,
+                        @p_start_date,
+                        @p_end_date,
                         @p_provider,
                         @p_pipeline_id,
                         @p_credential_id,
@@ -144,7 +147,8 @@ class CloudFOCUSConverterProcessor:
                         query_parameters=[
                             bigquery.ScalarQueryParameter("p_project_id", "STRING", project_id),
                             bigquery.ScalarQueryParameter("p_dataset_id", "STRING", dataset_id),
-                            bigquery.ScalarQueryParameter("p_cost_date", "DATE", process_date),
+                            bigquery.ScalarQueryParameter("p_start_date", "DATE", process_date),
+                            bigquery.ScalarQueryParameter("p_end_date", "DATE", process_date),  # Single date mode
                             bigquery.ScalarQueryParameter("p_provider", "STRING", provider),
                             bigquery.ScalarQueryParameter("p_pipeline_id", "STRING", "focus_convert_cloud"),
                             bigquery.ScalarQueryParameter("p_credential_id", "STRING", credential_id),

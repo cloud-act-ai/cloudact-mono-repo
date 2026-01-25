@@ -31,11 +31,16 @@ import type {
   SaaSSubscriptionCreate,
   SaaSSubscriptionUpdate,
   SaaSSubscriptionListResponse,
+} from "@/lib/api/backend"
+
+// Re-export backend types for external consumers
+// NOTE: These are re-exported from lib/api/backend for type consistency
+export type {
   BillingPeriod,
   TierType,
   PricingType,
   FreeTierResetFrequency,
-  DiscountReason,
+  DiscountReason
 } from "@/lib/api/backend"
 import { getCachedApiKey } from "@/lib/auth-cache"
 import {
@@ -222,7 +227,12 @@ function validatePricingData(pricing: LLMPricingCreate | LLMPricingUpdate): stri
 // Authorization Helper
 // ============================================
 
-async function verifyOrgMembership(orgSlug: string): Promise<{
+/**
+ * @deprecated Use requireOrgMembership from @/lib/auth-cache instead.
+ * Kept for reference of the direct query pattern.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _verifyOrgMembership(orgSlug: string): Promise<{
   authorized: boolean
   userId?: string
   orgId?: string

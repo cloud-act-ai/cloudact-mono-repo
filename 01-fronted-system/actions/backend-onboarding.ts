@@ -32,8 +32,8 @@ function generateApiKeyFingerprint(apiKey: string): string {
 // FIX SEC-001, SCALE-001: Use Supabase instead of in-memory cache
 // This ensures tokens work across serverless instances
 
-// Token TTL: 2 hours to accommodate user delays in checkout flow
-const REVEAL_TOKEN_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours
+// Token TTL: 15 minutes for security-sensitive API key reveal operation
+const REVEAL_TOKEN_TTL_MS = 15 * 60 * 1000 // 15 minutes
 
 /**
  * Generate a reveal token for an API key and store in Supabase.
@@ -125,8 +125,12 @@ async function _revealApiKeyInternal(revealToken: string, userId: string): Promi
  *
  * Uses join query pattern to work with RLS policies that restrict
  * direct access to organizations table.
+ *
+ * @deprecated Use requireOrgMembership from @/lib/auth-cache instead.
+ * Kept for reference of the join query pattern.
  */
-async function verifyOrgMembership(orgSlug: string): Promise<{
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _verifyOrgMembership(orgSlug: string): Promise<{
   authorized: boolean
   userId?: string
   orgId?: string
@@ -276,7 +280,7 @@ interface BackendOnboardingResult {
   apiKeyFingerprint?: string // SHA-256 hash prefix for identification
   /**
    * One-time reveal token for API key display.
-   * Expires after 5 minutes. Use revealApiKeyFromToken() server action to retrieve key.
+   * Expires after 15 minutes. Use revealApiKeyFromToken() server action to retrieve key.
    * SECURITY FIX #3: Avoid exposing full API key to browser.
    */
   revealToken?: string
@@ -374,8 +378,8 @@ export async function onboardToBackend(input: {
           error: `System setup incomplete (${bootstrapStatus.tables_missing.length} tables missing). Please contact support.`,
         }
       }
-    } catch (bootstrapCheckError) {
-      // Network error or unexpected response
+    } catch (_bootstrapCheckError) {
+      // Network error or unexpected response - error details logged for debugging
       return {
         success: false,
         error: "Unable to verify system readiness. Please try again or contact support.",
@@ -1226,7 +1230,7 @@ export async function hasStoredApiKey(orgSlug: string): Promise<{
  * Reveal API key from a reveal token.
  * SECURITY FIX #3: Server action to reveal API key using short-lived token.
  * FIX SEC-001: Now uses Supabase-backed token storage instead of in-memory cache.
- * Token expires after 2 hours.
+ * Token expires after 15 minutes.
  *
  * @param revealToken - The reveal token from onboardToBackend or rotateApiKey
  * @returns The API key if token is valid, error otherwise
@@ -1289,6 +1293,7 @@ interface SyncSubscriptionInput {
   monthlyLimit?: number
   seatLimit?: number
   providersLimit?: number
+  concurrentLimit?: number  // BILLING-AUDIT-001: Add concurrent limit
   trialEndsAt?: string
   syncType?: 'plan_change' | 'checkout' | 'webhook' | 'cancellation' | 'reconciliation'
 }
@@ -1317,6 +1322,7 @@ async function queueFailedSync(
           monthlyLimit: input.monthlyLimit,
           seatLimit: input.seatLimit,
           providersLimit: input.providersLimit,
+          concurrentLimit: input.concurrentLimit,  // BILLING-AUDIT-001
           trialEndsAt: input.trialEndsAt,
         },
         error_message: errorMessage,
@@ -1567,6 +1573,7 @@ async function syncSubscriptionToBackendInternal(
             monthly_limit: input.monthlyLimit,
             seat_limit: input.seatLimit,
             providers_limit: input.providersLimit,
+            concurrent_limit: input.concurrentLimit,  // BILLING-AUDIT-001
           }),
           signal: controller.signal,
         }
@@ -1665,6 +1672,7 @@ export async function syncSubscriptionToBackend(input: {
   monthlyLimit?: number
   seatLimit?: number
   providersLimit?: number
+  concurrentLimit?: number  // BILLING-AUDIT-001: Concurrent pipeline limit
   trialEndsAt?: string    // ISO date string for trial end
   syncType?: 'plan_change' | 'checkout' | 'webhook' | 'cancellation' | 'reconciliation'
 }): Promise<SyncSubscriptionResult> {

@@ -126,6 +126,11 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     let backendDailyLimit = 0
     let backendMonthlyLimit = 0
     let backendConcurrentLimit = 20
+    // Resource limits from backend (fresh BigQuery data, updated after Stripe upgrades)
+    let backendSeatLimit: number | null = null
+    let backendProvidersLimit: number | null = null
+    // Resource usage counts from backend (source of truth for valid integrations)
+    let backendConfiguredProvidersCount: number | null = null
 
     try {
       const apiKey = await getCachedApiKey(orgSlug)
@@ -148,6 +153,11 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
           backendDailyLimit = quotaData.dailyLimit || 0
           backendMonthlyLimit = quotaData.monthlyLimit || 0
           backendConcurrentLimit = quotaData.concurrentLimit || 20
+          // Resource limits - use backend as source of truth (fresh after Stripe upgrades)
+          backendSeatLimit = quotaData.seatLimit ?? null
+          backendProvidersLimit = quotaData.providersLimit ?? null
+          // Resource usage counts - use backend as source of truth (BigQuery org_integration_credentials)
+          backendConfiguredProvidersCount = quotaData.configuredProvidersCount ?? null
         }
       }
     } catch (quotaError) {
@@ -157,11 +167,18 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       }
     }
 
-    const seatLimit = org.seat_limit || 2
-    const providersLimit = org.providers_limit || 3
+    // Use backend limits as source of truth (fresh BigQuery data after Stripe upgrades)
+    // Fall back to Supabase values only if backend doesn't return them
+    const seatLimit = backendSeatLimit ?? org.seat_limit ?? 2
+    const providersLimit = backendProvidersLimit ?? org.providers_limit ?? 3
     // Use backend limits if available, otherwise fall back to Supabase/defaults
     const dailyLimit = backendDailyLimit || org.pipelines_per_day_limit || 6
-    const monthlyLimit = backendMonthlyLimit || (dailyLimit * 30)
+    // Use actual monthly_limit from backend API - avoid hardcoded multiplier calculation
+    // Backend returns the exact plan limits from BigQuery (org_subscriptions table)
+    const monthlyLimit = backendMonthlyLimit > 0 ? backendMonthlyLimit : (dailyLimit * 30)
+    // Use backend configured providers count as source of truth (BigQuery org_integration_credentials)
+    // Fall back to Supabase-based count only if backend doesn't return it
+    const finalConfiguredProviders = backendConfiguredProvidersCount ?? configuredProviders
 
     const quotaUsage: QuotaUsage = {
       // Pipeline quotas
@@ -175,7 +192,7 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       // Resource quotas
       teamMembers: memberCount || 0,
       seatLimit,
-      configuredProviders,
+      configuredProviders: finalConfiguredProviders,
       providersLimit,
 
       // Calculated percentages
@@ -183,14 +200,14 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       monthlyUsagePercent: monthlyLimit > 0 ? Math.round((pipelinesRunMonth / monthlyLimit) * 100) : 0,
       concurrentUsagePercent: backendConcurrentLimit > 0 ? Math.round((concurrentRunning / backendConcurrentLimit) * 100) : 0,
       seatUsagePercent: seatLimit > 0 ? Math.round(((memberCount || 0) / seatLimit) * 100) : 0,
-      providerUsagePercent: providersLimit > 0 ? Math.round((configuredProviders / providersLimit) * 100) : 0,
+      providerUsagePercent: providersLimit > 0 ? Math.round((finalConfiguredProviders / providersLimit) * 100) : 0,
 
       // Warning levels
       dailyWarningLevel: getWarningLevel(pipelinesRunToday, dailyLimit),
       monthlyWarningLevel: getWarningLevel(pipelinesRunMonth, monthlyLimit),
       concurrentWarningLevel: getWarningLevel(concurrentRunning, backendConcurrentLimit),
       seatWarningLevel: getWarningLevel(memberCount || 0, seatLimit),
-      providerWarningLevel: getWarningLevel(configuredProviders, providersLimit),
+      providerWarningLevel: getWarningLevel(finalConfiguredProviders, providersLimit),
     }
 
     return { success: true, data: quotaUsage }

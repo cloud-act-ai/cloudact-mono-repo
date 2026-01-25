@@ -10,9 +10,9 @@
       "subscription": {
         "plan_name": "SCALE",
         "status": "ACTIVE",
-        "max_pipelines_per_day": 100,
-        "max_pipelines_per_month": 3000,
-        "max_concurrent_pipelines": 10
+        "daily_limit": 100,
+        "monthly_limit": 3000,
+        "concurrent_limit": 10
       },
       "org_api_key_id": "test-key-cloudact"
     },
@@ -25,9 +25,9 @@
       "subscription": {
         "plan_name": "ENTERPRISE",
         "status": "ACTIVE",
-        "max_pipelines_per_day": 999999,
-        "max_pipelines_per_month": 999999,
-        "max_concurrent_pipelines": 999999
+        "daily_limit": 999999,
+        "monthly_limit": 999999,
+        "concurrent_limit": 999999
       },
       "org_api_key_id": "test-key-123"
     },
@@ -40,9 +40,9 @@
       "subscription": {
         "plan_name": "PROFESSIONAL",
         "status": "ACTIVE",
-        "max_pipelines_per_day": 100,
-        "max_pipelines_per_month": 3000,
-        "max_concurrent_pipelines": 10
+        "daily_limit": 25,
+        "monthly_limit": 750,
+        "concurrent_limit": 20
       },
       "org_api_key_id": "test-key-456"
     }

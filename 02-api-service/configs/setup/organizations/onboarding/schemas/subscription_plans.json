@@ -103,9 +103,9 @@
   },
   {
     "name": "discount_value",
-    "type": "INTEGER",
+    "type": "FLOAT64",
     "mode": "NULLABLE",
-    "description": "Value of the discount. E.g., 20 for 20% or 20$ off."
+    "description": "Value of the discount. E.g., 20.0 for 20% or 20.50 for $20.50 off."
   },
   {
     "name": "auto_renew",

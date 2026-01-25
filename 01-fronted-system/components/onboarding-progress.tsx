@@ -110,7 +110,7 @@ export function createOnboardingStages(): ProgressStage[] {
       status: "pending",
     },
     {
-      label: "Setting up workspace (dataset + 6 tables)",
+      label: "Setting up workspace (dataset + data tables)",
       status: "pending",
     },
     {

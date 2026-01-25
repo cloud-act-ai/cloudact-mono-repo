@@ -8,7 +8,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound, Conflict
 
@@ -32,26 +32,86 @@ class OrgOnboardingProcessor:
         self.views_dir = self.template_dir / "views"
 
     def _load_schema_file(self, schema_filename: str) -> List[bigquery.SchemaField]:
-        """Load schema from JSON file and convert to BigQuery SchemaField list"""
+        """Load schema from JSON file and convert to BigQuery SchemaField list.
+
+        Raises:
+            FileNotFoundError: If the schema file does not exist
+            ValueError: If the schema file is empty or contains invalid JSON
+        """
         schema_file = self.schema_dir / schema_filename
 
         if not schema_file.exists():
-            self.logger.warning(f"Schema file not found: {schema_file}")
-            return []
+            error_msg = f"Schema file not found: {schema_file}. Ensure the file exists in the schemas directory."
+            self.logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
 
         try:
             with open(schema_file, 'r') as f:
                 schema_json = json.load(f)
+
+            if not schema_json:
+                error_msg = f"Schema file is empty: {schema_file}"
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
 
             # Convert JSON schema to SchemaField objects
             schema = []
             for field in schema_json:
                 schema.append(bigquery.SchemaField.from_api_repr(field))
 
+            if not schema:
+                error_msg = f"No valid schema fields found in: {schema_file}"
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
+
             return schema
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON in schema file {schema_file}: {e}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
         except Exception as e:
-            self.logger.error(f"Error loading schema from {schema_file}: {e}")
-            return []
+            error_msg = f"Error loading schema from {schema_file}: {e}"
+            self.logger.error(error_msg)
+            raise
+
+    def _validate_schema_files_exist(self, metadata_tables: List[Dict[str, Any]]) -> List[str]:
+        """Pre-flight check to verify all required schema files exist.
+
+        This prevents starting onboarding operations (dataset creation, etc.)
+        only to fail later due to missing schema files.
+
+        Args:
+            metadata_tables: List of table configurations with schema_file keys
+
+        Returns:
+            List of missing schema file names (empty if all exist)
+        """
+        missing_schemas = []
+
+        for table_config in metadata_tables:
+            schema_file = table_config.get("schema_file")
+            if not schema_file:
+                # No schema file specified - will be caught during table creation
+                continue
+
+            schema_path = self.schema_dir / schema_file
+            if not schema_path.exists():
+                missing_schemas.append(schema_file)
+                self.logger.error(
+                    f"Schema file missing: {schema_file} (expected at {schema_path})"
+                )
+
+        if missing_schemas:
+            self.logger.error(
+                f"Pre-flight check failed: {len(missing_schemas)} schema file(s) missing. "
+                f"Missing files: {missing_schemas}"
+            )
+        else:
+            self.logger.info(
+                f"Pre-flight check passed: All {len(metadata_tables)} schema files exist"
+            )
+
+        return missing_schemas
 
     async def _create_dataset(self, bq_client: BigQueryClient, dataset_id: str, location: str) -> bool:
         """Create dataset if it doesn't exist"""
@@ -82,9 +142,9 @@ class OrgOnboardingProcessor:
         dataset_id: str,
         table_name: str,
         schema: List[bigquery.SchemaField],
-        description: str = None,
-        partition_field: str = None,
-        clustering_fields: List[str] = None
+        description: Optional[str] = None,
+        partition_field: Optional[str] = None,
+        clustering_fields: Optional[List[str]] = None
     ) -> bool:
         """Create a single table with schema, optional partitioning and clustering"""
         full_table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{table_name}"
@@ -525,7 +585,13 @@ class OrgOnboardingProcessor:
         Returns:
             Execution result with tables created
         """
-        org_slug = context.get("org_slug")
+        org_slug_raw = context.get("org_slug")
+        if not org_slug_raw or not isinstance(org_slug_raw, str):
+            return {
+                "status": "FAILED",
+                "error": "org_slug is required in context and must be a non-empty string"
+            }
+        org_slug: str = org_slug_raw  # Type narrowed after validation
         config = step_config.get("config", {})
 
         # Get configuration values
@@ -534,6 +600,18 @@ class OrgOnboardingProcessor:
         dataset_id = self.settings.get_org_dataset_name(org_slug)
         location = config.get("location", "US")
         metadata_tables = config.get("metadata_tables", [])
+
+        # Pre-flight check: Verify all required schema files exist before starting operations
+        missing_schemas = self._validate_schema_files_exist(metadata_tables)
+        if missing_schemas:
+            error_msg = f"Pre-flight check failed: Missing schema files: {', '.join(missing_schemas)}"
+            self.logger.error(error_msg)
+            return {
+                "status": "FAILED",
+                "error": error_msg,
+                "org_slug": org_slug,
+                "missing_schemas": missing_schemas
+            }
 
         # Initialize BigQuery client
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
@@ -570,9 +648,16 @@ class OrgOnboardingProcessor:
             self.logger.info(f"Creating table {table_name} from schema {schema_file}")
 
             # Load schema from file
-            schema = self._load_schema_file(schema_file)
-            if not schema:
-                self.logger.error(f"Failed to load schema for {table_name}")
+            # Note: Pre-flight check should have caught missing files, but handle exceptions
+            # for edge cases (file deleted after check, permission issues, etc.)
+            try:
+                schema = self._load_schema_file(schema_file)
+            except (FileNotFoundError, ValueError) as e:
+                self.logger.error(f"Failed to load schema for {table_name}: {e}")
+                tables_failed.append(table_name)
+                continue
+            except Exception as e:
+                self.logger.error(f"Unexpected error loading schema for {table_name}: {e}")
                 tables_failed.append(table_name)
                 continue
 
@@ -679,12 +764,22 @@ class OrgOnboardingProcessor:
 
         # Step 4a: Seed default hierarchy LEVELS (required before seeding entities)
         # Creates the level configuration (c_suite, business_unit, function)
+        # FIX ISSUE 2.3: Track level seeding success/failure in result
+        levels_seeded = False
+        levels_error = None
         try:
             level_service = HierarchyLevelService(bq_client)
             await level_service.seed_default_levels(org_slug, "system")
             self.logger.info(f"Seeded default hierarchy levels for {org_slug}")
+            levels_seeded = True
         except Exception as e:
-            self.logger.warning(f"Failed to seed hierarchy levels (may already exist): {e}")
+            levels_error = str(e)
+            # Check if it's truly "already exists" vs a real error
+            if "already exist" in str(e).lower():
+                self.logger.info(f"Hierarchy levels already exist for {org_slug}, skipping")
+                levels_seeded = True  # Consider existing levels as success
+            else:
+                self.logger.warning(f"Failed to seed hierarchy levels: {e}")
 
         # Step 4b: Seed default hierarchy ENTITIES from CSV (always enabled for new orgs)
         # CSV file: configs/hierarchy/seed/data/default_hierarchy.csv
@@ -695,7 +790,8 @@ class OrgOnboardingProcessor:
 
         # Step 5: Create organization-specific materialized view (x_pipeline_exec_logs)
         # This MV queries central organizations tables filtered by org_slug
-        views_created, views_failed = self._create_org_materialized_views(org_slug, dataset_id)
+        # FIX ISSUE 2.4: Now returns views_errors dict for debugging
+        views_created, views_failed, views_errors = self._create_org_materialized_views(org_slug, dataset_id)
 
         # Step 5: Seed GenAI subscription and pricing data if configured
         genai_seed_result = {"subscriptions_seeded": 0, "pricing_seeded": 0, "errors": []}
@@ -725,11 +821,17 @@ class OrgOnboardingProcessor:
             "views_created": views_created,
             "tables_failed": tables_failed,
             "views_failed": views_failed,
+            # FIX ISSUE 2.4: Include view creation errors for debugging
+            "views_errors": views_errors if views_errors else None,
             # FIX ERR-002: Include quota creation status in result
             "quota_created": quota_created,  # True=created, False=failed, None=skipped
+            # FIX ISSUE 2.3: Include hierarchy levels seeding status
+            "hierarchy_levels_seeded": levels_seeded,
+            "hierarchy_levels_error": levels_error,
             "hierarchy_seeded": {
                 "total": hierarchy_total,
-                "by_level": hierarchy_by_level
+                "by_level": hierarchy_by_level,
+                "errors": hierarchy_result.get("errors", [])
             },
             "subscriptions_seeded": genai_seed_result.get("subscriptions_seeded", 0),
             "genai_pricing_seeded": genai_seed_result.get("pricing_seeded", 0),
@@ -791,13 +893,17 @@ class OrgOnboardingProcessor:
 
         views_created = []
         views_failed = []
+        # FIX ISSUE 2.4: Preserve error messages for debugging
+        views_errors = {}
 
         for mv_filename, mv_name in mv_files:
             mv_file = self.views_dir / mv_filename
 
             if not mv_file.exists():
-                self.logger.warning(f"Materialized view SQL file not found: {mv_file}")
+                error_msg = f"SQL file not found: {mv_file}"
+                self.logger.warning(f"Materialized view {error_msg}")
                 views_failed.append(mv_name)
+                views_errors[mv_name] = error_msg
                 continue
 
             try:
@@ -821,9 +927,10 @@ class OrgOnboardingProcessor:
 
             except Exception as e:
                 views_failed.append(mv_name)
+                views_errors[mv_name] = str(e)
                 self.logger.error(f"Failed to create materialized view {mv_name}: {e}", exc_info=True)
 
-        return views_created, views_failed
+        return views_created, views_failed, views_errors
 
 
 # Function for pipeline executor to call

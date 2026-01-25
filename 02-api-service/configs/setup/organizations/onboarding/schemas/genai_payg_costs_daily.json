@@ -150,6 +150,24 @@
     "description": "Timestamp when cost was calculated."
   },
   {
+    "name": "x_ingestion_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique row identifier (UUID) for traceability."
+  },
+  {
+    "name": "x_ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when data was ingested - PARTITION KEY."
+  },
+  {
+    "name": "x_genai_provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "GenAI provider: openai, anthropic, gemini, azure_openai, aws_bedrock, gcp_vertex."
+  },
+  {
     "name": "x_pipeline_id",
     "type": "STRING",
     "mode": "REQUIRED",

@@ -467,39 +467,6 @@ class InfrastructureCostProcessor:
             "errors": errors
         }
 
-    async def _delete_existing_records(
-        self, bq_client, project_id: str, dataset_id: str,
-        org_slug: str, process_date: date, provider: Optional[str]
-    ) -> None:
-        """Delete existing records for idempotent reprocessing."""
-        query_params = [
-            bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
-            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-        ]
-
-        provider_condition = ""
-        if provider:
-            provider_condition = "AND provider = @provider"
-            query_params.append(bigquery.ScalarQueryParameter("provider", "STRING", provider))
-
-        delete_query = f"""
-            DELETE FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
-            WHERE cost_date = @process_date
-                AND x_org_slug = @org_slug
-                {provider_condition}
-        """
-
-        try:
-            job = bq_client.client.query(
-                delete_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=query_params)
-            )
-            job.result()
-            if job.num_dml_affected_rows:
-                self.logger.info(f"Deleted {job.num_dml_affected_rows} existing records for reprocessing")
-        except Exception as e:
-            self.logger.warning(f"Delete existing records failed (table may not exist): {e}")
-
     def _parse_date(self, date_str):
         if not date_str:
             return None

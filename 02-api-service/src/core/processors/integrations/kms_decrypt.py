@@ -352,7 +352,7 @@ class KMSDecryptIntegrationProcessor:
         # Initialize BigQuery client
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 
-        # Query for credential
+        # Query for credential - SECURITY FIX: Check expiration during retrieval
         try:
             query = f"""
             SELECT
@@ -364,11 +364,13 @@ class KMSDecryptIntegrationProcessor:
                 validation_status,
                 last_validated_at,
                 last_error,
-                metadata
+                metadata,
+                expires_at
             FROM `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             WHERE org_slug = @org_slug
                 AND provider = @provider
                 AND is_active = TRUE
+                AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP())
             """
 
             if require_valid:

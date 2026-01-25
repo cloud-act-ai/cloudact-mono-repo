@@ -468,9 +468,9 @@ async def get_current_org(
             "subscription": {
                 "plan_name": "STARTER",
                 "status": "ACTIVE",
-                "max_pipelines_per_day": settings.fallback_daily_limit,
-                "max_pipelines_per_month": settings.fallback_monthly_limit,
-                "max_concurrent_pipelines": settings.fallback_concurrent_limit
+                "daily_limit": settings.fallback_daily_limit,
+                "monthly_limit": settings.fallback_monthly_limit,
+                "concurrent_limit": settings.fallback_concurrent_limit
             },
             "org_api_key_id": "dev-key"
         }
@@ -508,9 +508,9 @@ async def get_current_org(
         s.subscription_id,
         s.plan_name,
         s.status as subscription_status,
-        s.daily_limit as max_pipelines_per_day,
-        s.monthly_limit as max_pipelines_per_month,
-        s.concurrent_limit as max_concurrent_pipelines,
+        s.daily_limit,
+        s.monthly_limit,
+        s.concurrent_limit,
         s.trial_end_date,
         s.subscription_end_date
     FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
@@ -596,9 +596,9 @@ async def get_current_org(
                 "subscription_id": row["subscription_id"],
                 "plan_name": row["plan_name"],
                 "status": row["subscription_status"],
-                "max_pipelines_per_day": row["max_pipelines_per_day"],
-                "max_pipelines_per_month": row["max_pipelines_per_month"],
-                "max_concurrent_pipelines": row["max_concurrent_pipelines"],
+                "daily_limit": row["daily_limit"],
+                "monthly_limit": row["monthly_limit"],
+                "concurrent_limit": row["concurrent_limit"],
                 "trial_end_date": row.get("trial_end_date"),
                 "subscription_end_date": row.get("subscription_end_date")
             }
@@ -751,7 +751,7 @@ async def validate_quota(
             INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
             (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
              pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-             daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
+             daily_limit, monthly_limit, concurrent_limit, created_at, updated_at)
             VALUES (
                 @usage_id,
                 @org_slug,
@@ -772,9 +772,9 @@ async def validate_quota(
                         bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                        bigquery.ScalarQueryParameter("daily_limit", "INT64", subscription["max_pipelines_per_day"]),
-                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["max_pipelines_per_month"]),
-                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription["max_concurrent_pipelines"])
+                        bigquery.ScalarQueryParameter("daily_limit", "INT64", subscription["daily_limit"]),
+                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["monthly_limit"]),
+                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription["concurrent_limit"])
                     ],
                     job_timeout_ms=settings.bq_auth_timeout_ms
                 )
@@ -785,11 +785,11 @@ async def validate_quota(
                 "pipelines_run_today": 0,
                 "pipelines_run_month": 0,
                 "concurrent_pipelines_running": 0,
-                "daily_limit": subscription["max_pipelines_per_day"],
-                "monthly_limit": subscription["max_pipelines_per_month"],
-                "concurrent_limit": subscription["max_concurrent_pipelines"],
-                "remaining_today": subscription["max_pipelines_per_day"],
-                "remaining_month": subscription["max_pipelines_per_month"]
+                "daily_limit": subscription["daily_limit"],
+                "monthly_limit": subscription["monthly_limit"],
+                "concurrent_limit": subscription["concurrent_limit"],
+                "remaining_today": subscription["daily_limit"],
+                "remaining_month": subscription["monthly_limit"]
             }
 
         # Check existing usage
@@ -798,9 +798,9 @@ async def validate_quota(
         # IMPORTANT: Use subscription limits (source of truth), NOT usage table limits
         # The usage table limits can become stale when subscription changes (upgrade/downgrade)
         # Subscription limits are always fresh from org_subscriptions table
-        daily_limit = subscription["max_pipelines_per_day"]
-        monthly_limit = subscription["max_pipelines_per_month"]
-        concurrent_limit = subscription["max_concurrent_pipelines"]
+        daily_limit = subscription["daily_limit"]
+        monthly_limit = subscription["monthly_limit"]
+        concurrent_limit = subscription["concurrent_limit"]
         pipelines_run_today = usage["pipelines_run_today"] or 0
         pipelines_run_month = usage["pipelines_run_month"] or 0
         concurrent_pipelines_running = usage["concurrent_pipelines_running"] or 0
@@ -873,7 +873,7 @@ async def reserve_pipeline_quota_atomic(
 
     Args:
         org_slug: Organization identifier
-        subscription: Subscription info with max_pipelines_per_day, etc.
+        subscription: Subscription info with daily_limit, monthly_limit, concurrent_limit, etc.
         bq_client: BigQuery client instance
 
     Returns:
@@ -888,9 +888,9 @@ async def reserve_pipeline_quota_atomic(
     today = get_utc_date()
 
     # Use subscription limits if available, fallback to SUBSCRIPTION_LIMITS
-    daily_limit = subscription.get("max_pipelines_per_day")
-    monthly_limit = subscription.get("max_pipelines_per_month")
-    concurrent_limit = subscription.get("max_concurrent_pipelines")
+    daily_limit = subscription.get("daily_limit")
+    monthly_limit = subscription.get("monthly_limit")
+    concurrent_limit = subscription.get("concurrent_limit")
 
     # Fallback to SUBSCRIPTION_LIMITS if any limit is None (Stripe sync failure)
     if daily_limit is None or monthly_limit is None or concurrent_limit is None:
@@ -904,9 +904,9 @@ async def reserve_pipeline_quota_atomic(
             logger.warning(f"Unknown plan '{plan_name}' for org {org_slug}, using STARTER defaults")
             defaults = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
 
-        daily_limit = daily_limit or defaults["max_pipelines_per_day"]
-        monthly_limit = monthly_limit or defaults["max_pipelines_per_month"]
-        concurrent_limit = concurrent_limit or defaults["max_concurrent_pipelines"]
+        daily_limit = daily_limit or defaults["daily_limit"]
+        monthly_limit = monthly_limit or defaults["monthly_limit"]
+        concurrent_limit = concurrent_limit or defaults["concurrent_limit"]
 
         logger.info(
             f"Using fallback limits for org {org_slug}: "
@@ -921,7 +921,7 @@ async def reserve_pipeline_quota_atomic(
     UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
     SET
         concurrent_pipelines_running = concurrent_pipelines_running + 1,
-        last_updated = CURRENT_TIMESTAMP()
+        updated_at = CURRENT_TIMESTAMP()
     WHERE org_slug = @org_slug
         AND usage_date = @usage_date
         AND pipelines_run_today < @daily_limit
@@ -1009,7 +1009,7 @@ async def reserve_pipeline_quota_atomic(
                 INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
                 (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
                  pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-                 daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
+                 daily_limit, monthly_limit, concurrent_limit, created_at, updated_at)
                 VALUES (
                     @usage_id,
                     @org_slug,
@@ -1686,7 +1686,7 @@ async def optional_auth(
         return None
 
     try:
-        return await verify_api_key(x_api_key, bq_client)
+        return await verify_api_key(x_api_key=x_api_key, x_user_id=None, bq_client=bq_client)
     except HTTPException:
         return None
 

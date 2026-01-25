@@ -12,7 +12,7 @@
 --
 -- Benefits:
 --   - Single materialized view per org (reduced from 3 views)
---   - Auto-refreshed every 30 minutes
+--   - Auto-refreshed every 15 minutes
 --   - Clustered for fast dashboard queries
 --   - Denormalized - one row per step with pipeline info
 --
@@ -25,7 +25,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS `{project_id}.{dataset_id}.x_pipeline_exe
 CLUSTER BY pipeline_status, pipeline_id, step_status
 OPTIONS (
   enable_refresh = true,
-  refresh_interval_minutes = 30,
+  refresh_interval_minutes = 15,
   max_staleness = INTERVAL "4" HOUR
 )
 AS

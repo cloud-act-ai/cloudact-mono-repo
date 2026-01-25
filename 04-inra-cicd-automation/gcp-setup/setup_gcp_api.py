@@ -1,12 +1,22 @@
 import requests
-import json
 import os
 
-API_KEY = "retryorg_001_12012025_api_gsgNUBI7qU06tXagqHJbcA"
-ORG_SLUG = "retryorg_001_12012025"
-URL = f"http://localhost:8000/api/v1/integrations/{ORG_SLUG}/gcp/setup"
+API_KEY = os.getenv("ORG_API_KEY", "")
+ORG_SLUG = os.getenv("ORG_SLUG", "")
+API_SERVICE_URL = os.getenv("API_SERVICE_URL", "http://localhost:8000")
+URL = f"{API_SERVICE_URL}/api/v1/integrations/{ORG_SLUG}/gcp/setup"
 
 def setup_gcp():
+    # Validate required environment variables
+    if not API_KEY:
+        print("ERROR: ORG_API_KEY environment variable is required")
+        print("Usage: export ORG_API_KEY='your-org-api-key'")
+        return
+    if not ORG_SLUG:
+        print("ERROR: ORG_SLUG environment variable is required")
+        print("Usage: export ORG_SLUG='your-org-slug'")
+        return
+
     try:
         with open("temp_gcp_creds.json", "r") as f:
             creds_content = f.read() # Read as string, don't parse yet
