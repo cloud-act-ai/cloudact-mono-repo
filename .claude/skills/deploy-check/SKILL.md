@@ -21,28 +21,30 @@ description: |
 - CICD Scripts: `04-inra-cicd-automation/CICD/`
 - Dockerfiles: `{service}/Dockerfile`
 - Environments: `04-inra-cicd-automation/CICD/environments.conf`
+- Cloud Build: `cloudbuild-stage.yaml`, `cloudbuild-prod.yaml`
 
-## Deployment Workflow
+## Deployment Workflow (Cloud Build - AUTOMATED)
+
+> **IMPORTANT:** Deployments are AUTOMATIC via Cloud Build triggers.
 
 ### 1. Validate (Pre-deployment)
 ```bash
 cd 04-inra-cicd-automation/CICD
-
-# Validate environment secrets
 ./secrets/validate-env.sh prod frontend
 ./secrets/verify-secrets.sh prod
 ```
 
-### 2. Deploy with Releases
+### 2. Deploy via Git (Cloud Build Auto-Triggers)
 ```bash
-# Check current version
-./releases.sh next
+# Stage: Push to main branch
+git push origin main
 
-# Deploy to staging first
-./release.sh v1.0.0 --deploy --env stage
+# Production: Create and push version tag
+git tag v4.2.0
+git push origin v4.2.0
 
-# Test staging, then deploy to production
-./release.sh v1.0.0 --deploy --env prod
+# Monitor build
+gcloud builds list --project=cloudact-prod --region=global --limit=5
 ```
 
 ### 3. Verify
@@ -57,22 +59,20 @@ curl -s https://pipeline.cloudact.ai/health
 
 ### 4. Rollback (if needed)
 ```bash
-./release.sh v0.9.0 --deploy --env prod
+# Create a new tag pointing to previous working version
+git tag v4.2.1  # Patch release with rollback
+git push origin v4.2.1
 ```
 
-## Quick Deploy (Testing)
+## Manual Deploy (Development/Testing ONLY)
+
+> **WARNING:** Only for local dev and test environments. NOT for production.
 
 ```bash
 cd 04-inra-cicd-automation/CICD/quick
 
-# Test
+# Test environment only
 ./deploy-test.sh
-
-# Stage
-./deploy-stage.sh
-
-# Prod (careful!)
-./deploy-prod.sh
 ```
 
 ## CICD Scripts

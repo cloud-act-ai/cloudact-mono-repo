@@ -20,6 +20,8 @@
 import { createClient } from "@/lib/supabase/server"
 import {
   PipelineBackendClient as BackendClient,
+} from "@/lib/api/backend"
+import type {
   LLMProvider,
   LLMPricing,
   LLMPricingCreate,
@@ -61,23 +63,8 @@ export interface LLMDataResult<T = unknown> {
   message?: string
 }
 
-// Re-export types for convenience
-export type {
-  LLMProvider,
-  LLMPricing,
-  LLMPricingCreate,
-  LLMPricingUpdate,
-  LLMPricingListResponse,
-  SaaSSubscription,
-  SaaSSubscriptionCreate,
-  SaaSSubscriptionUpdate,
-  SaaSSubscriptionListResponse,
-  BillingPeriod,
-  TierType,
-  PricingType,
-  FreeTierResetFrequency,
-  DiscountReason,
-}
+// Types are now imported directly from @/lib/api/backend by components that need them
+// Re-exports removed to fix Turbopack server action compilation issue
 
 // ============================================
 // Input Validation

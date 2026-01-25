@@ -204,12 +204,12 @@ async function syncProcedures(): Promise<boolean> {
 function loadPricingSeed(orgSlug: string, dataset: string): boolean {
     console.log('\n[Step 2] Loading GenAI pricing seed data...')
 
-    // CRITICAL FIX: Use script to add org_slug column before loading
-    // Bug: genai_payg_pricing.csv is missing org_slug (REQUIRED by schema)
+    // CRITICAL FIX: Use script to add x_org_slug column before loading
+    // Bug: genai_payg_pricing.csv is missing x_org_slug (REQUIRED by schema)
     const fixScript = path.resolve(__dirname, '../../../04-inra-cicd-automation/load-demo-data/scripts/fix_genai_pricing_for_org.sh')
     const command = `bash ${fixScript} ${orgSlug} ${GCP_PROJECT_ID} ${dataset}`
 
-    return runCommand(command, 'Loading genai_payg_pricing (with org_slug fix)')
+    return runCommand(command, 'Loading genai_payg_pricing (with x_org_slug fix)')
 }
 
 function loadHierarchy(orgSlug: string, apiKey: string): boolean {

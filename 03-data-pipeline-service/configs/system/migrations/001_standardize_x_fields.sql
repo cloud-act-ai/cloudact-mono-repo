@@ -142,3 +142,19 @@ ALTER TABLE `{project}.{dataset}.cost_data_standard_1_3`
 -- Add missing column
 ALTER TABLE `{project}.{dataset}.cost_data_standard_1_3`
   ADD COLUMN IF NOT EXISTS x_hierarchy_validated_at TIMESTAMP;
+
+-- ============================================================================
+-- GENAI PRICING TABLES (org_slug → x_org_slug)
+-- ============================================================================
+
+-- GenAI PAYG Pricing
+ALTER TABLE `{project}.{dataset}.genai_payg_pricing`
+  RENAME COLUMN org_slug TO x_org_slug;
+
+-- GenAI Commitment Pricing
+ALTER TABLE `{project}.{dataset}.genai_commitment_pricing`
+  RENAME COLUMN org_slug TO x_org_slug;
+
+-- GenAI Infrastructure Pricing
+ALTER TABLE `{project}.{dataset}.genai_infrastructure_pricing`
+  RENAME COLUMN org_slug TO x_org_slug;

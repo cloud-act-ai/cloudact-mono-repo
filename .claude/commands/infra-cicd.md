@@ -336,31 +336,44 @@ cd $REPO_ROOT/04-inra-cicd-automation/CICD/secrets
 
 ## Critical Rules
 
-1. **ALWAYS validate before prod** - `./secrets/validate-env.sh prod frontend`
-2. **Use releases for production** - `./release.sh` with version tags
-3. **Deploy to stage first** - `./release.sh vX.Y.Z --deploy --env stage`
-4. **ALWAYS confirm before prod deployment**
-5. **Deploy order: api-service -> pipeline-service -> frontend**
-6. **Monitor logs for 15 minutes after prod deploy**
-7. **Rollback if health check fails after 5 minutes**
-8. **Update version in config.py BEFORE building** - Version is hardcoded in:
+1. **Production deploys via Cloud Build** - Push git tag `v*` to auto-deploy (NOT manual scripts)
+2. **Stage deploys via Cloud Build** - Push to `main` branch to auto-deploy
+3. **ALWAYS validate before prod** - `./secrets/validate-env.sh prod frontend`
+4. **Deploy to stage first** - Push to main, verify, then create version tag
+5. **Monitor logs for 15 minutes after prod deploy**
+6. **Rollback if health check fails after 5 minutes**
+7. **Update version in config.py BEFORE building** - Version is hardcoded in:
    - `02-api-service/src/app/config.py` (`release_version`, `release_timestamp`)
    - `03-data-pipeline-service/src/app/config.py` (same fields)
+8. **Manual deploy scripts are for test/dev ONLY** - Never use deploy-prod.sh
 
-## Recommended Production Workflow
+## Recommended Production Workflow (Cloud Build)
 
-```
-1. ./secrets/validate-env.sh prod frontend      # CRITICAL: Validate first!
-2. ./secrets/verify-secrets.sh prod             # Verify secrets exist
-3. ./releases.sh next                           # Check version
-4. ./release.sh v1.0.0 --deploy --env stage     # Deploy to stage
-5. ./bootstrap/bootstrap.sh stage               # Initialize BigQuery (if new env)
-6. ./quick/status.sh stage                      # Verify stage
-7. [Manual testing on stage]
-8. ./release.sh v1.0.0 --deploy --env prod      # Promote to prod
-9. ./bootstrap/bootstrap.sh prod                # Initialize BigQuery (if new env)
-10. ./quick/status.sh prod                      # Verify prod
-11. ./monitor/watch-all.sh prod 50              # Monitor logs
+> **IMPORTANT:** Production deploys via Cloud Build triggers. Commit → Push → Auto-deploy.
+
+```bash
+# 1. Pre-deployment validation
+cd 04-inra-cicd-automation/CICD
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
+./releases.sh next                              # Check current version
+
+# 2. Push to main (auto-deploys to stage)
+git add . && git commit -m "Release v4.2.0"
+git push origin main
+
+# 3. Verify stage
+./quick/status.sh stage
+# [Manual testing on stage]
+
+# 4. Create version tag (auto-deploys to prod)
+git tag v4.2.0
+git push origin v4.2.0
+
+# 5. Monitor build and verify prod
+gcloud builds list --project=cloudact-prod --limit=5
+./quick/status.sh prod
+./monitor/watch-all.sh prod 50
 ```
 
 > **Note:** Bootstrap only needs to run once per environment. It's idempotent - safe to re-run.

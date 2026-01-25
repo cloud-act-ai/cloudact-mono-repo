@@ -149,22 +149,18 @@ git tag v4.1.9 && git push origin v4.1.9
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Manual Deploy Scripts
+### Manual Deploy Scripts (Test/Dev ONLY)
+
+> **WARNING:** Do NOT use manual scripts for production. Use git tags to trigger Cloud Build.
 
 ```bash
 cd 04-inra-cicd-automation/CICD
 
-# Quick deploys
+# Test environment only
 ./quick/deploy-test.sh           # All services to test
-./quick/deploy-stage.sh          # All services to stage
-./quick/deploy-prod.sh           # All services to prod (confirmation required)
 
-# Single service
-./cicd.sh api-service prod cloudact-prod
-
-# Release workflow
+# Check version info
 ./releases.sh next               # Check next version
-./release.sh v4.2.0 --deploy --env prod
 ```
 
 ### Pre-Deployment Checklist
@@ -222,6 +218,24 @@ cd 01-fronted-system/scripts/supabase_db
 | local/stage | `kwroaccbrxppfiysqlzs` |
 | prod | `ovfxswhkkshouhsryzaf` |
 
+## Claude Configuration
+
+| Resource | Count | Location |
+|----------|-------|----------|
+| Skills | 22 | `.claude/skills/{name}/SKILL.md` |
+| Commands | 16 | `.claude/commands/{name}.md` |
+| Hooks | 10 | `.claude/hookify.*.local.md` |
+| Summary | - | `.claude/SUMMARY.md` |
+
+### Key Skills
+`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev`
+
+### Key Hooks (Enforced)
+- **org-slug-isolation** - Multi-tenant isolation via org_slug
+- **pipeline-metadata-fields** - x_* fields = Pipeline Service only
+- **encryption-flow** - GCP KMS for all credentials
+- **session-completion-checklist** - Tests/docs before close
+
 ## Docs
 
 | Doc | Path |
@@ -229,7 +243,8 @@ cd 01-fronted-system/scripts/supabase_db
 | API Service | `02-api-service/CLAUDE.md` |
 | Pipeline Service | `03-data-pipeline-service/CLAUDE.md` |
 | Frontend | `01-fronted-system/CLAUDE.md` |
+| Claude Config | `.claude/SUMMARY.md` |
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.1.9** | 2026-01-18
+**v4.1.9** | 2026-01-25

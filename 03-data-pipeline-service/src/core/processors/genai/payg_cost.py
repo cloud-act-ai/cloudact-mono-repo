@@ -598,7 +598,7 @@ class PAYGCostProcessor:
                         x_run_id = S.x_run_id,
                         x_ingested_at = S.x_ingested_at
                 WHEN NOT MATCHED THEN
-                    INSERT (cost_date, org_slug, provider, model, model_family, region,
+                    INSERT (cost_date, x_org_slug, provider, model, model_family, region,
                             input_tokens, output_tokens, cached_input_tokens, total_tokens,
                             input_cost_usd, output_cost_usd, cached_cost_usd, total_cost_usd,
                             discount_applied_pct, effective_rate_input, effective_rate_output,
@@ -632,7 +632,7 @@ class PAYGCostProcessor:
                 total_query = f"""
                     SELECT COALESCE(SUM(total_cost_usd), 0) as total
                     FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
-                    WHERE cost_date = @process_date AND org_slug = @org_slug
+                    WHERE cost_date = @process_date AND x_org_slug = @org_slug
                 """
                 total_result = list(bq_client.query(total_query, parameters=[
                     bigquery.ScalarQueryParameter("process_date", "DATE", process_date),

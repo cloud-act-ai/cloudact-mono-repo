@@ -1,10 +1,10 @@
 #!/bin/bash
 # ===============================================================================
 # Script: fix_genai_pricing_for_org.sh
-# Purpose: Transform genai_payg_pricing.csv to add org_slug column before load
+# Purpose: Transform genai_payg_pricing.csv to add x_org_slug column before load
 #
-# BUG FIX: genai_payg_pricing.csv is missing org_slug (REQUIRED by schema)
-# This script adds org_slug as first column and loads to BigQuery properly
+# BUG FIX: genai_payg_pricing.csv is missing x_org_slug (REQUIRED by schema)
+# This script adds x_org_slug as first column and loads to BigQuery properly
 #
 # Usage:
 #   ./fix_genai_pricing_for_org.sh acme_inc_01082026 cloudact-testing-1 acme_inc_01082026_local
@@ -50,13 +50,13 @@ if [ ! -f "$SOURCE_CSV" ]; then
     exit 1
 fi
 
-echo "[1/4] Creating modified CSV with org_slug column..."
+echo "[1/4] Creating modified CSV with x_org_slug column..."
 
-# Step 2: Transform CSV to add org_slug as first column
-# Header line: add "org_slug," at the beginning
-head -n 1 "$SOURCE_CSV" | awk -v org="$ORG_SLUG" '{print "org_slug," $0}' > "$TEMP_CSV"
+# Step 2: Transform CSV to add x_org_slug as first column
+# Header line: add "x_org_slug," at the beginning
+head -n 1 "$SOURCE_CSV" | awk -v org="$ORG_SLUG" '{print "x_org_slug," $0}' > "$TEMP_CSV"
 
-# Data lines: add org_slug value at the beginning
+# Data lines: add x_org_slug value at the beginning
 tail -n +2 "$SOURCE_CSV" | awk -v org="$ORG_SLUG" '{print org "," $0}' >> "$TEMP_CSV"
 
 echo "   Created: $TEMP_CSV"
@@ -89,7 +89,7 @@ fi
 echo ""
 echo "[4/4] Verifying data in BigQuery..."
 ROW_COUNT=$(bq query --use_legacy_sql=false --format=csv \
-    "SELECT COUNT(*) FROM \`$TABLE\` WHERE org_slug='$ORG_SLUG'" | tail -n 1)
+    "SELECT COUNT(*) FROM \`$TABLE\` WHERE x_org_slug='$ORG_SLUG'" | tail -n 1)
 
 echo "   Rows in BigQuery for org '$ORG_SLUG': $ROW_COUNT"
 

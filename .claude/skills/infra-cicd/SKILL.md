@@ -9,33 +9,55 @@ description: |
 
 # Infrastructure & CI/CD Operations
 
-## Release Workflow (Production Deployments)
+## Deployment Workflow (Cloud Build - AUTOMATED)
 
-### Recommended Production Flow
-```
-1. ./releases.sh next                           # Check current version
-2. ./release.sh v1.0.0 --deploy --env stage     # Deploy to stage first
-3. Test & verify stage
-4. ./release.sh v1.0.0 --deploy --env prod      # Promote to production
-5. Monitor for 15 minutes
-6. If issues: ./release.sh v0.9.0 --deploy --env prod  # Rollback
+> **IMPORTANT:** Production deployments are AUTOMATIC via Cloud Build triggers. Do NOT use manual deploy scripts for prod.
+
+### Standard Deployment Flow (RECOMMENDED)
+```bash
+# Stage: Automatic on push to main
+git push origin main
+
+# Production: Automatic on version tag push
+git tag v4.2.0
+git push origin v4.2.0
+
+# Monitor Cloud Build progress
+gcloud builds list --project=cloudact-prod --region=global --limit=5
 ```
 
-### Create a New Release
+### Cloud Build Triggers
+| Trigger | Event | Target Environment |
+|---------|-------|-------------------|
+| `push-to-main` | Push to `main` branch | Stage (cloudact-stage) |
+| `version-tag` | Push `v*` tag | Production (cloudact-prod) |
+
+> **Note:** Cloud Build triggers are hosted in `cloudact-prod` project. Stage trigger deploys to `cloudact-stage`.
+> See: `04-inra-cicd-automation/CICD/triggers/README.md` for full trigger documentation.
+
+### Pre-Deployment Checklist
+```bash
+# Before committing/tagging, validate:
+cd 04-inra-cicd-automation/CICD
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
+```
+
+## Manual Scripts (Development/Testing ONLY)
+
+> **WARNING:** These scripts are for LOCAL DEVELOPMENT and TESTING environments only.
+> Production deploys should use git tags (Cloud Build triggers).
+
+### Create a Release Tag
 ```bash
 cd 04-inra-cicd-automation/CICD
 
-# Check current version and suggest next
+# Check current version
 ./releases.sh next
 
-# Create release (git tag + build + push images)
-./release.sh v1.0.0
-
-# Create and deploy to production
-./release.sh v1.0.0 --deploy
-
-# Create and deploy to stage first (recommended)
-./release.sh v1.0.0 --deploy --env stage
+# Create release tag (Cloud Build will auto-deploy to prod)
+git tag v4.2.0
+git push origin v4.2.0
 ```
 
 ### Release Commands
@@ -392,7 +414,7 @@ PROD (cloudact-prod):
 | API Service | https://api.cloudact.ai |
 | Pipeline Service | https://pipeline.cloudact.ai |
 
-## Graceful Production Deployment Checklist
+## Production Deployment Checklist (Cloud Build)
 
 ### Pre-Deployment
 - [ ] Run `./secrets/validate-env.sh prod frontend`
@@ -403,19 +425,19 @@ PROD (cloudact-prod):
 - [ ] Verify Stripe LIVE keys (pk_live_*, sk_live_*)
 - [ ] Verify Supabase prod project (ovfxswhkkshouhsryzaf)
 
-### Deployment (Recommended)
-1. **Create release:** `./release.sh vX.Y.Z`
-2. **Deploy to stage:** `./release.sh vX.Y.Z --deploy --env stage`
+### Deployment (Cloud Build Auto-Triggered)
+1. **Commit changes:** `git add . && git commit -m "Release vX.Y.Z"`
+2. **Push to main (deploys to stage):** `git push origin main`
 3. **Test stage:** `./quick/status.sh stage` + manual testing
-4. **Deploy to prod:** `./release.sh vX.Y.Z --deploy --env prod`
-5. **Verify prod:** `./quick/status.sh prod`
+4. **Create version tag:** `git tag vX.Y.Z`
+5. **Push tag (deploys to prod):** `git push origin vX.Y.Z`
+6. **Monitor build:** `gcloud builds list --project=cloudact-prod --limit=5`
 
 ### Post-Deployment
 - [ ] Verify health endpoints
 - [ ] Check logs for errors: `./monitor/watch-all.sh prod 50`
 - [ ] Test critical user flows (signup, Stripe checkout)
 - [ ] Monitor for 15 minutes
-- [ ] Tag release in GitHub if not auto-pushed
 
 ### Rollback Triggers
 - Health check fails after 5 minutes
@@ -423,7 +445,7 @@ PROD (cloudact-prod):
 - Response time > 3x normal
 - Critical functionality broken
 
-**Rollback command:** `./release.sh <previous-version> --deploy --env prod`
+**Rollback:** Create new patch tag pointing to fixed code, push to trigger rebuild
 
 ## Critical Learnings
 

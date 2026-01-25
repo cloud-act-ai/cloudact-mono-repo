@@ -16,6 +16,8 @@
 import { createClient } from "@/lib/supabase/server"
 import {
   PipelineBackendClient as BackendClient,
+} from "@/lib/api/backend"
+import type {
   SetupIntegrationRequest,
   AllIntegrationsResponse,
   IntegrationStatus,
@@ -1247,14 +1249,5 @@ export async function deleteCloudIntegration(
   }
 }
 
-// Re-export types for use in components
-// Note: CloudProvider is already exported above on line 39
-export type {
-  LLMPricing,
-  LLMPricingCreate,
-  LLMPricingUpdate,
-  SaaSSubscription,
-  SaaSSubscriptionCreate,
-  SaaSSubscriptionUpdate,
-  LLMProvider
-}
+// Types are now imported directly from @/lib/api/backend by components that need them
+// Re-exports removed to fix Turbopack server action compilation issue

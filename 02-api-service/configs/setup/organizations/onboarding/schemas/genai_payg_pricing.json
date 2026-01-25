@@ -1,9 +1,9 @@
 [
   {
-    "name": "org_slug",
+    "name": "x_org_slug",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Organization identifier for multi-tenancy."
+    "description": "Organization identifier for multi-tenancy (x_ prefix for customer dataset)."
   },
   {
     "name": "provider",
