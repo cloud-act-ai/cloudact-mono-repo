@@ -358,7 +358,7 @@ class PAYGUsageProcessor:
             check_query = f"""
                 SELECT COUNT(*) as cnt
                 FROM `{project_id}.{dataset_id}.genai_payg_usage_raw`
-                WHERE org_slug = @org_slug
+                WHERE x_org_slug = @org_slug
                   AND provider = @provider
                   AND usage_date = @usage_date
                 LIMIT 1
@@ -541,14 +541,14 @@ class PAYGUsageProcessor:
 
                 # MERGE using UNNEST - correct BigQuery pattern (no temp tables)
                 # CRUD-002 FIX: Composite key explanation:
-                # - Primary idempotency: (org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)
+                # - Primary idempotency: (x_org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)
                 #   Ensures pipeline re-runs replace their own data, multi-account isolation
                 # - Business granularity: (provider, model, usage_date, region)
                 #   Ensures each unique usage record is tracked separately
                 merge_query = f"""
                     MERGE `{table_id}` T
                     USING UNNEST([{unnest_source}]) S
-                    ON T.org_slug = S.org_slug
+                    ON T.x_org_slug = S.x_org_slug
                         AND T.x_pipeline_id = S.x_pipeline_id
                         AND T.x_credential_id = S.x_credential_id
                         AND T.x_pipeline_run_date = S.x_pipeline_run_date
@@ -567,11 +567,11 @@ class PAYGUsageProcessor:
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
-                        INSERT (org_slug, provider, model, model_family, usage_date, region,
+                        INSERT (x_org_slug, provider, model, model_family, usage_date, region,
                                 input_tokens, output_tokens, cached_input_tokens, total_tokens,
                                 request_count, is_batch,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
-                        VALUES (S.org_slug, S.provider, S.model, S.model_family, S.usage_date, S.region,
+                        VALUES (S.x_org_slug, S.provider, S.model, S.model_family, S.usage_date, S.region,
                                 S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
                                 S.request_count, S.is_batch,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)

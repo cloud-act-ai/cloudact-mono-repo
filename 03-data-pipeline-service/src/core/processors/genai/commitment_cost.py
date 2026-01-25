@@ -278,7 +278,7 @@ class CommitmentCostProcessor:
                         x_run_id = S.x_run_id,
                         x_ingested_at = S.x_ingested_at
                 WHEN NOT MATCHED THEN
-                    INSERT (cost_date, org_slug, provider, commitment_type, commitment_id,
+                    INSERT (cost_date, x_org_slug, provider, commitment_type, commitment_id,
                             model, region, provisioned_units, used_units, utilization_pct,
                             commitment_cost_usd, overage_cost_usd, total_cost_usd,
                             effective_rate_per_unit, tokens_processed, hours_active,
@@ -311,7 +311,7 @@ class CommitmentCostProcessor:
                     COALESCE(SUM(overage_cost_usd), 0) as overage_cost,
                     COALESCE(AVG(utilization_pct), 0) as avg_utilization
                 FROM `{project_id}.{dataset_id}.genai_commitment_costs_daily`
-                WHERE cost_date = @process_date AND org_slug = @org_slug
+                WHERE cost_date = @process_date AND x_org_slug = @org_slug
             """
             total_result = list(bq_client.query(total_query, parameters=[
                 bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
@@ -359,7 +359,7 @@ class CommitmentCostProcessor:
             SELECT COUNT(*) as count
             FROM `{project_id}.{dataset_id}.genai_commitment_costs_daily`
             WHERE cost_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 {provider_condition}
         """
 
@@ -390,7 +390,7 @@ class CommitmentCostProcessor:
             SELECT provider, commitment_type, COUNT(*) as count
             FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw`
             WHERE usage_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 AND (provisioned_units < 0 OR used_units < 0)
                 {provider_condition}
             GROUP BY provider, commitment_type
@@ -461,7 +461,7 @@ class CommitmentCostProcessor:
         delete_query = f"""
             DELETE FROM `{project_id}.{dataset_id}.genai_commitment_costs_daily`
             WHERE cost_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 {provider_condition}
         """
 

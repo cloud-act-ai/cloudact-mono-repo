@@ -716,7 +716,7 @@ class PAYGCostProcessor:
             SELECT COUNT(*) as count
             FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
             WHERE cost_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 {provider_condition}
         """
 
@@ -754,7 +754,7 @@ class PAYGCostProcessor:
             SELECT provider, model, COUNT(*) as count
             FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
             WHERE usage_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 AND (input_tokens < 0 OR output_tokens < 0 OR total_tokens < 0)
                 {provider_condition}
             GROUP BY provider, model
@@ -848,7 +848,7 @@ class PAYGCostProcessor:
         delete_query = f"""
             DELETE FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
             WHERE cost_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 {provider_condition}
         """
 

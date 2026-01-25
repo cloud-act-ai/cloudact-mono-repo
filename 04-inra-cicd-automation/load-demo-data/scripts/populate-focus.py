@@ -8,7 +8,7 @@ import os
 
 # Initialize BigQuery client
 project_id = os.getenv("GCP_PROJECT_ID", "cloudact-testing-1")
-org_slug = os.getenv("ORG_SLUG", "acme_inc_01082026")
+org_slug = os.getenv("ORG_SLUG", "acme_inc_01022026")
 env = os.getenv("ENVIRONMENT", "local")
 dataset_id = f"{org_slug}_{env}"
 
@@ -37,7 +37,7 @@ INSERT INTO `{project_id}.{dataset_id}.cost_data_standard_1_3`
   x_org_slug, x_source_system
 )
 SELECT
-  org_slug, daily_cost, currency, TIMESTAMP(cost_date), TIMESTAMP(cost_date),
+  x_org_slug, daily_cost, currency, TIMESTAMP(cost_date), TIMESTAMP(cost_date),
   'Purchase', TIMESTAMP(cost_date), TIMESTAMP(cost_date), daily_cost, daily_cost,
   provider, provider, daily_cost, 'Software', provider,
   provider, 'Recurring', CONCAT(display_name, ' - ', plan_name), billing_cycle,
@@ -46,7 +46,7 @@ SELECT
   x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
   x_hierarchy_path, x_hierarchy_path_names,
   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
-  org_slug, 'subscription_costs'
+  x_org_slug, 'subscription_costs'
 FROM `{project_id}.{dataset_id}.subscription_plan_costs_daily`
 """
 
@@ -66,7 +66,7 @@ INSERT INTO `{project_id}.{dataset_id}.cost_data_standard_1_3`
   x_org_slug, x_source_system, x_genai_cost_type, x_genai_provider, x_genai_model
 )
 SELECT
-  org_slug, total_cost_usd, 'USD', TIMESTAMP(cost_date), TIMESTAMP(cost_date),
+  x_org_slug, total_cost_usd, 'USD', TIMESTAMP(cost_date), TIMESTAMP(cost_date),
   'Usage', TIMESTAMP(cost_date), TIMESTAMP(cost_date), total_cost_usd, total_cost_usd,
   provider, provider, total_cost_usd, 'AI/ML', provider,
   provider, 'On-Demand', CONCAT(provider, ' ', model, ' - ', CAST(usage_quantity AS STRING), ' tokens'),
@@ -75,7 +75,7 @@ SELECT
   x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
   x_hierarchy_path, x_hierarchy_path_names,
   x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
-  org_slug, 'genai_costs', cost_type, provider, model
+  x_org_slug, 'genai_costs', cost_type, provider, model
 FROM `{project_id}.{dataset_id}.genai_costs_daily_unified`
 """
 

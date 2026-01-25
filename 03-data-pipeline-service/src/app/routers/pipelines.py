@@ -155,10 +155,14 @@ async def report_pipeline_completion_to_api_service(
     org_slug: str,
     pipeline_status: str,
     api_key: str,
-    reservation_date: str = ""
+    reservation_date: str = "",
+    max_retries: int = 3
 ) -> bool:
     """
     Report pipeline completion to api-service to update usage counters.
+
+    Uses exponential backoff retry to handle transient failures.
+    CRITICAL: This must succeed to prevent stale concurrent pipeline counts.
 
     Args:
         org_slug: Organization slug
@@ -168,6 +172,7 @@ async def report_pipeline_completion_to_api_service(
                          CRITICAL: Pass this to ensure decrement happens on the correct
                          day's record, preventing stale concurrent counts when pipelines
                          span midnight UTC.
+        max_retries: Maximum number of retry attempts (default 3)
 
     Returns:
         True if successfully reported, False otherwise
@@ -180,26 +185,48 @@ async def report_pipeline_completion_to_api_service(
     if reservation_date:
         url += f"&reservation_date={reservation_date}"
 
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                url,
-                headers={
-                    "X-API-Key": api_key,
-                    "Content-Type": "application/json"
-                }
-            )
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    url,
+                    headers={
+                        "X-API-Key": api_key,
+                        "Content-Type": "application/json"
+                    }
+                )
 
-            if response.status_code == 200:
-                logger.info(f"Pipeline completion reported to api-service: org={org_slug}, status={pipeline_status}")
-                return True
-            else:
-                logger.warning(f"Failed to report pipeline completion: status={response.status_code}")
-                return False
+                if response.status_code == 200:
+                    if attempt > 0:
+                        logger.info(f"Pipeline completion reported to api-service after {attempt + 1} attempts: org={org_slug}, status={pipeline_status}")
+                    else:
+                        logger.info(f"Pipeline completion reported to api-service: org={org_slug}, status={pipeline_status}")
+                    return True
+                elif response.status_code >= 500:
+                    # Server error - retry
+                    last_error = f"Server error: status={response.status_code}"
+                    logger.warning(f"Retry {attempt + 1}/{max_retries}: {last_error}")
+                else:
+                    # Client error (4xx) - don't retry
+                    logger.warning(f"Failed to report pipeline completion: status={response.status_code}, response={response.text}")
+                    return False
 
-    except Exception as e:
-        logger.error(f"Error reporting pipeline completion to api-service: {e}")
-        return False
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            # Network/timeout error - retry
+            last_error = str(e)
+            logger.warning(f"Retry {attempt + 1}/{max_retries}: Network error reporting completion: {last_error}")
+        except Exception as e:
+            # Unknown error - log and retry
+            last_error = str(e)
+            logger.warning(f"Retry {attempt + 1}/{max_retries}: Error reporting completion: {last_error}")
+
+        # Exponential backoff: 1s, 2s, 4s
+        if attempt < max_retries - 1:
+            await asyncio.sleep(2 ** attempt)
+
+    logger.error(f"Failed to report pipeline completion after {max_retries} attempts: org={org_slug}, error={last_error}")
+    return False
 
 
 # ============================================

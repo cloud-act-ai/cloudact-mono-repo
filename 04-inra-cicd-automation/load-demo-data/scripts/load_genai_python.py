@@ -146,7 +146,7 @@ def load_pricing_data(client: bigquery.Client):
 
     # Valid fields in the BigQuery table schema
     VALID_FIELDS = {
-        'org_slug', 'provider', 'model', 'model_family', 'model_version', 'region',
+        'x_org_slug', 'provider', 'model', 'model_family', 'model_version', 'region',
         'input_per_1m', 'output_per_1m', 'cached_input_per_1m', 'cached_write_per_1m',
         'batch_input_per_1m', 'batch_output_per_1m', 'cached_discount_pct',
         'batch_discount_pct', 'volume_discount_pct', 'context_window', 'max_output_tokens',
@@ -169,8 +169,8 @@ def load_pricing_data(client: bigquery.Client):
     with open(pricing_file, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            # Add org_slug and convert types, only include valid fields
-            record = {"org_slug": ORG_SLUG}
+            # Add x_org_slug and convert types, only include valid fields
+            record = {"x_org_slug": ORG_SLUG}
             for k, v in row.items():
                 if k not in VALID_FIELDS:
                     continue  # Skip fields not in table schema
@@ -198,7 +198,7 @@ def load_pricing_data(client: bigquery.Client):
 
     # Delete existing pricing for this org first
     try:
-        query = f"DELETE FROM `{table_ref}` WHERE org_slug = @org_slug"
+        query = f"DELETE FROM `{table_ref}` WHERE x_org_slug = @org_slug"
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", ORG_SLUG),
@@ -227,7 +227,7 @@ def calculate_payg_costs(client: bigquery.Client):
     try:
         pricing_check = client.query(f"""
             SELECT COUNT(*) as cnt FROM `{PROJECT_ID}.{DATASET_ID}.genai_payg_pricing`
-            WHERE org_slug = '{ORG_SLUG}'
+            WHERE x_org_slug = '{ORG_SLUG}'
         """).result()
         pricing_count = list(pricing_check)[0].cnt
         print(f"  Found {pricing_count} pricing records")
@@ -243,11 +243,11 @@ def calculate_payg_costs(client: bigquery.Client):
     cost_query = f"""
     -- Delete existing costs for this org (idempotent)
     DELETE FROM `{PROJECT_ID}.{DATASET_ID}.genai_payg_costs_daily`
-    WHERE org_slug = '{ORG_SLUG}';
+    WHERE x_org_slug = '{ORG_SLUG}';
 
     -- Calculate costs from usage + pricing
     INSERT INTO `{PROJECT_ID}.{DATASET_ID}.genai_payg_costs_daily`
-    (cost_date, org_slug, provider, model, model_family, region,
+    (cost_date, x_org_slug, provider, model, model_family, region,
      input_tokens, output_tokens, cached_input_tokens, total_tokens,
      input_cost_usd, output_cost_usd, cached_cost_usd, total_cost_usd,
      discount_applied_pct, effective_rate_input, effective_rate_output,
@@ -256,7 +256,7 @@ def calculate_payg_costs(client: bigquery.Client):
      x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
     SELECT
         u.usage_date as cost_date,
-        u.org_slug,
+        u.x_org_slug,
         u.provider,
         u.model,
         u.model_family,
@@ -294,8 +294,8 @@ def calculate_payg_costs(client: bigquery.Client):
     LEFT JOIN `{PROJECT_ID}.{DATASET_ID}.genai_payg_pricing` p
         ON u.provider = p.provider
         AND u.model = p.model
-        AND u.org_slug = p.org_slug
-    WHERE u.org_slug = '{ORG_SLUG}'
+        AND u.x_org_slug = p.x_org_slug
+    WHERE u.x_org_slug = '{ORG_SLUG}'
     """
 
     try:
@@ -309,7 +309,7 @@ def calculate_payg_costs(client: bigquery.Client):
         result = client.query(f"""
             SELECT COUNT(*) as cnt, ROUND(SUM(total_cost_usd), 2) as total_cost
             FROM `{PROJECT_ID}.{DATASET_ID}.genai_payg_costs_daily`
-            WHERE org_slug = '{ORG_SLUG}'
+            WHERE x_org_slug = '{ORG_SLUG}'
         """).result()
         row = list(result)[0]
         print(f"  ✓ Calculated costs: {row.cnt} records, ${row.total_cost:,.2f} total")
@@ -326,7 +326,7 @@ def run_consolidation_procedure(client: bigquery.Client):
     dates_query = f"""
         SELECT DISTINCT usage_date
         FROM `{PROJECT_ID}.{DATASET_ID}.genai_payg_usage_raw`
-        WHERE org_slug = '{ORG_SLUG}'
+        WHERE x_org_slug = '{ORG_SLUG}'
         ORDER BY usage_date
     """
 

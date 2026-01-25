@@ -95,7 +95,7 @@ class UsageReadService:
         # Resolve dates (handles period, fiscal_year, or custom dates)
         resolved_start, resolved_end = query.resolve_dates()
 
-        where_conditions = ["org_slug = @org_slug"]
+        where_conditions = ["x_org_slug = @org_slug"]
         query_params = [
             bigquery.ScalarQueryParameter("org_slug", "STRING", query.org_slug)
         ]
@@ -233,7 +233,7 @@ class UsageReadService:
                 SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
                 SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error_count
             FROM {table_ref}
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND DATE(request_timestamp) >= @start_date
             GROUP BY provider, model
             ORDER BY total_tokens DESC
@@ -296,7 +296,7 @@ class UsageReadService:
                 AVG(latency_ms) as avg_latency_ms,
                 COUNTIF(status = 'success') / COUNT(*) * 100 as success_rate
             FROM {table_ref}
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND DATE(request_timestamp) >= @start_date
             GROUP BY provider
             ORDER BY total_tokens DESC
@@ -356,7 +356,7 @@ class UsageReadService:
                 COUNT(*) as request_count,
                 AVG(latency_ms) as avg_latency_ms
             FROM {table_ref}
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND DATE(request_timestamp) >= @start_date
             GROUP BY provider, model
             ORDER BY total_tokens DESC
@@ -415,7 +415,7 @@ class UsageReadService:
                 COUNT(*) as request_count,
                 AVG(latency_ms) as avg_latency_ms
             FROM {table_ref}
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND DATE(request_timestamp) >= @start_date
             GROUP BY usage_date
             ORDER BY usage_date ASC

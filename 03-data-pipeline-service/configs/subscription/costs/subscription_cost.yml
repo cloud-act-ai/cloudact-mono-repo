@@ -97,10 +97,10 @@ steps:
           value: "${org_dataset}"
         - name: p_start_date
           type: DATE
-          value: "2025-01-01"  # Hardcoded for testing - TODO: restore to ${start_date}
+          value: "${start_date}"
         - name: p_end_date
           type: DATE
-          value: "2025-12-31"  # Hardcoded for testing - TODO: restore to ${end_date}
+          value: "${end_date}"
         - name: p_pipeline_id
           type: STRING
           value: "${pipeline_id}"

@@ -240,7 +240,7 @@ class InfrastructureUsageProcessor:
             query = f"""
                 SELECT COUNT(*) as cnt
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw`
-                WHERE org_slug = @org_slug
+                WHERE x_org_slug = @org_slug
                   AND provider = @provider
                   AND usage_date = @usage_date
                 LIMIT 1
@@ -339,11 +339,11 @@ class InfrastructureUsageProcessor:
                 unnest_source = ",\n".join(struct_values)
 
                 # MERGE using UNNEST - correct BigQuery pattern (no temp tables)
-                # Deduplication key: (org_slug, provider, instance_id, usage_date)
+                # Deduplication key: (x_org_slug, provider, instance_id, usage_date)
                 merge_query = f"""
                     MERGE `{table_id}` T
                     USING UNNEST([{unnest_source}]) S
-                    ON T.org_slug = S.org_slug
+                    ON T.x_org_slug = S.x_org_slug
                         AND T.provider = S.provider
                         AND T.instance_id = S.instance_id
                         AND T.usage_date = S.usage_date
@@ -365,11 +365,11 @@ class InfrastructureUsageProcessor:
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
-                        INSERT (usage_date, org_slug, provider, resource_type, instance_type,
+                        INSERT (usage_date, x_org_slug, provider, resource_type, instance_type,
                                 instance_id, gpu_type, region, instance_count, hours_used,
                                 gpu_hours, pricing_type, avg_gpu_utilization_pct, avg_memory_utilization_pct,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
-                        VALUES (S.usage_date, S.org_slug, S.provider, S.resource_type, S.instance_type,
+                        VALUES (S.usage_date, S.x_org_slug, S.provider, S.resource_type, S.instance_type,
                                 S.instance_id, S.gpu_type, S.region, S.instance_count, S.hours_used,
                                 S.gpu_hours, S.pricing_type, S.avg_gpu_utilization_pct, S.avg_memory_utilization_pct,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)

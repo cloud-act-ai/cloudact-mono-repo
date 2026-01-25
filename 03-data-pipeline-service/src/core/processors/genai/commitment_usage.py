@@ -243,7 +243,7 @@ class CommitmentUsageProcessor:
             query = f"""
                 SELECT COUNT(*) as cnt
                 FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw`
-                WHERE org_slug = @org_slug
+                WHERE x_org_slug = @org_slug
                   AND provider = @provider
                   AND usage_date = @usage_date
                 LIMIT 1
@@ -342,7 +342,7 @@ class CommitmentUsageProcessor:
                 merge_query = f"""
                     MERGE `{table_id}` T
                     USING UNNEST([{unnest_source}]) S
-                    ON T.org_slug = S.org_slug
+                    ON T.x_org_slug = S.x_org_slug
                         AND T.provider = S.provider
                         AND T.commitment_id = S.commitment_id
                         AND T.usage_date = S.usage_date
@@ -358,10 +358,10 @@ class CommitmentUsageProcessor:
                             x_run_id = S.x_run_id,
                             x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
-                        INSERT (org_slug, provider, commitment_id, commitment_type, model, usage_date, region,
+                        INSERT (x_org_slug, provider, commitment_id, commitment_type, model, usage_date, region,
                                 provisioned_units, tokens_processed, utilization_pct, hours_active,
                                 x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
-                        VALUES (S.org_slug, S.provider, S.commitment_id, S.commitment_type, S.model, S.usage_date, S.region,
+                        VALUES (S.x_org_slug, S.provider, S.commitment_id, S.commitment_type, S.model, S.usage_date, S.region,
                                 S.provisioned_units, S.tokens_processed, S.utilization_pct, S.hours_active,
                                 S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """

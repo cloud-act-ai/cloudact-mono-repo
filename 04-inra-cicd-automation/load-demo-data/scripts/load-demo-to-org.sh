@@ -116,13 +116,13 @@ transform_json_data() {
         return 0
     fi
 
-    # Replace org_slug in JSON data
-    sed "s/\"org_slug\": *\"${DEMO_DATA_SOURCE_ORG}\"/\"org_slug\": \"${ORG_SLUG}\"/g" \
+    # Replace x_org_slug in JSON data (customer dataset uses x_org_slug prefix)
+    sed "s/\"x_org_slug\": *\"${DEMO_DATA_SOURCE_ORG}\"/\"x_org_slug\": \"${ORG_SLUG}\"/g" \
         "$source_file" > "$target_file"
 
     # Verify replacement
-    local new_count=$(grep -c "\"org_slug\": \"${ORG_SLUG}\"" "$target_file" || echo "0")
-    log_info "  Transformed $(basename $source_file): ${new_count} records with org_slug=${ORG_SLUG}"
+    local new_count=$(grep -c "\"x_org_slug\": \"${ORG_SLUG}\"" "$target_file" || echo "0")
+    log_info "  Transformed $(basename $source_file): ${new_count} records with x_org_slug=${ORG_SLUG}"
 }
 
 transform_csv_data() {

@@ -25,6 +25,9 @@ steps:
       max_attempts: 2
       backoff_seconds: 30
 
+requires_auth: true
+auth_type: "org_api_key"
+
 notifications:
   on_failure:
     - email

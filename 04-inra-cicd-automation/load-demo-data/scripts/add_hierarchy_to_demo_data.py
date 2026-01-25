@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from src.app.config import get_settings
 
 settings = get_settings()
-ORG_SLUG = "acme_inc_01062026"
+ORG_SLUG = os.getenv("ORG_SLUG", "acme_inc_01022026")
 DATASET = settings.get_org_dataset_name(ORG_SLUG)
 PROJECT_ID = settings.gcp_project_id
 
@@ -139,7 +139,7 @@ def update_genai_usage_hierarchies(client: bigquery.Client):
                 x_hierarchy_path = @path,
                 x_hierarchy_path_names = @path_names
             WHERE
-                org_slug = @org_slug
+                x_org_slug = @org_slug
                 AND ({condition})
                 AND x_hierarchy_entity_id IS NULL
         """
@@ -201,7 +201,7 @@ def update_subscription_hierarchies(client: bigquery.Client):
                 x_hierarchy_path = @path,
                 x_hierarchy_path_names = @path_names
             WHERE
-                org_slug = @org_slug
+                x_org_slug = @org_slug
                 AND ({condition})
                 AND x_hierarchy_entity_id IS NULL
         """

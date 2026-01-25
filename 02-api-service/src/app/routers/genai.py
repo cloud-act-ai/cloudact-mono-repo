@@ -1639,7 +1639,7 @@ async def get_usage(
                    x_hierarchy_entity_id AS hierarchy_entity_id, x_hierarchy_entity_name AS hierarchy_entity_name,
                    x_hierarchy_level_code AS hierarchy_level_code, x_hierarchy_path AS hierarchy_path, x_hierarchy_path_names AS hierarchy_path_names
             FROM `{settings.gcp_project_id}.{dataset}.genai_usage_daily_unified`
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND usage_date BETWEEN @start_date AND @end_date
               {filter_clause}
             ORDER BY usage_date DESC, provider, model
@@ -1740,7 +1740,7 @@ async def get_costs(
                    x_hierarchy_entity_id AS hierarchy_entity_id, x_hierarchy_entity_name AS hierarchy_entity_name,
                    x_hierarchy_level_code AS hierarchy_level_code, x_hierarchy_path AS hierarchy_path, x_hierarchy_path_names AS hierarchy_path_names
             FROM `{settings.gcp_project_id}.{dataset}.genai_costs_daily_unified`
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND cost_date BETWEEN @start_date AND @end_date
               {filter_clause}
             ORDER BY cost_date DESC, provider, model
@@ -1814,7 +1814,7 @@ async def get_cost_summary(
                 COALESCE(provider, 'unknown') as provider{select_model},
                 COUNT(*) as record_count
             FROM `{settings.gcp_project_id}.{dataset}.genai_costs_daily_unified`
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND cost_date BETWEEN @start_date AND @end_date
             GROUP BY cost_type, provider{group_by_model}
         """

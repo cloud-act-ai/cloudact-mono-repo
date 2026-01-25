@@ -1000,6 +1000,8 @@ async def reserve_pipeline_quota_atomic(
                     )
             else:
                 # Record doesn't exist - create it and retry the atomic reservation
+                # RACE CONDITION FIX: Use try/except for INSERT in case another concurrent
+                # request created the record. If duplicate key error, proceed to UPDATE.
                 logger.info(f"Quota record not found for org {org_slug} on {today}, creating with limits from subscription")
 
                 usage_id = f"{org_slug}_{today.strftime('%Y%m%d')}"
@@ -1021,22 +1023,30 @@ async def reserve_pipeline_quota_atomic(
                 )
                 """
 
-                bq_client.client.query(
-                    insert_query,
-                    job_config=bigquery.QueryJobConfig(
-                        query_parameters=[
-                            bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                            bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                            bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
-                            bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-                            bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
-                        ],
-                        job_timeout_ms=settings.bq_auth_timeout_ms
-                    )
-                ).result()
-
-                logger.info(f"Created quota record for org {org_slug}, now retrying atomic reservation")
+                try:
+                    bq_client.client.query(
+                        insert_query,
+                        job_config=bigquery.QueryJobConfig(
+                            query_parameters=[
+                                bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                                bigquery.ScalarQueryParameter("usage_date", "DATE", today),
+                                bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                                bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                                bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                            ],
+                            job_timeout_ms=settings.bq_auth_timeout_ms
+                        )
+                    ).result()
+                    logger.info(f"Created quota record for org {org_slug}, now retrying atomic reservation")
+                except Exception as insert_error:
+                    # RACE CONDITION FIX: Another concurrent request may have created the record
+                    # If duplicate key error, proceed to UPDATE; otherwise re-raise
+                    error_msg = str(insert_error).lower()
+                    if "already exists" in error_msg or "duplicate" in error_msg:
+                        logger.info(f"Quota record already exists for org {org_slug} (concurrent creation), proceeding to UPDATE")
+                    else:
+                        raise
 
                 # Retry the atomic UPDATE now that record exists
                 retry_job = bq_client.client.query(

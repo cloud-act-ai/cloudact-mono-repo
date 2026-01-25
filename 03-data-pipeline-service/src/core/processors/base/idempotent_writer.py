@@ -193,7 +193,7 @@ class IdempotentWriterMixin:
         # IDEM-001 FIX: Use parameterized query to prevent SQL injection
         delete_query = f"""
         DELETE FROM `{full_table_id}`
-        WHERE org_slug = @org_slug
+        WHERE x_org_slug = @org_slug
           AND x_pipeline_id = @pipeline_id
           AND x_credential_id = @credential_id
           AND x_pipeline_run_date = @run_date

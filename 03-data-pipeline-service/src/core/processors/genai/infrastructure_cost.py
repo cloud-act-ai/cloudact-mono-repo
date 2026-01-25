@@ -272,7 +272,7 @@ class InfrastructureCostProcessor:
                         x_run_id = S.x_run_id,
                         x_ingested_at = S.x_ingested_at
                 WHEN NOT MATCHED THEN
-                    INSERT (cost_date, org_slug, provider, resource_type, instance_type,
+                    INSERT (cost_date, x_org_slug, provider, resource_type, instance_type,
                             gpu_type, region, instance_count, hours_used, gpu_hours,
                             pricing_type, base_cost_usd, discount_applied_usd, total_cost_usd,
                             effective_hourly_rate,
@@ -308,7 +308,7 @@ class InfrastructureCostProcessor:
                     COALESCE(SUM(CASE WHEN pricing_type LIKE 'reserved%' OR pricing_type LIKE 'committed%' THEN total_cost_usd ELSE 0 END), 0) as reserved_cost,
                     COALESCE(SUM(CASE WHEN pricing_type = 'on_demand' OR pricing_type IS NULL THEN total_cost_usd ELSE 0 END), 0) as on_demand_cost
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
-                WHERE cost_date = @process_date AND org_slug = @org_slug
+                WHERE cost_date = @process_date AND x_org_slug = @org_slug
             """
             total_result = list(bq_client.query(total_query, parameters=[
                 bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
@@ -359,7 +359,7 @@ class InfrastructureCostProcessor:
             SELECT COUNT(*) as count
             FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
             WHERE cost_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 {provider_condition}
         """
 
@@ -390,7 +390,7 @@ class InfrastructureCostProcessor:
             SELECT provider, instance_type, COUNT(*) as count
             FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw`
             WHERE usage_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 AND (hours_used < 0 OR instance_count < 0 OR gpu_hours < 0)
                 {provider_condition}
             GROUP BY provider, instance_type
@@ -485,7 +485,7 @@ class InfrastructureCostProcessor:
         delete_query = f"""
             DELETE FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
             WHERE cost_date = @process_date
-                AND org_slug = @org_slug
+                AND x_org_slug = @org_slug
                 {provider_condition}
         """
 

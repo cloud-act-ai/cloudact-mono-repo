@@ -196,7 +196,7 @@ class UnifiedConsolidatorProcessor:
             USING (
                 -- PAYG usage
                 SELECT
-                    usage_date, org_slug, 'payg' as cost_type, provider, model,
+                    usage_date, x_org_slug, 'payg' as cost_type, provider, model,
                     CAST(NULL AS STRING) as instance_type, CAST(NULL AS STRING) as gpu_type, region,
                     input_tokens, output_tokens, cached_input_tokens as cached_tokens,
                     total_tokens, CAST(NULL AS INT64) as ptu_units, CAST(NULL AS INT64) as used_units,
@@ -209,13 +209,13 @@ class UnifiedConsolidatorProcessor:
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_payg_usage_raw`
-                WHERE usage_date = @process_date AND org_slug = @org_slug
+                WHERE usage_date = @process_date AND x_org_slug = @org_slug
 
                 UNION ALL
 
                 -- Commitment usage
                 SELECT
-                    usage_date, org_slug, 'commitment' as cost_type, provider,
+                    usage_date, x_org_slug, 'commitment' as cost_type, provider,
                     model, CAST(NULL AS STRING) as instance_type,
                     CAST(NULL AS STRING) as gpu_type, region,
                     CAST(NULL AS INT64) as input_tokens, CAST(NULL AS INT64) as output_tokens,
@@ -229,13 +229,13 @@ class UnifiedConsolidatorProcessor:
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw`
-                WHERE usage_date = @process_date AND org_slug = @org_slug
+                WHERE usage_date = @process_date AND x_org_slug = @org_slug
 
                 UNION ALL
 
                 -- Infrastructure usage
                 SELECT
-                    usage_date, org_slug, 'infrastructure' as cost_type, provider,
+                    usage_date, x_org_slug, 'infrastructure' as cost_type, provider,
                     CAST(NULL AS STRING) as model, instance_type, gpu_type, region,
                     CAST(NULL AS INT64) as input_tokens, CAST(NULL AS INT64) as output_tokens,
                     CAST(NULL AS INT64) as cached_tokens, CAST(NULL AS INT64) as total_tokens,
@@ -248,11 +248,11 @@ class UnifiedConsolidatorProcessor:
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw`
-                WHERE usage_date = @process_date AND org_slug = @org_slug
+                WHERE usage_date = @process_date AND x_org_slug = @org_slug
             ) S
             -- MT-002 FIX: Add x_credential_id to MERGE key for multi-account isolation
             ON T.usage_date = S.usage_date
-                AND T.org_slug = S.org_slug
+                AND T.x_org_slug = S.x_org_slug
                 AND T.cost_type = S.cost_type
                 AND T.provider = S.provider
                 AND COALESCE(T.x_credential_id, 'default') = COALESCE(S.x_credential_id, 'default')
@@ -285,14 +285,14 @@ class UnifiedConsolidatorProcessor:
                     x_run_id = S.x_run_id,
                     x_ingested_at = S.x_ingested_at
             WHEN NOT MATCHED THEN
-                INSERT (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
+                INSERT (usage_date, x_org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_tokens, output_tokens, cached_tokens, total_tokens,
                         ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
                         request_count, x_hierarchy_entity_id, x_hierarchy_entity_name,
                         x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
                         source_table, consolidated_at,
                         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
-                VALUES (S.usage_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
+                VALUES (S.usage_date, S.x_org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_tokens, S.output_tokens, S.cached_tokens, S.total_tokens,
                         S.ptu_units, S.used_units, S.utilization_pct, S.gpu_hours, S.instance_hours,
                         S.request_count, S.x_hierarchy_entity_id, S.x_hierarchy_entity_name,
@@ -326,7 +326,7 @@ class UnifiedConsolidatorProcessor:
             USING (
                 -- PAYG costs
                 SELECT
-                    cost_date, org_slug, 'payg' as cost_type, provider, model,
+                    cost_date, x_org_slug, 'payg' as cost_type, provider, model,
                     CAST(NULL AS STRING) as instance_type, CAST(NULL AS STRING) as gpu_type, region,
                     input_cost_usd, output_cost_usd, CAST(NULL AS FLOAT64) as commitment_cost_usd,
                     CAST(NULL AS FLOAT64) as overage_cost_usd, CAST(NULL AS FLOAT64) as infrastructure_cost_usd,
@@ -338,13 +338,13 @@ class UnifiedConsolidatorProcessor:
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
-                WHERE cost_date = @process_date AND org_slug = @org_slug
+                WHERE cost_date = @process_date AND x_org_slug = @org_slug
 
                 UNION ALL
 
                 -- Commitment costs
                 SELECT
-                    cost_date, org_slug, 'commitment' as cost_type, provider,
+                    cost_date, x_org_slug, 'commitment' as cost_type, provider,
                     model, CAST(NULL AS STRING) as instance_type,
                     CAST(NULL AS STRING) as gpu_type, region,
                     CAST(NULL AS FLOAT64) as input_cost_usd, CAST(NULL AS FLOAT64) as output_cost_usd,
@@ -357,13 +357,13 @@ class UnifiedConsolidatorProcessor:
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_commitment_costs_daily`
-                WHERE cost_date = @process_date AND org_slug = @org_slug
+                WHERE cost_date = @process_date AND x_org_slug = @org_slug
 
                 UNION ALL
 
                 -- Infrastructure costs
                 SELECT
-                    cost_date, org_slug, 'infrastructure' as cost_type, provider,
+                    cost_date, x_org_slug, 'infrastructure' as cost_type, provider,
                     CAST(NULL AS STRING) as model, instance_type, gpu_type, region,
                     CAST(NULL AS FLOAT64) as input_cost_usd, CAST(NULL AS FLOAT64) as output_cost_usd,
                     CAST(NULL AS FLOAT64) as commitment_cost_usd, CAST(NULL AS FLOAT64) as overage_cost_usd,
@@ -376,11 +376,11 @@ class UnifiedConsolidatorProcessor:
                     -- Standardized lineage columns (x_ prefix)
                     x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
-                WHERE cost_date = @process_date AND org_slug = @org_slug
+                WHERE cost_date = @process_date AND x_org_slug = @org_slug
             ) S
             -- MT-003 FIX: Add x_credential_id to MERGE key for multi-account isolation
             ON T.cost_date = S.cost_date
-                AND T.org_slug = S.org_slug
+                AND T.x_org_slug = S.x_org_slug
                 AND T.cost_type = S.cost_type
                 AND T.provider = S.provider
                 AND COALESCE(T.x_credential_id, 'default') = COALESCE(S.x_credential_id, 'default')
@@ -412,14 +412,14 @@ class UnifiedConsolidatorProcessor:
                     x_run_id = S.x_run_id,
                     x_ingested_at = S.x_ingested_at
             WHEN NOT MATCHED THEN
-                INSERT (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
+                INSERT (cost_date, x_org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
                         infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
                         usage_quantity, usage_unit, x_hierarchy_entity_id, x_hierarchy_entity_name,
                         x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
                         source_table, consolidated_at,
                         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
-                VALUES (S.cost_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
+                VALUES (S.cost_date, S.x_org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_cost_usd, S.output_cost_usd, S.commitment_cost_usd, S.overage_cost_usd,
                         S.infrastructure_cost_usd, S.total_cost_usd, S.discount_applied_pct,
                         S.usage_quantity, S.usage_unit, S.x_hierarchy_entity_id, S.x_hierarchy_entity_name,
