@@ -175,7 +175,14 @@ export default function GenAIRunsPage() {
             pipelineId.includes("deepseek")
           )
         })
-        setPipelineRuns(filteredRuns)
+        // Deduplicate by pipeline_logging_id to prevent React key warnings
+        const seen = new Set<string>()
+        const uniqueRuns = filteredRuns.filter((run: PipelineRunSummary) => {
+          if (seen.has(run.pipeline_logging_id)) return false
+          seen.add(run.pipeline_logging_id)
+          return true
+        })
+        setPipelineRuns(uniqueRuns)
       }
     } catch {
       // Handle error silently

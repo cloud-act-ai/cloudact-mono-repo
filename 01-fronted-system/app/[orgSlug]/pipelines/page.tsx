@@ -255,8 +255,15 @@ export default function PipelinesPage() {
     try {
       const result = await getPipelineRuns(orgSlug, { limit: MAX_RUNS })
       if (result.success && result.data) {
-        setPipelineRuns(result.data.runs)
-        calculateQuickStats(result.data.runs)
+        // Deduplicate by pipeline_logging_id to prevent React key warnings
+        const seen = new Set<string>()
+        const uniqueRuns = result.data.runs.filter((run: PipelineRunSummary) => {
+          if (seen.has(run.pipeline_logging_id)) return false
+          seen.add(run.pipeline_logging_id)
+          return true
+        })
+        setPipelineRuns(uniqueRuns)
+        calculateQuickStats(uniqueRuns)
       }
     } catch {
       // Handle silently

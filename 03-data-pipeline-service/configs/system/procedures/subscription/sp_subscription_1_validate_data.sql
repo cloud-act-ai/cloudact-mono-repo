@@ -88,7 +88,7 @@ BEGIN
   EXECUTE IMMEDIATE FORMAT("""
     SELECT
       COUNT(*) as total_rows,
-      COUNTIF(org_slug IS NULL) as null_org_slug_count,
+      COUNTIF(x_org_slug IS NULL) as null_org_slug_count,
       COUNTIF(subscription_id IS NULL) as null_subscription_id_count,
       COUNTIF(currency IS NOT NULL AND currency != @org_currency) as currency_mismatch_count,
       COUNTIF(status NOT IN ('active', 'pending', 'cancelled', 'expired')) as invalid_status_count,

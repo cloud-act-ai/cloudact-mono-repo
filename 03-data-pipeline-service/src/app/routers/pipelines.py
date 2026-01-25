@@ -1275,9 +1275,9 @@ async def list_org_pipeline_runs(
 
     where_sql = " AND ".join(where_clauses)
 
-    # Count total matching records
+    # Count total matching records (DISTINCT to handle any duplicate data)
     count_query = f"""
-    SELECT COUNT(*) as total
+    SELECT COUNT(DISTINCT pipeline_logging_id) as total
     FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
     WHERE {where_sql}
     """
@@ -1294,9 +1294,9 @@ async def list_org_pipeline_runs(
     count_result = list(bq_client.client.query(count_query, job_config=count_job_config).result())
     total = count_result[0]["total"] if count_result else 0
 
-    # Fetch paginated results
+    # Fetch paginated results (DISTINCT to handle any duplicate data)
     query = f"""
-    SELECT
+    SELECT DISTINCT
         pipeline_logging_id,
         pipeline_id,
         status,
@@ -1437,7 +1437,7 @@ async def get_org_pipeline_run_detail(
         rows_processed,
         error_message,
         TO_JSON_STRING(metadata) as metadata_json
-    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_step_logs`
+    FROM `{settings.gcp_project_id}.organizations.org_meta_step_logs`
     WHERE pipeline_logging_id = @pipeline_logging_id
     ORDER BY step_index ASC
     """

@@ -195,7 +195,10 @@ class SetupIntegrationRequest(BaseModel):
 class IntegrationStatusResponse(BaseModel):
     """Response for integration status."""
     provider: str
-    validation_status: Literal["VALID", "INVALID", "PENDING", "NOT_CONFIGURED"]
+    # Use 'status' as the serialized field name for frontend compatibility
+    validation_status: Literal["VALID", "INVALID", "PENDING", "NOT_CONFIGURED"] = Field(
+        ..., serialization_alias="status"
+    )
     credential_name: Optional[str] = None
     last_validated_at: Optional[datetime] = None
     last_error: Optional[str] = None
@@ -204,6 +207,8 @@ class IntegrationStatusResponse(BaseModel):
         None,
         description="Integration metadata (e.g., billing_export_table for GCP)"
     )
+
+    model_config = {"populate_by_name": True}
 
 
 class SetupIntegrationResponse(BaseModel):
@@ -725,6 +730,7 @@ async def validate_deepseek_integration(
 @router.get(
     "/integrations/{org_slug}",
     response_model=AllIntegrationsResponse,
+    response_model_by_alias=True,
     summary="Get all integration statuses",
     description="Returns status of all configured integrations for the organization"
 )

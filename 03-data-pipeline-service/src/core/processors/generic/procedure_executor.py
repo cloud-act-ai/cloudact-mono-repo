@@ -153,12 +153,12 @@ class ProcedureExecutorProcessor:
                         "error": f"start_date ({start}) cannot be after end_date ({end})"
                     }
 
-                # FIX: Max date range is 366 days (supports leap years, matches SQL procedure)
+                # Max date range is 730 days (2 years) - matches SQL procedure
                 date_diff = (end - start).days
-                if date_diff > 366:
+                if date_diff > 730:
                     return {
                         "status": "FAILED",
-                        "error": f"Date range too large ({date_diff} days). Maximum is 366 days (one year including leap year)."
+                        "error": f"Date range too large ({date_diff} days). Maximum is 730 days (2 years)."
                     }
 
                 # Warn if dates are in the future

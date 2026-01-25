@@ -78,7 +78,7 @@ BEGIN
   ASSERT p_start_date IS NOT NULL AS "p_start_date cannot be NULL";
   ASSERT p_end_date IS NOT NULL AS "p_end_date cannot be NULL";
   ASSERT p_end_date >= p_start_date AS "p_end_date must be >= p_start_date";
-  ASSERT DATE_DIFF(p_end_date, p_start_date, DAY) <= 366 AS "Date range cannot exceed 366 days";
+  ASSERT DATE_DIFF(p_end_date, p_start_date, DAY) <= 730 AS "Date range cannot exceed 730 days (2 years)";
   ASSERT p_pipeline_id IS NOT NULL AS "p_pipeline_id cannot be NULL";
   ASSERT p_credential_id IS NOT NULL AS "p_credential_id cannot be NULL";
   ASSERT p_run_id IS NOT NULL AS "p_run_id cannot be NULL";
