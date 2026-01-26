@@ -820,6 +820,7 @@ async def get_all_integrations(
 @router.get(
     "/integrations/{org_slug}/{provider}",
     response_model=IntegrationStatusResponse,
+    response_model_by_alias=True,
     summary="Get single integration status"
 )
 async def get_integration_status(

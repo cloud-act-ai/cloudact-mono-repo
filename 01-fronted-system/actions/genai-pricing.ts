@@ -193,7 +193,8 @@ function sanitizeOverrideData(override: PricingOverrideData): PricingOverrideDat
  * @returns A sanitized error message safe for display
  */
 function sanitizeErrorMessage(rawMessage: string | null | undefined, fallbackMessage: string): string {
-  if (!rawMessage) return fallbackMessage
+  // Handle null, undefined, or non-string values
+  if (!rawMessage || typeof rawMessage !== 'string') return fallbackMessage
 
   // Patterns that indicate internal/sensitive information
   const sensitivePatterns = [

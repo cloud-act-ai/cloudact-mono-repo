@@ -59,12 +59,23 @@ BEGIN
   BEGIN TRANSACTION;
 
     -- PRO-012: Validate currency codes in source data (defensive check)
-    -- Supported currencies: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF
+    -- Supported: All major ISO 4217 currency codes
     -- MT-FIX: Added x_org_slug filter for defense-in-depth multi-tenant isolation
     EXECUTE IMMEDIATE FORMAT("""
       SELECT
         LOGICAL_AND(
-          currency IN ('USD', 'EUR', 'GBP', 'INR', 'JPY', 'CNY', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'AUD', 'CAD', 'SGD', 'CHF')
+          currency IN (
+            -- Major currencies
+            'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF',
+            -- Asia Pacific
+            'AUD', 'NZD', 'SGD', 'HKD', 'TWD', 'KRW', 'INR', 'THB', 'MYR', 'PHP', 'IDR', 'VND',
+            -- Americas
+            'CAD', 'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'PEN',
+            -- Europe
+            'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'RUB',
+            -- Middle East & Africa
+            'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'ILS', 'ZAR', 'EGP', 'NGN', 'KES'
+          )
           OR currency IS NULL
         ) AS all_currencies_valid
       FROM `%s.%s.subscription_plan_costs_daily`
@@ -74,7 +85,7 @@ BEGIN
     INTO v_currencies_valid
     USING p_start_date AS p_start, p_end_date AS p_end, v_org_slug AS org_slug;
 
-    ASSERT v_currencies_valid AS "Invalid currency code found in subscription_plan_costs_daily. Supported: USD, EUR, GBP, INR, JPY, CNY, AED, SAR, QAR, KWD, BHD, OMR, AUD, CAD, SGD, CHF";
+    ASSERT v_currencies_valid AS "Invalid currency code found in subscription_plan_costs_daily. Use valid ISO 4217 codes (USD, EUR, GBP, etc.)";
 
     -- 2. Delete existing Subscription data for date range (only this source)
     -- Note: ChargePeriodStart is TIMESTAMP, so cast DATE params to TIMESTAMP

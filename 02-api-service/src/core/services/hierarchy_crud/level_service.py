@@ -8,7 +8,7 @@ Each organization can configure their own hierarchy structure.
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
 from google.cloud import bigquery
@@ -120,11 +120,86 @@ class HierarchyLevelService:
         return f"{self.project_id}.{CENTRAL_DATASET}.{table_name}"
 
     def _insert_to_central_table(self, table_name: str, rows: List[Dict[str, Any]]) -> None:
-        """Insert rows into central dataset table."""
+        """Insert rows into central dataset table using standard DML INSERT.
+
+        Uses standard SQL INSERT instead of streaming inserts to avoid the
+        streaming buffer limitation where data cannot be updated/deleted for ~30 minutes.
+        """
+        if not rows:
+            return
+
         table_id = self._get_central_table_ref(table_name)
-        errors = self.bq_client.client.insert_rows_json(table_id, rows)
-        if errors:
-            raise ValueError(f"Failed to insert rows into {table_id}: {errors}")
+
+        # Get column names from first row
+        columns = list(rows[0].keys())
+
+        # Build parameterized INSERT statement
+        values_clauses = []
+        query_params = []
+
+        for row_idx, row in enumerate(rows):
+            row_values = []
+            for col in columns:
+                # VAL-001 FIX: Use safe prefix to avoid param name collisions
+                param_name = f"p_{col}_{row_idx}"
+                value = row.get(col)
+
+                # Determine BigQuery type with proper type handling
+                if value is None:
+                    row_values.append("NULL")
+                elif isinstance(value, bool):
+                    # IMPORTANT: Check bool before int (bool is subclass of int in Python)
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "BOOL", value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, datetime):
+                    # CRUD-001 FIX: Handle datetime objects as TIMESTAMP
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "TIMESTAMP", value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, list):
+                    # CRUD-002 FIX: Handle list/array columns
+                    elem_type = "STRING"
+                    for elem in value:
+                        if elem is not None:
+                            if isinstance(elem, int):
+                                elem_type = "INT64"
+                            elif isinstance(elem, float):
+                                elem_type = "FLOAT64"
+                            elif isinstance(elem, bool):
+                                elem_type = "BOOL"
+                            break
+                    query_params.append(bigquery.ArrayQueryParameter(param_name, elem_type, value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, int):
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "INT64", value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, float):
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "FLOAT64", value))
+                    row_values.append(f"@{param_name}")
+                else:
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "STRING", str(value)))
+                    row_values.append(f"@{param_name}")
+
+            values_clauses.append(f"SELECT {', '.join(row_values)}")
+
+        columns_str = ", ".join(columns)
+        values_union = " UNION ALL ".join(values_clauses)
+
+        insert_query = f"""
+        INSERT INTO `{table_id}` ({columns_str})
+        {values_union}
+        """
+
+        try:
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            query_job = self.bq_client.client.query(insert_query, job_config=job_config)
+            query_job.result()
+        except google.api_core.exceptions.BadRequest as e:
+            # ERR-002 FIX: Preserve specific BigQuery error type
+            logger.error(f"BigQuery BadRequest inserting into {table_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to insert rows into {table_id}: {e}")
+            raise RuntimeError(f"Failed to insert rows into {table_id}: {e}")
 
     # ==========================================================================
     # Read Operations
@@ -349,7 +424,7 @@ class HierarchyLevelService:
             if parent.is_leaf:
                 raise ValueError(f"Cannot create child of leaf level {request.parent_level}")
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         record_id = str(uuid.uuid4())
 
         row = {
@@ -398,7 +473,7 @@ class HierarchyLevelService:
             logger.info(f"Hierarchy levels already exist for {org_slug}, skipping seed")
             return existing
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         rows = []
 
         for level_def in DEFAULT_LEVELS:
@@ -453,7 +528,7 @@ class HierarchyLevelService:
         if not existing:
             raise ValueError(f"Level {level} does not exist")
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         table_ref = self._get_central_table_ref(HIERARCHY_LEVELS_TABLE)
 
         # Build update fields
@@ -559,7 +634,7 @@ class HierarchyLevelService:
                     f"Level {lvl.level} ({lvl.level_code}) depends on it"
                 )
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         table_ref = self._get_central_table_ref(HIERARCHY_LEVELS_TABLE)
 
         query = f"""

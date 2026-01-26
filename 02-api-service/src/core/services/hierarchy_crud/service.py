@@ -16,7 +16,7 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Tuple
 
 from google.cloud import bigquery
@@ -151,22 +151,95 @@ class HierarchyService:
                 )
 
     def _insert_to_central_table(self, table_name: str, rows: List[Dict[str, Any]]) -> None:
-        """Insert rows into a central dataset table using streaming insert."""
+        """Insert rows into a central dataset table using standard DML INSERT.
+
+        Uses standard SQL INSERT instead of streaming inserts to avoid the
+        streaming buffer limitation where data cannot be updated/deleted for ~30 minutes.
+        """
+        if not rows:
+            return
+
         table_id = self._get_central_table_ref(table_name)
 
-        # BUG-006 FIX: Serialize metadata dict to JSON string for BigQuery JSON type
-        # BigQuery streaming insert expects JSON columns as serialized JSON strings
-        processed_rows = []
-        for row in rows:
-            processed_row = row.copy()
-            if 'metadata' in processed_row and processed_row['metadata'] is not None:
-                if isinstance(processed_row['metadata'], dict):
-                    processed_row['metadata'] = json.dumps(processed_row['metadata'])
-            processed_rows.append(processed_row)
+        # Get column names from first row
+        columns = list(rows[0].keys())
 
-        errors = self.bq_client.client.insert_rows_json(table_id, processed_rows)
-        if errors:
-            raise ValueError(f"Failed to insert rows into {table_id}: {errors}")
+        # Build parameterized INSERT statement
+        # For multiple rows, we use UNION ALL pattern for BigQuery compatibility
+        values_clauses = []
+        query_params = []
+
+        for row_idx, row in enumerate(rows):
+            row_values = []
+            for col in columns:
+                # VAL-001 FIX: Use safe prefix to avoid param name collisions
+                param_name = f"p_{col}_{row_idx}"
+                value = row.get(col)
+
+                # Handle metadata JSON serialization
+                if col == 'metadata' and value is not None:
+                    if isinstance(value, dict):
+                        value = json.dumps(value)
+
+                # Determine BigQuery type with proper type handling
+                if value is None:
+                    row_values.append("NULL")
+                elif isinstance(value, bool):
+                    # IMPORTANT: Check bool before int (bool is subclass of int in Python)
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "BOOL", value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, datetime):
+                    # CRUD-001 FIX: Handle datetime objects as TIMESTAMP
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "TIMESTAMP", value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, list):
+                    # CRUD-002 FIX: Handle list/array columns (path_ids, path_names)
+                    # Determine array element type from first non-None element
+                    elem_type = "STRING"  # Default to STRING
+                    for elem in value:
+                        if elem is not None:
+                            if isinstance(elem, int):
+                                elem_type = "INT64"
+                            elif isinstance(elem, float):
+                                elem_type = "FLOAT64"
+                            elif isinstance(elem, bool):
+                                elem_type = "BOOL"
+                            break
+                    query_params.append(bigquery.ArrayQueryParameter(param_name, elem_type, value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, int):
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "INT64", value))
+                    row_values.append(f"@{param_name}")
+                elif isinstance(value, float):
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "FLOAT64", value))
+                    row_values.append(f"@{param_name}")
+                else:
+                    # String, JSON string
+                    query_params.append(bigquery.ScalarQueryParameter(param_name, "STRING", str(value)))
+                    row_values.append(f"@{param_name}")
+
+            values_clauses.append(f"SELECT {', '.join(row_values)}")
+
+        # Build INSERT statement with column names
+        columns_str = ", ".join(columns)
+        values_union = " UNION ALL ".join(values_clauses)
+
+        insert_query = f"""
+        INSERT INTO `{table_id}` ({columns_str})
+        {values_union}
+        """
+
+        try:
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            query_job = self.bq_client.client.query(insert_query, job_config=job_config)
+            query_job.result()  # Wait for completion
+        except google.api_core.exceptions.BadRequest as e:
+            # ERR-002 FIX: Preserve specific BigQuery error type
+            logger.error(f"BigQuery BadRequest inserting into {table_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to insert rows into {table_id}: {e}")
+            raise RuntimeError(f"Failed to insert rows into {table_id}: {e}")
 
     async def _get_entity_from_central(
         self,
@@ -755,7 +828,7 @@ class HierarchyService:
         path_names = build_path_names(request.entity_name, parent_path_names)
         depth = calculate_depth(path)
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         record_id = str(uuid.uuid4())
 
         row = {
@@ -792,9 +865,9 @@ class HierarchyService:
             raise RuntimeError(f"Failed to create entity: {e}")
 
         # Return entity directly from inserted row (avoid BigQuery streaming buffer delay)
-        # Parse the ISO timestamp string back to datetime
-        from datetime import datetime as dt
-        created_at_dt = dt.fromisoformat(now.replace('Z', '+00:00')) if now.endswith('Z') else dt.fromisoformat(now)
+        # EDGE-003 FIX: Parse the ISO timestamp string back to datetime
+        # datetime.now(timezone.utc).isoformat() produces "+00:00" suffix, not "Z"
+        created_at_dt = datetime.fromisoformat(now)
 
         return HierarchyEntityResponse(
             id=record_id,
@@ -852,7 +925,7 @@ class HierarchyService:
         level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else existing_row['level_code']
         existing = self._row_to_entity_response(existing_row, level_name_str)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
         # Mark old version as ended
@@ -951,7 +1024,7 @@ class HierarchyService:
             new_path_names[ancestor_idx] = ancestor.entity_name
 
             # Update the descendant
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
             update_query = f"""
@@ -1037,7 +1110,7 @@ class HierarchyService:
         new_path_names = build_path_names(entity.entity_name, new_parent_path_names)
         new_depth = calculate_depth(new_path)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
         # Mark old version as ended
@@ -1132,7 +1205,7 @@ class HierarchyService:
             new_path_names = moved_entity.path_names + descendant.path_names[moved_idx + 1:]
             new_depth = calculate_depth(descendant_new_path)
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
             update_query = f"""
@@ -1279,7 +1352,7 @@ class HierarchyService:
         level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else existing_row['level_code']
         existing = self._row_to_entity_response(existing_row, level_name_str)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
         # Soft delete
@@ -1477,7 +1550,8 @@ class HierarchyService:
             return path, path_ids, path_names, depth
 
         # Build rows to insert
-        now = datetime.utcnow().isoformat() + "Z"
+        # EDGE-002 FIX: datetime.now(timezone.utc).isoformat() already produces "+00:00" suffix
+        now = datetime.now(timezone.utc).isoformat()
         rows_to_insert = []
 
         for row in csv_rows:
@@ -1494,8 +1568,8 @@ class HierarchyService:
             metadata = row.get("metadata")
             if metadata and isinstance(metadata, str):
                 try:
-                    import json as json_module
-                    json_module.loads(metadata)  # Validate JSON
+                    # EDGE-004 FIX: Use json module already imported at top of file
+                    json.loads(metadata)  # Validate JSON
                 except json.JSONDecodeError:
                     metadata = json.dumps({"raw": metadata})
 
