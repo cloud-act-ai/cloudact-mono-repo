@@ -858,12 +858,113 @@ BEGIN
 
   COMMIT TRANSACTION;
 
+  -- GAP-003 FIX: Detect orphan hierarchy allocations (similar to payg_cost.py)
+  -- Check for rows where tag-based entity_id was extracted but doesn't exist in hierarchy
+  DECLARE v_orphan_count INT64 DEFAULT 0;
+  DECLARE v_orphan_sample STRING DEFAULT NULL;
+
+  EXECUTE IMMEDIATE FORMAT("""
+    WITH tag_extractions AS (
+      -- Re-extract entity_ids from tags to find orphans
+      SELECT DISTINCT
+        CASE
+          WHEN x_cloud_provider = 'gcp' THEN
+            COALESCE(
+              JSON_EXTRACT_SCALAR(Tags, '$.cost_center'),
+              JSON_EXTRACT_SCALAR(Tags, '$.team'),
+              JSON_EXTRACT_SCALAR(Tags, '$.department'),
+              JSON_EXTRACT_SCALAR(Tags, '$.entity_id')
+            )
+          WHEN x_cloud_provider = 'aws' THEN
+            COALESCE(
+              JSON_EXTRACT_SCALAR(Tags, '$.cost_center'),
+              JSON_EXTRACT_SCALAR(Tags, '$.CostCenter'),
+              JSON_EXTRACT_SCALAR(Tags, '$.team'),
+              JSON_EXTRACT_SCALAR(Tags, '$.Team'),
+              JSON_EXTRACT_SCALAR(Tags, '$.department'),
+              JSON_EXTRACT_SCALAR(Tags, '$.Department'),
+              JSON_EXTRACT_SCALAR(Tags, '$.entity_id')
+            )
+          WHEN x_cloud_provider = 'azure' THEN
+            COALESCE(
+              JSON_EXTRACT_SCALAR(SkuPriceDetails, '$.cost_center'),
+              JSON_EXTRACT_SCALAR(Tags, '$.cost_center'),
+              JSON_EXTRACT_SCALAR(Tags, '$.CostCenter'),
+              JSON_EXTRACT_SCALAR(Tags, '$.team'),
+              JSON_EXTRACT_SCALAR(Tags, '$.Team'),
+              JSON_EXTRACT_SCALAR(Tags, '$.department'),
+              JSON_EXTRACT_SCALAR(Tags, '$.Department'),
+              JSON_EXTRACT_SCALAR(Tags, '$.entity_id')
+            )
+          WHEN x_cloud_provider = 'oci' THEN
+            COALESCE(
+              JSON_EXTRACT_SCALAR(Tags, '$.cost_center'),
+              JSON_EXTRACT_SCALAR(Tags, '$.team'),
+              JSON_EXTRACT_SCALAR(Tags, '$.department'),
+              JSON_EXTRACT_SCALAR(Tags, '$.entity_id')
+            )
+        END AS extracted_entity_id
+      FROM `%s.%s.cost_data_standard_1_3`
+      WHERE DATE(ChargePeriodStart) BETWEEN @p_start AND @p_end
+        AND x_source_system LIKE 'cloud_%%_billing_raw_daily'
+        AND x_hierarchy_entity_id IS NULL
+    ),
+    valid_entities AS (
+      SELECT entity_id
+      FROM `%s.organizations.org_hierarchy`
+      WHERE org_slug = @v_org_slug
+        AND end_date IS NULL
+    )
+    SELECT
+      COUNT(DISTINCT t.extracted_entity_id) AS orphan_count,
+      ANY_VALUE(t.extracted_entity_id) AS sample_orphan
+    FROM tag_extractions t
+    WHERE t.extracted_entity_id IS NOT NULL
+      AND t.extracted_entity_id NOT IN (SELECT entity_id FROM valid_entities)
+  """, p_project_id, p_dataset_id, p_project_id)
+  INTO v_orphan_count, v_orphan_sample
+  USING p_start_date AS p_start, v_effective_end_date AS p_end, v_org_slug AS v_org_slug;
+
+  -- Log orphan warning to DQ results if found
+  IF v_orphan_count > 0 THEN
+    EXECUTE IMMEDIATE FORMAT("""
+      INSERT INTO `%s.organizations.org_meta_dq_results` (
+        dq_result_id, pipeline_logging_id, org_slug, target_table, dq_config_id,
+        executed_at, expectations_passed, expectations_failed, failed_expectations,
+        overall_status, user_id, ingestion_date, created_at
+      )
+      VALUES (
+        GENERATE_UUID(),
+        @p_run_id,
+        @v_org_slug,
+        'cost_data_standard_1_3',
+        'cloud_hierarchy_orphan_check',
+        CURRENT_TIMESTAMP(),
+        0,
+        @orphan_count,
+        JSON_OBJECT(
+          'error_type', 'ORPHAN_HIERARCHY_ALLOCATION',
+          'error_message', CONCAT('Found ', CAST(@orphan_count AS STRING), ' cloud billing records with unrecognized hierarchy entity_ids from tags'),
+          'sample_entity_id', @orphan_sample,
+          'provider', @p_provider,
+          'recommendation', 'Verify resource tags match valid hierarchy entity_ids or create missing hierarchy entries'
+        ),
+        'WARNING',
+        NULL,
+        CURRENT_DATE(),
+        CURRENT_TIMESTAMP()
+      )
+    """, p_project_id)
+    USING p_run_id AS p_run_id, v_org_slug AS v_org_slug, v_orphan_count AS orphan_count, v_orphan_sample AS orphan_sample, p_provider AS p_provider;
+  END IF;
+
   -- Log conversion result
   SELECT
     p_start_date as start_date,
     v_effective_end_date as end_date,
     p_provider as provider,
     v_rows_inserted as rows_inserted,
+    v_orphan_count as orphan_hierarchy_count,
     'cost_data_standard_1_3' as target_table,
     CURRENT_TIMESTAMP() as executed_at;
 

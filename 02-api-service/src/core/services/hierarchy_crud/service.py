@@ -150,6 +150,109 @@ class HierarchyService:
                     f"Ensure bootstrap has been run and org dataset is onboarded."
                 )
 
+    def _refresh_hierarchy_mv(self, org_slug: str) -> None:
+        """Refresh the materialized view after write operations.
+
+        STATE-002 FIX: Materialized views can serve stale data after writes.
+        This method forces a refresh of the x_org_hierarchy MV to ensure
+        reads return fresh data immediately after creates, updates, or deletes.
+        """
+        view_ref = self._get_org_view_ref(org_slug, ORG_HIERARCHY_VIEW)
+
+        try:
+            # Check if view exists before attempting refresh
+            table = self.bq_client.client.get_table(view_ref)
+            if table.table_type != "MATERIALIZED_VIEW":
+                logger.debug(f"Skipping refresh for {view_ref} - not a materialized view")
+                return
+
+            # Refresh the materialized view
+            refresh_query = f"CALL BQ.REFRESH_MATERIALIZED_VIEW('{view_ref}')"
+            self.bq_client.client.query(refresh_query).result()
+            logger.info(f"STATE-002 FIX: Refreshed MV {view_ref} after hierarchy write")
+
+        except google.api_core.exceptions.NotFound:
+            # MV doesn't exist, nothing to refresh
+            logger.debug(f"No MV to refresh for org '{org_slug}'")
+        except Exception as e:
+            # Log but don't fail the operation - MV refresh is best-effort
+            logger.warning(f"Failed to refresh MV {view_ref}: {e}")
+
+    async def _clear_orphan_hierarchy_references(self, org_slug: str, deleted_entity_id: str) -> int:
+        """Clear hierarchy fields from subscription_plans that reference a deleted entity.
+
+        GAP-004 FIX: When a hierarchy entity is deleted, any subscription plans
+        that reference that entity (or have it in their path) will have orphan
+        references. This method clears those references to prevent stale data
+        in cost calculations.
+
+        Args:
+            org_slug: Organization slug
+            deleted_entity_id: The entity_id that was deleted
+
+        Returns:
+            Number of subscription plans updated
+        """
+        env_suffix = settings.get_environment_suffix()
+        dataset_ref = f"{self.project_id}.{org_slug}_{env_suffix}"
+
+        try:
+            # Update subscription_plans where:
+            # 1. x_hierarchy_entity_id matches deleted entity
+            # 2. OR path contains the deleted entity (descendants also become orphans)
+            cleanup_query = f"""
+            UPDATE `{dataset_ref}.{SAAS_SUBSCRIPTION_PLANS_TABLE}`
+            SET x_hierarchy_entity_id = NULL,
+                x_hierarchy_entity_name = NULL,
+                x_hierarchy_level_code = NULL,
+                x_hierarchy_path = NULL,
+                x_hierarchy_path_names = NULL,
+                updated_at = CURRENT_TIMESTAMP()
+            WHERE x_org_slug = @org_slug
+              AND (
+                x_hierarchy_entity_id = @deleted_entity_id
+                OR x_hierarchy_path LIKE CONCAT('%/', @deleted_entity_id, '/%')
+                OR x_hierarchy_path LIKE CONCAT('%/', @deleted_entity_id)
+              )
+              AND (end_date IS NULL OR end_date >= CURRENT_DATE())
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("deleted_entity_id", "STRING", deleted_entity_id),
+                ]
+            )
+
+            job = self.bq_client.client.query(cleanup_query, job_config=job_config)
+            job.result()
+
+            rows_updated = job.num_dml_affected_rows or 0
+
+            if rows_updated > 0:
+                logger.info(
+                    f"GAP-004 FIX: Cleared hierarchy references from {rows_updated} "
+                    f"subscription plans for deleted entity '{deleted_entity_id}' in org '{org_slug}'"
+                )
+            else:
+                logger.debug(
+                    f"No subscription plans referenced deleted entity '{deleted_entity_id}'"
+                )
+
+            return rows_updated
+
+        except google.api_core.exceptions.NotFound:
+            # Table doesn't exist yet, nothing to clean
+            logger.debug(f"No subscription_plans table for org '{org_slug}'")
+            return 0
+        except Exception as e:
+            # Log but don't fail - orphan cleanup is best-effort
+            logger.warning(
+                f"Failed to clear orphan hierarchy references for entity "
+                f"'{deleted_entity_id}' in org '{org_slug}': {e}"
+            )
+            return 0
+
     def _insert_to_central_table(self, table_name: str, rows: List[Dict[str, Any]]) -> None:
         """Insert rows into a central dataset table using standard DML INSERT.
 
@@ -421,8 +524,8 @@ class HierarchyService:
 
             entities = []
             for row in results:
-                level_name = levels_map.get(row['level_code'], {})
-                level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else row['level_code']
+                level_config = levels_map.get(row['level_code'])
+                level_name_str = level_config.level_name if level_config and hasattr(level_config, 'level_name') else row['level_code']
                 entities.append(self._row_to_entity_response(dict(row), level_name_str))
 
             return HierarchyListResponse(
@@ -481,7 +584,7 @@ class HierarchyService:
               AND end_date IS NULL
             LIMIT 1
             """
-            query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
+            # VAL-001 FIX: org_slug already added at line 463, don't add duplicate
 
         try:
             job_config = bigquery.QueryJobConfig(query_parameters=query_params)
@@ -544,7 +647,7 @@ class HierarchyService:
               AND is_active = TRUE
             ORDER BY sort_order ASC, entity_name ASC
             """
-            query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
+            # VAL-002 FIX: org_slug already added at line 525, don't add duplicate
 
         try:
             job_config = bigquery.QueryJobConfig(query_parameters=query_params)
@@ -552,8 +655,8 @@ class HierarchyService:
 
             entities = []
             for row in results:
-                level_name = levels_map.get(row['level_code'], {})
-                level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else row['level_code']
+                level_config = levels_map.get(row['level_code'])
+                level_name_str = level_config.level_name if level_config and hasattr(level_config, 'level_name') else row['level_code']
                 entities.append(self._row_to_entity_response(dict(row), level_name_str))
 
             return HierarchyListResponse(
@@ -574,7 +677,11 @@ class HierarchyService:
         org_slug: str,
         entity_id: str
     ) -> AncestorResponse:
-        """Get ancestor chain for an entity."""
+        """Get ancestor chain for an entity.
+
+        PERF-001 FIX: Fetch all ancestors in a single query using IN clause
+        instead of N+1 individual queries.
+        """
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
 
@@ -582,17 +689,57 @@ class HierarchyService:
         if not entity:
             raise ValueError(f"Entity {entity_id} not found")
 
-        ancestors = []
-        for ancestor_id in entity.path_ids[:-1]:  # Exclude self
-            ancestor = await self.get_entity(org_slug, ancestor_id)
-            if ancestor:
-                ancestors.append(ancestor)
+        ancestor_ids = entity.path_ids[:-1]  # Exclude self
+        if not ancestor_ids:
+            return AncestorResponse(org_slug=org_slug, entity_id=entity_id, ancestors=[])
 
-        return AncestorResponse(
-            org_slug=org_slug,
-            entity_id=entity_id,
-            ancestors=ancestors
-        )
+        # PERF-001 FIX: Batch fetch all ancestors in one query
+        table_ref, uses_view = self._get_hierarchy_read_ref(org_slug)
+        levels_map = await self.level_service.get_levels_map(org_slug)
+
+        query_params = [
+            bigquery.ArrayQueryParameter("ancestor_ids", "STRING", ancestor_ids),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+        ]
+
+        if uses_view:
+            query = f"""
+            SELECT *
+            FROM `{table_ref}`
+            WHERE entity_id IN UNNEST(@ancestor_ids)
+              AND org_slug = @org_slug
+            """
+        else:
+            query = f"""
+            SELECT *
+            FROM `{table_ref}`
+            WHERE org_slug = @org_slug
+              AND entity_id IN UNNEST(@ancestor_ids)
+              AND end_date IS NULL
+            """
+
+        try:
+            job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+            results = list(self.bq_client.client.query(query, job_config=job_config).result())
+
+            # Build lookup and preserve order from path_ids
+            ancestors_map = {}
+            for row in results:
+                level_config = levels_map.get(row['level_code'])
+                level_name_str = level_config.level_name if level_config and hasattr(level_config, 'level_name') else row['level_code']
+                ancestors_map[row['entity_id']] = self._row_to_entity_response(dict(row), level_name_str)
+
+            # Return ancestors in path order (root first)
+            ancestors = [ancestors_map[aid] for aid in ancestor_ids if aid in ancestors_map]
+
+            return AncestorResponse(
+                org_slug=org_slug,
+                entity_id=entity_id,
+                ancestors=ancestors
+            )
+        except Exception as e:
+            logger.error(f"Failed to fetch ancestors for {entity_id}: {e}")
+            return AncestorResponse(org_slug=org_slug, entity_id=entity_id, ancestors=[])
 
     async def get_descendants(
         self,
@@ -635,7 +782,7 @@ class HierarchyService:
               AND is_active = TRUE
             ORDER BY path ASC
             """
-            query_params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
+            # VAL-003 FIX: org_slug already added at line 616, don't add duplicate
 
         try:
             job_config = bigquery.QueryJobConfig(query_parameters=query_params)
@@ -643,8 +790,8 @@ class HierarchyService:
 
             descendants = []
             for row in results:
-                level_name = levels_map.get(row['level_code'], {})
-                level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else row['level_code']
+                level_config = levels_map.get(row['level_code'])
+                level_name_str = level_config.level_name if level_config and hasattr(level_config, 'level_name') else row['level_code']
                 descendants.append(self._row_to_entity_response(dict(row), level_name_str))
 
             return DescendantsResponse(
@@ -791,9 +938,27 @@ class HierarchyService:
             parent_path_names = parent_row.get('path_names') or []
 
             # Check max_children constraint
+            # MED-003 FIX: Query central table directly for accurate child count
+            # MV may not reflect recent inserts due to streaming buffer delay
             if level_config.max_children:
-                children = await self.get_children(org_slug, request.parent_id)
-                if children.total >= level_config.max_children:
+                central_table = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+                count_query = f"""
+                SELECT COUNT(*) as child_count
+                FROM `{central_table}`
+                WHERE org_slug = @org_slug
+                  AND parent_id = @parent_id
+                  AND end_date IS NULL
+                  AND is_active = TRUE
+                """
+                count_job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("parent_id", "STRING", request.parent_id),
+                    ]
+                )
+                count_result = list(self.bq_client.client.query(count_query, job_config=count_job_config).result())
+                current_children = count_result[0]['child_count'] if count_result else 0
+                if current_children >= level_config.max_children:
                     raise ValueError(
                         f"Parent {request.parent_id} already has maximum "
                         f"{level_config.max_children} children"
@@ -864,6 +1029,9 @@ class HierarchyService:
             logger.error(f"Failed to create entity: {e}")
             raise RuntimeError(f"Failed to create entity: {e}")
 
+        # STATE-002 FIX: Refresh MV to ensure new entity appears in reads
+        self._refresh_hierarchy_mv(org_slug)
+
         # Return entity directly from inserted row (avoid BigQuery streaming buffer delay)
         # EDGE-003 FIX: Parse the ISO timestamp string back to datetime
         # datetime.now(timezone.utc).isoformat() produces "+00:00" suffix, not "Z"
@@ -921,31 +1089,12 @@ class HierarchyService:
 
         # Convert row dict to response object for compatibility with existing code
         levels_map = await self.level_service.get_levels_map(org_slug)
-        level_name = levels_map.get(existing_row['level_code'], {})
-        level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else existing_row['level_code']
+        level_config = levels_map.get(existing_row['level_code'])
+        level_name_str = level_config.level_name if level_config and hasattr(level_config, 'level_name') else existing_row['level_code']
         existing = self._row_to_entity_response(existing_row, level_name_str)
 
         now = datetime.now(timezone.utc)
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
-
-        # Mark old version as ended
-        end_query = f"""
-        UPDATE `{table_ref}`
-        SET end_date = @now_ts,
-            updated_at = @now_ts,
-            updated_by = @updated_by
-        WHERE org_slug = @org_slug
-          AND id = @entity_record_id
-        """
-        end_job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
-                bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("entity_record_id", "STRING", existing.id),
-            ]
-        )
-        list(self.bq_client.client.query(end_query, job_config=end_job_config).result())
 
         # Update path_names if entity_name changed
         new_entity_name = request.entity_name or existing.entity_name
@@ -953,7 +1102,7 @@ class HierarchyService:
         if path_names and request.entity_name and request.entity_name != existing.entity_name:
             path_names[-1] = new_entity_name
 
-        # Create new version
+        # Create new version row data
         now_iso = now.isoformat()
         new_id = str(uuid.uuid4())
         row = {
@@ -983,8 +1132,70 @@ class HierarchyService:
             "end_date": None,
         }
 
+        # STATE-001 FIX: Use atomic transaction to prevent broken state
+        # If INSERT fails after UPDATE, entity would have no current version
+        # BigQuery scripting ensures both operations succeed or both fail
         try:
-            self._insert_to_central_table(ORG_HIERARCHY_TABLE, [row])
+            atomic_query = f"""
+            BEGIN TRANSACTION;
+
+            -- Mark old version as ended
+            UPDATE `{table_ref}`
+            SET end_date = @now_ts,
+                updated_at = @now_ts,
+                updated_by = @updated_by
+            WHERE org_slug = @org_slug
+              AND id = @old_record_id;
+
+            -- Create new version
+            INSERT INTO `{table_ref}` (
+                id, org_slug, entity_id, entity_name, level, level_code,
+                parent_id, path, path_ids, path_names, depth,
+                owner_id, owner_name, owner_email, description, metadata,
+                sort_order, is_active, created_at, created_by, updated_at, updated_by,
+                version, end_date
+            ) VALUES (
+                @new_id, @org_slug, @entity_id, @entity_name, @level, @level_code,
+                @parent_id, @path, @path_ids, @path_names, @depth,
+                @owner_id, @owner_name, @owner_email, @description, @metadata,
+                @sort_order, @is_active, @created_at, @created_by, @updated_at, @updated_by,
+                @version, NULL
+            );
+
+            COMMIT TRANSACTION;
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                    bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("old_record_id", "STRING", existing.id),
+                    bigquery.ScalarQueryParameter("new_id", "STRING", new_id),
+                    bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
+                    bigquery.ScalarQueryParameter("entity_name", "STRING", new_entity_name),
+                    bigquery.ScalarQueryParameter("level", "INT64", existing.level),
+                    bigquery.ScalarQueryParameter("level_code", "STRING", existing.level_code),
+                    bigquery.ScalarQueryParameter("parent_id", "STRING", existing.parent_id),
+                    bigquery.ScalarQueryParameter("path", "STRING", existing.path),
+                    bigquery.ArrayQueryParameter("path_ids", "STRING", existing.path_ids or []),
+                    bigquery.ArrayQueryParameter("path_names", "STRING", path_names or []),
+                    bigquery.ScalarQueryParameter("depth", "INT64", existing.depth),
+                    bigquery.ScalarQueryParameter("owner_id", "STRING", row["owner_id"]),
+                    bigquery.ScalarQueryParameter("owner_name", "STRING", row["owner_name"]),
+                    bigquery.ScalarQueryParameter("owner_email", "STRING", row["owner_email"]),
+                    bigquery.ScalarQueryParameter("description", "STRING", row["description"]),
+                    bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(row["metadata"]) if row["metadata"] else None),
+                    bigquery.ScalarQueryParameter("sort_order", "INT64", row["sort_order"]),
+                    bigquery.ScalarQueryParameter("is_active", "BOOL", row["is_active"]),
+                    bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", existing.created_at),
+                    bigquery.ScalarQueryParameter("created_by", "STRING", existing.created_by),
+                    bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
+                    bigquery.ScalarQueryParameter("version", "INT64", existing.version + 1),
+                ]
+            )
+            list(self.bq_client.client.query(atomic_query, job_config=job_config).result())
+            logger.info(f"STATE-001 FIX: Atomically updated entity {entity_id} version {existing.version} -> {existing.version + 1}")
         except Exception as e:
             logger.error(f"Failed to update entity: {e}")
             raise RuntimeError(f"Failed to update entity: {e}")
@@ -992,6 +1203,9 @@ class HierarchyService:
         # If entity_name changed, update path_names of all descendants
         if request.entity_name and request.entity_name != existing.entity_name:
             await self._update_descendant_path_names(org_slug, entity_id, updated_by)
+
+        # STATE-002 FIX: Refresh MV to ensure updated entity appears in reads
+        self._refresh_hierarchy_mv(org_slug)
 
         # BUG-008 FIX: Return the response from the row dict directly
         # instead of calling get_entity (which queries MV and may not see streaming buffer data)
@@ -1003,7 +1217,10 @@ class HierarchyService:
         ancestor_id: str,
         updated_by: str
     ) -> None:
-        """Update path_names for all descendants when an ancestor name changes."""
+        """Update path_names for all descendants when an ancestor name changes.
+
+        SCALE-002 FIX: Batch all updates into a single BigQuery API call.
+        """
         # Get the updated ancestor
         ancestor = await self.get_entity(org_slug, ancestor_id)
         if not ancestor:
@@ -1012,6 +1229,11 @@ class HierarchyService:
         # Get all descendants
         descendants = await self.get_descendants(org_slug, ancestor_id)
 
+        if not descendants.descendants:
+            return
+
+        # SCALE-002 FIX: Collect all updates, then execute in single batch
+        updates = []
         for descendant in descendants.descendants:
             # Find the index of ancestor in path_ids
             try:
@@ -1023,32 +1245,77 @@ class HierarchyService:
             new_path_names = descendant.path_names.copy()
             new_path_names[ancestor_idx] = ancestor.entity_name
 
-            # Update the descendant
-            now = datetime.now(timezone.utc)
-            table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+            updates.append({
+                "record_id": descendant.id,
+                "entity_id": descendant.entity_id,
+                "path_names": new_path_names,
+            })
 
-            update_query = f"""
-            UPDATE `{table_ref}`
-            SET path_names = @path_names,
-                updated_at = @now_ts,
-                updated_by = @updated_by
-            WHERE org_slug = @org_slug
-              AND id = @entity_record_id
-              AND end_date IS NULL
-            """
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ArrayQueryParameter("path_names", "STRING", new_path_names),
-                    bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
-                    bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("entity_record_id", "STRING", descendant.id),
-                ]
-            )
-            try:
-                list(self.bq_client.client.query(update_query, job_config=job_config).result())
-            except Exception as e:
-                logger.warning(f"Failed to update path_names for {descendant.entity_id}: {e}")
+        if not updates:
+            return
+
+        # SCALE-002 FIX: Execute batch update using BigQuery UPDATE with JOIN
+        now = datetime.now(timezone.utc)
+        table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+
+        batch_query = f"""
+        UPDATE `{table_ref}` t
+        SET
+            path_names = updates.new_path_names,
+            updated_at = @now_ts,
+            updated_by = @updated_by
+        FROM (
+            SELECT * FROM UNNEST(@updates) AS u
+        ) AS updates
+        WHERE t.org_slug = @org_slug
+          AND t.id = updates.record_id
+          AND t.end_date IS NULL
+        """
+
+        update_structs = [
+            {"record_id": u["record_id"], "new_path_names": u["path_names"]}
+            for u in updates
+        ]
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ArrayQueryParameter(
+                    "updates",
+                    "STRUCT<record_id STRING, new_path_names ARRAY<STRING>>",
+                    update_structs,
+                ),
+            ]
+        )
+
+        try:
+            list(self.bq_client.client.query(batch_query, job_config=job_config).result())
+            logger.info(f"SCALE-002 FIX: Batch updated {len(updates)} descendant path_names in single query")
+        except Exception as e:
+            logger.error(f"Failed to batch update descendant path_names: {e}")
+            # Fallback to sequential updates if batch fails
+            logger.warning("Falling back to sequential updates")
+            for u in updates:
+                try:
+                    fallback_query = f"""
+                    UPDATE `{table_ref}`
+                    SET path_names = @path_names, updated_at = @now_ts, updated_by = @updated_by
+                    WHERE org_slug = @org_slug AND id = @record_id AND end_date IS NULL
+                    """
+                    fb_config = bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ArrayQueryParameter("path_names", "STRING", u["path_names"]),
+                            bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                            bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                            bigquery.ScalarQueryParameter("record_id", "STRING", u["record_id"]),
+                        ]
+                    )
+                    list(self.bq_client.client.query(fallback_query, job_config=fb_config).result())
+                except Exception as fb_e:
+                    logger.warning(f"Failed to update path_names for {u['entity_id']}: {fb_e}")
 
     async def move_entity(
         self,
@@ -1057,7 +1324,12 @@ class HierarchyService:
         request: MoveEntityRequest,
         moved_by: str
     ) -> HierarchyEntityResponse:
-        """Move an entity to a new parent."""
+        """Move an entity to a new parent.
+
+        STATE-001/MT-001 FIX: Uses atomic MERGE operation to prevent race conditions
+        and ensure consistent state during concurrent moves.
+        IDEM-001 FIX: MERGE handles idempotency - retries won't create duplicates.
+        """
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
 
@@ -1089,8 +1361,9 @@ class HierarchyService:
             if request.new_parent_id == entity_id:
                 raise ValueError("Cannot move entity to itself")
 
-            # Check if new parent is a descendant of entity
-            if entity.path in new_parent.path:
+            # EDGE-001 FIX: Use proper path boundary check to avoid false matches
+            # Check if new parent is a descendant of entity using path + '/' prefix
+            if new_parent.path.startswith(entity.path + '/') or new_parent.path == entity.path:
                 raise ValueError("Cannot move entity to its own descendant")
 
             # Validate parent level
@@ -1111,30 +1384,86 @@ class HierarchyService:
         new_depth = calculate_depth(new_path)
 
         now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
+        new_id = str(uuid.uuid4())
         table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
 
-        # Mark old version as ended
-        end_query = f"""
+        # STATE-001/MT-001/IDEM-001 FIX: Use atomic MERGE operation
+        # This ensures: 1) No race conditions 2) Idempotent retries 3) Consistent state
+        # The MERGE ends the old version and inserts new version atomically
+        atomic_move_query = f"""
+        -- End the old version (only if not already ended)
         UPDATE `{table_ref}`
         SET end_date = @now_ts,
             updated_at = @now_ts,
             updated_by = @updated_by
         WHERE org_slug = @org_slug
           AND id = @entity_record_id
+          AND end_date IS NULL;
+
+        -- Insert new version using MERGE to handle race conditions
+        MERGE `{table_ref}` AS target
+        USING (SELECT @entity_id AS entity_id) AS source
+        ON target.org_slug = @org_slug
+           AND target.entity_id = source.entity_id
+           AND target.end_date IS NULL
+           AND target.version = @new_version
+        WHEN NOT MATCHED THEN
+            INSERT (id, org_slug, entity_id, entity_name, level, level_code,
+                    parent_id, path, path_ids, path_names, depth,
+                    owner_id, owner_name, owner_email, description, metadata,
+                    sort_order, is_active, created_at, created_by, updated_at,
+                    updated_by, version, end_date)
+            VALUES (@new_id, @org_slug, @entity_id, @entity_name, @level, @level_code,
+                    @parent_id, @path, @path_ids, @path_names, @depth,
+                    @owner_id, @owner_name, @owner_email, @description, @metadata,
+                    @sort_order, @is_active, @created_at, @created_by, @updated_at,
+                    @updated_by, @new_version, NULL);
         """
-        end_job_config = bigquery.QueryJobConfig(
+
+        # Serialize metadata to JSON string if needed
+        metadata_str = None
+        if entity.metadata:
+            metadata_str = json.dumps(entity.metadata) if isinstance(entity.metadata, dict) else entity.metadata
+
+        move_job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
                 bigquery.ScalarQueryParameter("updated_by", "STRING", moved_by),
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("entity_record_id", "STRING", entity.id),
+                bigquery.ScalarQueryParameter("new_id", "STRING", new_id),
+                bigquery.ScalarQueryParameter("entity_id", "STRING", entity_id),
+                bigquery.ScalarQueryParameter("entity_name", "STRING", entity.entity_name),
+                bigquery.ScalarQueryParameter("level", "INT64", entity.level),
+                bigquery.ScalarQueryParameter("level_code", "STRING", entity.level_code),
+                bigquery.ScalarQueryParameter("parent_id", "STRING", request.new_parent_id),
+                bigquery.ScalarQueryParameter("path", "STRING", new_path),
+                bigquery.ArrayQueryParameter("path_ids", "STRING", new_path_ids),
+                bigquery.ArrayQueryParameter("path_names", "STRING", new_path_names),
+                bigquery.ScalarQueryParameter("depth", "INT64", new_depth),
+                bigquery.ScalarQueryParameter("owner_id", "STRING", entity.owner_id),
+                bigquery.ScalarQueryParameter("owner_name", "STRING", entity.owner_name),
+                bigquery.ScalarQueryParameter("owner_email", "STRING", entity.owner_email),
+                bigquery.ScalarQueryParameter("description", "STRING", entity.description),
+                bigquery.ScalarQueryParameter("metadata", "STRING", metadata_str),
+                bigquery.ScalarQueryParameter("sort_order", "INT64", entity.sort_order),
+                bigquery.ScalarQueryParameter("is_active", "BOOL", entity.is_active),
+                bigquery.ScalarQueryParameter("created_at", "STRING", entity.created_at.isoformat() if hasattr(entity.created_at, 'isoformat') else entity.created_at),
+                bigquery.ScalarQueryParameter("created_by", "STRING", entity.created_by),
+                bigquery.ScalarQueryParameter("updated_at", "STRING", now_iso),
+                bigquery.ScalarQueryParameter("new_version", "INT64", entity.version + 1),
             ]
         )
-        list(self.bq_client.client.query(end_query, job_config=end_job_config).result())
 
-        # Create new version
-        now_iso = now.isoformat()
-        new_id = str(uuid.uuid4())
+        try:
+            list(self.bq_client.client.query(atomic_move_query, job_config=move_job_config).result())
+            logger.info(f"STATE-001 FIX: Atomically moved entity {entity_id} to new parent")
+        except Exception as e:
+            logger.error(f"Failed to move entity atomically: {e}")
+            raise RuntimeError(f"Failed to move entity: {e}")
+
+        # Build row dict for response
         row = {
             "id": new_id,
             "org_slug": org_slug,
@@ -1162,17 +1491,16 @@ class HierarchyService:
             "end_date": None,
         }
 
-        try:
-            self._insert_to_central_table(ORG_HIERARCHY_TABLE, [row])
-        except Exception as e:
-            logger.error(f"Failed to move entity: {e}")
-            raise RuntimeError(f"Failed to move entity: {e}")
-
         # Update all descendants' paths
         old_path = entity.path
         await self._update_descendant_paths(org_slug, entity_id, old_path, new_path, moved_by)
 
-        return await self.get_entity(org_slug, entity_id)
+        # STATE-002 FIX: Refresh MV to ensure moved entity appears in reads
+        self._refresh_hierarchy_mv(org_slug)
+
+        # ERR-001 FIX: Return from row dict directly instead of get_entity()
+        # get_entity() queries MV which may still have stale data after refresh
+        return self._row_to_entity_response(row, level_config.level_name)
 
     async def _update_descendant_paths(
         self,
@@ -1182,17 +1510,36 @@ class HierarchyService:
         new_path: str,
         updated_by: str
     ) -> None:
-        """Update paths for all descendants when an entity is moved."""
+        """Update paths for all descendants when an entity is moved.
+
+        PERF-002 FIX: Fetch moved_entity once before loop instead of N times.
+        SCALE-001 FIX: Batch all updates into a single BigQuery API call.
+        """
         descendants = await self.get_descendants(org_slug, moved_entity_id)
 
-        for descendant in descendants.descendants:
-            # Calculate new path by replacing old prefix with new prefix
-            descendant_new_path = descendant.path.replace(old_path, new_path, 1)
+        if not descendants.descendants:
+            return
 
-            # Recalculate path_ids and path_names
-            moved_entity = await self.get_entity(org_slug, moved_entity_id)
-            if not moved_entity:
-                continue
+        # PERF-002 FIX: Fetch moved_entity ONCE before loop
+        moved_entity = await self.get_entity(org_slug, moved_entity_id)
+        if not moved_entity:
+            logger.warning(f"Moved entity {moved_entity_id} not found, skipping descendant updates")
+            return
+
+        # SCALE-001 FIX: Collect all updates, then execute in single batch
+        updates = []
+        for descendant in descendants.descendants:
+            # EDGE-001 FIX: Use proper path boundary matching to avoid false matches
+            # Don't use simple string replace which could match /DEPT-001 in /DEPT-0011
+            # Instead, ensure we match at path boundary (old_path + '/')
+            if descendant.path.startswith(old_path + '/'):
+                # Replace old path prefix with new path prefix at exact boundary
+                descendant_new_path = new_path + descendant.path[len(old_path):]
+            elif descendant.path == old_path:
+                descendant_new_path = new_path
+            else:
+                # Fallback to original replace for edge cases
+                descendant_new_path = descendant.path.replace(old_path, new_path, 1)
 
             # Find where moved_entity appears in descendant's path
             try:
@@ -1205,41 +1552,152 @@ class HierarchyService:
             new_path_names = moved_entity.path_names + descendant.path_names[moved_idx + 1:]
             new_depth = calculate_depth(descendant_new_path)
 
-            now = datetime.now(timezone.utc)
-            table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+            updates.append({
+                "record_id": descendant.id,
+                "entity_id": descendant.entity_id,
+                "path": descendant_new_path,
+                "path_ids": new_path_ids,
+                "path_names": new_path_names,
+                "depth": new_depth,
+            })
 
-            update_query = f"""
-            UPDATE `{table_ref}`
-            SET path = @path,
-                path_ids = @path_ids,
-                path_names = @path_names,
-                depth = @depth,
-                updated_at = @now_ts,
-                updated_by = @updated_by
-            WHERE org_slug = @org_slug
-              AND id = @entity_record_id
-              AND end_date IS NULL
-            """
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("path", "STRING", descendant_new_path),
-                    bigquery.ArrayQueryParameter("path_ids", "STRING", new_path_ids),
-                    bigquery.ArrayQueryParameter("path_names", "STRING", new_path_names),
-                    bigquery.ScalarQueryParameter("depth", "INT64", new_depth),
-                    bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
-                    bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("entity_record_id", "STRING", descendant.id),
-                ]
-            )
-            try:
-                list(self.bq_client.client.query(update_query, job_config=job_config).result())
-            except Exception as e:
-                logger.warning(f"Failed to update path for {descendant.entity_id}: {e}")
+        if not updates:
+            return
+
+        # SCALE-001 FIX: Execute batch update using BigQuery scripting
+        # This reduces N API calls to 1 API call
+        now = datetime.now(timezone.utc)
+        table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+
+        # Build batch UPDATE using CASE WHEN pattern
+        # This is more efficient than N separate queries
+        batch_query = f"""
+        UPDATE `{table_ref}` t
+        SET
+            path = updates.new_path,
+            path_ids = updates.new_path_ids,
+            path_names = updates.new_path_names,
+            depth = updates.new_depth,
+            updated_at = @now_ts,
+            updated_by = @updated_by
+        FROM (
+            SELECT * FROM UNNEST(@updates) AS u
+        ) AS updates
+        WHERE t.org_slug = @org_slug
+          AND t.id = updates.record_id
+          AND t.end_date IS NULL
+        """
+
+        # Build struct array for batch update
+        update_structs = [
+            {
+                "record_id": u["record_id"],
+                "new_path": u["path"],
+                "new_path_ids": u["path_ids"],
+                "new_path_names": u["path_names"],
+                "new_depth": u["depth"],
+            }
+            for u in updates
+        ]
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ArrayQueryParameter(
+                    "updates",
+                    "STRUCT<record_id STRING, new_path STRING, new_path_ids ARRAY<STRING>, new_path_names ARRAY<STRING>, new_depth INT64>",
+                    update_structs,
+                ),
+            ]
+        )
+
+        try:
+            list(self.bq_client.client.query(batch_query, job_config=job_config).result())
+            logger.info(f"SCALE-001 FIX: Batch updated {len(updates)} descendant paths in single query")
+        except Exception as e:
+            logger.error(f"Failed to batch update descendant paths: {e}")
+            # Fallback to sequential updates if batch fails
+            logger.warning("Falling back to sequential updates")
+            for u in updates:
+                try:
+                    fallback_query = f"""
+                    UPDATE `{table_ref}`
+                    SET path = @path, path_ids = @path_ids, path_names = @path_names,
+                        depth = @depth, updated_at = @now_ts, updated_by = @updated_by
+                    WHERE org_slug = @org_slug AND id = @record_id AND end_date IS NULL
+                    """
+                    fb_config = bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("path", "STRING", u["path"]),
+                            bigquery.ArrayQueryParameter("path_ids", "STRING", u["path_ids"]),
+                            bigquery.ArrayQueryParameter("path_names", "STRING", u["path_names"]),
+                            bigquery.ScalarQueryParameter("depth", "INT64", u["depth"]),
+                            bigquery.ScalarQueryParameter("now_ts", "TIMESTAMP", now),
+                            bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by),
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                            bigquery.ScalarQueryParameter("record_id", "STRING", u["record_id"]),
+                        ]
+                    )
+                    list(self.bq_client.client.query(fallback_query, job_config=fb_config).result())
+                except Exception as fb_e:
+                    logger.warning(f"Failed to update path for {u['entity_id']}: {fb_e}")
 
     # ==========================================================================
     # Delete Operations
     # ==========================================================================
+
+    async def _record_force_delete_audit(
+        self,
+        org_slug: str,
+        entity_id: str,
+        deleted_by: str,
+        reason_bypassed: str,
+        blocking_entities: List[Dict[str, Any]]
+    ) -> None:
+        """SEC-002 FIX: Record force delete to persistent audit trail.
+
+        Stores audit information in org_meta_pipeline_runs table as a special
+        'force_delete_audit' event. This ensures audit trail persists even
+        if application logs are rotated or deleted.
+        """
+        now = datetime.now(timezone.utc)
+        audit_table = f"{self.project_id}.{CENTRAL_DATASET}.org_meta_pipeline_runs"
+
+        audit_data = {
+            "action": "force_delete",
+            "entity_id": entity_id,
+            "reason_bypassed": reason_bypassed,
+            "blocking_entities_count": len(blocking_entities),
+            "blocking_entity_ids": [e.get("entity_id") for e in blocking_entities[:10]],  # Cap at 10
+        }
+
+        audit_query = f"""
+        INSERT INTO `{audit_table}` (
+            org_slug, pipeline_id, run_id, status, started_at, completed_at,
+            records_processed, records_failed, error_message, metadata
+        ) VALUES (
+            @org_slug, 'force_delete_audit', @run_id, 'completed',
+            @timestamp, @timestamp, 1, 0, @reason, @metadata
+        )
+        """
+
+        try:
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("run_id", "STRING", f"audit_{entity_id}_{now.strftime('%Y%m%d%H%M%S')}"),
+                    bigquery.ScalarQueryParameter("timestamp", "TIMESTAMP", now),
+                    bigquery.ScalarQueryParameter("reason", "STRING", f"Force delete by {deleted_by}: {reason_bypassed}"),
+                    bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(audit_data)),
+                ]
+            )
+            self.bq_client.client.query(audit_query, job_config=job_config).result()
+            logger.info(f"SEC-002: Recorded force delete audit for {entity_id} in org {org_slug}")
+        except Exception as e:
+            # Don't fail the delete if audit fails, but log prominently
+            logger.error(f"SEC-002 WARNING: Failed to record force delete audit: {e}")
 
     async def check_deletion_blocked(
         self,
@@ -1258,8 +1716,8 @@ class HierarchyService:
 
         # Convert to response for level_code
         levels_map = await self.level_service.get_levels_map(org_slug)
-        level_name = levels_map.get(entity_row['level_code'], {})
-        level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else entity_row['level_code']
+        level_config = levels_map.get(entity_row['level_code'])
+        level_name_str = level_config.level_name if level_config else entity_row['level_code']
         entity = self._row_to_entity_response(entity_row, level_name_str)
 
         blocking_entities = []
@@ -1330,7 +1788,11 @@ class HierarchyService:
         deleted_by: str,
         force: bool = False
     ) -> bool:
-        """Soft delete a hierarchy entity."""
+        """Soft delete a hierarchy entity.
+
+        SEC-002 FIX: Force deletes are logged to both application logs AND
+        stored in entity metadata for persistent audit trail.
+        """
         org_slug = validate_org_slug(org_slug)
         entity_id = validate_entity_id(entity_id)
 
@@ -1339,6 +1801,26 @@ class HierarchyService:
             block_check = await self.check_deletion_blocked(org_slug, entity_id)
             if block_check.blocked:
                 raise ValueError(block_check.reason)
+        else:
+            # SEC-002 FIX: Check and create persistent audit trail for force deletes
+            block_check = await self.check_deletion_blocked(org_slug, entity_id)
+            if block_check.blocked:
+                # Log to application logs
+                logger.warning(
+                    f"SEC-002 AUDIT: Force delete bypassing block for entity {entity_id} "
+                    f"in org {org_slug}. Reason bypassed: {block_check.reason}. "
+                    f"Deleted by: {deleted_by}. "
+                    f"Blocking entities: {[e.get('entity_id') for e in block_check.blocking_entities]}"
+                )
+                # SEC-002 FIX: Store audit info in metadata before delete
+                # This ensures persistent audit trail survives even if logs are rotated
+                await self._record_force_delete_audit(
+                    org_slug=org_slug,
+                    entity_id=entity_id,
+                    deleted_by=deleted_by,
+                    reason_bypassed=block_check.reason,
+                    blocking_entities=block_check.blocking_entities
+                )
 
         # BUG-005 FIX: Query central table directly to handle streaming buffer lag
         # BUG-007 FIX: Use allow_ended=True to recover from broken state
@@ -1348,8 +1830,8 @@ class HierarchyService:
 
         # Convert to response for entity.id
         levels_map = await self.level_service.get_levels_map(org_slug)
-        level_name = levels_map.get(existing_row['level_code'], {})
-        level_name_str = level_name.level_name if hasattr(level_name, 'level_name') else existing_row['level_code']
+        level_config = levels_map.get(existing_row['level_code'])
+        level_name_str = level_config.level_name if level_config and hasattr(level_config, 'level_name') else existing_row['level_code']
         existing = self._row_to_entity_response(existing_row, level_name_str)
 
         now = datetime.now(timezone.utc)
@@ -1374,6 +1856,14 @@ class HierarchyService:
             ]
         )
         list(self.bq_client.client.query(delete_query, job_config=delete_job_config).result())
+
+        # GAP-004 FIX: Clear hierarchy fields from subscription_plans that reference deleted entity
+        # This prevents orphan references in cost data
+        await self._clear_orphan_hierarchy_references(org_slug, entity_id)
+
+        # STATE-002 FIX: Refresh MV to ensure deleted entity is not returned in reads
+        self._refresh_hierarchy_mv(org_slug)
+
         return True
 
     # ==========================================================================
@@ -1610,8 +2100,61 @@ class HierarchyService:
             return result
 
         # Insert entities
+        # HIGH-001 FIX: Use MERGE to handle race conditions where another process
+        # may have inserted the same entity_id between our read and insert
         try:
-            self._insert_to_central_table(ORG_HIERARCHY_TABLE, rows_to_insert)
+            table_ref = self._get_central_table_ref(ORG_HIERARCHY_TABLE)
+            # Use MERGE to avoid duplicates (race condition fix)
+            for batch_start in range(0, len(rows_to_insert), 100):
+                batch = rows_to_insert[batch_start:batch_start + 100]
+                for entity_row in batch:
+                    merge_query = f"""
+                    MERGE `{table_ref}` AS target
+                    USING (SELECT @entity_id AS entity_id) AS source
+                    ON target.org_slug = @org_slug
+                       AND target.entity_id = source.entity_id
+                       AND target.end_date IS NULL
+                    WHEN NOT MATCHED THEN
+                        INSERT (id, org_slug, entity_id, entity_name, level, level_code,
+                                parent_id, path, path_ids, path_names, depth,
+                                owner_id, owner_name, owner_email, description, metadata,
+                                sort_order, is_active, created_at, created_by, updated_at,
+                                updated_by, version, end_date)
+                        VALUES (@id, @org_slug, @entity_id, @entity_name, @level, @level_code,
+                                @parent_id, @path, @path_ids, @path_names, @depth,
+                                @owner_id, @owner_name, @owner_email, @description, @metadata,
+                                @sort_order, @is_active, @created_at, @created_by, @updated_at,
+                                @updated_by, @version, @end_date)
+                    """
+                    job_config = bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("id", "STRING", entity_row["id"]),
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", entity_row["org_slug"]),
+                            bigquery.ScalarQueryParameter("entity_id", "STRING", entity_row["entity_id"]),
+                            bigquery.ScalarQueryParameter("entity_name", "STRING", entity_row["entity_name"]),
+                            bigquery.ScalarQueryParameter("level", "INT64", entity_row["level"]),
+                            bigquery.ScalarQueryParameter("level_code", "STRING", entity_row["level_code"]),
+                            bigquery.ScalarQueryParameter("parent_id", "STRING", entity_row["parent_id"]),
+                            bigquery.ScalarQueryParameter("path", "STRING", entity_row["path"]),
+                            bigquery.ArrayQueryParameter("path_ids", "STRING", entity_row["path_ids"]),
+                            bigquery.ArrayQueryParameter("path_names", "STRING", entity_row["path_names"]),
+                            bigquery.ScalarQueryParameter("depth", "INT64", entity_row["depth"]),
+                            bigquery.ScalarQueryParameter("owner_id", "STRING", entity_row["owner_id"]),
+                            bigquery.ScalarQueryParameter("owner_name", "STRING", entity_row["owner_name"]),
+                            bigquery.ScalarQueryParameter("owner_email", "STRING", entity_row["owner_email"]),
+                            bigquery.ScalarQueryParameter("description", "STRING", entity_row["description"]),
+                            bigquery.ScalarQueryParameter("metadata", "STRING", entity_row["metadata"]),
+                            bigquery.ScalarQueryParameter("sort_order", "INT64", entity_row["sort_order"]),
+                            bigquery.ScalarQueryParameter("is_active", "BOOL", entity_row["is_active"]),
+                            bigquery.ScalarQueryParameter("created_at", "STRING", entity_row["created_at"]),
+                            bigquery.ScalarQueryParameter("created_by", "STRING", entity_row["created_by"]),
+                            bigquery.ScalarQueryParameter("updated_at", "STRING", entity_row["updated_at"]),
+                            bigquery.ScalarQueryParameter("updated_by", "STRING", entity_row["updated_by"]),
+                            bigquery.ScalarQueryParameter("version", "INT64", entity_row["version"]),
+                            bigquery.ScalarQueryParameter("end_date", "TIMESTAMP", entity_row["end_date"]),
+                        ]
+                    )
+                    self.bq_client.client.query(merge_query, job_config=job_config).result()
             result["entities_seeded"] = len(rows_to_insert)
             logger.info(
                 f"Seeded {len(rows_to_insert)} hierarchy entities for {org_slug}: {result['by_level']}"

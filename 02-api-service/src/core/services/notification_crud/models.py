@@ -269,6 +269,7 @@ class NotificationRuleBase(BaseModel):
     # Filters
     provider_filter: Optional[List[str]] = Field(default=None, description="Filter by providers")
     service_filter: Optional[List[str]] = Field(default=None, description="Filter by services")
+    # Unified N-level hierarchy filters
     hierarchy_entity_id: Optional[str] = Field(default=None, description="N-level hierarchy entity ID")
     hierarchy_path: Optional[str] = Field(default=None, description="Materialized path for hierarchy filtering")
 
@@ -311,6 +312,7 @@ class NotificationRuleUpdate(BaseModel):
     conditions: Optional[RuleConditions] = None
     provider_filter: Optional[List[str]] = None
     service_filter: Optional[List[str]] = None
+    # Unified N-level hierarchy filters
     hierarchy_entity_id: Optional[str] = None
     hierarchy_path: Optional[str] = None
     notify_channel_ids: Optional[List[str]] = None

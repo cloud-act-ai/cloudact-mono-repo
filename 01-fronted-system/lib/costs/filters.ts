@@ -489,24 +489,16 @@ export interface GranularCostRow {
 /**
  * Filter options for granular data
  *
- * FE-002 FIX: Updated to use new hierarchy filter options instead of
- * separate departmentId/projectId/teamId fields.
+ * Uses unified N-level hierarchy filters.
  */
 export interface GranularFilterOptions {
   dateRange?: DateRange
   providers?: string[]
   categories?: ("genai" | "cloud" | "subscription" | "other")[]
-  // New hierarchy filter options (FE-002)
+  // Unified N-level hierarchy filter options
   hierarchyEntityId?: string      // Filter by specific entity ID
-  hierarchyLevelCode?: string     // Filter by level (DEPT, PROJ, TEAM)
+  hierarchyLevelCode?: string     // Filter by level (e.g., "department", "project", "team")
   hierarchyPathPrefix?: string    // Filter by path prefix (e.g., "/DEPT-001")
-  // Deprecated - kept for backwards compatibility
-  /** @deprecated Use hierarchyEntityId with level filtering instead */
-  departmentId?: string
-  /** @deprecated Use hierarchyEntityId with level filtering instead */
-  projectId?: string
-  /** @deprecated Use hierarchyEntityId with level filtering instead */
-  teamId?: string
 }
 
 /**
@@ -578,12 +570,70 @@ export function filterGranularByCategory(
 }
 
 /**
+ * EDGE-002/003/004 FIX: Level code normalization map.
+ * Maps various level code formats to canonical forms for consistent filtering.
+ * Supports both old (DEPT/PROJ/TEAM) and new (c_suite/business_unit/function) level codes.
+ */
+const LEVEL_CODE_ALIASES: Record<string, string[]> = {
+  // Level 1: Department / C-Suite
+  "department": ["department", "dept", "c_suite", "csuite", "c-suite"],
+  "c_suite": ["department", "dept", "c_suite", "csuite", "c-suite"],
+  "dept": ["department", "dept", "c_suite", "csuite", "c-suite"],
+  // Level 2: Project / Business Unit
+  "project": ["project", "proj", "business_unit", "businessunit", "business-unit"],
+  "business_unit": ["project", "proj", "business_unit", "businessunit", "business-unit"],
+  "proj": ["project", "proj", "business_unit", "businessunit", "business-unit"],
+  // Level 3: Team / Function
+  "team": ["team", "function", "func"],
+  "function": ["team", "function", "func"],
+  "func": ["team", "function", "func"],
+}
+
+/**
+ * VAL-002 FIX: Validate entity ID format.
+ * Entity IDs should be alphanumeric with optional hyphens/underscores.
+ */
+function isValidEntityId(entityId: string): boolean {
+  if (!entityId || typeof entityId !== "string") return false
+  // Allow alphanumeric, hyphens, underscores, max 100 chars
+  return /^[a-zA-Z0-9_-]{1,100}$/.test(entityId)
+}
+
+/**
+ * SEC-001 FIX: Validate path prefix to prevent traversal attacks.
+ * Path must start with / and contain only valid characters.
+ */
+function isValidPathPrefix(pathPrefix: string): boolean {
+  if (!pathPrefix || typeof pathPrefix !== "string") return false
+  // Must start with /, no .., only alphanumeric/hyphen/underscore/slash
+  if (pathPrefix.includes("..")) return false
+  return /^\/[a-zA-Z0-9_\-\/]*$/.test(pathPrefix)
+}
+
+/**
+ * EDGE-002/003/004 FIX: Normalize level code for comparison.
+ * Returns all possible aliases for a given level code.
+ */
+function getLevelCodeAliases(levelCode: string): string[] {
+  const normalized = levelCode.toLowerCase().trim()
+  return LEVEL_CODE_ALIASES[normalized] || [normalized]
+}
+
+/**
  * FE-002 FIX: New generic hierarchy filter supporting the 5-field model.
  * Filters granular data by entity ID, level code, and/or path prefix.
  *
+ * EDGE-002/003/004 FIX: Supports multiple level code formats:
+ * - Old format: DEPT, PROJ, TEAM
+ * - New format: c_suite, business_unit, function
+ * - Legacy: department, project, team
+ *
+ * VAL-002 FIX: Validates entityId format before filtering.
+ * SEC-001 FIX: Validates pathPrefix to prevent traversal attacks.
+ *
  * @param data - Array of GranularCostRow to filter
  * @param entityId - Filter by specific hierarchy_entity_id (e.g., "DEPT-001")
- * @param levelCode - Filter by hierarchy_level_code (e.g., "DEPT", "PROJ", "TEAM")
+ * @param levelCode - Filter by hierarchy_level_code (supports aliases)
  * @param pathPrefix - Filter rows where hierarchy_path starts with this prefix
  * @returns Filtered array of GranularCostRow
  */
@@ -596,105 +646,146 @@ export function filterGranularByHierarchy(
   if (!data || !Array.isArray(data)) return []
   if (!entityId && !levelCode && !pathPrefix) return data
 
+  // VAL-002 FIX: Validate entityId if provided
+  if (entityId && !isValidEntityId(entityId)) {
+    console.warn(`[filterGranularByHierarchy] Invalid entityId format: ${entityId}`)
+    return []
+  }
+
+  // SEC-001 FIX: Validate pathPrefix if provided
+  if (pathPrefix && !isValidPathPrefix(pathPrefix)) {
+    console.warn(`[filterGranularByHierarchy] Invalid pathPrefix format: ${pathPrefix}`)
+    return []
+  }
+
+  // EDGE-002/003/004 FIX: Get all aliases for the level code
+  const levelCodeAliases = levelCode ? getLevelCodeAliases(levelCode) : null
+
   return data.filter(row => {
+    // Filter by entity ID (exact match)
     if (entityId && row.hierarchy_entity_id !== entityId) return false
-    if (levelCode && row.hierarchy_level_code !== levelCode) return false
+
+    // EDGE-002/003/004 FIX: Filter by level code with alias support (case-insensitive)
+    if (levelCodeAliases && row.hierarchy_level_code) {
+      const rowLevelLower = row.hierarchy_level_code.toLowerCase()
+      if (!levelCodeAliases.includes(rowLevelLower)) return false
+    } else if (levelCodeAliases && !row.hierarchy_level_code) {
+      return false
+    }
+
+    // Filter by path prefix
     if (pathPrefix && !row.hierarchy_path?.startsWith(pathPrefix)) return false
+
     return true
   })
-}
-
-/**
- * Filter granular data by department ID
- * @deprecated Use filterGranularByHierarchy with levelCode="DEPT" instead
- */
-export function filterGranularByDepartment(
-  data: GranularCostRow[],
-  departmentId: string
-): GranularCostRow[] {
-  if (!data || !departmentId) return data || []
-  // FE-002 FIX: Use new hierarchy filter - filter by entity ID with DEPT level
-  return filterGranularByHierarchy(data, departmentId, "DEPT")
-}
-
-/**
- * Filter granular data by project ID
- * @deprecated Use filterGranularByHierarchy with levelCode="PROJ" instead
- */
-export function filterGranularByProject(
-  data: GranularCostRow[],
-  projectId: string
-): GranularCostRow[] {
-  if (!data || !projectId) return data || []
-  // FE-002 FIX: Use new hierarchy filter - filter by entity ID with PROJ level
-  return filterGranularByHierarchy(data, projectId, "PROJ")
-}
-
-/**
- * Filter granular data by team ID
- * @deprecated Use filterGranularByHierarchy with levelCode="TEAM" instead
- */
-export function filterGranularByTeam(
-  data: GranularCostRow[],
-  teamId: string
-): GranularCostRow[] {
-  if (!data || !teamId) return data || []
-  // FE-002 FIX: Use new hierarchy filter - filter by entity ID with TEAM level
-  return filterGranularByHierarchy(data, teamId, "TEAM")
 }
 
 /**
  * Apply all granular filters at once
  * This is the main function for client-side filtering of granular data
  *
- * FE-002 FIX: Updated to use new hierarchy filter while maintaining
- * backwards compatibility with deprecated departmentId/projectId/teamId options.
+ * SCALE-001 FIX: Optimized from O(4n) to O(n) by combining all filters into single pass.
+ * PERF-002 FIX: Single iteration instead of separate filter calls.
+ * Uses unified N-level hierarchy filters.
  */
 export function applyGranularFilters(
   data: GranularCostRow[],
   options: GranularFilterOptions
 ): GranularCostRow[] {
-  let filtered = data || []
+  if (!data || !Array.isArray(data)) return []
 
-  if (options.dateRange) {
-    filtered = filterGranularByDateRange(filtered, options.dateRange)
+  // Early return if no filters
+  const hasDateFilter = !!options.dateRange
+  const hasProviderFilter = options.providers && options.providers.length > 0
+  const hasCategoryFilter = options.categories && options.categories.length > 0
+  const hasHierarchyFilter = options.hierarchyEntityId || options.hierarchyLevelCode || options.hierarchyPathPrefix
+
+  if (!hasDateFilter && !hasProviderFilter && !hasCategoryFilter && !hasHierarchyFilter) {
+    return data
   }
 
-  if (options.providers && options.providers.length > 0) {
-    filtered = filterGranularByProvider(filtered, options.providers)
+  // Pre-compute filter values for O(n) single pass (SCALE-001 FIX)
+  let startDateStr: string | null = null
+  let endDateStr: string | null = null
+  if (hasDateFilter && options.dateRange) {
+    startDateStr = toLocalDateString(options.dateRange.start)
+    endDateStr = toLocalDateString(options.dateRange.end)
   }
 
-  if (options.categories && options.categories.length > 0) {
-    filtered = filterGranularByCategory(filtered, options.categories)
+  const lowerProviders = hasProviderFilter
+    ? new Set(options.providers!.map(p => p.toLowerCase()))
+    : null
+
+  const lowerCategories = hasCategoryFilter
+    ? new Set(options.categories!.map(c => c.toLowerCase()))
+    : null
+
+  // Pre-compute hierarchy filter values (unified N-level)
+  let hierarchyEntityId: string | null = null
+  let hierarchyLevelAliases: string[] | null = null
+  let hierarchyPathPrefix: string | null = null
+
+  if (hasHierarchyFilter) {
+    hierarchyEntityId = options.hierarchyEntityId || null
+    hierarchyLevelAliases = options.hierarchyLevelCode ? getLevelCodeAliases(options.hierarchyLevelCode) : null
+    hierarchyPathPrefix = options.hierarchyPathPrefix || null
+
+    // VAL-002 FIX: Validate inputs
+    if (hierarchyEntityId && !isValidEntityId(hierarchyEntityId)) {
+      console.warn(`[applyGranularFilters] Invalid entityId: ${hierarchyEntityId}`)
+      return []
+    }
+    if (hierarchyPathPrefix && !isValidPathPrefix(hierarchyPathPrefix)) {
+      console.warn(`[applyGranularFilters] Invalid pathPrefix: ${hierarchyPathPrefix}`)
+      return []
+    }
   }
 
-  // FE-002 FIX: Apply new hierarchy filters first (preferred)
-  if (options.hierarchyEntityId || options.hierarchyLevelCode || options.hierarchyPathPrefix) {
-    filtered = filterGranularByHierarchy(
-      filtered,
-      options.hierarchyEntityId,
-      options.hierarchyLevelCode,
-      options.hierarchyPathPrefix
-    )
-  }
-
-  // Backwards compatibility: Apply deprecated filters if new ones not used
-  // These use the wrapper functions which delegate to filterGranularByHierarchy
-  if (!options.hierarchyEntityId && !options.hierarchyLevelCode && !options.hierarchyPathPrefix) {
-    if (options.departmentId) {
-      filtered = filterGranularByDepartment(filtered, options.departmentId)
+  // SCALE-001 FIX: Single pass filtering
+  return data.filter(row => {
+    // Date filter
+    if (startDateStr && endDateStr) {
+      if (!row.date || row.date < startDateStr || row.date > endDateStr) {
+        return false
+      }
     }
 
-    if (options.projectId) {
-      filtered = filterGranularByProject(filtered, options.projectId)
+    // Provider filter
+    if (lowerProviders) {
+      if (!lowerProviders.has(row.provider?.toLowerCase() || "")) {
+        return false
+      }
     }
 
-    if (options.teamId) {
-      filtered = filterGranularByTeam(filtered, options.teamId)
+    // Category filter
+    if (lowerCategories) {
+      if (!lowerCategories.has((row.category || "").toLowerCase())) {
+        return false
+      }
     }
-  }
 
-  return filtered
+    // Hierarchy filter (supports both new and legacy via conversion above)
+    if (hierarchyEntityId) {
+      if (row.hierarchy_entity_id !== hierarchyEntityId) {
+        return false
+      }
+    }
+
+    if (hierarchyLevelAliases) {
+      const rowLevelLower = row.hierarchy_level_code?.toLowerCase() || ""
+      if (!hierarchyLevelAliases.includes(rowLevelLower)) {
+        return false
+      }
+    }
+
+    if (hierarchyPathPrefix) {
+      if (!row.hierarchy_path?.startsWith(hierarchyPathPrefix)) {
+        return false
+      }
+    }
+
+    return true
+  })
 }
 
 /**

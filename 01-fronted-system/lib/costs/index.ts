@@ -113,9 +113,6 @@ export {
   filterGranularByDateRange,
   filterGranularByProvider,
   filterGranularByCategory,
-  filterGranularByDepartment,
-  filterGranularByProject,
-  filterGranularByTeam,
   applyGranularFilters,
   // Granular aggregations
   granularToTimeSeries,

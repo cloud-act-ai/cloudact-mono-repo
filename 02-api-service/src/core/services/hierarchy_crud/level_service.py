@@ -409,20 +409,24 @@ class HierarchyLevelService:
         # Check if level number already exists
         existing = await self.get_level(org_slug, request.level)
         if existing:
-            raise ValueError(f"Level {request.level} already exists")
+            # LOW-001 FIX: Generic error message to avoid exposing internal details
+            raise ValueError("A level with this number already exists")
 
         # Check if level code already exists
         existing_code = await self.get_level_by_code(org_slug, request.level_code)
         if existing_code:
-            raise ValueError(f"Level code '{request.level_code}' already exists")
+            # LOW-001 FIX: Generic error message
+            raise ValueError("A level with this code already exists")
 
         # Validate parent level exists if specified
         if request.parent_level is not None:
             parent = await self.get_level(org_slug, request.parent_level)
             if not parent:
-                raise ValueError(f"Parent level {request.parent_level} does not exist")
+                # LOW-001 FIX: Generic error message
+                raise ValueError("The specified parent level does not exist")
             if parent.is_leaf:
-                raise ValueError(f"Cannot create child of leaf level {request.parent_level}")
+                # LOW-001 FIX: Generic error message
+                raise ValueError("Cannot create child under the specified parent level")
 
         now = datetime.now(timezone.utc).isoformat()
         record_id = str(uuid.uuid4())
@@ -464,49 +468,79 @@ class HierarchyLevelService:
         org_slug: str,
         created_by: str
     ) -> HierarchyLevelsListResponse:
-        """Seed default hierarchy levels for a new organization."""
+        """Seed default hierarchy levels for a new organization.
+
+        IDEM-002 FIX: Uses MERGE statements to ensure idempotent seeding.
+        Race conditions between concurrent requests won't cause duplicates.
+        """
         org_slug = validate_org_slug(org_slug)
 
-        # Check if levels already exist
+        # Check if levels already exist (fast path)
         existing = await self.get_levels(org_slug)
         if existing.total > 0:
             logger.info(f"Hierarchy levels already exist for {org_slug}, skipping seed")
             return existing
 
         now = datetime.now(timezone.utc).isoformat()
-        rows = []
+        table_ref = self._get_central_table_ref(HIERARCHY_LEVELS_TABLE)
+        seeded_count = 0
 
+        # IDEM-002 FIX: Use MERGE for each level to handle race conditions
+        # This ensures idempotent seeding even if concurrent requests happen
         for level_def in DEFAULT_LEVELS:
-            rows.append({
-                "id": str(uuid.uuid4()),
-                "org_slug": org_slug,
-                "level": level_def["level"],
-                "level_code": level_def["level_code"],
-                "level_name": level_def["level_name"],
-                "level_name_plural": level_def["level_name_plural"],
-                "parent_level": level_def["parent_level"],
-                "is_required": level_def["is_required"],
-                "is_leaf": level_def["is_leaf"],
-                "max_children": level_def["max_children"],
-                "id_prefix": level_def["id_prefix"],
-                "id_auto_generate": level_def["id_auto_generate"],
-                "metadata_schema": level_def["metadata_schema"],
-                "display_order": level_def["display_order"],
-                "icon": level_def["icon"],
-                "color": level_def["color"],
-                "is_active": True,
-                "created_at": now,
-                "created_by": created_by,
-                "updated_at": None,
-                "updated_by": None,
-            })
+            record_id = str(uuid.uuid4())
 
-        try:
-            self._insert_to_central_table(HIERARCHY_LEVELS_TABLE, rows)
-            logger.info(f"Seeded {len(rows)} default hierarchy levels for {org_slug}")
-        except Exception as e:
-            logger.error(f"Failed to seed hierarchy levels: {e}")
-            raise RuntimeError(f"Failed to seed hierarchy levels: {e}")
+            # MERGE: Only insert if level doesn't already exist for this org
+            merge_query = f"""
+            MERGE `{table_ref}` AS target
+            USING (SELECT @org_slug AS org_slug, @level AS level) AS source
+            ON target.org_slug = source.org_slug
+               AND target.level = source.level
+               AND target.is_active = TRUE
+            WHEN NOT MATCHED THEN
+                INSERT (id, org_slug, level, level_code, level_name, level_name_plural,
+                        parent_level, is_required, is_leaf, max_children, id_prefix,
+                        id_auto_generate, metadata_schema, display_order, icon, color,
+                        is_active, created_at, created_by, updated_at, updated_by)
+                VALUES (@id, @org_slug, @level, @level_code, @level_name, @level_name_plural,
+                        @parent_level, @is_required, @is_leaf, @max_children, @id_prefix,
+                        @id_auto_generate, @metadata_schema, @display_order, @icon, @color,
+                        TRUE, @created_at, @created_by, NULL, NULL)
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("id", "STRING", record_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("level", "INT64", level_def["level"]),
+                    bigquery.ScalarQueryParameter("level_code", "STRING", level_def["level_code"]),
+                    bigquery.ScalarQueryParameter("level_name", "STRING", level_def["level_name"]),
+                    bigquery.ScalarQueryParameter("level_name_plural", "STRING", level_def["level_name_plural"]),
+                    bigquery.ScalarQueryParameter("parent_level", "INT64", level_def["parent_level"]),
+                    bigquery.ScalarQueryParameter("is_required", "BOOL", level_def["is_required"]),
+                    bigquery.ScalarQueryParameter("is_leaf", "BOOL", level_def["is_leaf"]),
+                    bigquery.ScalarQueryParameter("max_children", "INT64", level_def["max_children"]),
+                    bigquery.ScalarQueryParameter("id_prefix", "STRING", level_def["id_prefix"]),
+                    bigquery.ScalarQueryParameter("id_auto_generate", "BOOL", level_def["id_auto_generate"]),
+                    bigquery.ScalarQueryParameter("metadata_schema", "STRING", None),
+                    bigquery.ScalarQueryParameter("display_order", "INT64", level_def["display_order"]),
+                    bigquery.ScalarQueryParameter("icon", "STRING", level_def["icon"]),
+                    bigquery.ScalarQueryParameter("color", "STRING", level_def["color"]),
+                    bigquery.ScalarQueryParameter("created_at", "STRING", now),
+                    bigquery.ScalarQueryParameter("created_by", "STRING", created_by),
+                ]
+            )
+
+            try:
+                query_job = self.bq_client.client.query(merge_query, job_config=job_config)
+                query_job.result()  # Wait for completion
+                # MERGE always succeeds; count as seeded if no exception
+                seeded_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to seed level {level_def['level']}: {e}")
+                # Continue with other levels even if one fails
+
+        logger.info(f"IDEM-002 FIX: Seeded {seeded_count} default hierarchy levels for {org_slug}")
 
         return await self.get_levels(org_slug)
 
@@ -615,15 +649,30 @@ class HierarchyLevelService:
         if not existing:
             raise ValueError(f"Level {level} does not exist")
 
-        # Check if there are entities using this level
+        # EDGE-001 FIX: Check for ALL entities using this level (active AND inactive)
+        # Inactive entities would become orphans without level configuration
         from src.core.services.hierarchy_crud.service import HierarchyService
         entity_service = HierarchyService(self.bq_client)
-        entities = await entity_service.get_entities_by_level(org_slug, existing.level_code)
-        if entities.total > 0:
-            raise ValueError(
-                f"Cannot delete level {level} ({existing.level_code}): "
-                f"{entities.total} entities still use this level"
-            )
+
+        # Check active entities
+        active_entities = await entity_service.get_all_entities(
+            org_slug, level_code=existing.level_code, include_inactive=False
+        )
+        # Check inactive entities too (prevent orphaning)
+        all_entities = await entity_service.get_all_entities(
+            org_slug, level_code=existing.level_code, include_inactive=True
+        )
+        inactive_count = all_entities.total - active_entities.total
+
+        if all_entities.total > 0:
+            msg = f"Cannot delete level {level} ({existing.level_code}): "
+            if active_entities.total > 0 and inactive_count > 0:
+                msg += f"{active_entities.total} active and {inactive_count} inactive entities still use this level"
+            elif active_entities.total > 0:
+                msg += f"{active_entities.total} active entities still use this level"
+            else:
+                msg += f"{inactive_count} inactive (historical) entities still use this level"
+            raise ValueError(msg)
 
         # Check if other levels depend on this one
         all_levels = await self.get_levels(org_slug, include_inactive=False)

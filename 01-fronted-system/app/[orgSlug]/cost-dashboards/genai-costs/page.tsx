@@ -156,11 +156,13 @@ export default function GenAICostsPage() {
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
     // Sync all filters to unified context (provider, hierarchy; category fixed for this page)
+    // HIERARCHY-FILTER-BUG-FIX: Include new 5-field hierarchy model fields
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
-      departmentId: newFilters.department || undefined,
-      projectId: newFilters.project || undefined,
-      teamId: newFilters.team || undefined,
+      // Unified N-level hierarchy filters
+      hierarchyEntityId: newFilters.hierarchyEntityId || undefined,
+      hierarchyLevelCode: newFilters.hierarchyLevelCode || undefined,
+      hierarchyPath: newFilters.hierarchyPath || undefined,
     })
   }, [setUnifiedFilters])
 

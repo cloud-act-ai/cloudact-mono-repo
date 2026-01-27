@@ -257,6 +257,9 @@ async def get_costs(
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
     service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
     hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     limit: int = Query(1000, ge=1, le=10000, description="Max records"),
@@ -273,6 +276,9 @@ async def get_costs(
     - **end_date**: Filter costs until this date
     - **providers**: Comma-separated provider filter (e.g., "openai,anthropic")
     - **service_categories**: Comma-separated category filter (e.g., "Subscriptions,Cloud")
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
     - **hierarchy_entity_id**: Filter by N-level hierarchy entity ID
     - **hierarchy_path**: Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)
     - **limit**: Maximum records to return (default 1000, max 10000)
@@ -302,6 +308,9 @@ async def get_costs(
         end_date=end_date,
         providers=provider_list,
         service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
         hierarchy_entity_id=hierarchy_entity_id,
         hierarchy_path=hierarchy_path,
         limit=limit,
@@ -334,6 +343,10 @@ async def get_cost_summary(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -348,6 +361,13 @@ async def get_cost_summary(
     - Date range
     - Unique providers
     - Unique service categories
+
+    Filters:
+    - **providers**: Comma-separated provider filter (e.g., "Figma,Canva")
+    - **service_categories**: Comma-separated category filter (e.g., "design,productivity")
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
     """
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
@@ -361,12 +381,17 @@ async def get_cost_summary(
     )
 
     provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
 
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
-        providers=provider_list
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id
     )
 
     result = await cost_service.get_cost_summary(query)
@@ -395,6 +420,10 @@ async def get_cost_by_provider(
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
     hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
@@ -409,6 +438,12 @@ async def get_cost_by_provider(
     - Total effective cost
     - Record count
     - Service categories per provider
+
+    Filters:
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
     """
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
@@ -421,14 +456,19 @@ async def get_cost_by_provider(
         endpoint_name="get_cost_by_provider"
     )
 
-    # Parse comma-separated providers filter
+    # Parse comma-separated filters
     provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
 
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
         providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
         hierarchy_entity_id=hierarchy_entity_id,
         hierarchy_path=hierarchy_path
     )
@@ -457,6 +497,13 @@ async def get_cost_by_service(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -468,6 +515,13 @@ async def get_cost_by_service(
     - Service category
     - Service name
     - Provider
+
+    Filters:
+    - **providers**: Comma-separated provider filter
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
 
     Limited to top 100 services by cost.
     """
@@ -482,10 +536,21 @@ async def get_cost_by_service(
         endpoint_name="get_cost_by_service"
     )
 
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
     result = await cost_service.get_cost_by_service(query)
 
@@ -513,6 +578,13 @@ async def get_cost_trend(
     granularity: Granularity = Query(Granularity.DAILY, description="Time granularity"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     category: Optional[str] = Query(None, description="Cost category filter: genai, cloud, or subscription"),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
+    hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
     cost_service: CostReadService = Depends(get_cost_read_service),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -523,6 +595,11 @@ async def get_cost_trend(
     - **granularity**: "daily", "weekly", or "monthly"
     - **days**: Number of days to look back (default 30, max 365)
     - **category**: Filter by cost category ("genai", "cloud", "subscription")
+    - **providers**: Comma-separated provider filter
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
 
     Returns time series data with:
     - Period (date)
@@ -545,12 +622,23 @@ async def get_cost_trend(
         endpoint_name="get_cost_trend"
     )
 
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
     # Build query with LAST_N_DAYS equivalent
     today = date.today()
     query = CostQuery(
         org_slug=org_slug,
         start_date=today - timedelta(days=days),
-        end_date=today
+        end_date=today,
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
+        hierarchy_entity_id=hierarchy_entity_id,
+        hierarchy_path=hierarchy_path
     )
     result = await cost_service.get_cost_trend(query, granularity.value, category=category)
 
@@ -695,6 +783,11 @@ async def get_subscription_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
     hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
@@ -706,6 +799,13 @@ async def get_subscription_costs(
 
     This is the **source of truth** for subscription costs, calculated by the
     subscription costs pipeline (sp_subscription_4_run_pipeline).
+
+    Filters:
+    - **providers**: Comma-separated provider filter (e.g., "Canva,Figma")
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
 
     Returns:
     - Per-subscription monthly and annual run rates (calculated from daily costs)
@@ -726,10 +826,19 @@ async def get_subscription_costs(
         endpoint_name="get_subscription_costs"
     )
 
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
         hierarchy_entity_id=hierarchy_entity_id,
         hierarchy_path=hierarchy_path
     )
@@ -762,6 +871,11 @@ async def get_cloud_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter (e.g., GCP,AWS,Azure)"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
     hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
@@ -775,6 +889,13 @@ async def get_cloud_costs(
     - Google Cloud Platform (GCP)
     - Amazon Web Services (AWS)
     - Microsoft Azure
+
+    Filters:
+    - **providers**: Comma-separated provider filter (e.g., "GCP,AWS")
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
 
     Returns:
     - Daily, monthly, and annual cost projections
@@ -790,10 +911,19 @@ async def get_cloud_costs(
         endpoint_name="get_cloud_costs"
     )
 
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
         hierarchy_entity_id=hierarchy_entity_id,
         hierarchy_path=hierarchy_path
     )
@@ -826,6 +956,11 @@ async def get_genai_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter (e.g., OpenAI,Anthropic)"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
     hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
@@ -843,6 +978,13 @@ async def get_genai_costs(
     - Mistral
     - Other GenAI providers
 
+    Filters:
+    - **providers**: Comma-separated provider filter (e.g., "OpenAI,Anthropic")
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
+
     Returns:
     - Daily, monthly, and annual cost projections
     - Cost breakdown by provider and model
@@ -857,10 +999,19 @@ async def get_genai_costs(
         endpoint_name="get_genai_costs"
     )
 
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
         hierarchy_entity_id=hierarchy_entity_id,
         hierarchy_path=hierarchy_path
     )
@@ -904,6 +1055,11 @@ async def get_total_costs(
     request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers to filter"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    department_id: Optional[str] = Query(None, description="Filter by department (Level 1 hierarchy)"),
+    project_id: Optional[str] = Query(None, description="Filter by project (Level 2 hierarchy)"),
+    team_id: Optional[str] = Query(None, description="Filter by team (Level 3 hierarchy)"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by N-level hierarchy entity ID"),
     hierarchy_path: Optional[str] = Query(None, description="Filter by hierarchy path prefix (e.g., /DEPT-001/PROJ-001)"),
     auth_context: OrgContext = Depends(verify_api_key),
@@ -917,6 +1073,13 @@ async def get_total_costs(
     - Subscriptions (ChatGPT Plus, Canva, Slack, etc.)
     - Cloud infrastructure (GCP, AWS, Azure)
     - LLM APIs (OpenAI, Anthropic, etc.)
+
+    Filters:
+    - **providers**: Comma-separated provider filter
+    - **service_categories**: Comma-separated category filter
+    - **department_id**: Filter by department entity ID (Level 1)
+    - **project_id**: Filter by project entity ID (Level 2)
+    - **team_id**: Filter by team entity ID (Level 3)
 
     Returns:
     - Individual summaries for each cost type
@@ -937,11 +1100,20 @@ async def get_total_costs(
 
     start_time = time.time()
 
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
     # Build query
     query = CostQuery(
         org_slug=org_slug,
         start_date=start_date,
         end_date=end_date,
+        providers=provider_list,
+        service_categories=category_list,
+        department_id=department_id,
+        project_id=project_id,
+        team_id=team_id,
         hierarchy_entity_id=hierarchy_entity_id,
         hierarchy_path=hierarchy_path
     )

@@ -136,7 +136,9 @@ export interface NotificationRule {
   conditions: RuleConditions
   provider_filter?: string[]
   service_filter?: string[]
+  /** N-level hierarchy entity ID (unified hierarchy filter) */
   hierarchy_entity_id?: string
+  /** Materialized path for hierarchy filtering */
   hierarchy_path?: string
   notify_channel_ids: string[]
   escalate_after_mins?: number
@@ -165,7 +167,9 @@ export interface NotificationRuleCreate {
   conditions: RuleConditions
   provider_filter?: string[]
   service_filter?: string[]
+  /** N-level hierarchy entity ID (unified hierarchy filter) */
   hierarchy_entity_id?: string
+  /** Materialized path for hierarchy filtering */
   hierarchy_path?: string
   notify_channel_ids: string[]
   escalate_after_mins?: number
@@ -185,7 +189,9 @@ export interface NotificationRuleUpdate {
   conditions?: RuleConditions
   provider_filter?: string[]
   service_filter?: string[]
+  /** N-level hierarchy entity ID (unified hierarchy filter) */
   hierarchy_entity_id?: string
+  /** Materialized path for hierarchy filtering */
   hierarchy_path?: string
   notify_channel_ids?: string[]
   escalate_after_mins?: number

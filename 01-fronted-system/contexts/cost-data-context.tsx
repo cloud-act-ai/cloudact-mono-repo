@@ -143,11 +143,7 @@ export interface UnifiedFilters {
   // Provider/Category filters
   providers?: string[]
   categories?: ("genai" | "cloud" | "subscription" | "other")[]
-  // Legacy hierarchy filters (keep for backwards compatibility)
-  departmentId?: string
-  projectId?: string
-  teamId?: string
-  // New 5-field hierarchy model (FE-005, EDGE-001/002 fix)
+  // Unified N-level hierarchy filters
   hierarchyEntityId?: string
   hierarchyEntityName?: string
   hierarchyLevelCode?: string
@@ -556,11 +552,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       customRange: undefined,
       providers: undefined,
       categories: undefined,
-      // Legacy hierarchy fields
-      departmentId: undefined,
-      projectId: undefined,
-      teamId: undefined,
-      // New 5-field hierarchy model (FE-005, EDGE-001/002 fix)
+      // Unified N-level hierarchy filters
       hierarchyEntityId: undefined,
       hierarchyEntityName: undefined,
       hierarchyLevelCode: undefined,
@@ -659,12 +651,11 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       // We read from ref to get latest filters without re-creating callback
       const effectiveFilters = filtersOverride
 
-      // Build hierarchy filters from unified filters for API calls
-      const departmentId = effectiveFilters?.departmentId
-      const projectId = effectiveFilters?.projectId
-      const teamId = effectiveFilters?.teamId
-      const apiFilters = (departmentId || projectId || teamId)
-        ? { departmentId, projectId, teamId }
+      // Build hierarchy filters from unified filters for API calls (unified N-level)
+      const hierarchyEntityId = effectiveFilters?.hierarchyEntityId
+      const hierarchyPath = effectiveFilters?.hierarchyPath
+      const apiFilters = (hierarchyEntityId || hierarchyPath)
+        ? { hierarchyEntityId, hierarchyPath }
         : undefined
 
       // Log fetch in dev mode
@@ -1037,6 +1028,10 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   /**
    * Get filtered granular data based on current unified filters.
    * Returns the filtered data for charts/tables.
+   *
+   * STATE-001 FIX: Uses new 5-field hierarchy model (hierarchyEntityId, hierarchyLevelCode,
+   * hierarchyPathPrefix) with fallback to deprecated fields for backwards compatibility.
+   * MT-001/MT-002 FIX: Proper hierarchy filter support via new filter options.
    */
   const getFilteredGranularData = useCallback((): GranularCostRow[] => {
     if (!state.granularData || state.granularData.length === 0) {
@@ -1046,14 +1041,16 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
     // Convert TimeRange to DateRange for filtering
     const dateRange = timeRangeToDateRange(state.filters.timeRange, state.filters.customRange)
 
-    // Apply all filters
+    // Apply all filters using optimized single-pass filter (SCALE-001 fix)
+    // Uses unified N-level hierarchy filters
     const filtered = applyGranularFilters(state.granularData, {
       dateRange: { start: dateRange.start, end: dateRange.end, label: "" },
       providers: state.filters.providers,
       categories: state.filters.categories,
-      departmentId: state.filters.departmentId,
-      projectId: state.filters.projectId,
-      teamId: state.filters.teamId,
+      // Unified N-level hierarchy filters
+      hierarchyEntityId: state.filters.hierarchyEntityId,
+      hierarchyLevelCode: state.filters.hierarchyLevelCode,
+      hierarchyPathPrefix: state.filters.hierarchyPath,
     })
 
     return filtered
@@ -1112,11 +1109,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
           customRange: undefined,
           providers: undefined,
           categories: undefined,
-          // Legacy hierarchy fields
-          departmentId: undefined,
-          projectId: undefined,
-          teamId: undefined,
-          // New 5-field hierarchy model (FE-005, EDGE-001/002 fix)
+          // Unified N-level hierarchy filters
           hierarchyEntityId: undefined,
           hierarchyEntityName: undefined,
           hierarchyLevelCode: undefined,

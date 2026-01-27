@@ -5,15 +5,69 @@ Polars-based filtering functions for cost data.
 Provides consistent filtering across all endpoints.
 """
 
+import re
+import logging
 import polars as pl
 from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
+logger = logging.getLogger(__name__)
+
 
 # ==============================================================================
 # Filter Parameters
 # ==============================================================================
+
+# ==============================================================================
+# Validation Helpers (VAL-003, SEC-003 FIX)
+# ==============================================================================
+
+# VAL-003 FIX: Entity ID validation pattern
+ENTITY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,100}$')
+
+# SEC-003 FIX: Path prefix validation pattern (no traversal)
+PATH_PREFIX_PATTERN = re.compile(r'^/[a-zA-Z0-9_\-/]*$')
+
+
+def is_valid_entity_id(entity_id: Optional[str]) -> bool:
+    """VAL-003 FIX: Validate entity ID format.
+
+    Entity IDs should be alphanumeric with optional hyphens/underscores.
+    """
+    if entity_id is None:
+        return True
+    if not isinstance(entity_id, str):
+        return False
+    return bool(ENTITY_ID_PATTERN.match(entity_id))
+
+
+def is_valid_path_prefix(path_prefix: Optional[str]) -> bool:
+    """SEC-003 FIX: Validate path prefix to prevent traversal attacks.
+
+    Path must start with / and contain only valid characters.
+    No '..' allowed to prevent directory traversal.
+    """
+    if path_prefix is None:
+        return True
+    if not isinstance(path_prefix, str):
+        return False
+    if '..' in path_prefix:
+        return False
+    return bool(PATH_PREFIX_PATTERN.match(path_prefix))
+
+
+def is_valid_level_code(level_code: Optional[str]) -> bool:
+    """VAL-003 FIX: Validate level code format.
+
+    Level codes should be alphanumeric with optional underscores.
+    """
+    if level_code is None:
+        return True
+    if not isinstance(level_code, str):
+        return False
+    return bool(re.match(r'^[a-zA-Z0-9_]{1,50}$', level_code))
+
 
 @dataclass
 class CostFilterParams:
@@ -60,6 +114,20 @@ class CostFilterParams:
             self.hierarchy_path,
         ])
 
+    def validate(self) -> tuple[bool, str]:
+        """VAL-003 FIX: Validate all filter parameters.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not is_valid_entity_id(self.hierarchy_entity_id):
+            return False, f"Invalid hierarchy_entity_id format: {self.hierarchy_entity_id}"
+        if not is_valid_path_prefix(self.hierarchy_path):
+            return False, f"Invalid hierarchy_path format: {self.hierarchy_path}"
+        if not is_valid_level_code(self.hierarchy_level_code):
+            return False, f"Invalid hierarchy_level_code format: {self.hierarchy_level_code}"
+        return True, ""
+
 
 # ==============================================================================
 # Date Filters
@@ -96,8 +164,9 @@ def filter_date_range(
             df = df.with_columns(
                 pl.col(date_column).cast(pl.Date).alias(date_column)
             )
-        except Exception:
-            # If cast fails, return original df
+        except Exception as e:
+            # ERR-003 FIX: Log the error instead of silent failure
+            logger.warning(f"[filter_date_range] Failed to cast {date_column} to Date: {e}")
             return df
 
     if start_date:
@@ -288,6 +357,10 @@ def filter_hierarchy(
         - x_hierarchy_path: Full path from root (/ROOT/DEPT-001/PROJ-001)
         - x_hierarchy_path_names: Human-readable path (Root/Engineering/Platform)
 
+    SEC-003 FIX: Validates path_prefix to prevent traversal attacks.
+    VAL-003 FIX: Validates entity_id and level_code formats.
+    MT-004 FIX: Validates inputs before filtering.
+
     Args:
         df: Polars DataFrame with cost data
         entity_id: Filter by specific entity ID (exact match)
@@ -305,6 +378,21 @@ def filter_hierarchy(
     if df.is_empty():
         return df
 
+    # VAL-003 FIX: Validate entity_id format
+    if entity_id and not is_valid_entity_id(entity_id):
+        logger.warning(f"[filter_hierarchy] Invalid entity_id format: {entity_id}")
+        return pl.DataFrame()  # Return empty df for invalid input
+
+    # VAL-003 FIX: Validate level_code format
+    if level_code and not is_valid_level_code(level_code):
+        logger.warning(f"[filter_hierarchy] Invalid level_code format: {level_code}")
+        return pl.DataFrame()
+
+    # SEC-003 FIX: Validate path_prefix to prevent traversal attacks
+    if path_prefix and not is_valid_path_prefix(path_prefix):
+        logger.warning(f"[filter_hierarchy] Invalid path_prefix (possible traversal): {path_prefix}")
+        return pl.DataFrame()
+
     # Filter by entity ID (exact match)
     if entity_id and "x_hierarchy_entity_id" in df.columns:
         df = df.filter(pl.col("x_hierarchy_entity_id") == entity_id)
@@ -313,9 +401,11 @@ def filter_hierarchy(
     if entity_name and "x_hierarchy_entity_name" in df.columns:
         df = df.filter(pl.col("x_hierarchy_entity_name") == entity_name)
 
-    # Filter by level code (exact match)
+    # Filter by level code (exact match) - EDGE-002/003/004 support for level code aliases
     if level_code and "x_hierarchy_level_code" in df.columns:
-        df = df.filter(pl.col("x_hierarchy_level_code") == level_code)
+        # Support level code aliases (e.g., "department" matches both "department" and "c_suite")
+        level_aliases = _get_level_code_aliases(level_code)
+        df = df.filter(pl.col("x_hierarchy_level_code").str.to_lowercase().is_in(level_aliases))
 
     # Path prefix filter for hierarchical rollup queries
     # This is the primary way to filter by hierarchy - finds entity and all children
@@ -323,6 +413,30 @@ def filter_hierarchy(
         df = df.filter(pl.col("x_hierarchy_path").str.starts_with(path_prefix))
 
     return df
+
+
+def _get_level_code_aliases(level_code: str) -> list[str]:
+    """EDGE-002/003/004 FIX: Get all aliases for a level code.
+
+    Maps between old (department/project/team) and new (c_suite/business_unit/function)
+    level codes for backwards compatibility.
+    """
+    level_code_lower = level_code.lower()
+
+    # Level 1 aliases
+    if level_code_lower in ("department", "dept", "c_suite", "csuite", "c-suite"):
+        return ["department", "dept", "c_suite", "csuite", "c-suite"]
+
+    # Level 2 aliases
+    if level_code_lower in ("project", "proj", "business_unit", "businessunit", "business-unit"):
+        return ["project", "proj", "business_unit", "businessunit", "business-unit"]
+
+    # Level 3 aliases
+    if level_code_lower in ("team", "function", "func"):
+        return ["team", "function", "func"]
+
+    # No alias found, return as-is
+    return [level_code_lower]
 
 
 # ==============================================================================

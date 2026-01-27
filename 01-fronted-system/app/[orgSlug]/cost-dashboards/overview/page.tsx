@@ -144,12 +144,15 @@ export default function CostOverviewPage() {
       (c): c is "genai" | "cloud" | "subscription" => validCategories.includes(c as typeof validCategories[number])
     )
     // Sync all filters to unified context (provider, category, hierarchy)
+    // HIERARCHY-FILTER-BUG-FIX: Include new 5-field hierarchy model fields
+    // These are set by CostFilters when user selects hierarchy entities
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
       categories: safeCategories.length > 0 ? safeCategories : undefined,
-      departmentId: newFilters.department || undefined,
-      projectId: newFilters.project || undefined,
-      teamId: newFilters.team || undefined,
+      // Unified N-level hierarchy filters
+      hierarchyEntityId: newFilters.hierarchyEntityId || undefined,
+      hierarchyLevelCode: newFilters.hierarchyLevelCode || undefined,
+      hierarchyPath: newFilters.hierarchyPath || undefined,
     })
   }, [setUnifiedFilters])
 

@@ -190,6 +190,13 @@ const isValidEntityId = (id: string): boolean => {
   return /^[a-zA-Z0-9_-]{1,50}$/.test(id)
 }
 
+// VAL-001 FIX: Add level_code validation (lowercase alphanumeric with underscores)
+const isValidLevelCode = (code: string): boolean => {
+  if (!code || typeof code !== "string") return false
+  // Level codes should be lowercase, alphanumeric with underscores (e.g., "department", "project_team")
+  return /^[a-z][a-z0-9_]{0,49}$/.test(code)
+}
+
 // ============================================
 // Level Configuration Operations
 // ============================================
@@ -298,10 +305,7 @@ export async function getHierarchy(
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
-    // HIERARCHY-DEBUG: Log API key retrieval for debugging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[getHierarchy] API key for ${orgSlug}:`, apiKey ? "found" : "NOT FOUND")
-    }
+    // CRIT-001 FIX: Removed debug logging that could leak API key status
     if (!apiKey) {
       return { success: false, error: "Organization not configured for API access" }
     }
@@ -309,7 +313,8 @@ export async function getHierarchy(
     const apiUrl = getApiServiceUrl()
     let url = `${apiUrl}/api/v1/hierarchy/${orgSlug}?include_inactive=${includeInactive}`
     if (levelCode) {
-      url += `&level_code=${levelCode}`
+      // MT-002 FIX: URL-encode levelCode to prevent injection and handle special characters
+      url += `&level_code=${encodeURIComponent(levelCode)}`
     }
 
     const response = await fetchWithTimeout(url, {
@@ -445,6 +450,10 @@ export async function createEntity(
     }
     if (input.parent_id && !isValidEntityId(input.parent_id)) {
       return { success: false, error: "Invalid parent ID format" }
+    }
+    // VAL-001 FIX: Add level_code validation
+    if (input.level_code && !isValidLevelCode(input.level_code)) {
+      return { success: false, error: "Invalid level code format (must be lowercase alphanumeric with underscores)" }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)
@@ -619,6 +628,9 @@ export async function checkCanDelete(
 
 /**
  * Delete a hierarchy entity
+ *
+ * SEC-001 FIX: Force delete requires explicit boolean validation.
+ * Force deletes bypass blocking checks and should be used carefully.
  */
 export async function deleteEntity(
   orgSlug: string,
@@ -631,6 +643,28 @@ export async function deleteEntity(
     }
     if (!isValidEntityId(entityId)) {
       return { success: false, error: "Invalid entity ID format" }
+    }
+
+    // SEC-001 FIX: Validate force parameter is explicitly boolean
+    // This prevents truthy values like "true" string from being accepted
+    if (typeof force !== 'boolean') {
+      return { success: false, error: "Force parameter must be a boolean value" }
+    }
+
+    // SEC-001 FIX: If force=true, first check what would be deleted
+    // This ensures the caller is aware of what they're bypassing
+    if (force) {
+      const checkResult = await checkCanDelete(orgSlug, entityId)
+      if (!checkResult.success) {
+        return { success: false, error: `Cannot verify deletion safety: ${checkResult.error}` }
+      }
+      // Log warning if force delete is bypassing blocking
+      if (checkResult.data?.blocked) {
+        console.warn(
+          `SEC-001 WARNING: Force delete bypassing ${checkResult.data.blocking_entities?.length || 0} ` +
+          `blocking entities for ${entityId} in ${orgSlug}. Reason: ${checkResult.data.reason}`
+        )
+      }
     }
 
     const apiKey = await getCachedApiKey(orgSlug)

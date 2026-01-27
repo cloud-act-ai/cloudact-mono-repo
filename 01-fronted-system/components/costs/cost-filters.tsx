@@ -107,6 +107,38 @@ export function getDefaultFilters(): CostFiltersState {
 }
 
 // ============================================
+// Security & Validation Helpers
+// ============================================
+
+/**
+ * VAL-001 FIX: Validate entity ID format.
+ * Entity IDs should be alphanumeric with optional hyphens/underscores.
+ */
+function isValidEntityId(entityId: string | undefined): boolean {
+  if (!entityId || typeof entityId !== "string") return true // undefined is valid (no selection)
+  // Allow alphanumeric, hyphens, underscores, max 100 chars
+  return /^[a-zA-Z0-9_-]{1,100}$/.test(entityId)
+}
+
+/**
+ * SEC-002 FIX: Sanitize text for display to prevent XSS.
+ * Removes HTML tags and escapes dangerous characters.
+ */
+function sanitizeDisplayText(text: string | undefined | null): string {
+  if (!text || typeof text !== "string") return ""
+  // Remove HTML tags
+  const noTags = text.replace(/<[^>]*>/g, "")
+  // Escape special characters that could be used in XSS
+  return noTags
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .slice(0, 200) // Limit length
+}
+
+// ============================================
 // Sub-components
 // ============================================
 
@@ -224,38 +256,71 @@ export function CostFilters({
     ? DEFAULT_CATEGORIES
     : availableCategories
 
-  // Handlers
+  // Handlers with VAL-001 validation
   const handleDepartmentChange = useCallback(
     (deptId: string | undefined) => {
+      // VAL-001 FIX: Validate entity ID format
+      if (deptId && !isValidEntityId(deptId)) {
+        console.warn(`[CostFilters] Invalid department ID format: ${deptId}`)
+        return
+      }
+      // MT-005 FIX: Sync to new 5-field model
+      const selectedEntity = departments.find(d => d.entity_id === deptId)
       onChange({
         ...value,
         department: deptId,
         project: undefined, // Reset child selections
         team: undefined,
+        // MT-005 FIX: Also set new hierarchy fields
+        hierarchyEntityId: deptId,
+        hierarchyLevelCode: selectedEntity?.level_code,
+        hierarchyPath: selectedEntity?.path,
       })
     },
-    [value, onChange]
+    [value, onChange, departments]
   )
 
   const handleProjectChange = useCallback(
     (projectId: string | undefined) => {
+      // VAL-001 FIX: Validate entity ID format
+      if (projectId && !isValidEntityId(projectId)) {
+        console.warn(`[CostFilters] Invalid project ID format: ${projectId}`)
+        return
+      }
+      // MT-005 FIX: Sync to new 5-field model
+      const selectedEntity = projects.find(p => p.entity_id === projectId)
       onChange({
         ...value,
         project: projectId,
         team: undefined, // Reset child selection
+        // MT-005 FIX: Also set new hierarchy fields
+        hierarchyEntityId: projectId,
+        hierarchyLevelCode: selectedEntity?.level_code,
+        hierarchyPath: selectedEntity?.path,
       })
     },
-    [value, onChange]
+    [value, onChange, projects]
   )
 
   const handleTeamChange = useCallback(
     (teamId: string | undefined) => {
+      // VAL-001 FIX: Validate entity ID format
+      if (teamId && !isValidEntityId(teamId)) {
+        console.warn(`[CostFilters] Invalid team ID format: ${teamId}`)
+        return
+      }
+      // MT-005 FIX: Sync to new 5-field model
+      const selectedEntity = teams.find(t => t.entity_id === teamId)
       onChange({
         ...value,
         team: teamId,
+        // MT-005 FIX: Also set new hierarchy fields
+        hierarchyEntityId: teamId,
+        hierarchyLevelCode: selectedEntity?.level_code,
+        hierarchyPath: selectedEntity?.path,
       })
     },
-    [value, onChange]
+    [value, onChange, teams]
   )
 
   const handleProviderToggle = useCallback(
@@ -295,10 +360,17 @@ export function CostFilters({
     value.providers.length > 0 ||
     value.categories.length > 0
 
-  // Get display names
-  const selectedDeptName = departments.find((d) => d.entity_id === value.department)?.entity_name
-  const selectedProjectName = projects.find((p) => p.entity_id === value.project)?.entity_name
-  const selectedTeamName = teams.find((t) => t.entity_id === value.team)?.entity_name
+  // Get display names with SEC-002 XSS sanitization
+  // EDGE-005 FIX: Handle undefined entity_id by returning empty string
+  const selectedDeptName = sanitizeDisplayText(
+    departments.find((d) => d.entity_id === value.department)?.entity_name
+  ) || undefined
+  const selectedProjectName = sanitizeDisplayText(
+    projects.find((p) => p.entity_id === value.project)?.entity_name
+  ) || undefined
+  const selectedTeamName = sanitizeDisplayText(
+    teams.find((t) => t.entity_id === value.team)?.entity_name
+  ) || undefined
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
@@ -356,7 +428,8 @@ export function CostFilters({
                           : "text-slate-600 hover:bg-slate-100"
                       )}
                     >
-                      {dept.entity_name}
+                      {/* SEC-002 FIX: Sanitize entity name to prevent XSS */}
+                      {sanitizeDisplayText(dept.entity_name)}
                     </button>
                   ))}
                 </div>
@@ -394,7 +467,8 @@ export function CostFilters({
                             : "text-slate-600 hover:bg-slate-100"
                         )}
                       >
-                        {proj.entity_name}
+                        {/* SEC-002 FIX: Sanitize entity name to prevent XSS */}
+                        {sanitizeDisplayText(proj.entity_name)}
                       </button>
                     ))}
                   </div>
@@ -433,7 +507,8 @@ export function CostFilters({
                             : "text-slate-600 hover:bg-slate-100"
                         )}
                       >
-                        {team.entity_name}
+                        {/* SEC-002 FIX: Sanitize entity name to prevent XSS */}
+                        {sanitizeDisplayText(team.entity_name)}
                       </button>
                     ))}
                   </div>

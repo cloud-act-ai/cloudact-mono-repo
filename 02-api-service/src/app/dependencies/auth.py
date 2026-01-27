@@ -891,9 +891,11 @@ async def reserve_pipeline_quota_atomic(
     daily_limit = subscription.get("daily_limit")
     monthly_limit = subscription.get("monthly_limit")
     concurrent_limit = subscription.get("concurrent_limit")
+    seat_limit = subscription.get("seat_limit")
+    providers_limit = subscription.get("providers_limit")
 
     # Fallback to SUBSCRIPTION_LIMITS if any limit is None (Stripe sync failure)
-    if daily_limit is None or monthly_limit is None or concurrent_limit is None:
+    if daily_limit is None or monthly_limit is None or concurrent_limit is None or seat_limit is None or providers_limit is None:
         from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
 
         plan_name = subscription.get("plan_name", "STARTER")
@@ -907,10 +909,13 @@ async def reserve_pipeline_quota_atomic(
         daily_limit = daily_limit or defaults["daily_limit"]
         monthly_limit = monthly_limit or defaults["monthly_limit"]
         concurrent_limit = concurrent_limit or defaults["concurrent_limit"]
+        seat_limit = seat_limit or defaults["seat_limit"]
+        providers_limit = providers_limit or defaults["providers_limit"]
 
         logger.info(
             f"Using fallback limits for org {org_slug}: "
-            f"daily={daily_limit}, monthly={monthly_limit}, concurrent={concurrent_limit}"
+            f"daily={daily_limit}, monthly={monthly_limit}, concurrent={concurrent_limit}, "
+            f"seat={seat_limit}, providers={providers_limit}"
         )
 
     # ATOMIC check-and-increment for CONCURRENT slot only
@@ -1009,7 +1014,8 @@ async def reserve_pipeline_quota_atomic(
                 INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
                 (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
                  pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-                 daily_limit, monthly_limit, concurrent_limit, created_at, updated_at)
+                 daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+                 last_updated, created_at, updated_at)
                 VALUES (
                     @usage_id,
                     @org_slug,
@@ -1018,6 +1024,9 @@ async def reserve_pipeline_quota_atomic(
                     @daily_limit,
                     @monthly_limit,
                     @concurrent_limit,
+                    @seat_limit,
+                    @providers_limit,
+                    CURRENT_TIMESTAMP(),
                     CURRENT_TIMESTAMP(),
                     CURRENT_TIMESTAMP()
                 )
@@ -1033,7 +1042,9 @@ async def reserve_pipeline_quota_atomic(
                                 bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                                 bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
                                 bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-                                bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                                bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
+                                bigquery.ScalarQueryParameter("seat_limit", "INT64", seat_limit),
+                                bigquery.ScalarQueryParameter("providers_limit", "INT64", providers_limit)
                             ],
                             job_timeout_ms=settings.bq_auth_timeout_ms
                         )

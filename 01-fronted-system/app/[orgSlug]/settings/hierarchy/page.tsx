@@ -363,7 +363,8 @@ export default function HierarchySettingsPage() {
 
   const getLevelIcon = (levelCode: string) => {
     const IconComponent = LEVEL_ICONS[levelCode] || Layers
-    const colors = LEVEL_COLORS[levelCode] || { icon: "text-slate-600", bg: "bg-slate-100" }
+    // MED-004 FIX: Ensure fallback includes all required properties (icon, bg, badge)
+    const colors = LEVEL_COLORS[levelCode] || { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" }
     return { IconComponent, colors }
   }
 

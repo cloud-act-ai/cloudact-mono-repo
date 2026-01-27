@@ -178,17 +178,16 @@ export interface TotalCostSummary {
 
 /**
  * Filter parameters for cost queries
+ * Uses unified N-level hierarchy filtering
  */
 export interface CostFilterParams {
-  /** Filter by department ID (hierarchy) - kept for backward compatibility */
-  departmentId?: string
-  /** Filter by hierarchy entity ID (unified hierarchy filter) */
+  /** Filter by hierarchy entity ID (e.g., "DEPT-001", "PROJ-002", "TEAM-003") */
   hierarchyEntityId?: string
-  /** Filter by hierarchy path (e.g., "DEPT-001/PROJ-001/TEAM-001") */
+  /** Filter by hierarchy path (e.g., "/DEPT-001/PROJ-001/TEAM-001") */
   hierarchyPath?: string
-  /** Filter by providers (comma-separated) */
+  /** Filter by providers */
   providers?: string[]
-  /** Filter by service categories (comma-separated) */
+  /** Filter by service categories */
   categories?: string[]
 }
 
@@ -237,8 +236,7 @@ export async function getGenAICosts(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
-    // Hierarchy filters
-    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    // Hierarchy filters (unified N-level)
     if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
     if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
@@ -386,8 +384,7 @@ export async function getCloudCosts(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
-    // Hierarchy filters
-    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    // Hierarchy filters (unified N-level)
     if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
     if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
@@ -536,8 +533,7 @@ export async function getTotalCosts(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
-    // Hierarchy filters
-    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    // Hierarchy filters (unified N-level)
     if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
     if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
@@ -661,8 +657,7 @@ export async function getCostTrend(
     if (category) {
       params.set("category", category)
     }
-    // Hierarchy filters - server-side filtering
-    if (filters?.departmentId) params.set("department_id", filters.departmentId)
+    // Hierarchy filters - server-side filtering (unified N-level)
     if (filters?.hierarchyEntityId) params.set("hierarchy_entity_id", filters.hierarchyEntityId)
     if (filters?.hierarchyPath) params.set("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
@@ -943,8 +938,7 @@ export async function getCostByProvider(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
-    // Hierarchy filters
-    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    // Hierarchy filters (unified N-level)
     if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
     if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters
@@ -1107,8 +1101,7 @@ export async function getCostByService(
     const params = new URLSearchParams()
     if (startDate) params.append("start_date", startDate)
     if (endDate) params.append("end_date", endDate)
-    // Hierarchy filters
-    if (filters?.departmentId) params.append("department_id", filters.departmentId)
+    // Hierarchy filters (unified N-level)
     if (filters?.hierarchyEntityId) params.append("hierarchy_entity_id", filters.hierarchyEntityId)
     if (filters?.hierarchyPath) params.append("hierarchy_path", filters.hierarchyPath)
     // Provider and category filters

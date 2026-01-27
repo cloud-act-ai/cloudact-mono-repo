@@ -8,7 +8,12 @@ Provides functions for:
 - Calculating depth and ancestry
 """
 
+import re
 from typing import List, Optional, Tuple
+
+# CRUD-002 FIX: Pre-compile regex pattern at module level for better performance
+# This avoids re-compiling the pattern on every validate_path call
+ENTITY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
 
 
 def build_path(entity_id: str, parent_path: Optional[str] = None) -> str:
@@ -251,10 +256,9 @@ def validate_path(path: str) -> bool:
     parts = parse_path(path)
     if not parts:
         return False
+    # CRUD-002 FIX: Use pre-compiled pattern from module level
     # Each part must be a valid entity ID
-    import re
-    pattern = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
-    return all(pattern.match(part) for part in parts)
+    return all(ENTITY_ID_PATTERN.match(part) for part in parts)
 
 
 def rebuild_path_on_move(

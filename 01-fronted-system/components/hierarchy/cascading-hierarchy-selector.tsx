@@ -120,23 +120,39 @@ export function CascadingHierarchySelector({
       setTreeData(roots)
 
       // If there's an initial value, pre-populate selections
-      if (value) {
+      // HIGH-003 FIX: Validate path format before parsing
+      if (value && value.path) {
         // Build selections map from the value's path
         const pathSegments = value.path.split('/').filter(Boolean)
         const newSelections: Record<number, HierarchyTreeNode> = {}
 
+        // HIGH-003 FIX: Track if any path segment was not found to log warning
+        let pathValid = true
         let currentNodes = roots
         for (let i = 0; i < pathSegments.length; i++) {
           const targetEntityId = pathSegments[i]
+          // HIGH-003 FIX: Validate entity_id format (alphanumeric, hyphens, underscores)
+          if (!/^[a-zA-Z0-9_-]+$/.test(targetEntityId)) {
+            console.warn(`[CascadingHierarchySelector] Invalid entity_id format in path: ${targetEntityId}`)
+            pathValid = false
+            break
+          }
           const node = currentNodes.find(n => n.entity_id === targetEntityId)
 
           if (node) {
             newSelections[node.level] = node
             currentNodes = node.children
+          } else {
+            // HIGH-003 FIX: Log when path segment not found (ancestor missing)
+            console.warn(`[CascadingHierarchySelector] Path segment not found: ${targetEntityId} at depth ${i}`)
+            pathValid = false
+            break
           }
         }
 
-        setSelections(newSelections)
+        if (pathValid) {
+          setSelections(newSelections)
+        }
       }
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Unknown error")
@@ -166,10 +182,14 @@ export function CascadingHierarchySelector({
     return parentSelection.children || []
   }
 
+  // GAP-001 FIX: Sentinel value for "no selection" since shadcn/ui Select doesn't handle empty strings
+  const NO_SELECTION_VALUE = "__NONE__"
+
   // Handle selection at a specific level
   const handleLevelChange = (level: number, entityId: string) => {
     // Handle "clear" selection for optional mode
-    if (!entityId && !required) {
+    // GAP-001 FIX: Check for sentinel value instead of empty string
+    if ((entityId === NO_SELECTION_VALUE || !entityId) && !required) {
       // Is this the first level?
       const isFirstLevel = level === levels[0]?.level
 
@@ -377,14 +397,16 @@ export function CascadingHierarchySelector({
                 </SelectTrigger>
                 <SelectContent>
                   {/* Show "keep at parent level" option for non-first levels in optional mode */}
+                  {/* GAP-001 FIX: Use sentinel value instead of empty string for shadcn/ui compatibility */}
                   {!required && !isFirstLevel && (
-                    <SelectItem value="">
+                    <SelectItem value={NO_SELECTION_VALUE}>
                       <span className="text-muted-foreground">Keep at parent level</span>
                     </SelectItem>
                   )}
                   {/* Show "no allocation" for first level in optional mode */}
+                  {/* GAP-001 FIX: Use sentinel value instead of empty string for shadcn/ui compatibility */}
                   {!required && isFirstLevel && (
-                    <SelectItem value="">
+                    <SelectItem value={NO_SELECTION_VALUE}>
                       <span className="text-muted-foreground">No allocation (org-level)</span>
                     </SelectItem>
                   )}

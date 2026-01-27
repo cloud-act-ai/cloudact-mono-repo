@@ -218,12 +218,12 @@ class InfrastructureCostProcessor:
                             4
                         ) as effective_hourly_rate,
 
-                        -- Issue #43: Hierarchy columns (5-field model, populated during cost allocation)
-                        CAST(NULL AS STRING) as x_hierarchy_entity_id,
-                        CAST(NULL AS STRING) as x_hierarchy_entity_name,
-                        CAST(NULL AS STRING) as x_hierarchy_level_code,
-                        CAST(NULL AS STRING) as x_hierarchy_path,
-                        CAST(NULL AS STRING) as x_hierarchy_path_names,
+                        -- Issue #43 FIX: Get hierarchy from org_integration_credentials
+                        c.default_x_hierarchy_entity_id as x_hierarchy_entity_id,
+                        c.default_x_hierarchy_entity_name as x_hierarchy_entity_name,
+                        c.default_x_hierarchy_level_code as x_hierarchy_level_code,
+                        c.default_x_hierarchy_path as x_hierarchy_path,
+                        c.default_x_hierarchy_path_names as x_hierarchy_path_names,
 
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_infrastructure_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
@@ -239,6 +239,11 @@ class InfrastructureCostProcessor:
                         AND (p.status IS NULL OR p.status = 'active')
                         AND (p.effective_from IS NULL OR p.effective_from <= u.usage_date)
                         AND (p.effective_to IS NULL OR p.effective_to >= u.usage_date)
+                    -- Issue #43 FIX: JOIN to credentials to get hierarchy
+                    LEFT JOIN `{project_id}.organizations.org_integration_credentials` c
+                        ON u.x_credential_id = c.credential_id
+                        AND u.x_org_slug = c.org_slug
+                        AND c.is_active = TRUE
                     WHERE u.usage_date = @process_date
                         AND u.x_org_slug = @org_slug
                         {provider_condition}

@@ -580,6 +580,7 @@ class NotificationSettingsService:
             "conditions": rule.conditions.to_json(),
             "provider_filter": rule.provider_filter or [],
             "service_filter": rule.service_filter or [],
+            # Unified N-level hierarchy filters
             "hierarchy_entity_id": rule.hierarchy_entity_id,
             "hierarchy_path": rule.hierarchy_path,
             "notify_channel_ids": rule.notify_channel_ids,

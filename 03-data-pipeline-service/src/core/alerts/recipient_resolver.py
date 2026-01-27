@@ -151,6 +151,10 @@ class RecipientResolver:
         """
         Get email addresses from hierarchy node owners.
 
+        GAP-002 FIX: Query central table (organizations.org_hierarchy) instead of MV
+        to avoid stale data in alert routing. The MV may have streaming buffer lag
+        after hierarchy updates, but alerts need real-time accuracy.
+
         Args:
             org_slug: Organization slug
             node_code: Hierarchy entity code (e.g., DEPT-CIO)
@@ -165,29 +169,32 @@ class RecipientResolver:
             from src.core.engine.bq_client import get_bigquery_client
             bq_client = get_bigquery_client()
 
-            env_suffix = settings.get_environment_suffix()
-
+            # GAP-002 FIX: Use central table with org_slug filter for real-time data
+            # instead of org-specific MV which may be stale
             if include_children:
                 # Get node and all descendants
                 query = f"""
                 SELECT DISTINCT owner_email
-                FROM `{settings.gcp_project_id}.{org_slug}_{env_suffix}.x_org_hierarchy`
-                WHERE (entity_id = @node_code OR path LIKE CONCAT('%/', @node_code, '/%'))
+                FROM `{settings.gcp_project_id}.organizations.org_hierarchy`
+                WHERE org_slug = @org_slug
+                  AND (entity_id = @node_code OR path LIKE CONCAT('%/', @node_code, '/%'))
                   AND owner_email IS NOT NULL
-                  AND is_active = TRUE
+                  AND end_date IS NULL
                 """
             else:
                 # Get just this node
                 query = f"""
                 SELECT owner_email
-                FROM `{settings.gcp_project_id}.{org_slug}_{env_suffix}.x_org_hierarchy`
-                WHERE entity_id = @node_code
+                FROM `{settings.gcp_project_id}.organizations.org_hierarchy`
+                WHERE org_slug = @org_slug
+                  AND entity_id = @node_code
                   AND owner_email IS NOT NULL
-                  AND is_active = TRUE
+                  AND end_date IS NULL
                 """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("node_code", "STRING", node_code),
                 ]
             )
