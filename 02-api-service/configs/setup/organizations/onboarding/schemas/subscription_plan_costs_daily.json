@@ -1,5 +1,11 @@
 [
   {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Organization slug for multi-tenancy (backward compatibility with stored procedures). NULLABLE for schema update on existing tables."
+  },
+  {
     "name": "provider",
     "type": "STRING",
     "mode": "REQUIRED",

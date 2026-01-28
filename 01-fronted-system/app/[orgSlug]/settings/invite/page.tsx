@@ -521,13 +521,13 @@ export default function InviteMembersPage() {
                           color: member.role === "owner" ? "#000000" : "#FFFFFF"
                         }}
                       >
-                        {(member.profiles?.full_name?.[0] || member.profiles?.email?.[0] || "?").toUpperCase()}
+                        {(member.profiles?.full_name?.[0] || member.profiles?.email?.[0] || member.profiles?.email?.split("@")[0]?.[0] || "U").toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight truncate">
-                          {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                          {member.profiles?.full_name || member.profiles?.email?.split("@")[0] || member.profiles?.email || "Team Member"}
                         </h3>
-                        <p className="text-[13px] text-slate-500 truncate mt-0.5">{member.profiles?.email}</p>
+                        <p className="text-[13px] text-slate-500 truncate mt-0.5">{member.profiles?.email || "No email"}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">

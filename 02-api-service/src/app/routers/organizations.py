@@ -19,7 +19,7 @@ import html
 from pathlib import Path
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
-from src.core.security.kms_encryption import encrypt_value
+from src.core.security.kms_encryption import encrypt_value, decrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult, verify_admin_key
 from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest, UpdateOrgLocaleRequest, OrgLocaleResponse
@@ -1081,16 +1081,19 @@ async def onboard_org(
             logger.error(f"Failed to update usage quota: {e}", exc_info=True)
             # Non-fatal - continue with API key regeneration
 
-        # STEP 4: Revoke existing API keys
+        # STEP 4: Check for existing active API key (ISS-005 FIX)
+        # DO NOT regenerate API key on re-sync - this causes Supabase/BigQuery desync
+        # If user needs new key, they should use the rotate_api_key endpoint
         try:
-            revoke_query = f"""
-            UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
-            SET is_active = FALSE
+            check_key_query = f"""
+            SELECT org_api_key_id, encrypted_org_api_key
+            FROM `{settings.gcp_project_id}.organizations.org_api_keys`
             WHERE org_slug = @org_slug AND is_active = TRUE
+            LIMIT 1
             """
 
-            bq_client.client.query(
-                revoke_query,
+            key_result = bq_client.client.query(
+                check_key_query,
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
@@ -1098,15 +1101,39 @@ async def onboard_org(
                 )
             ).result()
 
-            logger.info(f"Revoked existing API keys for org: {org_slug}")
-        except Exception as e:
-            logger.error(f"Failed to revoke existing API keys: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to revoke existing API keys. Please check server logs for details."
-            )
+            existing_key_row = list(key_result)
 
-        # STEP 5: Generate and store new API key
+            if existing_key_row:
+                # Active API key exists - DO NOT regenerate
+                # Decrypt and return the existing key for frontend to store
+                encrypted_key = existing_key_row[0].encrypted_org_api_key
+                api_key = decrypt_value(encrypted_key)
+
+                logger.info(f"Re-sync: Using existing active API key for org: {org_slug} (ISS-005 fix)")
+
+                return OnboardOrgResponse(
+                    org_slug=org_slug,
+                    api_key=api_key,  # Return existing key for frontend to sync
+                    subscription_plan=request.subscription_plan,
+                    default_currency=fast_path_currency,
+                    default_country=fast_path_country,
+                    default_language=fast_path_language,
+                    default_timezone=fast_path_timezone,
+                    dataset_location=request.dataset_location or settings.bigquery_location,
+                    dataset_created=False,
+                    tables_created=[],
+                    dryrun_status="SKIPPED",
+                    message=f"Organization {org_slug} re-synced. Existing API key retained (use rotate endpoint if needed)."
+                )
+            else:
+                # No active API key exists - generate new one
+                logger.info(f"Re-sync: No active API key found, generating new one for org: {org_slug}")
+
+        except Exception as e:
+            logger.error(f"Failed to check existing API key: {e}", exc_info=True)
+            # Continue to generate new key if check fails
+
+        # STEP 5: Generate and store new API key (only if no active key exists)
         try:
             random_suffix = secrets.token_urlsafe(16)[:16]
             api_key = f"{org_slug}_api_{random_suffix}"
@@ -1130,7 +1157,7 @@ async def onboard_org(
                         bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
-                        bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]  # type: ignore[arg-type]
+                        bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),  # type: ignore[arg-type]
                         bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                     ]
                 )
@@ -1147,11 +1174,11 @@ async def onboard_org(
                 default_country=fast_path_country,
                 default_language=fast_path_language,
                 default_timezone=fast_path_timezone,
-                dataset_location=request.dataset_location or settings.bigquery_location,  # (#49)
-                dataset_created=False,  # Already exists
+                dataset_location=request.dataset_location or settings.bigquery_location,
+                dataset_created=False,
                 tables_created=[],
                 dryrun_status="SKIPPED",
-                message=f"Organization {org_slug} re-synced successfully. Plan: {request.subscription_plan}, API key regenerated."
+                message=f"Organization {org_slug} re-synced. New API key generated (no prior active key found)."
             )
 
         except Exception as e:

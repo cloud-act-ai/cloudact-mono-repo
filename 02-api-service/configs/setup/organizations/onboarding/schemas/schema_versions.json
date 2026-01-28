@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Schema version tracking for BigQuery table definitions",
-  "version": "15.1.0",
-  "last_updated": "2026-01-25",
+  "version": "15.2.0",
+  "last_updated": "2026-01-28",
   "schemas": {
     "cost_data_standard_1_3.json": {
       "version": "15.0.0",
@@ -77,12 +77,13 @@
       ]
     },
     "subscription_plan_costs_daily.json": {
-      "version": "15.0.0",
-      "last_updated": "2026-01-08",
+      "version": "15.2.0",
+      "last_updated": "2026-01-28",
       "description": "Daily amortized subscription costs with 10-level hierarchy",
       "breaking_changes": false,
       "changes": [
-        "Added pipeline lineage tracking"
+        "Added pipeline lineage tracking",
+        "v15.2.0: Added org_slug column for stored procedure compatibility (ISS-004)"
       ]
     },
     "genai_payg_usage_raw.json": {

@@ -21,7 +21,9 @@ steps:
     name: "Consolidate Usage Data"
     ps_type: generic.procedure_executor
     config:
-      procedure_name: "sp_genai_1_consolidate_usage_daily"
+      procedure:
+        name: "sp_genai_1_consolidate_usage_daily"
+        dataset: "organizations"
       provider: "genai"
       start_date: "${start_date}"
       end_date: "${end_date}"
@@ -34,7 +36,9 @@ steps:
     name: "Consolidate Cost Data"
     ps_type: generic.procedure_executor
     config:
-      procedure_name: "sp_genai_2_consolidate_costs_daily"
+      procedure:
+        name: "sp_genai_2_consolidate_costs_daily"
+        dataset: "organizations"
       provider: "genai"
       start_date: "${start_date}"
       end_date: "${end_date}"
@@ -49,7 +53,9 @@ steps:
     name: "Convert to FOCUS 1.3"
     ps_type: generic.procedure_executor
     config:
-      procedure_name: "sp_genai_3_convert_to_focus"
+      procedure:
+        name: "sp_genai_3_convert_to_focus"
+        dataset: "organizations"
       provider: "genai"
       start_date: "${start_date}"
       end_date: "${end_date}"
