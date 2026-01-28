@@ -207,7 +207,7 @@ function LoginForm() {
             <div className="w-full border-t border-gray-100 dark:border-white/10" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white dark:bg-[var(--cloudact-obsidian,#0a0a0b)] text-gray-400 dark:text-white/40 text-[12px] sm:text-[13px]">New to CloudAct?</span>
+            <span className="px-4 bg-white dark:bg-[var(--cloudact-obsidian,#0a0a0b)] text-gray-400 dark:text-white/40 text-[12px] sm:text-[13px]">New to CloudAct.ai?</span>
           </div>
         </div>
 

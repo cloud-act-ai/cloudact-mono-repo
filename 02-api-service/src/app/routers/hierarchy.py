@@ -16,6 +16,7 @@ Features:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
+from pydantic import BaseModel, Field
 from typing import Optional
 import logging
 
@@ -574,3 +575,135 @@ async def get_descendants(
         return await service.get_descendants(org_slug, entity_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+# ============================================================================
+# Export/Import Endpoints
+# ============================================================================
+
+@router.get(
+    "/{org_slug}/export",
+    summary="Export hierarchy to CSV",
+    description="Export all active hierarchy entities to CSV format for backup or editing. Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
+)
+async def export_hierarchy(
+    org_slug: str,
+    auth: AuthResult = Depends(get_org_or_admin_auth),  # MT-001: Allow admin access
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
+):
+    """Export hierarchy to CSV format."""
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
+    try:
+        csv_content = await service.export_to_csv(org_slug)
+        # SEC-002: Log export operation
+        logger.info(f"Hierarchy exported for {org_slug} by {auth.org_slug or 'admin'}")
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=hierarchy_{org_slug}.csv"
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        # SEC-003: Don't expose internal error details
+        logger.error(f"Export failed for {org_slug}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Export failed. Please try again or contact support."
+        )
+
+
+class ImportCsvRequest(BaseModel):
+    """Request model for CSV import operations."""
+    # SEC-001: Limit CSV content size to 5MB to prevent DoS
+    csv_content: str = Field(..., description="CSV content as string", max_length=5_000_000)
+
+
+@router.post(
+    "/{org_slug}/import/preview",
+    summary="Preview hierarchy import",
+    description="Preview changes that would be made by importing a CSV file (full sync mode). Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
+)
+async def preview_hierarchy_import(
+    org_slug: str,
+    request: ImportCsvRequest,
+    auth: AuthResult = Depends(get_org_or_admin_auth),  # MT-001: Allow admin access
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
+):
+    """
+    Preview what changes an import would make without applying them.
+
+    Full sync mode: CSV becomes source of truth.
+    - Entities in CSV but not in DB -> CREATE
+    - Entities in both but different -> UPDATE
+    - Entities in DB but not in CSV -> DELETE
+    """
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
+    try:
+        preview = await service.preview_import(org_slug, request.csv_content)
+        return preview
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        # SEC-003: Don't expose internal error details
+        logger.error(f"Preview failed for {org_slug}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Preview failed. Please check your CSV format and try again."
+        )
+
+
+@router.post(
+    "/{org_slug}/import",
+    summary="Import hierarchy from CSV",
+    description="Import hierarchy from CSV with full sync (creates, updates, deletes). Accepts X-API-Key (org) or X-CA-Root-Key (admin)."
+)
+async def import_hierarchy(
+    org_slug: str,
+    request: ImportCsvRequest,
+    fail_fast: bool = Query(True, description="Stop on first error (default) or continue and collect all errors"),
+    auth: AuthResult = Depends(get_org_or_admin_auth),  # MT-001: Allow admin access
+    service: HierarchyService = Depends(get_hierarchy_crud_service)
+):
+    """
+    Import hierarchy from CSV with full sync.
+
+    CSV becomes source of truth:
+    - Entities in CSV but not in DB -> CREATE
+    - Entities in both but different -> UPDATE
+    - Entities in DB but not in CSV -> DELETE (soft delete)
+    """
+    check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
+    user_id = "admin" if auth.is_admin else (auth.org_data.get("admin_email", "system") if auth.org_data else "system")
+    try:
+        result = await service.import_from_csv(org_slug, request.csv_content, user_id, fail_fast)
+        # SEC-002: Log import operation
+        logger.info(
+            f"Hierarchy import for {org_slug} by {user_id}: "
+            f"created={result.get('created_count', 0)}, updated={result.get('updated_count', 0)}, "
+            f"deleted={result.get('deleted_count', 0)}, success={result.get('success', False)}"
+        )
+        if not result["success"]:
+            # SEC-003: Sanitize error messages - remove internal paths/stack traces
+            sanitized_errors = [
+                err.split(": ")[-1] if ": " in err else err
+                for err in result.get("errors", [])
+            ]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"message": "Import failed", "errors": sanitized_errors}
+            )
+        return result
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        # SEC-003: Don't expose internal error details
+        logger.error(f"Import failed for {org_slug}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Import failed. Please try again or contact support."
+        )

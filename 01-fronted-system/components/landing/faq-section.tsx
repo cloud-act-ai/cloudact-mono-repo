@@ -6,12 +6,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { site } from "@/lib/site"
 
 export function FaqSection() {
   const faqs = [
     {
-       question: "How does CloudAct defer from AWS Cost Explorer?",
-       answer: "AWS Cost Explorer is limited to AWS. CloudAct unifies AWS, Azure, GCP, and OpenAI costs in one view. We also provide deeper granular analysis (e.g., cost per tenant, cost per API route) that CloudWatch cannot see."
+       question: `How does ${site.name} differ from AWS Cost Explorer?`,
+       answer: `AWS Cost Explorer is limited to AWS. ${site.name} unifies AWS, Azure, GCP, and OpenAI costs in one view. We also provide deeper granular analysis (e.g., cost per tenant, cost per API route) that CloudWatch cannot see.`
     },
     {
        question: "Is there a performance impact on my apps?",
@@ -22,7 +23,7 @@ export function FaqSection() {
        answer: "Our AI model is trained on over $500M of cloud spend patterns. We filter out false positives by learning your specific seasonality (e.g., weekday vs weekend traffic) automatically."
     },
     {
-       question: "Can I self-host CloudAct?",
+       question: `Can I self-host ${site.name}?`,
        answer: "Yes, we offer an Enterprise Self-Hosted version for air-gapped environments or strict compliance requirements. Contact sales for details."
     }
   ]

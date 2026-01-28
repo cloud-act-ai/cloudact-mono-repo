@@ -2165,6 +2165,370 @@ class HierarchyService:
 
         return result
 
+    # ==========================================================================
+    # Export/Import Operations
+    # ==========================================================================
+
+    async def export_to_csv(self, org_slug: str) -> str:
+        """
+        Export all active hierarchy entities to CSV format.
+
+        Args:
+            org_slug: Organization slug
+
+        Returns:
+            CSV content as string
+        """
+        from src.core.services.hierarchy_crud.export_import_adapter import (
+            HierarchyExportImportAdapter,
+            HierarchyEntityData,
+        )
+
+        org_slug = validate_org_slug(org_slug)
+
+        # Get all active entities sorted by path
+        all_entities = await self.get_all_entities(org_slug, include_inactive=False)
+
+        # Convert to HierarchyEntityData
+        entity_data_list = []
+        for entity in all_entities.entities:
+            entity_data_list.append(HierarchyEntityData(
+                entity_id=entity.entity_id,
+                entity_name=entity.entity_name,
+                level=entity.level,
+                level_code=entity.level_code,
+                parent_id=entity.parent_id,
+                owner_name=entity.owner_name,
+                owner_email=entity.owner_email,
+                description=entity.description,
+                metadata=entity.metadata,
+                sort_order=entity.sort_order,
+            ))
+
+        # Generate CSV
+        adapter = HierarchyExportImportAdapter()
+        return adapter.generate_csv(entity_data_list)
+
+    async def preview_import(
+        self,
+        org_slug: str,
+        csv_content: str
+    ) -> Dict[str, Any]:
+        """
+        Preview what changes an import would make without applying them.
+
+        Full sync mode: CSV becomes source of truth.
+        - Entities in CSV but not in DB -> CREATE
+        - Entities in both but different -> UPDATE
+        - Entities in DB but not in CSV -> DELETE
+
+        Args:
+            org_slug: Organization slug
+            csv_content: CSV file content
+
+        Returns:
+            Preview dict with creates, updates, deletes, unchanged, and validation_errors
+        """
+        from src.core.services.hierarchy_crud.export_import_adapter import (
+            HierarchyExportImportAdapter,
+            HierarchyEntityData,
+        )
+
+        org_slug = validate_org_slug(org_slug)
+
+        # Get valid level codes for validation
+        levels_map = await self.level_service.get_levels_map(org_slug)
+        valid_level_codes = set(levels_map.keys())
+
+        # Create adapter with level validation
+        adapter = HierarchyExportImportAdapter(valid_level_codes=valid_level_codes)
+
+        # Validate CSV structure
+        structure_errors = adapter.validate_csv_structure(csv_content)
+        if structure_errors:
+            return {
+                "summary": {"creates": 0, "updates": 0, "deletes": 0, "unchanged": 0},
+                "is_valid": False,
+                "has_changes": False,
+                "creates": [],
+                "updates": [],
+                "deletes": [],
+                "unchanged": [],
+                "validation_errors": structure_errors,
+            }
+
+        # Parse CSV rows
+        csv_rows = adapter.parse_csv(csv_content)
+
+        # Get existing entities
+        all_entities = await self.get_all_entities(org_slug, include_inactive=False)
+
+        # Convert existing entities to HierarchyEntityData
+        existing_data = []
+        for entity in all_entities.entities:
+            existing_data.append(HierarchyEntityData(
+                entity_id=entity.entity_id,
+                entity_name=entity.entity_name,
+                level=entity.level,
+                level_code=entity.level_code,
+                parent_id=entity.parent_id,
+                owner_name=entity.owner_name,
+                owner_email=entity.owner_email,
+                description=entity.description,
+                metadata=entity.metadata,
+                sort_order=entity.sort_order,
+            ))
+
+        # Generate preview
+        preview = adapter.generate_preview(csv_rows, existing_data)
+
+        return preview.to_dict()
+
+    async def import_from_csv(
+        self,
+        org_slug: str,
+        csv_content: str,
+        imported_by: str,
+        fail_fast: bool = True  # IDEM-001: Stop on first error by default
+    ) -> Dict[str, Any]:
+        """
+        Import hierarchy from CSV with full sync (creates, updates, deletes).
+
+        CSV becomes the source of truth:
+        - Entities in CSV but not in DB -> CREATE
+        - Entities in both but different -> UPDATE
+        - Entities in DB but not in CSV -> DELETE (soft delete)
+
+        Args:
+            org_slug: Organization slug
+            csv_content: CSV file content
+            imported_by: User ID for audit trail
+            fail_fast: If True, stop on first error (default). If False, continue and collect all errors.
+
+        Returns:
+            Result dict with counts and any errors
+        """
+        from datetime import datetime, timezone
+        from src.core.services.hierarchy_crud.export_import_adapter import (
+            HierarchyExportImportAdapter,
+            HierarchyEntityData,
+        )
+        from src.app.models.hierarchy_models import (
+            CreateEntityRequest,
+            UpdateEntityRequest,
+            MoveEntityRequest,
+        )
+
+        org_slug = validate_org_slug(org_slug)
+
+        result = {
+            "success": False,
+            "created_count": 0,
+            "updated_count": 0,
+            "deleted_count": 0,
+            "unchanged_count": 0,
+            "errors": [],
+            "import_started_at": datetime.now(timezone.utc).isoformat(),  # STATE-002
+        }
+
+        # SCALE-001: Simple import lock using class-level dict
+        # In production, use Redis or database-based locking
+        if not hasattr(self, '_import_locks'):
+            self._import_locks = {}
+
+        if org_slug in self._import_locks:
+            result["errors"].append(
+                f"Import already in progress for {org_slug}. Please wait for it to complete."
+            )
+            return result
+
+        self._import_locks[org_slug] = datetime.now(timezone.utc)
+
+        try:
+            # Get valid level codes for validation
+            levels_map = await self.level_service.get_levels_map(org_slug)
+            valid_level_codes = set(levels_map.keys())
+
+            # Create adapter with level validation
+            adapter = HierarchyExportImportAdapter(valid_level_codes=valid_level_codes)
+
+            # Validate CSV structure
+            structure_errors = adapter.validate_csv_structure(csv_content)
+            if structure_errors:
+                result["errors"] = structure_errors
+                return result
+
+            # Parse CSV rows
+            csv_rows = adapter.parse_csv(csv_content)
+
+            # Get existing entities
+            all_entities = await self.get_all_entities(org_slug, include_inactive=False)
+
+            # Convert existing entities to HierarchyEntityData
+            existing_data = []
+            for entity in all_entities.entities:
+                existing_data.append(HierarchyEntityData(
+                    entity_id=entity.entity_id,
+                    entity_name=entity.entity_name,
+                    level=entity.level,
+                    level_code=entity.level_code,
+                    parent_id=entity.parent_id,
+                    owner_name=entity.owner_name,
+                    owner_email=entity.owner_email,
+                    description=entity.description,
+                    metadata=entity.metadata,
+                    sort_order=entity.sort_order,
+                ))
+
+            # Generate preview to validate and categorize changes
+            preview = adapter.generate_preview(csv_rows, existing_data)
+
+            # Check for validation errors
+            if not preview.is_valid:
+                all_errors = preview.validation_errors.copy()
+                for item in preview.creates + preview.updates + preview.deletes:
+                    all_errors.extend(item.validation_errors)
+                result["errors"] = all_errors
+                return result
+
+            # CRUD-001: Check for level_code changes which are not allowed
+            for update_item in preview.updates:
+                for change in update_item.changes:
+                    if change.field == "level_code":
+                        result["errors"].append(
+                            f"Cannot change level_code for {update_item.entity_id} from "
+                            f"'{change.old_value}' to '{change.new_value}'. "
+                            f"Delete and recreate the entity instead."
+                        )
+            if result["errors"]:
+                return result
+
+            # Helper to get level number for sorting
+            def get_level_num(level_code: str, default: int = 0) -> int:
+                level_config = levels_map.get(level_code)
+                if level_config and hasattr(level_config, 'level'):
+                    return level_config.level
+                return default
+
+            # Helper for fail-fast error handling
+            def handle_error(entity_id: str, operation: str, error: Exception) -> bool:
+                """Returns True if should stop processing."""
+                error_msg = f"Failed to {operation} {entity_id}: {str(error)}"
+                result["errors"].append(error_msg)
+                logger.error(f"Import {operation} failed for {entity_id}: {error}")
+                return fail_fast
+
+            # Process deletes first (in reverse depth order to delete children before parents)
+            deletes_sorted = sorted(
+                preview.deletes,
+                key=lambda x: -get_level_num(x.level_code or "", 0)
+            )
+            for delete_item in deletes_sorted:
+                try:
+                    await self.delete_entity(
+                        org_slug=org_slug,
+                        entity_id=delete_item.entity_id,
+                        deleted_by=imported_by,
+                        force=True  # Force delete to skip blocking checks
+                    )
+                    result["deleted_count"] += 1
+                except Exception as e:
+                    if handle_error(delete_item.entity_id, "delete", e):
+                        return result
+
+            # Build imported entity map - IDEM-003: Parse once, reuse
+            imported_entities = {
+                row.get("entity_id", "").strip().upper(): adapter.row_to_entity(row)
+                for row in csv_rows
+            }
+
+            # Process creates (in depth order - parents before children)
+            creates_sorted = sorted(
+                preview.creates,
+                key=lambda x: get_level_num(x.level_code or "", 99)
+            )
+            for create_item in creates_sorted:
+                try:
+                    entity_data = imported_entities.get(create_item.entity_id)
+                    if not entity_data:
+                        continue
+
+                    request = CreateEntityRequest(
+                        entity_id=create_item.entity_id,
+                        entity_name=entity_data.entity_name,
+                        level_code=entity_data.level_code,
+                        parent_id=entity_data.parent_id,
+                        owner_name=entity_data.owner_name,
+                        owner_email=entity_data.owner_email,
+                        description=entity_data.description,
+                        metadata=entity_data.metadata,
+                        sort_order=entity_data.sort_order,
+                    )
+                    await self.create_entity(org_slug, request, imported_by)
+                    result["created_count"] += 1
+                except Exception as e:
+                    if handle_error(create_item.entity_id, "create", e):
+                        return result
+
+            # Process updates - CRUD-003: Remove unused row variable
+            for update_item in preview.updates:
+                try:
+                    # Build update request with only changed fields
+                    update_fields: Dict[str, Any] = {}
+                    has_parent_change = False
+                    new_parent_id = None
+
+                    for change in update_item.changes:
+                        if change.field == "level_code":
+                            # CRUD-001: Skip level_code changes (already validated above)
+                            continue
+                        elif change.field == "parent_id":
+                            # CRUD-002: Track parent change separately
+                            has_parent_change = True
+                            new_parent_id = change.new_value
+                        elif change.field in ("entity_name", "owner_name", "owner_email",
+                                              "description", "metadata", "sort_order"):
+                            update_fields[change.field] = change.new_value
+
+                    # CRUD-002: Handle parent move first if needed
+                    if has_parent_change:
+                        try:
+                            move_request = MoveEntityRequest(new_parent_id=new_parent_id)
+                            await self.move_entity(org_slug, update_item.entity_id, move_request, imported_by)
+                        except Exception as move_err:
+                            if handle_error(update_item.entity_id, "move", move_err):
+                                return result
+                            continue  # Skip other updates for this entity if move failed
+
+                    # Apply non-parent updates if any
+                    if update_fields:
+                        request = UpdateEntityRequest(**update_fields)
+                        await self.update_entity(org_slug, update_item.entity_id, request, imported_by)
+
+                    result["updated_count"] += 1
+                except Exception as e:
+                    if handle_error(update_item.entity_id, "update", e):
+                        return result
+
+            result["unchanged_count"] = len(preview.unchanged)
+            result["success"] = len(result["errors"]) == 0
+
+            # Refresh MV after all changes (PERF-004: could be async but keeping sync for safety)
+            self._refresh_hierarchy_mv(org_slug)
+
+            logger.info(
+                f"Hierarchy import for {org_slug}: "
+                f"created={result['created_count']}, updated={result['updated_count']}, "
+                f"deleted={result['deleted_count']}, unchanged={result['unchanged_count']}, "
+                f"errors={len(result['errors'])}"
+            )
+
+            return result
+
+        finally:
+            # SCALE-001: Release import lock
+            self._import_locks.pop(org_slug, None)
+
 
 # ==============================================================================
 # Service Instance

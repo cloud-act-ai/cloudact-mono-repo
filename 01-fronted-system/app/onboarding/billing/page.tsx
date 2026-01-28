@@ -187,7 +187,7 @@ export default function BillingPage() {
             {/* FIX BUG-001: Remove CSS height/width overrides */}
             <Image
               src="/logos/cloudact-logo-black.svg"
-              alt="CloudAct"
+              alt="CloudAct.ai"
               width={160}
               height={32}
               priority

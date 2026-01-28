@@ -735,9 +735,12 @@ export function applyGranularFilters(
       console.warn(`[applyGranularFilters] Invalid entityId: ${hierarchyEntityId}`)
       return []
     }
-    if (hierarchyPathPrefix && !isValidPathPrefix(hierarchyPathPrefix)) {
+    // FILTER-004 FIX: Only validate pathPrefix if it's a non-empty string
+    // Allow null/undefined to mean "no path filter" rather than "invalid"
+    if (hierarchyPathPrefix && hierarchyPathPrefix.length > 0 && !isValidPathPrefix(hierarchyPathPrefix)) {
       console.warn(`[applyGranularFilters] Invalid pathPrefix: ${hierarchyPathPrefix}`)
-      return []
+      // FILTER-004 FIX: Skip path filter rather than return empty - entity ID filter may still apply
+      hierarchyPathPrefix = null
     }
   }
 

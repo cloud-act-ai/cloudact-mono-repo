@@ -454,6 +454,9 @@ async def trigger_templated_pipeline(
     background_tasks: BackgroundTasks,
     http_request: Request,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
+    start_date: Optional[str] = Query(None, description="Start date for pipelines (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date for pipelines (YYYY-MM-DD)"),
+    date: Optional[str] = Query(None, description="Single date for pipelines (YYYY-MM-DD)"),
     org: OrgContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -676,11 +679,20 @@ async def trigger_templated_pipeline(
     # Note: Org dataset and operational tables created during onboarding
     # No need to ensure_org_metadata here - it would try to create API key tables
 
-    # Extract parameters from request
+    # Extract parameters from request body
     parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
 
+    # Merge URL query parameters (query params take precedence over body)
+    # This allows: POST /pipelines/run/org/cloud/gcp/cost/billing?start_date=2026-01-01&end_date=2026-01-22
+    if start_date:
+        parameters['start_date'] = start_date
+    if end_date:
+        parameters['end_date'] = end_date
+    if date:
+        parameters['date'] = date
+
     # Extract run_date from parameters
-    run_date = parameters.get('date')
+    run_date = parameters.get('date') or parameters.get('start_date')
 
     # Generate pipeline_logging_id
     pipeline_logging_id = str(uuid.uuid4())

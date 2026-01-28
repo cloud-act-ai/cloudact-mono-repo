@@ -6,6 +6,19 @@ Provides common cache, validation, date utilities, and base classes for dashboar
 
 from src.core.services._shared.cache import LRUCache, CacheEntry, CacheConfig, create_cache
 from src.core.services._shared.validation import validate_org_slug, ORG_SLUG_PATTERN
+from src.core.services._shared.export_import import (
+    SyncAction,
+    SyncChange,
+    SyncPreviewItem,
+    SyncPreview,
+    ImportResult,
+    ExportImportAdapter,
+    validate_entity_id_format,
+    validate_email_format,
+    validate_json_string,
+    parse_json_field,
+    serialize_json_field,
+)
 from src.core.services._shared.date_utils import (
     # Core types
     DatePeriod,
@@ -41,6 +54,18 @@ __all__ = [
     # Validation
     "validate_org_slug",
     "ORG_SLUG_PATTERN",
+    # Export/Import Framework
+    "SyncAction",
+    "SyncChange",
+    "SyncPreviewItem",
+    "SyncPreview",
+    "ImportResult",
+    "ExportImportAdapter",
+    "validate_entity_id_format",
+    "validate_email_format",
+    "validate_json_string",
+    "parse_json_field",
+    "serialize_json_field",
     # Date utilities - core
     "DatePeriod",
     "DateRange",

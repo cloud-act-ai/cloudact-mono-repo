@@ -49,6 +49,12 @@ from src.core.services.hierarchy_crud.path_utils import (
     rebuild_path_on_move,
 )
 
+from src.core.services.hierarchy_crud.export_import_adapter import (
+    HierarchyExportImportAdapter,
+    HierarchyEntityData,
+    db_row_to_entity_data,
+)
+
 __all__ = [
     # Entity service
     "HierarchyService",
@@ -72,4 +78,8 @@ __all__ = [
     "get_descendants_path_pattern",
     "validate_path",
     "rebuild_path_on_move",
+    # Export/Import
+    "HierarchyExportImportAdapter",
+    "HierarchyEntityData",
+    "db_row_to_entity_data",
 ]

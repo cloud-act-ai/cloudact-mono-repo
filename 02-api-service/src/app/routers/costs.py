@@ -74,6 +74,63 @@ def validate_date_range(start_date: Optional[date], end_date: Optional[date]) ->
         )
 
 
+# BUG-HUNT-FIX: Hierarchy parameter validation patterns
+# Entity ID: alphanumeric + hyphens + underscores, 1-100 chars (e.g., DEPT-001, PROJ-FINANCE)
+HIERARCHY_ENTITY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,100}$')
+# Path: starts with /, contains valid segments separated by /, max 500 chars
+HIERARCHY_PATH_PATTERN = re.compile(r'^/[a-zA-Z0-9_/-]{0,499}$')
+
+
+def validate_hierarchy_entity_id(entity_id: Optional[str]) -> None:
+    """
+    BUG-HUNT-FIX: Validate hierarchy_entity_id format to prevent injection attacks.
+
+    Entity IDs should be alphanumeric with hyphens and underscores only.
+    Examples: DEPT-001, PROJ-FINANCE-IT, TEAM_DEV_01
+
+    Raises:
+        HTTPException: If entity_id format is invalid
+    """
+    if entity_id is None:
+        return
+
+    if not HIERARCHY_ENTITY_ID_PATTERN.match(entity_id):
+        logger.warning(f"Invalid hierarchy_entity_id format: {entity_id[:50]}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid hierarchy entity ID format. Use alphanumeric characters, hyphens, and underscores only."
+        )
+
+
+def validate_hierarchy_path(path: Optional[str]) -> None:
+    """
+    BUG-HUNT-FIX: Validate hierarchy_path format to prevent path traversal and injection.
+
+    Paths must start with / and contain only valid path segments.
+    Examples: /DEPT-001, /DEPT-001/PROJ-002, /DEPT-001/PROJ-002/TEAM-003
+
+    Raises:
+        HTTPException: If path format is invalid
+    """
+    if path is None:
+        return
+
+    # Check for path traversal attempts
+    if ".." in path:
+        logger.warning(f"Path traversal attempt detected: {path[:50]}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid hierarchy path: path traversal not allowed"
+        )
+
+    if not HIERARCHY_PATH_PATTERN.match(path):
+        logger.warning(f"Invalid hierarchy_path format: {path[:50]}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid hierarchy path format. Path must start with / and contain valid characters."
+        )
+
+
 def validate_org_access(url_org_slug: str, auth_context: OrgContext) -> None:
     """
     CRITICAL MULTI-TENANCY CHECK: Ensure URL org_slug matches authenticated org.
@@ -290,6 +347,13 @@ async def get_costs(
     # FIX: VAL-001 - Validate date range
     validate_date_range(start_date, end_date)
 
+    # BUG-HUNT-FIX: Validate hierarchy parameters to prevent injection
+    validate_hierarchy_entity_id(hierarchy_entity_id)
+    validate_hierarchy_entity_id(department_id)  # Also validate level-specific IDs
+    validate_hierarchy_entity_id(project_id)
+    validate_hierarchy_entity_id(team_id)
+    validate_hierarchy_path(hierarchy_path)
+
     # Apply rate limiting (60 requests per minute per org)
     await rate_limit_by_org(
         request=request,
@@ -447,6 +511,13 @@ async def get_cost_by_provider(
     """
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
+
+    # BUG-HUNT-FIX: Validate hierarchy parameters
+    validate_hierarchy_entity_id(hierarchy_entity_id)
+    validate_hierarchy_entity_id(department_id)
+    validate_hierarchy_entity_id(project_id)
+    validate_hierarchy_entity_id(team_id)
+    validate_hierarchy_path(hierarchy_path)
 
     # Apply rate limiting (60 requests per minute per org)
     await rate_limit_by_org(
@@ -1089,6 +1160,13 @@ async def get_total_costs(
     import time
 
     validate_org_access(org_slug, auth_context)
+
+    # BUG-HUNT-FIX: Validate hierarchy parameters
+    validate_hierarchy_entity_id(hierarchy_entity_id)
+    validate_hierarchy_entity_id(department_id)
+    validate_hierarchy_entity_id(project_id)
+    validate_hierarchy_entity_id(team_id)
+    validate_hierarchy_path(hierarchy_path)
 
     # Apply rate limiting (60 requests per minute per org)
     await rate_limit_by_org(

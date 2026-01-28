@@ -4,7 +4,7 @@
  * CostFilters - Combined filter bar for cost dashboards
  *
  * Features:
- * - Hierarchy filter (Department/Project/Team)
+ * - Hierarchy filter (Department/Project/Team) - 3 separate dropdowns
  * - Provider filter
  * - Category filter (GenAI/Cloud/SaaS)
  * - Consistent styling with cost dashboard design
@@ -21,6 +21,7 @@ import {
   Filter,
   Layers,
   Calendar,
+  AlertCircle,
 } from "lucide-react"
 import type { TimeRange } from "@/contexts/cost-data-context"
 import { cn } from "@/lib/utils"
@@ -101,6 +102,9 @@ export function getDefaultFilters(): CostFiltersState {
     department: undefined,
     project: undefined,
     team: undefined,
+    hierarchyEntityId: undefined,
+    hierarchyLevelCode: undefined,
+    hierarchyPath: undefined,
     providers: [],
     categories: [],
   }
@@ -183,7 +187,7 @@ function FilterButton({
       aria-label={ariaLabel}
       aria-haspopup="listbox"
       className={cn(
-        "gap-2 h-9",
+        "gap-2 h-9 min-w-[120px]",
         "border-slate-200 hover:border-slate-300",
         // FIX-006: Add disabled styling during loading
         disabled && "opacity-60 cursor-not-allowed",
@@ -192,12 +196,12 @@ function FilterButton({
       )}
     >
       {icon}
-      <span className={cn("text-sm", hasValue ? "font-medium" : "text-slate-600")}>
+      <span className={cn("text-sm truncate max-w-[100px]", hasValue ? "font-medium" : "text-slate-600")}>
         {displayValue}
       </span>
       {hasValue && onClear && (
         <X
-          className="h-3 w-3 ml-1 hover:text-red-500 cursor-pointer"
+          className="h-3 w-3 ml-1 hover:text-red-500 cursor-pointer flex-shrink-0"
           role="button"
           aria-label={`Clear ${label} filter`}
           onClick={(e) => {
@@ -206,8 +210,18 @@ function FilterButton({
           }}
         />
       )}
-      <ChevronDown className="h-4 w-4 text-slate-400" />
+      <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
     </Button>
+  )
+}
+
+/** Empty state message for dropdowns */
+function EmptyDropdownMessage({ message }: { message: string }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-4 text-sm text-slate-500">
+      <AlertCircle className="h-4 w-4 text-slate-400" />
+      <span>{message}</span>
+    </div>
   )
 }
 
@@ -225,7 +239,10 @@ export function CostFilters({
   disabled = false,
   loading = false,
 }: CostFiltersProps) {
-  const [hierarchyOpen, setHierarchyOpen] = useState(false)
+  // Separate popover states for each hierarchy level
+  const [cSuiteOpen, setCSuiteOpen] = useState(false)
+  const [projectOpen, setProjectOpen] = useState(false)
+  const [teamOpen, setTeamOpen] = useState(false)
   const [providerOpen, setProviderOpen] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
 
@@ -241,13 +258,22 @@ export function CostFilters({
     h.level_code === "team" || h.level_code === "function"
   )
 
-  // Filter projects/teams based on selected parent
+  // FILTER-001 FIX: Cascading filter logic - show ALL items at each level when no parent selected
+  // This allows viewing all data by default, and drilling down when filters applied
+  // All items show → user selects C-Suite → only projects under that C-Suite show → etc.
   const filteredProjects = value.department
     ? projects.filter((p) => p.parent_id === value.department)
-    : projects
+    : projects // Show ALL projects when no department selected (allows viewing all)
+
   const filteredTeams = value.project
     ? teams.filter((t) => t.parent_id === value.project)
-    : teams
+    : value.department
+      ? teams.filter((t) => {
+          // If department selected but no project, show teams under any project of that department
+          const projectIds = filteredProjects.map(p => p.entity_id)
+          return projectIds.includes(t.parent_id || "")
+        })
+      : teams // Show ALL teams when no department/project selected
 
   // Use dynamic categories from backend
   // If availableCategories is undefined/null → use defaults (backward compat)
@@ -255,6 +281,16 @@ export function CostFilters({
   const categories = availableCategories === undefined || availableCategories === null
     ? DEFAULT_CATEGORIES
     : availableCategories
+
+  // Clear all hierarchy fields helper
+  const clearHierarchyFields = useCallback(() => ({
+    department: undefined,
+    project: undefined,
+    team: undefined,
+    hierarchyEntityId: undefined,
+    hierarchyLevelCode: undefined,
+    hierarchyPath: undefined,
+  }), [])
 
   // Handlers with VAL-001 validation
   const handleDepartmentChange = useCallback(
@@ -264,18 +300,21 @@ export function CostFilters({
         console.warn(`[CostFilters] Invalid department ID format: ${deptId}`)
         return
       }
-      // MT-005 FIX: Sync to new 5-field model
-      const selectedEntity = departments.find(d => d.entity_id === deptId)
+      // Find selected entity
+      const selectedEntity = deptId ? departments.find(d => d.entity_id === deptId) : undefined
+
+      // BUG-FIX: Properly reset all child selections and sync 5-field model
       onChange({
         ...value,
         department: deptId,
         project: undefined, // Reset child selections
         team: undefined,
-        // MT-005 FIX: Also set new hierarchy fields
+        // Sync new hierarchy fields
         hierarchyEntityId: deptId,
         hierarchyLevelCode: selectedEntity?.level_code,
         hierarchyPath: selectedEntity?.path,
       })
+      setCSuiteOpen(false)
     },
     [value, onChange, departments]
   )
@@ -287,17 +326,19 @@ export function CostFilters({
         console.warn(`[CostFilters] Invalid project ID format: ${projectId}`)
         return
       }
-      // MT-005 FIX: Sync to new 5-field model
-      const selectedEntity = projects.find(p => p.entity_id === projectId)
+      // Find selected entity
+      const selectedEntity = projectId ? projects.find(p => p.entity_id === projectId) : undefined
+
       onChange({
         ...value,
         project: projectId,
         team: undefined, // Reset child selection
-        // MT-005 FIX: Also set new hierarchy fields
+        // Sync new hierarchy fields
         hierarchyEntityId: projectId,
         hierarchyLevelCode: selectedEntity?.level_code,
         hierarchyPath: selectedEntity?.path,
       })
+      setProjectOpen(false)
     },
     [value, onChange, projects]
   )
@@ -309,19 +350,60 @@ export function CostFilters({
         console.warn(`[CostFilters] Invalid team ID format: ${teamId}`)
         return
       }
-      // MT-005 FIX: Sync to new 5-field model
-      const selectedEntity = teams.find(t => t.entity_id === teamId)
+      // Find selected entity
+      const selectedEntity = teamId ? teams.find(t => t.entity_id === teamId) : undefined
+
       onChange({
         ...value,
         team: teamId,
-        // MT-005 FIX: Also set new hierarchy fields
+        // Sync new hierarchy fields
         hierarchyEntityId: teamId,
         hierarchyLevelCode: selectedEntity?.level_code,
         hierarchyPath: selectedEntity?.path,
       })
+      setTeamOpen(false)
     },
     [value, onChange, teams]
   )
+
+  // Clear individual hierarchy level
+  const handleClearDepartment = useCallback(() => {
+    onChange({
+      ...value,
+      ...clearHierarchyFields(),
+    })
+  }, [value, onChange, clearHierarchyFields])
+
+  const handleClearProject = useCallback(() => {
+    onChange({
+      ...value,
+      project: undefined,
+      team: undefined,
+      // Update hierarchy fields to point to department if selected, otherwise clear
+      hierarchyEntityId: value.department,
+      hierarchyLevelCode: value.department ? departments.find(d => d.entity_id === value.department)?.level_code : undefined,
+      hierarchyPath: value.department ? departments.find(d => d.entity_id === value.department)?.path : undefined,
+    })
+  }, [value, onChange, departments])
+
+  const handleClearTeam = useCallback(() => {
+    onChange({
+      ...value,
+      team: undefined,
+      // Update hierarchy fields to point to project if selected, otherwise department
+      hierarchyEntityId: value.project || value.department,
+      hierarchyLevelCode: value.project
+        ? projects.find(p => p.entity_id === value.project)?.level_code
+        : value.department
+          ? departments.find(d => d.entity_id === value.department)?.level_code
+          : undefined,
+      hierarchyPath: value.project
+        ? projects.find(p => p.entity_id === value.project)?.path
+        : value.department
+          ? departments.find(d => d.entity_id === value.department)?.path
+          : undefined,
+    })
+  }, [value, onChange, projects, departments])
 
   const handleProviderToggle = useCallback(
     (provider: string) => {
@@ -361,7 +443,6 @@ export function CostFilters({
     value.categories.length > 0
 
   // Get display names with SEC-002 XSS sanitization
-  // EDGE-005 FIX: Handle undefined entity_id by returning empty string
   const selectedDeptName = sanitizeDisplayText(
     departments.find((d) => d.entity_id === value.department)?.entity_name
   ) || undefined
@@ -372,151 +453,154 @@ export function CostFilters({
     teams.find((t) => t.entity_id === value.team)?.entity_name
   ) || undefined
 
+  // Determine labels based on level_code
+  const cSuiteLabel = departments[0]?.level_code === "c_suite" ? "C-Suite" : "Department"
+  const projectLabel = projects[0]?.level_code === "business_unit" ? "Business Unit" : "Project"
+  const teamLabel = teams[0]?.level_code === "function" ? "Function" : "Team"
+
+  // Check if hierarchy data exists
+  const hasHierarchy = hierarchy.length > 0
+
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      {/* Hierarchy Filter */}
-      {hierarchy.length > 0 && (
-        <Popover open={hierarchyOpen} onOpenChange={setHierarchyOpen}>
+    <div className={cn("flex flex-wrap items-center gap-3", className)}>
+      {/* C-Suite / Department Filter (Level 1) - Always show if hierarchy exists */}
+      {hasHierarchy && (
+        <Popover open={cSuiteOpen} onOpenChange={setCSuiteOpen}>
           <PopoverTrigger asChild>
             <div>
               <FilterButton
-                label="Hierarchy"
-                value={
-                  selectedTeamName || selectedProjectName || selectedDeptName || undefined
-                }
+                label={cSuiteLabel}
+                value={selectedDeptName}
                 icon={<Building2 className="h-4 w-4 text-slate-500" />}
-                onClick={() => setHierarchyOpen(true)}
-                onClear={
-                  value.department || value.project || value.team
-                    ? () => handleDepartmentChange(undefined)
-                    : undefined
-                }
+                onClick={() => setCSuiteOpen(true)}
+                onClear={value.department ? handleClearDepartment : undefined}
                 disabled={disabled || loading}
               />
             </div>
           </PopoverTrigger>
-          <PopoverContent className="w-72 p-3" align="start">
-            <div className="space-y-4">
-              {/* Level 1: Department / C-Suite */}
-              <div>
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                  <Building2 className="h-3.5 w-3.5" />
-                  {departments[0]?.level_code === "c_suite" ? "C-Suite" : "Department"}
-                </label>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
+          <PopoverContent className="w-60 p-2" align="start">
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {departments.length === 0 ? (
+                <EmptyDropdownMessage message={`No ${cSuiteLabel.toLowerCase()}s configured`} />
+              ) : (
+                departments.map((dept) => (
                   <button
+                    key={dept.entity_id}
                     type="button"
-                    onClick={() => handleDepartmentChange(undefined)}
+                    onClick={() => handleDepartmentChange(dept.entity_id)}
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                      !value.department
+                      value.department === dept.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
                         : "text-slate-600 hover:bg-slate-100"
                     )}
                   >
-                    {departments[0]?.level_code === "c_suite" ? "All C-Suite" : "All Departments"}
+                    <span className="truncate block">{sanitizeDisplayText(dept.entity_name)}</span>
                   </button>
-                  {departments.map((dept) => (
-                    <button
-                      key={dept.entity_id}
-                      type="button"
-                      onClick={() => handleDepartmentChange(dept.entity_id)}
-                      className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                        value.department === dept.entity_id
-                          ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                          : "text-slate-600 hover:bg-slate-100"
-                      )}
-                    >
-                      {/* SEC-002 FIX: Sanitize entity name to prevent XSS */}
-                      {sanitizeDisplayText(dept.entity_name)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Level 2: Project / Business Unit (shows when level 1 selected) */}
-              {value.department && filteredProjects.length > 0 && (
-                <div>
-                  <label className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    {projects[0]?.level_code === "business_unit" ? "Business Unit" : "Project"}
-                  </label>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={() => handleProjectChange(undefined)}
-                      className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                        !value.project
-                          ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                          : "text-slate-600 hover:bg-slate-100"
-                      )}
-                    >
-                      {projects[0]?.level_code === "business_unit" ? "All Business Units" : "All Projects"}
-                    </button>
-                    {filteredProjects.map((proj) => (
-                      <button
-                        key={proj.entity_id}
-                        type="button"
-                        onClick={() => handleProjectChange(proj.entity_id)}
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                          value.project === proj.entity_id
-                            ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                            : "text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        {/* SEC-002 FIX: Sanitize entity name to prevent XSS */}
-                        {sanitizeDisplayText(proj.entity_name)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Level 3: Team / Function (shows when level 2 selected) */}
-              {value.project && filteredTeams.length > 0 && (
-                <div>
-                  <label className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                    <Users className="h-3.5 w-3.5" />
-                    {teams[0]?.level_code === "function" ? "Function" : "Team"}
-                  </label>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={() => handleTeamChange(undefined)}
-                      className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                        !value.team
-                          ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                          : "text-slate-600 hover:bg-slate-100"
-                      )}
-                    >
-                      {teams[0]?.level_code === "function" ? "All Functions" : "All Teams"}
-                    </button>
-                    {filteredTeams.map((team) => (
-                      <button
-                        key={team.entity_id}
-                        type="button"
-                        onClick={() => handleTeamChange(team.entity_id)}
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                          value.team === team.entity_id
-                            ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                            : "text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        {/* SEC-002 FIX: Sanitize entity name to prevent XSS */}
-                        {sanitizeDisplayText(team.entity_name)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                ))
               )}
             </div>
           </PopoverContent>
         </Popover>
+      )}
+
+      {/* Project / Business Unit Filter (Level 2) - Always show if hierarchy exists */}
+      {hasHierarchy && (
+        <Popover open={projectOpen} onOpenChange={setProjectOpen}>
+          <PopoverTrigger asChild>
+            <div>
+              <FilterButton
+                label={projectLabel}
+                value={selectedProjectName}
+                icon={<FolderKanban className="h-4 w-4 text-slate-500" />}
+                onClick={() => setProjectOpen(true)}
+                onClear={value.project ? handleClearProject : undefined}
+                disabled={disabled || loading}
+              />
+            </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-60 p-2" align="start">
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {filteredProjects.length === 0 ? (
+                <EmptyDropdownMessage
+                  message={value.department
+                    ? `No ${projectLabel.toLowerCase()}s under selected ${cSuiteLabel.toLowerCase()}`
+                    : `No ${projectLabel.toLowerCase()}s configured`
+                  }
+                />
+              ) : (
+                filteredProjects.map((proj) => (
+                  <button
+                    key={proj.entity_id}
+                    type="button"
+                    onClick={() => handleProjectChange(proj.entity_id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                      value.project === proj.entity_id
+                        ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
+                        : "text-slate-600 hover:bg-slate-100"
+                    )}
+                  >
+                    <span className="truncate block">{sanitizeDisplayText(proj.entity_name)}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {/* Team / Function Filter (Level 3) - Always show if hierarchy exists */}
+      {hasHierarchy && (
+        <Popover open={teamOpen} onOpenChange={setTeamOpen}>
+          <PopoverTrigger asChild>
+            <div>
+              <FilterButton
+                label={teamLabel}
+                value={selectedTeamName}
+                icon={<Users className="h-4 w-4 text-slate-500" />}
+                onClick={() => setTeamOpen(true)}
+                onClear={value.team ? handleClearTeam : undefined}
+                disabled={disabled || loading}
+              />
+            </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-60 p-2" align="start">
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {filteredTeams.length === 0 ? (
+                <EmptyDropdownMessage
+                  message={value.project
+                    ? `No ${teamLabel.toLowerCase()}s under selected ${projectLabel.toLowerCase()}`
+                    : value.department
+                      ? `No ${teamLabel.toLowerCase()}s under selected ${cSuiteLabel.toLowerCase()}`
+                      : `No ${teamLabel.toLowerCase()}s configured`
+                  }
+                />
+              ) : (
+                filteredTeams.map((team) => (
+                  <button
+                    key={team.entity_id}
+                    type="button"
+                    onClick={() => handleTeamChange(team.entity_id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                      value.team === team.entity_id
+                        ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
+                        : "text-slate-600 hover:bg-slate-100"
+                    )}
+                  >
+                    <span className="truncate block">{sanitizeDisplayText(team.entity_name)}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {/* Separator between hierarchy and other filters */}
+      {hasHierarchy && (availableProviders.length > 0 || categories.length > 0) && (
+        <div className="h-6 w-px bg-slate-200 mx-1" />
       )}
 
       {/* Provider Filter */}
@@ -625,7 +709,7 @@ export function CostFilters({
           variant="ghost"
           size="sm"
           onClick={clearAllFilters}
-          className="text-slate-500 hover:text-slate-700 h-9"
+          className="text-slate-500 hover:text-slate-700 h-9 ml-1"
         >
           <X className="h-4 w-4 mr-1" />
           Clear all

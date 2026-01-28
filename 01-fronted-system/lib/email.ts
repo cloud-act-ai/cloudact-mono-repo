@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer"
 import type { Transporter } from "nodemailer"
+import { site } from "./site"
 
 // HTML escape function to prevent XSS in email templates
 function escapeHtml(unsafe: string): string {
@@ -40,7 +41,7 @@ function getFromEmail(): string {
 }
 
 function getFromName(): string {
-  return process.env.FROM_NAME || "CloudAct.ai"
+  return process.env.FROM_NAME || site.name
 }
 
 interface SendEmailOptions {
@@ -108,12 +109,12 @@ export async function sendEmail({
       messageId,
       headers: {
         // Email authentication headers
-        "X-Mailer": "CloudAct.AI/1.0",
+        "X-Mailer": `${site.name}/1.0`,
         "X-Priority": "3", // Normal priority (1=high, 3=normal, 5=low)
         "X-Entity-Ref-ID": messageId.replace(/[<>]/g, ""), // Unique reference
         // List-Unsubscribe for transactional/notification emails (helps spam score)
         ...(category !== "marketing" && {
-          "List-Unsubscribe": `<mailto:unsubscribe@cloudact.ai?subject=Unsubscribe>, <https://cloudact.ai/unsubscribe>`,
+          "List-Unsubscribe": `<mailto:unsubscribe@${site.supportEmail?.split('@')[1] || 'cloudact.ai'}?subject=Unsubscribe>, <${site.url}/unsubscribe>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         }),
         // Precedence header for transactional emails
@@ -164,8 +165,8 @@ const BRAND = {
   warning: "#f59e0b",        // Amber for warnings
   error: "#ef4444",          // Red for errors
   // Assets - logo with fallback text
-  logoUrl: "https://cloudact.ai/logos/cloudact-logo-black.png",
-  siteUrl: "https://cloudact.ai",
+  logoUrl: site.logo.png,
+  siteUrl: site.url,
 } as const
 
 // =============================================
@@ -209,7 +210,7 @@ function baseEmailLayout({
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - CloudAct.AI</title>
+  <title>${title} - ${site.name}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: ${BRAND.gray[100]};">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -221,10 +222,10 @@ function baseEmailLayout({
             <td style="padding: 32px 40px 24px 40px; text-align: center; border-bottom: 1px solid ${BRAND.gray[200]};">
               <a href="${BRAND.siteUrl}" style="text-decoration: none; display: inline-block;">
                 <!--[if mso]>
-                <span style="font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]};">CloudAct.AI</span>
+                <span style="font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]};">${site.name}</span>
                 <![endif]-->
                 <!--[if !mso]><!-->
-                <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="160" height="40" style="display: block; max-width: 160px; height: auto; border: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                <img src="${BRAND.logoUrl}" alt="${site.name}" width="160" height="40" style="display: block; max-width: 160px; height: auto; border: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
                 <span style="display: none; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]}; letter-spacing: -0.5px;">
                   Cloud<span style="color: ${BRAND.mintDark};">Act</span>.AI
                 </span>
@@ -247,7 +248,7 @@ function baseEmailLayout({
                 <tr>
                   <td align="center">
                     <a href="${BRAND.siteUrl}" style="text-decoration: none;">
-                      <img src="${BRAND.logoUrl}" alt="CloudAct.AI" width="100" height="25" style="display: inline-block; max-width: 100px; height: auto; border: 0; margin-bottom: 8px;" />
+                      <img src="${BRAND.logoUrl}" alt="${site.name}" width="100" height="25" style="display: inline-block; max-width: 100px; height: auto; border: 0; margin-bottom: 8px;" />
                     </a>
                     <p style="margin: 0; font-size: 12px; color: ${BRAND.gray[500]};">
                       Enterprise GenAI, Cloud & Subscription Cost Management
@@ -263,9 +264,9 @@ function baseEmailLayout({
           <tr>
             <td align="center">
               <p style="margin: 0; font-size: 11px; color: ${BRAND.gray[400]}; line-height: 1.6;">
-                This email was sent by CloudAct.AI • <a href="${BRAND.siteUrl}/privacy" style="color: ${BRAND.gray[500]}; text-decoration: none;">Privacy Policy</a> • <a href="${BRAND.siteUrl}/terms" style="color: ${BRAND.gray[500]}; text-decoration: none;">Terms of Service</a><br>
-                © ${new Date().getFullYear()} CloudAct Inc. All rights reserved.<br>
-                CloudAct Inc., 100 S Murphy Ave, STE 200 PMB4013, Sunnyvale, CA 94086
+                This email was sent by ${site.name} • <a href="${BRAND.siteUrl}/privacy" style="color: ${BRAND.gray[500]}; text-decoration: none;">Privacy Policy</a> • <a href="${BRAND.siteUrl}/terms" style="color: ${BRAND.gray[500]}; text-decoration: none;">Terms of Service</a><br>
+                © ${new Date().getFullYear()} ${site.company} All rights reserved.<br>
+                ${site.company}, ${site.address}
               </p>
             </td>
           </tr>
@@ -301,7 +302,7 @@ export async function sendInviteEmail({
 
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                <strong>${safeInviterName}</strong> has invited you to join <strong>${safeOrgName}</strong> on CloudAct.AI.
+                <strong>${safeInviterName}</strong> has invited you to join <strong>${safeOrgName}</strong> on ${site.name}.
               </p>
               <div style="margin: 0 0 30px 0; padding: 20px; background-color: ${BRAND.gray[100]}; border-radius: 8px;">
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Your role:</p>
@@ -321,9 +322,9 @@ export async function sendInviteEmail({
 
   return sendEmail({
     to,
-    subject: `You're invited to join ${safeOrgName} on CloudAct.AI`,
+    subject: `You're invited to join ${safeOrgName} on ${site.name}`,
     html,
-    text: `${inviterName} has invited you to join ${orgName} on CloudAct.AI as ${roleDisplay}. Accept your invitation: ${inviteLink}`,
+    text: `${inviterName} has invited you to join ${orgName} on ${site.name} as ${roleDisplay}. Accept your invitation: ${inviteLink}`,
     category: "transactional",
     preheader: `${inviterName} invited you to join ${orgName} as ${roleDisplay}`,
   })
@@ -341,7 +342,7 @@ export async function sendPasswordResetEmail({
 }): Promise<boolean> {
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                We received a request to reset your password for your CloudAct.AI account.
+                We received a request to reset your password for your ${site.name} account.
               </p>
               <div style="margin: 30px 0 0 0; padding: 16px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
@@ -362,9 +363,9 @@ export async function sendPasswordResetEmail({
 
   return sendEmail({
     to,
-    subject: "Reset Your Password - CloudAct.AI",
+    subject: `Reset Your Password - ${site.name}`,
     html,
-    text: `Reset your CloudAct.AI password: ${resetLink}`,
+    text: `Reset your ${site.name} password: ${resetLink}`,
     category: "transactional",
     preheader: "Click the link to reset your password. This link expires in 24 hours.",
   })
@@ -395,7 +396,7 @@ export async function sendTrialEndingEmail({
 
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                Your free trial for <strong>${safeOrgName}</strong> on CloudAct.AI will end in <strong>${daysRemaining} days</strong> (${formattedDate}).
+                Your free trial for <strong>${safeOrgName}</strong> on ${site.name} will end in <strong>${daysRemaining} days</strong> (${formattedDate}).
               </p>
               <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
@@ -416,9 +417,9 @@ export async function sendTrialEndingEmail({
 
   return sendEmail({
     to,
-    subject: `Your CloudAct.AI trial ends in ${daysRemaining} days`,
+    subject: `Your ${site.name} trial ends in ${daysRemaining} days`,
     html,
-    text: `Your free trial for ${orgName} on CloudAct.AI will end in ${daysRemaining} days (${formattedDate}). Subscribe now to avoid service interruption: ${billingLink}`,
+    text: `Your free trial for ${orgName} on ${site.name} will end in ${daysRemaining} days (${formattedDate}). Subscribe now to avoid service interruption: ${billingLink}`,
     category: "notification",
     preheader: `Your trial ends ${formattedDate}. Subscribe now to keep your access.`,
   })
@@ -441,7 +442,7 @@ export async function sendPaymentFailedEmail({
 
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                We were unable to process your payment for <strong>${safeOrgName}</strong> on CloudAct.AI.
+                We were unable to process your payment for <strong>${safeOrgName}</strong> on ${site.name}.
               </p>
               <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.error};">
                 <p style="margin: 0; font-size: 14px; color: #991b1b;">
@@ -464,7 +465,7 @@ export async function sendPaymentFailedEmail({
     to,
     subject: `Action Required: Payment failed for ${safeOrgName}`,
     html,
-    text: `We were unable to process your payment for ${orgName} on CloudAct.AI. Please update your payment method to avoid service interruption: ${billingLink}`,
+    text: `We were unable to process your payment for ${orgName} on ${site.name}. Please update your payment method to avoid service interruption: ${billingLink}`,
     category: "transactional",
     preheader: "Payment failed. Update your payment method to avoid service interruption.",
   })
@@ -500,7 +501,7 @@ export async function sendWelcomeEmail({
               </p>`
 
   const html = baseEmailLayout({
-    title: "Welcome to CloudAct.AI!",
+    title: `Welcome to ${site.name}!`,
     content,
     ctaText: "Go to Dashboard",
     ctaLink: safeDashboardLink,
@@ -509,9 +510,9 @@ export async function sendWelcomeEmail({
 
   return sendEmail({
     to,
-    subject: `Welcome to ${safeOrgName} on CloudAct.AI!`,
+    subject: `Welcome to ${safeOrgName} on ${site.name}!`,
     html,
-    text: `Welcome to ${orgName} on CloudAct.AI! Go to your dashboard: ${dashboardLink}`,
+    text: `Welcome to ${orgName} on ${site.name}! Go to your dashboard: ${dashboardLink}`,
     category: "transactional",
     preheader: `Your account for ${orgName} is ready. Start managing your cloud costs today.`,
   })
@@ -543,7 +544,7 @@ export async function sendSubscriptionConfirmedEmail({
                 Hi ${safeName},
               </p>
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                Thank you for subscribing to <strong>${safeOrgName}</strong> on CloudAct.AI!
+                Thank you for subscribing to <strong>${safeOrgName}</strong> on ${site.name}!
               </p>
               <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(144, 252, 166, 0.15); border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: #047857;">Your plan:</p>
@@ -563,9 +564,9 @@ export async function sendSubscriptionConfirmedEmail({
 
   return sendEmail({
     to,
-    subject: `Subscription confirmed for ${safeOrgName} - CloudAct.AI`,
+    subject: `Subscription confirmed for ${safeOrgName} - ${site.name}`,
     html,
-    text: `Thank you for subscribing to ${orgName} on CloudAct.AI! Your plan: ${planName}. Go to your dashboard: ${dashboardLink}`,
+    text: `Thank you for subscribing to ${orgName} on ${site.name}! Your plan: ${planName}. Go to your dashboard: ${dashboardLink}`,
     category: "transactional",
     preheader: `Your ${planName} subscription is now active. Welcome to CloudAct!`,
   })
@@ -628,7 +629,7 @@ export async function sendContactFormEmail({
     title: "New Contact Form Submission",
     content,
     ctaText: `Reply to ${safeFirstName}`,
-    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(inquiryLabel + " Inquiry - CloudAct.AI")}`,
+    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(inquiryLabel + " Inquiry - ${site.name}")}`,
     ctaStyle: "dark",
   })
 
@@ -671,7 +672,7 @@ export async function sendAccountDeletionEmail({
 }): Promise<boolean> {
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                You have requested to delete your CloudAct.AI account.
+                You have requested to delete your ${site.name} account.
               </p>
               <div style="margin: 0 0 24px 0; padding: 20px; background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.error};">
                 <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #991b1b;">
@@ -700,9 +701,9 @@ export async function sendAccountDeletionEmail({
 
   return sendEmail({
     to,
-    subject: "Confirm Account Deletion - CloudAct.AI",
+    subject: `Confirm Account Deletion - ${site.name}`,
     html,
-    text: `Account Deletion Request\n\nYou have requested to delete your CloudAct.AI account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
+    text: `Account Deletion Request\n\nYou have requested to delete your ${site.name} account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
     category: "transactional",
     preheader: "Confirm your account deletion request. This action cannot be undone.",
   })
@@ -786,7 +787,7 @@ export async function sendDemoRequestEmail({
     title: "New Demo Request",
     content,
     ctaText: `Schedule Demo with ${safeFirstName}`,
-    ctaLink: `mailto:${safeEmail}?subject=Your CloudAct.AI Demo - Let's Schedule!`,
+    ctaLink: `mailto:${safeEmail}?subject=Your ${site.name} Demo - Let's Schedule!`,
     ctaStyle: "mint",
   })
 
@@ -896,7 +897,7 @@ export async function sendJobApplicationEmail({
     title: "New Job Application",
     content,
     ctaText: `Reply to ${safeFirstName}`,
-    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(position + " Application - CloudAct.AI")}`,
+    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(position + " Application - ${site.name}")}`,
     ctaStyle: "dark",
   })
 
@@ -960,7 +961,7 @@ export async function sendApplicationConfirmationEmail({
                 Hi ${safeFirstName},
               </p>
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
-                Thank you for applying for the <strong>${safePosition}</strong> position at CloudAct.AI! We've received your application and our hiring team will review it carefully.
+                Thank you for applying for the <strong>${safePosition}</strong> position at ${site.name}! We've received your application and our hiring team will review it carefully.
               </p>
 
               <div style="margin: 0 0 24px 0; padding: 20px; background-color: ${BRAND.gray[100]}; border-radius: 8px;">
@@ -986,9 +987,9 @@ export async function sendApplicationConfirmationEmail({
 
   return sendEmail({
     to,
-    subject: `Application Received: ${position} at CloudAct.AI`,
+    subject: `Application Received: ${position} at ${site.name}`,
     html,
-    text: `Hi ${firstName}, Thank you for applying for the ${position} position at CloudAct.AI! We've received your application and our hiring team will review it within 48 hours. You'll hear back from us either way.`,
+    text: `Hi ${firstName}, Thank you for applying for the ${position} position at ${site.name}! We've received your application and our hiring team will review it within 48 hours. You'll hear back from us either way.`,
     category: "transactional",
     preheader: `We received your application for ${position}. Here's what happens next.`,
   })
@@ -1071,7 +1072,7 @@ export async function sendNewsletterWelcomeEmail({
               </p>`
 
   const html = baseEmailLayout({
-    title: "Welcome to CloudAct.AI!",
+    title: `Welcome to ${site.name}!`,
     content,
     ctaText: "Explore Our Resources",
     ctaLink: "https://cloudact.ai/resources",
@@ -1080,9 +1081,9 @@ export async function sendNewsletterWelcomeEmail({
 
   return sendEmail({
     to,
-    subject: "Welcome to CloudAct.AI Newsletter!",
+    subject: `Welcome to ${site.name} Newsletter!`,
     html,
-    text: "Thanks for subscribing to the CloudAct.AI newsletter! You'll receive weekly insights on cloud cost optimization, GenAI spending, and FinOps best practices.",
+    text: `Thanks for subscribing to the ${site.name} newsletter! You'll receive weekly insights on cloud cost optimization, GenAI spending, and FinOps best practices.`,
     category: "marketing",
     preheader: "Welcome! Get weekly insights on cloud cost optimization and FinOps.",
   })

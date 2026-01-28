@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { DM_Sans, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
+import { site } from "@/lib/site"
 import "./globals.css"
 
 // Load DM Sans for the entire app - premium, modern sans-serif
@@ -22,18 +23,18 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://cloudact.ai"),
+  metadataBase: new URL(site.url),
   title: {
-    default: "CloudAct.ai - Master Your GenAI & Cloud Costs",
-    template: "%s | CloudAct.ai",
+    default: `${site.name} - Master Your GenAI & Cloud Costs`,
+    template: `%s | ${site.name}`,
   },
   description:
     "Intelligent cost monitoring and optimization for GenAI and cloud infrastructure. Reduce costs by 67% on average.",
-  generator: "CloudAct.ai",
+  generator: site.name,
   keywords: ["cloud cost optimization", "GenAI costs", "FinOps", "AWS", "Azure", "GCP", "OpenAI", "Anthropic", "cost management"],
-  authors: [{ name: "CloudAct.ai" }],
-  creator: "CloudAct.ai",
-  publisher: "CloudAct.ai",
+  authors: [{ name: site.name }],
+  creator: site.name,
+  publisher: site.name,
   formatDetection: {
     email: false,
     address: false,
@@ -43,21 +44,21 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    siteName: "CloudAct.ai",
-    title: "CloudAct.ai - Master Your GenAI & Cloud Costs",
+    siteName: site.name,
+    title: `${site.name} - Master Your GenAI & Cloud Costs`,
     description: "Intelligent cost monitoring and optimization for GenAI and cloud infrastructure. Reduce costs by 67% on average.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "CloudAct.ai - GenAI & Cloud Cost Intelligence",
+        alt: `${site.name} - GenAI & Cloud Cost Intelligence`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "CloudAct.ai - Master Your GenAI & Cloud Costs",
+    title: `${site.name} - Master Your GenAI & Cloud Costs`,
     description: "Intelligent cost monitoring and optimization for GenAI and cloud infrastructure.",
     images: ["/og-image.png"],
     creator: "@cloudact_ai",

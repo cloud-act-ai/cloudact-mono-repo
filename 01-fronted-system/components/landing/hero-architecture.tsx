@@ -48,7 +48,7 @@ export function HeroArchitecture() {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-3xl blur-xl" />
           <div className="relative z-10 bg-white dark:bg-black p-4 rounded-2xl shadow-inner">
-             <img src="/logos/cloudact-logo-black.svg" alt="CloudAct" className="h-8 w-auto dark:invert" />
+             <img src="/logos/cloudact-logo-black.svg" alt="CloudAct.ai" className="h-8 w-auto dark:invert" />
           </div>
           <p className="mt-3 text-xs font-semibold text-zinc-500 font-mono">CORE ENGINE</p>
         </motion.div>

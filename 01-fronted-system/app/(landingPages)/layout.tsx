@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import "./landing.css"
 import "./premium.css"
+import { site } from "@/lib/site"
 
 // Clean Menu Data Structure (C3.ai style - no icons)
 const PLATFORM_MENU = {
@@ -101,23 +102,23 @@ const COMPANY_MENU = {
 const ORGANIZATION_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "@id": "https://cloudact.ai/#organization",
-  name: "CloudAct.ai",
-  alternateName: "CloudAct Inc.",
-  url: "https://cloudact.ai",
+  "@id": `${site.url}/#organization`,
+  name: site.name,
+  alternateName: site.company,
+  url: site.url,
   logo: {
     "@type": "ImageObject",
-    url: "https://cloudact.ai/android-chrome-512x512.png",
+    url: `${site.url}/android-chrome-512x512.png`,
     width: 512,
     height: 512,
   },
   sameAs: [
-    "https://twitter.com/cloudact_ai",
-    "https://linkedin.com/company/cloudact",
-    "https://github.com/cloudact",
+    site.social.twitter,
+    site.social.linkedin,
+    site.social.github,
   ],
   description:
-    "CloudAct.ai is an enterprise cost intelligence platform that helps engineering teams monitor, analyze, and optimize GenAI and cloud infrastructure costs across AWS, Azure, GCP, OpenAI, Anthropic, and more.",
+    `${site.name} is an enterprise cost intelligence platform that helps engineering teams monitor, analyze, and optimize GenAI and cloud infrastructure costs across AWS, Azure, GCP, OpenAI, Anthropic, and more.`,
   foundingDate: "2024",
   contactPoint: {
     "@type": "ContactPoint",
@@ -138,8 +139,8 @@ const ORGANIZATION_JSON_LD = {
 const SOFTWARE_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "@id": "https://cloudact.ai/#software",
-  name: "CloudAct.ai",
+  "@id": `${site.url}/#software`,
+  name: site.name,
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "FinOps, Cloud Cost Management",
   operatingSystem: "Web Browser",
@@ -171,14 +172,14 @@ const SOFTWARE_JSON_LD = {
 const WEBSITE_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  "@id": "https://cloudact.ai/#website",
-  url: "https://cloudact.ai",
-  name: "CloudAct.ai",
+  "@id": `${site.url}/#website`,
+  url: site.url,
+  name: site.name,
   description: "Enterprise GenAI and Cloud Cost Intelligence Platform",
-  publisher: { "@id": "https://cloudact.ai/#organization" },
+  publisher: { "@id": `${site.url}/#organization` },
   potentialAction: {
     "@type": "SearchAction",
-    target: "https://cloudact.ai/search?q={search_term_string}",
+    target: `${site.url}/search?q={search_term_string}`,
     "query-input": "required name=search_term_string",
   },
 }
@@ -313,7 +314,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             {/* FIX BUG-001: Remove CSS height/width overrides to prevent aspect ratio warning */}
             <Image
               src="/logos/cloudact-logo-black.svg"
-              alt="CloudAct.ai"
+              alt={site.name}
               width={160}
               height={32}
               priority
@@ -443,7 +444,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 {/* FIX BUG-001: Remove CSS height/width overrides */}
                 <Image
                   src="/logos/cloudact-logo-black.svg"
-                  alt="CloudAct.ai"
+                  alt={site.name}
                   width={140}
                   height={28}
                 />
@@ -516,7 +517,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
           {/* Bottom Bar */}
           <div className="ca-footer-bottom">
-            <p className="ca-footer-copyright">© 2025 CloudAct Inc. All rights reserved.</p>
+            <p className="ca-footer-copyright">&copy; {new Date().getFullYear()} {site.company} All rights reserved.</p>
             <div className="ca-footer-legal-links">
               <Link href="/privacy">Privacy Policy</Link>
               <Link href="/terms">Terms of Service</Link>

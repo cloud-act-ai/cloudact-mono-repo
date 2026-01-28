@@ -40,6 +40,8 @@ BEGIN
   DECLARE v_org_slug STRING;
   DECLARE v_org_exists INT64 DEFAULT 0;
   DECLARE v_effective_end_date DATE;
+  DECLARE v_orphan_count INT64 DEFAULT 0;
+  DECLARE v_orphan_sample STRING DEFAULT NULL;
 
   -- If end_date is NULL, use start_date (single date mode for backward compatibility)
   SET v_effective_end_date = COALESCE(p_end_date, p_start_date);
@@ -860,9 +862,6 @@ BEGIN
 
   -- GAP-003 FIX: Detect orphan hierarchy allocations (similar to payg_cost.py)
   -- Check for rows where tag-based entity_id was extracted but doesn't exist in hierarchy
-  DECLARE v_orphan_count INT64 DEFAULT 0;
-  DECLARE v_orphan_sample STRING DEFAULT NULL;
-
   EXECUTE IMMEDIATE FORMAT("""
     WITH tag_extractions AS (
       -- Re-extract entity_ids from tags to find orphans

@@ -12,6 +12,7 @@ import { completeOnboarding } from "@/actions/organization"
 import { sendWelcomeEmailAction } from "@/actions/email"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { OnboardingProgress, createOnboardingStages, updateStageStatus, completeStageAndMoveNext, type ProgressStage } from "@/components/onboarding-progress"
+import { site } from "@/lib/site"
 
 // Validate Stripe session ID format
 function isValidSessionId(sessionId: string | null): sessionId is string {
@@ -295,7 +296,7 @@ export default function SuccessPage() {
           {/* FIX BUG-001: Remove CSS height/width overrides */}
           <Image
             src="/logos/cloudact-logo-black.svg"
-            alt="CloudAct"
+            alt="CloudAct.ai"
             width={160}
             height={32}
             priority
@@ -312,7 +313,7 @@ export default function SuccessPage() {
 
       {/* Footer */}
       <div className="p-4 sm:p-6 text-center text-xs sm:text-sm text-gray-400 border-t border-gray-100">
-        <span>&copy; {new Date().getFullYear()} CloudAct Inc. All rights reserved.</span>
+        <span>&copy; {new Date().getFullYear()} {site.company} All rights reserved.</span>
         <span className="mx-1 sm:mx-2">·</span>
         <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
         <span className="mx-1 sm:mx-2">·</span>

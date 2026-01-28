@@ -7,57 +7,5 @@ https://sedai.io/
 https://delve.co/
 https://www.apptio.com/ 
 https://www.pump.co/
-
-
-Data - >  multiple  oracle, Mysql, json, postgres, nosql -> [usage, logs for every second ] - Data problems -> business/reporting purpose/customer 
-
-
-Tables -> orcle, psotgress
-json,key values -> Nosql, cosmos, mongodb, dynamo db, bigtables from gcp 
-usage, client data, xyz -> csv, excel, .txt .log -> gcp buckets/s3 
-
-
-Data pipelines 
-
-Get the data from multiples 
-
-
-gcp bucket[customer data/cpu usage data] -> extract -> python [Transformation] -> load Bigquery -> Looker or react dashboards !! 
-
-sources -> transform -> load to datawarehouse -> reporting 
-
-
-every day -> scheduler/airflow/dataflow/composer 
-|
-|
-
-s3,gcp buckets, postgres -> pyspark/scala/python prgrames -> bigquery/redishift/any date -> Looker, looker studio, tabelue 
-
-
-Kuberenetes -> gke 
-serverless -> CloudRun (cloud run)
-CICD -> cloud build and deploy
-Secret Manager  -> KMS 
-
-
-
-
-Cloud Bills [Gcp, aws, azure]
-GenAI usage [openAI, anthropic]
-claude, Chat gcp 
-
-we extract raw data -> api 
-stroe - Bigquery 
-we have portal disaplay
-
-CICD -> cloud build and deploy
-deploy apps -> cloud run and Postgress 
-Secrets -> secret manager + kms encryption some random 
-React frontend bigquery data from bigquery 
-
-
-data pipeline -> python [Source api, something csv files /]-> transform and load bigquery 
-
-
-
+https://www.vmware.com/products/app-platform/tanzu-cloudhealth
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { TrendingDown, BarChart3, Clock, Users } from "lucide-react"
+import { site } from "@/lib/site"
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -106,7 +107,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
             <Link href="/" className="inline-flex items-center group">
               <Image
                 src="/logos/cloudact-logo-black.svg"
-                alt="CloudAct"
+                alt="CloudAct.ai"
                 width={160}
                 height={32}
                 className="group-hover:scale-105 transition-transform"
@@ -285,7 +286,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
           <Link href="/" className="inline-flex items-center">
             <Image
               src="/logos/cloudact-logo-black.svg"
-              alt="CloudAct"
+              alt="CloudAct.ai"
               width={140}
               height={28}
               className="dark:hidden"
@@ -293,7 +294,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
             />
             <Image
               src="/logos/cloudact-logo-white.svg"
-              alt="CloudAct"
+              alt="CloudAct.ai"
               width={140}
               height={28}
               className="hidden dark:block"
@@ -311,7 +312,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
 
         {/* Footer */}
         <div className="p-4 sm:p-6 text-center text-xs sm:text-sm text-gray-400 dark:text-white/40 relative z-10 border-t border-gray-100 dark:border-white/10 lg:border-t-0">
-          <span>&copy; {new Date().getFullYear()} CloudAct Inc. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} {site.company} All rights reserved.</span>
           <span className="mx-1 sm:mx-2">·</span>
           <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-white/60 transition-colors">Privacy</Link>
           <span className="mx-1 sm:mx-2">·</span>

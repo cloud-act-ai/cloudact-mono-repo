@@ -38,6 +38,7 @@ import {
   ChevronDown,
   Network,
   Layers,
+  FileText,
   type LucideIcon,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
@@ -60,6 +61,14 @@ import {
 // Premium components
 import { StatRow } from "@/components/ui/stat-row"
 import { LoadingState } from "@/components/ui/loading-state"
+
+// Export/Import
+import { ExportImportModal, type SyncPreview, type ImportResult } from "@/components/export-import/export-import-modal"
+import {
+  exportHierarchy,
+  previewHierarchyImport,
+  importHierarchy,
+} from "@/actions/hierarchy-export-import"
 
 // Level icons mapping - supports both old (department/project/team) and new (c_suite/business_unit/function) level codes
 const LEVEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -142,6 +151,9 @@ export default function HierarchySettingsPage() {
     description: string
   }>({ entity_name: "", owner_name: "", owner_email: "", description: "" })
   const [isEditing, setIsEditing] = useState(false)
+
+  // Export/Import dialog
+  const [exportImportOpen, setExportImportOpen] = useState(false)
 
   useEffect(() => {
     document.title = "Hierarchy Settings | CloudAct.ai"
@@ -582,6 +594,15 @@ export default function HierarchySettingsPage() {
             <span className="sm:hidden">Add</span>
           </Button>
         )}
+        <Button
+          variant="outline"
+          onClick={() => setExportImportOpen(true)}
+          className="h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
+        >
+          <FileText className="mr-1.5 sm:mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">Export / Import</span>
+          <span className="sm:hidden">CSV</span>
+        </Button>
       </div>
 
       {/* Content Tabs */}
@@ -1004,6 +1025,37 @@ export default function HierarchySettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Export/Import Modal */}
+      <ExportImportModal
+        open={exportImportOpen}
+        onClose={() => setExportImportOpen(false)}
+        entityType="Hierarchy"
+        exportFilename={`hierarchy_${orgSlug}`}
+        onExport={async () => {
+          const result = await exportHierarchy(orgSlug)
+          if (!result.success) {
+            throw new Error(result.error)
+          }
+          return result.data
+        }}
+        onPreviewImport={async (csvContent) => {
+          const result = await previewHierarchyImport(orgSlug, csvContent)
+          if (!result.success) {
+            throw new Error(result.error)
+          }
+          return result.data as SyncPreview
+        }}
+        onImport={async (csvContent) => {
+          const result = await importHierarchy(orgSlug, csvContent)
+          if (!result.success) {
+            throw new Error(result.error)
+          }
+          // Refresh data after import
+          await loadData()
+          return result.data as ImportResult
+        }}
+      />
     </div>
     </main>
   )

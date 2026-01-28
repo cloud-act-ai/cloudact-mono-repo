@@ -122,7 +122,7 @@ BEGIN
     -- FIX: Added org_slug column to handle schema drift (table has both org_slug and x_org_slug)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.subscription_plan_costs_daily` (
-        provider, subscription_id, plan_name, display_name,
+        org_slug, provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
         invoice_id_last, source,
@@ -420,6 +420,7 @@ BEGIN
         ) AS day
       )
       SELECT
+        x_org_slug AS org_slug,
         provider,
         subscription_id,
         plan_name,
