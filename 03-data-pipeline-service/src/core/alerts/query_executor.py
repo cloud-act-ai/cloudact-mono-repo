@@ -87,6 +87,7 @@ QUERY_TEMPLATES = {
 
     # --------------------------------------------
     # QUOTA USAGE
+    # SECURITY: Must filter by org_slug to prevent cross-org data leakage
     # --------------------------------------------
     "quota_usage": """
         SELECT
@@ -98,8 +99,136 @@ QUERY_TEMPLATES = {
             SAFE_DIVIDE(pipelines_run_today, daily_limit) * 100 as daily_usage_percent,
             SAFE_DIVIDE(pipelines_run_month, monthly_limit) * 100 as monthly_usage_percent
         FROM `{project}.organizations.org_usage_quotas`
-        WHERE usage_date = @usage_date
+        WHERE org_slug = @org_slug
+          AND usage_date = @usage_date
           AND daily_limit > 0
+    """,
+
+    # ============================================
+    # PROVIDER-SPECIFIC COST QUERIES
+    # ============================================
+
+    # --------------------------------------------
+    # GCP COSTS
+    # --------------------------------------------
+    "gcp_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE LOWER(ServiceProviderName) = 'gcp'
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # AWS COSTS
+    # --------------------------------------------
+    "aws_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE LOWER(ServiceProviderName) = 'aws'
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # AZURE COSTS
+    # --------------------------------------------
+    "azure_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE LOWER(ServiceProviderName) IN ('azure', 'microsoft')
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # OPENAI COSTS
+    # --------------------------------------------
+    "openai_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            SUM(ConsumedQuantity) as total_tokens,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE LOWER(ServiceProviderName) = 'openai'
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # ANTHROPIC COSTS
+    # --------------------------------------------
+    "anthropic_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            SUM(ConsumedQuantity) as total_tokens,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE LOWER(ServiceProviderName) = 'anthropic'
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # HIERARCHY-FILTERED COSTS
+    # Uses x_hierarchy_path for filtering by dept/project/team
+    # --------------------------------------------
+    "hierarchy_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count,
+            @hierarchy_path as hierarchy_path
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE x_hierarchy_path LIKE CONCAT(@hierarchy_path, '%')
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # COST FORECAST (Projected Monthly Spend)
+    # Calculates projected cost based on daily average
+    # --------------------------------------------
+    "cost_forecast": """
+        WITH daily_costs AS (
+            SELECT
+                DATE(ChargePeriodStart) as cost_date,
+                SUM(BilledCost) as daily_cost
+            FROM `{project}.{dataset}.cost_data_standard_1_3`
+            WHERE DATE(ChargePeriodStart) >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+              AND DATE(ChargePeriodStart) <= CURRENT_DATE()
+            GROUP BY DATE(ChargePeriodStart)
+        ),
+        aggregates AS (
+            SELECT
+                AVG(daily_cost) as avg_daily_cost,
+                COUNT(*) as days_with_data
+            FROM daily_costs
+        )
+        SELECT
+            @org_slug as org_slug,
+            ROUND(a.avg_daily_cost * EXTRACT(DAY FROM LAST_DAY(CURRENT_DATE())), 2) as projected_cost,
+            ROUND(a.avg_daily_cost, 2) as avg_daily_cost,
+            a.days_with_data,
+            'USD' as currency
+        FROM aggregates a
     """,
 }
 
@@ -146,6 +275,9 @@ class AlertQueryExecutor:
         # Resolve period to actual dates
         start_date, end_date = self._resolve_period(params.get("period", "current_month"))
 
+        # Get hierarchy_path for hierarchy-filtered queries
+        hierarchy_path = params.get("hierarchy_path")
+
         # Get orgs to query
         if org_slugs is None:
             org_slugs = await self._get_active_orgs()
@@ -164,7 +296,9 @@ class AlertQueryExecutor:
                 )
 
                 # Execute query
-                row = await self._execute_org_query(query, org_slug, start_date, end_date)
+                row = await self._execute_org_query(
+                    query, org_slug, start_date, end_date, hierarchy_path
+                )
                 if row and row.get("total_cost") is not None:
                     row["org_slug"] = org_slug
                     results.append(row)
@@ -179,7 +313,8 @@ class AlertQueryExecutor:
         query: str,
         org_slug: str,
         start_date: date,
-        end_date: date
+        end_date: date,
+        hierarchy_path: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Execute query for a single organization with configurable timeout.
@@ -206,14 +341,20 @@ class AlertQueryExecutor:
         query_timeout = settings.alert_query_timeout_seconds
 
         # Build query parameters
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
-                bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
-                bigquery.ScalarQueryParameter("usage_date", "DATE", date.today()),
-            ]
-        )
+        query_params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
+            bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
+            bigquery.ScalarQueryParameter("usage_date", "DATE", date.today()),
+        ]
+
+        # Add hierarchy_path parameter if provided
+        if hierarchy_path:
+            query_params.append(
+                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", hierarchy_path)
+            )
+
+        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
 
         try:
             job = self._bq_client.client.query(query, job_config=job_config)

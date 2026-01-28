@@ -62,13 +62,14 @@ export default async function OrgLayout({
       // Re-fetch layout data
       layoutData = await getOrgLayoutData(orgSlug)
 
-      // If still null after retry, continue to render with fallback (don't redirect)
+      // If still null after retry, redirect to billing (not dashboard to avoid redirect loop)
+      // The dashboard page uses the same layout, so redirecting to it would cause infinite loop
       if (!layoutData) {
         if (process.env.NODE_ENV === "development") {
-          console.warn(`[OrgLayout] Retry failed for ${orgSlug}, redirecting to dashboard`)
+          console.warn(`[OrgLayout] Retry failed for ${orgSlug}, data access issue - redirecting to billing`)
         }
-        // Redirect to same org's dashboard rather than another org
-        redirect(`/${orgSlug}/dashboard`)
+        // Redirect to billing page which is exempt from data requirements
+        redirect(`/${orgSlug}/billing?reason=data_unavailable`)
       }
     } else {
       // User doesn't have membership to this org - find another org

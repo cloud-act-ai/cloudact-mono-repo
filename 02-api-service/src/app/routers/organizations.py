@@ -15,6 +15,7 @@ import hashlib
 import secrets
 import re
 import logging
+import html
 from pathlib import Path
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
@@ -110,19 +111,38 @@ class OnboardOrgRequest(BaseModel):
     @field_validator('company_name')
     @classmethod
     def validate_company_name(cls, v: str) -> str:
-        """Validate company_name contains only allowed characters.
+        """Validate and sanitize company_name for XSS prevention.
 
-        Allows: alphanumeric, spaces, and common business characters
-        (hyphens, periods, commas, apostrophes, ampersands, parentheses).
+        Security measures:
+        1. Strips HTML tags (e.g., <script>)
+        2. Escapes HTML entities (e.g., &lt; becomes &amp;lt;)
+        3. Blocks dangerous characters (<, >, backslash)
+        4. Allows: alphanumeric, spaces, common business punctuation
+
+        OWASP XSS Prevention: Defense-in-depth approach.
         """
+        # Step 1: Strip any HTML tags first
+        stripped = re.sub(r'<[^>]*>', '', v)
+
+        # Step 2: Check for any remaining angle brackets (XSS attempt)
+        if '<' in stripped or '>' in stripped or '\\' in stripped:
+            raise ValueError(
+                "company_name cannot contain HTML tags or special characters (<, >, \\)"
+            )
+
+        # Step 3: Validate against allowed character pattern
         # Pattern: alphanumeric, spaces, and common business punctuation
         pattern = r"^[a-zA-Z0-9\s\-\.\,\'\"&\(\)]+$"
-        if not re.match(pattern, v):
+        if not re.match(pattern, stripped):
             raise ValueError(
                 "company_name must contain only alphanumeric characters, spaces, "
                 "and common business characters (- . , ' \" & ( ))"
             )
-        return v.strip()
+
+        # Step 4: Escape HTML entities as defense-in-depth (for safe storage)
+        sanitized = html.escape(stripped.strip(), quote=True)
+
+        return sanitized
 
     @field_validator('subscription_plan')
     @classmethod
@@ -2486,14 +2506,20 @@ async def delete_organization(
     dataset_deleted = False
 
     try:
-        # List of meta tables to clean up
+        # List of meta tables to clean up (MUST include ALL org-scoped tables)
         meta_tables = [
             "org_profiles",
             "org_api_keys",
             "org_subscriptions",
             "org_credentials",
             "integration_status",
-            "audit_logs"
+            "audit_logs",
+            # Added: Tables that were missing from cascade delete
+            "org_hierarchy",
+            "org_usage_quotas",
+            "org_scheduled_alerts",
+            "org_notification_channels",
+            "org_alert_history",
         ]
 
         # Delete from each meta table

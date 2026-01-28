@@ -118,6 +118,42 @@ export const SUPPORTED_LANGUAGES: readonly LanguageInfo[] = [
 export const LANGUAGE_CODES = SUPPORTED_LANGUAGES.map(l => l.code)
 
 // ============================================
+// DATE FORMATS - User-selectable date display formats
+// ============================================
+
+export interface DateFormatInfo {
+  value: string
+  label: string
+  example: string // Example using Jan 15, 2026
+}
+
+export const SUPPORTED_DATE_FORMATS: readonly DateFormatInfo[] = [
+  { value: "MM/DD/YYYY", label: "MM/DD/YYYY (US)", example: "01/15/2026" },
+  { value: "DD/MM/YYYY", label: "DD/MM/YYYY (International)", example: "15/01/2026" },
+  { value: "YYYY-MM-DD", label: "YYYY-MM-DD (ISO 8601)", example: "2026-01-15" },
+  { value: "DD-MMM-YYYY", label: "DD-MMM-YYYY", example: "15-Jan-2026" },
+  { value: "MMM DD, YYYY", label: "MMM DD, YYYY", example: "Jan 15, 2026" },
+  { value: "DD MMM YYYY", label: "DD MMM YYYY", example: "15 Jan 2026" },
+] as const
+
+export const DATE_FORMAT_VALUES = SUPPORTED_DATE_FORMATS.map(d => d.value)
+export const DEFAULT_DATE_FORMAT = "MM/DD/YYYY"
+
+/**
+ * Check if date format is valid
+ */
+export function isValidDateFormat(format: string): boolean {
+  return DATE_FORMAT_VALUES.includes(format)
+}
+
+/**
+ * Get date format info by value
+ */
+export function getDateFormatInfo(value: string): DateFormatInfo | undefined {
+  return SUPPORTED_DATE_FORMATS.find(d => d.value === value)
+}
+
+// ============================================
 // FISCAL YEAR START - Month when fiscal year begins
 // ============================================
 

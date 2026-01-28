@@ -534,11 +534,25 @@ class SourceType(str, Enum):
 
 class QueryTemplate(str, Enum):
     """Pre-defined query templates"""
+    # Core cost types
     SUBSCRIPTION_COSTS = "subscription_costs"
     CLOUD_COSTS = "cloud_costs"
     GENAI_COSTS = "genai_costs"
     TOTAL_COSTS = "total_costs"
     QUOTA_USAGE = "quota_usage"
+
+    # Provider-specific cloud costs
+    GCP_COSTS = "gcp_costs"
+    AWS_COSTS = "aws_costs"
+    AZURE_COSTS = "azure_costs"
+
+    # Provider-specific GenAI costs
+    OPENAI_COSTS = "openai_costs"
+    ANTHROPIC_COSTS = "anthropic_costs"
+
+    # Advanced queries
+    HIERARCHY_COSTS = "hierarchy_costs"
+    COST_FORECAST = "cost_forecast"
 
 
 class RecipientType(str, Enum):
@@ -671,6 +685,121 @@ class ScheduledAlert(ScheduledAlertBase):
 
     class Config:
         from_attributes = True
+
+
+# ==============================================================================
+# Cost Alert Frontend-Friendly Models
+# ==============================================================================
+
+class CostAlertScope(str, Enum):
+    """Cost alert scope types for simplified frontend"""
+    ALL = "all"
+    CLOUD = "cloud"
+    GENAI = "genai"
+    SUBSCRIPTION = "subscription"
+    GCP = "gcp"
+    AWS = "aws"
+    AZURE = "azure"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+
+
+# Mapping from CostAlertScope to QueryTemplate
+SCOPE_TO_QUERY_TEMPLATE = {
+    CostAlertScope.ALL: QueryTemplate.TOTAL_COSTS,
+    CostAlertScope.CLOUD: QueryTemplate.CLOUD_COSTS,
+    CostAlertScope.GENAI: QueryTemplate.GENAI_COSTS,
+    CostAlertScope.SUBSCRIPTION: QueryTemplate.SUBSCRIPTION_COSTS,
+    CostAlertScope.GCP: QueryTemplate.GCP_COSTS,
+    CostAlertScope.AWS: QueryTemplate.AWS_COSTS,
+    CostAlertScope.AZURE: QueryTemplate.AZURE_COSTS,
+    CostAlertScope.OPENAI: QueryTemplate.OPENAI_COSTS,
+    CostAlertScope.ANTHROPIC: QueryTemplate.ANTHROPIC_COSTS,
+}
+
+
+class CostAlertSummary(BaseModel):
+    """Simplified alert summary for frontend display"""
+    alert_id: str = Field(..., description="Unique alert ID")
+    name: str = Field(..., description="Alert name")
+    scope: CostAlertScope = Field(..., description="Cost scope (all, cloud, genai, gcp, etc.)")
+    threshold_value: float = Field(..., description="Threshold amount")
+    threshold_currency: str = Field(default="USD", description="Currency")
+    is_enabled: bool = Field(..., description="Whether alert is active")
+    last_triggered_at: Optional[datetime] = Field(default=None, description="Last trigger time")
+    severity: AlertSeverity = Field(..., description="Alert severity")
+    channels: List[str] = Field(..., description="Notification channels")
+    schedule_cron: str = Field(..., description="Cron schedule")
+
+    class Config:
+        from_attributes = True
+
+
+class CostAlertCreateRequest(BaseModel):
+    """Simplified create request for cost alerts"""
+    name: str = Field(..., min_length=1, max_length=100, description="Alert name")
+    description: Optional[str] = Field(default=None, max_length=500, description="Alert description")
+    scope: CostAlertScope = Field(default=CostAlertScope.ALL, description="Cost scope")
+    threshold_value: float = Field(..., gt=0, description="Threshold amount in currency")
+    threshold_currency: str = Field(default="USD", description="Currency for threshold")
+    period: str = Field(default="current_month", description="Time period for cost aggregation")
+    severity: AlertSeverity = Field(default=AlertSeverity.WARNING, description="Alert severity")
+    channels: List[str] = Field(default=["email"], description="Notification channels")
+    cooldown_hours: int = Field(default=24, ge=1, le=168, description="Hours between re-alerts")
+    schedule_cron: str = Field(default="0 8 * * *", description="Cron expression for evaluation")
+    schedule_timezone: str = Field(default="UTC", description="Timezone for schedule")
+    hierarchy_path: Optional[str] = Field(default=None, description="Filter by hierarchy path")
+
+    def to_scheduled_alert_create(self) -> "ScheduledAlertCreate":
+        """Convert to full ScheduledAlertCreate model"""
+        # Get the query template for this scope
+        query_template = SCOPE_TO_QUERY_TEMPLATE.get(self.scope, QueryTemplate.TOTAL_COSTS)
+
+        # Build source params
+        source_params = {"period": self.period}
+        if self.hierarchy_path:
+            source_params["hierarchy_path"] = self.hierarchy_path
+
+        return ScheduledAlertCreate(
+            name=self.name,
+            description=self.description,
+            alert_type=AlertType.COST_THRESHOLD,
+            is_enabled=True,
+            schedule_cron=self.schedule_cron,
+            schedule_timezone=self.schedule_timezone,
+            source_type=SourceType.BIGQUERY,
+            source_query_template=query_template,
+            source_params=source_params,
+            conditions=[
+                AlertCondition(
+                    field="total_cost",
+                    operator="gt",
+                    value=self.threshold_value,
+                    unit=self.threshold_currency
+                )
+            ],
+            recipient_type=RecipientType.ORG_OWNERS,
+            severity=self.severity,
+            channels=self.channels,
+            cooldown_enabled=True,
+            cooldown_hours=self.cooldown_hours,
+            tags=["cost", self.scope.value]
+        )
+
+
+class CostAlertUpdateRequest(BaseModel):
+    """Simplified update request for cost alerts"""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=500)
+    is_enabled: Optional[bool] = None
+    threshold_value: Optional[float] = Field(default=None, gt=0)
+    threshold_currency: Optional[str] = None
+    period: Optional[str] = None
+    severity: Optional[AlertSeverity] = None
+    channels: Optional[List[str]] = None
+    cooldown_hours: Optional[int] = Field(default=None, ge=1, le=168)
+    schedule_cron: Optional[str] = None
+    hierarchy_path: Optional[str] = None
 
 
 class AlertHistoryStatus(str, Enum):

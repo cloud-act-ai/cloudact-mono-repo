@@ -80,8 +80,11 @@ export DEMO_DATA_SOURCE_ORG="india_inc_01022026"  # Original org_slug in demo da
 # ======================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export REPO_ROOT="${SCRIPT_DIR}/../../../.."
 export DATA_DIR="${SCRIPT_DIR}/../data"
 export SCHEMA_DIR="${SCRIPT_DIR}/../schemas"
+# Base schemas from API service (single source of truth)
+export BASE_SCHEMA_DIR="${REPO_ROOT}/02-api-service/configs/setup/organizations/onboarding/schemas"
 
 # Colors for output
 export RED='\033[0;31m'

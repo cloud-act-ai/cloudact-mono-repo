@@ -48,7 +48,7 @@ import {
   Mail,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
-import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, getFiscalYearFromTimezone, DEFAULT_CURRENCY } from "@/lib/i18n/constants"
+import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, SUPPORTED_DATE_FORMATS, getFiscalYearFromTimezone, DEFAULT_CURRENCY, DEFAULT_DATE_FORMAT } from "@/lib/i18n/constants"
 import {
   getOrgLocale,
   updateOrgLocale,
@@ -117,11 +117,13 @@ export default function OrganizationSettingsPage() {
   const [timezone, setTimezone] = useState("UTC")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [fiscalYearStart, setFiscalYearStart] = useState(1) // 1=Jan, 4=Apr, 7=Jul, 10=Oct
+  const [dateFormat, setDateFormat] = useState(DEFAULT_DATE_FORMAT)
 
   // Track original values to detect changes
   const [originalCurrency, setOriginalCurrency] = useState(DEFAULT_CURRENCY)
   const [originalTimezone, setOriginalTimezone] = useState("UTC")
   const [originalFiscalYearStart, setOriginalFiscalYearStart] = useState(1)
+  const [originalDateFormat, setOriginalDateFormat] = useState(DEFAULT_DATE_FORMAT)
   const [isSavingFiscalYear, setIsSavingFiscalYear] = useState(false)
 
   // Danger zone state
@@ -495,10 +497,12 @@ export default function OrganizationSettingsPage() {
       // Set current values
       setCurrency(localeResult.locale.default_currency)
       setTimezone(localeResult.locale.default_timezone)
+      setDateFormat(localeResult.locale.date_format || DEFAULT_DATE_FORMAT)
 
       // Track original values
       setOriginalCurrency(localeResult.locale.default_currency)
       setOriginalTimezone(localeResult.locale.default_timezone)
+      setOriginalDateFormat(localeResult.locale.date_format || DEFAULT_DATE_FORMAT)
 
       // Set fiscal year (default based on timezone if not set)
       const fiscalYear = localeResult.locale.fiscal_year_start_month || getFiscalYearFromTimezone(localeResult.locale.default_timezone)
@@ -585,7 +589,7 @@ export default function OrganizationSettingsPage() {
     loadContactDetails()
   }, [fetchLocale, loadUserAndOrgs, loadBackendStatus, loadContactDetails])
 
-  const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone
+  const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone || dateFormat !== originalDateFormat
   const hasFiscalYearChanges = fiscalYearStart !== originalFiscalYearStart
   const hasOrgNameChanges = orgName !== originalOrgName && orgName.trim().length >= 2
   const hasContactChanges =
@@ -677,7 +681,7 @@ export default function OrganizationSettingsPage() {
     setIsSaving(true)
 
     try {
-      const result = await updateOrgLocale(orgSlug, currency, timezone)
+      const result = await updateOrgLocale(orgSlug, currency, timezone, dateFormat)
 
       if (!result.success) {
         setError(result.error || "Failed to update organization locale")
@@ -687,6 +691,7 @@ export default function OrganizationSettingsPage() {
       // Update original values after successful save
       setOriginalCurrency(currency)
       setOriginalTimezone(timezone)
+      setOriginalDateFormat(dateFormat)
 
       setSuccess("Organization locale updated successfully!")
       setTimeout(() => setSuccess(null), 4000)
@@ -700,6 +705,7 @@ export default function OrganizationSettingsPage() {
   const handleReset = () => {
     setCurrency(originalCurrency)
     setTimezone(originalTimezone)
+    setDateFormat(originalDateFormat)
     setError(null)
     setSuccess(null)
   }
@@ -1083,7 +1089,7 @@ export default function OrganizationSettingsPage() {
             <div>
               <h2 className="text-[17px] font-semibold text-slate-900">Locale Settings</h2>
               <p className="text-[13px] text-slate-500">
-                Configure currency, timezone, and fiscal year
+                Configure currency, timezone, date format, and fiscal year
               </p>
             </div>
           </div>
@@ -1165,6 +1171,31 @@ export default function OrganizationSettingsPage() {
             </div>
             <p className="text-[13px] text-muted-foreground">
               Auto-suggested based on timezone
+            </p>
+          </div>
+
+          {/* Date Format */}
+          <div className="space-y-2">
+            <Label htmlFor="date-format" className="text-[14px] font-medium text-foreground">
+              Date Format
+            </Label>
+            <Select value={dateFormat} onValueChange={(val) => { setDateFormat(val); setError(null); }}>
+              <SelectTrigger id="date-format" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+                <SelectValue placeholder="Select date format" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_DATE_FORMATS.map((df) => (
+                  <SelectItem key={df.value} value={df.value}>
+                    <span className="flex items-center gap-2">
+                      {df.label}
+                      <span className="text-muted-foreground text-xs">({df.example})</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[13px] text-muted-foreground">
+              How dates are displayed throughout the app
             </p>
           </div>
 

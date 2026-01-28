@@ -29,7 +29,7 @@ export function HeroDashboard() {
         initial={{ rotateX: 20, y: 100, opacity: 0 }}
         animate={{ rotateX: 0, y: 0, opacity: 1 }}
         transition={{ duration: 1, type: "spring", stiffness: 50, damping: 20 }}
-        className="relative bg-[#0F172A] border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden flex flex-col h-[600px] md:h-[700px] w-full"
+        className="relative bg-[#0F172A] border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden flex flex-col h-[420px] md:h-[480px] w-full"
       >
         {/* HEADER */}
         <div className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-[#0F172A]">

@@ -1,0 +1,516 @@
+# ============================================
+# Cost Threshold Alerts
+# ============================================
+# Comprehensive cost alerting for cloud, GenAI,
+# and provider-specific spending thresholds.
+# Evaluated daily by Cloud Scheduler.
+# ============================================
+
+version: "1.0"
+
+alerts:
+  # ============================================
+  # CLOUD COST ALERTS
+  # ============================================
+
+  # --------------------------------------------
+  # Cloud Cost Threshold: $1,000
+  # Monitors all cloud providers (GCP, AWS, Azure)
+  # --------------------------------------------
+  - id: cloud_cost_threshold_1000
+    name: "Cloud Cost Threshold ($1,000)"
+    description: "Alert when monthly cloud costs exceed $1,000"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: cloud_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 1000
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - cloud
+      - cost
+      - threshold
+
+  # --------------------------------------------
+  # Cloud Cost Critical: $5,000
+  # High-priority alert for significant cloud spend
+  # --------------------------------------------
+  - id: cloud_cost_critical_5000
+    name: "Critical Cloud Spend Alert ($5,000)"
+    description: "Critical alert for cloud costs exceeding $5,000"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: cloud_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 5000
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: critical
+      channels:
+        - email
+        - slack
+      slack:
+        channel: "#cost-alerts"
+        mention_channel: true
+
+    cooldown:
+      enabled: true
+      hours: 12
+      scope: org
+
+    tags:
+      - cloud
+      - cost
+      - critical
+
+  # ============================================
+  # GENAI COST ALERTS
+  # ============================================
+
+  # --------------------------------------------
+  # GenAI Cost Threshold: $500
+  # Monitors all GenAI providers
+  # --------------------------------------------
+  - id: genai_cost_threshold_500
+    name: "GenAI Cost Threshold ($500)"
+    description: "Alert when monthly GenAI costs exceed $500"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: genai_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 500
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - genai
+      - cost
+      - threshold
+
+  # ============================================
+  # PROVIDER-SPECIFIC ALERTS
+  # ============================================
+
+  # --------------------------------------------
+  # GCP Cost Threshold: $500
+  # --------------------------------------------
+  - id: gcp_cost_threshold_500
+    name: "GCP Cost Threshold ($500)"
+    description: "Alert when monthly GCP costs exceed $500"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: gcp_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 500
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - gcp
+      - cloud
+      - cost
+
+  # --------------------------------------------
+  # AWS Cost Threshold: $500
+  # --------------------------------------------
+  - id: aws_cost_threshold_500
+    name: "AWS Cost Threshold ($500)"
+    description: "Alert when monthly AWS costs exceed $500"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: aws_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 500
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - aws
+      - cloud
+      - cost
+
+  # --------------------------------------------
+  # Azure Cost Threshold: $500
+  # --------------------------------------------
+  - id: azure_cost_threshold_500
+    name: "Azure Cost Threshold ($500)"
+    description: "Alert when monthly Azure costs exceed $500"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: azure_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 500
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - azure
+      - cloud
+      - cost
+
+  # --------------------------------------------
+  # OpenAI Cost Threshold: $200
+  # --------------------------------------------
+  - id: openai_cost_threshold_200
+    name: "OpenAI Cost Threshold ($200)"
+    description: "Alert when monthly OpenAI costs exceed $200"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: openai_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 200
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - openai
+      - genai
+      - cost
+
+  # --------------------------------------------
+  # Anthropic Cost Threshold: $200
+  # --------------------------------------------
+  - id: anthropic_cost_threshold_200
+    name: "Anthropic Cost Threshold ($200)"
+    description: "Alert when monthly Anthropic costs exceed $200"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: anthropic_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 200
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - anthropic
+      - genai
+      - cost
+
+  # ============================================
+  # TOTAL COST ALERTS
+  # ============================================
+
+  # --------------------------------------------
+  # Total Monthly Cost: $2,500
+  # All costs combined (cloud + genai + subscription)
+  # --------------------------------------------
+  - id: total_cost_threshold_2500
+    name: "Total Monthly Cost Threshold ($2,500)"
+    description: "Alert when total monthly costs exceed $2,500"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: total_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 2500
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - total
+      - cost
+      - threshold
+
+  # --------------------------------------------
+  # Total Monthly Cost Critical: $10,000
+  # --------------------------------------------
+  - id: total_cost_critical_10000
+    name: "Critical Total Spend Alert ($10,000)"
+    description: "Critical alert for total costs exceeding $10,000"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: total_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 10000
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: critical
+      channels:
+        - email
+        - slack
+      slack:
+        channel: "#cost-alerts"
+        mention_channel: true
+
+    cooldown:
+      enabled: true
+      hours: 12
+      scope: org
+
+    tags:
+      - total
+      - cost
+      - critical
+
+  # ============================================
+  # FORECAST ALERTS (Projected Cost)
+  # ============================================
+
+  # --------------------------------------------
+  # Projected Monthly Cost: $5,000
+  # Based on daily average projected to month end
+  # --------------------------------------------
+  - id: cost_forecast_5000
+    name: "Projected Monthly Cost Alert ($5,000)"
+    description: "Alert when projected monthly costs exceed $5,000"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: cost_forecast
+      params:
+        period: current_month
+
+    conditions:
+      - field: projected_cost
+        operator: gt
+        value: 5000
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_forecast_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - forecast
+      - cost
+      - proactive

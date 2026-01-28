@@ -48,6 +48,12 @@ from .models import (
     ScheduledAlertUpdate,
     AlertHistoryStatus,
     AlertHistoryEntry,
+    # Cost Alert Frontend Models
+    CostAlertScope,
+    CostAlertSummary,
+    CostAlertCreateRequest,
+    CostAlertUpdateRequest,
+    SCOPE_TO_QUERY_TEMPLATE,
 )
 
 from .service import (
@@ -94,6 +100,12 @@ __all__ = [
     "ScheduledAlertUpdate",
     "AlertHistoryStatus",
     "AlertHistoryEntry",
+    # Cost Alert Frontend Models
+    "CostAlertScope",
+    "CostAlertSummary",
+    "CostAlertCreateRequest",
+    "CostAlertUpdateRequest",
+    "SCOPE_TO_QUERY_TEMPLATE",
     # Service
     "NotificationSettingsService",
     "get_notification_settings_service",

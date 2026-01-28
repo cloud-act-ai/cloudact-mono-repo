@@ -12,6 +12,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Sparkles,
 } from "lucide-react"
 import "./landing.css"
 import "./premium.css"
@@ -186,6 +187,33 @@ const WEBSITE_JSON_LD = {
 
 const JSON_LD_STRING = JSON.stringify([ORGANIZATION_JSON_LD, SOFTWARE_JSON_LD, WEBSITE_JSON_LD])
 
+// Top Announcement Banner Component
+function AnnouncementBanner({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) {
+  if (!isVisible) return null
+
+  return (
+    <div className="bg-gradient-to-r from-[#FF6C5E] via-[#FF8066] to-[#FF6C5E] text-white relative z-[100]">
+      <div className="container mx-auto px-4 py-2.5 flex items-center justify-center gap-3">
+        <Sparkles className="w-4 h-4 text-white/90 hidden sm:block" />
+        <span className="px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold uppercase rounded">New</span>
+        <span className="text-sm font-medium">
+          AI-Powered Cost Anomaly Detection — Catch overspend instantly
+        </span>
+        <Link href="/features#anomaly" className="text-white text-sm font-semibold hover:underline flex items-center gap-1 ml-2">
+          Learn more <ArrowRight className="w-3 h-3" />
+        </Link>
+        <button
+          onClick={onClose}
+          className="absolute right-4 text-white/70 hover:text-white transition-colors"
+          aria-label="Close announcement"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Desktop Mega Menu Dropdown (C3.ai style - clean columns, no icons)
 function MegaMenuDropdown({ menu }: { menu: typeof PLATFORM_MENU }) {
   return (
@@ -266,6 +294,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [openAccordion, setOpenAccordion] = useState<string | null>(null)
+  const [showBanner, setShowBanner] = useState(true)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -298,6 +327,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="ca-page-wrapper">
+      {/* ANNOUNCEMENT BANNER - First thing on page, before header */}
+      <AnnouncementBanner isVisible={showBanner} onClose={() => setShowBanner(false)} />
+
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"

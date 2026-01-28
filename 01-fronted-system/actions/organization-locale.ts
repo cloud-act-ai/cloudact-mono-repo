@@ -18,7 +18,9 @@ import {
   CURRENCY_CODES,
   TIMEZONE_VALUES,
   FISCAL_YEAR_MONTHS,
+  DATE_FORMAT_VALUES,
   getFiscalYearFromTimezone,
+  DEFAULT_DATE_FORMAT,
 } from "@/lib/i18n/constants"
 
 // ============================================
@@ -57,6 +59,13 @@ function isValidFiscalYearMonth(month: number): boolean {
   return FISCAL_YEAR_MONTHS.includes(month)
 }
 
+/**
+ * Validate date format.
+ */
+function isValidDateFormat(format: string): boolean {
+  return DATE_FORMAT_VALUES.includes(format)
+}
+
 // ============================================
 // Types
 // ============================================
@@ -67,6 +76,7 @@ export interface OrgLocale {
   default_country?: string
   default_language?: string
   fiscal_year_start_month?: number // 1-12, defaults based on timezone
+  date_format?: string // Date display format (MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD, etc.)
 }
 
 export interface OrgContactDetails {
@@ -157,7 +167,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("organizations")
-      .select("default_currency, default_timezone, default_country, default_language, fiscal_year_start_month")
+      .select("default_currency, default_timezone, default_country, default_language, fiscal_year_start_month, date_format")
       .eq("org_slug", orgSlug)
       .single()
 
@@ -179,6 +189,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
         default_country: data.default_country || undefined,
         default_language: data.default_language || undefined,
         fiscal_year_start_month: data.fiscal_year_start_month ?? fiscalYearDefault,
+        date_format: data.date_format || DEFAULT_DATE_FORMAT,
       },
     }
   } catch (err: unknown) {
@@ -468,7 +479,8 @@ export async function repairLocaleSync(orgSlug: string): Promise<{
 export async function updateOrgLocale(
   orgSlug: string,
   currency: string,
-  timezone: string
+  timezone: string,
+  dateFormat?: string
 ): Promise<UpdateOrgLocaleResult> {
   try {
     // Step 1: Validate input
@@ -482,6 +494,10 @@ export async function updateOrgLocale(
 
     if (!isValidTimezone(timezone)) {
       return { success: false, error: `Invalid timezone: ${timezone}` }
+    }
+
+    if (dateFormat && !isValidDateFormat(dateFormat)) {
+      return { success: false, error: `Invalid date format: ${dateFormat}` }
     }
 
     // Step 2: Verify authentication AND org membership (use cached auth for performance)
@@ -509,12 +525,16 @@ export async function updateOrgLocale(
 
     // Step 4: Update Supabase (only after BigQuery succeeds)
     const supabase = await createClient()
+    const updateData: Record<string, string> = {
+      default_currency: currency,
+      default_timezone: timezone,
+    }
+    if (dateFormat) {
+      updateData.date_format = dateFormat
+    }
     const { error: supabaseError } = await supabase
       .from("organizations")
-      .update({
-        default_currency: currency,
-        default_timezone: timezone,
-      })
+      .update(updateData)
       .eq("org_slug", orgSlug)
 
     if (supabaseError) {
@@ -536,6 +556,7 @@ export async function updateOrgLocale(
       locale: {
         default_currency: currency,
         default_timezone: timezone,
+        date_format: dateFormat || DEFAULT_DATE_FORMAT,
       },
     }
   } catch (err: unknown) {

@@ -229,6 +229,7 @@ out/
 .playwright-mcp/
 01-fronted-system/playwright-report/
 01-fronted-system/test-results/
+go-live-test-screenshots/
 
 mcp.json
 .agent/

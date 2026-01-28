@@ -110,15 +110,62 @@ echo ""
 transform_json_data() {
     local source_file="$1"
     local target_file="$2"
+    local data_type="${3:-generic}"  # genai, cloud, or generic
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY RUN] Would transform: $(basename $source_file)"
         return 0
     fi
 
-    # Replace x_org_slug in JSON data (customer dataset uses x_org_slug prefix)
-    sed "s/\"x_org_slug\": *\"${DEMO_DATA_SOURCE_ORG}\"/\"x_org_slug\": \"${ORG_SLUG}\"/g" \
-        "$source_file" > "$target_file"
+    # Use Python for more complex transformation (add missing required fields)
+    python3 << EOF
+import json
+import uuid
+from datetime import datetime
+
+source_file = "${source_file}"
+target_file = "${target_file}"
+org_slug = "${ORG_SLUG}"
+demo_source_org = "${DEMO_DATA_SOURCE_ORG}"
+data_type = "${data_type}"
+
+with open(source_file, 'r') as f_in, open(target_file, 'w') as f_out:
+    for line in f_in:
+        if not line.strip():
+            continue
+        record = json.loads(line)
+
+        # Replace org_slug
+        if 'x_org_slug' in record:
+            record['x_org_slug'] = org_slug
+
+        # Add missing required fields for GenAI data
+        if data_type == 'genai':
+            if 'x_ingestion_id' not in record or not record.get('x_ingestion_id'):
+                record['x_ingestion_id'] = str(uuid.uuid4())
+            if 'x_ingestion_date' not in record or not record.get('x_ingestion_date'):
+                record['x_ingestion_date'] = record.get('usage_date', datetime.now().strftime('%Y-%m-%d'))
+            if 'x_genai_provider' not in record or not record.get('x_genai_provider'):
+                record['x_genai_provider'] = record.get('provider', 'unknown')
+
+        # Add missing required fields for Cloud data
+        if data_type == 'cloud':
+            if 'x_ingestion_id' not in record or not record.get('x_ingestion_id'):
+                record['x_ingestion_id'] = str(uuid.uuid4())
+            if 'x_ingestion_date' not in record or not record.get('x_ingestion_date'):
+                # Use ingestion_date if present, else derive from usage_start_time
+                if 'ingestion_date' in record:
+                    record['x_ingestion_date'] = record['ingestion_date']
+                elif 'usage_start_time' in record:
+                    record['x_ingestion_date'] = record['usage_start_time'][:10]
+                else:
+                    record['x_ingestion_date'] = datetime.now().strftime('%Y-%m-%d')
+            # x_cloud_provider is already in demo data
+
+        f_out.write(json.dumps(record) + '\n')
+
+print(f"  Transformed $(basename ${source_file})")
+EOF
 
     # Verify replacement
     local new_count=$(grep -c "\"x_org_slug\": \"${ORG_SLUG}\"" "$target_file" || echo "0")
@@ -220,8 +267,9 @@ for provider in openai anthropic gemini; do
     source_file="${DATA_DIR}/genai/${provider}_usage_raw.json"
     if [[ -f "$source_file" ]]; then
         target_file="${TEMP_DIR}/${provider}_usage_raw.json"
-        transform_json_data "$source_file" "$target_file"
-        load_json_to_bq "$target_file" "genai_payg_usage_raw" "${SCHEMA_DIR}/genai_payg_usage_raw.json"
+        transform_json_data "$source_file" "$target_file" "genai"
+        # Use base schema from API service (single source of truth)
+        load_json_to_bq "$target_file" "genai_payg_usage_raw" "${BASE_SCHEMA_DIR}/genai_payg_usage_raw.json"
     else
         log_warn "Skipping ${provider}: file not found"
     fi
@@ -244,12 +292,20 @@ declare -A CLOUD_TABLES=(
     ["oci"]="cloud_oci_billing_raw_daily"
 )
 
+# Use base schemas from API service (single source of truth)
+declare -A CLOUD_SCHEMAS=(
+    ["gcp"]="${BASE_SCHEMA_DIR}/cloud_gcp_billing_raw_daily.json"
+    ["aws"]="${BASE_SCHEMA_DIR}/cloud_aws_billing_raw_daily.json"
+    ["azure"]="${BASE_SCHEMA_DIR}/cloud_azure_billing_raw_daily.json"
+    ["oci"]="${BASE_SCHEMA_DIR}/cloud_oci_billing_raw_daily.json"
+)
+
 for provider in gcp aws azure oci; do
     source_file="${DATA_DIR}/cloud/${provider}_billing_raw.json"
     if [[ -f "$source_file" ]]; then
         target_file="${TEMP_DIR}/${provider}_billing_raw.json"
-        transform_json_data "$source_file" "$target_file"
-        load_json_to_bq "$target_file" "${CLOUD_TABLES[$provider]}" ""
+        transform_json_data "$source_file" "$target_file" "cloud"
+        load_json_to_bq "$target_file" "${CLOUD_TABLES[$provider]}" "${CLOUD_SCHEMAS[$provider]}"
     else
         log_warn "Skipping ${provider}: file not found"
     fi
@@ -269,7 +325,8 @@ source_file="${DATA_DIR}/subscriptions/subscription_plans.csv"
 if [[ -f "$source_file" ]]; then
     target_file="${TEMP_DIR}/subscription_plans.csv"
     transform_csv_data "$source_file" "$target_file"
-    load_csv_to_bq "$target_file" "subscription_plans" "${SCHEMA_DIR}/subscription_plans.json"
+    # Use base schema from API service (single source of truth)
+    load_csv_to_bq "$target_file" "subscription_plans" "${BASE_SCHEMA_DIR}/subscription_plans.json"
 else
     log_warn "Subscription plans file not found"
 fi

@@ -207,7 +207,7 @@ class AlertEngine:
             query_results = await self.query_executor.execute(
                 alert_config.source.query_template,
                 params,
-                org_filter=org_slug  # Enforce org isolation at query level
+                org_slugs=[org_slug]  # Enforce org isolation at query level
             )
         except Exception as e:
             logger.error(f"Query execution failed for alert {alert_config.id} (org: {org_slug}): {e}")

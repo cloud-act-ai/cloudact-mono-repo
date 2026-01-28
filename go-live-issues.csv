@@ -1,0 +1,4 @@
+issue_id,severity,category,section,feature,description,impact,root_cause,resolution,resolved_by,resolved_date,status,test_verified,production_verified,notes
+ISS-001,CRITICAL,Security,API,Alerts,quota_usage query missing org_slug filter,Cross-org data leakage,Missing WHERE clause,Added WHERE org_slug = @org_slug,Claude,2026-01-28,FIXED,YES,PENDING,Multi-tenancy bug
+ISS-002,HIGH,Bug,Engine,Alerts,org_filter param not recognized in query_executor,Org-specific evaluation fails,Wrong parameter name,Changed to org_slugs=[org_slug],Claude,2026-01-28,FIXED,YES,PENDING,Parameter mismatch
+ISS-003,MEDIUM,Security,Router,Alerts,Missing defensive org validation in cost_alerts router,Defense-in-depth gap,No explicit check,Added if alert.org_slug != org_slug check,Claude,2026-01-28,FIXED,YES,PENDING,Defense in depth
