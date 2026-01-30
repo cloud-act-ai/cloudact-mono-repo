@@ -144,6 +144,12 @@
     "description": "Total credits applied (sum of all credit amounts)"
   },
   {
+    "name": "credits_json",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Detailed credits breakdown as JSON string"
+  },
+  {
     "name": "cost_at_list",
     "type": "FLOAT64",
     "mode": "NULLABLE",

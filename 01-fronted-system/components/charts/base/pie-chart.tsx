@@ -9,9 +9,13 @@
  * - Animated segments
  * - Interactive click handling
  * - Currency formatting from context
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * DATA-001: Safe number handling for edge cases
+ * VIS-001: Contrast-aware label colors for WCAG compliance
  */
 
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useId } from "react"
 
 // ============================================
 // VIS-001: Color Contrast Helpers
@@ -61,6 +65,7 @@ import { ChartTooltip } from "../shared/tooltip"
 import { ChartLegend, type LegendItem } from "../shared/legend"
 import { ChartSkeleton } from "../shared/skeleton"
 import { ChartEmptyState } from "../shared/empty-state"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -119,10 +124,22 @@ export interface BasePieChartProps {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function BasePieChart({
+function BasePieChartInner({
   data,
   innerRadius = 0,
   outerRadius = "80%",
@@ -144,10 +161,17 @@ export function BasePieChart({
 }: BasePieChartProps) {
   const { formatValueCompact, theme } = useChartConfig()
   const [activeIndex, setActiveIndex] = useState<number | undefined>()
+  const chartId = useId() // A11Y-001: Unique ID for ARIA relationships
 
   // Filter out zero values and assign colors
+  // DATA-001: Apply safeNumber to all values
   const processedData = useMemo(() => {
-    const filtered = data.filter((item) => item.value > 0)
+    const filtered = data
+      .map((item) => ({
+        ...item,
+        value: safeNumber(item.value),
+      }))
+      .filter((item) => item.value > 0)
     return filtered.map((item, index) => ({
       ...item,
       color: item.color || getPaletteColor(index, theme),
@@ -323,6 +347,9 @@ export function BasePieChart({
   const isVerticalLegend = legendPosition === "right"
   const chartSize = isVerticalLegend ? size : size
 
+  // A11Y-001: Screen reader summary
+  const a11ySummary = `Pie chart with ${processedData.length} segments totaling ${formatValueCompact(total)}`
+
   return (
     <div
       className={cn(
@@ -330,6 +357,9 @@ export function BasePieChart({
         isVerticalLegend && "flex items-center gap-6",
         className
       )}
+      role="img"
+      aria-label={a11ySummary}
+      id={chartId}
     >
       {/* Chart */}
       <div className="relative" style={{ width: chartSize, height: chartSize }}>
@@ -413,6 +443,18 @@ export function BasePieChart({
         />
       )}
     </div>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents chart crashes from affecting the entire dashboard
+ */
+export function BasePieChart(props: BasePieChartProps) {
+  return (
+    <ChartErrorBoundary chartTitle="Pie Chart" minHeight={props.size ?? 280}>
+      <BasePieChartInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

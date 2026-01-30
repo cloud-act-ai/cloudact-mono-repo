@@ -15,6 +15,14 @@ import { isValidCurrency, DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 /**
  * Format cost with currency symbol
  * Uses Intl.NumberFormat for proper locale handling
+ *
+ * @param amount - Amount to format
+ * @param currency - ISO 4217 currency code (e.g., "USD", "INR")
+ * @param options.compact - Use compact notation (e.g., $1.2K)
+ * @param options.decimals - Number of decimal places
+ * @param options.showSign - Show +/- sign for non-zero values
+ * @param options.locale - Locale for number formatting (defaults to browser locale)
+ *                         Pass org locale for consistent formatting across the app
  */
 export function formatCost(
   amount: number,
@@ -23,9 +31,10 @@ export function formatCost(
     compact?: boolean
     decimals?: number
     showSign?: boolean
+    locale?: string
   }
 ): string {
-  const { compact = false, decimals = 2, showSign = false } = options || {}
+  const { compact = false, decimals = 2, showSign = false, locale } = options || {}
 
   // Handle NaN, Infinity, null, and undefined - return $0.00
   if (!Number.isFinite(amount)) {
@@ -36,8 +45,9 @@ export function formatCost(
   // Invalid codes cause RangeError, fall back to DEFAULT_CURRENCY
   const safeCurrency = isValidCurrency(currency) ? currency : DEFAULT_CURRENCY
 
-  // FORMAT-001 FIX: Use undefined to respect user's browser locale
-  const formatter = new Intl.NumberFormat(undefined, {
+  // ERR-001 FIX: Use provided locale, or fall back to browser default
+  // Pass org locale for consistent formatting across the app
+  const formatter = new Intl.NumberFormat(locale, {
     style: "currency",
     currency: safeCurrency,
     minimumFractionDigits: compact ? 0 : decimals,
@@ -84,23 +94,29 @@ export function formatCostRange(
  * Format percentage
  * Note: Input value is expected to be 0-100 (e.g., 15 for 15%)
  * The function converts to 0-1 for Intl.NumberFormat
+ *
+ * @param value - Percentage value (0-100)
+ * @param options.decimals - Number of decimal places
+ * @param options.showSign - Show +/- sign for non-zero values
+ * @param options.locale - Locale for number formatting (defaults to browser locale)
  */
 export function formatPercent(
   value: number,
   options?: {
     decimals?: number
     showSign?: boolean
+    locale?: string
   }
 ): string {
-  const { decimals = 1, showSign = false } = options || {}
+  const { decimals = 1, showSign = false, locale } = options || {}
 
   // Handle NaN, Infinity, and null/undefined
   if (!Number.isFinite(value)) {
     return "0%"
   }
 
-  // FORMAT-001 FIX: Use undefined to respect user's browser locale
-  const formatter = new Intl.NumberFormat(undefined, {
+  // ERR-001 FIX: Use provided locale, or fall back to browser default
+  const formatter = new Intl.NumberFormat(locale, {
     style: "percent",
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -224,18 +240,24 @@ export function formatTrend(
 
 /**
  * Format large number with suffix (K, M, B)
+ *
+ * @param value - Number to format
+ * @param options.compact - Use compact notation (e.g., 1.2K)
+ * @param options.decimals - Number of decimal places
+ * @param options.locale - Locale for number formatting (defaults to browser locale)
  */
 export function formatNumber(
   value: number,
   options?: {
     compact?: boolean
     decimals?: number
+    locale?: string
   }
 ): string {
-  const { compact = false, decimals = 0 } = options || {}
+  const { compact = false, decimals = 0, locale } = options || {}
 
-  // FORMAT-001 FIX: Use undefined to respect user's browser locale
-  const formatter = new Intl.NumberFormat(undefined, {
+  // ERR-001 FIX: Use provided locale, or fall back to browser default
+  const formatter = new Intl.NumberFormat(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
     notation: compact ? "compact" : "standard",

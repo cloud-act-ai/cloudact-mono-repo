@@ -9,7 +9,7 @@
  *
  * Prerequisites:
  * - Frontend running on localhost:3000
- * - Test user account exists (john@example.com)
+ * - Test user account exists (demo@cloudact.ai)
  * - Valid GCP service account JSON file
  */
 

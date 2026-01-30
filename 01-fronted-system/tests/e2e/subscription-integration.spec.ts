@@ -9,7 +9,7 @@
  *
  * Prerequisites:
  * - Frontend running on localhost:3000
- * - Test user account exists (john@example.com)
+ * - Test user account exists (demo@cloudact.ai)
  * - Backend API service running on port 8000
  */
 

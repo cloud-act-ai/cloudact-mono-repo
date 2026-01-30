@@ -21,7 +21,7 @@ import {
   Brain,
   Wallet,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getPipelineRuns } from "@/actions/pipelines"
@@ -31,7 +31,7 @@ import type { PipelineRunSummary } from "@/lib/api/backend"
 
 // New unified chart library
 import {
-  CostTrendChart,
+  DailyTrendChart,
   CostRingChart,
   CostBreakdownChart,
   useChartConfig,
@@ -247,21 +247,16 @@ export default function DashboardPage() {
   }, [availableFilters.providers, getFilteredProviderBreakdown])
 
   // Get filtered time series data (all categories)
+  // Rolling average is calculated by DailyTrendChart component internally
   const filteredDailyData = useMemo(() => {
     const timeSeries = getFilteredTimeSeries()
     if (!timeSeries || timeSeries.length === 0) return []
-
-    // Calculate overall average
-    const totalCost = timeSeries.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0)
-    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
-    const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
 
     return timeSeries.map((point) => ({
       date: point.date,
       // FORMAT-001 FIX: Use undefined to respect user's browser locale
       label: new Date(point.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-      value: point.total,
-      rollingAvg: Math.round(rollingAvg * 100) / 100,
+      value: Number.isFinite(point.total) ? point.total : 0,
     }))
   }, [getFilteredTimeSeries])
 
@@ -522,197 +517,274 @@ export default function DashboardPage() {
         <CostSummaryGrid data={summaryData} timeRange={timeRange} />
       </div>
 
-      {/* Daily Cost Trend Chart */}
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Daily Cost Trend
+          Executive-grade time series with rolling average overlay
+          ═══════════════════════════════════════════════════════════════ */}
       {filteredDailyData.length > 0 && (
-        <div className="animate-fade-up animation-delay-100">
-          <CostTrendChart
-            title="Daily Cost Trend"
-            subtitle="Daily spend with period average"
+        <section className="animate-fade-up animation-delay-100">
+          {/* Section Header - Enterprise style */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="h-1 w-1 rounded-full bg-[#90FCA6]" />
+              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Cost Trend Analysis
+              </h2>
+            </div>
+            {/* Data freshness indicator */}
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live data</span>
+            </div>
+          </div>
+          <DailyTrendChart
+            title="Cost Trend"
+            subtitle={timeRange === "365" || timeRange === "ytd"
+              ? "Monthly spend with 3-month rolling average"
+              : timeRange === "90"
+              ? "Weekly spend with 4-week rolling average"
+              : "Daily spend with 7-day rolling average"}
             data={filteredDailyData.map(d => ({
               date: d.date,
               label: d.label,
               value: d.value,
-              rollingAvg: d.rollingAvg,
             }))}
-            showBars={true}
-            showLine={true}
+            timeRange={timeRange}
             barColor="#90FCA6"
             lineColor="#FF6C5E"
-            lineLabel={`${filteredDailyData.length}-day Avg`}
-            enableZoom={true}
             height={320}
+            mobileHeight={240}
             loading={isLoading}
           />
-        </div>
+        </section>
       )}
 
-      {/* Row 1: Total Spend (Pie) + Top 5 GenAI */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-200">
-        {/* Total Spend Ring Chart */}
-        <CostRingChart
-          title="Total Spend"
-          segments={ringSegments}
-          centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "custom" ? "Period" : timeRange === "365" ? "365D" : timeRange === "90" ? "90D" : timeRange === "30" ? "30D" : "Total"}
-          insight={!hasData
-            ? "No cost data yet. Connect providers and run pipelines."
-            : `Spending across ${ringSegments.filter(s => s.value > 0).length} cost categories.`
-          }
-          showChevron
-          onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
-          size={200}
-          thickness={22}
-          titleColor="#1a7a3a"
-          className="premium-card"
-        />
-
-        {/* Top 5 GenAI Cost Drivers */}
-        {top5GenAI.length > 0 ? (
-          <CostBreakdownChart
-            title="Top 5 GenAI Cost Drivers"
-            items={top5GenAI}
-            countLabel="providers"
-            maxItems={5}
-            showOthers={false}
-            className="premium-card"
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Cost Distribution
+          Total spend breakdown + Top GenAI drivers
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="animate-fade-up animation-delay-200">
+        {/* Section Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-1 w-1 rounded-full bg-[#FF6C5E]" />
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Cost Distribution
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+          {/* Total Spend Ring Chart */}
+          <CostRingChart
+            title="Total Spend by Category"
+            segments={ringSegments}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "custom" ? "Period" : timeRange === "365" ? "365D" : timeRange === "90" ? "90D" : timeRange === "30" ? "30D" : "Total"}
+            insight={!hasData
+              ? "No cost data yet. Connect providers and run pipelines."
+              : `Spending across ${ringSegments.filter(s => s.value > 0).length} cost categories.`
+            }
+            showChevron
+            onClick={() => window.location.href = `/${orgSlug}/cost-dashboards/overview`}
+            size={180}
+            thickness={20}
+            titleColor="#0f172a"
           />
-        ) : (
-          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
-            <div className="text-center">
-              <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-[#10A37F]/40 mx-auto mb-1.5 sm:mb-2" />
-              <p className="text-xs sm:text-sm text-slate-500">No GenAI costs yet</p>
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Row 2: Top 5 Cloud + Top 5 Subscriptions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-300">
-        {/* Top 5 Cloud Cost Drivers */}
-        {top5Cloud.length > 0 ? (
-          <CostBreakdownChart
-            title="Top 5 Cloud Cost Drivers"
-            items={top5Cloud}
-            countLabel="services"
-            maxItems={5}
-            showOthers={false}
-            className="premium-card"
-          />
-        ) : (
-          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
-            <div className="text-center">
-              <Cloud className="h-6 w-6 sm:h-8 sm:w-8 text-[#4285F4]/40 mx-auto mb-1.5 sm:mb-2" />
-              <p className="text-xs sm:text-sm text-slate-500">No cloud costs yet</p>
-            </div>
-          </div>
-        )}
-
-        {/* Top 5 Subscription Cost Drivers */}
-        {top5Subscription.length > 0 ? (
-          <CostBreakdownChart
-            title="Top 5 Subscription Cost Drivers"
-            items={top5Subscription}
-            countLabel="subscriptions"
-            maxItems={5}
-            showOthers={false}
-            className="premium-card"
-          />
-        ) : (
-          <div className="premium-card bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 flex items-center justify-center min-h-[120px] sm:min-h-[160px]">
-            <div className="text-center">
-              <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-[#FF6C5E]/40 mx-auto mb-1.5 sm:mb-2" />
-              <p className="text-xs sm:text-sm text-slate-500">No subscription costs yet</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Integration Status */}
-      <Card>
-        <CardHeader className="border-b border-border pb-3 sm:pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">Connected Integrations</CardTitle>
-            <Link href={`/${orgSlug}/integrations`}>
-              <button className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-slate-900 hover:text-black transition-colors">
-                Manage
-                <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-6">
-          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {integrations.length > 0 ? (
-              integrations.map((integration) => (
-                <div
-                  key={integration.provider}
-                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md sm:rounded-lg bg-[#90FCA6]/10 shrink-0">
-                      {integration.type === "subscription" ? (
-                        <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
-                      ) : integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") || integration.provider.includes("OCI") ? (
-                        <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
-                      ) : (
-                        <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
-                      )}
-                    </div>
-                    <span className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
-                      {integration.name}
-                    </span>
-                  </div>
-                  <Badge
-                    variant={
-                      integration.status === "connected"
-                        ? "success"
-                        : integration.status === "pending"
-                        ? "warning"
-                        : "outline"
-                    }
-                    className="text-[10px] sm:text-[11px] shrink-0"
-                  >
-                    {integration.status === "connected"
-                      ? "Connected"
-                      : integration.status === "pending"
-                      ? "Pending"
-                      : "Error"}
-                  </Badge>
+          {/* Top 5 GenAI Cost Drivers */}
+          {top5GenAI.length > 0 ? (
+            <CostBreakdownChart
+              title="Top GenAI Providers"
+              items={top5GenAI}
+              countLabel="providers"
+              maxItems={5}
+              showOthers={false}
+            />
+          ) : (
+            <Card className="flex items-center justify-center min-h-[200px]">
+              <div className="text-center px-6 py-8">
+                <div className="mx-auto w-12 h-12 rounded-xl bg-[#10A37F]/10 flex items-center justify-center mb-3">
+                  <Brain className="h-6 w-6 text-[#10A37F]/60" />
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-4 sm:py-6">
-                <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-slate-300 mx-auto mb-1.5 sm:mb-2" />
-                <p className="text-xs sm:text-sm text-slate-500">No integrations configured</p>
-                <Link href={`/${orgSlug}/integrations`} className="inline-block mt-2">
-                  <button className="inline-flex items-center gap-2 h-8 sm:h-9 px-3 sm:px-4 bg-[#90FCA6] text-slate-900 text-xs sm:text-[13px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors">
-                    Add Integration
-                  </button>
-                </Link>
+                <p className="text-sm font-medium text-slate-900 mb-1">No GenAI costs yet</p>
+                <p className="text-xs text-slate-500">Connect OpenAI, Anthropic, or other LLM providers</p>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </Card>
+          )}
+        </div>
+      </section>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-[11px] sm:text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3 sm:mb-4">Quick Actions</h2>
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Top Cost Drivers
+          Cloud infrastructure + SaaS subscriptions breakdown
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="animate-fade-up animation-delay-300">
+        {/* Section Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-1 w-1 rounded-full bg-[#4285F4]" />
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Top Cost Drivers
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+          {/* Top 5 Cloud Cost Drivers */}
+          {top5Cloud.length > 0 ? (
+            <CostBreakdownChart
+              title="Top Cloud Providers"
+              items={top5Cloud}
+              countLabel="services"
+              maxItems={5}
+              showOthers={false}
+            />
+          ) : (
+            <Card className="flex items-center justify-center min-h-[200px]">
+              <div className="text-center px-6 py-8">
+                <div className="mx-auto w-12 h-12 rounded-xl bg-[#4285F4]/10 flex items-center justify-center mb-3">
+                  <Cloud className="h-6 w-6 text-[#4285F4]/60" />
+                </div>
+                <p className="text-sm font-medium text-slate-900 mb-1">No cloud costs yet</p>
+                <p className="text-xs text-slate-500">Connect AWS, GCP, or Azure accounts</p>
+              </div>
+            </Card>
+          )}
+
+          {/* Top 5 Subscription Cost Drivers */}
+          {top5Subscription.length > 0 ? (
+            <CostBreakdownChart
+              title="Top SaaS Subscriptions"
+              items={top5Subscription}
+              countLabel="subscriptions"
+              maxItems={5}
+              showOthers={false}
+            />
+          ) : (
+            <Card className="flex items-center justify-center min-h-[200px]">
+              <div className="text-center px-6 py-8">
+                <div className="mx-auto w-12 h-12 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center mb-3">
+                  <Wallet className="h-6 w-6 text-[#FF6C5E]/60" />
+                </div>
+                <p className="text-sm font-medium text-slate-900 mb-1">No subscription costs yet</p>
+                <p className="text-xs text-slate-500">Add your SaaS subscriptions to track</p>
+              </div>
+            </Card>
+          )}
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Integration Status
+          Connected providers and services overview
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="animate-fade-up animation-delay-400">
+        {/* Section Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-1 w-1 rounded-full bg-emerald-500" />
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Connected Integrations
+            </h2>
+          </div>
+          <Link href={`/${orgSlug}/integrations`}>
+            <button className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors group">
+              Manage All
+              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </Link>
+        </div>
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {integrations.length > 0 ? (
+                integrations.map((integration) => (
+                  <div
+                    key={integration.provider}
+                    className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white border border-slate-100 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                        integration.status === "connected"
+                          ? "bg-emerald-50 group-hover:bg-emerald-100"
+                          : "bg-slate-50 group-hover:bg-slate-100"
+                      }`}>
+                        {integration.type === "subscription" ? (
+                          <Wallet className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+                        ) : integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") || integration.provider.includes("OCI") ? (
+                          <Cloud className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+                        ) : (
+                          <Zap className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-slate-900 truncate block">
+                          {integration.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 capitalize">
+                          {integration.type === "subscription" ? "SaaS" : "API"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
+                      integration.status === "connected"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : integration.status === "pending"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-red-50 text-red-700"
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                        integration.status === "connected"
+                          ? "bg-emerald-500"
+                          : integration.status === "pending"
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                      }`} />
+                      {integration.status === "connected" ? "Active" : integration.status === "pending" ? "Pending" : "Error"}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
+                    <Zap className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-900 mb-1">No integrations configured</p>
+                  <p className="text-xs text-slate-500 mb-4">Connect your first provider to start tracking costs</p>
+                  <Link href={`/${orgSlug}/integrations`}>
+                    <button className="inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow transition-all">
+                      Add Integration
+                    </button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Quick Actions
+          Primary action cards for common workflows
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="animate-fade-up animation-delay-500">
+        {/* Section Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-1 w-1 rounded-full bg-blue-500" />
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Quick Actions
+          </h2>
+        </div>
+        <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-3">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
               <Card
-                className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${QUICK_ACTION_COLOR_CLASSES[action.color]} hover:-translate-y-1`}
+                className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${QUICK_ACTION_COLOR_CLASSES[action.color]} hover:-translate-y-1 hover:shadow-lg`}
               >
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 sm:space-y-4">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 sm:space-y-3">
                     <div
-                      className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-lg transition-transform duration-200 group-hover:scale-110 shrink-0`}
+                      className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-md transition-transform duration-200 group-hover:scale-105 shrink-0`}
                     >
                       {action.icon}
                     </div>
-                    <div className="space-y-0.5 sm:space-y-1">
-                      <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900">{action.title}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{action.description}</p>
+                    <div className="space-y-0.5">
+                      <h3 className="text-sm sm:text-[15px] font-semibold text-slate-900">{action.title}</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">{action.description}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -720,35 +792,51 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Recent Pipeline Runs */}
-      <div>
-        <h2 className="text-[11px] sm:text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-3 sm:mb-4">Recent Pipeline Runs</h2>
-        <Card>
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Recent Pipeline Runs
+          Activity feed for pipeline executions
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="animate-fade-up animation-delay-600">
+        {/* Section Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-1 w-1 rounded-full bg-purple-500" />
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Recent Pipeline Runs
+            </h2>
+          </div>
+          {recentPipelines.length > 0 && (
+            <span className="text-[10px] text-slate-400">
+              {recentPipelines.filter(p => p.status === "COMPLETED").length}/{recentPipelines.length} completed
+            </span>
+          )}
+        </div>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
             {recentPipelines.length > 0 ? (
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-slate-100">
                 {recentPipelines.map((pipeline) => (
                   <div
                     key={pipeline.pipeline_logging_id}
-                    className="flex items-start gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-[#90FCA6]/5 transition-colors"
+                    className="group flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 hover:bg-slate-50/50 transition-colors"
                   >
                     <div
-                      className={`flex h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-lg sm:rounded-xl border ${getStatusColor(pipeline.status)}`}
+                      className={`flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors ${getStatusColor(pipeline.status)}`}
                     >
                       {getPipelineIcon(pipeline.pipeline_id)}
                     </div>
-                    <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
-                      <div className="flex items-start justify-between gap-2 sm:gap-3">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="space-y-0.5 min-w-0">
-                          <p className="text-[13px] sm:text-[15px] font-semibold text-slate-900 truncate">{pipeline.pipeline_id}</p>
-                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                          <p className="text-sm font-medium text-slate-900 truncate">{pipeline.pipeline_id}</p>
+                          <p className="text-xs text-slate-500 truncate">
                             {pipeline.duration_ms
-                              ? `Duration: ${(pipeline.duration_ms / 1000).toFixed(1)}s`
+                              ? `Completed in ${(pipeline.duration_ms / 1000).toFixed(1)}s`
                               : pipeline.error_message
                               ? pipeline.error_message.slice(0, 50)
-                              : "Running..."}
+                              : "Processing..."}
                           </p>
                         </div>
                         <Badge
@@ -757,16 +845,16 @@ export default function DashboardPage() {
                             : pipeline.status === "FAILED" ? "destructive"
                             : "outline"
                           }
-                          className="text-[9px] sm:text-[10px] flex-shrink-0"
+                          className="text-[10px] flex-shrink-0"
                         >
-                          {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />}
-                          {pipeline.status === "FAILED" && <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />}
-                          {pipeline.status === "RUNNING" && <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 animate-pulse" />}
+                          {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                          {pipeline.status === "FAILED" && <AlertCircle className="h-3 w-3 mr-1" />}
+                          {pipeline.status === "RUNNING" && <Activity className="h-3 w-3 mr-1 animate-pulse" />}
                           {pipeline.status}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
-                        <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                        <Clock className="h-3 w-3" />
                         {formatTimeAgo(pipeline.start_time)}
                       </div>
                     </div>
@@ -774,46 +862,60 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="p-6 sm:p-8 text-center">
-                <Database className="h-8 w-8 sm:h-10 sm:w-10 text-slate-300 mx-auto mb-2 sm:mb-3" />
-                <p className="text-xs sm:text-sm font-medium text-slate-900">No pipeline runs yet</p>
-                <p className="text-[10px] sm:text-xs text-slate-500 mt-1">Run a pipeline to see activity here</p>
+              <div className="p-8 text-center">
+                <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
+                  <Database className="h-6 w-6 text-slate-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-900 mb-1">No pipeline runs yet</p>
+                <p className="text-xs text-slate-500">Run a pipeline to see activity here</p>
               </div>
             )}
-            <div className="border-t border-border p-3 sm:p-4 bg-[#90FCA6]/5">
+            <div className="border-t border-slate-100 p-3.5 sm:p-4 bg-slate-50/50">
               <Link href={`/${orgSlug}/pipelines`}>
-                <button className="w-full inline-flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-slate-900 hover:text-black transition-colors">
+                <button className="w-full inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors group">
                   View All Pipelines
-                  <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </Link>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
-      {/* Bottom CTA Section */}
-      <Card className="relative overflow-hidden border-2 border-[#90FCA6]/20 bg-gradient-to-br from-[#90FCA6]/5 via-white to-[#FF6C5E]/5">
-        <CardContent className="p-4 sm:p-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
-            <div className="space-y-1 sm:space-y-2 text-center sm:text-left">
-              <div className="flex items-center gap-1.5 sm:gap-2 justify-center sm:justify-start">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
-                <h3 className="text-[15px] sm:text-[17px] font-bold text-slate-900">Invite Your Team</h3>
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Team Collaboration CTA
+          Encourage team onboarding
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="animate-fade-up animation-delay-700">
+        <Card className="relative overflow-hidden border border-slate-100 bg-gradient-to-r from-slate-50 via-white to-[#90FCA6]/5">
+          {/* Subtle shine effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+
+          <CardContent className="relative p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+              <div className="flex items-center gap-4 text-center sm:text-left">
+                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-xl bg-[#90FCA6]/15 shrink-0">
+                  <Users className="h-6 w-6 text-emerald-600" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-sm sm:text-base font-semibold text-slate-900">
+                    Invite Your Team
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500">
+                    Collaborate on cost optimization with your team members
+                  </p>
+                </div>
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Collaborate on cost optimization with your team members
-              </p>
+              <Link href={`/${orgSlug}/settings/members`}>
+                <button className="inline-flex items-center gap-2 h-10 px-5 bg-[#90FCA6] text-slate-900 text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                  <Users className="h-4 w-4" />
+                  Manage Team
+                </button>
+              </Link>
             </div>
-            <Link href={`/${orgSlug}/settings/members`}>
-              <button className="inline-flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-4 sm:px-6 bg-[#90FCA6] text-slate-900 text-xs sm:text-[13px] font-semibold rounded-lg sm:rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                Manage Team
-              </button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
     </div>
     </main>
   )

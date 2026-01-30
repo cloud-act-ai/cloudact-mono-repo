@@ -14,6 +14,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server"
+import { requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
 import {
   CURRENCY_CODES,
   TIMEZONE_VALUES,
@@ -153,7 +154,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
     }
 
     // Step 2: Verify authentication AND org membership (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -224,7 +225,7 @@ async function syncLocaleToBackend(
   }
 
   // Get org API key (cached)
-  const { getCachedApiKey } = await import("@/lib/auth-cache")
+  // Static import used (PERF-002 fix)
   const orgApiKey = await getCachedApiKey(orgSlug)
 
   if (!orgApiKey) {
@@ -325,7 +326,7 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
     }
 
     // Verify authentication (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -360,7 +361,7 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
       return { inSync: true, supabase: supabaseLocale } // No backend to check
     }
 
-    const { getCachedApiKey } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     const orgApiKey = await getCachedApiKey(orgSlug)
 
     if (!orgApiKey) {
@@ -501,7 +502,7 @@ export async function updateOrgLocale(
     }
 
     // Step 2: Verify authentication AND org membership (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -538,13 +539,18 @@ export async function updateOrgLocale(
       .eq("org_slug", orgSlug)
 
     if (supabaseError) {
-      
-      // BigQuery was updated but Supabase failed - log warning but still return success
-      // because BigQuery is the source of truth for cost calculations
-      
+      // BigQuery was updated but Supabase failed
+      // Return SUCCESS because BigQuery is the source of truth for cost calculations
+      // Include warning so user knows to retry for full sync
+      console.warn(`[updateOrgLocale] Supabase update failed for ${orgSlug} after BigQuery success:`, supabaseError)
       return {
-        success: false,
-        error: "Failed to update frontend settings. Backend was updated successfully."
+        success: true,
+        locale: {
+          default_currency: currency,
+          default_timezone: timezone,
+          date_format: dateFormat || DEFAULT_DATE_FORMAT,
+        },
+        error: "Backend updated successfully. Frontend sync failed - please refresh and try again if settings don't appear correctly."
       }
     }
 
@@ -602,7 +608,7 @@ export async function updateFiscalYear(
     }
 
     // Step 2: Verify authentication AND org membership (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -696,7 +702,7 @@ export async function getOrgLogo(orgSlug: string): Promise<GetOrgLogoResult> {
 
     // Verify authentication AND org membership
     // Verify authentication (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -754,7 +760,7 @@ export async function updateOrgLogo(
     }
 
     // Verify authentication AND org membership (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -809,7 +815,7 @@ export async function uploadOrgLogo(
 
     // Verify authentication AND org membership (use cached auth for performance)
     // This is the security gate - we verify membership BEFORE any storage operations
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -958,7 +964,7 @@ export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResul
 
     // Verify authentication AND org membership (use cached auth for performance)
     // This is the security gate - we verify membership BEFORE any storage operations
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -1046,7 +1052,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
     }
 
     // Verify authentication AND org membership (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -1111,7 +1117,7 @@ export async function getOrgContactDetails(orgSlug: string): Promise<GetOrgConta
 
     // Verify authentication AND org membership
     // Verify authentication (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -1225,7 +1231,7 @@ export async function updateOrgContactDetails(
 
     // Verify authentication AND org membership
     // Verify authentication (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -1336,7 +1342,7 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
 
     // Verify authentication AND org membership
     // Verify authentication (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -1440,7 +1446,7 @@ export async function getOrgName(orgSlug: string): Promise<{
 
     // Verify authentication AND org membership
     // Verify authentication (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {
@@ -1533,7 +1539,7 @@ export async function updateOrgName(
     const sanitizedName = sanitizeOrgNameInput(newOrgName)
 
     // Step 2: Verify authentication AND org membership (use cached auth for performance)
-    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    // Static import used (PERF-002 fix)
     try {
       await requireOrgMembership(orgSlug)
     } catch (err) {

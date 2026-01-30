@@ -377,10 +377,33 @@ export async function completeOnboarding(sessionId: string) {
       }
     }
 
-    // Retrieve checkout session from Stripe (expand only subscription - 1 level)
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["subscription"],
-    })
+    // FIX ERR-001: Add timeout to Stripe session retrieval (15 second timeout)
+    const stripeTimeoutMs = 15000
+    const retrieveWithTimeout = async () => {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), stripeTimeoutMs)
+      try {
+        const result = await stripe.checkout.sessions.retrieve(sessionId, {
+          expand: ["subscription"],
+        })
+        clearTimeout(timeoutId)
+        return result
+      } catch (err) {
+        clearTimeout(timeoutId)
+        throw err
+      }
+    }
+
+    let session
+    try {
+      session = await retrieveWithTimeout()
+    } catch (stripeErr) {
+      const errMsg = stripeErr instanceof Error ? stripeErr.message : "Unknown error"
+      if (errMsg.includes("abort") || errMsg.includes("timeout")) {
+        return { success: false, error: "Payment verification timed out. Please try again." }
+      }
+      return { success: false, error: `Failed to verify payment: ${errMsg}` }
+    }
 
     if (!session) {
       return { success: false, error: "Checkout session not found" }
@@ -646,6 +669,8 @@ export async function completeOnboarding(sessionId: string) {
     let backendRevealToken: string | undefined
     let backendRevealTokenExpiresAt: string | undefined
     let backendOnboardingFailed = false
+    // FIX ERR-002: Track backend error message for better debugging
+    let backendErrorMessage: string | undefined
 
     try {
       const backendResult = await onboardToBackend({
@@ -664,9 +689,13 @@ export async function completeOnboarding(sessionId: string) {
         backendRevealTokenExpiresAt = backendResult.revealTokenExpiresAt
       } else {
         backendOnboardingFailed = true
+        // FIX ERR-002: Capture backend error message
+        backendErrorMessage = backendResult.error
       }
     } catch (backendError) {
       backendOnboardingFailed = true
+      // FIX ERR-002: Capture exception message
+      backendErrorMessage = backendError instanceof Error ? backendError.message : "Backend connection failed"
       if (process.env.NODE_ENV === "development") {
         console.warn("[CompleteOnboarding] Backend onboarding failed:", backendError)
       }
@@ -683,8 +712,10 @@ export async function completeOnboarding(sessionId: string) {
       backendRevealToken,
       backendRevealTokenExpiresAt,
       backendOnboardingFailed,
+      // FIX ERR-002: Include backend error message for debugging
+      backendErrorMessage,
       message: backendOnboardingFailed
-        ? "Organization created. Backend setup can be completed from Settings."
+        ? `Organization created. Backend setup can be completed from Settings.${backendErrorMessage ? ` (${backendErrorMessage})` : ""}`
         : "Organization created successfully.",
     }
   } catch (err: unknown) {

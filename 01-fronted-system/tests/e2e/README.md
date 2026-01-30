@@ -59,8 +59,8 @@ End-to-end browser automation tests using Playwright for CloudAct frontend.
    ```
 
 3. **Test user created**: Ensure test user exists in Supabase
-   - Email: `john@example.com`
-   - Password: `acme1234`
+   - Email: `demo@cloudact.ai`
+   - Password: `demo1234`
    - Organization: `Acme Inc` (slug: `acme_inc_01062026`)
 
 ## Running Tests
@@ -149,7 +149,7 @@ The `org-account-deletion.spec.ts` file contains comprehensive tests for:
 
 ```typescript
 // 1. Login
-await login(page, 'john@example.com', 'acme1234');
+await login(page, 'demo@cloudact.ai', 'demo1234');
 
 // 2. Navigate to Danger Zone
 await navigateToDangerZone(page);

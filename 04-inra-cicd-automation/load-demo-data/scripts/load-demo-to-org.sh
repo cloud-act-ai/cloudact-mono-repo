@@ -162,6 +162,40 @@ with open(source_file, 'r') as f_in, open(target_file, 'w') as f_out:
                     record['x_ingestion_date'] = datetime.now().strftime('%Y-%m-%d')
             # x_cloud_provider is already in demo data
 
+            # Add usage_date from usage_start_time (required by FOCUS conversion)
+            if 'usage_date' not in record or not record.get('usage_date'):
+                if 'usage_start_time' in record and record.get('usage_start_time'):
+                    record['usage_date'] = record['usage_start_time'][:10]
+
+            # Add missing pricing columns that sp_cloud_1_convert_to_focus expects
+            # These are in the full billing exports but may be missing in simplified demo data
+            pricing_cols = [
+                # GCP columns
+                'price_list_price', 'price_effective_price', 'price_unit',
+                'price_tier_start_amount', 'price_pricing_unit_quantity',
+                'adjustment_info_json', 'consumption_model_json', 'export_time', 'credits_json',
+                # AWS columns
+                'resource_name', 'pricing_quantity', 'public_on_demand_rate', 'unblended_rate',
+                'product_family', 'product_instance_type', 'product_operating_system',
+                'product_tenancy', 'discount_edp_amount', 'discount_private_rate_amount',
+                'discount_bundled_amount', 'discount_total_amount', 'bill_type', 'line_item_description',
+                # Azure columns
+                'billing_account_id', 'billing_period_start', 'billing_period_end',
+                'publisher_type', 'publisher_name', 'service_family', 'usage_quantity',
+                'unit_of_measure', 'pricing_model', 'pricing_unit', 'payg_price', 'unit_price',
+                'effective_price', 'cost_in_billing_currency', 'azure_credit_applied',
+                'billing_currency', 'frequency', 'reservation_id', 'reservation_name',
+                'savings_plan_id', 'savings_plan_name', 'benefit_id', 'benefit_name',
+                'tags_json', 'additional_info_json',
+                # OCI columns
+                'platform_type', 'overage_flag', 'cost_type', 'list_rate', 'my_cost',
+                'credits_total', 'currency', 'is_correction', 'subscription_id',
+                'billing_period', 'freeform_tags_json', 'defined_tags_json'
+            ]
+            for col in pricing_cols:
+                if col not in record:
+                    record[col] = None
+
         f_out.write(json.dumps(record) + '\n')
 
 print(f"  Transformed $(basename ${source_file})")

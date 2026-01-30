@@ -36,6 +36,9 @@ function SuccessContent() {
   // Prevent duplicate processing and back button issues
   const processingRef = useRef(false)
   const hasProcessedRef = useRef(false)
+  // FIX SEC-002: Track retry attempts for rate limiting
+  const retryCountRef = useRef(0)
+  const lastRetryTimeRef = useRef(0)
 
   const processCheckout = useCallback(async (isRetry = false) => {
     // Prevent duplicate processing
@@ -53,6 +56,21 @@ function SuccessContent() {
       setError("Invalid checkout session. Please try again from the billing page.")
       processingRef.current = false
       return
+    }
+
+    // FIX IDEM-001: Check sessionStorage to prevent back-button re-processing
+    const storageKey = `onboarding_processed_${sessionId}`
+    if (!isRetry && typeof window !== "undefined") {
+      const processedOrgSlug = sessionStorage.getItem(storageKey)
+      if (processedOrgSlug) {
+        // This session was already processed - redirect to dashboard
+        hasProcessedRef.current = true
+        setOrgSlug(processedOrgSlug)
+        setStatus("success")
+        router.push(`/${processedOrgSlug}/integrations?welcome=true`)
+        processingRef.current = false
+        return
+      }
     }
 
     try {
@@ -120,6 +138,11 @@ function SuccessContent() {
       setOrgSlug(result.orgSlug || null)
       setStatus("success")
 
+      // FIX IDEM-001: Save to sessionStorage to prevent back-button re-processing
+      if (result.orgSlug && typeof window !== "undefined") {
+        sessionStorage.setItem(storageKey, result.orgSlug)
+      }
+
       // Send welcome email (non-blocking - don't fail if email fails)
       try {
         const userMetadata = user.user_metadata || {}
@@ -163,8 +186,24 @@ function SuccessContent() {
     }
   }, [sessionId, router])
 
-  // Retry handler
+  // FIX SEC-002: Retry handler with rate limiting
   const handleRetry = useCallback(() => {
+    const now = Date.now()
+    const timeSinceLastRetry = now - lastRetryTimeRef.current
+
+    // Rate limit: max 3 retries, with 5 second cooldown between retries
+    if (retryCountRef.current >= 3) {
+      setError("Maximum retry attempts reached. Please contact support.")
+      return
+    }
+    if (timeSinceLastRetry < 5000 && retryCountRef.current > 0) {
+      setError("Please wait a few seconds before retrying.")
+      return
+    }
+
+    retryCountRef.current += 1
+    lastRetryTimeRef.current = now
+
     setIsRetrying(true)
     setStatus("processing")
     setError(null)

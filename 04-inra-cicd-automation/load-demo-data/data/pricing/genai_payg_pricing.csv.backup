@@ -1,0 +1,32 @@
+provider,model,model_family,model_version,region,input_per_1m,output_per_1m,cached_input_per_1m,cached_write_per_1m,batch_input_per_1m,batch_output_per_1m,cached_discount_pct,batch_discount_pct,volume_tier,volume_discount_pct,free_tier_input_tokens,free_tier_output_tokens,rate_limit_rpm,rate_limit_tpm,context_window,max_output_tokens,supports_vision,supports_streaming,supports_tools,sla_uptime_pct,effective_from,effective_to,status,last_updated,notes
+openai,gpt-4o,gpt-4o,latest,global,2.50,10.00,1.25,,1.25,5.00,50,50,standard,0,0,0,500,30000,128000,16384,true,true,true,99.9,2024-11-01,,active,2024-12-01,Latest GPT-4o
+openai,gpt-4o-2024-11-20,gpt-4o,2024-11-20,global,2.50,10.00,1.25,,1.25,5.00,50,50,standard,0,0,0,500,30000,128000,16384,true,true,true,99.9,2024-11-20,,active,2024-12-01,
+openai,gpt-4o-mini,gpt-4o,mini,global,0.15,0.60,0.075,,0.075,0.30,50,50,standard,0,0,0,500,200000,128000,16384,true,true,true,99.9,2024-07-01,,active,2024-12-01,Cost effective
+openai,gpt-4-turbo,gpt-4,turbo,global,10.00,30.00,,,5.00,15.00,0,50,standard,0,0,0,500,30000,128000,4096,true,true,true,99.9,2024-04-01,,active,2024-12-01,
+openai,gpt-4,gpt-4,base,global,30.00,60.00,,,15.00,30.00,0,50,standard,0,0,0,200,10000,8192,8192,false,true,true,99.9,2023-03-01,,active,2024-12-01,Original GPT-4
+openai,gpt-3.5-turbo,gpt-3.5,turbo,global,0.50,1.50,,,0.25,0.75,0,50,standard,0,0,0,500,90000,16385,4096,false,true,true,99.9,2023-03-01,,active,2024-12-01,Legacy
+openai,o1,o1,latest,global,15.00,60.00,7.50,,,,50,0,standard,0,0,0,500,30000,200000,100000,true,true,false,99.9,2024-12-01,,active,2024-12-01,Reasoning model
+openai,o1-mini,o1,mini,global,3.00,12.00,1.50,,,,50,0,standard,0,0,0,500,150000,128000,65536,false,true,false,99.9,2024-09-01,,active,2024-12-01,Fast reasoning
+openai,text-embedding-3-small,embedding,3-small,global,0.02,0,,,0.01,,0,50,standard,0,0,0,500,1000000,8191,,false,false,false,99.9,2024-01-01,,active,2024-12-01,1536 dimensions
+openai,text-embedding-3-large,embedding,3-large,global,0.13,0,,,0.065,,0,50,standard,0,0,0,500,1000000,8191,,false,false,false,99.9,2024-01-01,,active,2024-12-01,3072 dimensions
+anthropic,claude-3-5-sonnet-20241022,claude-3.5,sonnet,global,3.00,15.00,0.30,3.75,1.50,7.50,90,50,standard,0,0,0,50,40000,200000,8192,true,true,true,99.9,2024-10-22,,active,2024-12-01,Latest Sonnet
+anthropic,claude-3-5-haiku-20241022,claude-3.5,haiku,global,0.80,4.00,0.08,1.00,0.40,2.00,90,50,standard,0,0,0,50,50000,200000,8192,true,true,true,99.9,2024-10-22,,active,2024-12-01,Fast Haiku
+anthropic,claude-3-opus-20240229,claude-3,opus,global,15.00,75.00,1.50,18.75,7.50,37.50,90,50,standard,0,0,0,50,20000,200000,4096,true,true,true,99.9,2024-02-29,,active,2024-12-01,Most capable
+anthropic,claude-3-sonnet-20240229,claude-3,sonnet,global,3.00,15.00,,,1.50,7.50,0,50,standard,0,0,0,50,40000,200000,4096,true,true,true,99.9,2024-02-29,,active,2024-12-01,Balanced
+anthropic,claude-3-haiku-20240307,claude-3,haiku,global,0.25,1.25,0.03,0.30,0.125,0.625,88,50,standard,0,0,0,50,50000,200000,4096,true,true,true,99.9,2024-03-07,,active,2024-12-01,Fastest
+gemini,gemini-2.5-flash,gemini-2.5,flash,global,0.15,0.60,0.0375,,0.075,0.30,75,50,standard,0,1000000,1000000,1000,4000000,1000000,8192,true,true,true,99.9,2025-01-01,,active,2024-12-01,Latest Flash
+gemini,gemini-2.5-pro,gemini-2.5,pro,global,1.25,10.00,0.3125,,0.625,5.00,75,50,standard,0,500000,500000,360,4000000,1000000,8192,true,true,true,99.9,2025-01-01,,active,2024-12-01,Latest Pro
+gemini,gemini-2.0-flash,gemini-2.0,flash,global,0,0,,,,,0,0,standard,0,1500000,1500000,1500,4000000,1000000,8192,true,true,true,99.0,2024-12-01,,preview,2024-12-01,Free experimental
+gemini,gemini-1.5-flash,gemini-1.5,flash,global,0.075,0.30,0.01875,,0.0375,0.15,75,50,standard,0,1000000,1000000,1000,4000000,1000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,<128K context
+gemini,gemini-1.5-pro,gemini-1.5,pro,global,1.25,5.00,0.3125,,0.625,2.50,75,50,standard,0,500000,500000,360,4000000,2000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,<128K context
+gemini,gemini-1.0-pro,gemini-1.0,pro,global,0.50,1.50,,,0.25,0.75,0,50,standard,0,0,0,360,4000000,32000,8192,false,true,true,99.9,2023-12-01,,active,2024-12-01,Original Gemini Pro
+azure_openai,gpt-4o,gpt-4o,latest,eastus,2.50,10.00,1.25,,1.25,5.00,50,50,standard,0,0,0,500,30000,128000,16384,true,true,true,99.95,2024-11-01,,active,2024-12-01,Azure East US
+azure_openai,gpt-4o,gpt-4o,latest,westeurope,2.75,11.00,1.38,,1.38,5.50,50,50,standard,0,0,0,500,30000,128000,16384,true,true,true,99.95,2024-11-01,,active,2024-12-01,Azure West Europe +10%
+azure_openai,gpt-4o-mini,gpt-4o,mini,eastus,0.15,0.60,0.075,,0.075,0.30,50,50,standard,0,0,0,500,200000,128000,16384,true,true,true,99.95,2024-07-01,,active,2024-12-01,Azure East US
+azure_openai,gpt-4o-mini,gpt-4o,mini,westeurope,0.165,0.66,0.083,,0.083,0.33,50,50,standard,0,0,0,500,200000,128000,16384,true,true,true,99.95,2024-07-01,,active,2024-12-01,Azure West Europe +10%
+aws_bedrock,claude-3-5-sonnet-v2,claude-3.5,sonnet,us-east-1,3.00,15.00,,,,,0,0,standard,0,0,0,50,40000,200000,8192,true,true,true,99.9,2024-10-01,,active,2024-12-01,AWS US East
+aws_bedrock,claude-3-5-sonnet-v2,claude-3.5,sonnet,eu-west-1,3.30,16.50,,,,,0,0,standard,0,0,0,50,40000,200000,8192,true,true,true,99.9,2024-10-01,,active,2024-12-01,AWS EU West +10%
+aws_bedrock,claude-3-haiku,claude-3,haiku,us-east-1,0.25,1.25,,,,,0,0,standard,0,0,0,50,50000,200000,4096,true,true,true,99.9,2024-03-01,,active,2024-12-01,AWS US East
+gcp_vertex,gemini-1.5-pro,gemini-1.5,pro,us-central1,1.25,5.00,0.3125,,0.625,2.50,75,50,standard,0,0,0,360,4000000,2000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,Vertex US Central
+gcp_vertex,gemini-1.5-pro,gemini-1.5,pro,europe-west1,1.38,5.50,0.34,,0.69,2.75,75,50,standard,0,0,0,360,4000000,2000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,Vertex EU +10%
+gcp_vertex,gemini-1.5-flash,gemini-1.5,flash,us-central1,0.075,0.30,0.01875,,0.0375,0.15,75,50,standard,0,0,0,1000,4000000,1000000,8192,true,true,true,99.9,2024-05-01,,active,2024-12-01,Vertex US Central

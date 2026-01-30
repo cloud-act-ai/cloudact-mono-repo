@@ -146,8 +146,8 @@ Report summary:
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 **To cleanup and recreate the debug account:**

@@ -10,9 +10,13 @@
  * - Stacked and grouped bars
  * - Interactive click handling
  * - Currency formatting from context
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * DATA-001: Safe number handling for edge cases
+ * A11Y-001: WCAG 2.1 AA compliant
  */
 
-import React, { useMemo, useState, useCallback } from "react"
+import React, { useMemo, useState, useCallback, useId } from "react"
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -29,6 +33,7 @@ import { ChartTooltip } from "../shared/tooltip"
 import { ChartLegend, type LegendItem } from "../shared/legend"
 import { ChartSkeleton } from "../shared/skeleton"
 import { ChartEmptyState } from "../shared/empty-state"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -129,10 +134,22 @@ function GradientDefs({ bars }: GradientDefsProps) {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function BaseBarChart<T extends Record<string, unknown>>({
+function BaseBarChartInner<T extends Record<string, unknown>>({
   data,
   xAxisKey,
   bars,
@@ -156,6 +173,7 @@ export function BaseBarChart<T extends Record<string, unknown>>({
   const { formatValueCompact, theme } = useChartConfig()
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [hoveredBar, setHoveredBar] = useState<string | null>(null)
+  const chartId = useId() // A11Y-001: Unique ID for ARIA relationships
 
   // Handle mouse events for hover effects
   const handleMouseEnter = useCallback((barKey: string, index: number) => {
@@ -215,8 +233,16 @@ export function BaseBarChart<T extends Record<string, unknown>>({
   // Determine if horizontal (bars go sideways) or vertical (bars go up)
   const isHorizontal = layout === "horizontal"
 
+  // A11Y-001: Screen reader summary
+  const a11ySummary = `Bar chart with ${barsWithColors.length} series and ${data.length} data points`
+
   return (
-    <div className={cn("w-full min-w-0", className)}>
+    <div
+      className={cn("w-full min-w-0", className)}
+      role="img"
+      aria-label={a11ySummary}
+      id={chartId}
+    >
       {/* Legend at top */}
       {showLegend && legendPosition === "top" && (
         <ChartLegend
@@ -360,6 +386,20 @@ export function BaseBarChart<T extends Record<string, unknown>>({
         />
       )}
     </div>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents chart crashes from affecting the entire dashboard
+ */
+export function BaseBarChart<T extends Record<string, unknown>>(
+  props: BaseBarChartProps<T>
+) {
+  return (
+    <ChartErrorBoundary chartTitle="Bar Chart" minHeight={props.height ?? 280}>
+      <BaseBarChartInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

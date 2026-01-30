@@ -5,6 +5,9 @@
  *
  * TanStack Table for cost data with ChartProvider integration.
  * Automatically formats currency using the same context as charts.
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * DATA-001: Safe number handling in TrendBadge
  */
 
 import React, { useMemo, useState } from "react"
@@ -18,6 +21,7 @@ import { DataTable, SortableHeader } from "../shared/data-table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -154,10 +158,22 @@ function TrendBadge({ current, previous }: { current: number; previous?: number 
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function CostDataTable({
+function CostDataTableInner({
   title,
   subtitle,
   rows: propRows,
@@ -189,6 +205,7 @@ export function CostDataTable({
   const loading = propLoading ?? contextLoading
 
   // Get data from context if useProviders is true
+  // DATA-001: Apply safeNumber to all values
   const contextRows = useMemo(() => {
     if (!useProviders || propRows) return []
 
@@ -200,7 +217,7 @@ export function CostDataTable({
     return providers.map((p) => ({
       key: p.provider,
       name: p.provider,
-      value: p.total_cost,
+      value: safeNumber(p.total_cost),
       count: p.record_count,
       category: category, // Use the category prop passed to the component
     }))
@@ -513,6 +530,18 @@ export function CostDataTable({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents table crashes from affecting the entire dashboard
+ */
+export function CostDataTable(props: CostDataTableProps) {
+  return (
+    <ChartErrorBoundary chartTitle={props.title} minHeight={200}>
+      <CostDataTableInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

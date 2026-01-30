@@ -404,8 +404,8 @@ lsof -i:3000,3001,8000,8001  # Should show nothing
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | Org Slug | **Query from DB** (see command below) |
 
 ```bash

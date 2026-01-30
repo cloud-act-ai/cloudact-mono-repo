@@ -8,7 +8,7 @@
  *   npx ts-node tests/demo-setup/add-demo-org-members.ts
  *   npx ts-node tests/demo-setup/add-demo-org-members.ts --org-slug=custom_org
  *
- * Default credentials: john@example.com / acme1234 / Acme Inc (org_slug: acme_inc)
+ * Default credentials: demo@cloudact.ai / demo1234 / Acme Inc (org_slug: acme_inc)
  */
 
 import { createClient } from '@supabase/supabase-js'

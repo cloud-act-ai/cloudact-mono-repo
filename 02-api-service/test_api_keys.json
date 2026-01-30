@@ -1,6 +1,22 @@
 {
   "test_keys": [
     {
+      "api_key": "test_acme_inc_ml01ua8p_api_key",
+      "org_slug": "acme_inc_ml01ua8p",
+      "company_name": "Acme Inc",
+      "admin_email": "john@example.com",
+      "status": "ACTIVE",
+      "org_dataset_id": "acme_inc_ml01ua8p_local",
+      "subscription": {
+        "plan_name": "SCALE",
+        "status": "ACTIVE",
+        "daily_limit": 100,
+        "monthly_limit": 3000,
+        "concurrent_limit": 10
+      },
+      "org_api_key_id": "test-key-acme"
+    },
+    {
       "api_key": "test_cloudact_inc_01222026_api_key",
       "org_slug": "cloudact_inc_01222026",
       "company_name": "CloudAct Inc",

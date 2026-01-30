@@ -57,14 +57,11 @@ function mapPlanToBackendPlan(planId: string): "STARTER" | "PROFESSIONAL" | "SCA
 
 /**
  * Generate org slug from company name
- * Source: actions/organization.ts (extracted logic)
+ * Source: actions/stripe.ts (extracted logic)
+ * Format: companyname_{timestamp} where timestamp is base36
  */
 function generateOrgSlug(sanitizedName: string): string {
-  const date = new Date()
-  const mm = String(date.getMonth() + 1).padStart(2, "0")
-  const dd = String(date.getDate()).padStart(2, "0")
-  const yyyy = date.getFullYear()
-  const suffix = `${mm}${dd}${yyyy}`
+  const timestamp = Date.now().toString(36)
 
   // Extract first word only for shorter slug
   const firstWord = sanitizedName
@@ -73,7 +70,7 @@ function generateOrgSlug(sanitizedName: string): string {
     .replace(/[^a-z0-9]/g, "")
     .slice(0, 20)  // Limit first word to 20 chars max
 
-  return `${firstWord}_${suffix}`
+  return `${firstWord}_${timestamp}`
 }
 
 // ============================================
@@ -524,40 +521,40 @@ describe('generateOrgSlug', () => {
   describe('Basic Slug Generation', () => {
     it('should generate slug from single-word company name', () => {
       const slug = generateOrgSlug('Acme')
-      expect(slug).toMatch(/^acme_\d{8}$/)
+      expect(slug).toMatch(/^acme_[a-z0-9]+$/)
     })
 
     it('should generate slug from multi-word company name', () => {
       const slug = generateOrgSlug('Tech Innovations LLC')
-      expect(slug).toMatch(/^tech_\d{8}$/)
+      expect(slug).toMatch(/^tech_[a-z0-9]+$/)
     })
 
     it('should extract only the first word', () => {
       const slug = generateOrgSlug('First Second Third')
-      expect(slug).toMatch(/^first_\d{8}$/)
+      expect(slug).toMatch(/^first_[a-z0-9]+$/)
     })
   })
 
   describe('Character Normalization', () => {
     it('should convert to lowercase', () => {
       const slug = generateOrgSlug('ACME')
-      expect(slug).toMatch(/^acme_\d{8}$/)
+      expect(slug).toMatch(/^acme_[a-z0-9]+$/)
     })
 
     it('should remove special characters', () => {
       const slug = generateOrgSlug('Acme@Corp!')
-      expect(slug).toMatch(/^acmecorp_\d{8}$/)
+      expect(slug).toMatch(/^acmecorp_[a-z0-9]+$/)
     })
 
     it('should remove hyphens', () => {
       const slug = generateOrgSlug('My-Company')
-      expect(slug).toMatch(/^mycompany_\d{8}$/)
+      expect(slug).toMatch(/^mycompany_[a-z0-9]+$/)
     })
 
     it('should handle unicode characters', () => {
       const slug = generateOrgSlug('Café')
       // Unicode chars removed, leaving 'caf'
-      expect(slug).toMatch(/^caf_\d{8}$/)
+      expect(slug).toMatch(/^caf_[a-z0-9]+$/)
     })
   })
 
@@ -572,16 +569,16 @@ describe('generateOrgSlug', () => {
     it('should handle exactly 20 character first word', () => {
       const name = 'B'.repeat(20)
       const slug = generateOrgSlug(name)
-      expect(slug).toMatch(/^b{20}_\d{8}$/)
+      expect(slug).toMatch(/^b{20}_[a-z0-9]+$/)
     })
   })
 
-  describe('Date Suffix Format', () => {
-    it('should append MMDDYYYY suffix', () => {
+  describe('Timestamp Suffix Format', () => {
+    it('should append base36 timestamp suffix', () => {
       const slug = generateOrgSlug('Company')
       const parts = slug.split('_')
       expect(parts.length).toBe(2)
-      expect(parts[1]).toMatch(/^\d{8}$/)
+      expect(parts[1]).toMatch(/^[a-z0-9]+$/)
     })
 
     it('should generate consistent format for same timestamp', () => {
@@ -596,22 +593,22 @@ describe('generateOrgSlug', () => {
     it('should handle empty first word after sanitization', () => {
       const slug = generateOrgSlug('@#$%')
       // All special chars removed
-      expect(slug).toMatch(/^_\d{8}$/)
+      expect(slug).toMatch(/^_[a-z0-9]+$/)
     })
 
     it('should handle whitespace-only input', () => {
       const slug = generateOrgSlug('   ')
-      expect(slug).toMatch(/^_\d{8}$/)
+      expect(slug).toMatch(/^_[a-z0-9]+$/)
     })
 
     it('should handle numeric company names', () => {
       const slug = generateOrgSlug('123 Company')
-      expect(slug).toMatch(/^123_\d{8}$/)
+      expect(slug).toMatch(/^123_[a-z0-9]+$/)
     })
 
     it('should handle mixed alphanumeric', () => {
       const slug = generateOrgSlug('Tech2024 Corp')
-      expect(slug).toMatch(/^tech2024_\d{8}$/)
+      expect(slug).toMatch(/^tech2024_[a-z0-9]+$/)
     })
   })
 
@@ -641,7 +638,7 @@ describe('Integration: Sanitize + Validate + Generate', () => {
 
     const slug = generateOrgSlug(sanitized)
     expect(isValidOrgSlug(slug)).toBe(true)
-    expect(slug).toMatch(/^acme_\d{8}$/)
+    expect(slug).toMatch(/^acme_[a-z0-9]+$/)
   })
 
   it('should handle XSS attempt end-to-end', () => {
@@ -656,7 +653,7 @@ describe('Integration: Sanitize + Validate + Generate', () => {
 
     const slug = generateOrgSlug(sanitized)
     expect(isValidOrgSlug(slug)).toBe(true)
-    expect(slug).toMatch(/^alert1valid_\d{8}$/)
+    expect(slug).toMatch(/^alert1valid_[a-z0-9]+$/)
   })
 
   it('should reject too-short name after sanitization', () => {
@@ -695,7 +692,7 @@ describe('Integration: Sanitize + Validate + Generate', () => {
 
     const slug = generateOrgSlug(sanitized)
     // Unicode removed in slug generation
-    expect(slug).toMatch(/^caf_\d{8}$/)
+    expect(slug).toMatch(/^caf_[a-z0-9]+$/)
   })
 })
 

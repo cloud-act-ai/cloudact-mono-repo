@@ -545,6 +545,7 @@ class QueryTemplate(str, Enum):
     GCP_COSTS = "gcp_costs"
     AWS_COSTS = "aws_costs"
     AZURE_COSTS = "azure_costs"
+    OCI_COSTS = "oci_costs"  # FIX ISS-018: Add OCI
 
     # Provider-specific GenAI costs
     OPENAI_COSTS = "openai_costs"
@@ -700,6 +701,7 @@ class CostAlertScope(str, Enum):
     GCP = "gcp"
     AWS = "aws"
     AZURE = "azure"
+    OCI = "oci"  # FIX ISS-018: Add OCI
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
 
@@ -713,6 +715,7 @@ SCOPE_TO_QUERY_TEMPLATE = {
     CostAlertScope.GCP: QueryTemplate.GCP_COSTS,
     CostAlertScope.AWS: QueryTemplate.AWS_COSTS,
     CostAlertScope.AZURE: QueryTemplate.AZURE_COSTS,
+    CostAlertScope.OCI: QueryTemplate.OCI_COSTS,  # FIX ISS-018: Add OCI
     CostAlertScope.OPENAI: QueryTemplate.OPENAI_COSTS,
     CostAlertScope.ANTHROPIC: QueryTemplate.ANTHROPIC_COSTS,
 }

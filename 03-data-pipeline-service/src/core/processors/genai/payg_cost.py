@@ -550,6 +550,10 @@ class PAYGCostProcessor:
                         c.default_x_hierarchy_path_names as x_hierarchy_path_names,
 
                         CURRENT_TIMESTAMP() as calculated_at,
+                        -- x_ingestion fields (REQUIRED)
+                        GENERATE_UUID() as x_ingestion_id,
+                        @process_date as x_ingestion_date,
+                        u.provider as x_genai_provider,
                         -- Standardized lineage columns (x_ prefix)
                         CONCAT('genai_payg_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
                         u.x_credential_id as x_credential_id,
@@ -598,6 +602,9 @@ class PAYGCostProcessor:
                         x_hierarchy_path = S.x_hierarchy_path,
                         x_hierarchy_path_names = S.x_hierarchy_path_names,
                         calculated_at = S.calculated_at,
+                        x_ingestion_id = S.x_ingestion_id,
+                        x_ingestion_date = S.x_ingestion_date,
+                        x_genai_provider = S.x_genai_provider,
                         x_pipeline_id = S.x_pipeline_id,
                         x_credential_id = S.x_credential_id,
                         x_pipeline_run_date = S.x_pipeline_run_date,
@@ -611,7 +618,8 @@ class PAYGCostProcessor:
                             request_count,
                             x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
                             x_hierarchy_path, x_hierarchy_path_names,
-                            calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
+                            calculated_at, x_ingestion_id, x_ingestion_date, x_genai_provider,
+                            x_pipeline_id, x_credential_id, x_pipeline_run_date,
                             x_run_id, x_ingested_at)
                     VALUES (S.cost_date, S.x_org_slug, S.provider, S.model, S.model_family, S.region,
                             S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
@@ -620,7 +628,8 @@ class PAYGCostProcessor:
                             S.request_count,
                             S.x_hierarchy_entity_id, S.x_hierarchy_entity_name, S.x_hierarchy_level_code,
                             S.x_hierarchy_path, S.x_hierarchy_path_names,
-                            S.calculated_at, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
+                            S.calculated_at, S.x_ingestion_id, S.x_ingestion_date, S.x_genai_provider,
+                            S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
                             S.x_run_id, S.x_ingested_at)
                 """
 

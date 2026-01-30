@@ -4,8 +4,8 @@
  * Configuration for setting up demo accounts via browser automation
  *
  * ALWAYS use:
- *   - Email: john@example.com
- *   - Password: acme1234
+ *   - Email: demo@cloudact.ai
+ *   - Password: demo1234
  *   - Company: Acme Inc
  */
 
@@ -24,35 +24,45 @@ export interface DemoAccountConfig {
 }
 
 /**
- * Get today's date in MMDDYYYY format
- * Example: "01032026" for January 3, 2026
+ * Get timestamp suffix in base36 format
+ * Example: "ml01ua8p" for a specific timestamp
+ * NOTE: This is for reference only - actual org_slug is generated at signup time
  */
-export function getDateSuffix(): string {
-    const now = new Date()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    const year = now.getFullYear()
-    return `${month}${day}${year}`
+export function getTimestampSuffix(): string {
+    return Date.now().toString(36)
 }
 
 /**
- * Get the expected org slug (backend adds date suffix automatically)
- * Example: "acme_inc_01032026"
+ * Get org slug pattern (base name without timestamp)
+ * NOTE: Full org_slug includes timestamp suffix added at signup
+ * Example: "acme_inc" → "acme_inc_ml01ua8p" (at signup time)
+ *
+ * IMPORTANT: Don't use this to predict org_slug - capture it from the URL after signup
+ */
+export function getOrgSlugBase(): string {
+    return 'acme_inc'
+}
+
+/**
+ * @deprecated Use getOrgSlugBase() instead. Org slug format changed from date to timestamp.
  */
 export function getExpectedOrgSlug(): string {
-    return `acme_inc_${getDateSuffix()}`
+    // Return base - actual slug captured from URL after signup
+    console.warn('[Demo Config] getExpectedOrgSlug() is deprecated. Capture org_slug from URL after signup.')
+    return 'acme_inc'
 }
 
 // Default demo account configuration - ALWAYS use these credentials
-// NOTE: Company name is "Acme Inc" - backend automatically adds date suffix to org_slug
+// NOTE: Company name is "Acme Inc" - system adds timestamp suffix to org_slug at signup
+// Format: acme_inc_{timestamp} where timestamp is base36 (e.g., ml01ua8p)
 export const DEFAULT_DEMO_ACCOUNT: DemoAccountConfig = {
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john@example.com',
-    password: 'acme1234',
+    firstName: 'Demo',
+    lastName: 'User',
+    email: 'demo@cloudact.ai',
+    password: 'demo1234',
     phone: '5551234567',
     countryCode: '+1',
-    companyName: 'Acme Inc',  // Backend creates org_slug as acme_inc_{MMDDYYYY}
+    companyName: 'Acme Inc',  // System creates org_slug as acme_inc_{timestamp}
     companyType: 'Company',
     currency: '$ USD',
     timezone: 'PST/PDT - Los Angeles, USA',

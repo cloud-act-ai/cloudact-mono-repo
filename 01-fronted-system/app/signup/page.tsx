@@ -175,6 +175,15 @@ function SignupForm() {
     setServerError(null) // AUTH-001 FIX: Clear error before validation
     setIsLoading(true)
 
+    // FIX EDGE-002: Validate phone for ALL flows including invite flow
+    if (!isValidPhone(phoneNumber, countryCode)) {
+      const hint = getPhoneHint(countryCode)
+      const country = COUNTRY_CODES.find(c => c.code === countryCode)?.country || "your country"
+      setServerError(`Please enter a valid phone number for ${country} (${hint})`)
+      setIsLoading(false)
+      return
+    }
+
     // Check rate limiting first
     const normalizedEmail = email.trim().toLowerCase()
     const rateLimitCheck = await checkSignupRateLimit(normalizedEmail)

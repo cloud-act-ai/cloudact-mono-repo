@@ -226,6 +226,18 @@ pipelines:
     enabled: true
     default_timeout_seconds: 600
 
+  - id: genai_payg_cost_only
+    name: GenAI PAYG Cost Calculation Only
+    description: Calculate costs from existing GenAI usage data (no API extraction). Use when usage data already exists.
+    category: genai
+    provider: "genai"  # Use category as provider for 3-segment path
+    domain: payg
+    pipeline: cost_only
+    required_integration: ""  # No external integration - uses internal data
+    schedule: ""  # Manual only
+    enabled: true
+    default_timeout_seconds: 600
+
   # ============================================
   # GenAI Commitment Pipelines (Reserved Capacity)
   # ============================================

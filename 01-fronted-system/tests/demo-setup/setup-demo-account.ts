@@ -15,9 +15,9 @@
  *   CA_ROOT_API_KEY - Root API key for fetching org API key (from .env.local)
  *
  * Demo Account Values:
- *   Email: john@example.com
- *   Password: acme1234
- *   Company: Acme Inc (NO date suffix - backend auto-generates org_slug as acme_inc_MMDDYYYY)
+ *   Email: demo@cloudact.ai
+ *   Password: demo1234
+ *   Company: Acme Inc (system auto-generates org_slug as acme_inc_{timestamp} in base36)
  *   Plan: scale (free trial, no credit card required)
  */
 
@@ -365,7 +365,7 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
         } else if (currentUrl.includes('/dashboard')) {
             console.log('  Organization setup completed!')
 
-            // Extract org slug from URL (e.g., /acme_inc_01032026/dashboard)
+            // Extract org slug from URL (e.g., /acme_inc_ml01ua8p/dashboard)
             const orgSlugMatch = currentUrl.match(/\/([^/]+)\/dashboard/)
             const orgSlug = orgSlugMatch ? orgSlugMatch[1] : config.companyName.toLowerCase().replace(/\s+/g, '_')
 

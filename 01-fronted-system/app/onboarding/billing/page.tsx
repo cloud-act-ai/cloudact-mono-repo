@@ -173,9 +173,10 @@ export default function BillingPage() {
     )
   }
 
-  // EDGE-002 FIX: Use DEFAULT_TRIAL_DAYS as fallback, with nullish coalescing to preserve 0
-  // Note: This is for display purposes before plan selection. Actual trial period comes from selected plan.
-  const trialDays = plans[0]?.trialDays ?? DEFAULT_TRIAL_DAYS
+  // FIX EDGE-001: Use DEFAULT_TRIAL_DAYS until a plan is selected
+  // Before selection, show default. After selection, show selected plan's trial days.
+  const selectedPlanData = plans.find(p => p.priceId === selectedPlan)
+  const trialDays = selectedPlanData?.trialDays ?? DEFAULT_TRIAL_DAYS
   const companyName = user?.user_metadata?.pending_company_name || "Your Company"
 
   return (

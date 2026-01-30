@@ -1583,28 +1583,28 @@ async def onboard_org(
                             "table_name": "cloud_gcp_billing_raw_daily",
                             "schema_file": "cloud_gcp_billing_raw_daily.json",
                             "description": "Raw GCP billing data from BigQuery billing export.",
-                            "partition_field": "ingestion_date",
+                            "partition_field": "x_ingestion_date",
                             "clustering_fields": ["billing_account_id", "service_id", "project_id", "location_region"]
                         },
                         {
                             "table_name": "cloud_aws_billing_raw_daily",
                             "schema_file": "cloud_aws_billing_raw_daily.json",
                             "description": "Raw AWS billing data from Cost & Usage Report (CUR).",
-                            "partition_field": "usage_date",
+                            "partition_field": "x_ingestion_date",
                             "clustering_fields": ["linked_account_id", "service_code", "product_code", "region"]
                         },
                         {
                             "table_name": "cloud_azure_billing_raw_daily",
                             "schema_file": "cloud_azure_billing_raw_daily.json",
                             "description": "Raw Azure billing data from Cost Management export.",
-                            "partition_field": "usage_date",
+                            "partition_field": "x_ingestion_date",
                             "clustering_fields": ["subscription_id", "service_name", "resource_group", "resource_location"]
                         },
                         {
                             "table_name": "cloud_oci_billing_raw_daily",
                             "schema_file": "cloud_oci_billing_raw_daily.json",
                             "description": "Raw OCI billing data from Cost Analysis API.",
-                            "partition_field": "usage_date",
+                            "partition_field": "x_ingestion_date",
                             "clustering_fields": ["tenancy_id", "service_name", "compartment_id", "region"]
                         }
                     ],

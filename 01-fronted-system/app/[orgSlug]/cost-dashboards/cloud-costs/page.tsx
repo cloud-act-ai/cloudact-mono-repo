@@ -68,30 +68,60 @@ export default function CloudCostsPage() {
   // Set category filter on mount (cloud page is fixed to cloud category)
   // CTX-002 FIX: Add cleanup to reset categories on unmount
   // SYNC-001 & STATE-001 FIX: Reset local filters and clear context provider filter on mount
+  // PAGE-002 FIX: Reset ALL hierarchy fields on mount/unmount
   useEffect(() => {
-    // Clear any provider filter from previous page, set category to cloud
-    setUnifiedFiltersRef.current({ categories: ["cloud"], providers: undefined })
-    // Reset local filter state to defaults
+    // Clear any provider/hierarchy filters from previous page, set category to cloud
+    setUnifiedFiltersRef.current({
+      categories: ["cloud"],
+      providers: undefined,
+      // PAGE-002 FIX: Clear all 5 hierarchy fields
+      hierarchyEntityId: undefined,
+      hierarchyEntityName: undefined,
+      hierarchyLevelCode: undefined,
+      hierarchyPath: undefined,
+      hierarchyPathNames: undefined,
+    })
+    // Reset local filter state to defaults (including all 5 hierarchy fields)
     setFilters({
       department: undefined,
       project: undefined,
       team: undefined,
+      hierarchyEntityId: undefined,
+      hierarchyEntityName: undefined,
+      hierarchyLevelCode: undefined,
+      hierarchyPath: undefined,
+      hierarchyPathNames: undefined,
       providers: [],
       categories: [],
     })
 
-    // Cleanup: reset categories and providers when leaving this page
+    // Cleanup: reset categories, providers, and hierarchy filters when leaving this page
     return () => {
-      setUnifiedFiltersRef.current({ categories: undefined, providers: undefined })
+      setUnifiedFiltersRef.current({
+        categories: undefined,
+        providers: undefined,
+        // PAGE-002 FIX: Clear all 5 hierarchy fields on unmount
+        hierarchyEntityId: undefined,
+        hierarchyEntityName: undefined,
+        hierarchyLevelCode: undefined,
+        hierarchyPath: undefined,
+        hierarchyPathNames: undefined,
+      })
     }
   }, []) // Empty deps - only run on mount/unmount
 
   // Local state - Cloud costs page (category fixed to "cloud")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // PAGE-003 FIX: Include all 5 hierarchy fields in initial state
   const [filters, setFilters] = useState<CostFiltersState>({
     department: undefined,
     project: undefined,
     team: undefined,
+    hierarchyEntityId: undefined,
+    hierarchyEntityName: undefined,
+    hierarchyLevelCode: undefined,
+    hierarchyPath: undefined,
+    hierarchyPathNames: undefined,
     providers: [],
     categories: [], // Category fixed by page, not user-filterable
   })
@@ -154,6 +184,8 @@ export default function CloudCostsPage() {
   }, [cloudProviders])
 
   // Fetch service-level breakdown for cloud costs table
+  // BUG-003 FIX: Include provider filter in API call
+  // BUG-005 FIX: Include hierarchy filter in API call
   useEffect(() => {
     async function fetchServices() {
       if (!orgSlug) return
@@ -175,11 +207,19 @@ export default function CloudCostsPage() {
           startDate.setDate(startDate.getDate() - 365)
         }
 
+        // BUG-003 FIX: Pass provider filter to API
+        // BUG-005 FIX: Pass hierarchy filter to API
         const result = await getCostByService(
           orgSlug,
           startDate.toISOString().split("T")[0],
           endDate.toISOString().split("T")[0],
-          { categories: ["cloud"] }
+          {
+            categories: ["cloud"],
+            providers: filters.providers.length > 0 ? filters.providers : undefined,
+            // Hierarchy filters (using CostFilterParams interface)
+            hierarchyEntityId: filters.hierarchyEntityId || undefined,
+            hierarchyPath: filters.hierarchyPath || undefined,
+          }
         )
         if (result.success && result.data) {
           // Sort by cost descending
@@ -193,21 +233,23 @@ export default function CloudCostsPage() {
       }
     }
     fetchServices()
-  }, [orgSlug, timeRange, customRange])
+  }, [orgSlug, timeRange, customRange, filters.providers, filters.hierarchyEntityId, filters.hierarchyPath])
 
   // Handle filter changes - sync to unified context for provider/hierarchy filters
   // FILTER-008 FIX: Sync local filters to context for consistent filtering
-  // HIERARCHY-FILTER-FIX: Sync hierarchy filters to unified context
+  // PAGE-001 FIX: Sync ALL 5 hierarchy filters to unified context
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
     // Sync all filters to unified context (provider, hierarchy; category fixed for this page)
-    // HIERARCHY-FILTER-BUG-FIX: Include new 5-field hierarchy model fields
+    // PAGE-001 FIX: Include all 5 hierarchy model fields
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
-      // Unified N-level hierarchy filters
+      // Unified N-level hierarchy filters (all 5 fields)
       hierarchyEntityId: newFilters.hierarchyEntityId || undefined,
+      hierarchyEntityName: newFilters.hierarchyEntityName || undefined,
       hierarchyLevelCode: newFilters.hierarchyLevelCode || undefined,
       hierarchyPath: newFilters.hierarchyPath || undefined,
+      hierarchyPathNames: newFilters.hierarchyPathNames || undefined,
     })
   }, [setUnifiedFilters])
 
@@ -342,7 +384,9 @@ export default function CloudCostsPage() {
   }, [providers])
 
   // Check if data is truly empty (not just loading)
-  const isEmpty = !isLoading && !totalCosts?.cloud && providers.length === 0
+  // BUG-004 FIX: Use filtered data (providers, dailyTrendData) instead of unfiltered totalCosts
+  // This ensures empty state shows when filters return no data, not just when all data is empty
+  const isEmpty = !isLoading && providers.length === 0 && dailyTrendData.length === 0
 
   return (
     <CostDashboardShell

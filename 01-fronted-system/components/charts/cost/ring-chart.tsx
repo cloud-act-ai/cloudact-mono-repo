@@ -8,15 +8,20 @@
  * - Category/provider breakdown list
  * - Click-to-drill-down
  * - Automatic context integration
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * A11Y-001: WCAG 2.1 AA compliant with proper ARIA labels
+ * DATA-001: Safe number handling for edge cases
  */
 
-import React, { useMemo } from "react"
+import React, { useMemo, useId } from "react"
 import { cn, sanitizeDisplayText } from "@/lib/utils"
 import { ChevronRight } from "lucide-react"
 import { useCostData } from "@/contexts/cost-data-context"
 import { useChartConfig, getCategoryColor } from "../provider/chart-provider"
 import { BasePieChart, type PieDataItem } from "../base/pie-chart"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -66,10 +71,22 @@ export interface CostRingChartProps {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function CostRingChart({
+function CostRingChartInner({
   title,
   segments: propSegments,
   useCategories = false,
@@ -89,6 +106,7 @@ export function CostRingChart({
 }: CostRingChartProps) {
   const { formatValue, formatValueCompact, theme, isLoading: contextLoading } = useChartConfig()
   const { getFilteredCategoryBreakdown } = useCostData()
+  const chartId = useId() // A11Y-001: Unique ID for ARIA relationships
 
   // MEMO-001 FIX: Memoize category display name mapping to prevent object recreation
   const categoryNames = useMemo<Record<string, string>>(() => ({
@@ -98,8 +116,14 @@ export function CostRingChart({
   }), [])
 
   // Get segments from context if useCategories (uses time-filtered data)
+  // DATA-001: Apply safeNumber to all values
   const segments = useMemo<RingSegment[]>(() => {
-    if (propSegments) return propSegments
+    if (propSegments) {
+      return propSegments.map(s => ({
+        ...s,
+        value: safeNumber(s.value),
+      })).filter((s) => s.value > 0)
+    }
 
     if (useCategories) {
       // Use time-filtered category breakdown from context
@@ -107,7 +131,7 @@ export function CostRingChart({
       return breakdown.map((item) => ({
         key: item.category,
         name: categoryNames[item.category] || item.category,
-        value: item.total_cost,
+        value: safeNumber(item.total_cost),
         color: getCategoryColor(item.category as "genai" | "cloud" | "subscription", theme),
       })).filter((s) => s.value > 0)
     }
@@ -161,6 +185,9 @@ export function CostRingChart({
   const outerRadius = size / 2 - 8
   const innerRadius = outerRadius - thickness
 
+  // A11Y-001: Screen reader summary
+  const a11ySummary = `${title}: Total ${formatValue(total)} across ${segments.length} categories`
+
   return (
     <Card
       className={cn(
@@ -174,10 +201,16 @@ export function CostRingChart({
       onKeyDown={onClick ? handleKeyDown : undefined}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? "button" : undefined}
+      aria-labelledby={`${chartId}-title`}
     >
+      {/* A11Y-001: Screen reader summary */}
+      <span className="sr-only" aria-live="polite">
+        {a11ySummary}
+      </span>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle
+            id={`${chartId}-title`}
             className="text-[15px] sm:text-[17px] font-bold"
             style={{ color: titleColor || theme.text }}
           >
@@ -291,6 +324,18 @@ export function CostRingChart({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents chart crashes from affecting the entire dashboard
+ */
+export function CostRingChart(props: CostRingChartProps) {
+  return (
+    <ChartErrorBoundary chartTitle={props.title} minHeight={props.size ?? 160}>
+      <CostRingChartInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

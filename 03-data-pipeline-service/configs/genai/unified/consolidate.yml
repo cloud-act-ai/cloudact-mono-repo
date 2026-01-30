@@ -3,18 +3,24 @@
 # Consolidates all GenAI flows into unified tables and converts to FOCUS 1.3
 # Schedule: Daily at 6:00 AM UTC (after all flow pipelines complete)
 # URL: POST /api/v1/pipelines/run/{org}/genai/unified/consolidate
+#
+# NOTE: Procedures process a single day. For date range, pass start_date=YYYY-MM-DD only.
 
 pipeline_id: "{org_slug}-genai-unified-consolidate"
 name: "GenAI Unified Consolidation"
 description: "Consolidate PAYG, Commitment, and Infrastructure costs into unified tables"
 provider: "genai"
 domain: "unified"
-version: "15.0.0"
+version: "15.1.0"
 
 schedule:
   cron: "0 6 * * *"
   timezone: "UTC"
   enabled: true
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "genai"
 
 steps:
   - step_id: consolidate_usage
@@ -24,9 +30,30 @@ steps:
       procedure:
         name: "sp_genai_1_consolidate_usage_daily"
         dataset: "organizations"
-      provider: "genai"
-      start_date: "${start_date}"
-      end_date: "${end_date}"
+      parameters:
+        - name: "p_project_id"
+          type: "STRING"
+          value: "${project_id}"
+        - name: "p_dataset_id"
+          type: "STRING"
+          value: "${org_dataset}"
+        - name: "p_usage_date"
+          type: "DATE"
+          value: "${start_date}"
+        - name: "p_credential_id"
+          type: "STRING"
+          value: "${credential_id}"
+          optional: true
+          default: "demo_credential"
+        - name: "p_pipeline_id"
+          type: "STRING"
+          value: "${pipeline_id}"
+          optional: true
+          default: "genai_consolidate_usage"
+        - name: "p_run_id"
+          type: "STRING"
+          value: "${run_id}"
+          optional: true
     timeout_seconds: 600
     retry:
       max_attempts: 3
@@ -39,9 +66,30 @@ steps:
       procedure:
         name: "sp_genai_2_consolidate_costs_daily"
         dataset: "organizations"
-      provider: "genai"
-      start_date: "${start_date}"
-      end_date: "${end_date}"
+      parameters:
+        - name: "p_project_id"
+          type: "STRING"
+          value: "${project_id}"
+        - name: "p_dataset_id"
+          type: "STRING"
+          value: "${org_dataset}"
+        - name: "p_cost_date"
+          type: "DATE"
+          value: "${start_date}"
+        - name: "p_credential_id"
+          type: "STRING"
+          value: "${credential_id}"
+          optional: true
+          default: "demo_credential"
+        - name: "p_pipeline_id"
+          type: "STRING"
+          value: "${pipeline_id}"
+          optional: true
+          default: "genai_consolidate_costs"
+        - name: "p_run_id"
+          type: "STRING"
+          value: "${run_id}"
+          optional: true
     depends_on:
       - consolidate_usage
     timeout_seconds: 600
@@ -56,9 +104,30 @@ steps:
       procedure:
         name: "sp_genai_3_convert_to_focus"
         dataset: "organizations"
-      provider: "genai"
-      start_date: "${start_date}"
-      end_date: "${end_date}"
+      parameters:
+        - name: "p_project_id"
+          type: "STRING"
+          value: "${project_id}"
+        - name: "p_dataset_id"
+          type: "STRING"
+          value: "${org_dataset}"
+        - name: "p_cost_date"
+          type: "DATE"
+          value: "${start_date}"
+        - name: "p_credential_id"
+          type: "STRING"
+          value: "${credential_id}"
+          optional: true
+          default: "demo_credential"
+        - name: "p_pipeline_id"
+          type: "STRING"
+          value: "${pipeline_id}"
+          optional: true
+          default: "genai_to_focus"
+        - name: "p_run_id"
+          type: "STRING"
+          value: "${run_id}"
+          optional: true
     depends_on:
       - consolidate_costs
     timeout_seconds: 300

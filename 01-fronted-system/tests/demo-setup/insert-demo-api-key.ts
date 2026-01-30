@@ -8,7 +8,7 @@
  *   npx ts-node tests/demo-setup/insert-demo-api-key.ts
  *   npx ts-node tests/demo-setup/insert-demo-api-key.ts --org-slug=acme_inc --api-key=my_api_key
  *
- * Default credentials: john@example.com / acme1234 / Acme Inc
+ * Default credentials: demo@cloudact.ai / demo1234 / Acme Inc
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -112,7 +112,7 @@ async function insertDemoApiKey(config: InsertApiKeyConfig): Promise<InsertApiKe
             throw new Error('No users found in Supabase. Please create a user first via signup.')
         }
 
-        // Find the demo user (john@example.com) or use first user
+        // Find the demo user (demo@cloudact.ai) or use first user
         const demoUser = users.users.find(u => u.email === DEFAULT_DEMO_ACCOUNT.email) || users.users[0]
         console.log(`  Found user: ${demoUser.email} (${demoUser.id})`)
 

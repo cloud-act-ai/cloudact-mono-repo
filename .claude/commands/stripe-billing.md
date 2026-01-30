@@ -176,8 +176,8 @@ curl -s -u "$STRIPE_SECRET:" https://api.stripe.com/v1/webhook_endpoints | pytho
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 **The debug account uses the Scale plan (14-day free trial).**

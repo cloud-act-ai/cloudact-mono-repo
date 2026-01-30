@@ -13,42 +13,38 @@
  * Prerequisites:
  * - Frontend running on http://localhost:3000
  * - API Service running on http://localhost:8000
- * - Test user: john@example.com / acme1234
- * - Test organization: Acme Inc (acme_inc_01062026)
+ * - Test user: demo@cloudact.ai / demo1234
+ * - Test organization: Acme Inc (acme_inc_{timestamp} format)
  */
 
 import { test, expect, Page } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
+import { loginAndGetOrgSlug } from './fixtures/auth';
 
 // Test configuration
+// NOTE: orgSlug is captured dynamically during login
 const BASE_URL = 'http://localhost:3000';
 const API_BASE_URL = 'http://localhost:8000';
 const TEST_CREDENTIALS = {
-  email: 'john@example.com',
-  password: 'acme1234',
+  email: 'demo@cloudact.ai',
+  password: 'demo1234',
   orgName: 'Acme Inc',
-  orgSlug: 'acme_inc_01062026'
 };
+
+// Will be set dynamically after login
+let dynamicOrgSlug: string = '';
 
 // API Keys (get from environment or use test defaults)
 const CA_ROOT_API_KEY = process.env.CA_ROOT_API_KEY || 'test-root-api-key-min-32-characters';
 
 /**
- * Helper: Login to the application
+ * Helper: Login to the application and capture org slug dynamically
  */
-async function login(page: Page, email: string, password: string) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-
-  // Fill login form
-  await page.getByRole('textbox', { name: 'Email address' }).fill(email);
-  await page.getByRole('textbox', { name: 'Password' }).fill(password);
-
-  // Submit login
-  await page.getByRole('button', { name: 'Sign in' }).click();
-
-  // Wait for dashboard to load
-  await page.waitForURL(`**/${TEST_CREDENTIALS.orgSlug}/**`, { timeout: 10000 });
+async function login(page: Page, email: string, password: string): Promise<string> {
+  // Use the shared loginAndGetOrgSlug which captures org_slug dynamically
+  const orgSlug = await loginAndGetOrgSlug(page);
+  dynamicOrgSlug = orgSlug;
+  return orgSlug;
 }
 
 /**
@@ -203,7 +199,7 @@ test.describe('Organization Deletion Flow', () => {
     await login(page, TEST_CREDENTIALS.email, TEST_CREDENTIALS.password);
 
     // Verify we're logged in (dashboard is visible)
-    await expect(page).toHaveURL(new RegExp(`/${TEST_CREDENTIALS.orgSlug}/dashboard`));
+    await expect(page).toHaveURL(new RegExp(`/${dynamicOrgSlug}/dashboard`));
 
     // Step 2: Navigate to Danger Zone
     await navigateToDangerZone(page);
@@ -333,7 +329,7 @@ test.describe('Organization Settings Navigation', () => {
 
     // Navigate to Organization settings
     await page.getByRole('link', { name: 'Organization' }).click();
-    await expect(page).toHaveURL(new RegExp(`/${TEST_CREDENTIALS.orgSlug}/settings/organization`));
+    await expect(page).toHaveURL(new RegExp(`/${dynamicOrgSlug}/settings/organization`));
 
     // Verify page title
     await expect(page.getByRole('heading', { name: 'Organization Settings', level: 1 })).toBeVisible();
@@ -426,7 +422,7 @@ test.describe('Complete Cleanup Flow', () => {
     console.log('✓ Redirected to home page (logged out)');
 
     // Step 7: Verify session is cleared (try to access protected route)
-    await page.goto(`${BASE_URL}/${TEST_CREDENTIALS.orgSlug}/dashboard`);
+    await page.goto(`${BASE_URL}/${dynamicOrgSlug}/dashboard`);
     // Should redirect to login
     await expect(page).toHaveURL(`${BASE_URL}/login`);
     console.log('✓ Session cleared - cannot access protected routes');
@@ -441,7 +437,7 @@ test.describe('Complete Cleanup Flow', () => {
     console.log('📋 Step 1: Verifying organization exists before deletion...');
     const beforeDeletion = await verifyCompleteDeletion(
       request,
-      TEST_CREDENTIALS.orgSlug,
+      dynamicOrgSlug,
       TEST_CREDENTIALS.email
     );
 
@@ -471,7 +467,7 @@ test.describe('Complete Cleanup Flow', () => {
     console.log('\n📋 Step 5: Verifying complete deletion across all systems...');
     const afterDeletion = await verifyCompleteDeletion(
       request,
-      TEST_CREDENTIALS.orgSlug,
+      dynamicOrgSlug,
       TEST_CREDENTIALS.email
     );
 
@@ -504,7 +500,7 @@ test.describe('Complete Cleanup Flow', () => {
     // Check state before deletion
     await verifyCompleteDeletion(
       request,
-      TEST_CREDENTIALS.orgSlug,
+      dynamicOrgSlug,
       TEST_CREDENTIALS.email
     );
 
@@ -514,7 +510,7 @@ test.describe('Complete Cleanup Flow', () => {
     // Check state after deletion
     const after = await verifyCompleteDeletion(
       request,
-      TEST_CREDENTIALS.orgSlug,
+      dynamicOrgSlug,
       TEST_CREDENTIALS.email
     );
 
@@ -545,7 +541,7 @@ test.describe('Complete Cleanup Flow', () => {
 
 test.describe('API Validation Tests', () => {
   test('should validate Supabase organization endpoint', async ({ request }) => {
-    const exists = await checkOrgExistsInSupabase(request, TEST_CREDENTIALS.orgSlug);
+    const exists = await checkOrgExistsInSupabase(request, dynamicOrgSlug);
     console.log(`Supabase org check: ${exists ? 'EXISTS' : 'NOT FOUND'}`);
     // We don't assert here since org might be deleted - just verify endpoint works
   });
@@ -553,7 +549,7 @@ test.describe('API Validation Tests', () => {
   test('should validate BigQuery dataset endpoint', async ({ request }) => {
     const exists = await checkDatasetExistsInBigQuery(
       request,
-      TEST_CREDENTIALS.orgSlug,
+      dynamicOrgSlug,
       CA_ROOT_API_KEY
     );
     console.log(`BigQuery dataset check: ${exists ? 'EXISTS' : 'NOT FOUND'}`);
@@ -562,7 +558,7 @@ test.describe('API Validation Tests', () => {
   test('should validate meta table endpoint', async ({ request }) => {
     const exists = await checkOrgExistsInMetaTable(
       request,
-      TEST_CREDENTIALS.orgSlug,
+      dynamicOrgSlug,
       CA_ROOT_API_KEY
     );
     console.log(`Meta table entry check: ${exists ? 'EXISTS' : 'NOT FOUND'}`);

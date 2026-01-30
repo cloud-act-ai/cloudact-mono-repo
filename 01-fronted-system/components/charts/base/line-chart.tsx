@@ -9,9 +9,12 @@
  * - Custom curve types
  * - Zoom/brush integration
  * - Currency formatting from context
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * DATA-001: Safe number handling for edge cases
  */
 
-import React, { useMemo } from "react"
+import React, { useMemo, useId } from "react"
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -29,6 +32,7 @@ import { ChartTooltip } from "../shared/tooltip"
 import { ChartLegend, type LegendItem } from "../shared/legend"
 import { ChartSkeleton } from "../shared/skeleton"
 import { ChartEmptyState } from "../shared/empty-state"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -95,10 +99,22 @@ export interface BaseLineChartProps<T extends Record<string, unknown>> {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function BaseLineChart<T extends Record<string, unknown>>({
+function BaseLineChartInner<T extends Record<string, unknown>>({
   data,
   xAxisKey,
   lines,
@@ -119,6 +135,7 @@ export function BaseLineChart<T extends Record<string, unknown>>({
   className,
 }: BaseLineChartProps<T>) {
   const { formatValueCompact, theme } = useChartConfig()
+  const chartId = useId() // A11Y-001: Unique ID for ARIA relationships
 
   // CHART-001 FIX: Assign colors with fallback to prevent null/undefined in SVG gradients
   const linesWithColors = useMemo(() =>
@@ -172,8 +189,16 @@ export function BaseLineChart<T extends Record<string, unknown>>({
     )
   }
 
+  // A11Y-001: Screen reader summary
+  const a11ySummary = `Line chart with ${linesWithColors.length} series and ${data.length} data points`
+
   return (
-    <div className={cn("w-full min-w-0", className)}>
+    <div
+      className={cn("w-full min-w-0", className)}
+      role="img"
+      aria-label={a11ySummary}
+      id={chartId}
+    >
       {/* FIX BUG-002: Add minWidth to prevent Recharts -1 dimension warning */}
       <ResponsiveContainer width="100%" height={height} minWidth={100}>
         <RechartsLineChart
@@ -331,6 +356,20 @@ export function BaseLineChart<T extends Record<string, unknown>>({
       {/* Legend */}
       {showLegend && <ChartLegend items={legendItems} className="mt-3" />}
     </div>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents chart crashes from affecting the entire dashboard
+ */
+export function BaseLineChart<T extends Record<string, unknown>>(
+  props: BaseLineChartProps<T>
+) {
+  return (
+    <ChartErrorBoundary chartTitle="Line Chart" minHeight={props.height ?? 280}>
+      <BaseLineChartInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

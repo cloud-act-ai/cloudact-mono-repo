@@ -114,12 +114,12 @@ cd 01-fronted-system && npm run dev
 
 | Field | Value |
 |-------|-------|
-| Email | john@example.com |
-| Password | acme1234 |
+| Email | demo@cloudact.ai |
+| Password | demo1234 |
 | Company | Acme Inc |
-| Org Pattern | `acme_inc_{MMDDYYYY}` (auto-generated from company + date) |
+| Org Pattern | `acme_inc_{timestamp}` (auto-generated from company + base36 timestamp) |
 
-**Note:** Org slug is dynamically generated during signup as `{company_name}_{date}`. Example: `acme_inc_01252026` for signup on Jan 25, 2026.
+**Note:** Org slug is dynamically generated during signup as `{company_name}_{timestamp}`. Example: `acme_inc_ml01ua8p` where `ml01ua8p` is the base36 timestamp at signup time.
 
 ## Deployment
 

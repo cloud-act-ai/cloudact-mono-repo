@@ -395,7 +395,25 @@ class OrgOnboardingProcessor:
                 )
 
             # Use BigQuery streaming insert for new entities only
-            errors = client.insert_rows_json(table_id, new_entities)
+            # FIX TIMING-001: Add retry for eventual consistency after bootstrap
+            import time
+            max_retries = 3
+            retry_delay = 2  # seconds
+            errors = None
+
+            for attempt in range(max_retries):
+                try:
+                    errors = client.insert_rows_json(table_id, new_entities)
+                    break  # Success, exit retry loop
+                except Exception as insert_error:
+                    if attempt < max_retries - 1 and "not found" in str(insert_error).lower():
+                        self.logger.warning(
+                            f"Table not ready, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})"
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        raise  # Re-raise on final attempt or different error
 
             if errors:
                 self.logger.error(f"Errors inserting default hierarchy: {errors}")

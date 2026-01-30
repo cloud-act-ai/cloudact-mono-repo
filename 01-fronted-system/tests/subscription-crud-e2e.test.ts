@@ -91,7 +91,7 @@ const TEST_CONFIG = {
   testUser: {
     email: 'guru.kallam@gmail.com',
     password: 'guru1234',
-    orgSlug: 'testorg_12052024_1733356847806', // Update with your actual test org
+    orgSlug: '', // Dynamically set after login - org_slug format: {company}_{timestamp}
   },
   testProvider: 'chatgpt_plus',
   testProviderDisplay: 'ChatGPT Plus',

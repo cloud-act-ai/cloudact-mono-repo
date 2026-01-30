@@ -5,13 +5,18 @@
  *
  * Horizontal bar chart for cost breakdown by category/provider.
  * Replaces the old CostBreakdownChart with Recharts implementation.
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * A11Y-001: WCAG 2.1 AA compliant with proper ARIA labels
+ * DATA-001: Safe number handling for edge cases
  */
 
-import React, { useMemo } from "react"
+import React, { useMemo, useId } from "react"
 import { cn } from "@/lib/utils"
 import { useCostData } from "@/contexts/cost-data-context"
 import { useChartConfig, getPaletteColor } from "../provider/chart-provider"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -57,10 +62,22 @@ export interface CostBreakdownChartProps {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function CostBreakdownChart({
+function CostBreakdownChartInner({
   title,
   items: propItems,
   useProviders = false,
@@ -78,10 +95,17 @@ export function CostBreakdownChart({
   const { formatValue, formatValueCompact, theme, isLoading: contextLoading } = useChartConfig()
   // MEMO-002 FIX: Destructure only needed values to prevent unnecessary re-renders
   const { providerBreakdown, getFilteredProviders } = useCostData()
+  const chartId = useId() // A11Y-001: Unique ID for ARIA relationships
 
   // Get items from context if useProviders
+  // DATA-001: Apply safeNumber to all values
   const rawItems = useMemo<BreakdownItem[]>(() => {
-    if (propItems) return propItems
+    if (propItems) {
+      return propItems.map(item => ({
+        ...item,
+        value: safeNumber(item.value),
+      }))
+    }
 
     if (useProviders) {
       // MEMO-002 FIX: Use destructured values instead of whole costData object
@@ -95,7 +119,7 @@ export function CostBreakdownChart({
       return providers.map((p, index) => ({
         key: p.provider,
         name: p.provider,
-        value: p.total_cost,
+        value: safeNumber(p.total_cost),
         color: getPaletteColor(index, theme),
       }))
     }
@@ -161,6 +185,9 @@ export function CostBreakdownChart({
   // Loading state
   const isLoading = propLoading ?? contextLoading
 
+  // A11Y-001: Screen reader summary
+  const a11ySummary = `${title}: Total ${formatValue(total)} across ${rawItems.length} items`
+
   return (
     <Card className={cn(
       "overflow-hidden transition-all duration-300",
@@ -170,15 +197,25 @@ export function CostBreakdownChart({
     )}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">
+          <CardTitle
+            id={`${chartId}-title`}
+            className="text-[15px] sm:text-[17px] font-bold text-slate-900"
+          >
             {title}
           </CardTitle>
-          <span className="text-xs sm:text-sm font-medium text-slate-900 tabular-nums">
+          <span
+            className="text-xs sm:text-sm font-medium text-slate-900 tabular-nums"
+            aria-label={`Total: ${formatValue(total)}`}
+          >
             {compact ? formatValueCompact(total) : formatValue(total)}
           </span>
         </div>
       </CardHeader>
       <CardContent>
+        {/* A11Y-001: Screen reader summary */}
+        <span className="sr-only" aria-live="polite">
+          {a11ySummary}
+        </span>
         {/* Custom horizontal bar rendering for better control */}
         <div className="space-y-2.5 sm:space-y-3">
           {isLoading ? (
@@ -256,6 +293,18 @@ export function CostBreakdownChart({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents chart crashes from affecting the entire dashboard
+ */
+export function CostBreakdownChart(props: CostBreakdownChartProps) {
+  return (
+    <ChartErrorBoundary chartTitle={props.title} minHeight={props.height ?? 200}>
+      <CostBreakdownChartInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

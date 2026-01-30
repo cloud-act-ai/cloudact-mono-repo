@@ -5,7 +5,7 @@
  * Rates are relative to USD (base currency).
  *
  * Update Policy: Rates should be reviewed monthly by admin.
- * Last Updated: 2025-12-14
+ * Last Updated: 2026-01-29
  *
  * NOTE: Exchange rates are now loaded from CSV file (data/seed/exchange-rates.csv)
  * This file maintains backward compatibility with hardcoded constants.
@@ -13,7 +13,7 @@
 
 // Exchange rate staleness threshold (30 days in milliseconds)
 const RATE_STALENESS_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
-const RATES_LAST_UPDATED = "2025-12-14"
+const RATES_LAST_UPDATED = "2026-01-29"
 
 /**
  * Check if exchange rates are stale (older than 30 days)
@@ -35,7 +35,7 @@ export function checkExchangeRateStaleness(): { isStale: boolean; daysOld: numbe
   }
 }
 
-import { CURRENCY_CODES, CURRENCY_BY_CODE } from "@/lib/i18n/constants"
+import { CURRENCY_BY_CODE } from "@/lib/i18n/constants"
 import {
   loadExchangeRates,
   getExchangeRate as getExchangeRateFromCSV,
@@ -95,8 +95,8 @@ export const EXCHANGE_RATES: Record<string, number> = {
 // CSV-BASED EXCHANGE RATES (Async)
 // ============================================
 
-// Cache TTL: 5 minutes (refresh rates periodically if CSV updates during runtime)
-const CACHE_TTL_MS = 5 * 60 * 1000
+// Cache TTL: 24 hours (static data rarely changes, no need for frequent refresh)
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 let exchangeRatesMapCache: Record<string, number> | null = null
 let cacheTimestamp: number | null = null
@@ -204,25 +204,36 @@ export function convertCurrency(
 }
 
 /**
+ * Async conversion result with success indicator
+ */
+export interface AsyncConversionResult {
+  amount: number
+  success: boolean
+  usedFallback: boolean
+}
+
+/**
  * Convert amount from one currency to another (Async CSV version)
  *
  * @param amount - Amount to convert
  * @param fromCurrency - Source currency code (e.g., "USD")
  * @param toCurrency - Target currency code (e.g., "INR")
- * @returns Converted amount rounded to 2 decimals
+ * @returns Object with converted amount, success flag, and fallback indicator
  *
  * @example
- * await convertCurrencyAsync(100, "USD", "INR") // 8312.00
- * await convertCurrencyAsync(100, "INR", "USD") // 1.20
- * await convertCurrencyAsync(100, "EUR", "GBP") // 85.87
+ * const result = await convertCurrencyAsync(100, "USD", "INR")
+ * if (!result.success) console.warn("Conversion failed")
+ * // { amount: 8312.00, success: true, usedFallback: false }
  */
 export async function convertCurrencyAsync(
   amount: number,
   fromCurrency: string,
   toCurrency: string
-): Promise<number> {
+): Promise<AsyncConversionResult> {
   // Same currency - no conversion needed
-  if (fromCurrency === toCurrency) return amount
+  if (fromCurrency === toCurrency) {
+    return { amount, success: true, usedFallback: false }
+  }
 
   try {
     const rates = await loadExchangeRatesMap()
@@ -230,7 +241,8 @@ export async function convertCurrencyAsync(
     const toRate = rates[toCurrency]
 
     if (!fromRate || !toRate) {
-      return amount
+      // Currency not supported - return original with failure indicator
+      return { amount, success: false, usedFallback: false }
     }
 
     // Convert: from → USD → to
@@ -240,9 +252,19 @@ export async function convertCurrencyAsync(
     // Round to currency-specific decimals (JPY=0, KWD/BHD/OMR=3, most=2)
     const decimals = CURRENCY_BY_CODE[toCurrency]?.decimals ?? 2
     const multiplier = Math.pow(10, decimals)
-    return Math.round(converted * multiplier) / multiplier
+    return {
+      amount: Math.round(converted * multiplier) / multiplier,
+      success: true,
+      usedFallback: false,
+    }
   } catch {
-    return convertCurrency(amount, fromCurrency, toCurrency)
+    // Fallback to synchronous conversion
+    const fallbackAmount = convertCurrency(amount, fromCurrency, toCurrency)
+    return {
+      amount: fallbackAmount,
+      success: fallbackAmount !== amount || fromCurrency === toCurrency,
+      usedFallback: true,
+    }
   }
 }
 
@@ -266,17 +288,17 @@ export function convertFromUSD(usdAmount: number, toCurrency: string): number {
  *
  * @param usdAmount - Amount in USD
  * @param toCurrency - Target currency code
- * @returns Converted amount
+ * @returns Conversion result with amount, success flag, and fallback indicator
  *
  * @example
- * await convertFromUSDAsync(10, "INR") // 831.20
- * await convertFromUSDAsync(10, "AED") // 36.73
+ * const result = await convertFromUSDAsync(10, "INR")
+ * // { amount: 831.20, success: true, usedFallback: false }
  */
 export async function convertFromUSDAsync(
   usdAmount: number,
   toCurrency: string
-): Promise<number> {
-  return await convertCurrencyAsync(usdAmount, "USD", toCurrency)
+): Promise<AsyncConversionResult> {
+  return convertCurrencyAsync(usdAmount, "USD", toCurrency)
 }
 
 /**
@@ -299,17 +321,17 @@ export function convertToUSD(amount: number, fromCurrency: string): number {
  *
  * @param amount - Amount in source currency
  * @param fromCurrency - Source currency code
- * @returns Amount in USD
+ * @returns Conversion result with amount, success flag, and fallback indicator
  *
  * @example
- * await convertToUSDAsync(831.20, "INR") // 10.00
- * await convertToUSDAsync(36.73, "AED") // 10.00
+ * const result = await convertToUSDAsync(831.20, "INR")
+ * // { amount: 10.00, success: true, usedFallback: false }
  */
 export async function convertToUSDAsync(
   amount: number,
   fromCurrency: string
-): Promise<number> {
-  return await convertCurrencyAsync(amount, fromCurrency, "USD")
+): Promise<AsyncConversionResult> {
+  return convertCurrencyAsync(amount, fromCurrency, "USD")
 }
 
 /**
@@ -432,12 +454,20 @@ export function convertWithAudit(
 }
 
 /**
+ * Conversion audit with success indicator
+ */
+export interface ConversionAuditAsync extends ConversionAudit {
+  success: boolean
+  usedFallback: boolean
+}
+
+/**
  * Convert amount with full audit trail (Async CSV version)
  *
  * @param amount - Amount in source currency
  * @param fromCurrency - Source currency code
  * @param toCurrency - Target currency code
- * @returns Conversion result with audit trail
+ * @returns Conversion result with audit trail and success indicator
  *
  * @example
  * const result = await convertWithAuditAsync(10, "USD", "INR")
@@ -447,19 +477,17 @@ export function convertWithAudit(
  * //   targetCurrency: "INR",
  * //   convertedPrice: 831.20,
  * //   exchangeRateUsed: 83.12,
- * //   convertedAt: "2025-12-14T10:30:00.000Z"
+ * //   convertedAt: "2026-01-29T10:30:00.000Z",
+ * //   success: true,
+ * //   usedFallback: false
  * // }
  */
 export async function convertWithAuditAsync(
   amount: number,
   fromCurrency: string,
   toCurrency: string
-): Promise<ConversionAudit> {
-  const convertedPrice = await convertCurrencyAsync(
-    amount,
-    fromCurrency,
-    toCurrency
-  )
+): Promise<ConversionAuditAsync> {
+  const result = await convertCurrencyAsync(amount, fromCurrency, toCurrency)
   const fromRate = await getExchangeRateAsync(fromCurrency)
   const toRate = await getExchangeRateAsync(toCurrency)
   const exchangeRateUsed = toRate / fromRate
@@ -468,8 +496,10 @@ export async function convertWithAuditAsync(
     sourceCurrency: fromCurrency,
     sourcePrice: amount,
     targetCurrency: toCurrency,
-    convertedPrice,
+    convertedPrice: result.amount,
     exchangeRateUsed: Math.round(exchangeRateUsed * 10000) / 10000,
     convertedAt: new Date().toISOString(),
+    success: result.success,
+    usedFallback: result.usedFallback,
   }
 }

@@ -8,12 +8,12 @@ Use these credentials for local development, testing, and debugging:
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | First Name | `John` |
 | Last Name | `Doe` |
 | Company | `Acme Inc` |
-| Org Slug Pattern | `acme_inc_{MMDDYYYY}` |
+| Org Slug Pattern | `acme_inc_{timestamp}` (base36) |
 | Org Slug | **Query from DB** (see below) |
 | Plan | `scale` (14-day free trial) |
 | Timezone | `PST/PDT - Los Angeles, USA` |
@@ -21,7 +21,7 @@ Use these credentials for local development, testing, and debugging:
 
 ## Get Actual Org Slug
 
-The org slug is created during onboarding with the date suffix. **Always query the database** to get the actual value:
+The org slug is created during onboarding with a base36 timestamp suffix. **Always query the database** to get the actual value:
 
 ```bash
 # Get the latest org slug from Supabase
@@ -76,8 +76,8 @@ curl -s "http://localhost:8000/api/v1/organizations/$ORG_SLUG/info" \
 
 When a skill needs to debug or test pages, use:
 ```bash
-Email: john@example.com
-Password: acme1234
+Email: demo@cloudact.ai
+Password: demo1234
 Org Slug: # Query from Supabase (see "Get Actual Org Slug" above)
 ```
 

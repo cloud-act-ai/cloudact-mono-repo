@@ -167,10 +167,12 @@ BEGIN
           END as PricingCategory,
           usage_pricing_unit as PricingUnit,
 
-          -- FOCUS 1.3: Pricing details from GCP billing
+          -- FOCUS 1.3: Pricing details from GCP billing (derived from available columns)
           CAST(usage_amount_in_pricing_units AS NUMERIC) as PricingQuantity,
-          CAST(price_list_price AS NUMERIC) as ListUnitPrice,
-          CAST(price_effective_price AS NUMERIC) as ContractedUnitPrice,
+          -- ListUnitPrice: cost_at_list / usage quantity
+          CAST(COALESCE(cost_at_list / NULLIF(usage_amount_in_pricing_units, 0), 0) AS NUMERIC) as ListUnitPrice,
+          -- ContractedUnitPrice: cost / usage quantity
+          CAST(COALESCE(cost / NULLIF(usage_amount_in_pricing_units, 0), 0) AS NUMERIC) as ContractedUnitPrice,
 
           CAST(cost AS NUMERIC) as ContractedCost,
           -- EffectiveCost = gross cost + credits (credits are negative, so this subtracts them)
@@ -180,9 +182,9 @@ BEGIN
           COALESCE(currency, 'USD') as BillingCurrency,
 
           'Usage' as ChargeCategory,
-          -- ChargeClass: 'Correction' if this is an adjustment, NULL otherwise
+          -- ChargeClass: 'Correction' if this is an adjustment (based on cost_type), NULL otherwise
           CASE
-            WHEN JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(adjustment_info_json), '$.id') IS NOT NULL THEN 'Correction'
+            WHEN cost_type IN ('adjustment', 'rounding_error') THEN 'Correction'
             ELSE NULL
           END as ChargeClass,
           COALESCE(cost_type, 'Usage') as ChargeType,
@@ -196,14 +198,11 @@ BEGIN
           JSON_OBJECT(
             'sku_description', sku_description,
             'service_id', service_id,
-            'price_unit', price_unit,
-            'price_tier_start_amount', price_tier_start_amount,
-            'price_pricing_unit_quantity', price_pricing_unit_quantity,
+            'price_unit', usage_pricing_unit,
+            'cost_at_list', cost_at_list,
             'credits_total', credits_total,
             'credits_json', SAFE.PARSE_JSON(credits_json),
-            'invoice_month', invoice_month,
-            'adjustment_info', SAFE.PARSE_JSON(adjustment_info_json),
-            'consumption_model', SAFE.PARSE_JSON(consumption_model_json)
+            'invoice_month', invoice_month
           ) as SkuPriceDetails,
 
           COALESCE(SAFE.PARSE_JSON(labels_json), JSON_OBJECT()) as Tags,
@@ -296,8 +295,8 @@ BEGIN
         )
         SELECT
           b.payer_account_id as BillingAccountId,
-          COALESCE(b.usage_start_time, TIMESTAMP(b.usage_date)) as ChargePeriodStart,
-          COALESCE(b.usage_end_time, TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
+          b.usage_start_time as ChargePeriodStart,
+          COALESCE(b.usage_end_time, TIMESTAMP_ADD(b.usage_start_time, INTERVAL 1 DAY)) as ChargePeriodEnd,
           TIMESTAMP(b.billing_period_start) as BillingPeriodStart,
           TIMESTAMP(b.billing_period_end) as BillingPeriodEnd,
 
@@ -305,15 +304,15 @@ BEGIN
           'AWS' as ServiceProviderName,
           'AWS' as HostProviderName,
 
-          -- ServiceCategory: Map AWS product families to FOCUS categories
+          -- ServiceCategory: Map AWS service codes to FOCUS categories
           CASE
-            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%COMPUTE%%' THEN 'Compute'
+            WHEN UPPER(COALESCE(b.service_code, '')) LIKE '%%COMPUTE%%' THEN 'Compute'
             WHEN b.service_code IN ('AmazonEC2', 'AWSLambda', 'AmazonECS', 'AmazonEKS') THEN 'Compute'
-            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%STORAGE%%' THEN 'Storage'
+            WHEN UPPER(COALESCE(b.service_code, '')) LIKE '%%STORAGE%%' THEN 'Storage'
             WHEN b.service_code IN ('AmazonS3', 'AmazonEBS', 'AmazonEFS', 'AmazonGlacier') THEN 'Storage'
-            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%DATABASE%%' THEN 'Database'
+            WHEN UPPER(COALESCE(b.service_code, '')) LIKE '%%DATABASE%%' THEN 'Database'
             WHEN b.service_code IN ('AmazonRDS', 'AmazonDynamoDB', 'AmazonRedshift', 'AmazonElastiCache') THEN 'Database'
-            WHEN UPPER(COALESCE(b.product_family, b.service_code)) LIKE '%%NETWORK%%' THEN 'Networking'
+            WHEN UPPER(COALESCE(b.service_code, '')) LIKE '%%NETWORK%%' THEN 'Networking'
             WHEN b.service_code IN ('AmazonVPC', 'AmazonCloudFront', 'AWSDirectConnect', 'AmazonRoute53') THEN 'Networking'
             WHEN b.service_code LIKE '%%AI%%' OR b.service_code LIKE '%%ML%%' OR b.service_code IN ('AmazonSageMaker', 'AmazonBedrock') THEN 'AI/ML'
             ELSE 'Other'
@@ -322,7 +321,7 @@ BEGIN
           COALESCE(b.operation, 'Default') as ServiceSubcategory,
 
           b.resource_id as ResourceId,
-          COALESCE(b.resource_name, b.resource_id) as ResourceName,
+          COALESCE(b.resource_id, 'Unknown') as ResourceName,
           COALESCE(b.usage_type, 'AWS Resource') as ResourceType,
           COALESCE(b.region, 'global') as RegionId,
           COALESCE(b.region, 'Global') as RegionName,
@@ -339,10 +338,10 @@ BEGIN
           END as PricingCategory,
           b.pricing_unit as PricingUnit,
 
-          -- FOCUS 1.3: Pricing details from AWS CUR
-          CAST(COALESCE(b.pricing_quantity, b.usage_amount) AS NUMERIC) as PricingQuantity,
-          CAST(b.public_on_demand_rate AS NUMERIC) as ListUnitPrice,
-          CAST(b.unblended_rate AS NUMERIC) as ContractedUnitPrice,
+          -- FOCUS 1.3: Pricing details from AWS CUR (derive from cost/amount)
+          CAST(b.usage_amount AS NUMERIC) as PricingQuantity,
+          CAST(COALESCE(b.public_on_demand_cost / NULLIF(b.usage_amount, 0), 0) AS NUMERIC) as ListUnitPrice,
+          CAST(COALESCE(b.unblended_cost / NULLIF(b.usage_amount, 0), 0) AS NUMERIC) as ContractedUnitPrice,
 
           -- FOCUS 1.3: Cost calculations
           -- ContractedCost = amortized cost (spreads RI/SP upfront across usage)
@@ -391,17 +390,10 @@ BEGIN
             'product_code', b.product_code,
             'usage_type', b.usage_type,
             'operation', b.operation,
-            'product_family', b.product_family,
-            'instance_type', b.product_instance_type,
-            'operating_system', b.product_operating_system,
-            'tenancy', b.product_tenancy,
-            'discount_edp_amount', b.discount_edp_amount,
-            'discount_private_rate_amount', b.discount_private_rate_amount,
-            'discount_bundled_amount', b.discount_bundled_amount,
-            'discount_total_amount', b.discount_total_amount,
+            'discount_amount', b.discount_amount,
             'invoice_id', b.invoice_id,
-            'bill_type', b.bill_type,
-            'line_item_description', b.line_item_description
+            'reservation_arn', b.reservation_arn,
+            'savings_plan_arn', b.savings_plan_arn
           ) as SkuPriceDetails,
 
           COALESCE(SAFE.PARSE_JSON(b.resource_tags_json), JSON_OBJECT()) as Tags,
@@ -451,7 +443,7 @@ BEGIN
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.CostCenter'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.cost_category_json), '$.entity_id')
         )
-        WHERE b.usage_date BETWEEN @p_start AND @p_end
+        WHERE DATE(b.usage_start_time) BETWEEN @p_start AND @p_end
           -- Include all line items (positive costs, credits, taxes)
           -- Credits have negative unblended_cost
           AND (b.unblended_cost != 0 OR b.line_item_type IN ('Credit', 'Tax', 'Refund', 'Fee'))
@@ -960,7 +952,7 @@ BEGIN
   -- Log conversion result
   SELECT
     p_start_date as start_date,
-    v_effective_end_date as end_date,
+    COALESCE(p_end_date, p_start_date) as end_date,
     p_provider as provider,
     v_rows_inserted as rows_inserted,
     v_orphan_count as orphan_hierarchy_count,
@@ -970,9 +962,10 @@ BEGIN
 EXCEPTION WHEN ERROR THEN
   -- BigQuery auto-rollbacks on error inside transaction, so no explicit ROLLBACK needed
   -- PRO-011: Enhanced error message with provider and date context
+  -- Note: Using COALESCE directly as v_effective_end_date may not be in scope in EXCEPTION handler
   RAISE USING MESSAGE = CONCAT(
     'sp_cloud_1_convert_to_focus Failed for provider=', p_provider,
-    ', date_range=', CAST(p_start_date AS STRING), ' to ', CAST(v_effective_end_date AS STRING),
+    ', date_range=', CAST(p_start_date AS STRING), ' to ', CAST(COALESCE(p_end_date, p_start_date) AS STRING),
     ': ', @@error.message
   );
 END;

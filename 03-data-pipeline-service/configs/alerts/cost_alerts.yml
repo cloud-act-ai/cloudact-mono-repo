@@ -287,6 +287,50 @@ alerts:
       - cost
 
   # --------------------------------------------
+  # OCI Cost Threshold: $500
+  # FIX ISS-018: Add missing OCI alert
+  # --------------------------------------------
+  - id: oci_cost_threshold_500
+    name: "OCI Cost Threshold ($500)"
+    description: "Alert when monthly OCI costs exceed $500"
+    enabled: true
+
+    schedule:
+      cron: "0 8 * * *"
+      timezone: "UTC"
+
+    source:
+      type: bigquery
+      query_template: oci_costs
+      params:
+        period: current_month
+
+    conditions:
+      - field: total_cost
+        operator: gt
+        value: 500
+        unit: USD
+
+    recipients:
+      type: org_owners
+
+    notification:
+      template: cost_threshold_alert
+      severity: warning
+      channels:
+        - email
+
+    cooldown:
+      enabled: true
+      hours: 24
+      scope: org
+
+    tags:
+      - oci
+      - cloud
+      - cost
+
+  # --------------------------------------------
   # OpenAI Cost Threshold: $200
   # --------------------------------------------
   - id: openai_cost_threshold_200

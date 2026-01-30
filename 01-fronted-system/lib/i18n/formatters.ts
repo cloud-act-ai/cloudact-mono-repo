@@ -152,6 +152,17 @@ function safeDate(value: unknown): Date {
 }
 
 /**
+ * Safe access to NODE_ENV for browser environments
+ */
+function isDevelopment(): boolean {
+  try {
+    return typeof process !== "undefined" && process.env?.NODE_ENV === "development"
+  } catch {
+    return false
+  }
+}
+
+/**
  * Validate and normalize a timezone value
  * Returns "UTC" for invalid timezones, logs warning in dev mode
  */
@@ -165,7 +176,7 @@ function safeTimezone(value: unknown): string {
     return value
   } catch {
     // Log warning in development mode for invalid timezone
-    if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+    if (typeof console !== "undefined" && isDevelopment()) {
       console.warn(`[i18n] Invalid timezone "${value}", falling back to UTC`)
     }
     return DEFAULT_TIMEZONE
@@ -278,7 +289,7 @@ export function formatDateOnly(
     const daysInMonth = new Date(year, month, 0).getDate()
     if (day > daysInMonth) {
       // Invalid date like Feb 30 - log warning and return empty
-      if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+      if (typeof console !== "undefined" && isDevelopment()) {
         console.warn(`[i18n] Invalid date: ${dateString} (${month}/${day} doesn't exist)`)
       }
       return ""
@@ -299,8 +310,11 @@ export function formatDateOnly(
       day: "numeric",
     }).format(localDate)
   } catch {
-    // Fallback - return original string if parsing fails
-    return dateString
+    // Fallback - return empty string on parsing failure (consistent with other invalid inputs)
+    if (typeof console !== "undefined" && isDevelopment()) {
+      console.warn(`[i18n] Failed to parse date: ${dateString}`)
+    }
+    return ""
   }
 }
 
@@ -432,7 +446,11 @@ export function formatPercent(
       maximumFractionDigits: decimals,
     }).format(safeVal)
   } catch {
-    return `${(safeVal * 100).toFixed(decimals)}%`
+    // Fallback: format the value consistently as a percentage
+    // safeVal is already 0-1 range for Intl, so multiply by 100 for display
+    const percentValue = safeVal * 100
+    const formatted = Number.isFinite(percentValue) ? percentValue.toFixed(decimals) : "0"
+    return `${formatted}%`
   }
 }
 

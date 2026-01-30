@@ -4,7 +4,7 @@
  * Deletes a demo account from both Supabase and BigQuery.
  *
  * Usage:
- *   npx ts-node tests/demo-setup/cleanup-demo-account.ts --email=john@example.com
+ *   npx ts-node tests/demo-setup/cleanup-demo-account.ts --email=demo@cloudact.ai
  *   npx ts-node tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc
  *
  * Environment Variables:
@@ -307,7 +307,7 @@ async function main() {
 
     if (!config.email && !config.orgSlug) {
         console.log('\nUsage:')
-        console.log('  npx ts-node tests/demo-setup/cleanup-demo-account.ts --email=john@example.com')
+        console.log('  npx ts-node tests/demo-setup/cleanup-demo-account.ts --email=demo@cloudact.ai')
         console.log('  npx ts-node tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc')
         console.log('\nEnvironment variables required:')
         console.log('  NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL')

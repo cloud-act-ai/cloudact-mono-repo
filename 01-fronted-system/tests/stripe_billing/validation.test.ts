@@ -497,20 +497,22 @@ describe('Stripe Billing Validation Functions', () => {
     })
 
     it('should validate typical org slugs from production', () => {
-      expect(isValidOrgSlug('acme_corp_12102024')).toBe(true) // Generated format
-      expect(isValidOrgSlug('testcompany_11282025')).toBe(true)
-      expect(isValidOrgSlug('startup_xyz_01012025')).toBe(true)
+      expect(isValidOrgSlug('acme_ml01ua8p')).toBe(true) // Generated format (base36 timestamp)
+      expect(isValidOrgSlug('testcompany_n2kf9x4m')).toBe(true)
+      expect(isValidOrgSlug('startup_p3q7r5s9')).toBe(true)
     })
 
     it('should handle org slug generation edge cases', () => {
-      // Generated from company names
+      // Generated from company names with base36 timestamp suffix
       const generateSlug = (name: string): string => {
         const cleanName = name
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '_')
           .replace(/^_|_$/g, '')
-          .slice(0, 40)
-        return `${cleanName}_12122024`
+          .split(/\s+/)[0]  // First word only
+          .slice(0, 20)
+        const timestamp = Date.now().toString(36)
+        return `${cleanName}_${timestamp}`
       }
 
       expect(isValidOrgSlug(generateSlug('Acme Corp'))).toBe(true)

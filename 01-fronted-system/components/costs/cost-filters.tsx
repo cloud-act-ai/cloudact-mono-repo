@@ -50,10 +50,12 @@ export interface CostFiltersState {
   department?: string
   project?: string
   team?: string
-  // New 5-field model
+  // New 5-field model (UI-001 FIX: All 5 fields for complete hierarchy support)
   hierarchyEntityId?: string
+  hierarchyEntityName?: string
   hierarchyLevelCode?: string
   hierarchyPath?: string
+  hierarchyPathNames?: string
   // Other fields
   providers: string[]
   categories: string[]
@@ -102,9 +104,12 @@ export function getDefaultFilters(): CostFiltersState {
     department: undefined,
     project: undefined,
     team: undefined,
+    // UI-001 FIX: All 5 hierarchy fields for complete hierarchy support
     hierarchyEntityId: undefined,
+    hierarchyEntityName: undefined,
     hierarchyLevelCode: undefined,
     hierarchyPath: undefined,
+    hierarchyPathNames: undefined,
     providers: [],
     categories: [],
   }
@@ -282,14 +287,16 @@ export function CostFilters({
     ? DEFAULT_CATEGORIES
     : availableCategories
 
-  // Clear all hierarchy fields helper
+  // Clear all hierarchy fields helper (UI-001 FIX: All 5 fields)
   const clearHierarchyFields = useCallback(() => ({
     department: undefined,
     project: undefined,
     team: undefined,
     hierarchyEntityId: undefined,
+    hierarchyEntityName: undefined,
     hierarchyLevelCode: undefined,
     hierarchyPath: undefined,
+    hierarchyPathNames: undefined,
   }), [])
 
   // Handlers with VAL-001 validation
@@ -303,16 +310,18 @@ export function CostFilters({
       // Find selected entity
       const selectedEntity = deptId ? departments.find(d => d.entity_id === deptId) : undefined
 
-      // BUG-FIX: Properly reset all child selections and sync 5-field model
+      // UI-001 FIX: Properly reset all child selections and sync all 5 hierarchy fields
       onChange({
         ...value,
         department: deptId,
         project: undefined, // Reset child selections
         team: undefined,
-        // Sync new hierarchy fields
+        // Sync all 5 hierarchy fields (UI-001 FIX)
         hierarchyEntityId: deptId,
+        hierarchyEntityName: selectedEntity?.entity_name,
         hierarchyLevelCode: selectedEntity?.level_code,
         hierarchyPath: selectedEntity?.path,
+        hierarchyPathNames: selectedEntity?.path_names,
       })
       setCSuiteOpen(false)
     },
@@ -333,10 +342,12 @@ export function CostFilters({
         ...value,
         project: projectId,
         team: undefined, // Reset child selection
-        // Sync new hierarchy fields
+        // UI-001 FIX: Sync all 5 hierarchy fields
         hierarchyEntityId: projectId,
+        hierarchyEntityName: selectedEntity?.entity_name,
         hierarchyLevelCode: selectedEntity?.level_code,
         hierarchyPath: selectedEntity?.path,
+        hierarchyPathNames: selectedEntity?.path_names,
       })
       setProjectOpen(false)
     },
@@ -356,10 +367,12 @@ export function CostFilters({
       onChange({
         ...value,
         team: teamId,
-        // Sync new hierarchy fields
+        // UI-001 FIX: Sync all 5 hierarchy fields
         hierarchyEntityId: teamId,
+        hierarchyEntityName: selectedEntity?.entity_name,
         hierarchyLevelCode: selectedEntity?.level_code,
         hierarchyPath: selectedEntity?.path,
+        hierarchyPathNames: selectedEntity?.path_names,
       })
       setTeamOpen(false)
     },
@@ -375,33 +388,37 @@ export function CostFilters({
   }, [value, onChange, clearHierarchyFields])
 
   const handleClearProject = useCallback(() => {
+    const parentEntity = value.department ? departments.find(d => d.entity_id === value.department) : undefined
     onChange({
       ...value,
       project: undefined,
       team: undefined,
-      // Update hierarchy fields to point to department if selected, otherwise clear
+      // UI-001 FIX: Update all 5 hierarchy fields to point to department if selected, otherwise clear
       hierarchyEntityId: value.department,
-      hierarchyLevelCode: value.department ? departments.find(d => d.entity_id === value.department)?.level_code : undefined,
-      hierarchyPath: value.department ? departments.find(d => d.entity_id === value.department)?.path : undefined,
+      hierarchyEntityName: parentEntity?.entity_name,
+      hierarchyLevelCode: parentEntity?.level_code,
+      hierarchyPath: parentEntity?.path,
+      hierarchyPathNames: parentEntity?.path_names,
     })
   }, [value, onChange, departments])
 
   const handleClearTeam = useCallback(() => {
+    // UI-001 FIX: Find parent entity for all 5 hierarchy fields
+    const parentEntity = value.project
+      ? projects.find(p => p.entity_id === value.project)
+      : value.department
+        ? departments.find(d => d.entity_id === value.department)
+        : undefined
+
     onChange({
       ...value,
       team: undefined,
-      // Update hierarchy fields to point to project if selected, otherwise department
+      // UI-001 FIX: Update all 5 hierarchy fields to point to parent
       hierarchyEntityId: value.project || value.department,
-      hierarchyLevelCode: value.project
-        ? projects.find(p => p.entity_id === value.project)?.level_code
-        : value.department
-          ? departments.find(d => d.entity_id === value.department)?.level_code
-          : undefined,
-      hierarchyPath: value.project
-        ? projects.find(p => p.entity_id === value.project)?.path
-        : value.department
-          ? departments.find(d => d.entity_id === value.department)?.path
-          : undefined,
+      hierarchyEntityName: parentEntity?.entity_name,
+      hierarchyLevelCode: parentEntity?.level_code,
+      hierarchyPath: parentEntity?.path,
+      hierarchyPathNames: parentEntity?.path_names,
     })
   }, [value, onChange, projects, departments])
 

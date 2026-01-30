@@ -42,7 +42,7 @@ export default function SubscriptionCostsPage() {
 
   // Use unified filters from context (all client-side, instant)
   const {
-    totalCosts,
+    // totalCosts removed - BUG-008 FIX uses filtered data instead
     hierarchy: cachedHierarchy,
     currency: cachedCurrency,
     isLoading: isCostLoading,
@@ -67,30 +67,60 @@ export default function SubscriptionCostsPage() {
   // Set category filter on mount (subscription page is fixed to subscription category)
   // CTX-002 FIX: Add cleanup to reset categories on unmount
   // SYNC-001 & STATE-001 FIX: Reset local filters and clear context provider filter on mount
+  // PAGE-002 FIX: Reset ALL hierarchy fields on mount/unmount
   useEffect(() => {
-    // Clear any provider filter from previous page, set category to subscription
-    setUnifiedFiltersRef.current({ categories: ["subscription"], providers: undefined })
-    // Reset local filter state to defaults
+    // Clear any provider/hierarchy filters from previous page, set category to subscription
+    setUnifiedFiltersRef.current({
+      categories: ["subscription"],
+      providers: undefined,
+      // PAGE-002 FIX: Clear all 5 hierarchy fields
+      hierarchyEntityId: undefined,
+      hierarchyEntityName: undefined,
+      hierarchyLevelCode: undefined,
+      hierarchyPath: undefined,
+      hierarchyPathNames: undefined,
+    })
+    // Reset local filter state to defaults (including all 5 hierarchy fields)
     setFilters({
       department: undefined,
       project: undefined,
       team: undefined,
+      hierarchyEntityId: undefined,
+      hierarchyEntityName: undefined,
+      hierarchyLevelCode: undefined,
+      hierarchyPath: undefined,
+      hierarchyPathNames: undefined,
       providers: [],
       categories: [],
     })
 
-    // Cleanup: reset categories and providers when leaving this page
+    // Cleanup: reset categories, providers, and hierarchy filters when leaving this page
     return () => {
-      setUnifiedFiltersRef.current({ categories: undefined, providers: undefined })
+      setUnifiedFiltersRef.current({
+        categories: undefined,
+        providers: undefined,
+        // PAGE-002 FIX: Clear all 5 hierarchy fields on unmount
+        hierarchyEntityId: undefined,
+        hierarchyEntityName: undefined,
+        hierarchyLevelCode: undefined,
+        hierarchyPath: undefined,
+        hierarchyPathNames: undefined,
+      })
     }
   }, []) // Empty deps - only run on mount/unmount
 
   // Local state - Subscription costs page (category fixed to "subscription")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // PAGE-003 FIX: Include all 5 hierarchy fields in initial state
   const [filters, setFilters] = useState<CostFiltersState>({
     department: undefined,
     project: undefined,
     team: undefined,
+    hierarchyEntityId: undefined,
+    hierarchyEntityName: undefined,
+    hierarchyLevelCode: undefined,
+    hierarchyPath: undefined,
+    hierarchyPathNames: undefined,
     providers: [],
     categories: [], // Category fixed by page, not user-filterable
   })
@@ -151,17 +181,19 @@ export default function SubscriptionCostsPage() {
 
   // Handle filter changes - sync to unified context for provider/hierarchy filters
   // FILTER-008 FIX: Sync local filters to context for consistent filtering
-  // HIERARCHY-FILTER-FIX: Sync hierarchy filters to unified context
+  // PAGE-001 FIX: Sync ALL 5 hierarchy filters to unified context
   const handleFiltersChange = useCallback((newFilters: CostFiltersState) => {
     setFilters(newFilters)
     // Sync all filters to unified context (provider, hierarchy; category fixed for this page)
-    // HIERARCHY-FILTER-BUG-FIX: Include new 5-field hierarchy model fields
+    // PAGE-001 FIX: Include all 5 hierarchy model fields
     setUnifiedFilters({
       providers: newFilters.providers.length > 0 ? newFilters.providers : undefined,
-      // Unified N-level hierarchy filters
+      // Unified N-level hierarchy filters (all 5 fields)
       hierarchyEntityId: newFilters.hierarchyEntityId || undefined,
+      hierarchyEntityName: newFilters.hierarchyEntityName || undefined,
       hierarchyLevelCode: newFilters.hierarchyLevelCode || undefined,
       hierarchyPath: newFilters.hierarchyPath || undefined,
+      hierarchyPathNames: newFilters.hierarchyPathNames || undefined,
     })
   }, [setUnifiedFilters])
 
@@ -287,7 +319,9 @@ export default function SubscriptionCostsPage() {
   }, [providers])
 
   // Check if data is truly empty (not just loading)
-  const isEmpty = !isLoading && !totalCosts?.subscription && providers.length === 0
+  // BUG-008 FIX: Use filtered data (providers, dailyTrendData) instead of unfiltered totalCosts
+  // This ensures empty state shows when filters return no data
+  const isEmpty = !isLoading && providers.length === 0 && dailyTrendData.length === 0
 
   return (
     <CostDashboardShell

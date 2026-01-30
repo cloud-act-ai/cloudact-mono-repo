@@ -121,50 +121,47 @@ class CloudFOCUSConverterProcessor:
             credential_id = context.get("credential_id", "unknown")
             run_id = context.get("run_id", "unknown")
 
-            total_rows_inserted = 0
+            # Use start and end dates directly - stored procedure handles date ranges efficiently
+            start_date = dates_to_process[0]
+            end_date = dates_to_process[-1]
 
-            # Process each date
-            for process_date in dates_to_process:
-                # Call stored procedure with lineage parameters
-                # FIX: Procedure expects 8 params: p_project_id, p_dataset_id, p_start_date, p_end_date,
-                #      p_provider, p_pipeline_id, p_credential_id, p_run_id
-                call_query = f"""
-                    CALL `{project_id}.organizations`.sp_cloud_1_convert_to_focus(
-                        @p_project_id,
-                        @p_dataset_id,
-                        @p_start_date,
-                        @p_end_date,
-                        @p_provider,
-                        @p_pipeline_id,
-                        @p_credential_id,
-                        @p_run_id
-                    )
-                """
-
-                job = bq_client.client.query(
-                    call_query,
-                    job_config=bigquery.QueryJobConfig(
-                        query_parameters=[
-                            bigquery.ScalarQueryParameter("p_project_id", "STRING", project_id),
-                            bigquery.ScalarQueryParameter("p_dataset_id", "STRING", dataset_id),
-                            bigquery.ScalarQueryParameter("p_start_date", "DATE", process_date),
-                            bigquery.ScalarQueryParameter("p_end_date", "DATE", process_date),  # Single date mode
-                            bigquery.ScalarQueryParameter("p_provider", "STRING", provider),
-                            bigquery.ScalarQueryParameter("p_pipeline_id", "STRING", "focus_convert_cloud"),
-                            bigquery.ScalarQueryParameter("p_credential_id", "STRING", credential_id),
-                            bigquery.ScalarQueryParameter("p_run_id", "STRING", run_id),
-                        ]
-                    )
+            # Call stored procedure with date range (not day-by-day)
+            call_query = f"""
+                CALL `{project_id}.organizations`.sp_cloud_1_convert_to_focus(
+                    @p_project_id,
+                    @p_dataset_id,
+                    @p_start_date,
+                    @p_end_date,
+                    @p_provider,
+                    @p_pipeline_id,
+                    @p_credential_id,
+                    @p_run_id
                 )
+            """
 
-                # Get result
-                result = list(job.result())
-                rows_inserted = result[0]["rows_inserted"] if result else 0
-                total_rows_inserted += rows_inserted
+            job = bq_client.client.query(
+                call_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("p_project_id", "STRING", project_id),
+                        bigquery.ScalarQueryParameter("p_dataset_id", "STRING", dataset_id),
+                        bigquery.ScalarQueryParameter("p_start_date", "DATE", start_date),
+                        bigquery.ScalarQueryParameter("p_end_date", "DATE", end_date),
+                        bigquery.ScalarQueryParameter("p_provider", "STRING", provider),
+                        bigquery.ScalarQueryParameter("p_pipeline_id", "STRING", "focus_convert_cloud"),
+                        bigquery.ScalarQueryParameter("p_credential_id", "STRING", credential_id),
+                        bigquery.ScalarQueryParameter("p_run_id", "STRING", run_id),
+                    ]
+                )
+            )
+
+            # Get result
+            result = list(job.result())
+            total_rows_inserted = result[0]["rows_inserted"] if result else 0
 
             self.logger.info(
-                f"Converted {total_rows_inserted} {provider} records to FOCUS 1.3 ({len(dates_to_process)} days)",
-                extra={"rows_inserted": total_rows_inserted, "days_processed": len(dates_to_process)}
+                f"Converted {total_rows_inserted} {provider} records to FOCUS 1.3 (range: {start_date} to {end_date})",
+                extra={"rows_inserted": total_rows_inserted, "start_date": str(start_date), "end_date": str(end_date)}
             )
 
             # SEC-005: Audit logging - Log successful completion
@@ -184,7 +181,8 @@ class CloudFOCUSConverterProcessor:
             return {
                 "status": "SUCCESS",
                 "rows_inserted": total_rows_inserted,
-                "days_processed": len(dates_to_process),
+                "start_date": str(start_date),
+                "end_date": str(end_date),
                 "provider": provider,
                 "target_table": "cost_data_standard_1_3"
             }

@@ -504,7 +504,7 @@ class HierarchyLevelService:
                         is_active, created_at, created_by, updated_at, updated_by)
                 VALUES (@id, @org_slug, @level, @level_code, @level_name, @level_name_plural,
                         @parent_level, @is_required, @is_leaf, @max_children, @id_prefix,
-                        @id_auto_generate, @metadata_schema, @display_order, @icon, @color,
+                        @id_auto_generate, CAST(NULL AS JSON), @display_order, @icon, @color,
                         TRUE, @created_at, @created_by, NULL, NULL)
             """
 
@@ -522,7 +522,6 @@ class HierarchyLevelService:
                     bigquery.ScalarQueryParameter("max_children", "INT64", level_def["max_children"]),
                     bigquery.ScalarQueryParameter("id_prefix", "STRING", level_def["id_prefix"]),
                     bigquery.ScalarQueryParameter("id_auto_generate", "BOOL", level_def["id_auto_generate"]),
-                    bigquery.ScalarQueryParameter("metadata_schema", "STRING", None),
                     bigquery.ScalarQueryParameter("display_order", "INT64", level_def["display_order"]),
                     bigquery.ScalarQueryParameter("icon", "STRING", level_def["icon"]),
                     bigquery.ScalarQueryParameter("color", "STRING", level_def["color"]),

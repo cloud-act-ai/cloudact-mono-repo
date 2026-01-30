@@ -267,8 +267,8 @@ done
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 See `.claude/debug-config.md` for full debug configuration.

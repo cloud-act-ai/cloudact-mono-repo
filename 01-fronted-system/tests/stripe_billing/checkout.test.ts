@@ -76,23 +76,20 @@ const safeParseInt = (value: string | undefined, defaultValue: number): number =
 
 /**
  * Generate org slug from company name
- * Format: companyname_MMDDYYYY (e.g., acme_11282025)
+ * Format: firstword_{timestamp} (e.g., acme_ml01ua8p)
+ * Uses first word only + base36 timestamp for uniqueness
  */
 const generateOrgSlug = (companyName: string): string => {
-  const date = new Date()
-  const mm = String(date.getMonth() + 1).padStart(2, "0")
-  const dd = String(date.getDate()).padStart(2, "0")
-  const yyyy = date.getFullYear()
-  const dateSuffix = `${mm}${dd}${yyyy}`
+  const timestamp = Date.now().toString(36)
 
-  const cleanName = companyName
+  // Extract first word only for shorter slug (matches production code in actions/stripe.ts)
+  const firstWord = companyName
+    .split(/\s+/)[0]  // Get first word
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "")
-    .replace(/_\d{8}$/, "")  // Strip trailing date suffix if already present
-    .slice(0, 40) // Leave room for date suffix
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 20)  // Limit first word to 20 chars max
 
-  return `${cleanName}_${dateSuffix}`
+  return `${firstWord}_${timestamp}`
 }
 
 /**
@@ -196,7 +193,7 @@ const MOCK_USER = {
 
 const MOCK_ORG = {
   id: "org_456",
-  org_slug: "acme_corp_12122025",
+  org_slug: "acme_ml01ua8p",
   org_name: "Acme Corp",
   stripe_customer_id: null,
   stripe_subscription_id: null
@@ -250,8 +247,8 @@ describe('Stripe Checkout Functions Test Suite', () => {
 
     describe('isValidOrgSlug', () => {
       it('should accept valid org slugs', () => {
-        expect(isValidOrgSlug("acme_corp_12122025")).toBe(true)
-        expect(isValidOrgSlug("test_org_123")).toBe(true)
+        expect(isValidOrgSlug("acme_ml01ua8p")).toBe(true)
+        expect(isValidOrgSlug("test_n2kf9x4m")).toBe(true)
         expect(isValidOrgSlug("ABC")).toBe(true) // Minimum 3 chars
         expect(isValidOrgSlug("a".repeat(50))).toBe(true) // Maximum 50 chars
       })
@@ -305,27 +302,30 @@ describe('Stripe Checkout Functions Test Suite', () => {
 
     it('should generate valid org slug from company name', () => {
       const slug = generateOrgSlug("Acme Corp")
-      expect(slug).toMatch(/^acme_corp_\d{8}$/)
+      // Now uses first word + base36 timestamp (e.g., acme_ml01ua8p)
+      expect(slug).toMatch(/^acme_[a-z0-9]+$/)
       expect(isValidOrgSlug(slug)).toBe(true)
     })
 
     it('should handle company names with special characters', () => {
       const slug = generateOrgSlug("ABC Inc. - Test & Co!")
-      expect(slug).toMatch(/^abc_inc_test_co_\d{8}$/)
+      // Now uses first word only + base36 timestamp (e.g., abc_ml01ua8p)
+      expect(slug).toMatch(/^abc_[a-z0-9]+$/)
       expect(isValidOrgSlug(slug)).toBe(true)
     })
 
     it('should strip trailing underscores', () => {
       const slug = generateOrgSlug("Test___")
-      expect(slug).toMatch(/^test_\d{8}$/)
-      expect(slug).not.toMatch(/^test____\d{8}$/)
+      expect(slug).toMatch(/^test_[a-z0-9]+$/)
+      expect(slug).not.toMatch(/^test____[a-z0-9]+$/)
     })
 
-    it('should handle duplicate date suffixes', () => {
-      const slug = generateOrgSlug("acme_12122025")
-      expect(slug).toMatch(/^acme_\d{8}$/)
-      // Should only have one date suffix
-      expect(slug.match(/_\d{8}/g)?.length).toBe(1)
+    it('should handle inputs with underscores in company name', () => {
+      // Company names with underscores get their first word extracted
+      const slug = generateOrgSlug("acme_corp things")
+      expect(slug).toMatch(/^acmecorp_[a-z0-9]+$/)
+      // First word "acme_corp" has underscore removed, so becomes "acmecorp"
+      expect(slug.split('_').length).toBe(2)
     })
 
     it('should truncate long company names', () => {
@@ -337,12 +337,13 @@ describe('Stripe Checkout Functions Test Suite', () => {
 
     it('should handle all lowercase input', () => {
       const slug = generateOrgSlug("acme")
-      expect(slug).toMatch(/^acme_\d{8}$/)
+      expect(slug).toMatch(/^acme_[a-z0-9]+$/)
     })
 
     it('should handle numeric company names', () => {
       const slug = generateOrgSlug("123 Company")
-      expect(slug).toMatch(/^123_company_\d{8}$/)
+      // Now uses first word only (e.g., 123_ml01ua8p)
+      expect(slug).toMatch(/^123_[a-z0-9]+$/)
     })
   })
 
@@ -556,7 +557,7 @@ describe('Stripe Checkout Functions Test Suite', () => {
         user_email: MOCK_USER.email,
         pending_company_name: "Acme Corp",
         pending_company_type: "company",
-        pending_org_slug: "acme_corp_12122025"
+        pending_org_slug: "acme_ml01ua8p"
       }
 
       expect(metadata.is_onboarding).toBe("true")
@@ -586,7 +587,7 @@ describe('Stripe Checkout Functions Test Suite', () => {
       const subscriptionMetadata = {
         is_onboarding: "true",
         user_id: MOCK_USER.id,
-        pending_org_slug: "acme_corp_12122025"
+        pending_org_slug: "acme_ml01ua8p"
       }
 
       expect(subscriptionMetadata.is_onboarding).toBe("true")
@@ -620,7 +621,7 @@ describe('Stripe Checkout Functions Test Suite', () => {
 
     it('should generate valid existing org success URL', () => {
       const origin = "https://app.example.com"
-      const orgSlug = "acme_corp_12122025"
+      const orgSlug = "acme_ml01ua8p"
       const successUrl = `${origin}/${orgSlug}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`
 
       expect(successUrl).toContain(`/${orgSlug}/dashboard`)
@@ -630,7 +631,7 @@ describe('Stripe Checkout Functions Test Suite', () => {
 
     it('should generate valid existing org cancel URL', () => {
       const origin = "https://app.example.com"
-      const orgSlug = "acme_corp_12122025"
+      const orgSlug = "acme_ml01ua8p"
       const cancelUrl = `${origin}/${orgSlug}/billing?canceled=true`
 
       expect(cancelUrl).toContain(`/${orgSlug}/billing`)

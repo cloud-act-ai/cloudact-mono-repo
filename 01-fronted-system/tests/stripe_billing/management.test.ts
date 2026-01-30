@@ -111,7 +111,7 @@ const safeParseInt = (value: string | undefined, defaultValue: number): number =
 // MOCK DATA
 // =============================================
 
-const MOCK_ORG_SLUG = "test_org_12122025"
+const MOCK_ORG_SLUG = "test_ml01ua8p"
 const MOCK_ORG_ID = "org-123456"
 const MOCK_USER_ID = "user-123456"
 const MOCK_STRIPE_CUSTOMER_ID = "cus_test123"
@@ -255,7 +255,7 @@ describe('Stripe Billing Management Tests', () => {
       const validSlugs = [
         'abc',
         'test_org',
-        'acme_corp_12122025',
+        'acme_ml01ua8p',
         'ORG123',
         'a'.repeat(50)
       ]
@@ -501,7 +501,7 @@ describe('Stripe Billing Management Tests', () => {
       const origin = "http://localhost:3000"
       const returnUrl = `${origin}/${MOCK_ORG_SLUG}/billing`
 
-      expect(returnUrl).toBe("http://localhost:3000/test_org_12122025/billing")
+      expect(returnUrl).toBe("http://localhost:3000/test_ml01ua8p/billing")
     })
 
     it('should use idempotency key with minute precision', () => {

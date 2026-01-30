@@ -1184,7 +1184,7 @@ function printFinalStatus(result: LoadResult, config: LoadConfig): void {
     if (result.success) {
         console.log(`   1. Verify costs: curl -s "http://localhost:8000/api/v1/costs/${config.orgSlug}/total" -H "X-API-Key: $ORG_API_KEY" | jq`)
         console.log(`   2. View dashboard: http://localhost:3000/${config.orgSlug}/dashboard`)
-        console.log(`   3. Login: john@example.com / acme1234`)
+        console.log(`   3. Login: demo@cloudact.ai / demo1234`)
     } else {
         if (!result.serviceHealth.pipeline) {
             console.log('   1. Start Pipeline Service: cd 03-data-pipeline-service && uvicorn src.app.main:app --port 8001 --reload')

@@ -9,8 +9,8 @@
  * 5. Cross-page filter persistence is handled correctly
  * 6. Filter data comes from cached context (no API calls on filter change)
  *
- * Test User: john@example.com / acme1234
- * Org Slug: acme_inc_01032026
+ * Test User: demo@cloudact.ai / demo1234
+ * Org Slug: acme_inc_{timestamp} (dynamically captured from URL after login)
  */
 
 import { test, expect } from '@playwright/test'

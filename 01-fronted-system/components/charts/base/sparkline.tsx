@@ -5,6 +5,8 @@
  *
  * Minimal line chart for inline use in metric cards.
  * Uses Recharts for consistent rendering.
+ *
+ * DATA-001: Safe number handling for edge cases
  */
 
 import React, { useMemo } from "react"
@@ -48,6 +50,18 @@ export interface SparklineChartProps {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
@@ -68,19 +82,22 @@ export function SparklineChart({
   const lineColor = color || theme.primary
 
   // Transform data to chart format
+  // DATA-001: Apply safeNumber to all values
   const chartData = useMemo(() =>
     data.map((value, index) => ({
       index,
-      value,
+      value: safeNumber(value),
     })),
     [data]
   )
 
   // Calculate domain with padding
+  // DATA-001: Use safe values
   const [min, max] = useMemo(() => {
-    if (data.length === 0) return [0, 100]
-    const minVal = Math.min(...data)
-    const maxVal = Math.max(...data)
+    const safeData = data.map(safeNumber)
+    if (safeData.length === 0) return [0, 100]
+    const minVal = Math.min(...safeData)
+    const maxVal = Math.max(...safeData)
     const padding = (maxVal - minVal) * 0.1 || 10
     return [minVal - padding, maxVal + padding]
   }, [data])
@@ -216,13 +233,21 @@ export function TrendSparkline({
   const { theme } = useChartConfig()
 
   // Determine trend from data
+  // DATA-001: Use safe values for trend calculation
   const trend = useMemo(() => {
     if (overrideTrend) return overrideTrend
     if (data.length < 2) return "flat"
 
-    const first = data[0]
-    const last = data[data.length - 1]
+    const first = safeNumber(data[0])
+    const last = safeNumber(data[data.length - 1])
+
+    // Guard against division by zero
+    if (first === 0) return last > 0 ? "up" : "flat"
+
     const change = ((last - first) / first) * 100
+
+    // Guard against NaN/Infinity
+    if (!Number.isFinite(change)) return "flat"
 
     if (change > 5) return "up"
     if (change < -5) return "down"
@@ -276,15 +301,19 @@ export function MiniBarSparkline({
   const { theme } = useChartConfig()
   const barColor = color || theme.primary
 
-  const max = Math.max(...data, 1)
+  // DATA-001: Use safe values
+  const safeData = useMemo(() => data.map(safeNumber), [data])
+  const max = Math.max(...safeData, 1)
   const barWidth = (width - gap * (data.length - 1)) / data.length
 
   return (
     <div
       className={cn("flex items-end", className)}
       style={{ width, height, gap }}
+      role="img"
+      aria-label={`Mini bar chart with ${data.length} bars`}
     >
-      {data.map((value, index) => (
+      {safeData.map((value, index) => (
         <div
           key={index}
           className="rounded-t"

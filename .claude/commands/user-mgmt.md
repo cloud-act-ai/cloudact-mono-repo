@@ -289,14 +289,14 @@ HAVING COUNT(*) > 1;
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
 
 **Example queries with debug account:**
 ```sql
 -- Get user details
-/user-mgmt user stage john@example.com
+/user-mgmt user stage demo@cloudact.ai
 
 -- List org members (query org_slug from Supabase first)
 /user-mgmt members stage acme_inc_01062026

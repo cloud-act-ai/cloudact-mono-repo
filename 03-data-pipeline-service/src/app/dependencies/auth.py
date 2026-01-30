@@ -1272,6 +1272,18 @@ async def verify_api_key_header(
         logger.warning(f"Authentication is disabled - using default org '{settings.default_org_slug}'")
         return OrgContext(org_slug=settings.default_org_slug, org_api_key_hash="disabled", user_id=x_user_id)
 
+    # Check for test API keys in development mode
+    if settings.is_development or os.getenv("ENABLE_DEV_MODE", "false").lower() == "true":
+        test_org = get_test_org_from_api_key(x_api_key)
+        if test_org:
+            logger.info(f"[DEV MODE] Using test API key for org: {test_org['org_slug']}")
+            return OrgContext(
+                org_slug=test_org['org_slug'],
+                org_api_key_hash=hash_api_key(x_api_key),
+                user_id=x_user_id,
+                org_api_key_id=test_org.get('org_api_key_id')
+            )
+
     # Hash the API key
     org_api_key_hash = hash_api_key(x_api_key)
 

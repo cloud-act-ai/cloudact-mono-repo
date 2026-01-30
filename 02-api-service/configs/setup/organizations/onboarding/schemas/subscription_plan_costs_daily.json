@@ -1,11 +1,5 @@
 [
   {
-    "name": "org_slug",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Organization slug for multi-tenancy (backward compatibility with stored procedures). NULLABLE for schema update on existing tables."
-  },
-  {
     "name": "provider",
     "type": "STRING",
     "mode": "REQUIRED",
@@ -49,7 +43,7 @@
   },
   {
     "name": "seats",
-    "type": "INTEGER",
+    "type": "INT64",
     "mode": "REQUIRED",
     "description": "Number of seats/licenses."
   },

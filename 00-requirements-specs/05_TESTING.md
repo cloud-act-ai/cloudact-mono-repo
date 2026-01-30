@@ -49,6 +49,6 @@ python -m pytest tests/ -v
 
 | Field | Value |
 |-------|-------|
-| Email | john@example.com |
-| Password | acme1234 |
+| Email | demo@cloudact.ai |
+| Password | demo1234 |
 | Org | acme_inc_01032026 |

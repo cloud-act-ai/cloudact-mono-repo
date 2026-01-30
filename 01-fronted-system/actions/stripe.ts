@@ -158,22 +158,19 @@ export async function createOnboardingCheckoutSession(priceId: string) {
       return { url: null, error: "Please complete signup first" }
     }
 
-    // Generate org slug from company name + date (backend requires alphanumeric + underscores only)
-    // Format: companyname_MMDDYYYY (e.g., acme_11282025)
-    const date = new Date()
-    const mm = String(date.getMonth() + 1).padStart(2, "0")
-    const dd = String(date.getDate()).padStart(2, "0")
-    const yyyy = date.getFullYear()
-    const dateSuffix = `${mm}${dd}${yyyy}`
+    // FIX MT-001: Generate org slug from company name + timestamp (more unique than date)
+    // Format: companyname_TIMESTAMP (e.g., acme_m1a2b3c)
+    // Using base36 timestamp for shorter, more unique suffixes
+    const timestamp = Date.now().toString(36)
 
     const cleanName = pendingCompanyName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_|_$/g, "")
-      .replace(/_\d{8}$/, "")  // Strip trailing date suffix if already present (prevents duplicates)
-      .slice(0, 40) // Leave room for date suffix
+      .replace(/_[a-z0-9]{6,}$/, "")  // Strip trailing timestamp suffix if already present
+      .slice(0, 40) // Leave room for timestamp suffix
 
-    const orgSlug = `${cleanName}_${dateSuffix}`
+    const orgSlug = `${cleanName}_${timestamp}`
 
     // Validate generated org slug
     if (!isValidOrgSlug(orgSlug)) {
@@ -199,9 +196,11 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     // Remove any trailing slashes or extra spaces
     origin = origin.trim().replace(/\/+$/, "")
 
-    // Generate idempotency key to prevent duplicate sessions
-    // NOTE: Do NOT include Date.now() - it defeats idempotency by creating unique keys per request
-    const idempotencyKey = `onboarding_${user.id}_${priceId}`
+    // FIX IDEM-002: Include company name hash in idempotency key
+    // This prevents duplicate sessions for same user+plan but allows retry with different company
+    // Using simple hash function to keep key length reasonable
+    const companyHash = orgSlug.split('_')[0].slice(0, 8)
+    const idempotencyKey = `onboarding_${user.id}_${priceId}_${companyHash}`
 
     // Fetch price details to check for specific trial period
     const price = await stripe.prices.retrieve(priceId)
@@ -224,7 +223,9 @@ export async function createOnboardingCheckoutSession(priceId: string) {
       // Success: redirect to a special page that will create org and redirect to dashboard
       success_url: `${origin}/onboarding/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/onboarding/billing?canceled=true`,
-      customer_email: user.email,
+      // FIX SEC-001: Only use verified email for Stripe receipts
+      // Unverified emails could send receipts to wrong address
+      customer_email: user.email_confirmed_at ? user.email : undefined,
       metadata: {
         // Flag to indicate this is an onboarding checkout (org needs to be created)
         is_onboarding: "true",

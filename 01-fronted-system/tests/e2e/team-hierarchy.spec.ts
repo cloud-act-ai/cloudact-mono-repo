@@ -18,21 +18,24 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { loginAndGetOrgSlug } from './fixtures/auth';
 
 // ===========================================
 // Configuration
 // ===========================================
 
 const BASE_URL = 'http://localhost:3000';
-const API_BASE_URL = 'http://localhost:8000';
 
 // Default test credentials
+// NOTE: orgSlug is captured dynamically during login - no hardcoded value needed
 const TEST_USER = {
-  email: 'john@example.com',
-  password: 'acme1234',
+  email: 'demo@cloudact.ai',
+  password: 'demo1234',
   orgName: 'Acme Inc',
-  orgSlug: 'acme_inc_01032026',
 };
+
+// Will be set dynamically after login
+let dynamicOrgSlug: string = '';
 
 // Test team members
 const TEST_MEMBERS = {
@@ -78,18 +81,11 @@ const TEST_HIERARCHY = {
 // Helper Functions - Authentication
 // ===========================================
 
-async function login(page: Page, email: string, password: string): Promise<void> {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
-
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle');
-
-  // Wait for redirect to dashboard
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
+async function login(page: Page, email: string, password: string): Promise<string> {
+  // Use the shared loginAndGetOrgSlug which captures org_slug dynamically
+  const orgSlug = await loginAndGetOrgSlug(page);
+  dynamicOrgSlug = orgSlug;
+  return orgSlug;
 }
 
 async function logout(page: Page): Promise<void> {
@@ -339,7 +335,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should display team members page', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Check for key elements
     await expect(page.locator('h1, h2').filter({ hasText: /members|team/i }).first()).toBeVisible();
@@ -347,7 +343,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should invite a new team member', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     await inviteMember(page, TEST_MEMBERS.member1.email, TEST_MEMBERS.member1.role);
 
@@ -356,7 +352,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should show validation error for invalid email', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Click invite button
     const inviteButton = page.locator('button:has-text("Invite Member"), button:has-text("Add Member")').first();
@@ -375,7 +371,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should prevent inviting duplicate email', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Invite once
     await inviteMember(page, TEST_MEMBERS.member2.email, TEST_MEMBERS.member2.role);
@@ -395,7 +391,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should display pending invites', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Look for pending invites section
     const pendingSection = page.locator('h2:has-text("Pending"), h3:has-text("Pending"), div:has-text("Pending Invites")').first();
@@ -408,7 +404,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should resend invite', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Find resend button (if invites exist)
     const resendButton = page.locator('button:has-text("Resend"), button[aria-label*="Resend"]').first();
@@ -422,7 +418,7 @@ test.describe('Team Member Management', () => {
   });
 
   test('should cancel pending invite', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Find cancel button (if invites exist)
     const cancelButton = page.locator('button:has-text("Cancel"), button:has-text("Revoke")').first();
@@ -453,7 +449,7 @@ test.describe('Role Management', () => {
   });
 
   test('should display member roles', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Check for role badges or dropdowns
     const roleElements = page.locator('text=/owner|admin|collaborator|read.only/i');
@@ -464,7 +460,7 @@ test.describe('Role Management', () => {
   });
 
   test('should update member role', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Try to find edit button for any member
     const editButtons = page.locator('button:has-text("Edit"), button[aria-label*="Edit"]');
@@ -479,7 +475,7 @@ test.describe('Role Management', () => {
   });
 
   test('should prevent owner from removing themselves', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Find owner's row (current user)
     const ownerRow = page.locator(`tr:has-text("${TEST_USER.email}"), div:has-text("${TEST_USER.email}")`).first();
@@ -498,7 +494,7 @@ test.describe('Role Management', () => {
   });
 
   test('should show role permissions', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Look for info/help about roles
     const infoButton = page.locator('button[aria-label*="info"], svg:has-text("i"), button:has-text("?")').first();
@@ -522,14 +518,14 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should display hierarchy page', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Check for key elements
     await expect(page.locator('h1, h2').filter({ hasText: /hierarchy|organization/i }).first()).toBeVisible();
   });
 
   test('should display hierarchy levels', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for department, project, team labels
     const departmentLabel = page.locator('text=/department/i').first();
@@ -548,7 +544,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should create a department', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for "Add Department" button
     const addDeptButton = page.locator('button:has-text("Add Department"), button:has-text("Create Department")').first();
@@ -565,7 +561,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should create a project under department', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for "Add Project" button
     const addProjButton = page.locator('button:has-text("Add Project"), button:has-text("Create Project")').first();
@@ -582,7 +578,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should create a team under project', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for "Add Team" button
     const addTeamButton = page.locator('button:has-text("Add Team"), button:has-text("Create Team")').first();
@@ -599,7 +595,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should display hierarchy tree view', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for tree view toggle or tree structure
     const treeView = page.locator('button:has-text("Tree"), [role="tree"], [data-testid="hierarchy-tree"]').first();
@@ -612,7 +608,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should edit hierarchy entity', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Find first edit button
     const editButtons = page.locator('button:has-text("Edit"), button[aria-label*="Edit"]');
@@ -627,7 +623,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should prevent deleting entity with children', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Try to find a parent entity and delete it
     const deleteButtons = page.locator('button:has-text("Delete"), button[aria-label*="Delete"]');
@@ -654,7 +650,7 @@ test.describe('Hierarchy Management', () => {
   });
 
   test('should display entity count stats', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for stats like "5 Departments, 12 Projects, 8 Teams"
     const statsText = page.locator('text=/\\d+\\s+(department|project|team)/i').first();
@@ -678,7 +674,7 @@ test.describe('CSV Import/Export', () => {
   });
 
   test('should show export button', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     const exportButton = page.locator('button:has-text("Export"), button:has-text("Download")').first();
 
@@ -690,7 +686,7 @@ test.describe('CSV Import/Export', () => {
   });
 
   test('should show import button', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     const importButton = page.locator('button:has-text("Import"), button:has-text("Upload")').first();
 
@@ -702,7 +698,7 @@ test.describe('CSV Import/Export', () => {
   });
 
   test('should validate CSV format on import', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     const importButton = page.locator('button:has-text("Import"), button:has-text("Upload")').first();
 
@@ -728,7 +724,7 @@ test.describe('Hierarchy Integration with Costs', () => {
 
   test('should display hierarchy selector in subscription form', async ({ page }) => {
     // Navigate to add subscription page
-    await page.goto(`${BASE_URL}/${TEST_USER.orgSlug}/integrations/subscriptions`);
+    await page.goto(`${BASE_URL}/${dynamicOrgSlug}/integrations/subscriptions`);
     await page.waitForLoadState('networkidle');
 
     // Look for "Add Subscription" button
@@ -750,7 +746,7 @@ test.describe('Hierarchy Integration with Costs', () => {
   });
 
   test('should assign subscription to hierarchy node', async ({ page }) => {
-    await page.goto(`${BASE_URL}/${TEST_USER.orgSlug}/integrations/subscriptions`);
+    await page.goto(`${BASE_URL}/${dynamicOrgSlug}/integrations/subscriptions`);
     await page.waitForLoadState('networkidle');
 
     // This would test the full flow of assigning a subscription
@@ -769,7 +765,7 @@ test.describe('Error Handling & Validation', () => {
   });
 
   test('should handle seat limit reached', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Check if seat limit warning is shown
     const seatInfo = page.locator('text=/seat|limit/i').first();
@@ -781,7 +777,7 @@ test.describe('Error Handling & Validation', () => {
   });
 
   test('should validate entity ID format', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     const addButton = page.locator('button:has-text("Add Department")').first();
 
@@ -804,14 +800,14 @@ test.describe('Error Handling & Validation', () => {
   });
 
   test('should handle duplicate entity ID', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // This would test creating an entity with duplicate ID
     console.log('ℹ Duplicate entity ID test (requires setup)');
   });
 
   test('should show loading states', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Trigger an action and check for loading indicator
     const anyButton = page.locator('button').first();
@@ -832,18 +828,18 @@ test.describe('Navigation & UX', () => {
 
   test('should navigate between team and hierarchy pages', async ({ page }) => {
     // Go to team page
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
     await expect(page).toHaveURL(/\/settings\/invite/);
 
     // Go to hierarchy page
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
     await expect(page).toHaveURL(/\/settings\/hierarchy/);
 
     console.log('✓ Navigation between pages working');
   });
 
   test('should show breadcrumbs', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     const breadcrumbs = page.locator('nav[aria-label="breadcrumb"], [role="navigation"]').first();
 
@@ -855,7 +851,7 @@ test.describe('Navigation & UX', () => {
   });
 
   test('should show help/documentation links', async ({ page }) => {
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     const helpLink = page.locator('a:has-text("Help"), a:has-text("Documentation"), button:has-text("?")').first();
 
@@ -865,7 +861,7 @@ test.describe('Navigation & UX', () => {
   });
 
   test('should handle empty states gracefully', async ({ page }) => {
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
 
     // Look for empty state message
     const emptyState = page.locator('text=/no entities|get started|create your first/i').first();
@@ -887,7 +883,7 @@ test.describe('Performance & Accessibility', () => {
     await login(page, TEST_USER.email, TEST_USER.password);
 
     const startTime = Date.now();
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
     const loadTime = Date.now() - startTime;
 
     console.log(`✓ Team page loaded in ${loadTime}ms`);
@@ -898,7 +894,7 @@ test.describe('Performance & Accessibility', () => {
     await login(page, TEST_USER.email, TEST_USER.password);
 
     const startTime = Date.now();
-    await navigateToHierarchy(page, TEST_USER.orgSlug);
+    await navigateToHierarchy(page, dynamicOrgSlug);
     const loadTime = Date.now() - startTime;
 
     console.log(`✓ Hierarchy page loaded in ${loadTime}ms`);
@@ -907,7 +903,7 @@ test.describe('Performance & Accessibility', () => {
 
   test('should have proper heading hierarchy', async ({ page }) => {
     await login(page, TEST_USER.email, TEST_USER.password);
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     const h1 = await page.locator('h1').count();
     const h2 = await page.locator('h2').count();
@@ -918,7 +914,7 @@ test.describe('Performance & Accessibility', () => {
 
   test('should have accessible form labels', async ({ page }) => {
     await login(page, TEST_USER.email, TEST_USER.password);
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Click invite button to open form
     const inviteButton = page.locator('button:has-text("Invite")').first();
@@ -933,7 +929,7 @@ test.describe('Performance & Accessibility', () => {
 
   test('should support keyboard navigation', async ({ page }) => {
     await login(page, TEST_USER.email, TEST_USER.password);
-    await navigateToTeamMembers(page, TEST_USER.orgSlug);
+    await navigateToTeamMembers(page, dynamicOrgSlug);
 
     // Try Tab navigation
     await page.keyboard.press('Tab');

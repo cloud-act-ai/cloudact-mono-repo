@@ -239,8 +239,8 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | Org Slug | Query from DB (see debug-config.md) |
 
 ---

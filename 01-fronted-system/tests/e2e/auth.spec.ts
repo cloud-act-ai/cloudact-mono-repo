@@ -10,7 +10,7 @@
  * Prerequisites:
  * - Frontend running on http://localhost:3000
  * - Supabase email confirmation DISABLED for testing
- * - Test user: john@example.com / acme1234
+ * - Test user: demo@cloudact.ai / demo1234
  */
 
 import { test, expect, Page } from '@playwright/test';
@@ -24,8 +24,8 @@ const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 // Test credentials
 const TEST_CREDENTIALS = {
   valid: {
-    email: 'john@example.com',
-    password: 'acme1234',
+    email: 'demo@cloudact.ai',
+    password: 'demo1234',
   },
   invalid: {
     email: 'invalid@example.com',

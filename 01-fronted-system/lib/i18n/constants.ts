@@ -42,13 +42,24 @@ export const SUPPORTED_CURRENCIES: readonly CurrencyInfo[] = [
   { code: "KWD", symbol: "د.ك", name: "Kuwaiti Dinar", decimals: 3, country: "KW" },
   { code: "BHD", symbol: "د.ب", name: "Bahraini Dinar", decimals: 3, country: "BH" },
   { code: "OMR", symbol: "ر.ع", name: "Omani Rial", decimals: 3, country: "OM" },
+  // Additional currencies (from CSV for conversion support)
+  { code: "HKD", symbol: "HK$", name: "Hong Kong Dollar", decimals: 2, country: "HK" },
+  { code: "NZD", symbol: "NZ$", name: "New Zealand Dollar", decimals: 2, country: "NZ" },
+  { code: "SEK", symbol: "kr", name: "Swedish Krona", decimals: 2, country: "SE" },
+  { code: "KRW", symbol: "₩", name: "South Korean Won", decimals: 0, country: "KR" },
 ] as const
 
 // Quick lookup maps
 export const CURRENCY_CODES = SUPPORTED_CURRENCIES.map(c => c.code)
-export const CURRENCY_BY_CODE = Object.fromEntries(
-  SUPPORTED_CURRENCIES.map(c => [c.code, c])
-) as Record<string, CurrencyInfo>
+
+// Type-safe currency lookup map with runtime validation
+const _currencyByCode: Record<string, CurrencyInfo> = {}
+for (const currency of SUPPORTED_CURRENCIES) {
+  if (currency && typeof currency.code === "string") {
+    _currencyByCode[currency.code] = currency
+  }
+}
+export const CURRENCY_BY_CODE: Readonly<Record<string, CurrencyInfo>> = _currencyByCode
 
 // Currency to country mapping (for auto-inference)
 export const CURRENCY_TO_COUNTRY = Object.fromEntries(
@@ -281,6 +292,11 @@ export const SUPPORTED_COUNTRIES: readonly CountryInfo[] = [
   { code: "EG", name: "Egypt" },
   { code: "JO", name: "Jordan" },
   { code: "LB", name: "Lebanon" },
+  // Additional countries (for new currencies)
+  { code: "HK", name: "Hong Kong" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "SE", name: "Sweden" },
+  { code: "KR", name: "South Korea" },
 ] as const
 
 export const COUNTRY_CODES = SUPPORTED_COUNTRIES.map(c => c.code)

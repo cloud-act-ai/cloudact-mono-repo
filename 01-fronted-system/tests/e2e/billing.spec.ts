@@ -11,7 +11,7 @@
  *
  * Prerequisites:
  * - Frontend running on http://localhost:3000
- * - Test user: john@example.com / acme1234
+ * - Test user: demo@cloudact.ai / demo1234
  * - Stripe TEST mode configured
  */
 
@@ -25,8 +25,8 @@ const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
 
 // Test credentials
 const TEST_CREDENTIALS = {
-  email: 'john@example.com',
-  password: 'acme1234',
+  email: 'demo@cloudact.ai',
+  password: 'demo1234',
 };
 
 // Stripe test cards

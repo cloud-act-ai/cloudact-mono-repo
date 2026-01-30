@@ -108,6 +108,15 @@ export {
   type DailyDataPoint,
 } from "./cost/daily-chart"
 
+// Daily Trend Chart (simple bar + line with smart time bucketing)
+export {
+  DailyTrendChart,
+  type DailyTrendChartProps,
+  type DailyTrendDataPoint,
+  type ChartTimeRange,
+  type AggregationType,
+} from "./cost/daily-trend-chart"
+
 // Metric Sparkline (score cards)
 export {
   MetricSparkline,

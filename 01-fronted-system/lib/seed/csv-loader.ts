@@ -35,26 +35,26 @@ export interface SubscriptionTemplate {
 
 // ============================================
 // STATIC DATA - EXCHANGE RATES
-// Updated: 2025-12-14
+// Updated: 2026-01-29
 // ============================================
 
 const EXCHANGE_RATES_DATA: ExchangeRate[] = [
-  { currency_code: "USD", currency_name: "US Dollar", rate_to_usd: 1.0, symbol: "$", last_updated: "2025-12-14" },
-  { currency_code: "EUR", currency_name: "Euro", rate_to_usd: 0.92, symbol: "€", last_updated: "2025-12-14" },
-  { currency_code: "GBP", currency_name: "British Pound", rate_to_usd: 0.79, symbol: "£", last_updated: "2025-12-14" },
-  { currency_code: "INR", currency_name: "Indian Rupee", rate_to_usd: 83.12, symbol: "₹", last_updated: "2025-12-14" },
-  { currency_code: "AED", currency_name: "UAE Dirham", rate_to_usd: 3.673, symbol: "د.إ", last_updated: "2025-12-14" },
-  { currency_code: "SAR", currency_name: "Saudi Riyal", rate_to_usd: 3.75, symbol: "﷼", last_updated: "2025-12-14" },
-  { currency_code: "JPY", currency_name: "Japanese Yen", rate_to_usd: 149.50, symbol: "¥", last_updated: "2025-12-14" },
-  { currency_code: "CAD", currency_name: "Canadian Dollar", rate_to_usd: 1.36, symbol: "C$", last_updated: "2025-12-14" },
-  { currency_code: "AUD", currency_name: "Australian Dollar", rate_to_usd: 1.53, symbol: "A$", last_updated: "2025-12-14" },
-  { currency_code: "SGD", currency_name: "Singapore Dollar", rate_to_usd: 1.34, symbol: "S$", last_updated: "2025-12-14" },
-  { currency_code: "CHF", currency_name: "Swiss Franc", rate_to_usd: 0.88, symbol: "CHF", last_updated: "2025-12-14" },
-  { currency_code: "CNY", currency_name: "Chinese Yuan", rate_to_usd: 7.24, symbol: "¥", last_updated: "2025-12-14" },
-  { currency_code: "HKD", currency_name: "Hong Kong Dollar", rate_to_usd: 7.78, symbol: "HK$", last_updated: "2025-12-14" },
-  { currency_code: "NZD", currency_name: "New Zealand Dollar", rate_to_usd: 1.67, symbol: "NZ$", last_updated: "2025-12-14" },
-  { currency_code: "SEK", currency_name: "Swedish Krona", rate_to_usd: 10.45, symbol: "kr", last_updated: "2025-12-14" },
-  { currency_code: "KRW", currency_name: "South Korean Won", rate_to_usd: 1320.0, symbol: "₩", last_updated: "2025-12-14" },
+  { currency_code: "USD", currency_name: "US Dollar", rate_to_usd: 1.0, symbol: "$", last_updated: "2026-01-29" },
+  { currency_code: "EUR", currency_name: "Euro", rate_to_usd: 0.92, symbol: "€", last_updated: "2026-01-29" },
+  { currency_code: "GBP", currency_name: "British Pound", rate_to_usd: 0.79, symbol: "£", last_updated: "2026-01-29" },
+  { currency_code: "INR", currency_name: "Indian Rupee", rate_to_usd: 83.12, symbol: "₹", last_updated: "2026-01-29" },
+  { currency_code: "AED", currency_name: "UAE Dirham", rate_to_usd: 3.673, symbol: "د.إ", last_updated: "2026-01-29" },
+  { currency_code: "SAR", currency_name: "Saudi Riyal", rate_to_usd: 3.75, symbol: "﷼", last_updated: "2026-01-29" },
+  { currency_code: "JPY", currency_name: "Japanese Yen", rate_to_usd: 149.50, symbol: "JP¥", last_updated: "2026-01-29" },
+  { currency_code: "CAD", currency_name: "Canadian Dollar", rate_to_usd: 1.36, symbol: "C$", last_updated: "2026-01-29" },
+  { currency_code: "AUD", currency_name: "Australian Dollar", rate_to_usd: 1.53, symbol: "A$", last_updated: "2026-01-29" },
+  { currency_code: "SGD", currency_name: "Singapore Dollar", rate_to_usd: 1.34, symbol: "S$", last_updated: "2026-01-29" },
+  { currency_code: "CHF", currency_name: "Swiss Franc", rate_to_usd: 0.88, symbol: "CHF", last_updated: "2026-01-29" },
+  { currency_code: "CNY", currency_name: "Chinese Yuan", rate_to_usd: 7.24, symbol: "CN¥", last_updated: "2026-01-29" },
+  { currency_code: "HKD", currency_name: "Hong Kong Dollar", rate_to_usd: 7.78, symbol: "HK$", last_updated: "2026-01-29" },
+  { currency_code: "NZD", currency_name: "New Zealand Dollar", rate_to_usd: 1.67, symbol: "NZ$", last_updated: "2026-01-29" },
+  { currency_code: "SEK", currency_name: "Swedish Krona", rate_to_usd: 10.45, symbol: "kr", last_updated: "2026-01-29" },
+  { currency_code: "KRW", currency_name: "South Korean Won", rate_to_usd: 1320.0, symbol: "₩", last_updated: "2026-01-29" },
 ]
 
 // ============================================

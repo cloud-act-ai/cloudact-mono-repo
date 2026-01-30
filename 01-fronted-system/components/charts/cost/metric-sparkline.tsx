@@ -5,6 +5,9 @@
  *
  * Compact sparkline chart for metric cards showing trends.
  * Integrates with CostDataContext for automatic data.
+ *
+ * ENT-001: Wrapped with ChartErrorBoundary for resilience
+ * DATA-001: Safe number handling for edge cases
  */
 
 import React, { useMemo } from "react"
@@ -14,6 +17,7 @@ import { useCostData, type TimeRange } from "@/contexts/cost-data-context"
 import { useChartConfig } from "../provider/chart-provider"
 import { TrendSparkline } from "../base/sparkline"
 import { Card, CardContent } from "@/components/ui/card"
+import { ChartErrorBoundary } from "../chart-error-boundary"
 
 // ============================================
 // Types
@@ -53,10 +57,22 @@ export interface MetricSparklineProps {
 }
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * DATA-001: Safe number extraction that handles NaN/Infinity/null/undefined
+ */
+function safeNumber(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return value
+}
+
+// ============================================
 // Component
 // ============================================
 
-export function MetricSparkline({
+function MetricSparklineInner({
   title,
   value: propValue,
   previousValue: propPreviousValue,
@@ -77,22 +93,23 @@ export function MetricSparkline({
   const costData = useCostData()
 
   // Get data from context if category specified
+  // DATA-001: Apply safeNumber to all values
   const { trendData, currentValue, previousValue } = useMemo(() => {
     if (propData && propValue !== undefined) {
       return {
-        trendData: propData,
-        currentValue: propValue,
-        previousValue: propPreviousValue,
+        trendData: propData.map(safeNumber),
+        currentValue: safeNumber(propValue),
+        previousValue: propPreviousValue !== undefined ? safeNumber(propPreviousValue) : undefined,
       }
     }
 
     // Get trend data using context's unified filters
     if (category) {
       const timeSeries = costData.getFilteredTimeSeries()
-      const values = timeSeries.map((d: { date: string; total: number }) => d.total || 0)
+      const values = timeSeries.map((d: { date: string; total: number }) => safeNumber(d.total))
 
-      const current = values[values.length - 1] || 0
-      const previous = values[0] || 0
+      const current = values.length > 0 ? values[values.length - 1] : 0
+      const previous = values.length > 0 ? values[0] : 0
 
       if (values.length > 0) {
         return {
@@ -107,9 +124,9 @@ export function MetricSparkline({
     if (category && costData.totalCosts) {
       let current = 0
       if (category === "total") {
-        current = costData.totalCosts.total?.total_monthly_cost || 0
+        current = safeNumber(costData.totalCosts.total?.total_monthly_cost)
       } else {
-        current = costData.totalCosts[category]?.total_monthly_cost || 0
+        current = safeNumber(costData.totalCosts[category]?.total_monthly_cost)
       }
 
       return {
@@ -120,9 +137,9 @@ export function MetricSparkline({
     }
 
     return {
-      trendData: propData || [],
-      currentValue: propValue || 0,
-      previousValue: propPreviousValue,
+      trendData: propData?.map(safeNumber) || [],
+      currentValue: safeNumber(propValue),
+      previousValue: propPreviousValue !== undefined ? safeNumber(propPreviousValue) : undefined,
     }
   }, [propData, propValue, propPreviousValue, category, costData])
 
@@ -210,6 +227,18 @@ export function MetricSparkline({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * ENT-001: Wrapped component with error boundary for resilience
+ * Prevents chart crashes from affecting the entire dashboard
+ */
+export function MetricSparkline(props: MetricSparklineProps) {
+  return (
+    <ChartErrorBoundary chartTitle={props.title} minHeight={props.sparklineHeight ?? 32}>
+      <MetricSparklineInner {...props} />
+    </ChartErrorBoundary>
   )
 }
 

@@ -14,7 +14,7 @@ PHASE 1: Frontend (Supabase)       PHASE 2: Backend (BigQuery)
    ↓                                  ├─ org_profiles
 4. Stripe Checkout                    ├─ org_api_keys (SHA256 + KMS)
 5. Supabase org record                ├─ org_subscriptions
-   org_slug: {name}_{MMDDYYYY}        └─ {org_slug}_prod dataset
+   org_slug: {name}_{timestamp}       └─ {org_slug}_prod dataset
 ```
 
 ---

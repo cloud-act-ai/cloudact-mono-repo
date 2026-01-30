@@ -37,7 +37,8 @@ QUERY_TEMPLATES = {
     """,
 
     # --------------------------------------------
-    # CLOUD COSTS (GCP, AWS, Azure)
+    # CLOUD COSTS (GCP, AWS, Azure, OCI)
+    # FIX ISS-017, ISS-018: Use correct x_source_system pattern
     # --------------------------------------------
     "cloud_costs": """
         SELECT
@@ -46,7 +47,7 @@ QUERY_TEMPLATES = {
             MAX(BillingCurrency) as currency,
             COUNT(*) as record_count
         FROM `{project}.{dataset}.cost_data_standard_1_3`
-        WHERE x_source_system IN ('gcp_billing', 'aws_billing', 'azure_billing')
+        WHERE x_source_system LIKE 'cloud_%_billing_raw_daily'
           AND DATE(ChargePeriodStart) >= @start_date
           AND DATE(ChargePeriodStart) <= @end_date
     """,
@@ -110,6 +111,7 @@ QUERY_TEMPLATES = {
 
     # --------------------------------------------
     # GCP COSTS
+    # FIX ISS-019: Use correct ServiceProviderName
     # --------------------------------------------
     "gcp_costs": """
         SELECT
@@ -118,13 +120,14 @@ QUERY_TEMPLATES = {
             MAX(BillingCurrency) as currency,
             COUNT(*) as record_count
         FROM `{project}.{dataset}.cost_data_standard_1_3`
-        WHERE LOWER(ServiceProviderName) = 'gcp'
+        WHERE LOWER(ServiceProviderName) IN ('gcp', 'google cloud')
           AND DATE(ChargePeriodStart) >= @start_date
           AND DATE(ChargePeriodStart) <= @end_date
     """,
 
     # --------------------------------------------
     # AWS COSTS
+    # FIX ISS-020: Use correct ServiceProviderName
     # --------------------------------------------
     "aws_costs": """
         SELECT
@@ -133,13 +136,14 @@ QUERY_TEMPLATES = {
             MAX(BillingCurrency) as currency,
             COUNT(*) as record_count
         FROM `{project}.{dataset}.cost_data_standard_1_3`
-        WHERE LOWER(ServiceProviderName) = 'aws'
+        WHERE LOWER(ServiceProviderName) IN ('aws', 'amazon web services')
           AND DATE(ChargePeriodStart) >= @start_date
           AND DATE(ChargePeriodStart) <= @end_date
     """,
 
     # --------------------------------------------
     # AZURE COSTS
+    # FIX ISS-021: Use correct ServiceProviderName
     # --------------------------------------------
     "azure_costs": """
         SELECT
@@ -148,7 +152,23 @@ QUERY_TEMPLATES = {
             MAX(BillingCurrency) as currency,
             COUNT(*) as record_count
         FROM `{project}.{dataset}.cost_data_standard_1_3`
-        WHERE LOWER(ServiceProviderName) IN ('azure', 'microsoft')
+        WHERE LOWER(ServiceProviderName) IN ('azure', 'microsoft', 'microsoft azure')
+          AND DATE(ChargePeriodStart) >= @start_date
+          AND DATE(ChargePeriodStart) <= @end_date
+    """,
+
+    # --------------------------------------------
+    # OCI COSTS
+    # FIX ISS-018: Add missing OCI costs query
+    # --------------------------------------------
+    "oci_costs": """
+        SELECT
+            @org_slug as org_slug,
+            SUM(BilledCost) as total_cost,
+            MAX(BillingCurrency) as currency,
+            COUNT(*) as record_count
+        FROM `{project}.{dataset}.cost_data_standard_1_3`
+        WHERE LOWER(ServiceProviderName) IN ('oci', 'oracle', 'oracle cloud', 'oracle cloud infrastructure')
           AND DATE(ChargePeriodStart) >= @start_date
           AND DATE(ChargePeriodStart) <= @end_date
     """,

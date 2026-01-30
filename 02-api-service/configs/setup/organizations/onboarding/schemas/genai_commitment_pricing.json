@@ -138,6 +138,12 @@
     "description": "Timestamp of last update."
   },
   {
+    "name": "x_ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when data was ingested - PARTITION KEY."
+  },
+  {
     "name": "x_pipeline_id",
     "type": "STRING",
     "mode": "REQUIRED",

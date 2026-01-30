@@ -9,13 +9,13 @@ Load realistic demo data into BigQuery for demo organizations.
 ### Default Demo Credentials
 | Field | Value |
 |-------|-------|
-| Email | `john@example.com` |
-| Password | `acme1234` |
+| Email | `demo@cloudact.ai` |
+| Password | `demo1234` |
 | First Name | `John` |
 | Last Name | `Doe` |
 | Phone | `5551234567` |
-| Company | `Acme Inc {MMDDYYYY}` (e.g., `Acme Inc 01022026`) |
-| Org Slug | `acme_inc_{MMDDYYYY}` (e.g., `acme_inc_01022026`) |
+| Company | `Acme Inc` (no suffix needed) |
+| Org Slug | `acme_inc_{timestamp}` (e.g., `acme_inc_ml01ua8p`) - auto-generated |
 | Plan | `starter` ($19/month, 14-day trial) |
 | Timezone | `PST/PDT - Los Angeles, USA` |
 | Currency | `USD` |
@@ -47,7 +47,7 @@ bq query --use_legacy_sql=false "DELETE FROM \`cloudact-testing-1.organizations.
 
 # 1c. Delete from Supabase (via MCP or SQL)
 # In Supabase SQL Editor:
-# 1. Find user: SELECT id FROM auth.users WHERE email = 'john@example.com';
+# 1. Find user: SELECT id FROM auth.users WHERE email = 'demo@cloudact.ai';
 # 2. Find org: SELECT id FROM organizations WHERE org_slug = 'acme_inc_01022026';
 # 3. Disable trigger: ALTER TABLE organization_members DISABLE TRIGGER protect_owner;
 # 4. Delete members: DELETE FROM organization_members WHERE org_id = '<org_id>';
@@ -66,8 +66,8 @@ Use Playwright or manual browser:
 2. Fill Step 1 (Account):
    - First name: John
    - Last name: Doe
-   - Email: john@example.com
-   - Password: acme1234
+   - Email: demo@cloudact.ai
+   - Password: demo1234
    - Phone: 5551234567
    - Click "Continue"
 3. Fill Step 2 (Organization):
@@ -149,7 +149,7 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total" \
 
 # Expected: GenAI costs > Cloud costs
 # Navigate to: http://localhost:3000/acme_inc_01022026/dashboard
-# Login: john@example.com / acme1234
+# Login: demo@cloudact.ai / demo1234
 ```
 
 ### Key Learnings & Gotchas

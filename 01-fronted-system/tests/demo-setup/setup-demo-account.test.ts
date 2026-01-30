@@ -16,7 +16,7 @@ import { chromium, Browser, Page } from 'playwright'
 // Demo account configuration
 const config = {
     email: process.env.DEMO_EMAIL || 'demo@acme-inc.com',
-    password: process.env.DEMO_PASSWORD || 'acme1234',
+    password: process.env.DEMO_PASSWORD || 'demo1234',
     phone: '5551234567',
     countryCode: '+1',
     companyName: process.env.DEMO_COMPANY || 'Acme Inc',
