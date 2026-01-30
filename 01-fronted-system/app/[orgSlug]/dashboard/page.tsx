@@ -503,11 +503,11 @@ export default function DashboardPage() {
             disabled={isRefreshing}
             variant="outline"
             size="sm"
-            className="h-8 sm:h-9 px-3 flex-shrink-0"
+            className="h-10 sm:h-9 px-3 flex-shrink-0 min-w-[44px]"
             aria-label={isRefreshing ? "Clearing cache..." : "Clear cache and reload data"}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            {isRefreshing ? "Clearing..." : "Clear Cache"}
+            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">{isRefreshing ? "Clearing..." : "Clear Cache"}</span>
           </Button>
         </div>
       </div>
@@ -690,7 +690,7 @@ export default function DashboardPage() {
         </div>
         <Card className="overflow-hidden">
           <CardContent className="p-4 sm:p-5">
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {integrations.length > 0 ? (
                 integrations.map((integration) => (
                   <div
@@ -698,7 +698,7 @@ export default function DashboardPage() {
                     className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white border border-slate-100 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                      <div className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl transition-colors ${
                         integration.status === "connected"
                           ? "bg-emerald-50 group-hover:bg-emerald-100"
                           : "bg-slate-50 group-hover:bg-slate-100"
@@ -769,7 +769,7 @@ export default function DashboardPage() {
             Quick Actions
           </h2>
         </div>
-        <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {quickActions.map((action) => (
             <Link key={action.title} href={action.href}>
               <Card

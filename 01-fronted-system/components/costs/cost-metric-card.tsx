@@ -107,31 +107,31 @@ export function CostMetricCard({
     return <MetricCardSkeleton variant={variant} />
   }
 
-  // Size classes based on variant
+  // Size classes based on variant - mobile-first with better touch targets
   const sizeClasses = {
     compact: {
-      container: "p-2 sm:p-3",
-      iconContainer: "gap-1 sm:gap-1.5 mb-1.5 sm:mb-2",
-      icon: "h-3 w-3 sm:h-3.5 sm:w-3.5",
-      label: "text-[9px] sm:text-[10px]",
-      value: "text-lg sm:text-xl lg:text-2xl",
-      subtitle: "text-[9px] sm:text-[10px]",
-    },
-    default: {
-      container: "p-3 sm:p-5",
-      iconContainer: "gap-1.5 sm:gap-2 mb-2 sm:mb-3",
-      icon: "h-3.5 w-3.5 sm:h-4 sm:w-4",
+      container: "p-3 sm:p-4",
+      iconContainer: "gap-1.5 sm:gap-2 mb-2 sm:mb-2.5",
+      icon: "h-4 w-4 sm:h-4 sm:w-4",
       label: "text-[10px] sm:text-xs",
-      value: "text-xl sm:text-2xl lg:text-3xl",
+      value: "text-xl sm:text-2xl",
       subtitle: "text-[10px] sm:text-xs",
     },
-    large: {
-      container: "p-4 sm:p-6",
-      iconContainer: "gap-2 sm:gap-2.5 mb-3 sm:mb-4",
+    default: {
+      container: "p-4 sm:p-5",
+      iconContainer: "gap-2 sm:gap-2.5 mb-2.5 sm:mb-3",
       icon: "h-4 w-4 sm:h-5 sm:w-5",
       label: "text-xs sm:text-sm",
-      value: "text-2xl sm:text-3xl lg:text-4xl",
+      value: "text-2xl sm:text-3xl",
       subtitle: "text-xs sm:text-sm",
+    },
+    large: {
+      container: "p-5 sm:p-6",
+      iconContainer: "gap-2.5 sm:gap-3 mb-3 sm:mb-4",
+      icon: "h-5 w-5 sm:h-6 sm:w-6",
+      label: "text-sm",
+      value: "text-3xl sm:text-4xl",
+      subtitle: "text-sm",
     },
   }
 
@@ -213,9 +213,9 @@ export function CostMetricGrid({
   className,
 }: CostMetricGridProps) {
   const columnClasses = {
-    2: "grid-cols-2",
-    3: "grid-cols-1 sm:grid-cols-3",
-    4: "grid-cols-2 lg:grid-cols-4",
+    2: "grid-cols-1 xs:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
   }
 
   return (

@@ -192,7 +192,7 @@ function FilterButton({
       aria-label={ariaLabel}
       aria-haspopup="listbox"
       className={cn(
-        "gap-2 h-9 min-w-[120px]",
+        "gap-2 h-10 sm:h-9 min-w-[100px] sm:min-w-[120px]",
         "border-slate-200 hover:border-slate-300",
         // FIX-006: Add disabled styling during loading
         disabled && "opacity-60 cursor-not-allowed",
@@ -201,7 +201,7 @@ function FilterButton({
       )}
     >
       {icon}
-      <span className={cn("text-sm truncate max-w-[100px]", hasValue ? "font-medium" : "text-slate-600")}>
+      <span className={cn("text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[100px]", hasValue ? "font-medium" : "text-slate-600")}>
         {displayValue}
       </span>
       {hasValue && onClear && (
@@ -479,7 +479,7 @@ export function CostFilters({
   const hasHierarchy = hierarchy.length > 0
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-3", className)}>
+    <div className={cn("flex flex-wrap items-center gap-2 sm:gap-3", className)}>
       {/* C-Suite / Department Filter (Level 1) - Always show if hierarchy exists */}
       {hasHierarchy && (
         <Popover open={cSuiteOpen} onOpenChange={setCSuiteOpen}>
@@ -506,7 +506,7 @@ export function CostFilters({
                     type="button"
                     onClick={() => handleDepartmentChange(dept.entity_id)}
                     className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                      "w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-sm transition-colors min-h-[44px] sm:min-h-0",
                       value.department === dept.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
                         : "text-slate-600 hover:bg-slate-100"
@@ -552,7 +552,7 @@ export function CostFilters({
                     type="button"
                     onClick={() => handleProjectChange(proj.entity_id)}
                     className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                      "w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-sm transition-colors min-h-[44px] sm:min-h-0",
                       value.project === proj.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
                         : "text-slate-600 hover:bg-slate-100"
@@ -600,7 +600,7 @@ export function CostFilters({
                     type="button"
                     onClick={() => handleTeamChange(team.entity_id)}
                     className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                      "w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-sm transition-colors min-h-[44px] sm:min-h-0",
                       value.team === team.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
                         : "text-slate-600 hover:bg-slate-100"
@@ -615,9 +615,9 @@ export function CostFilters({
         </Popover>
       )}
 
-      {/* Separator between hierarchy and other filters */}
+      {/* Separator between hierarchy and other filters - hidden on mobile */}
       {hasHierarchy && (availableProviders.length > 0 || categories.length > 0) && (
-        <div className="h-6 w-px bg-slate-200 mx-1" />
+        <div className="hidden sm:block h-6 w-px bg-slate-200 mx-1" />
       )}
 
       {/* Provider Filter */}
@@ -651,7 +651,7 @@ export function CostFilters({
                     type="button"
                     onClick={() => handleProviderToggle(provider)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm",
+                      "w-full flex items-center justify-between px-3 py-2.5 sm:py-2 rounded-lg text-sm min-h-[44px] sm:min-h-0",
                       "transition-colors",
                       isSelected
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
@@ -697,7 +697,7 @@ export function CostFilters({
                     type="button"
                     onClick={() => handleCategoryToggle(cat.id)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm",
+                      "w-full flex items-center justify-between px-3 py-2.5 sm:py-2 rounded-lg text-sm min-h-[44px] sm:min-h-0",
                       "transition-colors",
                       isSelected
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
@@ -726,10 +726,11 @@ export function CostFilters({
           variant="ghost"
           size="sm"
           onClick={clearAllFilters}
-          className="text-slate-500 hover:text-slate-700 h-9 ml-1"
+          className="text-slate-500 hover:text-slate-700 h-10 sm:h-9 ml-1"
         >
           <X className="h-4 w-4 mr-1" />
-          Clear all
+          <span className="hidden sm:inline">Clear all</span>
+          <span className="sm:hidden">Clear</span>
         </Button>
       )}
     </div>
@@ -893,7 +894,7 @@ export function TimeRangeFilter({
           disabled={disabled}
           className={cn(
             "gap-2",
-            size === "sm" ? "h-8 px-2.5" : "h-9 px-3",
+            size === "sm" ? "h-9 sm:h-8 px-2.5" : "h-10 sm:h-9 px-3",
             "border-slate-200 hover:border-slate-300",
             "bg-white hover:bg-slate-50",
             className
@@ -918,7 +919,7 @@ export function TimeRangeFilter({
                   type="button"
                   onClick={() => handlePresetSelect(option.value)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm",
+                    "w-full flex items-center justify-between px-3 py-2.5 sm:py-2 rounded-md text-sm min-h-[44px] sm:min-h-0",
                     "transition-colors",
                     isSelected
                       ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"

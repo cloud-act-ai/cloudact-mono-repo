@@ -94,9 +94,9 @@ export default function QuotaUsagePage() {
   const monthlyLimit = quotaLimits?.pipelines_per_month_limit || (dailyLimit > 0 ? dailyLimit * 30 : 0)
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="mb-10">
+      <div>
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
             <TrendingUp className="h-6 w-6 text-slate-900" />

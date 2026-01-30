@@ -327,9 +327,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="ca-page-wrapper">
-      {/* ANNOUNCEMENT BANNER - First thing on page, before header */}
-      <AnnouncementBanner isVisible={showBanner} onClose={() => setShowBanner(false)} />
-
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"

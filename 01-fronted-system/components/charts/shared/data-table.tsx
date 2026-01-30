@@ -244,15 +244,15 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      {/* Table with premium styling */}
+      {/* Table with premium styling - mobile-first with horizontal scroll */}
       <div
         className={cn(
-          "overflow-hidden",
+          "overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0", // Mobile: full-bleed scroll
           isMinimal
             ? "border-0"
             : isPremium
-            ? "rounded-2xl border border-slate-200/60 shadow-sm"
-            : "rounded-xl border border-slate-200",
+            ? "sm:rounded-2xl border-y sm:border border-slate-200/60 shadow-sm"
+            : "sm:rounded-xl border-y sm:border border-slate-200",
         )}
         style={{
           boxShadow: isPremium ? theme.shadows.card : undefined,

@@ -20,59 +20,103 @@ import { IntegrationsWall } from "@/components/landing/integrations-wall"
 import { Testimonials } from "@/components/landing/testimonials"
 
 // ============================================
-// HERO SECTION - Investor-Focused Premium
+// GLOWING SECTION WRAPPER - Luminous Effect
+// ============================================
+function GlowingSection({ children, className = "", glowColor = "mint", intensity = "medium" }: {
+  children: React.ReactNode
+  className?: string
+  glowColor?: "mint" | "coral" | "blue" | "neutral"
+  intensity?: "subtle" | "medium" | "strong"
+}) {
+  const glowMap = {
+    mint: "from-[#90FCA6]/5 via-white to-[#90FCA6]/3",
+    coral: "from-[#FF6C5E]/5 via-white to-[#FF6C5E]/3",
+    blue: "from-blue-400/5 via-white to-blue-400/3",
+    neutral: "from-slate-100 via-white to-slate-50",
+  }
+
+  const intensityMap = {
+    subtle: "opacity-40",
+    medium: "opacity-60",
+    strong: "opacity-80",
+  }
+
+  return (
+    <section className={`relative overflow-hidden ${className}`}>
+      {/* Luminous background glow */}
+      <div className={`absolute inset-0 bg-gradient-to-b ${glowMap[glowColor]} ${intensityMap[intensity]}`} />
+      {/* Central glow orb */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-white/80 rounded-[100%] blur-[100px]" />
+      {/* Content */}
+      <div className="relative z-10">{children}</div>
+    </section>
+  )
+}
+
+// ============================================
+// HERO SECTION - Premium with Luminous Effects
 // ============================================
 function HeroSection() {
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-gradient-to-b from-slate-50 to-white">
-      {/* Subtle grid background */}
-      <div className="absolute inset-0 opacity-40" style={{
-        backgroundImage: `radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0)`,
-        backgroundSize: '24px 24px'
+    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+      {/* Pure white luminous background */}
+      <div className="absolute inset-0 bg-white" />
+
+      {/* Subtle scientific grid - data visualization feel */}
+      <div className="absolute inset-0" style={{
+        backgroundImage: `
+          linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px'
       }} />
 
-      {/* Gradient orbs */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#90FCA6]/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#FF6C5E]/8 rounded-full blur-[100px]" />
+      {/* Luminous center glow - scientific aesthetic */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px]">
+        <div className="absolute inset-0 bg-gradient-radial from-white via-[#90FCA6]/8 to-transparent rounded-[100%] blur-[80px]" />
+      </div>
+
+      {/* Subtle mint glow */}
+      <div className="absolute top-20 left-[10%] w-[300px] h-[300px] bg-[#90FCA6]/10 rounded-full blur-[80px]" />
 
       <div className="container relative z-10 px-4 mx-auto max-w-7xl py-16">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
 
           {/* LEFT - Content */}
           <div className="space-y-6">
-            {/* Powered by Google Badge */}
+            {/* Powered by Google Badge - elevated */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               className="inline-flex"
             >
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full shadow-sm">
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-full shadow-lg shadow-slate-900/5">
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                <span className="text-xs font-medium text-slate-600">Powered by Google Cloud & Data AI</span>
+                <span className="text-xs font-semibold text-slate-700">Powered by Google Cloud & Data AI</span>
               </div>
             </motion.div>
 
-            {/* Headline */}
+            {/* Headline - bolder, more contrast */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 leading-[1.05] tracking-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-slate-900 leading-[1.08] tracking-tight">
                 Unified Cost Intelligence for
-                <span className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-[#90FCA6] to-teal-500">
+                <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-[#34d399] to-teal-500 drop-shadow-sm">
                   Cloud, GenAI & SaaS
                 </span>
               </h1>
             </motion.div>
 
-            {/* Value prop */}
+            {/* Value prop - cleaner */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -83,7 +127,7 @@ function HeroSection() {
               Real-time anomaly detection. 100% cost allocation. Built for engineering teams.
             </motion.p>
 
-            {/* CTA Row */}
+            {/* CTA Row - mint & black buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -92,78 +136,83 @@ function HeroSection() {
             >
               <Link
                 href="/signup"
-                className="group inline-flex items-center h-12 px-6 text-sm font-semibold text-slate-900 bg-[#90FCA6] rounded-full hover:bg-[#7ee994] transition-all shadow-lg shadow-[#90FCA6]/25"
+                className="group inline-flex items-center h-12 px-7 text-sm font-semibold text-slate-900 bg-[#90FCA6] rounded-full hover:bg-[#7ee994] transition-all shadow-lg shadow-[#90FCA6]/25"
               >
-                Start Free Trial
+                Get Started
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link
                 href="/demo"
-                className="group inline-flex items-center h-12 px-6 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all"
+                className="group inline-flex items-center h-12 px-7 text-sm font-semibold text-white bg-slate-900 rounded-full hover:bg-slate-800 transition-all"
               >
-                <Play className="w-4 h-4 mr-2 fill-slate-500" />
+                <Play className="w-4 h-4 mr-2 fill-white" />
                 Watch Demo
               </Link>
             </motion.div>
 
-            {/* Trust row - compact */}
+            {/* Trust row - elevated */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="flex flex-wrap items-center gap-4 pt-2"
+              className="flex flex-wrap items-center gap-5 pt-3"
             >
               {["No credit card", "5-min setup", "SOC 2 ready"].map((item, i) => (
-                <span key={i} className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#90FCA6]/20">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  </span>
                   {item}
                 </span>
               ))}
             </motion.div>
           </div>
 
-          {/* RIGHT - Dashboard */}
+          {/* RIGHT - Dashboard with glow effect */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
             className="relative"
           >
-            <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-2xl shadow-slate-900/10">
+            {/* Glow behind dashboard */}
+            <div className="absolute -inset-4 bg-[#90FCA6]/15 rounded-2xl blur-2xl" />
+
+            <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 shadow-2xl shadow-slate-900/15 bg-white">
               <HeroDashboard />
             </div>
 
-            {/* Floating stat */}
+            {/* Floating stat - glass effect */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1, duration: 0.4 }}
-              className="absolute -bottom-4 -left-4 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-lg"
+              className="absolute -bottom-4 -left-4 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl px-5 py-4 shadow-xl shadow-slate-900/10"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#90FCA6] to-emerald-500 flex items-center justify-center">
-                  <TrendingDown className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <TrendingDown className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-slate-900">-$12,450</div>
-                  <div className="text-xs text-slate-500">saved this month</div>
+                  <div className="text-xl font-bold text-slate-900">-$12,450</div>
+                  <div className="text-xs text-slate-500 font-medium">saved this month</div>
                 </div>
               </div>
             </motion.div>
 
-            {/* Live indicator */}
+            {/* Live indicator - elevated */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.8, duration: 0.3 }}
-              className="absolute -top-3 -right-3 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-md"
+              className="absolute -top-3 -right-3 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-4 py-2 shadow-lg"
             >
-              <div className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                 </span>
-                <span className="text-xs font-medium text-slate-600">Live</span>
+                <span className="text-xs font-semibold text-slate-700">Live Data</span>
               </div>
             </motion.div>
           </motion.div>
@@ -174,53 +223,7 @@ function HeroSection() {
 }
 
 // ============================================
-// MARKET OPPORTUNITY - Investor-Focused
-// ============================================
-function MarketOpportunity() {
-  const stats = [
-    { value: "$200B+", label: "Cloud spend by 2025", sublabel: "Growing 20% YoY" },
-    { value: "$50B+", label: "GenAI market by 2027", sublabel: "Fastest growing segment" },
-    { value: "35%", label: "Average waste", sublabel: "In cloud infrastructure" },
-  ]
-
-  return (
-    <section className="py-16 bg-slate-900 text-white relative overflow-hidden">
-      {/* Subtle gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900" />
-
-      <div className="container px-4 mx-auto max-w-6xl relative z-10">
-        <div className="grid md:grid-cols-4 gap-8 items-center">
-          {/* Label */}
-          <div className="md:col-span-1">
-            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Market Opportunity</span>
-            <p className="text-sm text-slate-400 mt-1">The problem we solve</p>
-          </div>
-
-          {/* Stats */}
-          <div className="md:col-span-3 grid grid-cols-3 gap-6">
-            {stats.map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center md:text-left"
-              >
-                <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
-                <div className="text-sm font-medium text-slate-300 mt-1">{stat.label}</div>
-                <div className="text-xs text-slate-500">{stat.sublabel}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ============================================
-// LOGO CLOUD - Compact
+// LOGO CLOUD - Clean
 // ============================================
 function LogoCloud() {
   const providers = [
@@ -233,10 +236,10 @@ function LogoCloud() {
   ]
 
   return (
-    <section className="py-10 bg-white border-b border-slate-100">
+    <section className="py-8 bg-white">
       <div className="container px-4 mx-auto max-w-5xl">
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6">
-          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Integrations</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Integrations</span>
           {providers.map((p, i) => (
             <Image
               key={i}
@@ -254,7 +257,7 @@ function LogoCloud() {
 }
 
 // ============================================
-// THREE PILLARS - Compact Cards
+// THREE PILLARS - Clean Cards
 // ============================================
 function PlatformPillars() {
   const pillars = [
@@ -264,7 +267,6 @@ function PlatformPillars() {
       description: "Multi-cloud visibility with automatic tagging and FOCUS 1.3 compliance.",
       stat: "100%",
       statLabel: "allocation",
-      color: "emerald",
       features: ["Real-time cost tracking", "Anomaly detection", "Reserved instance optimization"]
     },
     {
@@ -273,7 +275,6 @@ function PlatformPillars() {
       description: "Track every token and request across all your AI providers.",
       stat: "<5min",
       statLabel: "detection",
-      color: "coral",
       features: ["Per-token cost attribution", "Model comparison", "Usage forecasting"]
     },
     {
@@ -282,19 +283,12 @@ function PlatformPillars() {
       description: "Discover shadow IT and eliminate unused licenses.",
       stat: "35%",
       statLabel: "avg savings",
-      color: "blue",
       features: ["License utilization", "Renewal tracking", "Vendor consolidation"]
     },
   ]
 
-  const colorMap = {
-    emerald: { bg: "bg-emerald-50", border: "border-emerald-200 hover:border-emerald-400", text: "text-emerald-600", stat: "text-emerald-700" },
-    coral: { bg: "bg-orange-50", border: "border-orange-200 hover:border-orange-400", text: "text-[#FF6C5E]", stat: "text-[#FF6C5E]" },
-    blue: { bg: "bg-blue-50", border: "border-blue-200 hover:border-blue-400", text: "text-blue-600", stat: "text-blue-700" },
-  }
-
   return (
-    <section className="py-16 bg-white">
+    <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
       <div className="container px-4 mx-auto max-w-6xl">
         {/* Header */}
         <div className="text-center mb-12">
@@ -303,7 +297,7 @@ function PlatformPillars() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <span className="text-xs font-semibold text-[#FF6C5E] uppercase tracking-wider">Three Pillars</span>
+            <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Three Pillars</span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">
               All your spend. One platform.
             </h2>
@@ -311,64 +305,65 @@ function PlatformPillars() {
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-5">
-          {pillars.map((pillar, i) => {
-            const colors = colorMap[pillar.color as keyof typeof colorMap]
-            return (
-              <motion.div
-                key={pillar.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={`relative p-6 rounded-2xl border ${colors.border} bg-white transition-all hover:shadow-lg group`}
-              >
-                {/* Stat badge */}
-                <div className="absolute top-4 right-4">
-                  <span className={`text-2xl font-bold ${colors.stat}`}>{pillar.stat}</span>
-                  <span className="text-xs text-slate-400 ml-1">{pillar.statLabel}</span>
-                </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          {pillars.map((pillar, i) => (
+            <motion.div
+              key={pillar.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="group relative p-6 rounded-2xl bg-white border border-slate-200 hover:border-[#90FCA6]/50 hover:shadow-xl transition-all h-full"
+            >
+              {/* Stat badge */}
+              <div className="absolute top-4 right-4 text-right">
+                <span className="text-2xl font-bold text-[#90FCA6]">{pillar.stat}</span>
+                <span className="block text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{pillar.statLabel}</span>
+              </div>
 
-                <h3 className="text-lg font-bold text-slate-900 mb-1 pr-20">{pillar.title}</h3>
-                <p className="text-xs text-slate-400 font-medium mb-3">{pillar.providers}</p>
-                <p className="text-sm text-slate-600 mb-4">{pillar.description}</p>
+              {/* Title */}
+              <div className="mb-4 pr-20">
+                <h3 className="text-lg font-bold text-slate-900">{pillar.title}</h3>
+                <p className="text-xs text-slate-400 font-medium mt-1">{pillar.providers}</p>
+              </div>
 
-                {/* Features list */}
-                <ul className="space-y-2">
-                  {pillar.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-xs text-slate-500">
-                      <CheckCircle2 className={`w-3.5 h-3.5 ${colors.text}`} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+              <p className="text-sm text-slate-600 mb-5">{pillar.description}</p>
 
-                {/* Link */}
-                <Link href="/features" className={`mt-4 inline-flex items-center gap-1 text-xs font-semibold ${colors.text} opacity-0 group-hover:opacity-100 transition-opacity`}>
-                  Learn more <ArrowRight className="w-3 h-3" />
-                </Link>
-              </motion.div>
-            )
-          })}
+              {/* Features list */}
+              <ul className="space-y-2.5">
+                {pillar.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2.5 text-sm text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-[#90FCA6] flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Link */}
+              <Link href="/features" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 group-hover:text-[#90FCA6] transition-colors">
+                Learn more <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </motion.div>
+          ))}
         </div>
       </div>
-    </section>
+    </GlowingSection>
   )
 }
 
 // ============================================
-// KEY CAPABILITIES - Horizontal List
+// KEY CAPABILITIES - Clean Horizontal List
 // ============================================
 function KeyCapabilities() {
   const capabilities = [
-    { title: "AI Anomaly Detection", desc: "Catch spikes in <5 min", color: "emerald" },
-    { title: "100% Cost Allocation", desc: "Auto-tag all resources", color: "emerald" },
-    { title: "Enterprise Security", desc: "SSO, RBAC, SOC 2", color: "slate" },
-    { title: "Unit Economics", desc: "Cost per customer", color: "slate" },
+    { title: "AI Anomaly Detection", desc: "Catch spikes in <5 min" },
+    { title: "100% Cost Allocation", desc: "Auto-tag all resources" },
+    { title: "Enterprise Security", desc: "SSO, RBAC, SOC 2" },
+    { title: "Unit Economics", desc: "Cost per customer" },
   ]
 
   return (
-    <section className="py-12 bg-slate-50 border-y border-slate-100">
+    <section className="py-10 bg-white border-y border-slate-100">
       <div className="container px-4 mx-auto max-w-6xl">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {capabilities.map((cap, i) => (
@@ -380,10 +375,10 @@ function KeyCapabilities() {
               transition={{ delay: i * 0.05 }}
               className="flex items-start gap-3"
             >
-              <CheckCircle2 className={`w-5 h-5 mt-0.5 flex-shrink-0 ${cap.color === "emerald" ? "text-emerald-500" : "text-slate-400"}`} />
+              <CheckCircle2 className="w-5 h-5 text-[#90FCA6] flex-shrink-0 mt-0.5" />
               <div>
                 <div className="text-sm font-semibold text-slate-900">{cap.title}</div>
-                <div className="text-xs text-slate-500">{cap.desc}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{cap.desc}</div>
               </div>
             </motion.div>
           ))}
@@ -394,7 +389,7 @@ function KeyCapabilities() {
 }
 
 // ============================================
-// PRICING SECTION - Actual Plans
+// PRICING SECTION - Luminous Premium Cards
 // ============================================
 function PricingSection() {
   const plans = [
@@ -410,7 +405,7 @@ function PricingSection() {
         "30-day data retention",
         "Email alerts",
       ],
-      cta: "Start Free Trial",
+      cta: "Get Started",
       highlighted: false,
     },
     {
@@ -426,7 +421,7 @@ function PricingSection() {
         "Slack & PagerDuty alerts",
         "Custom dashboards",
       ],
-      cta: "Start Free Trial",
+      cta: "Get Started",
       highlighted: true,
     },
     {
@@ -443,23 +438,29 @@ function PricingSection() {
         "Priority support",
         "API access",
       ],
-      cta: "Start Free Trial",
+      cta: "Get Started",
       highlighted: false,
     },
   ]
 
   return (
-    <section className="py-16 bg-white">
+    <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
       <div className="container px-4 mx-auto max-w-5xl">
         {/* Header */}
-        <div className="text-center mb-10">
-          <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Pricing</span>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight mt-2">Simple, transparent pricing</h2>
-          <p className="text-slate-500 mt-2">14-day free trial. No credit card required.</p>
+        <div className="text-center mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Pricing</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">Simple, transparent pricing</h2>
+            <p className="text-slate-500 mt-3 text-lg">14-day free trial. No credit card required.</p>
+          </motion.div>
         </div>
 
-        {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-4">
+        {/* Luminous Cards */}
+        <div className="grid md:grid-cols-3 gap-5">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
@@ -467,103 +468,120 @@ function PricingSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className={`relative p-6 rounded-2xl border transition-all ${
-                plan.highlighted
-                  ? "border-emerald-400 bg-emerald-50/30 shadow-lg"
-                  : "border-slate-200 bg-white hover:border-slate-300"
-              }`}
+              className="group relative"
             >
+              {/* Glow effect for highlighted */}
               {plan.highlighted && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-full">
-                  Most Popular
-                </div>
+                <div className="absolute -inset-1 bg-gradient-to-b from-[#90FCA6]/30 to-[#90FCA6]/10 rounded-3xl blur-xl" />
               )}
 
-              <div className="mb-4">
-                <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{plan.description}</p>
+              <div className={`relative p-6 rounded-2xl transition-all duration-300 h-full flex flex-col ${
+                plan.highlighted
+                  ? "bg-white border-2 border-[#90FCA6] shadow-xl"
+                  : "bg-white/90 backdrop-blur-sm border border-slate-200 hover:border-slate-300 hover:shadow-lg"
+              }`}>
+                {plan.highlighted && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-[#90FCA6] text-slate-900 text-xs font-bold rounded-full shadow-lg shadow-[#90FCA6]/30">
+                    Most Popular
+                  </div>
+                )}
+
+                <div className="mb-5">
+                  <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{plan.description}</p>
+                </div>
+
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
+                  <span className="text-base text-slate-500">{plan.period}</span>
+                </div>
+
+                <ul className="space-y-3 mb-6 flex-grow">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-3 text-sm text-slate-600">
+                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${plan.highlighted ? "bg-[#90FCA6]/20" : "bg-slate-100"}`}>
+                        <CheckCircle2 className={`w-3.5 h-3.5 ${plan.highlighted ? "text-[#90FCA6]" : "text-slate-400"}`} />
+                      </span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href="/signup"
+                  className={`w-full inline-flex items-center justify-center h-11 rounded-full text-sm font-semibold transition-all ${
+                    plan.highlighted
+                      ? "bg-[#90FCA6] text-slate-900 hover:bg-[#7ee994] shadow-lg shadow-[#90FCA6]/25"
+                      : "bg-slate-900 text-white hover:bg-slate-800"
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
               </div>
-
-              <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-3xl font-bold text-slate-900">{plan.price}</span>
-                <span className="text-sm text-slate-500">{plan.period}</span>
-              </div>
-
-              <ul className="space-y-2 mb-6">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-slate-600">
-                    <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${plan.highlighted ? "text-emerald-500" : "text-slate-400"}`} />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/signup"
-                className={`w-full inline-flex items-center justify-center h-10 rounded-lg text-sm font-semibold transition-all ${
-                  plan.highlighted
-                    ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                {plan.cta}
-              </Link>
             </motion.div>
           ))}
         </div>
 
         {/* Enterprise note */}
-        <div className="mt-8 text-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="mt-10 text-center"
+        >
           <p className="text-sm text-slate-500">
-            Need more? <Link href="/contact" className="text-emerald-600 font-semibold hover:underline">Contact us for Enterprise pricing</Link>
+            Need more? <Link href="/contact" className="text-slate-900 font-semibold hover:underline">Contact us for Enterprise pricing</Link>
           </p>
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </GlowingSection>
   )
 }
 
 // ============================================
-// FINAL CTA - Compact, Investor-Focused
+// FINAL CTA - Clean with Mint & Black
 // ============================================
 function FinalCTA() {
   return (
-    <section className="py-16 bg-gradient-to-b from-slate-900 to-slate-800 text-white">
-      <div className="container px-4 mx-auto max-w-4xl">
+    <section className="py-20 bg-slate-900 text-white relative overflow-hidden">
+      {/* Subtle mint glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#90FCA6]/10 rounded-full blur-[100px]" />
+
+      <div className="container px-4 mx-auto max-w-4xl relative z-10">
         <div className="text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
               Start saving on cloud costs today
             </h2>
 
-            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-8">
+            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-10">
               Join engineering teams saving 35% on average. 14-day free trial.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
               <Link
                 href="/signup"
-                className="group inline-flex items-center justify-center h-12 px-8 text-sm font-semibold text-slate-900 bg-[#90FCA6] rounded-lg hover:bg-[#7ee994] transition-all"
+                className="group inline-flex items-center justify-center h-12 px-8 text-sm font-semibold text-slate-900 bg-[#90FCA6] rounded-full hover:bg-[#7ee994] transition-all shadow-lg shadow-[#90FCA6]/25"
               >
-                Start Free Trial
+                Get Started
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link
                 href="/demo"
-                className="inline-flex items-center justify-center h-12 px-8 text-sm font-semibold text-white border border-slate-600 rounded-lg hover:bg-slate-700 transition-all"
+                className="inline-flex items-center justify-center h-12 px-8 text-sm font-semibold text-white border-2 border-white/30 rounded-full hover:bg-white/10 transition-all"
               >
                 Schedule Demo
               </Link>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
               {["No credit card", "5-min setup", "Cancel anytime"].map((item, i) => (
-                <span key={i} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span key={i} className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#90FCA6]" />
                   {item}
                 </span>
               ))}
@@ -576,66 +594,81 @@ function FinalCTA() {
 }
 
 // ============================================
-// MAIN PAGE - Investor-Focused Layout
+// MAIN PAGE - Premium Luminous Layout
 // ============================================
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans">
+    <div className="flex flex-col min-h-screen bg-white font-sans antialiased">
       <main className="flex-grow">
         {/* Hero - Main value prop */}
         <HeroSection />
 
-        {/* Market Opportunity - Investor focus */}
-        <MarketOpportunity />
-
         {/* Integrations - Social proof */}
         <LogoCloud />
 
-        {/* Three Pillars - Core offering */}
+        {/* Three Pillars - Luminous premium cards */}
         <PlatformPillars />
 
-        {/* Key Capabilities - Quick wins */}
+        {/* Key Capabilities - Highlight bar */}
         <KeyCapabilities />
 
-        {/* Product Screenshots */}
-        <ProductScreenshots />
+        {/* Product Screenshots - With glow wrapper */}
+        <GlowingSection className="py-16" glowColor="neutral" intensity="subtle">
+          <ProductScreenshots />
+        </GlowingSection>
 
         {/* How It Works */}
-        <HowItWorks />
+        <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
+          <HowItWorks />
+        </GlowingSection>
 
-        {/* Features Deep Dive - Compact */}
-        <section className="py-14 bg-slate-50">
+        {/* Features Deep Dive */}
+        <GlowingSection className="py-16" glowColor="neutral" intensity="subtle">
           <div className="container px-4 mx-auto max-w-6xl">
-            <div className="text-center mb-10">
-              <span className="text-xs font-semibold text-[#FF6C5E] uppercase tracking-wider">Features</span>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mt-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Features</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">
                 Go deeper than the bill
               </h2>
-            </div>
+            </motion.div>
             <FeatureTabs />
           </div>
-        </section>
+        </GlowingSection>
 
         {/* Integrations Wall */}
         <IntegrationsWall />
 
-        {/* Pricing - Actual plans */}
+        {/* Pricing - Luminous premium cards */}
         <PricingSection />
 
-        {/* Testimonials - Compact */}
-        <section className="py-14 bg-slate-50">
+        {/* Testimonials - Luminous */}
+        <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
           <div className="container px-4 mx-auto max-w-6xl">
-            <div className="text-center mb-10">
-              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Testimonials</span>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <div className="inline-flex items-center gap-2 mb-3">
+                <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
+                <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Testimonials</span>
+                <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
                 Trusted by engineering teams
               </h2>
-            </div>
+            </motion.div>
             <Testimonials />
           </div>
-        </section>
+        </GlowingSection>
 
-        {/* Final CTA */}
+        {/* Final CTA - Premium with glow */}
         <FinalCTA />
       </main>
     </div>

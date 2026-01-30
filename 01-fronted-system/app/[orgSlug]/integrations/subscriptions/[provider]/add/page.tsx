@@ -228,52 +228,54 @@ export default function AddFromTemplatePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      {/* Breadcrumb Navigation - simplified on mobile */}
+      <nav className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto pb-1" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[100px] sm:max-w-[200px] flex-shrink-0"
           title="Subscription Providers"
         >
-          Subscription Providers
+          <span className="hidden sm:inline">Subscription Providers</span>
+          <span className="sm:hidden">Subscriptions</span>
         </Link>
-        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[100px] sm:max-w-[200px] flex-shrink-0"
           title={providerDisplayName}
         >
           {providerDisplayName}
         </Link>
-        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-        <span className="text-gray-900 font-medium truncate max-w-[300px]" title="Add Subscription">
-          Add Subscription
+        <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+        <span className="text-gray-900 font-medium truncate max-w-[80px] sm:max-w-[300px] flex-shrink-0" title="Add Subscription">
+          Add
         </span>
       </nav>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      {/* Header - stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div>
-            <h1 className="console-page-title">Choose a Plan Template</h1>
-            <p className="console-subheading">
-              Select a predefined plan for {providerDisplayName} or create a custom one
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight">Choose a Plan Template</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
+              Select a predefined plan for {providerDisplayName}
             </p>
           </div>
         </div>
-        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`} className="self-start sm:self-auto ml-11 sm:ml-0">
           <Button
             variant="outline"
-            className="border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl"
+            className="h-10 sm:h-9 border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl text-sm"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Custom
+            <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />
+            <span className="hidden sm:inline">Create Custom</span>
+            <span className="sm:hidden">Custom</span>
           </Button>
         </Link>
       </div>
@@ -416,18 +418,18 @@ export default function AddFromTemplatePage() {
       {/* Custom Plan CTA */}
       {!templateError && availablePlans.length > 0 && (
         <Card className="border-[#90FCA6]/20 bg-[#90FCA6]/5">
-          <CardContent className="py-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="py-4 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <h3 className="font-semibold text-slate-900 mb-1">Don't see your plan?</h3>
-                <p className="text-sm text-foreground">
-                  Create a custom subscription plan with your own pricing and details.
+                <h3 className="font-semibold text-slate-900 text-sm sm:text-base mb-0.5 sm:mb-1">Don't see your plan?</h3>
+                <p className="text-xs sm:text-sm text-foreground">
+                  Create a custom subscription with your own pricing.
                 </p>
               </div>
-              <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
+              <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`} className="self-start sm:self-auto">
                 <Button
                   variant="outline"
-                  className="border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl"
+                  className="h-10 sm:h-9 border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom
