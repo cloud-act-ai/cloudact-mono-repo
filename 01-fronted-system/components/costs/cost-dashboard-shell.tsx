@@ -6,21 +6,13 @@
  * Features:
  * - Consistent header with title, icon, and actions
  * - Bounded max-width (Apple Health pattern)
- * - Mint gradient background accent
- * - Settings menu with Clear Cache and future Export options
+ * - Clean white background
+ * - Minimal refresh action
  * - Breadcrumb navigation support
  */
 
-import { LucideIcon, Settings, RefreshCw, Download } from "lucide-react"
+import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
 
@@ -223,48 +215,15 @@ export function CostDashboardShell({
                 </div>
               </div>
 
-              {/* Settings Menu (right side) */}
+              {/* Refresh action (right side) */}
               {onRefresh && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 flex-shrink-0 border border-slate-200/60"
-                      aria-label="Open settings menu"
-                    >
-                      <Settings className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {/* Clear Cache Option */}
-                    <DropdownMenuItem
-                      onClick={onRefresh}
-                      disabled={isRefreshing}
-                      className="gap-2 py-2.5 cursor-pointer"
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "h-4 w-4 text-slate-500",
-                          isRefreshing && "animate-spin"
-                        )}
-                      />
-                      <span>{isRefreshing ? "Clearing..." : "Clear Cache"}</span>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-
-                    {/* Export Option (Coming Soon) */}
-                    <DropdownMenuItem
-                      disabled
-                      className="gap-2 py-2.5 cursor-not-allowed opacity-50"
-                    >
-                      <Download className="h-4 w-4 text-slate-400" />
-                      <span className="text-slate-400">Export</span>
-                      <span className="ml-auto text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Soon</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <button
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+                >
+                  {isRefreshing ? "Refreshing..." : "Refresh"}
+                </button>
               )}
             </div>
 

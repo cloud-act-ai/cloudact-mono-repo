@@ -17,22 +17,11 @@ import {
   Users,
   Database,
   Loader2,
-  RefreshCw,
   Brain,
   Wallet,
-  Download,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { listEnabledProviders } from "@/actions/subscription-providers"
@@ -491,7 +480,7 @@ export default function DashboardPage() {
             Here&#39;s what&#39;s happening with your cloud costs today.
           </p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3 sm:gap-4">
           <TimeRangeFilter
             value={timeRange}
             onChange={handleTimeRangeChange}
@@ -499,34 +488,13 @@ export default function DashboardPage() {
             onCustomRangeChange={handleCustomRangeChange}
             size="sm"
           />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 flex-shrink-0 border border-slate-200/60"
-                aria-label="Settings menu"
-              >
-                <Settings className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="gap-2 py-2.5 cursor-pointer"
-              >
-                <RefreshCw className={cn("h-4 w-4 text-slate-500", isRefreshing && "animate-spin")} />
-                <span>{isRefreshing ? "Clearing..." : "Clear Cache"}</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled className="gap-2 py-2.5">
-                <Download className="h-4 w-4 text-slate-400" />
-                <span>Export</span>
-                <span className="ml-auto text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Soon</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+          >
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
       </div>
 

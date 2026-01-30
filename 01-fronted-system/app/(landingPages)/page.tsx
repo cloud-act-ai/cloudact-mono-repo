@@ -3,20 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import {
-  ArrowRight,
-  CheckCircle2,
-  TrendingDown,
-  Play,
-  Zap,
-  Shield,
-  BarChart3,
-  Users,
-  Clock,
-  Cloud,
-  Bot,
-  CreditCard,
-} from "lucide-react"
+import { ArrowRight, TrendingDown } from "lucide-react"
 
 import { HeroDashboard } from "@/components/landing/hero-dashboard"
 import { HowItWorks } from "@/components/landing/how-it-works"
@@ -26,7 +13,7 @@ import { IntegrationsWall } from "@/components/landing/integrations-wall"
 import { Testimonials } from "@/components/landing/testimonials"
 
 // ============================================
-// HERO SECTION - Original with Dashboard Preview
+// HERO SECTION - Enterprise with Dashboard Preview
 // ============================================
 function HeroSection() {
   return (
@@ -81,10 +68,7 @@ function HeroSection() {
               transition={{ duration: 0.6, delay: 0.1 }}
             >
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-slate-900 leading-[1.08] tracking-tight">
-                Unified Cost Intelligence for
-                <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-[#34d399] to-teal-500 drop-shadow-sm">
-                  Cloud, GenAI & SaaS
-                </span>
+                Built for the Modern Cloud
               </h1>
             </motion.div>
 
@@ -95,8 +79,7 @@ function HeroSection() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-lg text-slate-600 leading-relaxed max-w-xl"
             >
-              Track every dollar across AWS, GCP, Azure, OpenAI, Anthropic, and 50+ SaaS tools.
-              Real-time anomaly detection. 100% cost allocation. Built for engineering teams.
+              Enterprise-grade cost intelligence with real-time analytics, intelligent anomaly detection, and beautiful visualizations. Track every dollar across AWS, GCP, Azure, OpenAI, Anthropic, and 50+ SaaS tools.
             </motion.p>
 
             {/* CTA Row */}
@@ -118,7 +101,6 @@ function HeroSection() {
                 className="group inline-flex items-center h-12 px-7 text-sm font-semibold rounded-full hover:bg-slate-800 transition-all"
                 style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
               >
-                <Play className="w-4 h-4 mr-2" style={{ fill: '#ffffff' }} />
                 <span style={{ color: '#ffffff' }}>Watch Demo</span>
               </Link>
             </motion.div>
@@ -132,9 +114,7 @@ function HeroSection() {
             >
               {["No credit card", "5-min setup", "SOC 2 ready"].map((item, i) => (
                 <span key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#90FCA6]/20">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                   {item}
                 </span>
               ))}
@@ -230,32 +210,23 @@ function LogoCloud() {
 }
 
 // ============================================
-// THREE PILLARS
+// THREE PILLARS - No Icons
 // ============================================
 function ThreePillars() {
   const pillars = [
     {
-      icon: <Cloud className="w-7 h-7" />,
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-600",
       title: "Cloud Infrastructure",
       providers: "AWS  •  GCP  •  Azure  •  OCI",
       description: "Unified multi-cloud cost visibility with automatic tagging, anomaly detection, and FOCUS 1.3 compliance.",
       features: ["Real-time cost tracking", "Reserved instance optimization", "Resource rightsizing"],
     },
     {
-      icon: <Bot className="w-7 h-7" />,
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-600",
       title: "GenAI & LLM Costs",
       providers: "OpenAI  •  Anthropic  •  Gemini  •  Bedrock",
       description: "Track every token and API call across all your AI providers with per-project attribution.",
       features: ["Per-token cost attribution", "Model cost comparison", "Usage forecasting"],
     },
     {
-      icon: <CreditCard className="w-7 h-7" />,
-      iconBg: "bg-purple-500/10",
-      iconColor: "text-purple-600",
       title: "SaaS Subscriptions",
       providers: "Slack  •  Canva  •  Notion  •  50+ apps",
       description: "Discover shadow IT, eliminate unused licenses, and optimize your SaaS portfolio.",
@@ -272,9 +243,8 @@ function ThreePillars() {
           viewport={{ once: true }}
           className="text-center max-w-3xl mx-auto mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-[#0a0a0b] mb-6 tracking-tight">
-            All your spend.
-            <span className="text-[#90FCA6]"> One platform.</span>
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
+            All your spend. One platform.
           </h2>
           <p className="text-xl text-slate-600">
             CloudAct unifies cost data from every corner of your infrastructure into a single source of truth.
@@ -291,23 +261,20 @@ function ThreePillars() {
               transition={{ delay: i * 0.1 }}
               className="group relative bg-white rounded-2xl p-8 shadow-sm border border-slate-200 hover:shadow-xl hover:border-slate-300 transition-all duration-300"
             >
-              <div className={`w-14 h-14 rounded-2xl ${pillar.iconBg} flex items-center justify-center ${pillar.iconColor} mb-6`}>
-                {pillar.icon}
-              </div>
-              <h3 className="text-xl font-bold text-[#0a0a0b] mb-2">{pillar.title}</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">{pillar.title}</h3>
               <p className="text-sm text-slate-400 font-medium mb-4">{pillar.providers}</p>
               <p className="text-slate-600 mb-6 leading-relaxed">{pillar.description}</p>
               <ul className="space-y-3">
                 {pillar.features.map((feature) => (
                   <li key={feature} className="flex items-center gap-3 text-sm text-slate-600">
-                    <CheckCircle2 className="w-4 h-4 text-[#90FCA6] flex-shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
                     {feature}
                   </li>
                 ))}
               </ul>
               <Link
                 href="/features"
-                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-[#0a0a0b] group-hover:text-emerald-600 transition-colors"
+                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-slate-900 group-hover:text-slate-700 transition-colors"
               >
                 Learn more
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -321,7 +288,7 @@ function ThreePillars() {
 }
 
 // ============================================
-// KEY CAPABILITIES
+// KEY CAPABILITIES - No Icons
 // ============================================
 function KeyCapabilities() {
   const capabilities = [
@@ -344,7 +311,7 @@ function KeyCapabilities() {
               transition={{ delay: i * 0.05 }}
               className="flex items-start gap-3"
             >
-              <CheckCircle2 className="w-5 h-5 text-[#90FCA6] flex-shrink-0 mt-0.5" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0 mt-2" />
               <div>
                 <div className="text-sm font-semibold text-slate-900">{cap.title}</div>
                 <div className="text-xs text-slate-500 mt-0.5">{cap.desc}</div>
@@ -358,49 +325,31 @@ function KeyCapabilities() {
 }
 
 // ============================================
-// FEATURES GRID
+// FEATURES GRID - No Icons
 // ============================================
 function FeaturesGrid() {
   const features = [
     {
-      icon: <Zap className="w-5 h-5" />,
-      iconBg: "bg-amber-100",
-      iconColor: "text-amber-600",
       title: "AI-Powered Anomaly Detection",
       description: "Catch unexpected spikes before they become budget busters. Alert within 5 minutes.",
     },
     {
-      icon: <BarChart3 className="w-5 h-5" />,
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
       title: "100% Cost Allocation",
       description: "Automatic tagging and allocation. Know exactly which team, project, or customer drives costs.",
     },
     {
-      icon: <Shield className="w-5 h-5" />,
-      iconBg: "bg-emerald-100",
-      iconColor: "text-emerald-600",
       title: "Enterprise Security",
       description: "SOC 2 Type II, SSO, RBAC, and audit logs. Built for enterprises from day one.",
     },
     {
-      icon: <TrendingDown className="w-5 h-5" />,
-      iconBg: "bg-rose-100",
-      iconColor: "text-rose-600",
       title: "Optimization Recommendations",
       description: "Get actionable recommendations to reduce waste. Reserved instances, rightsizing, and more.",
     },
     {
-      icon: <Clock className="w-5 h-5" />,
-      iconBg: "bg-violet-100",
-      iconColor: "text-violet-600",
       title: "Real-Time Dashboards",
       description: "No more waiting for monthly bills. See your spend as it happens with live data sync.",
     },
     {
-      icon: <Users className="w-5 h-5" />,
-      iconBg: "bg-cyan-100",
-      iconColor: "text-cyan-600",
       title: "Team Collaboration",
       description: "Share dashboards, set budgets, and assign alerts. Built for cross-functional teams.",
     },
@@ -415,7 +364,7 @@ function FeaturesGrid() {
           viewport={{ once: true }}
           className="text-center max-w-3xl mx-auto mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-[#0a0a0b] mb-6 tracking-tight">
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
             Everything you need to control costs
           </h2>
           <p className="text-xl text-slate-600">
@@ -433,10 +382,7 @@ function FeaturesGrid() {
               transition={{ delay: i * 0.05 }}
               className="group"
             >
-              <div className={`w-12 h-12 rounded-xl ${feature.iconBg} flex items-center justify-center ${feature.iconColor} mb-5`}>
-                {feature.icon}
-              </div>
-              <h3 className="text-lg font-semibold text-[#0a0a0b] mb-3">{feature.title}</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">{feature.title}</h3>
               <p className="text-slate-600 leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
@@ -447,7 +393,7 @@ function FeaturesGrid() {
 }
 
 // ============================================
-// PRICING - FIXED BUTTONS
+// PRICING - Enterprise Ready
 // ============================================
 function PricingSection() {
   const plans = [
@@ -546,13 +492,13 @@ function PricingSection() {
                 <ul className="space-y-4 mb-8 flex-grow">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-center gap-3 text-slate-600">
-                      <CheckCircle2 className={`w-5 h-5 flex-shrink-0 ${plan.highlighted ? "text-[#90FCA6]" : "text-slate-300"}`} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
                       {feature}
                     </li>
                   ))}
                 </ul>
 
-                {/* FIXED BUTTONS - Mint for highlighted, Black for others */}
+                {/* Buttons - Mint for highlighted, Black for others */}
                 <Link
                   href="/signup"
                   className={`w-full inline-flex items-center justify-center h-12 rounded-full text-base font-semibold transition-all ${
@@ -629,7 +575,7 @@ function FinalCTA() {
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
               {["No credit card", "5-min setup", "Cancel anytime"].map((item, i) => (
                 <span key={i} className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#90FCA6]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                   {item}
                 </span>
               ))}
@@ -670,8 +616,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Features</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
               Go deeper than the bill
             </h2>
           </motion.div>
@@ -690,11 +635,6 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <div className="inline-flex items-center gap-2 mb-3">
-              <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
-              <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Testimonials</span>
-              <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
-            </div>
             <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
               Trusted by engineering teams
             </h2>
