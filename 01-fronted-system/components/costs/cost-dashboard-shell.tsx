@@ -7,13 +7,20 @@
  * - Consistent header with title, icon, and actions
  * - Bounded max-width (Apple Health pattern)
  * - Mint gradient background accent
- * - Clear Cache button with loading state (forces fresh data fetch)
+ * - Settings menu with Clear Cache and future Export options
  * - Breadcrumb navigation support
  */
 
-import { LucideIcon, RefreshCw } from "lucide-react"
+import { LucideIcon, Settings, RefreshCw, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
 
@@ -59,8 +66,10 @@ export interface CostDashboardShellProps {
   onRefresh?: () => void
   /** Clearing cache state */
   isRefreshing?: boolean
-  /** Additional header actions */
+  /** Additional header actions (shown next to title) - DEPRECATED: use filterActions */
   headerActions?: React.ReactNode
+  /** Filter actions (shown in separate row below title) */
+  filterActions?: React.ReactNode
   /** Custom class name */
   className?: string
 }
@@ -142,6 +151,7 @@ export function CostDashboardShell({
   onRefresh,
   isRefreshing = false,
   headerActions,
+  filterActions,
   className,
 }: CostDashboardShellProps) {
   // Loading state
@@ -187,70 +197,93 @@ export function CostDashboardShell({
   return (
     <main
       className={cn(
-        "min-h-screen relative",
-        // Ultra-premium gradient background (Apple Health pattern)
-        "bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white",
+        "min-h-screen bg-white",
         className
       )}
       role="main"
       aria-label={`${title} dashboard`}
     >
-      {/* Ultra-premium top gradient glow - Apple Fitness+ pattern */}
-      <div
-        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
-        }}
-        aria-hidden="true"
-      />
-
-      <div className="relative max-w-7xl mx-auto py-6 sm:py-8 lg:py-10 px-4 sm:px-6">
-        <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-          {/* Premium Header with enhanced typography */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center shadow-sm border border-[#90FCA6]/20">
-                <Icon className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+      <div className="max-w-7xl mx-auto py-4 sm:py-5 lg:py-6 px-4 sm:px-6">
+        <div className="space-y-4 sm:space-y-6">
+          {/* Header Section */}
+          <div className="space-y-4">
+            {/* Row 1: Title (left) + Settings Menu (right) */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center shadow-sm border border-[#90FCA6]/20">
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+                    {title}
+                  </h1>
+                  {subtitle && (
+                    <p className="text-xs sm:text-[13px] text-slate-500 mt-0.5 sm:mt-1">{subtitle}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
-                  {title}
-                </h1>
-                {subtitle && (
-                  <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-1.5">{subtitle}</p>
-                )}
-              </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              {headerActions}
+              {/* Settings Menu (right side) */}
               {onRefresh && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  className="gap-2"
-                  aria-label={isRefreshing ? "Clearing cache..." : "Clear cache and reload data"}
-                >
-                  <RefreshCw
-                    className={cn(
-                      "h-4 w-4",
-                      isRefreshing && "animate-spin"
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="hidden sm:inline">
-                    {isRefreshing ? "Clearing..." : "Clear Cache"}
-                  </span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 flex-shrink-0 border border-slate-200/60"
+                      aria-label="Open settings menu"
+                    >
+                      <Settings className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {/* Clear Cache Option */}
+                    <DropdownMenuItem
+                      onClick={onRefresh}
+                      disabled={isRefreshing}
+                      className="gap-2 py-2.5 cursor-pointer"
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "h-4 w-4 text-slate-500",
+                          isRefreshing && "animate-spin"
+                        )}
+                      />
+                      <span>{isRefreshing ? "Clearing..." : "Clear Cache"}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    {/* Export Option (Coming Soon) */}
+                    <DropdownMenuItem
+                      disabled
+                      className="gap-2 py-2.5 cursor-not-allowed opacity-50"
+                    >
+                      <Download className="h-4 w-4 text-slate-400" />
+                      <span className="text-slate-400">Export</span>
+                      <span className="ml-auto text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Soon</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
+
+            {/* Row 2: Filters (full width) */}
+            {(filterActions || headerActions) && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+                  {filterActions || headerActions}
+                </div>
+                {/* Separator line below filters */}
+                <div className="h-px bg-gradient-to-r from-slate-200 via-slate-200/60 to-transparent" />
+              </>
+            )}
           </div>
 
           {/* Content */}
-          {children}
+          <div className="space-y-4 sm:space-y-6">
+            {children}
+          </div>
         </div>
       </div>
     </main>

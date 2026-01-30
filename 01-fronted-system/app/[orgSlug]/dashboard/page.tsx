@@ -20,10 +20,19 @@ import {
   RefreshCw,
   Brain,
   Wallet,
+  Download,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { listEnabledProviders } from "@/actions/subscription-providers"
@@ -459,8 +468,8 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
-        <div className="max-w-7xl mx-auto py-8">
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto py-4 sm:py-5 lg:py-6">
           <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
           </div>
@@ -470,16 +479,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
-      {/* Ultra-premium top gradient glow - Apple Health pattern */}
-      <div
-        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
-        }}
-      />
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-6 sm:space-y-8 lg:space-y-10">
+    <main className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-6 sm:space-y-8 lg:space-y-10">
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
@@ -498,19 +499,39 @@ export default function DashboardPage() {
             onCustomRangeChange={handleCustomRangeChange}
             size="sm"
           />
-          <Button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            variant="outline"
-            size="sm"
-            className="h-10 sm:h-9 px-3 flex-shrink-0 min-w-[44px]"
-            aria-label={isRefreshing ? "Clearing cache..." : "Clear cache and reload data"}
-          >
-            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">{isRefreshing ? "Clearing..." : "Clear Cache"}</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 flex-shrink-0 border border-slate-200/60"
+                aria-label="Settings menu"
+              >
+                <Settings className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="gap-2 py-2.5 cursor-pointer"
+              >
+                <RefreshCw className={cn("h-4 w-4 text-slate-500", isRefreshing && "animate-spin")} />
+                <span>{isRefreshing ? "Clearing..." : "Clear Cache"}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="gap-2 py-2.5">
+                <Download className="h-4 w-4 text-slate-400" />
+                <span>Export</span>
+                <span className="ml-auto text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Soon</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      {/* Separator line below filters */}
+      <div className="h-px bg-gradient-to-r from-slate-200 via-slate-200/60 to-transparent" />
 
       {/* Summary Metrics */}
       <div className="animate-fade-up">

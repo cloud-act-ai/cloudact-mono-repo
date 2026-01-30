@@ -197,25 +197,23 @@ export default function AddFromTemplatePage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-8 rounded" />
-            <div>
-              <Skeleton className="h-8 w-64 mb-2" />
-              <Skeleton className="h-4 w-96" />
-            </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Skeleton className="h-9 w-9 sm:h-8 sm:w-8 rounded flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <Skeleton className="h-6 sm:h-8 w-3/4 sm:w-64 mb-1.5 sm:mb-2" />
+            <Skeleton className="h-3 sm:h-4 w-1/2 sm:w-48" />
           </div>
         </div>
 
         {/* Cards Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-32 mb-2" />
-                <Skeleton className="h-4 w-24" />
+              <CardHeader className="pb-3 sm:pb-4">
+                <Skeleton className="h-5 sm:h-6 w-3/4 sm:w-32 mb-1.5 sm:mb-2" />
+                <Skeleton className="h-3 sm:h-4 w-1/2 sm:w-24" />
               </CardHeader>
               <CardContent>
                 <Skeleton className="h-10 w-full" />
@@ -441,22 +439,22 @@ export default function AddFromTemplatePage() {
       )}
 
       {/* Help Documentation */}
-      <Card className="border-slate-200 mt-6">
-        <CardContent className="py-6">
-          <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <HelpCircle className="h-5 w-5 text-blue-600" />
+      <Card className="border-slate-200 mt-4 sm:mt-6">
+        <CardContent className="py-4 sm:py-6">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </div>
-            <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900 mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-900 mb-1.5 sm:mb-2">
                 Adding a Subscription Plan
               </h3>
-              <div className="text-[13px] text-slate-600 space-y-2">
-                <p><strong>Templates:</strong> Pre-configured plans based on standard {providerDisplayName} pricing. Select a template to auto-fill pricing details, then customize as needed.</p>
-                <p><strong>Custom Plans:</strong> Create your own plan if you have negotiated pricing, enterprise agreements, or a plan not listed above.</p>
-                <p><strong>Currency:</strong> Prices are automatically converted to your organization's default currency ({orgCurrency}). Original USD pricing is preserved for audit purposes.</p>
-                <p className="text-[12px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-3">
-                  <strong>Tip:</strong> After selecting a template, you can modify the number of seats, billing cycle, and assign the subscription to a department/project/team for cost allocation.
+              <div className="text-[12px] sm:text-[13px] text-slate-600 space-y-1.5 sm:space-y-2">
+                <p><strong>Templates:</strong> Pre-configured plans based on standard {providerDisplayName} pricing.</p>
+                <p><strong>Custom Plans:</strong> Create your own plan for negotiated or enterprise pricing.</p>
+                <p><strong>Currency:</strong> Prices are converted to your default currency ({orgCurrency}).</p>
+                <p className="text-[11px] sm:text-[12px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-2 sm:mt-3">
+                  <strong>Tip:</strong> After selecting a template, customize seats and assign to a team for cost allocation.
                 </p>
               </div>
             </div>

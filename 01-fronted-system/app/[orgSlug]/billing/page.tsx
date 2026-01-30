@@ -482,15 +482,8 @@ export default function BillingPage() {
   }
 
   return (
-    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
-      {/* Ultra-premium top gradient glow */}
-      <div
-        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
-        }}
-      />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-6 sm:space-y-8 pb-12">
+    <main className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-6 sm:space-y-8 pb-12">
       {reason === "subscription_required" && (
         <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />

@@ -410,8 +410,8 @@ export default function CloudCostsPage() {
       }}
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
-      headerActions={
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+      filterActions={
+        <>
           <CostFilters
             value={filters}
             onChange={handleFiltersChange}
@@ -428,7 +428,7 @@ export default function CloudCostsPage() {
             onCustomRangeChange={handleCustomRangeChange}
             size="sm"
           />
-        </div>
+        </>
       }
     >
       {/* Summary Metrics */}

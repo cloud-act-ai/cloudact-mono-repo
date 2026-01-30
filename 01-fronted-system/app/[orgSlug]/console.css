@@ -12,8 +12,6 @@
 
 .console-main-gradient {
   background: #ffffff;
-  background-image:
-    radial-gradient(ellipse 120% 40% at 50% -10%, rgba(144, 252, 166, 0.08) 0%, transparent 60%);
   min-height: 100%;
 }
 

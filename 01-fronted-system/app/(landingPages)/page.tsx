@@ -8,9 +8,15 @@ import {
   CheckCircle2,
   TrendingDown,
   Play,
+  Zap,
+  Shield,
+  BarChart3,
+  Users,
+  Clock,
+  Cloud,
+  Bot,
+  CreditCard,
 } from "lucide-react"
-
-import "./premium.css"
 
 import { HeroDashboard } from "@/components/landing/hero-dashboard"
 import { HowItWorks } from "@/components/landing/how-it-works"
@@ -20,41 +26,7 @@ import { IntegrationsWall } from "@/components/landing/integrations-wall"
 import { Testimonials } from "@/components/landing/testimonials"
 
 // ============================================
-// GLOWING SECTION WRAPPER - Luminous Effect
-// ============================================
-function GlowingSection({ children, className = "", glowColor = "mint", intensity = "medium" }: {
-  children: React.ReactNode
-  className?: string
-  glowColor?: "mint" | "coral" | "blue" | "neutral"
-  intensity?: "subtle" | "medium" | "strong"
-}) {
-  const glowMap = {
-    mint: "from-[#90FCA6]/5 via-white to-[#90FCA6]/3",
-    coral: "from-[#FF6C5E]/5 via-white to-[#FF6C5E]/3",
-    blue: "from-blue-400/5 via-white to-blue-400/3",
-    neutral: "from-slate-100 via-white to-slate-50",
-  }
-
-  const intensityMap = {
-    subtle: "opacity-40",
-    medium: "opacity-60",
-    strong: "opacity-80",
-  }
-
-  return (
-    <section className={`relative overflow-hidden ${className}`}>
-      {/* Luminous background glow */}
-      <div className={`absolute inset-0 bg-gradient-to-b ${glowMap[glowColor]} ${intensityMap[intensity]}`} />
-      {/* Central glow orb */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-white/80 rounded-[100%] blur-[100px]" />
-      {/* Content */}
-      <div className="relative z-10">{children}</div>
-    </section>
-  )
-}
-
-// ============================================
-// HERO SECTION - Premium with Luminous Effects
+// HERO SECTION - Original with Dashboard Preview
 // ============================================
 function HeroSection() {
   return (
@@ -62,7 +34,7 @@ function HeroSection() {
       {/* Pure white luminous background */}
       <div className="absolute inset-0 bg-white" />
 
-      {/* Subtle scientific grid - data visualization feel */}
+      {/* Subtle scientific grid */}
       <div className="absolute inset-0" style={{
         backgroundImage: `
           linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
@@ -71,7 +43,7 @@ function HeroSection() {
         backgroundSize: '40px 40px'
       }} />
 
-      {/* Luminous center glow - scientific aesthetic */}
+      {/* Luminous center glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px]">
         <div className="absolute inset-0 bg-gradient-radial from-white via-[#90FCA6]/8 to-transparent rounded-[100%] blur-[80px]" />
       </div>
@@ -84,7 +56,7 @@ function HeroSection() {
 
           {/* LEFT - Content */}
           <div className="space-y-6">
-            {/* Powered by Google Badge - elevated */}
+            {/* Powered by Google Badge */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -102,7 +74,7 @@ function HeroSection() {
               </div>
             </motion.div>
 
-            {/* Headline - bolder, more contrast */}
+            {/* Headline */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -116,7 +88,7 @@ function HeroSection() {
               </h1>
             </motion.div>
 
-            {/* Value prop - cleaner */}
+            {/* Value prop */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -127,7 +99,7 @@ function HeroSection() {
               Real-time anomaly detection. 100% cost allocation. Built for engineering teams.
             </motion.p>
 
-            {/* CTA Row - mint & black buttons */}
+            {/* CTA Row */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -143,14 +115,15 @@ function HeroSection() {
               </Link>
               <Link
                 href="/demo"
-                className="group inline-flex items-center h-12 px-7 text-sm font-semibold text-white bg-slate-900 rounded-full hover:bg-slate-800 transition-all"
+                className="group inline-flex items-center h-12 px-7 text-sm font-semibold rounded-full hover:bg-slate-800 transition-all"
+                style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
               >
-                <Play className="w-4 h-4 mr-2 fill-white" />
-                Watch Demo
+                <Play className="w-4 h-4 mr-2" style={{ fill: '#ffffff' }} />
+                <span style={{ color: '#ffffff' }}>Watch Demo</span>
               </Link>
             </motion.div>
 
-            {/* Trust row - elevated */}
+            {/* Trust row */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -182,7 +155,7 @@ function HeroSection() {
               <HeroDashboard />
             </div>
 
-            {/* Floating stat - glass effect */}
+            {/* Floating stat */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -200,7 +173,7 @@ function HeroSection() {
               </div>
             </motion.div>
 
-            {/* Live indicator - elevated */}
+            {/* Live indicator */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -223,7 +196,7 @@ function HeroSection() {
 }
 
 // ============================================
-// LOGO CLOUD - Clean
+// LOGO CLOUD
 // ============================================
 function LogoCloud() {
   const providers = [
@@ -257,55 +230,58 @@ function LogoCloud() {
 }
 
 // ============================================
-// THREE PILLARS - Clean Cards
+// THREE PILLARS
 // ============================================
-function PlatformPillars() {
+function ThreePillars() {
   const pillars = [
     {
+      icon: <Cloud className="w-7 h-7" />,
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-600",
       title: "Cloud Infrastructure",
-      providers: "AWS • GCP • Azure • OCI",
-      description: "Multi-cloud visibility with automatic tagging and FOCUS 1.3 compliance.",
-      stat: "100%",
-      statLabel: "allocation",
-      features: ["Real-time cost tracking", "Anomaly detection", "Reserved instance optimization"]
+      providers: "AWS  •  GCP  •  Azure  •  OCI",
+      description: "Unified multi-cloud cost visibility with automatic tagging, anomaly detection, and FOCUS 1.3 compliance.",
+      features: ["Real-time cost tracking", "Reserved instance optimization", "Resource rightsizing"],
     },
     {
-      title: "GenAI & LLM",
-      providers: "OpenAI • Anthropic • Gemini • Bedrock",
-      description: "Track every token and request across all your AI providers.",
-      stat: "<5min",
-      statLabel: "detection",
-      features: ["Per-token cost attribution", "Model comparison", "Usage forecasting"]
+      icon: <Bot className="w-7 h-7" />,
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-600",
+      title: "GenAI & LLM Costs",
+      providers: "OpenAI  •  Anthropic  •  Gemini  •  Bedrock",
+      description: "Track every token and API call across all your AI providers with per-project attribution.",
+      features: ["Per-token cost attribution", "Model cost comparison", "Usage forecasting"],
     },
     {
+      icon: <CreditCard className="w-7 h-7" />,
+      iconBg: "bg-purple-500/10",
+      iconColor: "text-purple-600",
       title: "SaaS Subscriptions",
-      providers: "Slack • Canva • Notion • 50+ apps",
-      description: "Discover shadow IT and eliminate unused licenses.",
-      stat: "35%",
-      statLabel: "avg savings",
-      features: ["License utilization", "Renewal tracking", "Vendor consolidation"]
+      providers: "Slack  •  Canva  •  Notion  •  50+ apps",
+      description: "Discover shadow IT, eliminate unused licenses, and optimize your SaaS portfolio.",
+      features: ["License utilization tracking", "Renewal alerts", "Vendor consolidation"],
     },
   ]
 
   return (
-    <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
-      <div className="container px-4 mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Three Pillars</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">
-              All your spend. One platform.
-            </h2>
-          </motion.div>
-        </div>
+    <section className="py-24 bg-slate-50">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <h2 className="text-4xl md:text-5xl font-bold text-[#0a0a0b] mb-6 tracking-tight">
+            All your spend.
+            <span className="text-[#90FCA6]"> One platform.</span>
+          </h2>
+          <p className="text-xl text-slate-600">
+            CloudAct unifies cost data from every corner of your infrastructure into a single source of truth.
+          </p>
+        </motion.div>
 
-        {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-8">
           {pillars.map((pillar, i) => (
             <motion.div
               key={pillar.title}
@@ -313,46 +289,39 @@ function PlatformPillars() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group relative p-6 rounded-2xl bg-white border border-slate-200 hover:border-[#90FCA6]/50 hover:shadow-xl transition-all h-full"
+              className="group relative bg-white rounded-2xl p-8 shadow-sm border border-slate-200 hover:shadow-xl hover:border-slate-300 transition-all duration-300"
             >
-              {/* Stat badge */}
-              <div className="absolute top-4 right-4 text-right">
-                <span className="text-2xl font-bold text-[#90FCA6]">{pillar.stat}</span>
-                <span className="block text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{pillar.statLabel}</span>
+              <div className={`w-14 h-14 rounded-2xl ${pillar.iconBg} flex items-center justify-center ${pillar.iconColor} mb-6`}>
+                {pillar.icon}
               </div>
-
-              {/* Title */}
-              <div className="mb-4 pr-20">
-                <h3 className="text-lg font-bold text-slate-900">{pillar.title}</h3>
-                <p className="text-xs text-slate-400 font-medium mt-1">{pillar.providers}</p>
-              </div>
-
-              <p className="text-sm text-slate-600 mb-5">{pillar.description}</p>
-
-              {/* Features list */}
-              <ul className="space-y-2.5">
+              <h3 className="text-xl font-bold text-[#0a0a0b] mb-2">{pillar.title}</h3>
+              <p className="text-sm text-slate-400 font-medium mb-4">{pillar.providers}</p>
+              <p className="text-slate-600 mb-6 leading-relaxed">{pillar.description}</p>
+              <ul className="space-y-3">
                 {pillar.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2.5 text-sm text-slate-600">
+                  <li key={feature} className="flex items-center gap-3 text-sm text-slate-600">
                     <CheckCircle2 className="w-4 h-4 text-[#90FCA6] flex-shrink-0" />
                     {feature}
                   </li>
                 ))}
               </ul>
-
-              {/* Link */}
-              <Link href="/features" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 group-hover:text-[#90FCA6] transition-colors">
-                Learn more <ArrowRight className="w-3.5 h-3.5" />
+              <Link
+                href="/features"
+                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-[#0a0a0b] group-hover:text-emerald-600 transition-colors"
+              >
+                Learn more
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </motion.div>
           ))}
         </div>
       </div>
-    </GlowingSection>
+    </section>
   )
 }
 
 // ============================================
-// KEY CAPABILITIES - Clean Horizontal List
+// KEY CAPABILITIES
 // ============================================
 function KeyCapabilities() {
   const capabilities = [
@@ -389,14 +358,102 @@ function KeyCapabilities() {
 }
 
 // ============================================
-// PRICING SECTION - Luminous Premium Cards
+// FEATURES GRID
+// ============================================
+function FeaturesGrid() {
+  const features = [
+    {
+      icon: <Zap className="w-5 h-5" />,
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      title: "AI-Powered Anomaly Detection",
+      description: "Catch unexpected spikes before they become budget busters. Alert within 5 minutes.",
+    },
+    {
+      icon: <BarChart3 className="w-5 h-5" />,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      title: "100% Cost Allocation",
+      description: "Automatic tagging and allocation. Know exactly which team, project, or customer drives costs.",
+    },
+    {
+      icon: <Shield className="w-5 h-5" />,
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      title: "Enterprise Security",
+      description: "SOC 2 Type II, SSO, RBAC, and audit logs. Built for enterprises from day one.",
+    },
+    {
+      icon: <TrendingDown className="w-5 h-5" />,
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-600",
+      title: "Optimization Recommendations",
+      description: "Get actionable recommendations to reduce waste. Reserved instances, rightsizing, and more.",
+    },
+    {
+      icon: <Clock className="w-5 h-5" />,
+      iconBg: "bg-violet-100",
+      iconColor: "text-violet-600",
+      title: "Real-Time Dashboards",
+      description: "No more waiting for monthly bills. See your spend as it happens with live data sync.",
+    },
+    {
+      icon: <Users className="w-5 h-5" />,
+      iconBg: "bg-cyan-100",
+      iconColor: "text-cyan-600",
+      title: "Team Collaboration",
+      description: "Share dashboards, set budgets, and assign alerts. Built for cross-functional teams.",
+    },
+  ]
+
+  return (
+    <section className="py-24 bg-white">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <h2 className="text-4xl md:text-5xl font-bold text-[#0a0a0b] mb-6 tracking-tight">
+            Everything you need to control costs
+          </h2>
+          <p className="text-xl text-slate-600">
+            Purpose-built for engineering and finance teams who need visibility, not just reports.
+          </p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+          {features.map((feature, i) => (
+            <motion.div
+              key={feature.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.05 }}
+              className="group"
+            >
+              <div className={`w-12 h-12 rounded-xl ${feature.iconBg} flex items-center justify-center ${feature.iconColor} mb-5`}>
+                {feature.icon}
+              </div>
+              <h3 className="text-lg font-semibold text-[#0a0a0b] mb-3">{feature.title}</h3>
+              <p className="text-slate-600 leading-relaxed">{feature.description}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// PRICING - FIXED BUTTONS
 // ============================================
 function PricingSection() {
   const plans = [
     {
       name: "Starter",
       price: "$19",
-      period: "/mo",
       description: "For small teams getting started",
       features: [
         "2 team members",
@@ -405,13 +462,11 @@ function PricingSection() {
         "30-day data retention",
         "Email alerts",
       ],
-      cta: "Get Started",
       highlighted: false,
     },
     {
       name: "Professional",
       price: "$69",
-      period: "/mo",
       description: "For growing engineering teams",
       features: [
         "6 team members",
@@ -421,13 +476,11 @@ function PricingSection() {
         "Slack & PagerDuty alerts",
         "Custom dashboards",
       ],
-      cta: "Get Started",
       highlighted: true,
     },
     {
       name: "Scale",
       price: "$199",
-      period: "/mo",
       description: "For organizations at scale",
       features: [
         "11 team members",
@@ -436,31 +489,29 @@ function PricingSection() {
         "1-year data retention",
         "SSO & RBAC",
         "Priority support",
-        "API access",
       ],
-      cta: "Get Started",
       highlighted: false,
     },
   ]
 
   return (
-    <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
-      <div className="container px-4 mx-auto max-w-5xl">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Pricing</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">Simple, transparent pricing</h2>
-            <p className="text-slate-500 mt-3 text-lg">14-day free trial. No credit card required.</p>
-          </motion.div>
-        </div>
+    <section className="py-24 bg-slate-50">
+      <div className="container mx-auto px-4 max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-2xl mx-auto mb-16"
+        >
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
+            Simple, transparent pricing
+          </h2>
+          <p className="text-xl text-slate-600">
+            14-day free trial. No credit card required.
+          </p>
+        </motion.div>
 
-        {/* Luminous Cards */}
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
@@ -468,83 +519,80 @@ function PricingSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group relative"
+              className="relative"
             >
-              {/* Glow effect for highlighted */}
               {plan.highlighted && (
-                <div className="absolute -inset-1 bg-gradient-to-b from-[#90FCA6]/30 to-[#90FCA6]/10 rounded-3xl blur-xl" />
+                <div className="absolute -inset-[2px] bg-[#90FCA6] rounded-3xl" />
               )}
-
-              <div className={`relative p-6 rounded-2xl transition-all duration-300 h-full flex flex-col ${
-                plan.highlighted
-                  ? "bg-white border-2 border-[#90FCA6] shadow-xl"
-                  : "bg-white/90 backdrop-blur-sm border border-slate-200 hover:border-slate-300 hover:shadow-lg"
+              <div className={`relative h-full flex flex-col p-8 rounded-3xl bg-white ${
+                !plan.highlighted && "border border-slate-200"
               }`}>
                 {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-[#90FCA6] text-slate-900 text-xs font-bold rounded-full shadow-lg shadow-[#90FCA6]/30">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-slate-900 text-white text-sm font-semibold rounded-full">
                     Most Popular
                   </div>
                 )}
 
-                <div className="mb-5">
-                  <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{plan.description}</p>
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">{plan.name}</h3>
+                  <p className="text-slate-500 text-sm">{plan.description}</p>
                 </div>
 
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
-                  <span className="text-base text-slate-500">{plan.period}</span>
+                <div className="flex items-baseline gap-1 mb-8">
+                  <span className="text-5xl font-bold text-slate-900">{plan.price}</span>
+                  <span className="text-slate-500">/mo</span>
                 </div>
 
-                <ul className="space-y-3 mb-6 flex-grow">
+                <ul className="space-y-4 mb-8 flex-grow">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3 text-sm text-slate-600">
-                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${plan.highlighted ? "bg-[#90FCA6]/20" : "bg-slate-100"}`}>
-                        <CheckCircle2 className={`w-3.5 h-3.5 ${plan.highlighted ? "text-[#90FCA6]" : "text-slate-400"}`} />
-                      </span>
+                    <li key={feature} className="flex items-center gap-3 text-slate-600">
+                      <CheckCircle2 className={`w-5 h-5 flex-shrink-0 ${plan.highlighted ? "text-[#90FCA6]" : "text-slate-300"}`} />
                       {feature}
                     </li>
                   ))}
                 </ul>
 
+                {/* FIXED BUTTONS - Mint for highlighted, Black for others */}
                 <Link
                   href="/signup"
-                  className={`w-full inline-flex items-center justify-center h-11 rounded-full text-sm font-semibold transition-all ${
+                  className={`w-full inline-flex items-center justify-center h-12 rounded-full text-base font-semibold transition-all ${
                     plan.highlighted
-                      ? "bg-[#90FCA6] text-slate-900 hover:bg-[#7ee994] shadow-lg shadow-[#90FCA6]/25"
-                      : "bg-slate-900 text-white hover:bg-slate-800"
+                      ? "bg-[#90FCA6] hover:bg-[#7ee994] shadow-lg shadow-[#90FCA6]/25"
+                      : "hover:bg-slate-800"
                   }`}
+                  style={{
+                    backgroundColor: plan.highlighted ? '#90FCA6' : '#0f172a',
+                    color: plan.highlighted ? '#0f172a' : '#ffffff'
+                  }}
                 >
-                  {plan.cta}
+                  <span style={{ color: plan.highlighted ? '#0f172a' : '#ffffff' }}>Get Started</span>
                 </Link>
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* Enterprise note */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="mt-10 text-center"
+          className="mt-12 text-center"
         >
-          <p className="text-sm text-slate-500">
-            Need more? <Link href="/contact" className="text-slate-900 font-semibold hover:underline">Contact us for Enterprise pricing</Link>
+          <p className="text-slate-600">
+            Need more? <Link href="/contact" className="font-semibold text-slate-900 hover:underline">Contact us for Enterprise pricing</Link>
           </p>
         </motion.div>
       </div>
-    </GlowingSection>
+    </section>
   )
 }
 
 // ============================================
-// FINAL CTA - Clean with Mint & Black
+// FINAL CTA
 // ============================================
 function FinalCTA() {
   return (
     <section className="py-20 bg-slate-900 text-white relative overflow-hidden">
-      {/* Subtle mint glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#90FCA6]/10 rounded-full blur-[100px]" />
 
       <div className="container px-4 mx-auto max-w-4xl relative z-10">
@@ -557,7 +605,6 @@ function FinalCTA() {
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
               Start saving on cloud costs today
             </h2>
-
             <p className="text-lg text-slate-300 max-w-xl mx-auto mb-10">
               Join engineering teams saving 35% on average. 14-day free trial.
             </p>
@@ -572,9 +619,10 @@ function FinalCTA() {
               </Link>
               <Link
                 href="/demo"
-                className="inline-flex items-center justify-center h-12 px-8 text-sm font-semibold text-white border-2 border-white/30 rounded-full hover:bg-white/10 transition-all"
+                className="inline-flex items-center justify-center h-12 px-8 text-sm font-semibold border-2 border-white/30 rounded-full hover:bg-white/10 transition-all"
+                style={{ color: '#ffffff' }}
               >
-                Schedule Demo
+                <span style={{ color: '#ffffff' }}>Schedule Demo</span>
               </Link>
             </div>
 
@@ -594,83 +642,68 @@ function FinalCTA() {
 }
 
 // ============================================
-// MAIN PAGE - Premium Luminous Layout
+// MAIN PAGE
 // ============================================
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans antialiased">
-      <main className="flex-grow">
-        {/* Hero - Main value prop */}
-        <HeroSection />
+    <div className="min-h-screen bg-white">
+      <HeroSection />
+      <LogoCloud />
+      <ThreePillars />
+      <KeyCapabilities />
 
-        {/* Integrations - Social proof */}
-        <LogoCloud />
+      <section className="py-16 bg-slate-50">
+        <ProductScreenshots />
+      </section>
 
-        {/* Three Pillars - Luminous premium cards */}
-        <PlatformPillars />
+      <section className="py-16 bg-white">
+        <HowItWorks />
+      </section>
 
-        {/* Key Capabilities - Highlight bar */}
-        <KeyCapabilities />
+      <FeaturesGrid />
 
-        {/* Product Screenshots - With glow wrapper */}
-        <GlowingSection className="py-16" glowColor="neutral" intensity="subtle">
-          <ProductScreenshots />
-        </GlowingSection>
+      <section className="py-16 bg-slate-50">
+        <div className="container px-4 mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Features</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">
+              Go deeper than the bill
+            </h2>
+          </motion.div>
+          <FeatureTabs />
+        </div>
+      </section>
 
-        {/* How It Works */}
-        <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
-          <HowItWorks />
-        </GlowingSection>
+      <IntegrationsWall />
+      <PricingSection />
 
-        {/* Features Deep Dive */}
-        <GlowingSection className="py-16" glowColor="neutral" intensity="subtle">
-          <div className="container px-4 mx-auto max-w-6xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
-            >
-              <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Features</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mt-2">
-                Go deeper than the bill
-              </h2>
-            </motion.div>
-            <FeatureTabs />
-          </div>
-        </GlowingSection>
+      <section className="py-16 bg-white">
+        <div className="container px-4 mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <div className="inline-flex items-center gap-2 mb-3">
+              <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
+              <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Testimonials</span>
+              <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+              Trusted by engineering teams
+            </h2>
+          </motion.div>
+          <Testimonials />
+        </div>
+      </section>
 
-        {/* Integrations Wall */}
-        <IntegrationsWall />
-
-        {/* Pricing - Luminous premium cards */}
-        <PricingSection />
-
-        {/* Testimonials - Luminous */}
-        <GlowingSection className="py-16" glowColor="mint" intensity="subtle">
-          <div className="container px-4 mx-auto max-w-6xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
-            >
-              <div className="inline-flex items-center gap-2 mb-3">
-                <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
-                <span className="text-xs font-semibold text-[#90FCA6] uppercase tracking-wider">Testimonials</span>
-                <div className="w-6 h-0.5 bg-[#90FCA6] rounded-full" />
-              </div>
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
-                Trusted by engineering teams
-              </h2>
-            </motion.div>
-            <Testimonials />
-          </div>
-        </GlowingSection>
-
-        {/* Final CTA - Premium with glow */}
-        <FinalCTA />
-      </main>
+      <FinalCTA />
     </div>
   )
 }

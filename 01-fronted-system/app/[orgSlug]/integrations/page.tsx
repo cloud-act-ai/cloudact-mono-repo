@@ -188,15 +188,8 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
-        {/* Ultra-premium top gradient glow */}
-        <div
-          className="absolute inset-x-0 top-0 h-80 pointer-events-none"
-          style={{
-            background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
-          }}
-        />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-4 sm:space-y-6 lg:space-y-8">
+      <main className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Header - Same pattern as dashboard */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div className="flex items-start gap-3 sm:gap-4">
@@ -220,15 +213,8 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <main className="min-h-screen relative bg-gradient-to-b from-[#90FCA6]/[0.03] via-white to-white">
-      {/* Ultra-premium top gradient glow */}
-      <div
-        className="absolute inset-x-0 top-0 h-80 pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(144, 252, 166, 0.08), transparent 70%)"
-        }}
-      />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-10 space-y-4 sm:space-y-6 lg:space-y-8">
+    <main className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Premium Header with enhanced typography */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
         <div className="flex items-start gap-3 sm:gap-4">
