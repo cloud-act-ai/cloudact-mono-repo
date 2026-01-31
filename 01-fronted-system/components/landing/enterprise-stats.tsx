@@ -77,7 +77,7 @@ export function EnterpriseStats() {
                 transition={{ duration: 0.4, delay: i * 0.1 }}
                 className="flex items-center gap-3"
               >
-                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                   <badge.icon className="w-5 h-5 text-slate-600" />
                 </div>
                 <div>

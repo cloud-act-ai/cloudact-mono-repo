@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 
 interface SkeletonProps extends React.ComponentProps<'div'> {
-  variant?: 'default' | 'shimmer'
+  variant?: 'default' | 'shimmer' | 'mint'
 }
 
 function Skeleton({
@@ -16,10 +16,23 @@ function Skeleton({
       aria-busy="true"
       aria-label="Loading content"
       className={cn(
-        'rounded-md',
-        variant === 'shimmer'
-          ? 'bg-muted relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.5s_ease-in-out_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/60 dark:before:via-white/20 before:to-transparent'
-          : 'bg-muted animate-pulse',
+        'rounded-lg',
+        variant === 'shimmer' && [
+          'bg-slate-100/80',
+          'relative overflow-hidden',
+          'before:absolute before:inset-0 before:-translate-x-full',
+          'before:animate-[shimmer_1.5s_ease-in-out_infinite]',
+          'before:bg-gradient-to-r before:from-transparent before:via-white/70 before:to-transparent',
+          'dark:bg-slate-800/50 dark:before:via-white/10',
+        ],
+        variant === 'mint' && [
+          'bg-[var(--cloudact-mint)]/[0.06]',
+          'relative overflow-hidden',
+          'before:absolute before:inset-0 before:-translate-x-full',
+          'before:animate-[shimmer_1.5s_ease-in-out_infinite]',
+          'before:bg-gradient-to-r before:from-transparent before:via-[var(--cloudact-mint)]/10 before:to-transparent',
+        ],
+        variant === 'default' && 'bg-slate-100 animate-pulse dark:bg-slate-800/50',
         className
       )}
       {...props}

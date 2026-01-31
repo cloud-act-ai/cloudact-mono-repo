@@ -51,8 +51,8 @@ export default function CompliancePage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Scale className="w-4 h-4" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Scale className="w-4 h-4" style={{ color: '#ffffff' }} />
             Compliance Standards
           </div>
           <h1 className="ca-page-hero-title">
@@ -213,11 +213,11 @@ export default function CompliancePage() {
             Our compliance team is here to help with your regulatory and data protection questions.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/contact" className="ca-btn-cta-primary">
+            <Link href="/contact" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Contact Compliance Team
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href="/security" className="ca-btn-cta-secondary">
+            <Link href="/security" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Security
             </Link>
           </div>

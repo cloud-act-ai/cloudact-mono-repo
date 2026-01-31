@@ -136,8 +136,8 @@ export default function QuickStartPage() {
             <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
             Back to Documentation
           </Link>
-          <div className="ca-section-eyebrow">
-            <Rocket className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Rocket className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Quick Start
           </div>
           <h1 className="ca-docs-hero-title">
@@ -200,8 +200,8 @@ export default function QuickStartPage() {
       <section className="ca-docs-code-section">
         <div className="ca-docs-code-container">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <Terminal className="w-4 h-4" aria-hidden="true" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <Terminal className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
               Code Examples
             </span>
             <h2 className="ca-section-title">CLI Setup Commands</h2>
@@ -278,11 +278,11 @@ export default function QuickStartPage() {
             Start your 14-day free trial and connect your first integration in minutes.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/demo" className="ca-btn-cta-secondary">
+            <Link href="/demo" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Request Demo
             </Link>
           </div>

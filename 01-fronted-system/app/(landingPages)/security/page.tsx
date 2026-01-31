@@ -74,8 +74,8 @@ export default function SecurityPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Lock className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Lock className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Enterprise Security
           </div>
           <h1 className="ca-page-hero-title">
@@ -215,11 +215,11 @@ export default function SecurityPage() {
             Our security team is here to help you understand how we protect your data.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/contact" className="ca-btn-cta-primary">
+            <Link href="/contact" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Contact Security Team
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/compliance" className="ca-btn-cta-secondary">
+            <Link href="/compliance" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Compliance
             </Link>
           </div>

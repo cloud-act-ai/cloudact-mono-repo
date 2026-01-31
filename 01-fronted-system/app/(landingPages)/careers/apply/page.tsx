@@ -13,8 +13,8 @@ import {
   Mail,
   User,
   Phone,
-  Linkedin,
-  Github,
+  Link2,
+  Code2,
   Globe,
   Paperclip,
   Send,
@@ -194,8 +194,8 @@ function CareerApplyForm() {
             <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
             Back to Careers
           </Link>
-          <div className="ca-section-eyebrow">
-            <Briefcase className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Briefcase className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Apply Now
           </div>
           <h1 className="ca-apply-hero-title">
@@ -241,10 +241,11 @@ function CareerApplyForm() {
                     setAttachments([])
                   }}
                   className="ca-btn-hero-secondary"
+                  style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}
                 >
                   Submit Another Application
                 </button>
-                <Link href="/careers" className="ca-btn-hero-primary">
+                <Link href="/careers" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
                   View Other Positions
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -347,7 +348,7 @@ function CareerApplyForm() {
               <div className="ca-apply-form-row">
                 <div className="ca-apply-form-field">
                   <label htmlFor="linkedin">
-                    <Linkedin className="w-4 h-4" />
+                    <Link2 className="w-4 h-4" />
                     LinkedIn URL
                   </label>
                   <input
@@ -360,7 +361,7 @@ function CareerApplyForm() {
                 </div>
                 <div className="ca-apply-form-field">
                   <label htmlFor="github">
-                    <Github className="w-4 h-4" />
+                    <Code2 className="w-4 h-4" />
                     GitHub URL
                   </label>
                   <input

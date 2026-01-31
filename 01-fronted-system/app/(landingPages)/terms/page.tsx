@@ -32,8 +32,8 @@ export default function TermsPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <FileText className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <FileText className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Legal
           </div>
           <h1 className="ca-page-hero-title">
@@ -308,11 +308,11 @@ export default function TermsPage() {
             Our team is here to help clarify any questions about our service agreement.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/contact" className="ca-btn-cta-primary">
+            <Link href="/contact" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Contact Us
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/privacy" className="ca-btn-cta-secondary">
+            <Link href="/privacy" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Privacy Policy
             </Link>
           </div>

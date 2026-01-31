@@ -93,24 +93,24 @@ export default function IntegrationsPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Plug className="w-4 h-4" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Plug className="w-4 h-4" style={{ color: '#ffffff' }} />
             Integrations
           </div>
           <h1 className="ca-page-hero-title">
             Connect Your{" "}
-            <span className="ca-hero-highlight-mint">Entire Stack</span>
+            <span style={{ color: '#FF6C5E' }}>Entire Stack</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             50+ integrations with cloud providers, GenAI platforms, and SaaS tools.
             Get unified cost visibility in minutes.
           </p>
           <div className="ca-hero-buttons">
-            <Link href="/signup" className="ca-btn-hero-primary">
+            <Link href="/signup" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href="/contact" className="ca-btn-hero-secondary">
+            <Link href="/contact" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Request Integration
             </Link>
           </div>
@@ -123,8 +123,8 @@ export default function IntegrationsPage() {
           <div className="ca-integrations-category-icon ca-integrations-category-icon-cloud">
             <Cloud className="w-8 h-8" />
           </div>
-          <span className="ca-section-eyebrow">
-            <Cloud className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Cloud className="w-4 h-4" style={{ color: '#ffffff' }} />
             Cloud Providers
           </span>
           <h2 className="ca-section-title">Multi-Cloud Cost Tracking</h2>
@@ -151,13 +151,13 @@ export default function IntegrationsPage() {
       </section>
 
       {/* GenAI Integrations */}
-      <section className="ca-integrations-section ca-integrations-section-gray">
+      <section className="ca-integrations-section">
         <div className="ca-section-header-centered">
           <div className="ca-integrations-category-icon ca-integrations-category-icon-genai">
             <Cpu className="w-8 h-8" />
           </div>
-          <span className="ca-section-eyebrow">
-            <Cpu className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Cpu className="w-4 h-4" style={{ color: '#ffffff' }} />
             GenAI Platforms
           </span>
           <h2 className="ca-section-title">LLM Cost Management</h2>
@@ -189,8 +189,8 @@ export default function IntegrationsPage() {
           <div className="ca-integrations-category-icon ca-integrations-category-icon-saas">
             <CreditCard className="w-8 h-8" />
           </div>
-          <span className="ca-section-eyebrow">
-            <CreditCard className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <CreditCard className="w-4 h-4" style={{ color: '#ffffff' }} />
             SaaS Subscriptions
           </span>
           <h2 className="ca-section-title">Subscription Tracking</h2>
@@ -210,7 +210,7 @@ export default function IntegrationsPage() {
 
         <div className="ca-integrations-more">
           <p>And 30+ more SaaS integrations</p>
-          <Link href="/contact" className="ca-btn-hero-secondary">
+          <Link href="/contact" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
             Request Integration
             <ArrowRight className="w-4 h-4" />
           </Link>
@@ -220,8 +220,8 @@ export default function IntegrationsPage() {
       {/* Features Section */}
       <section className="ca-integrations-features-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Settings className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Settings className="w-4 h-4" style={{ color: '#ffffff' }} />
             How It Works
           </span>
           <h2 className="ca-section-title">Seamless Integration Experience</h2>
@@ -246,8 +246,8 @@ export default function IntegrationsPage() {
       {/* Final CTA */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} />
             Get Started Today
           </div>
           <h2 className="ca-final-cta-title">Ready to Connect Your Stack?</h2>
@@ -255,11 +255,11 @@ export default function IntegrationsPage() {
             Start your 14-day free trial and connect all your cloud, GenAI, and SaaS accounts in minutes.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href="/demo" className="ca-btn-cta-secondary">
+            <Link href="/demo" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Book a Demo
             </Link>
           </div>

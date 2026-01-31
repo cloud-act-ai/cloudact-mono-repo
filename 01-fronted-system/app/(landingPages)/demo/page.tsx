@@ -151,13 +151,13 @@ export default function DemoPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Play className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Play className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Request Demo
           </div>
           <h1 className="ca-page-hero-title">
             See CloudAct.ai{" "}
-            <span className="ca-hero-highlight-mint">In Action</span>
+            <span style={{ color: '#FF6C5E' }}>In Action</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Get a personalized demo of how CloudAct.ai can help you track, analyze,
@@ -231,6 +231,7 @@ export default function DemoPage() {
                     type="button"
                     onClick={() => setIsSuccess(false)}
                     className="ca-btn-hero-secondary"
+                    style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}
                   >
                     Submit Another Request
                   </button>
@@ -353,6 +354,7 @@ export default function DemoPage() {
                       type="submit"
                       disabled={isSubmitting}
                       className="ca-btn-hero-primary ca-form-submit-btn"
+                      style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}
                     >
                       {isSubmitting ? (
                         <>
@@ -401,8 +403,8 @@ export default function DemoPage() {
       {/* Final CTA */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Prefer to try it yourself?
           </div>
           <h2 className="ca-final-cta-title">Start Your Free Trial</h2>
@@ -410,11 +412,11 @@ export default function DemoPage() {
             No demo needed? Jump right in with our 14-day free trial. No credit card required.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/pricing" className="ca-btn-cta-secondary">
+            <Link href="/pricing" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Pricing
             </Link>
           </div>

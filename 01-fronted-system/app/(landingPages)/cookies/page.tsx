@@ -56,8 +56,8 @@ export default function CookiesPage() {
       {/* Hero Section */}
       <section className="ca-page-hero ca-page-hero-compact">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Cookie className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Cookie className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Legal
           </div>
           <h1 className="ca-page-hero-title">

@@ -121,12 +121,12 @@ export function FeatureTabs() {
             className="relative"
           >
             {/* Mock UI Container */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-xl p-2 aspect-[4/3] flex flex-col overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xl p-2 aspect-[4/3] flex flex-col overflow-hidden">
               {/* Mock Header */}
               <div className="h-8 border-b border-slate-100 flex items-center gap-2 px-3 mb-2">
-                <div className="w-2 h-2 rounded-full bg-slate-300" />
-                <div className="w-2 h-2 rounded-full bg-slate-300" />
-                <div className="w-2 h-2 rounded-full bg-slate-300" />
+                <div className="w-2 h-2 rounded-full bg-[#90FCA6]/40" />
+                <div className="w-2 h-2 rounded-full bg-[#90FCA6]/30" />
+                <div className="w-2 h-2 rounded-full bg-[#90FCA6]/20" />
               </div>
               {/* Mock Content Body */}
               <div className="flex-1 bg-white rounded-lg p-4 relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
@@ -166,7 +166,7 @@ function MockAnomalies() {
       {/* Spike Chart */}
       <div className="flex items-end space-x-2 h-[150px]">
         {[40, 35, 45, 30, 100, 40, 35].map((h, i) => (
-          <div key={i} className={`flex-1 rounded-t-sm ${h > 80 ? 'bg-[#FF6C5E] animate-pulse' : 'bg-slate-200'}`} style={{ height: `${h}%` }} />
+          <div key={i} className={`flex-1 rounded-t-sm ${h > 80 ? 'bg-[#FF6C5E] animate-pulse' : 'bg-[#90FCA6]/30'}`} style={{ height: `${h}%` }} />
         ))}
       </div>
       <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-sm flex items-center gap-3">
@@ -184,12 +184,12 @@ function MockGenAI() {
   return (
     <div className="space-y-3 pt-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-lg">
+        <div key={i} className="flex items-center justify-between p-3 bg-white border border-[#90FCA6]/20 rounded-lg">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-[#FF6C5E]/15 rounded-md flex items-center justify-center text-[#FF6C5E] font-bold text-xs">AI</div>
             <div className="space-y-1">
-              <div className="h-2 w-20 bg-slate-200 rounded" />
-              <div className="h-2 w-12 bg-slate-100 rounded" />
+              <div className="h-2 w-20 bg-[#90FCA6]/30 rounded" />
+              <div className="h-2 w-12 bg-[#90FCA6]/15 rounded" />
             </div>
           </div>
           <div className="text-right">
@@ -206,9 +206,9 @@ function MockK8s() {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-center space-y-2 opacity-50">
+        <div className="p-4 bg-white border border-slate-200 rounded-lg text-center space-y-2 opacity-50">
           <div className="text-xs text-slate-400">Current (Large)</div>
-          <div className="h-12 w-12 mx-auto bg-slate-200 rounded-md" />
+          <div className="h-12 w-12 mx-auto bg-[#FF6C5E]/20 rounded-md" />
           <div className="text-sm font-mono text-slate-600">$140/mo</div>
         </div>
         <div className="p-4 bg-[#90FCA6]/10 border-2 border-[#90FCA6] rounded-lg text-center space-y-2 relative">

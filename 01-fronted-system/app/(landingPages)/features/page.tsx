@@ -44,24 +44,24 @@ export default function FeaturesPage() {
       {/* Hero Section - Premium White */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Layers className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Layers className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Platform Features
           </div>
           <h1 className="ca-page-hero-title">
             Every Feature You Need to{" "}
-            <span className="ca-hero-highlight-genai">Master</span> Your Costs
+            <span style={{ color: '#FF6C5E' }}>Master</span> Your Costs
           </h1>
           <p className="ca-page-hero-subtitle">
             From GenAI tracking to multi-cloud analytics, CloudAct.ai provides enterprise-grade
             cost intelligence for modern engineering teams. One platform, complete visibility.
           </p>
           <div className="ca-page-hero-actions">
-            <Link href="/signup" className="ca-btn-hero-primary">
+            <Link href="/signup" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/demo" className="ca-btn-hero-secondary">
+            <Link href="/demo" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Book a Demo
             </Link>
           </div>
@@ -71,8 +71,8 @@ export default function FeaturesPage() {
       {/* Core Platform Pillars */}
       <section className="ca-pillars-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Blocks className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Blocks className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Core Capabilities
           </span>
           <h2 className="ca-section-title">Three Pillars of Cost Intelligence</h2>
@@ -150,8 +150,8 @@ export default function FeaturesPage() {
       {/* Feature Grid */}
       <section className="ca-features-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             All Features
           </span>
           <h2 className="ca-section-title">Everything you need to control costs</h2>
@@ -226,8 +226,8 @@ export default function FeaturesPage() {
       {/* How It Works */}
       <section className="ca-how-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Settings className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Settings className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             How It Works
           </span>
           <h2 className="ca-section-title">Up and running in minutes</h2>
@@ -262,10 +262,10 @@ export default function FeaturesPage() {
       </section>
 
       {/* Enterprise Features */}
-      <section className="ca-collab-section ca-section-gray">
+      <section className="ca-collab-section" style={{ backgroundColor: '#ffffff' }}>
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Lock className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Lock className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Enterprise Ready
           </span>
           <h2 className="ca-section-title">Security & Scale You Can Trust</h2>
@@ -320,8 +320,8 @@ export default function FeaturesPage() {
       {/* Integrations */}
       <section className="ca-integrations-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Plug className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Plug className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Integrations
           </span>
           <h2 className="ca-section-title">Connect your entire stack</h2>
@@ -345,7 +345,7 @@ export default function FeaturesPage() {
         </div>
 
         <div className="ca-integrations-cta">
-          <Link href="/integrations" className="ca-btn-outline-dark">
+          <Link href="/integrations" className="ca-btn-outline-dark" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
             View all integrations
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
@@ -355,8 +355,8 @@ export default function FeaturesPage() {
       {/* Final CTA */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             14-day free trial • No credit card required
           </div>
           <h2 className="ca-final-cta-title">Ready to Master Your Costs?</h2>
@@ -365,11 +365,11 @@ export default function FeaturesPage() {
             GenAI, cloud, and SaaS spending.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/pricing" className="ca-btn-cta-secondary">
+            <Link href="/pricing" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Pricing
             </Link>
           </div>

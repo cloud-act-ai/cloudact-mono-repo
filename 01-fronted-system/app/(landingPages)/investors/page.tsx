@@ -75,23 +75,23 @@ export default function InvestorsPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <TrendingUp className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <TrendingUp className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Investor Relations
           </div>
           <h1 className="ca-page-hero-title">
-            Invest in the Future of <span className="ca-hero-highlight-mint">FinOps</span>
+            Invest in the Future of <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>FinOps</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             CloudAct.ai is transforming how companies manage cloud and GenAI costs.
             We're building the intelligence layer for cloud financial operations.
           </p>
           <div className="ca-hero-cta-group">
-            <Link href="/contact?type=investment" className="ca-btn-hero-primary">
+            <Link href="/contact?type=investment" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Contact IR Team
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/about" className="ca-btn-hero-secondary">
+            <Link href="/about" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               About Us
             </Link>
           </div>
@@ -102,8 +102,8 @@ export default function InvestorsPage() {
       <section className="ca-section-white">
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <BarChart3 className="w-4 h-4" aria-hidden="true" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <BarChart3 className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
               Key Metrics
             </span>
             <h2 className="ca-section-title">Our growth at a glance</h2>
@@ -125,8 +125,8 @@ export default function InvestorsPage() {
       <section className="ca-section-gray">
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <Target className="w-4 h-4" aria-hidden="true" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <Target className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
               Market Opportunity
             </span>
             <h2 className="ca-section-title">A massive and growing market</h2>
@@ -199,7 +199,7 @@ export default function InvestorsPage() {
             <p className="ca-investors-contact-desc">
               For investor inquiries, please contact our investor relations team.
             </p>
-            <Link href="/contact?type=investment" className="ca-btn-hero-primary" style={{ display: "inline-flex", gap: "8px", alignItems: "center", marginBottom: "1.5rem" }}>
+            <Link href="/contact?type=investment" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a', display: "inline-flex", gap: "8px", alignItems: "center", marginBottom: "1.5rem" }}>
               <Mail className="w-5 h-5" aria-hidden="true" />
               Contact IR Team
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -222,11 +222,11 @@ export default function InvestorsPage() {
             Learn more about our mission and growth opportunities.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/contact?type=investment" className="ca-btn-cta-primary">
+            <Link href="/contact?type=investment" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Contact IR Team
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/about" className="ca-btn-cta-secondary">
+            <Link href="/about" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               About Us
             </Link>
           </div>

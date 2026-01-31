@@ -3,102 +3,154 @@
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
-export function IntegrationsWall() {
-  const categories = [
-    { title: "Cloud Providers", icons: ["aws", "azure", "gcp", "oracle"], color: "mint" },
-    { title: "AI Models", icons: ["openai", "anthropic", "cohere", "gemini"], color: "coral" },
-    { title: "Monitoring", icons: ["datadog", "prometheus", "grafana", "newrelic"], color: "mint" },
-    { title: "Communication", icons: ["slack", "teams", "pagerduty", "discord"], color: "coral" },
-  ]
+// All available provider logos organized by category
+const cloudProviders = [
+  { name: "AWS", logo: "/logos/providers/aws.svg" },
+  { name: "Google Cloud", logo: "/logos/providers/gcp.svg" },
+  { name: "Azure", logo: "/logos/providers/azure.svg" },
+  { name: "Oracle Cloud", logo: "/logos/providers/oci.svg" },
+]
+
+const aiProviders = [
+  { name: "OpenAI", logo: "/logos/providers/openai.svg" },
+  { name: "Anthropic", logo: "/logos/providers/anthropic.svg" },
+  { name: "Gemini", logo: "/logos/providers/gemini.svg" },
+  { name: "DeepSeek", logo: "/logos/providers/deepseek.svg" },
+  { name: "Perplexity", logo: "/logos/providers/perplexity.svg" },
+  { name: "GitHub Copilot", logo: "/logos/providers/copilot.svg" },
+  { name: "Cursor", logo: "/logos/providers/cursor.svg" },
+  { name: "Windsurf", logo: "/logos/providers/windsurf.svg" },
+  { name: "v0", logo: "/logos/providers/v0.svg" },
+  { name: "Lovable", logo: "/logos/providers/lovable.svg" },
+  { name: "Replit", logo: "/logos/providers/replit.svg" },
+]
+
+const saasProviders = [
+  { name: "Slack", logo: "/logos/providers/slack.svg" },
+  { name: "Notion", logo: "/logos/providers/notion.svg" },
+  { name: "Figma", logo: "/logos/providers/figma.svg" },
+  { name: "Canva", logo: "/logos/providers/canva.svg" },
+  { name: "Asana", logo: "/logos/providers/asana.svg" },
+  { name: "Linear", logo: "/logos/providers/linear.svg" },
+  { name: "Jira", logo: "/logos/providers/jira.svg" },
+  { name: "Miro", logo: "/logos/providers/miro.svg" },
+  { name: "GitHub", logo: "/logos/providers/github.svg" },
+  { name: "GitLab", logo: "/logos/providers/gitlab.svg" },
+  { name: "Zoom", logo: "/logos/providers/zoom.svg" },
+  { name: "Teams", logo: "/logos/providers/teams.svg" },
+  { name: "Zapier", logo: "/logos/providers/zapier.svg" },
+  { name: "Supabase", logo: "/logos/providers/supabase.svg" },
+  { name: "Adobe", logo: "/logos/providers/adobe.svg" },
+  { name: "Adobe CC", logo: "/logos/providers/adobe_cc.svg" },
+]
+
+// Combine for marquee rows
+const row1Providers = [...cloudProviders, ...aiProviders.slice(0, 6)]
+const row2Providers = [...aiProviders.slice(6), ...saasProviders.slice(0, 8)]
+const row3Providers = [...saasProviders.slice(8)]
+
+// Marquee component
+function Marquee({
+  providers,
+  direction = "left",
+  speed = 25
+}: {
+  providers: typeof cloudProviders
+  direction?: "left" | "right"
+  speed?: number
+}) {
+  // Duplicate for seamless loop
+  const items = [...providers, ...providers, ...providers]
 
   return (
-    <section className="py-24 bg-white">
-      <div className="container px-4 mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
+    <div className="flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
+      <motion.div
+        className="flex gap-6 py-3"
+        animate={{
+          x: direction === "left" ? ["0%", "-33.333%"] : ["-33.333%", "0%"],
+        }}
+        transition={{
+          x: {
+            duration: speed,
+            repeat: Infinity,
+            ease: "linear",
+          },
+        }}
+      >
+        {items.map((provider, i) => (
+          <div
+            key={`${provider.name}-${i}`}
+            className="group flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-100 rounded-lg hover:border-slate-200 hover:shadow-md transition-all duration-200 cursor-pointer flex-shrink-0"
           >
-            {/* Accent line */}
-            <div className="flex justify-center mb-4">
-              <div className="w-12 h-1 rounded-full bg-[#90FCA6]" />
+            <div className="relative w-6 h-6 flex items-center justify-center">
+              <Image
+                src={provider.logo}
+                alt={provider.name}
+                width={24}
+                height={24}
+                className="object-contain"
+              />
             </div>
-            <span className="inline-block text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">
-              Integrations
+            <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
+              {provider.name}
             </span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-4">
-              Connects with everything you use
-            </h2>
-            <p className="text-lg text-slate-500">
-              Zero-friction setup. We integrate directly with your existing billing accounts,
-              Kubernetes clusters, and observability tools.
-            </p>
-          </motion.div>
-        </div>
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  )
+}
 
-        {/* Categories Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-          {categories.map((cat, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="flex flex-col items-center space-y-6"
-            >
-              {/* Category Title with accent */}
-              <div className="text-center">
-                <div className={`w-8 h-0.5 rounded-full mx-auto mb-3 ${
-                  cat.color === "mint" ? "bg-[#90FCA6]" : "bg-[#FF6C5E]"
-                }`} />
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{cat.title}</h3>
-              </div>
-
-              {/* Icons Grid */}
-              <div className="grid grid-cols-2 gap-4 w-full max-w-[200px]">
-                {cat.icons.map((icon) => (
-                  <motion.div
-                    key={icon}
-                    whileHover={{ scale: 1.05 }}
-                    className={`aspect-square bg-white border rounded-xl flex items-center justify-center transition-all duration-300 group cursor-pointer ${
-                      cat.color === "mint"
-                        ? "border-slate-100 hover:border-[#90FCA6]/50 hover:shadow-lg hover:shadow-[#90FCA6]/10"
-                        : "border-slate-100 hover:border-[#FF6C5E]/50 hover:shadow-lg hover:shadow-[#FF6C5E]/10"
-                    }`}
-                  >
-                    <span className={`text-xs font-bold capitalize transition-colors ${
-                      cat.color === "mint"
-                        ? "text-slate-300 group-hover:text-emerald-600"
-                        : "text-slate-300 group-hover:text-[#FF6C5E]"
-                    }`}>
-                      {icon}
-                    </span>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* CTA */}
+export function IntegrationsWall() {
+  return (
+    <section className="relative py-12 lg:py-16 overflow-hidden bg-white">
+      {/* CORAL radial gradient - alternating with hero's mint */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 108, 94, 0.08), transparent 70%)'
+        }}
+      />
+      <div className="container relative z-10 px-4 mx-auto max-w-7xl">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-16 text-center"
+          className="text-center max-w-2xl mx-auto mb-10"
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-3">
+            Connects with everything you use
+          </h2>
+          <p className="text-base text-slate-600">
+            50+ integrations with cloud providers, AI services, and SaaS tools
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Full-width scrolling logos */}
+      <div className="relative z-10 space-y-3">
+        <Marquee providers={row1Providers} direction="left" speed={35} />
+        <Marquee providers={row2Providers} direction="right" speed={40} />
+        <Marquee providers={row3Providers} direction="left" speed={32} />
+      </div>
+
+      {/* CTA */}
+      <div className="container relative z-10 px-4 mx-auto max-w-7xl">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-10 text-center"
         >
           <Link
             href="/integrations"
-            className="inline-flex items-center gap-2 text-emerald-600 font-semibold hover:text-emerald-700 text-sm group"
+            className="group inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-slate-700 transition-colors"
           >
-            See all 50+ integrations
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            See all integrations
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </motion.div>
       </div>

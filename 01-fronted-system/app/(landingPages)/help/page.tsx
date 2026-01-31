@@ -214,13 +214,13 @@ export default function HelpPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <HelpCircle className="w-4 h-4" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <HelpCircle className="w-4 h-4" style={{ color: '#ffffff' }} />
             Help Center
           </div>
           <h1 className="ca-page-hero-title">
             How Can We{" "}
-            <span className="ca-hero-highlight-mint">Help You?</span>
+            <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>Help You?</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Search our knowledge base or browse categories to find answers to your questions.
@@ -248,7 +248,7 @@ export default function HelpPage() {
                   &times;
                 </button>
               )}
-              <button type="submit" className="ca-btn-hero-primary ca-help-search-btn">
+              <button type="submit" className="ca-btn-hero-primary ca-help-search-btn" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
                 Search
               </button>
             </div>
@@ -279,8 +279,8 @@ export default function HelpPage() {
       {filteredCategories.length > 0 && (
         <section className="ca-help-categories-section">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <Book className="w-4 h-4" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <Book className="w-4 h-4" style={{ color: '#ffffff' }} />
               Browse by Topic
             </span>
             <h2 className="ca-section-title">Help Categories</h2>
@@ -311,8 +311,8 @@ export default function HelpPage() {
       {filteredArticles.length > 0 && (
         <section className="ca-help-articles-section">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <Zap className="w-4 h-4" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <Zap className="w-4 h-4" style={{ color: '#ffffff' }} />
               Quick Answers
             </span>
             <h2 className="ca-section-title">Popular Articles</h2>
@@ -339,8 +339,8 @@ export default function HelpPage() {
       {filteredFaqs.length > 0 && (
         <section className="ca-help-faq-section">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <HelpCircle className="w-4 h-4" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <HelpCircle className="w-4 h-4" style={{ color: '#ffffff' }} />
               FAQ
             </span>
             <h2 className="ca-section-title">Frequently Asked Questions</h2>
@@ -379,8 +379,8 @@ export default function HelpPage() {
       {/* Support Channels */}
       <section className="ca-help-support-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <MessageSquare className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <MessageSquare className="w-4 h-4" style={{ color: '#ffffff' }} />
             Contact Support
           </span>
           <h2 className="ca-section-title">Need More Help?</h2>
@@ -401,12 +401,20 @@ export default function HelpPage() {
                 <p className="ca-help-support-desc">{channel.description}</p>
                 <p className="ca-help-support-availability">{channel.availability}</p>
                 {channel.href ? (
-                  <a href={channel.href} className={channel.primary ? "ca-btn-hero-primary" : "ca-btn-hero-secondary"}>
+                  <a
+                    href={channel.href}
+                    className={channel.primary ? "ca-btn-hero-primary" : "ca-btn-hero-secondary"}
+                    style={channel.primary ? { backgroundColor: '#90FCA6', color: '#0f172a' } : { backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}
+                  >
                     {channel.action}
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 ) : (
-                  <button type="button" className={channel.primary ? "ca-btn-hero-primary" : "ca-btn-hero-secondary"}>
+                  <button
+                    type="button"
+                    className={channel.primary ? "ca-btn-hero-primary" : "ca-btn-hero-secondary"}
+                    style={channel.primary ? { backgroundColor: '#90FCA6', color: '#0f172a' } : { backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}
+                  >
                     {channel.action}
                     <MessageSquare className="w-4 h-4" />
                   </button>
@@ -420,8 +428,8 @@ export default function HelpPage() {
       {/* Additional Resources */}
       <section className="ca-help-resources-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <ExternalLink className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <ExternalLink className="w-4 h-4" style={{ color: '#ffffff' }} />
             Resources
           </span>
           <h2 className="ca-section-title">Additional Resources</h2>
@@ -450,8 +458,8 @@ export default function HelpPage() {
       {/* Final CTA */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} />
             Can't Find What You Need?
           </div>
           <h2 className="ca-final-cta-title">Contact Our Team</h2>
@@ -459,11 +467,11 @@ export default function HelpPage() {
             Our support team is available to help with any questions not covered in our help center.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/contact" className="ca-btn-cta-primary">
+            <Link href="/contact" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Contact Us
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href="/demo" className="ca-btn-cta-secondary">
+            <Link href="/demo" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Book a Demo
             </Link>
           </div>

@@ -150,8 +150,8 @@ export default function APIReferencePage() {
             <ArrowRight className="w-4 h-4 rotate-180" aria-hidden="true" />
             Back to Documentation
           </Link>
-          <div className="ca-section-eyebrow">
-            <Code className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Code className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             API Reference
           </div>
           <h1 className="ca-docs-hero-title">
@@ -348,11 +348,11 @@ export default function APIReferencePage() {
             Start integrating CloudAct.ai into your applications today.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Get API Key
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/docs/quick-start" className="ca-btn-cta-secondary">
+            <Link href="/docs/quick-start" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Quick Start Guide
             </Link>
           </div>

@@ -604,7 +604,7 @@ export function ProductScreenshots() {
   return (
     <section className="py-24 lg:py-32 bg-white relative overflow-hidden">
       {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-white to-white" />
+      <div className="absolute inset-0 bg-white" />
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#90FCA6]/5 rounded-full blur-[150px]" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#FF6C5E]/5 rounded-full blur-[120px]" />
 
@@ -625,10 +625,10 @@ export function ProductScreenshots() {
               See It In Action
             </span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-4">
-              Built for the modern cloud
+              Built for GenAI & Modern Cloud
             </h2>
             <p className="text-lg text-slate-600 leading-relaxed">
-              Enterprise-grade cost intelligence with <strong className="text-slate-900">real-time analytics</strong>, <strong className="text-emerald-600">intelligent anomaly detection</strong>, and beautiful visualizations.
+              Track every <strong className="text-slate-900">LLM token</strong> and cloud resource with <strong className="text-slate-900">real-time GenAI analytics</strong> and intelligent anomaly detection.
             </p>
           </motion.div>
         </div>
@@ -667,7 +667,7 @@ export function ProductScreenshots() {
               className="relative"
             >
               {/* Glow Effect */}
-              <div className="absolute -inset-4 bg-gradient-to-r from-[#90FCA6]/20 via-slate-200/30 to-[#FF6C5E]/15 rounded-2xl blur-2xl opacity-60" />
+              <div className="absolute -inset-4 bg-gradient-to-r from-[#90FCA6]/20 via-[#90FCA6]/10 to-[#FF6C5E]/15 rounded-2xl blur-2xl opacity-60" />
 
               {/* Screenshot Container */}
               <div className="relative bg-slate-900 border border-slate-200 rounded-2xl shadow-2xl shadow-slate-300/30 overflow-hidden aspect-[16/10]">

@@ -1,6 +1,5 @@
-"use client"
-
 import Link from "next/link"
+import type { Metadata } from "next"
 import {
   ArrowRight,
   Target,
@@ -19,6 +18,16 @@ import {
   MessageCircle,
 } from "lucide-react"
 import "../premium.css"
+
+export const metadata: Metadata = {
+  title: "About Us | CloudAct.ai - Our Mission & Story",
+  description: "Learn about CloudAct.ai's mission to democratize cost intelligence for the GenAI era. Meet our team and discover our values.",
+  openGraph: {
+    title: "About Us | CloudAct.ai",
+    description: "Democratizing cost intelligence for the GenAI era.",
+    type: "website",
+  },
+}
 
 // Company values
 const VALUES = [
@@ -82,13 +91,13 @@ export default function AboutPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Info className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Info className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             About Us
           </div>
           <h1 className="ca-page-hero-title">
             Democratizing Cost Intelligence{" "}
-            <span className="ca-hero-highlight-mint">for the GenAI Era</span>
+            <span style={{ color: '#FF6C5E' }}>for the GenAI Era</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             We believe every organization should have access to enterprise-grade cost intelligence.
@@ -100,8 +109,8 @@ export default function AboutPage() {
       {/* Our Story Section */}
       <section className="ca-story-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <BookOpen className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <BookOpen className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             The Beginning
           </span>
           <h2 className="ca-section-title">How CloudAct.ai Started</h2>
@@ -153,8 +162,8 @@ export default function AboutPage() {
       {/* Team Section */}
       <section className="ca-team-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Users className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Users className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Our Team
           </span>
           <h2 className="ca-section-title">Building CloudAct.ai</h2>
@@ -188,8 +197,8 @@ export default function AboutPage() {
       {/* Values Section */}
       <section className="ca-values-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Award className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Core Values
           </span>
           <h2 className="ca-section-title">What Drives Us Every Day</h2>
@@ -218,8 +227,8 @@ export default function AboutPage() {
       {/* Company Info */}
       <section className="ca-company-info-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <MessageCircle className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <MessageCircle className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Get in Touch
           </span>
           <h2 className="ca-section-title">Our Office</h2>
@@ -260,8 +269,8 @@ export default function AboutPage() {
       {/* Final CTA - Careers */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             We're Hiring
           </div>
           <h2 className="ca-final-cta-title">Join Us in Building the Future</h2>
@@ -270,11 +279,11 @@ export default function AboutPage() {
             cost intelligence accessible to everyone. Work on cutting-edge AI and make real impact.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/careers" className="ca-btn-cta-primary">
+            <Link href="/careers" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               View Open Positions
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/contact" className="ca-btn-cta-secondary">
+            <Link href="/contact" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Get in Touch
             </Link>
           </div>

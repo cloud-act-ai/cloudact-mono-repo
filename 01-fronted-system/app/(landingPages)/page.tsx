@@ -1,9 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { motion } from "framer-motion"
-import { ArrowRight, TrendingDown } from "lucide-react"
+import { ArrowRight, TrendingDown, Zap, Layers, BarChart3, Shield, Sparkles, Users, DollarSign } from "lucide-react"
 
 import { HeroDashboard } from "@/components/landing/hero-dashboard"
 import { HowItWorks } from "@/components/landing/how-it-works"
@@ -13,44 +12,32 @@ import { IntegrationsWall } from "@/components/landing/integrations-wall"
 import { Testimonials } from "@/components/landing/testimonials"
 
 // ============================================
-// HERO SECTION - Enterprise with Dashboard Preview
+// HERO SECTION - Enterprise H2O.ai Inspired
 // ============================================
 function HeroSection() {
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
-      {/* Pure white luminous background */}
-      <div className="absolute inset-0 bg-white" />
+    <section className="relative pt-8 pb-12 lg:pt-12 lg:pb-16 overflow-hidden bg-white">
+      {/* Premium mint radial glow - centered at top (like pricing page) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.15), transparent 70%)'
+        }}
+      />
 
-      {/* Subtle scientific grid */}
-      <div className="absolute inset-0" style={{
-        backgroundImage: `
-          linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px)
-        `,
-        backgroundSize: '40px 40px'
-      }} />
-
-      {/* Luminous center glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px]">
-        <div className="absolute inset-0 bg-gradient-radial from-white via-[#90FCA6]/8 to-transparent rounded-[100%] blur-[80px]" />
-      </div>
-
-      {/* Subtle mint glow */}
-      <div className="absolute top-20 left-[10%] w-[300px] h-[300px] bg-[#90FCA6]/10 rounded-full blur-[80px]" />
-
-      <div className="container relative z-10 px-4 mx-auto max-w-7xl py-16">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="container relative z-10 px-4 mx-auto max-w-7xl">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
 
           {/* LEFT - Content */}
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Powered by Google Badge */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.4 }}
               className="inline-flex"
             >
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-full shadow-lg shadow-slate-900/5">
+              <div className="flex items-center gap-2.5 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md transition-shadow cursor-default">
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -63,92 +50,101 @@ function HeroSection() {
 
             {/* Headline */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-slate-900 leading-[1.08] tracking-tight">
-                Built for the Modern Cloud
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] xl:text-[3.5rem] font-bold text-slate-900 leading-[1.1] tracking-tight">
+                Built for GenAI<br className="hidden sm:block" />
+                & Modern Cloud
               </h1>
             </motion.div>
 
-            {/* Value prop */}
+            {/* Value prop with secondary color accent */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-lg text-slate-600 leading-relaxed max-w-xl"
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="text-base lg:text-lg text-slate-600 leading-relaxed max-w-lg"
             >
-              Enterprise-grade cost intelligence with real-time analytics, intelligent anomaly detection, and beautiful visualizations. Track every dollar across AWS, GCP, Azure, OpenAI, Anthropic, and 50+ SaaS tools.
+              <strong className="text-slate-900">Track every LLM token and cloud resource.</strong>{" "}
+              Real-time GenAI cost analytics, intelligent anomaly detection, and unified cloud visibility.
             </motion.p>
 
-            {/* CTA Row */}
+            {/* CTA Row - Shining Buttons */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-wrap items-center gap-3 pt-2"
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="flex flex-wrap items-center gap-3 pt-1"
             >
+              {/* Primary Button - Mint */}
               <Link
                 href="/signup"
-                className="group inline-flex items-center h-12 px-7 text-sm font-semibold text-slate-900 bg-[#90FCA6] rounded-full hover:bg-[#7ee994] transition-all shadow-lg shadow-[#90FCA6]/25"
+                className="group relative inline-flex items-center h-11 px-6 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5"
+                style={{ backgroundColor: '#90FCA6' }}
               >
-                Get Started
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                <span className="relative flex items-center text-sm font-semibold" style={{ color: '#0f172a' }}>
+                  Get Started Free
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+                </span>
               </Link>
+
+              {/* Secondary Button - White with border */}
               <Link
                 href="/demo"
-                className="group inline-flex items-center h-12 px-7 text-sm font-semibold rounded-full hover:bg-slate-800 transition-all"
-                style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+                className="group relative inline-flex items-center h-11 px-6 rounded-lg overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}
               >
-                <span style={{ color: '#ffffff' }}>Watch Demo</span>
+                <span className="relative text-sm font-semibold" style={{ color: '#0f172a' }}>Request Demo</span>
               </Link>
             </motion.div>
 
-            {/* Trust row */}
+            {/* Trust indicators */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="flex flex-wrap items-center gap-5 pt-3"
+              transition={{ duration: 0.4, delay: 0.25 }}
+              className="flex flex-wrap items-center gap-4 pt-2 text-sm text-slate-500"
             >
-              {["No credit card", "5-min setup", "SOC 2 ready"].map((item, i) => (
-                <span key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                  {item}
-                </span>
-              ))}
+              <span>No credit card required</span>
+              <span className="w-1 h-1 rounded-full bg-slate-300" />
+              <span>5-minute setup</span>
+              <span className="w-1 h-1 rounded-full bg-slate-300" />
+              <span>SOC 2 compliant</span>
             </motion.div>
           </div>
 
-          {/* RIGHT - Dashboard with glow effect */}
+          {/* RIGHT - Dashboard Preview */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
             className="relative"
           >
-            {/* Glow behind dashboard */}
-            <div className="absolute -inset-4 bg-[#90FCA6]/15 rounded-2xl blur-2xl" />
+            {/* Subtle glow behind */}
+            <div className="absolute -inset-3 bg-gradient-to-br from-[#90FCA6]/20 via-transparent to-[#90FCA6]/10 rounded-2xl blur-xl" />
 
-            <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 shadow-2xl shadow-slate-900/15 bg-white">
+            {/* Dashboard card */}
+            <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-2xl shadow-slate-900/10 bg-white">
               <HeroDashboard />
             </div>
 
-            {/* Floating stat */}
+            {/* Floating stat badge */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 1, duration: 0.4 }}
-              className="absolute -bottom-4 -left-4 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl px-5 py-4 shadow-xl shadow-slate-900/10"
+              transition={{ delay: 0.8, duration: 0.3 }}
+              className="absolute -bottom-3 -left-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-lg"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <TrendingDown className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#90FCA6] to-emerald-500 flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-slate-900">-$12,450</div>
-                  <div className="text-xs text-slate-500 font-medium">saved this month</div>
+                  <div className="text-lg font-bold text-slate-900">-$12,450</div>
+                  <div className="text-xs text-slate-500">saved this month</div>
                 </div>
               </div>
             </motion.div>
@@ -157,15 +153,15 @@ function HeroSection() {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.8, duration: 0.3 }}
-              className="absolute -top-3 -right-3 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-full px-4 py-2 shadow-lg"
+              transition={{ delay: 0.6, duration: 0.25 }}
+              className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-md"
             >
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="text-xs font-semibold text-slate-700">Live Data</span>
+                <span className="text-xs font-medium text-slate-700">Live</span>
               </div>
             </motion.div>
           </motion.div>
@@ -175,56 +171,23 @@ function HeroSection() {
   )
 }
 
-// ============================================
-// LOGO CLOUD
-// ============================================
-function LogoCloud() {
-  const providers = [
-    { name: "AWS", src: "/logos/providers/aws.svg" },
-    { name: "Google Cloud", src: "/logos/providers/gcp.svg" },
-    { name: "Azure", src: "/logos/providers/azure.svg" },
-    { name: "OpenAI", src: "/logos/providers/openai.svg" },
-    { name: "Anthropic", src: "/logos/providers/anthropic.svg" },
-    { name: "Gemini", src: "/logos/providers/gemini.svg" },
-  ]
-
-  return (
-    <section className="py-8 bg-white">
-      <div className="container px-4 mx-auto max-w-5xl">
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Integrations</span>
-          {providers.map((p, i) => (
-            <Image
-              key={i}
-              src={p.src}
-              alt={p.name}
-              width={80}
-              height={24}
-              className="h-6 w-auto grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
 
 // ============================================
-// THREE PILLARS - No Icons
+// THREE PILLARS - Enterprise Cards
 // ============================================
 function ThreePillars() {
   const pillars = [
-    {
-      title: "Cloud Infrastructure",
-      providers: "AWS  •  GCP  •  Azure  •  OCI",
-      description: "Unified multi-cloud cost visibility with automatic tagging, anomaly detection, and FOCUS 1.3 compliance.",
-      features: ["Real-time cost tracking", "Reserved instance optimization", "Resource rightsizing"],
-    },
     {
       title: "GenAI & LLM Costs",
       providers: "OpenAI  •  Anthropic  •  Gemini  •  Bedrock",
       description: "Track every token and API call across all your AI providers with per-project attribution.",
       features: ["Per-token cost attribution", "Model cost comparison", "Usage forecasting"],
+    },
+    {
+      title: "Cloud Infrastructure",
+      providers: "AWS  •  GCP  •  Azure  •  OCI",
+      description: "Unified multi-cloud cost visibility with automatic tagging, anomaly detection, and FOCUS 1.3 compliance.",
+      features: ["Real-time cost tracking", "Reserved instance optimization", "Resource rightsizing"],
     },
     {
       title: "SaaS Subscriptions",
@@ -235,86 +198,68 @@ function ThreePillars() {
   ]
 
   return (
-    <section className="py-24 bg-slate-50">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <section className="relative py-16 lg:py-20 bg-white overflow-hidden">
+      {/* MINT radial gradient - alternating (Hero=MINT, Integrations=CORAL, ThreePillars=MINT) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.10), transparent 70%)'
+        }}
+      />
+      <div className="container relative z-10 mx-auto px-4 max-w-7xl">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center max-w-3xl mx-auto mb-16"
+          className="text-center max-w-2xl mx-auto mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
+          {/* Eyebrow badge - dark slate style (like Most Popular) */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            <Layers className="w-4 h-4" style={{ color: '#ffffff' }} />
+            <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Unified Platform</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
             All your spend. One platform.
           </h2>
-          <p className="text-xl text-slate-600">
+          <p className="text-lg text-slate-600">
             CloudAct unifies cost data from every corner of your infrastructure into a single source of truth.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           {pillars.map((pillar, i) => (
             <motion.div
               key={pillar.title}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="group relative bg-white rounded-2xl p-8 shadow-sm border border-slate-200 hover:shadow-xl hover:border-slate-300 transition-all duration-300"
+              transition={{ delay: i * 0.08 }}
+              className="group relative bg-white rounded-xl p-6 border border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 transition-all duration-300 cursor-pointer"
             >
-              <h3 className="text-xl font-bold text-slate-900 mb-2">{pillar.title}</h3>
-              <p className="text-sm text-slate-400 font-medium mb-4">{pillar.providers}</p>
-              <p className="text-slate-600 mb-6 leading-relaxed">{pillar.description}</p>
-              <ul className="space-y-3">
-                {pillar.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-3 text-sm text-slate-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/features"
-                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-slate-900 group-hover:text-slate-700 transition-colors"
-              >
-                Learn more
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
+              {/* Hover shine effect */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white via-[#90FCA6]/5 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-// ============================================
-// KEY CAPABILITIES - No Icons
-// ============================================
-function KeyCapabilities() {
-  const capabilities = [
-    { title: "AI Anomaly Detection", desc: "Catch spikes in <5 min" },
-    { title: "100% Cost Allocation", desc: "Auto-tag all resources" },
-    { title: "Enterprise Security", desc: "SSO, RBAC, SOC 2" },
-    { title: "Unit Economics", desc: "Cost per customer" },
-  ]
-
-  return (
-    <section className="py-10 bg-white border-y border-slate-100">
-      <div className="container px-4 mx-auto max-w-6xl">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {capabilities.map((cap, i) => (
-            <motion.div
-              key={cap.title}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
-              className="flex items-start gap-3"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0 mt-2" />
-              <div>
-                <div className="text-sm font-semibold text-slate-900">{cap.title}</div>
-                <div className="text-xs text-slate-500 mt-0.5">{cap.desc}</div>
+              <div className="relative">
+                <h3 className="text-lg font-bold text-slate-900 mb-1">{pillar.title}</h3>
+                <p className="text-xs text-slate-400 font-medium mb-3">{pillar.providers}</p>
+                <p className="text-slate-600 text-sm mb-5 leading-relaxed">{pillar.description}</p>
+                <ul className="space-y-2">
+                  {pillar.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-2 text-sm text-slate-600">
+                      <span className="w-1 h-1 rounded-full bg-slate-400 flex-shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-5 pt-4 border-t border-slate-100">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 group-hover:text-slate-700 transition-colors">
+                    Learn more
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -325,7 +270,41 @@ function KeyCapabilities() {
 }
 
 // ============================================
-// FEATURES GRID - No Icons
+// KEY CAPABILITIES
+// ============================================
+function KeyCapabilities() {
+  const capabilities = [
+    { title: "AI Anomaly Detection", desc: "Catch spikes in <5 min" },
+    { title: "100% Cost Allocation", desc: "Auto-tag all resources" },
+    { title: "Enterprise Security", desc: "SSO, RBAC, SOC 2" },
+    { title: "Unit Economics", desc: "Cost per customer" },
+  ]
+
+  return (
+    <section className="py-8 bg-white border-y border-slate-100">
+      <div className="container px-4 mx-auto max-w-5xl">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {capabilities.map((cap, i) => (
+            <motion.div
+              key={cap.title}
+              initial={{ opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.04 }}
+              className="text-center md:text-left"
+            >
+              <div className="text-sm font-semibold text-slate-900">{cap.title}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{cap.desc}</div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ============================================
+// FEATURES GRID - Clean Enterprise
 // ============================================
 function FeaturesGrid() {
   const features = [
@@ -356,34 +335,48 @@ function FeaturesGrid() {
   ]
 
   return (
-    <section className="py-24 bg-white">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <section className="relative py-16 lg:py-20 bg-white overflow-hidden">
+      {/* CORAL radial gradient - alternating (HowItWorks=MINT, FeaturesGrid=CORAL) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.08), transparent 70%)'
+        }}
+      />
+      <div className="container relative z-10 mx-auto px-4 max-w-7xl">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center max-w-3xl mx-auto mb-16"
+          className="text-center max-w-2xl mx-auto mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
+          {/* Eyebrow badge - dark slate style (like Most Popular) */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} />
+            <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Capabilities</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
             Everything you need to control costs
           </h2>
-          <p className="text-xl text-slate-600">
-            Purpose-built for engineering and finance teams who need visibility, not just reports.
+          <p className="text-lg text-slate-600">
+            <strong className="text-slate-900">Purpose-built</strong> for engineering and finance teams who need visibility, not just reports.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10">
           {features.map((feature, i) => (
             <motion.div
               key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
-              className="group"
+              transition={{ delay: i * 0.04 }}
             >
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">{feature.title}</h3>
-              <p className="text-slate-600 leading-relaxed">{feature.description}</p>
+              <h3 className="text-base font-semibold text-slate-900 mb-2">{feature.title}</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </div>
@@ -393,7 +386,7 @@ function FeaturesGrid() {
 }
 
 // ============================================
-// PRICING - Enterprise Ready
+// PRICING - Enterprise with Shining Buttons (MINT gradient)
 // ============================================
 function PricingSection() {
   const plans = [
@@ -441,77 +434,105 @@ function PricingSection() {
   ]
 
   return (
-    <section className="py-24 bg-slate-50">
-      <div className="container mx-auto px-4 max-w-6xl">
+    <section className="relative py-16 lg:py-20 bg-white overflow-hidden">
+      {/* CORAL radial gradient - alternating (FeatureTabs=MINT, Pricing=CORAL, Testimonials=MINT) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.08), transparent 70%)'
+        }}
+      />
+      <div className="container relative z-10 mx-auto px-4 max-w-5xl">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center max-w-2xl mx-auto mb-16"
+          className="text-center max-w-xl mx-auto mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">
+          {/* Eyebrow badge - dark slate style (like Most Popular) */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            <DollarSign className="w-4 h-4" style={{ color: '#ffffff' }} />
+            <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Pricing</span>
+            {/* Save 20% badge - mint accent */}
+            <span
+              className="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full"
+              style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}
+            >
+              Save 20%
+            </span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
             Simple, transparent pricing
           </h2>
-          <p className="text-xl text-slate-600">
-            14-day free trial. No credit card required.
+          <p className="text-lg text-slate-600">
+            14-day free trial. No credit card required. <strong className="text-slate-900">Pay annually and save 20%.</strong>
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-5">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: i * 0.08 }}
               className="relative"
             >
               {plan.highlighted && (
-                <div className="absolute -inset-[2px] bg-[#90FCA6] rounded-3xl" />
+                <div className="absolute -inset-[1px] bg-[#90FCA6] rounded-2xl" />
               )}
-              <div className={`relative h-full flex flex-col p-8 rounded-3xl bg-white ${
+              <div className={`relative h-full flex flex-col p-6 rounded-2xl bg-white ${
                 !plan.highlighted && "border border-slate-200"
               }`}>
                 {plan.highlighted && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-slate-900 text-white text-sm font-semibold rounded-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-slate-900 text-white text-xs font-semibold rounded-full">
                     Most Popular
                   </div>
                 )}
 
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-slate-900 mb-1">{plan.name}</h3>
+                <div className="mb-5">
+                  <h3 className="text-lg font-bold text-slate-900 mb-0.5">{plan.name}</h3>
                   <p className="text-slate-500 text-sm">{plan.description}</p>
                 </div>
 
-                <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-5xl font-bold text-slate-900">{plan.price}</span>
-                  <span className="text-slate-500">/mo</span>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
+                  <span className="text-slate-500 text-sm">/mo</span>
                 </div>
 
-                <ul className="space-y-4 mb-8 flex-grow">
+                <ul className="space-y-3 mb-6 flex-grow">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3 text-slate-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
+                    <li key={feature} className="flex items-center gap-2 text-slate-600 text-sm">
+                      <span className="w-1 h-1 rounded-full bg-slate-400 flex-shrink-0" />
                       {feature}
                     </li>
                   ))}
                 </ul>
 
-                {/* Buttons - Mint for highlighted, Black for others */}
+                {/* Button */}
                 <Link
                   href="/signup"
-                  className={`w-full inline-flex items-center justify-center h-12 rounded-full text-base font-semibold transition-all ${
-                    plan.highlighted
-                      ? "bg-[#90FCA6] hover:bg-[#7ee994] shadow-lg shadow-[#90FCA6]/25"
-                      : "hover:bg-slate-800"
+                  className={`group relative w-full inline-flex items-center justify-center h-11 rounded-lg overflow-hidden transition-all duration-200 hover:-translate-y-0.5 ${
+                    plan.highlighted ? "hover:shadow-lg hover:shadow-[#90FCA6]/30" : "hover:shadow-md"
                   }`}
-                  style={{
-                    backgroundColor: plan.highlighted ? '#90FCA6' : '#0f172a',
-                    color: plan.highlighted ? '#0f172a' : '#ffffff'
-                  }}
+                  style={plan.highlighted
+                    ? { backgroundColor: '#90FCA6' }
+                    : { backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }
+                  }
                 >
-                  <span style={{ color: plan.highlighted ? '#0f172a' : '#ffffff' }}>Get Started</span>
+                  {plan.highlighted && (
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  )}
+                  <span
+                    className="relative text-sm font-semibold"
+                    style={{ color: '#0f172a' }}
+                  >
+                    Get Started
+                  </span>
                 </Link>
               </div>
             </motion.div>
@@ -522,9 +543,9 @@ function PricingSection() {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="mt-12 text-center"
+          className="mt-10 text-center"
         >
-          <p className="text-slate-600">
+          <p className="text-slate-600 text-sm">
             Need more? <Link href="/contact" className="font-semibold text-slate-900 hover:underline">Contact us for Enterprise pricing</Link>
           </p>
         </motion.div>
@@ -534,51 +555,66 @@ function PricingSection() {
 }
 
 // ============================================
-// FINAL CTA
+// FINAL CTA - Dark with Luminous Glow
 // ============================================
 function FinalCTA() {
   return (
-    <section className="py-20 bg-slate-900 text-white relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#90FCA6]/10 rounded-full blur-[100px]" />
+    <section className="py-16 lg:py-20 bg-slate-900 text-white relative overflow-hidden">
+      {/* Luminous glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[250px] bg-[#90FCA6]/8 rounded-full blur-[80px]" />
 
-      <div className="container px-4 mx-auto max-w-4xl relative z-10">
+      <div className="container px-4 mx-auto max-w-3xl relative z-10">
         <div className="text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-5">
+            {/* Eyebrow badge - mint style on dark bg for contrast */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+              style={{ backgroundColor: '#90FCA6' }}
+            >
+              <Zap className="w-4 h-4" style={{ color: '#0f172a' }} />
+              <span className="text-xs font-semibold" style={{ color: '#0f172a' }}>Get Started</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
               Start saving on cloud costs today
             </h2>
-            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-10">
-              Join engineering teams saving 35% on average. 14-day free trial.
+            <p className="text-base text-slate-400 max-w-md mx-auto mb-8">
+              Join engineering teams <strong className="text-white">saving 35% on average</strong>. 14-day free trial.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+              {/* Primary CTA - Mint */}
               <Link
                 href="/signup"
-                className="group inline-flex items-center justify-center h-12 px-8 text-sm font-semibold text-slate-900 bg-[#90FCA6] rounded-full hover:bg-[#7ee994] transition-all shadow-lg shadow-[#90FCA6]/25"
+                className="group relative inline-flex items-center justify-center h-11 px-6 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5"
+                style={{ backgroundColor: '#90FCA6' }}
               >
-                Get Started
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                <span className="relative flex items-center text-sm font-semibold" style={{ color: '#0f172a' }}>
+                  Get Started Free
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+                </span>
               </Link>
+
+              {/* Secondary CTA - White button */}
               <Link
                 href="/demo"
-                className="inline-flex items-center justify-center h-12 px-8 text-sm font-semibold border-2 border-white/30 rounded-full hover:bg-white/10 transition-all"
-                style={{ color: '#ffffff' }}
+                className="group relative inline-flex items-center justify-center h-11 px-6 rounded-lg overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                style={{ backgroundColor: '#ffffff' }}
               >
-                <span style={{ color: '#ffffff' }}>Schedule Demo</span>
+                <span className="relative text-sm font-semibold" style={{ color: '#0f172a' }}>Schedule Demo</span>
               </Link>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-              {["No credit card", "5-min setup", "Cancel anytime"].map((item, i) => (
-                <span key={i} className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                  {item}
-                </span>
-              ))}
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-slate-500">
+              <span>No credit card</span>
+              <span className="w-1 h-1 rounded-full bg-slate-600" />
+              <span>5-min setup</span>
+              <span className="w-1 h-1 rounded-full bg-slate-600" />
+              <span>Cancel anytime</span>
             </div>
           </motion.div>
         </div>
@@ -594,28 +630,91 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <HeroSection />
-      <LogoCloud />
+      <IntegrationsWall />
       <ThreePillars />
       <KeyCapabilities />
 
-      <section className="py-16 bg-slate-50">
-        <ProductScreenshots />
+      {/* Product Screenshots Section - CORAL gradient */}
+      <section className="relative py-12 lg:py-16 bg-white overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.08), transparent 70%)'
+          }}
+        />
+        <div className="container relative z-10 px-4 mx-auto max-w-7xl">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-8"
+          >
+            {/* Eyebrow badge - dark slate style (like Most Popular) */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+              style={{ backgroundColor: '#0f172a' }}
+            >
+              <BarChart3 className="w-4 h-4" style={{ color: '#ffffff' }} />
+              <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Product Tour</span>
+            </div>
+          </motion.div>
+          <ProductScreenshots />
+        </div>
       </section>
 
-      <section className="py-16 bg-white">
-        <HowItWorks />
+      {/* How It Works Section - MINT gradient */}
+      <section className="relative py-12 lg:py-16 bg-white overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.12), transparent 70%)'
+          }}
+        />
+        <div className="container relative z-10 px-4 mx-auto max-w-7xl">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-8"
+          >
+            {/* Eyebrow badge - dark slate style (like Most Popular) */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+              style={{ backgroundColor: '#0f172a' }}
+            >
+              <Zap className="w-4 h-4" style={{ color: '#ffffff' }} />
+              <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Quick Setup</span>
+            </div>
+          </motion.div>
+          <HowItWorks />
+        </div>
       </section>
 
       <FeaturesGrid />
 
-      <section className="py-16 bg-slate-50">
-        <div className="container px-4 mx-auto max-w-6xl">
+      {/* Feature Tabs Section - MINT gradient (alternating: FeaturesGrid=CORAL, FeatureTabs=MINT) */}
+      <section className="relative py-12 lg:py-16 bg-white overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.10), transparent 70%)'
+          }}
+        />
+        <div className="container relative z-10 px-4 mx-auto max-w-6xl">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
+            {/* Eyebrow badge - dark slate style (like Most Popular) */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+              style={{ backgroundColor: '#0f172a' }}
+            >
+              <Shield className="w-4 h-4" style={{ color: '#ffffff' }} />
+              <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Deep Analytics</span>
+            </div>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
               Go deeper than the bill
             </h2>
@@ -624,17 +723,31 @@ export default function Home() {
         </div>
       </section>
 
-      <IntegrationsWall />
       <PricingSection />
 
-      <section className="py-16 bg-white">
-        <div className="container px-4 mx-auto max-w-6xl">
+      {/* Testimonials Section - MINT gradient */}
+      <section className="relative py-12 lg:py-16 bg-white overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.10), transparent 70%)'
+          }}
+        />
+        <div className="container relative z-10 px-4 mx-auto max-w-6xl">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
+            {/* Eyebrow badge - dark slate style (like Most Popular) */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+              style={{ backgroundColor: '#0f172a' }}
+            >
+              <Users className="w-4 h-4" style={{ color: '#ffffff' }} />
+              <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Testimonials</span>
+            </div>
             <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
               Trusted by engineering teams
             </h2>

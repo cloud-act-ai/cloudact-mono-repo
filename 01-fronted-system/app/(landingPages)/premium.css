@@ -3267,23 +3267,27 @@ a:focus-visible {
 }
 
 .ca-hero-highlight-genai {
-  color: var(--ca-coral);
+  color: #FF6C5E !important; /* Coral - landing page standard */
 }
 
 .ca-hero-highlight-cloud {
-  color: var(--ca-blue);
+  color: #FF6C5E !important; /* Coral - landing page standard */
 }
 
 .ca-hero-highlight-saas {
-  color: var(--ca-purple);
+  color: #FF6C5E !important; /* Coral - landing page standard */
+}
+
+.ca-hero-highlight-coral {
+  color: #FF6C5E !important; /* Coral - landing page standard */
 }
 
 .ca-hero-highlight-indigo {
-  color: var(--cloudact-indigo, #4f46e5);
+  color: #FF6C5E !important; /* Coral - landing page standard */
 }
 
 .ca-hero-highlight-mint {
-  color: var(--cloudact-mint-text, #0f5132);
+  color: #FF6C5E !important; /* Coral - landing page standard */
 }
 
 /* Subheadline */
@@ -3325,8 +3329,8 @@ a:focus-visible {
   align-items: center;
   gap: var(--space-2);
   padding: 16px 32px;
-  background: var(--ca-mint);
-  color: #000000;
+  background: #90FCA6 !important; /* Mint - landing page standard */
+  color: #0f172a !important; /* Dark text */
   font-size: 1rem;
   font-weight: 600;
   border-radius: var(--radius-xl);
@@ -3336,7 +3340,7 @@ a:focus-visible {
 }
 
 .ca-btn-hero-primary:hover {
-  background: var(--ca-mint-dark);
+  background: #7af098 !important; /* Slightly darker mint */
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(144, 252, 166, 0.4);
 }
@@ -3346,19 +3350,20 @@ a:focus-visible {
   align-items: center;
   gap: var(--space-2);
   padding: 16px 28px;
-  background: var(--ca-white);
-  color: var(--ca-gray-700);
+  background: #ffffff !important; /* White - clean Apple-style */
+  color: #0f172a !important; /* Dark text */
   font-size: 1rem;
   font-weight: 500;
-  border: 1px solid var(--ca-gray-200);
+  border: 1px solid #e2e8f0 !important;
   border-radius: var(--radius-xl);
   text-decoration: none;
   transition: all 0.2s var(--ease-out);
 }
 
 .ca-btn-hero-secondary:hover {
-  background: var(--ca-gray-50);
-  border-color: var(--ca-gray-300);
+  background: #f8fafc !important; /* Subtle gray on hover */
+  border-color: #cbd5e1 !important;
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
@@ -3824,12 +3829,12 @@ a:focus-visible {
   align-items: center;
   gap: var(--space-2);
   padding: 6px 16px;
-  background: var(--ca-white);
-  border: 1px solid var(--ca-gray-200);
+  background: #0f172a; /* Dark slate - landing page standard */
+  border: none;
   border-radius: var(--radius-full);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--ca-gray-700);
+  color: #ffffff; /* White text - landing page standard */
   margin-bottom: var(--space-6);
   box-shadow: var(--shadow-sm);
 }
@@ -3845,7 +3850,7 @@ a:focus-visible {
 .ca-section-eyebrow svg {
   width: 14px;
   height: 14px;
-  color: var(--ca-gray-900);
+  color: #ffffff; /* White icon - landing page standard */
 }
 
 /* Plain eyebrow without background (for sections that already have a pill elsewhere) */
@@ -4809,17 +4814,21 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  background: var(--ca-white);
+  background: #90FCA6; /* Mint - for contrast on dark CTA sections */
   padding: 8px 20px;
   border-radius: var(--radius-full);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--ca-gray-900);
+  color: #0f172a; /* Dark text */
   margin-bottom: var(--space-8);
-  border: 1px solid var(--ca-gray-200);
+  border: none;
   box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 10;
+}
+
+.ca-final-cta-badge svg {
+  color: #0f172a !important;
 }
 
 .ca-final-cta-title {
@@ -15622,19 +15631,29 @@ a:focus-visible {
   background-clip: text;
 }
 
-/* Keep the original individual color highlights subtle */
+/* Hero highlights - use CORAL for emphasis (landing page standard) */
 .ca-hero-highlight-genai {
-  color: var(--ca-gray-900);
+  color: #FF6C5E !important;
   font-weight: 700;
 }
 
 .ca-hero-highlight-cloud {
-  color: var(--ca-gray-900);
+  color: #FF6C5E !important;
   font-weight: 700;
 }
 
 .ca-hero-highlight-saas {
-  color: var(--ca-gray-900);
+  color: #FF6C5E !important;
+  font-weight: 700;
+}
+
+.ca-hero-highlight-coral {
+  color: #FF6C5E !important;
+  font-weight: 700;
+}
+
+.ca-hero-highlight-mint {
+  color: #FF6C5E !important;
   font-weight: 700;
 }
 
@@ -15706,13 +15725,15 @@ a:focus-visible {
   color: var(--ca-gray-900) !important; /* #111827 - softer than black */
 }
 
-/* Section eyebrows - use mint dark */
+/* Section eyebrows - dark slate bg with white text (landing page standard) */
 .ca-section-eyebrow {
-  color: var(--ca-mint-dark) !important; /* #6EE890 */
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border: none !important;
 }
 
 .ca-section-eyebrow svg {
-  color: var(--ca-mint-dark) !important;
+  color: #ffffff !important;
 }
 
 /* Collaboration section title */
@@ -15845,13 +15866,15 @@ a:focus-visible {
    Section titles/eyebrows = Coral or Gray-900
    ============================================ */
 
-/* Section eyebrows - use CORAL, not mint */
+/* Section eyebrows - dark slate bg with white text (landing page standard) */
 .ca-section-eyebrow {
-  color: var(--ca-coral) !important; /* #FF6C5E */
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border: none !important;
 }
 
 .ca-section-eyebrow svg {
-  color: var(--ca-coral) !important;
+  color: #ffffff !important;
 }
 
 /* Collab link on hover - use coral */

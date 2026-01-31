@@ -109,14 +109,14 @@ export default async function OrgRootRedirectPage({
             {/* Operations */}
             <Link
               href={`/${orgSlug}/dashboard/operations`}
-              className="group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#FF6E50]/30 hover:shadow-sm transition-all"
+              className="group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-[var(--cloudact-coral)]/30 hover:shadow-sm transition-all"
             >
-              <div className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-[#FF6E50] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-[var(--cloudact-coral)] opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="flex items-start justify-between mb-3">
-                <div className="h-11 w-11 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-                  <Zap className="h-5 w-5 text-[#FF6E50]" />
+                <div className="h-11 w-11 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-[var(--cloudact-coral)]" />
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#FF6E50] transition-colors" />
+                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
               </div>
               <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Operations</h3>
               <p className="text-[13px] text-slate-500 leading-relaxed">
@@ -182,12 +182,12 @@ export default async function OrgRootRedirectPage({
             {/* GenAI Providers */}
             <Link
               href={`/${orgSlug}/integrations/genai`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#FF6E50]/30 hover:shadow-sm transition-all"
+              className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[var(--cloudact-coral)]/30 hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-                    <Brain className="h-6 w-6 text-[#FF6E50]" />
+                  <div className="h-12 w-12 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+                    <Brain className="h-6 w-6 text-[var(--cloudact-coral)]" />
                   </div>
                   <div>
                     <h3 className="text-[15px] font-semibold text-slate-900">GenAI Providers</h3>
@@ -204,7 +204,7 @@ export default async function OrgRootRedirectPage({
                       Not configured
                     </span>
                   )}
-                  <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#FF6E50] transition-colors" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
                 </div>
               </div>
             </Link>

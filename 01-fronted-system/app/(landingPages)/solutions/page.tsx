@@ -1,5 +1,4 @@
-"use client"
-
+import { Metadata } from "next"
 import Link from "next/link"
 import {
   ArrowRight,
@@ -25,9 +24,18 @@ import {
   AlertTriangle,
   Briefcase,
   Award,
-  Rocket,
 } from "lucide-react"
 import "../premium.css"
+
+export const metadata: Metadata = {
+  title: "Solutions | CloudAct.ai - Cost Intelligence for Every Team",
+  description: "Purpose-built cost solutions for FinOps, Engineering, Finance, and DevOps teams. Solve visibility, budget, and optimization challenges.",
+  openGraph: {
+    title: "Solutions | CloudAct.ai",
+    description: "Cost intelligence solutions for every team and challenge.",
+    type: "website",
+  },
+}
 
 // Role-based solutions data
 const ROLE_SOLUTIONS = [
@@ -192,24 +200,24 @@ export default function SolutionsPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Puzzle className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Puzzle className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Solutions
           </div>
           <h1 className="ca-page-hero-title">
             Built for How You{" "}
-            <span className="ca-hero-highlight-coral">Actually Work</span>
+            <span style={{ color: '#FF6C5E' }}>Actually Work</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Whether you're a FinOps engineer optimizing costs, a CFO managing budgets, or a developer
             building GenAI features - we have the right solution for your workflow.
           </p>
           <div className="ca-page-hero-actions">
-            <Link href="/signup" className="ca-btn-hero-primary">
+            <Link href="/signup" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/contact" className="ca-btn-hero-secondary">
+            <Link href="/contact" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Talk to Sales
             </Link>
           </div>
@@ -219,8 +227,8 @@ export default function SolutionsPage() {
       {/* Solutions by Role */}
       <section className="ca-solutions-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <UserCog className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <UserCog className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             By Role
           </span>
           <h2 className="ca-section-title">Every Role, Perfectly Supported</h2>
@@ -260,8 +268,8 @@ export default function SolutionsPage() {
       {/* Solutions by Challenge */}
       <section className="ca-challenges-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             By Challenge
           </span>
           <h2 className="ca-section-title">Solve Your Biggest Cost Challenges</h2>
@@ -308,8 +316,8 @@ export default function SolutionsPage() {
       {/* Use Cases */}
       <section className="ca-usecases-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Briefcase className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Briefcase className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Use Cases
           </span>
           <h2 className="ca-section-title">How Teams Use CloudAct.ai</h2>
@@ -334,8 +342,8 @@ export default function SolutionsPage() {
       {/* Industry Solutions */}
       <section className="ca-industry-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Building2 className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Building2 className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             By Industry
           </span>
           <h2 className="ca-section-title">Trusted Across Industries</h2>
@@ -384,11 +392,11 @@ export default function SolutionsPage() {
         </div>
       </section>
 
-      {/* Why CloudAct */}
-      <section className="ca-why-section ca-section-gray">
+      {/* Why CloudAct - Removed ca-section-gray, using white with brand gradient */}
+      <section className="ca-why-section" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)' }}>
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Award className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Why CloudAct.ai
           </span>
           <h2 className="ca-section-title">The Platform Advantage</h2>
@@ -430,11 +438,11 @@ export default function SolutionsPage() {
             Start your free 14-day trial. No credit card required. Setup in 5 minutes.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/contact" className="ca-btn-cta-secondary">
+            <Link href="/contact" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Talk to Sales
             </Link>
           </div>

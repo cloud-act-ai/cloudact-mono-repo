@@ -121,19 +121,19 @@ export default function CareersPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Briefcase className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Briefcase className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Careers
           </div>
           <h1 className="ca-page-hero-title">
-            Build the Future of <span className="ca-hero-highlight-mint">FinOps</span>
+            Build the Future of <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>FinOps</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Join our mission to help companies optimize their cloud and GenAI spending.
             We're a remote-first team building the next generation of cost intelligence.
           </p>
           <div className="ca-hero-cta-group">
-            <a href="#positions" className="ca-btn-hero-primary">
+            <a href="#positions" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               View Open Positions
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
@@ -166,8 +166,8 @@ export default function CareersPage() {
       {/* Values Section */}
       <section className="ca-careers-values-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Target className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Target className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Our Values
           </span>
           <h2 className="ca-section-title">What drives us</h2>
@@ -190,8 +190,8 @@ export default function CareersPage() {
       {/* Benefits Section */}
       <section className="ca-careers-benefits-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Heart className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Heart className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Benefits
           </span>
           <h2 className="ca-section-title">Taking care of our team</h2>
@@ -219,8 +219,8 @@ export default function CareersPage() {
       {/* Open Positions Section */}
       <section id="positions" className="ca-careers-positions-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Users className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Users className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Open Positions
           </span>
           <h2 className="ca-section-title">Join our team</h2>
@@ -261,8 +261,8 @@ export default function CareersPage() {
         {/* No positions fallback message */}
         <div className="ca-careers-general-apply">
           <p>Don't see a role that fits? We're always interested in hearing from talented people.</p>
-          <Link href="/careers/apply?position=General%20Application" className="ca-btn-outline-dark">
-            <Mail className="w-4 h-4" aria-hidden="true" />
+          <Link href="/careers/apply?position=General%20Application" className="ca-btn-outline-dark" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
+            <Mail className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Submit General Application
           </Link>
         </div>
@@ -276,11 +276,11 @@ export default function CareersPage() {
             Join a team that's helping companies save millions on their cloud and AI costs.
           </p>
           <div className="ca-final-cta-buttons">
-            <a href="#positions" className="ca-btn-cta-primary">
+            <a href="#positions" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               View Open Positions
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
-            <Link href="/about" className="ca-btn-cta-secondary">
+            <Link href="/about" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Learn About Us
             </Link>
           </div>

@@ -28,8 +28,7 @@ export function HowItWorks() {
   ]
 
   return (
-    <section className="py-24 bg-slate-50">
-      <div className="container px-4 mx-auto max-w-7xl">
+    <div className="container px-4 mx-auto max-w-7xl">
         {/* Header */}
         <div className="text-center mb-16">
           <motion.div
@@ -94,6 +93,5 @@ export function HowItWorks() {
           ))}
         </div>
       </div>
-    </section>
   )
 }

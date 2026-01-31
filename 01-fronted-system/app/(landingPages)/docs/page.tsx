@@ -160,8 +160,8 @@ export default function DocsPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Book className="w-4 h-4" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Book className="w-4 h-4" style={{ color: '#ffffff' }} />
             Documentation
           </div>
           <h1 className="ca-page-hero-title">
@@ -172,11 +172,11 @@ export default function DocsPage() {
             Everything you need to integrate CloudAct.ai. Guides, API reference, SDKs, and best practices.
           </p>
           <div className="ca-hero-buttons">
-            <Link href="/docs/quick-start" className="ca-btn-hero-primary">
+            <Link href="/docs/quick-start" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Quick Start Guide
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href="/docs/api/reference" className="ca-btn-hero-secondary">
+            <Link href="/docs/api/reference" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               API Reference
             </Link>
           </div>
@@ -186,8 +186,8 @@ export default function DocsPage() {
       {/* Quick Start */}
       <section className="ca-docs-quickstart-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Zap className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Zap className="w-4 h-4" style={{ color: '#ffffff' }} />
             Get Started
           </span>
           <h2 className="ca-section-title">Quick Start Guides</h2>
@@ -248,7 +248,7 @@ export default function DocsPage() {
           </div>
 
           <div className="ca-docs-api-cta">
-            <Link href="/docs/api/reference" className="ca-btn-hero-secondary">
+            <Link href="/docs/api/reference" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Full API Reference
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -262,8 +262,8 @@ export default function DocsPage() {
           <div className="ca-docs-sdk-icon">
             <Code className="w-8 h-8" />
           </div>
-          <span className="ca-section-eyebrow">
-            <Code className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Code className="w-4 h-4" style={{ color: '#ffffff' }} />
             SDKs & Libraries
           </span>
           <h2 className="ca-section-title">Official SDKs</h2>
@@ -291,8 +291,8 @@ export default function DocsPage() {
       {/* Documentation Categories */}
       <section className="ca-docs-categories-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <FileCode className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <FileCode className="w-4 h-4" style={{ color: '#ffffff' }} />
             Browse Documentation
           </span>
           <h2 className="ca-section-title">Documentation Categories</h2>
@@ -331,8 +331,8 @@ export default function DocsPage() {
       {/* Additional Resources */}
       <section className="ca-docs-resources-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <ExternalLink className="w-4 h-4" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <ExternalLink className="w-4 h-4" style={{ color: '#ffffff' }} />
             Resources
           </span>
           <h2 className="ca-section-title">Additional Resources</h2>
@@ -363,8 +363,8 @@ export default function DocsPage() {
       {/* Final CTA */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} />
             Need Help?
           </div>
           <h2 className="ca-final-cta-title">Can't Find What You're Looking For?</h2>
@@ -372,11 +372,11 @@ export default function DocsPage() {
             Our support team is here to help. Contact us or visit our help center for assistance.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/help" className="ca-btn-cta-primary">
+            <Link href="/help" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Visit Help Center
               <ArrowRight className="w-5 h-5" />
             </Link>
-            <Link href="/contact" className="ca-btn-cta-secondary">
+            <Link href="/contact" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Contact Support
             </Link>
           </div>

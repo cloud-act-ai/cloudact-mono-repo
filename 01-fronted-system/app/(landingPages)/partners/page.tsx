@@ -73,23 +73,23 @@ export default function PartnersPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Handshake className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Handshake className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Partner Program
           </div>
           <h1 className="ca-page-hero-title">
-            Grow with <span className="ca-hero-highlight-mint">CloudAct</span>
+            Grow with <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>CloudAct</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Join our partner ecosystem and help enterprises optimize their cloud and GenAI costs.
             Reseller, technology, and consulting partnership opportunities.
           </p>
           <div className="ca-hero-cta-group">
-            <Link href="/contact?type=partnership" className="ca-btn-hero-primary">
+            <Link href="/contact?type=partnership" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Become a Partner
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/contact" className="ca-btn-hero-secondary">
+            <Link href="/contact" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Contact Us
             </Link>
           </div>
@@ -100,8 +100,8 @@ export default function PartnersPage() {
       <section className="ca-section-white">
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <Building2 className="w-4 h-4" aria-hidden="true" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <Building2 className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
               Partnership Types
             </span>
             <h2 className="ca-section-title">Choose your partnership path</h2>
@@ -146,8 +146,8 @@ export default function PartnersPage() {
       <section className="ca-section-gray">
         <div className="ca-section-container">
           <div className="ca-section-header-centered">
-            <span className="ca-section-eyebrow">
-              <Award className="w-4 h-4" aria-hidden="true" />
+            <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+              <Award className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
               Partner Benefits
             </span>
             <h2 className="ca-section-title">Why partner with CloudAct.ai?</h2>
@@ -178,7 +178,7 @@ export default function PartnersPage() {
             <p className="ca-partner-contact-desc">
               Get in touch with our partnerships team to discuss how we can work together.
             </p>
-            <Link href="/contact?type=partnership" className="ca-btn-hero-primary" style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+            <Link href="/contact?type=partnership" className="ca-btn-hero-primary" style={{ display: "inline-flex", gap: "8px", alignItems: "center", backgroundColor: '#90FCA6', color: '#0f172a' }}>
               <Mail className="w-5 h-5" aria-hidden="true" />
               Contact Partnerships Team
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -195,11 +195,11 @@ export default function PartnersPage() {
             Partner with the leading FinOps platform and help enterprises optimize their cloud costs.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/contact?type=partnership" className="ca-btn-cta-primary">
+            <Link href="/contact?type=partnership" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Become a Partner
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/about" className="ca-btn-cta-secondary">
+            <Link href="/about" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Learn About Us
             </Link>
           </div>

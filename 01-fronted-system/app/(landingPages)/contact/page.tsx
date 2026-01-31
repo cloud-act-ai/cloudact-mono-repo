@@ -466,11 +466,11 @@ export default function ContactPage() {
             Join teams already saving with CloudAct.ai. Start your free trial today.
           </p>
           <div className="ca-final-cta-buttons">
-            <Link href="/signup" className="ca-btn-cta-primary">
+            <Link href="/signup" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Start Free Trial
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </Link>
-            <Link href="/pricing" className="ca-btn-cta-secondary">
+            <Link href="/pricing" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               View Pricing
             </Link>
           </div>

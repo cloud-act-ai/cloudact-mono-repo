@@ -3,14 +3,14 @@ import Link from "next/link"
 import {
   Users,
   MessageSquare,
-  Github,
-  Twitter,
-  Linkedin,
   ArrowRight,
   Sparkles,
   Calendar,
   BookOpen,
   Award,
+  Code,
+  AtSign,
+  Briefcase,
 } from "lucide-react"
 import "../premium.css"
 
@@ -39,7 +39,7 @@ const COMMUNITY_CHANNELS = [
     color: "purple",
   },
   {
-    icon: Github,
+    icon: Code,
     title: "GitHub Discussions",
     description: "Participate in technical discussions, feature requests, and bug reports",
     members: "500+",
@@ -48,7 +48,7 @@ const COMMUNITY_CHANNELS = [
     color: "mint",
   },
   {
-    icon: Twitter,
+    icon: AtSign,
     title: "Twitter/X",
     description: "Follow us for the latest updates, tips, and cloud cost insights",
     members: "3,500+",
@@ -57,7 +57,7 @@ const COMMUNITY_CHANNELS = [
     color: "blue",
   },
   {
-    icon: Linkedin,
+    icon: Briefcase,
     title: "LinkedIn",
     description: "Connect with us for professional updates and industry insights",
     members: "2,800+",
@@ -96,23 +96,23 @@ export default function CommunityPage() {
       {/* Hero Section */}
       <section className="ca-page-hero">
         <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <Users className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Users className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Community
           </div>
           <h1 className="ca-page-hero-title">
             Join Our{" "}
-            <span className="ca-hero-highlight-mint">Community</span>
+            <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>Community</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Connect with cloud cost optimization experts, share best practices, and get help from the CloudAct.ai community.
           </p>
           <div className="ca-hero-buttons">
-            <a href="https://discord.gg/cloudact" target="_blank" rel="noopener noreferrer" className="ca-btn-hero-primary">
+            <a href="https://discord.gg/cloudact" target="_blank" rel="noopener noreferrer" className="ca-btn-hero-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Join Discord
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
-            <Link href="/resources" className="ca-btn-hero-secondary">
+            <Link href="/resources" className="ca-btn-hero-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Browse Resources
             </Link>
           </div>
@@ -122,8 +122,8 @@ export default function CommunityPage() {
       {/* Community Channels */}
       <section className="ca-community-channels-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <MessageSquare className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <MessageSquare className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Connect With Us
           </span>
           <h2 className="ca-section-title">Community Channels</h2>
@@ -164,8 +164,8 @@ export default function CommunityPage() {
       {/* Benefits Section */}
       <section className="ca-community-benefits-section">
         <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <Award className="w-4 h-4" aria-hidden="true" />
+          <span className="ca-section-eyebrow" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
+            <Award className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Why Join
           </span>
           <h2 className="ca-section-title">Community Benefits</h2>
@@ -190,8 +190,8 @@ export default function CommunityPage() {
       {/* Final CTA */}
       <section className="ca-final-cta-section">
         <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <div className="ca-final-cta-badge" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
+            <Sparkles className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Ready to Connect?
           </div>
           <h2 className="ca-final-cta-title">Join the CloudAct.ai Community Today</h2>
@@ -199,11 +199,11 @@ export default function CommunityPage() {
             Get started by joining our Discord server or following us on social media.
           </p>
           <div className="ca-final-cta-buttons">
-            <a href="https://discord.gg/cloudact" target="_blank" rel="noopener noreferrer" className="ca-btn-cta-primary">
+            <a href="https://discord.gg/cloudact" target="_blank" rel="noopener noreferrer" className="ca-btn-cta-primary" style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}>
               Join Discord
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </a>
-            <Link href="/contact" className="ca-btn-cta-secondary">
+            <Link href="/contact" className="ca-btn-cta-secondary" style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}>
               Contact Us
             </Link>
           </div>

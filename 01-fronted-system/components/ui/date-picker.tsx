@@ -163,7 +163,7 @@ export function DatePicker({
               disabled={disabled}
               className={cn(
                 "pr-16",
-                inputError && "border-[#FF6E50] focus-visible:ring-[#FF6E50]"
+                inputError && "border-[var(--cloudact-coral)] focus-visible:ring-[var(--cloudact-coral)]"
               )}
             />
             {/* Clear button */}
@@ -171,7 +171,7 @@ export function DatePicker({
               <button
                 type="button"
                 onClick={handleClear}
-                className="absolute right-10 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[#FF6E50] transition-colors p-1"
+                className="absolute right-10 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[var(--cloudact-coral)] transition-colors p-1"
                 aria-label="Clear date"
               >
                 <X className="h-4 w-4" />
@@ -274,7 +274,7 @@ export function DatePicker({
 
       {/* Error message */}
       {inputError && (
-        <p className="text-xs text-[#FF6E50] mt-1">{inputError}</p>
+        <p className="text-xs text-[var(--cloudact-coral)] mt-1">{inputError}</p>
       )}
 
       {/* Selected date display */}

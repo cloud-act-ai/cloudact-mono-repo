@@ -44,7 +44,7 @@ export function SecuritySection() {
 
 function ComplianceBadge({ label, icon }: { label: string, icon: any }) {
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-lg hover:border-emerald-200 hover:bg-white transition-all duration-300 group">
+    <div className="flex flex-col items-center justify-center p-8 bg-white border border-slate-200 rounded-xl hover:shadow-lg hover:border-emerald-200 transition-all duration-300 group">
        <div className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-3">
          {icon}
        </div>

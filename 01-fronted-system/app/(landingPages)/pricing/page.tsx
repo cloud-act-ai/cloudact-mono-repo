@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Check, ArrowRight, Zap, Shield, Users, Loader2, Clock, DollarSign, HelpCircle, Rocket } from "lucide-react"
+import { Check, ArrowRight, Loader2, Clock, Shield, DollarSign, HelpCircle, Rocket } from "lucide-react"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 import "../premium.css"
 
@@ -40,14 +40,6 @@ const FAQS = [
   },
 ]
 
-// Plan icons based on plan name
-const getPlanIcon = (planName: string) => {
-  const name = planName.toLowerCase()
-  if (name.includes("starter") || name.includes("free")) return Zap
-  if (name.includes("pro") || name.includes("professional")) return Shield
-  if (name.includes("enterprise") || name.includes("business") || name.includes("scale")) return Users
-  return Zap
-}
 
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly")
@@ -91,18 +83,36 @@ export default function PricingPage() {
 
   return (
     <div className="ca-landing-page">
-      {/* Hero Section */}
-      <section className="ca-page-hero">
-        <div className="ca-page-hero-content">
-          <div className="ca-section-eyebrow">
-            <DollarSign className="w-4 h-4" aria-hidden="true" />
-            Pricing
+      {/* Hero Section - MINT gradient (like home page hero) */}
+      <section className="ca-page-hero relative overflow-hidden">
+        {/* MINT radial gradient background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.15), transparent 70%)'
+          }}
+        />
+        <div className="ca-page-hero-content relative z-10">
+          {/* Eyebrow badge - dark slate style (like Most Popular) */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            <DollarSign className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
+            <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>Pricing</span>
+            <span
+              className="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full"
+              style={{ backgroundColor: '#90FCA6', color: '#0f172a' }}
+            >
+              Save 20%
+            </span>
           </div>
           <h1 className="ca-page-hero-title">
-            Simple, <span className="ca-hero-highlight-mint">Transparent</span> Pricing
+            Simple, <span style={{ color: '#FF6C5E' }}>Transparent</span> Pricing
           </h1>
           <p className="ca-page-hero-subtitle">
-            Start optimizing your cloud costs today. 14-day free trial on all plans. No credit card required.
+            <span style={{ color: '#FF6C5E', fontWeight: 500 }}>Start optimizing your cloud costs today.</span>{" "}
+            14-day free trial on all plans. No credit card required.
           </p>
 
           {/* Billing Toggle */}
@@ -124,7 +134,12 @@ export default function PricingPage() {
               className={`ca-billing-btn ${billingPeriod === "annual" ? "ca-billing-btn-active" : ""}`}
             >
               Annual
-              <span className="ca-billing-badge">Save 20%</span>
+              <span
+                className="ml-2 px-2 py-0.5 text-[10px] font-bold rounded-full uppercase"
+                style={{ backgroundColor: 'rgba(144, 252, 166, 0.3)', color: '#0f5132' }}
+              >
+                Save 20%
+              </span>
             </button>
           </div>
           {billingPeriod === "annual" && getAnnualSavings() && (
@@ -135,9 +150,16 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Pricing Cards */}
-      <section className="ca-pricing-section">
-        <div className="ca-pricing-container">
+      {/* Pricing Cards - CORAL gradient (alternating from hero MINT) */}
+      <section className="ca-pricing-section relative overflow-hidden">
+        {/* CORAL radial gradient background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 108, 94, 0.08), transparent 70%)'
+          }}
+        />
+        <div className="ca-pricing-container relative z-10">
           {isLoading ? (
             <div className="ca-pricing-loading" role="status" aria-label="Loading pricing plans" aria-busy="true">
               <Loader2 className="w-8 h-8 animate-spin ca-icon-mint" aria-hidden="true" />
@@ -160,7 +182,6 @@ export default function PricingPage() {
           ) : (
             <div className="ca-pricing-grid-premium">
               {displayPlans.map((plan) => {
-                const Icon = getPlanIcon(plan.name)
                 const isHighlighted = plan.name.toLowerCase().includes("pro")
 
                 return (
@@ -169,13 +190,15 @@ export default function PricingPage() {
                     className={`ca-pricing-card-premium ${isHighlighted ? "ca-pricing-card-featured" : ""}`}
                   >
                     {isHighlighted && (
-                      <div className="ca-pricing-badge-premium">Most Popular</div>
+                      <div
+                        className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap"
+                        style={{ backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }}
+                      >
+                        Most Popular
+                      </div>
                     )}
 
                     <div className="ca-pricing-header">
-                      <div className="ca-pricing-icon-premium">
-                        <Icon className="w-6 h-6" aria-hidden="true" />
-                      </div>
                       <h3 className="ca-pricing-name-premium">{plan.name}</h3>
                       <p className="ca-pricing-desc-premium">{plan.description}</p>
                     </div>
@@ -231,9 +254,6 @@ export default function PricingPage() {
               {/* Enterprise Card */}
               <div className="ca-pricing-card-premium">
                 <div className="ca-pricing-header">
-                  <div className="ca-pricing-icon-premium ca-pricing-icon-enterprise">
-                    <Users className="w-6 h-6" aria-hidden="true" />
-                  </div>
                   <h3 className="ca-pricing-name-premium">Enterprise</h3>
                   <p className="ca-pricing-desc-premium">Custom solutions for large organizations</p>
                 </div>
@@ -278,20 +298,34 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="ca-faq-section">
-        <div className="ca-section-header-centered">
-          <span className="ca-section-eyebrow">
-            <HelpCircle className="w-4 h-4" aria-hidden="true" />
-            FAQ
-          </span>
-          <h2 className="ca-section-title">Frequently Asked Questions</h2>
+      {/* FAQ Section - MINT gradient (alternating: Hero=MINT, Pricing=CORAL, FAQ=MINT) */}
+      <section className="ca-faq-section relative overflow-hidden">
+        {/* MINT radial gradient background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(144, 252, 166, 0.12), transparent 70%)'
+          }}
+        />
+        <div className="ca-section-header-centered relative z-10">
+          {/* Eyebrow badge - dark slate style (like Most Popular) */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm mb-4"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            <HelpCircle className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
+            <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>FAQ</span>
+          </div>
+          <h2 className="ca-section-title">
+            Frequently Asked <span style={{ color: '#FF6C5E' }}>Questions</span>
+          </h2>
           <p className="ca-section-subtitle">
-            Everything you need to know about our pricing and plans
+            <span style={{ color: '#FF6C5E', fontWeight: 500 }}>Everything you need to know</span>{" "}
+            about our pricing and plans
           </p>
         </div>
 
-        <div className="ca-faq-container" role="region" aria-label="Frequently Asked Questions">
+        <div className="ca-faq-container relative z-10" role="region" aria-label="Frequently Asked Questions">
           {FAQS.map((faq, index) => (
             <div
               key={faq.question}
@@ -318,7 +352,7 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <div className="ca-faq-cta">
+        <div className="ca-faq-cta relative z-10">
           <p>Still have questions?</p>
           <Link href="/contact" className="ca-btn-hero-secondary">
             Contact Our Team
@@ -326,16 +360,24 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="ca-final-cta-section">
-        <div className="ca-final-cta-container">
-          <div className="ca-final-cta-badge">
-            <Rocket className="w-4 h-4" aria-hidden="true" />
-            Start Optimizing Today
+      {/* Final CTA - DARK section (like home page) */}
+      <section className="ca-final-cta-section relative overflow-hidden">
+        <div className="ca-final-cta-container relative z-10">
+          {/* Eyebrow badge - mint style on dark bg for contrast */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+            style={{ backgroundColor: '#90FCA6' }}
+          >
+            <Rocket className="w-4 h-4" style={{ color: '#0f172a' }} aria-hidden="true" />
+            <span className="text-xs font-semibold" style={{ color: '#0f172a' }}>Start Optimizing Today</span>
           </div>
-          <h2 className="ca-final-cta-title">Ready to Optimize Your Cloud Costs?</h2>
+          <h2 className="ca-final-cta-title">
+            Ready to <span style={{ color: '#FF6C5E' }}>Optimize</span> Your Cloud Costs?
+          </h2>
           <p className="ca-final-cta-subtitle">
-            Join teams already saving with CloudAct.ai. Get started in minutes with our 14-day free trial.
+            Join teams{" "}
+            <span style={{ color: '#FF6C5E', fontWeight: 500 }}>already saving with CloudAct.ai</span>.
+            Get started in minutes with our 14-day free trial.
           </p>
           <div className="ca-final-cta-buttons">
             <Link href="/signup" className="ca-btn-cta-primary">

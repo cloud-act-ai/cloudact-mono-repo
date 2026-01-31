@@ -236,7 +236,7 @@ export default function InvitePage() {
 
           {inviteData?.isExpired && (
             <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6C5E]">
-              <Clock className="h-4 w-4 text-[#FF6E50]" />
+              <Clock className="h-4 w-4 text-[var(--cloudact-coral)]" />
               <AlertDescription className="text-[#FF6C5E]">
                 This invite has expired. Please ask the organization owner for a new invite.
               </AlertDescription>

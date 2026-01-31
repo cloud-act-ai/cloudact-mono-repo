@@ -26,14 +26,14 @@ import * as __fd_glob_12 from "../content/docs/integrations/subscriptions.mdx?co
 import * as __fd_glob_11 from "../content/docs/integrations/index.mdx?collection=docs"
 import * as __fd_glob_10 from "../content/docs/integrations/genai-providers.mdx?collection=docs"
 import * as __fd_glob_9 from "../content/docs/integrations/cloud-providers.mdx?collection=docs"
-import * as __fd_glob_8 from "../content/docs/cost-analytics/subscription-costs.mdx?collection=docs"
-import * as __fd_glob_7 from "../content/docs/cost-analytics/index.mdx?collection=docs"
-import * as __fd_glob_6 from "../content/docs/cost-analytics/genai-costs.mdx?collection=docs"
-import * as __fd_glob_5 from "../content/docs/cost-analytics/cloud-costs.mdx?collection=docs"
-import * as __fd_glob_4 from "../content/docs/dashboard/index.mdx?collection=docs"
-import * as __fd_glob_3 from "../content/docs/getting-started/quickstart.mdx?collection=docs"
-import * as __fd_glob_2 from "../content/docs/getting-started/index.mdx?collection=docs"
-import * as __fd_glob_1 from "../content/docs/getting-started/account-setup.mdx?collection=docs"
+import * as __fd_glob_8 from "../content/docs/getting-started/quickstart.mdx?collection=docs"
+import * as __fd_glob_7 from "../content/docs/getting-started/index.mdx?collection=docs"
+import * as __fd_glob_6 from "../content/docs/getting-started/account-setup.mdx?collection=docs"
+import * as __fd_glob_5 from "../content/docs/dashboard/index.mdx?collection=docs"
+import * as __fd_glob_4 from "../content/docs/cost-analytics/subscription-costs.mdx?collection=docs"
+import * as __fd_glob_3 from "../content/docs/cost-analytics/index.mdx?collection=docs"
+import * as __fd_glob_2 from "../content/docs/cost-analytics/genai-costs.mdx?collection=docs"
+import * as __fd_glob_1 from "../content/docs/cost-analytics/cloud-costs.mdx?collection=docs"
 import * as __fd_glob_0 from "../content/docs/index.mdx?collection=docs"
 import { server } from 'fumadocs-mdx/runtime/server';
 import type * as Config from '../source.config';
@@ -43,6 +43,6 @@ const create = server<typeof Config, import("fumadocs-mdx/runtime/types").Intern
   }
 }>({"doc":{"passthroughs":["extractedReferences"]}});
 
-export const docs = await create.doc("docs", "content/docs", {"index.mdx": __fd_glob_0, "getting-started/account-setup.mdx": __fd_glob_1, "getting-started/index.mdx": __fd_glob_2, "getting-started/quickstart.mdx": __fd_glob_3, "dashboard/index.mdx": __fd_glob_4, "cost-analytics/cloud-costs.mdx": __fd_glob_5, "cost-analytics/genai-costs.mdx": __fd_glob_6, "cost-analytics/index.mdx": __fd_glob_7, "cost-analytics/subscription-costs.mdx": __fd_glob_8, "integrations/cloud-providers.mdx": __fd_glob_9, "integrations/genai-providers.mdx": __fd_glob_10, "integrations/index.mdx": __fd_glob_11, "integrations/subscriptions.mdx": __fd_glob_12, "notifications/index.mdx": __fd_glob_13, "org-settings/billing.mdx": __fd_glob_14, "org-settings/hierarchy.mdx": __fd_glob_15, "org-settings/index.mdx": __fd_glob_16, "org-settings/organization.mdx": __fd_glob_17, "org-settings/quota-usage.mdx": __fd_glob_18, "org-settings/team-members.mdx": __fd_glob_19, "personal-settings/index.mdx": __fd_glob_20, "personal-settings/profile.mdx": __fd_glob_21, "personal-settings/security.mdx": __fd_glob_22, "pipelines/cloud-runs.mdx": __fd_glob_23, "pipelines/genai-runs.mdx": __fd_glob_24, "pipelines/index.mdx": __fd_glob_25, "pipelines/subscription-runs.mdx": __fd_glob_26, });
+export const docs = await create.doc("docs", "content/docs", {"index.mdx": __fd_glob_0, "cost-analytics/cloud-costs.mdx": __fd_glob_1, "cost-analytics/genai-costs.mdx": __fd_glob_2, "cost-analytics/index.mdx": __fd_glob_3, "cost-analytics/subscription-costs.mdx": __fd_glob_4, "dashboard/index.mdx": __fd_glob_5, "getting-started/account-setup.mdx": __fd_glob_6, "getting-started/index.mdx": __fd_glob_7, "getting-started/quickstart.mdx": __fd_glob_8, "integrations/cloud-providers.mdx": __fd_glob_9, "integrations/genai-providers.mdx": __fd_glob_10, "integrations/index.mdx": __fd_glob_11, "integrations/subscriptions.mdx": __fd_glob_12, "notifications/index.mdx": __fd_glob_13, "org-settings/billing.mdx": __fd_glob_14, "org-settings/hierarchy.mdx": __fd_glob_15, "org-settings/index.mdx": __fd_glob_16, "org-settings/organization.mdx": __fd_glob_17, "org-settings/quota-usage.mdx": __fd_glob_18, "org-settings/team-members.mdx": __fd_glob_19, "personal-settings/index.mdx": __fd_glob_20, "personal-settings/profile.mdx": __fd_glob_21, "personal-settings/security.mdx": __fd_glob_22, "pipelines/cloud-runs.mdx": __fd_glob_23, "pipelines/genai-runs.mdx": __fd_glob_24, "pipelines/index.mdx": __fd_glob_25, "pipelines/subscription-runs.mdx": __fd_glob_26, });
 
 export const meta = await create.meta("meta", "content/docs", {"meta.json": __fd_glob_27, "cost-analytics/meta.json": __fd_glob_28, "dashboard/meta.json": __fd_glob_29, "getting-started/meta.json": __fd_glob_30, "integrations/meta.json": __fd_glob_31, "notifications/meta.json": __fd_glob_32, "org-settings/meta.json": __fd_glob_33, "personal-settings/meta.json": __fd_glob_34, "pipelines/meta.json": __fd_glob_35, });
