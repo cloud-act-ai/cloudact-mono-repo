@@ -38,9 +38,11 @@ fi
 case "$ENV" in
     test|stage)
         PROJECT_ID="cloudact-testing-1"
+        FULL_ENV="staging"
         ;;
     prod)
         PROJECT_ID="cloudact-prod"
+        FULL_ENV="production"
         ;;
     *)
         echo -e "${RED}ERROR: Invalid environment: $ENV${NC}"
@@ -122,7 +124,7 @@ create_job() {
             --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
             --command="python" \
             --args="$SCRIPT_PATH" \
-            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${ENV}" \
+            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
             --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest" \
             --service-account="$SERVICE_ACCOUNT" \
             --task-timeout="$TIMEOUT" \
@@ -137,8 +139,55 @@ create_job() {
             --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
             --command="python" \
             --args="$SCRIPT_PATH" \
-            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${ENV}" \
+            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
             --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest" \
+            --service-account="$SERVICE_ACCOUNT" \
+            --task-timeout="$TIMEOUT" \
+            --memory="$MEMORY" \
+            --cpu="$CPU" \
+            --max-retries=1 \
+            --quiet
+    fi
+
+    echo -e "${GREEN}  ✓ Job created: $JOB_NAME${NC}"
+}
+
+# Special function for supabase-migrate job (needs SUPABASE_ACCESS_TOKEN secret)
+create_supabase_migrate_job() {
+    local JOB_NAME="cloudact-supabase-migrate"
+    local SCRIPT_PATH="jobs/supabase_migrate.py"
+    local TIMEOUT="15m"
+    local MEMORY="2Gi"
+    local CPU="1"
+
+    echo ""
+    echo -e "${YELLOW}Creating job: $JOB_NAME${NC}"
+
+    # Delete existing job if exists
+    if gcloud run jobs describe "$JOB_NAME" --region="$REGION" &>/dev/null; then
+        echo "  Updating existing job..."
+        gcloud run jobs update "$JOB_NAME" \
+            --region="$REGION" \
+            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
+            --command="python" \
+            --args="$SCRIPT_PATH" \
+            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
+            --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,SUPABASE_ACCESS_TOKEN=supabase-access-token-${ENV}:latest" \
+            --service-account="$SERVICE_ACCOUNT" \
+            --task-timeout="$TIMEOUT" \
+            --memory="$MEMORY" \
+            --cpu="$CPU" \
+            --max-retries=1 \
+            --quiet
+    else
+        echo "  Creating new job..."
+        gcloud run jobs create "$JOB_NAME" \
+            --region="$REGION" \
+            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
+            --command="python" \
+            --args="$SCRIPT_PATH" \
+            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
+            --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,SUPABASE_ACCESS_TOKEN=supabase-access-token-${ENV}:latest" \
             --service-account="$SERVICE_ACCOUNT" \
             --task-timeout="$TIMEOUT" \
             --memory="$MEMORY" \
@@ -206,6 +255,9 @@ create_job "cloudact-org-sync-all" \
     "60m" \
     "4Gi" \
     "2"
+
+# Supabase migrate job (requires SUPABASE_ACCESS_TOKEN secret)
+create_supabase_migrate_job
 
 # =============================================================================
 # Create Scheduled Jobs

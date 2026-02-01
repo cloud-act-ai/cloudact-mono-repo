@@ -28,6 +28,9 @@ COPY 02-api-service/configs ./configs
 # Copy job scripts
 COPY 05-scheduler-jobs/jobs ./jobs
 
+# Copy Supabase migration files (for supabase_migrate job)
+COPY 01-fronted-system/scripts/supabase_db/*.sql ./migrations/supabase_db/
+
 # Build args
 ARG TARGET_ENV=local
 ARG VERSION=unknown
