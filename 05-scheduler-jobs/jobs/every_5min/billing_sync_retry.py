@@ -37,16 +37,18 @@ async def main():
         sys.exit(1)
 
     # Environment config
-    environment = os.environ.get("ENVIRONMENT", "test")
+    environment = os.environ.get("ENVIRONMENT", "staging")
     cron_secret = os.environ.get("CRON_SECRET", "")
 
-    # Frontend URL based on environment
+    # Frontend URL based on environment (support both short and full names)
     frontend_urls = {
         "test": "https://cloudact-frontend-test-553917282712.us-central1.run.app",
-        "stage": "https://cloudact-frontend-stage-553917282712.us-central1.run.app",
-        "prod": "https://cloudact.ai"
+        "stage": "https://cloudact-frontend-test-553917282712.us-central1.run.app",
+        "staging": "https://cloudact-frontend-test-553917282712.us-central1.run.app",
+        "prod": "https://cloudact.ai",
+        "production": "https://cloudact.ai",
     }
-    frontend_url = os.environ.get("FRONTEND_URL", frontend_urls.get(environment, frontend_urls["test"]))
+    frontend_url = os.environ.get("FRONTEND_URL", frontend_urls.get(environment, frontend_urls["staging"]))
 
     print(f"Environment:  {environment}")
     print(f"Frontend URL: {frontend_url}")

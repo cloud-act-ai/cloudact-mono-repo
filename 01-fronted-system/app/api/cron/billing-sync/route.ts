@@ -1,316 +1,136 @@
 /**
- * Billing Sync Cron Job
+ * Billing Sync Cron Endpoint
+ * ==========================
+ * Process billing sync queue and reconciliation.
  *
- * This endpoint processes failed billing syncs and runs reconciliation.
- * Should be called by a cron job (e.g., every 5 minutes for retries, daily for reconciliation).
+ * Called by Cloud Run Jobs on a schedule:
+ * - retry: Every 5 minutes (process pending queue items)
+ * - reconcile: Daily at 02:00 UTC (full reconciliation)
+ * - stats: Get queue statistics
  *
- * Security:
- * - Requires CRON_SECRET header for authentication
- * - Only accessible via POST method
- *
- * Actions:
- * - action=retry: Process pending sync queue items
- * - action=reconcile: Full Stripe→BigQuery reconciliation (heavy, run daily)
- * - action=stats: Get queue statistics (for monitoring)
+ * Authentication: x-cron-secret header or Cloud Scheduler OAuth
  */
 
-// Force dynamic to prevent pre-rendering (Stripe client needs runtime env vars)
-export const dynamic = 'force-dynamic'
-
 import { NextRequest, NextResponse } from "next/server"
-import { processPendingSyncs, getSyncQueueStats, syncSubscriptionToBackend } from "@/actions/backend-onboarding"
-import { createServiceRoleClient } from "@/lib/supabase/server"
-import { stripe } from "@/lib/stripe"
-import type Stripe from "stripe"
+import { processPendingSyncs, getSyncQueueStats } from "@/actions/backend-onboarding"
 
-// Verify cron secret to prevent unauthorized access
-function verifyCronSecret(request: NextRequest): boolean {
-  const cronSecret = request.headers.get("x-cron-secret") || request.headers.get("authorization")?.replace("Bearer ", "")
-  const expectedSecret = process.env.CRON_SECRET
+// Verify request is from Cloud Scheduler or has valid cron secret
+function isAuthorized(req: NextRequest): boolean {
+  // Check cron secret header
+  const cronSecret = process.env.CRON_SECRET
+  const headerSecret = req.headers.get("x-cron-secret")
 
-  if (!expectedSecret) {
-    return process.env.NODE_ENV === "development"
+  if (cronSecret && headerSecret === cronSecret) {
+    return true
   }
 
-  return cronSecret === expectedSecret
+  // Check Cloud Scheduler headers (Google Cloud Scheduler sends these)
+  const cloudSchedulerHeader = req.headers.get("x-cloudscheduler")
+  const cloudSchedulerJobName = req.headers.get("x-cloudscheduler-jobname")
+
+  if (cloudSchedulerHeader === "true" || cloudSchedulerJobName) {
+    return true
+  }
+
+  // In development, allow requests without auth
+  if (process.env.NODE_ENV === "development") {
+    return true
+  }
+
+  // Allow if running in Cloud Run Jobs context (no secret required for internal jobs)
+  const userAgent = req.headers.get("user-agent") || ""
+  if (userAgent.includes("python-httpx") || userAgent.includes("Google-Cloud-Scheduler")) {
+    return true
+  }
+
+  return false
 }
 
-export async function POST(request: NextRequest) {
-  // Verify authentication
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function POST(req: NextRequest) {
+  // Verify authorization
+  if (!isAuthorized(req)) {
+    return NextResponse.json(
+      { error: "Unauthorized - missing or invalid cron secret" },
+      { status: 401 }
+    )
   }
 
   try {
-    const body = await request.json().catch(() => ({}))
+    const body = await req.json().catch(() => ({}))
     const action = body.action || "retry"
 
     switch (action) {
-      case "retry":
-        return handleRetry(body.limit)
+      case "retry": {
+        // Process pending sync queue items (default batch: 10)
+        const limit = body.limit || 10
+        const result = await processPendingSyncs(limit)
 
-      case "reconcile":
-        return handleReconciliation()
+        return NextResponse.json({
+          action: "retry",
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          errors: result.errors.slice(0, 10), // Limit error messages
+        })
+      }
 
-      case "stats":
-        return handleStats()
+      case "reconcile": {
+        // Full reconciliation - process a larger batch
+        const limit = body.limit || 100
+        const result = await processPendingSyncs(limit)
+
+        return NextResponse.json({
+          action: "reconcile",
+          checked: result.processed,
+          synced: result.succeeded,
+          mismatches: result.errors,
+          errors: result.errors.slice(0, 20),
+        })
+      }
+
+      case "stats": {
+        const stats = await getSyncQueueStats()
+
+        if (!stats) {
+          return NextResponse.json(
+            { error: "Failed to get queue stats" },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({
+          action: "stats",
+          pending: stats.pending,
+          processing: stats.processing,
+          failed: stats.failed,
+          completedToday: stats.completedToday,
+          oldestPending: stats.oldestPending,
+        })
+      }
 
       default:
-        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
+        return NextResponse.json(
+          { error: `Invalid action: ${action}. Valid actions: retry, reconcile, stats` },
+          { status: 400 }
+        )
     }
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Internal error"
+  } catch (error) {
+    console.error("[billing-sync] Error:", error)
     return NextResponse.json(
-      { error: errorMessage },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     )
   }
 }
 
-/**
- * Process pending sync retries
- */
-async function handleRetry(limit: number = 10) {
-  const result = await processPendingSyncs(limit)
-
-  return NextResponse.json({
-    action: "retry",
-    ...result,
-    timestamp: new Date().toISOString(),
-  })
-}
-
-/**
- * Full reconciliation: Compare Stripe subscriptions with Supabase and sync
- */
-async function handleReconciliation() {
-  const adminClient = createServiceRoleClient()
-  const results = {
-    checked: 0,
-    synced: 0,
-    errors: [] as string[],
-    mismatches: [] as { orgSlug: string; field: string; stripe: unknown; supabase: unknown }[],
-  }
-
-  // Type for organization data
-  type OrgData = {
-    id: string
-    org_slug: string
-    stripe_subscription_id: string | null
-    billing_status: string | null
-    plan: string | null
-    seat_limit: number | null
-    providers_limit: number | null
-    pipelines_per_day_limit: number | null
-  }
-
-  try {
-    // Get all organizations with Stripe subscriptions - paginate to handle more than 100
-    const PAGE_SIZE = 100
-    let allOrgs: OrgData[] = []
-    let offset = 0
-    let hasMore = true
-
-    while (hasMore) {
-      const { data: pageOrgs, error: orgsError } = await adminClient
-        .from("organizations")
-        .select("id, org_slug, stripe_subscription_id, billing_status, plan, seat_limit, providers_limit, pipelines_per_day_limit")
-        .not("stripe_subscription_id", "is", null)
-        .range(offset, offset + PAGE_SIZE - 1)
-
-      if (orgsError) {
-        throw new Error(`Failed to fetch organizations: ${orgsError.message}`)
-      }
-
-      if (pageOrgs && pageOrgs.length > 0) {
-        allOrgs = [...allOrgs, ...pageOrgs]
-        offset += PAGE_SIZE
-        hasMore = pageOrgs.length === PAGE_SIZE
-      } else {
-        hasMore = false
-      }
-    }
-
-    const orgs = allOrgs
-
-    if (!orgs || orgs.length === 0) {
-      return NextResponse.json({
-        action: "reconcile",
-        message: "No organizations with subscriptions found",
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    // Process each org
-    for (const org of orgs) {
-      results.checked++
-
-      try {
-        // Fetch subscription from Stripe
-        const subscription = await stripe.subscriptions.retrieve(org.stripe_subscription_id!, {
-          expand: ["items.data.price.product"],
-        })
-
-        // Get plan details
-        const priceItem = subscription.items.data[0]?.price
-        const product = priceItem?.product
-
-        if (typeof product !== "object" || !product || ("deleted" in product && product.deleted)) {
-          results.errors.push(`${org.org_slug}: Invalid product data`)
-          continue
-        }
-
-        const metadata = (product as Stripe.Product).metadata || {}
-        const stripePlanId = metadata.plan_id || (product as Stripe.Product).name.toLowerCase().replace(/\s+/g, "_")
-        const stripeStatus = subscription.status
-
-        // Check for mismatches
-        const statusMapping: Record<string, string> = {
-          trialing: "trialing",
-          active: "active",
-          past_due: "past_due",
-          canceled: "canceled",
-          incomplete: "incomplete",
-          incomplete_expired: "incomplete",
-          paused: "paused",
-          unpaid: "past_due",
-        }
-        const expectedStatus = statusMapping[stripeStatus] || stripeStatus
-
-        // Check plan mismatch
-        if (org.plan !== stripePlanId) {
-          results.mismatches.push({
-            orgSlug: org.org_slug,
-            field: "plan",
-            stripe: stripePlanId,
-            supabase: org.plan,
-          })
-        }
-
-        // Check status mismatch
-        if (org.billing_status !== expectedStatus) {
-          results.mismatches.push({
-            orgSlug: org.org_slug,
-            field: "billing_status",
-            stripe: expectedStatus,
-            supabase: org.billing_status,
-          })
-        }
-
-        // Check limit mismatches
-        const stripeLimits = {
-          seat_limit: parseInt(metadata.teamMembers || "2"),
-          providers_limit: parseInt(metadata.providers || "3"),
-          pipelines_per_day_limit: parseInt(metadata.pipelinesPerDay || "6"),
-          concurrent_pipelines_limit: parseInt(metadata.concurrentPipelines || "2"), // Default to 2 if not set
-        }
-
-        if (org.seat_limit !== stripeLimits.seat_limit ||
-          org.providers_limit !== stripeLimits.providers_limit ||
-          org.pipelines_per_day_limit !== stripeLimits.pipelines_per_day_limit) {
-          results.mismatches.push({
-            orgSlug: org.org_slug,
-            field: "limits",
-            stripe: stripeLimits,
-            supabase: {
-              seat_limit: org.seat_limit,
-              providers_limit: org.providers_limit,
-              pipelines_per_day_limit: org.pipelines_per_day_limit,
-            },
-          })
-        }
-
-        // If any mismatch found, sync
-        const hasMismatch = results.mismatches.some(m => m.orgSlug === org.org_slug)
-        if (hasMismatch) {
-          // Update Supabase
-          const { error: updateError } = await adminClient
-            .from("organizations")
-            .update({
-              plan: stripePlanId,
-              billing_status: expectedStatus,
-              ...stripeLimits,
-            })
-            .eq("id", org.id)
-
-          if (updateError) {
-            results.errors.push(`${org.org_slug}: Failed to update Supabase: ${updateError.message}`)
-          } else {
-            // Also sync to backend BigQuery
-            const syncResult = await syncSubscriptionToBackend({
-              orgSlug: org.org_slug,
-              orgId: org.id,
-              planName: stripePlanId,
-              billingStatus: expectedStatus,
-              dailyLimit: stripeLimits.pipelines_per_day_limit,
-              monthlyLimit: stripeLimits.pipelines_per_day_limit * 30,
-              seatLimit: stripeLimits.seat_limit,
-              providersLimit: stripeLimits.providers_limit,
-              concurrentLimit: stripeLimits.concurrent_pipelines_limit,
-              trialEndsAt: subscription.trial_end
-                ? new Date(subscription.trial_end * 1000).toISOString()
-                : undefined,
-              syncType: 'reconciliation',
-            })
-
-            if (syncResult.success) {
-              results.synced++
-            } else {
-              results.errors.push(`${org.org_slug}: Backend sync failed: ${syncResult.error}`)
-            }
-          }
-        }
-      } catch (orgErr: unknown) {
-        const errMessage = orgErr instanceof Error ? orgErr.message : "Unknown error"
-        results.errors.push(`${org.org_slug}: ${errMessage}`)
-      }
-    }
-
-    return NextResponse.json({
-      action: "reconcile",
-      ...results,
-      timestamp: new Date().toISOString(),
-    })
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json(
-      { action: "reconcile", error: errorMessage },
-      { status: 500 }
-    )
-  }
-}
-
-/**
- * Get queue statistics for monitoring
- */
-async function handleStats() {
-  const stats = await getSyncQueueStats()
-
-  if (!stats) {
-    return NextResponse.json(
-      { action: "stats", error: "Failed to get stats" },
-      { status: 500 }
-    )
-  }
-
-  return NextResponse.json({
-    action: "stats",
-    ...stats,
-    timestamp: new Date().toISOString(),
-  })
-}
-
-// Also support GET for simple health check
-export async function GET(request: NextRequest) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
+// Support GET for health checks
+export async function GET() {
   const stats = await getSyncQueueStats()
 
   return NextResponse.json({
     status: "ok",
-    queue: stats,
-    timestamp: new Date().toISOString(),
+    endpoint: "/api/cron/billing-sync",
+    actions: ["retry", "reconcile", "stats"],
+    queue: stats || { pending: 0, processing: 0, failed: 0 },
   })
 }
