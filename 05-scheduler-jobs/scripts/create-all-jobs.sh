@@ -101,6 +101,9 @@ fi
 # Job Definitions
 # =============================================================================
 
+# Image name for jobs (uses dedicated jobs image with job scripts included)
+IMAGE_NAME="cloudact-jobs-${ENV}"
+
 create_job() {
     local JOB_NAME="$1"
     local SCRIPT_PATH="$2"
@@ -116,7 +119,7 @@ create_job() {
         echo "  Updating existing job..."
         gcloud run jobs update "$JOB_NAME" \
             --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/cloudact-api-service-${ENV}:latest" \
+            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
             --command="python" \
             --args="$SCRIPT_PATH" \
             --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${ENV}" \
@@ -131,7 +134,7 @@ create_job() {
         echo "  Creating new job..."
         gcloud run jobs create "$JOB_NAME" \
             --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/cloudact-api-service-${ENV}:latest" \
+            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
             --command="python" \
             --args="$SCRIPT_PATH" \
             --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${ENV}" \
@@ -185,21 +188,21 @@ echo "============================================================"
 
 # Bootstrap job
 create_job "cloudact-bootstrap" \
-    "05-scheduler-jobs/jobs/bootstrap.py" \
+    "jobs/bootstrap.py" \
     "30m" \
     "4Gi" \
     "2"
 
 # Bootstrap sync job
 create_job "cloudact-bootstrap-sync" \
-    "05-scheduler-jobs/jobs/bootstrap_sync.py" \
+    "jobs/bootstrap_sync.py" \
     "30m" \
     "4Gi" \
     "2"
 
 # Org sync all job
 create_job "cloudact-org-sync-all" \
-    "05-scheduler-jobs/jobs/org_sync_all.py" \
+    "jobs/org_sync_all.py" \
     "60m" \
     "4Gi" \
     "2"
@@ -215,7 +218,7 @@ echo "============================================================"
 
 # Daily quota reset (00:00 UTC)
 create_job "cloudact-quota-reset-daily" \
-    "05-scheduler-jobs/jobs/quota_reset_daily.py" \
+    "jobs/quota_reset_daily.py" \
     "15m" \
     "2Gi" \
     "1"
@@ -227,7 +230,7 @@ create_scheduler "cloudact-quota-reset-daily-trigger" \
 
 # Monthly quota reset (00:05 UTC on 1st)
 create_job "cloudact-quota-reset-monthly" \
-    "05-scheduler-jobs/jobs/quota_reset_monthly.py" \
+    "jobs/quota_reset_monthly.py" \
     "15m" \
     "2Gi" \
     "1"
@@ -239,7 +242,7 @@ create_scheduler "cloudact-quota-reset-monthly-trigger" \
 
 # Stale cleanup (every 15 minutes)
 create_job "cloudact-stale-cleanup" \
-    "05-scheduler-jobs/jobs/stale_cleanup.py" \
+    "jobs/stale_cleanup.py" \
     "10m" \
     "2Gi" \
     "1"
@@ -251,7 +254,7 @@ create_scheduler "cloudact-stale-cleanup-trigger" \
 
 # Quota cleanup (01:00 UTC daily)
 create_job "cloudact-quota-cleanup" \
-    "05-scheduler-jobs/jobs/quota_cleanup.py" \
+    "jobs/quota_cleanup.py" \
     "30m" \
     "2Gi" \
     "1"
@@ -263,7 +266,7 @@ create_scheduler "cloudact-quota-cleanup-trigger" \
 
 # Billing sync retry (every 5 minutes)
 create_job "cloudact-billing-sync-retry" \
-    "05-scheduler-jobs/jobs/billing_sync.py,retry" \
+    "jobs/billing_sync.py,retry" \
     "10m" \
     "1Gi" \
     "1"
@@ -275,7 +278,7 @@ create_scheduler "cloudact-billing-sync-retry-trigger" \
 
 # Billing sync reconcile (02:00 UTC daily)
 create_job "cloudact-billing-sync-reconcile" \
-    "05-scheduler-jobs/jobs/billing_sync.py,reconcile" \
+    "jobs/billing_sync.py,reconcile" \
     "30m" \
     "2Gi" \
     "1"

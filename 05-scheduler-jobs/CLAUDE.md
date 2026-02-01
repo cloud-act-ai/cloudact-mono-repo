@@ -86,13 +86,36 @@ python jobs/org_sync_all.py
 Jobs are deployed as Cloud Run Jobs (not services). They:
 - Run on-demand or via Cloud Scheduler
 - Have no HTTP endpoints
-- Use the API service Docker image (contains all code)
+- Use a dedicated `cloudact-jobs-{env}` Docker image
 - Timeout after specified duration
+
+### Build Jobs Image
+
+The jobs image includes the API service code plus job scripts:
+
+```bash
+# Build and push image to GCR (via Cloud Build)
+gcloud builds submit \
+    --config=05-scheduler-jobs/cloudbuild-jobs.yaml \
+    --substitutions=_ENV=test \
+    --project=cloudact-testing-1 \
+    .
+
+# Or for production
+gcloud builds submit \
+    --config=05-scheduler-jobs/cloudbuild-jobs.yaml \
+    --substitutions=_ENV=prod \
+    --project=cloudact-prod \
+    .
+```
 
 ### Create Jobs (First Time)
 
 ```bash
-# Test environment
+# Build the jobs image first
+gcloud builds submit --config=05-scheduler-jobs/cloudbuild-jobs.yaml --substitutions=_ENV=test .
+
+# Then create all jobs
 ./scripts/create-all-jobs.sh test
 
 # Production (requires confirmation)
@@ -112,20 +135,23 @@ Jobs are deployed as Cloud Run Jobs (not services). They:
 
 ```
 05-scheduler-jobs/
-├── CLAUDE.md               # This file
+├── CLAUDE.md                 # This file
+├── Dockerfile                # Docker image for jobs
+├── cloudbuild-jobs.yaml      # Cloud Build config
 ├── scripts/
-│   ├── create-all-jobs.sh  # Create Cloud Run Jobs + Schedulers
-│   ├── run-job.sh          # Execute a job manually
-│   └── list-jobs.sh        # List jobs and executions
+│   ├── create-all-jobs.sh    # Create Cloud Run Jobs + Schedulers
+│   ├── run-job.sh            # Execute a job manually
+│   ├── list-jobs.sh          # List jobs and executions
+│   └── build-jobs-image.sh   # Build jobs image locally
 └── jobs/
-    ├── bootstrap.py        # Initial system bootstrap
-    ├── bootstrap_sync.py   # Sync bootstrap schema
-    ├── org_sync_all.py     # Sync all org datasets
-    ├── quota_reset_daily.py    # Daily quota reset
-    ├── quota_reset_monthly.py  # Monthly quota reset
-    ├── stale_cleanup.py    # Stale concurrent cleanup
-    ├── quota_cleanup.py    # Old quota record cleanup
-    └── billing_sync.py     # Stripe→BigQuery billing sync
+    ├── bootstrap.py          # Initial system bootstrap
+    ├── bootstrap_sync.py     # Sync bootstrap schema
+    ├── org_sync_all.py       # Sync all org datasets
+    ├── quota_reset_daily.py  # Daily quota reset
+    ├── quota_reset_monthly.py # Monthly quota reset
+    ├── stale_cleanup.py      # Stale concurrent cleanup
+    ├── quota_cleanup.py      # Old quota record cleanup
+    └── billing_sync.py       # Stripe→BigQuery billing sync
 ```
 
 ## GCP Project Mapping

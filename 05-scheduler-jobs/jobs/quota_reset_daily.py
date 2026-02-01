@@ -2,7 +2,11 @@
 """
 Daily Quota Reset Job
 =====================
-Resets daily pipeline counters for all organizations.
+Resets daily pipeline counters at midnight UTC.
+
+Creates new usage quota records for each active org with reset daily counters.
+Monthly counters are carried over from the previous day.
+
 Run at 00:00 UTC daily.
 
 Usage:
@@ -15,9 +19,7 @@ Environment:
 import asyncio
 import os
 import sys
-
-# Add parent paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '03-data-pipeline-service'))
+from datetime import datetime, timezone
 
 
 async def main():
@@ -30,27 +32,100 @@ async def main():
         print("ERROR: GCP_PROJECT_ID environment variable required")
         sys.exit(1)
 
-    print(f"Project: {project_id}")
+    print(f"Project:   {project_id}")
+    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     try:
-        from src.core.utils.quota_reset import reset_daily_quotas
+        from google.cloud import bigquery
 
-        result = await reset_daily_quotas()
+        client = bigquery.Client(project=project_id)
 
-        status = result.get("status", "UNKNOWN")
-        orgs_reset = result.get("orgs_reset", 0)
-        date = result.get("date", "")
+        # Get all active orgs that need quota records for today
+        print("Creating/resetting daily quota records for active orgs...")
+
+        # Get active orgs with their subscription limits
+        query = f"""
+        WITH active_orgs AS (
+            SELECT
+                p.org_slug,
+                s.daily_limit,
+                s.monthly_limit,
+                s.concurrent_limit,
+                s.seat_limit,
+                s.providers_limit
+            FROM `{project_id}.organizations.org_profiles` p
+            JOIN `{project_id}.organizations.org_subscriptions` s ON p.org_slug = s.org_slug
+            WHERE p.status = 'ACTIVE'
+              AND s.status = 'ACTIVE'
+        ),
+        existing_today AS (
+            SELECT org_slug
+            FROM `{project_id}.organizations.org_usage_quotas`
+            WHERE usage_date = CURRENT_DATE()
+        ),
+        yesterday_usage AS (
+            SELECT
+                org_slug,
+                pipelines_run_month
+            FROM `{project_id}.organizations.org_usage_quotas`
+            WHERE usage_date = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+        )
+        SELECT
+            a.*,
+            COALESCE(y.pipelines_run_month, 0) as carry_over_monthly
+        FROM active_orgs a
+        LEFT JOIN existing_today e ON a.org_slug = e.org_slug
+        LEFT JOIN yesterday_usage y ON a.org_slug = y.org_slug
+        WHERE e.org_slug IS NULL
+        """
+
+        results = list(client.query(query).result())
+
+        if not results:
+            print("✓ All active orgs already have quota records for today")
+            print("=" * 60)
+            return
+
+        print(f"Creating quota records for {len(results)} org(s)...")
+
+        orgs_created = 0
+        for row in results:
+            org_slug = row.org_slug
+            usage_id = f"{org_slug}_{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+
+            insert_query = f"""
+            INSERT INTO `{project_id}.organizations.org_usage_quotas`
+            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
+             pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
+             daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+             updated_at, created_at)
+            VALUES
+            (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, @pipelines_run_month, 0,
+             @daily_limit, @monthly_limit, @concurrent_limit, @seat_limit, @providers_limit,
+             CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("pipelines_run_month", "INT64", row.carry_over_monthly),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", row.daily_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", row.monthly_limit),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", row.concurrent_limit),
+                    bigquery.ScalarQueryParameter("seat_limit", "INT64", row.seat_limit or 2),
+                    bigquery.ScalarQueryParameter("providers_limit", "INT64", row.providers_limit or 3),
+                ]
+            )
+
+            client.query(insert_query, job_config=job_config).result()
+            orgs_created += 1
+            print(f"  ✓ {org_slug}")
 
         print()
-        if status == "SUCCESS":
-            print(f"✓ Daily quota reset complete")
-            print(f"  Date: {date}")
-            print(f"  Orgs reset: {orgs_reset}")
-        else:
-            print(f"✗ Daily quota reset failed: {result.get('error', 'Unknown error')}")
-            sys.exit(1)
-
+        print(f"✓ Daily quota reset complete")
+        print(f"  Orgs processed: {orgs_created}")
         print("=" * 60)
 
     except Exception as e:

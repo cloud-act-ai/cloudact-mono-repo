@@ -2,7 +2,7 @@
 """
 Quota Cleanup Job
 =================
-Deletes quota records older than 90 days.
+Deletes quota records older than 90 days to keep the table size manageable.
 Run at 01:00 UTC daily.
 
 Usage:
@@ -16,9 +16,7 @@ Environment:
 import asyncio
 import os
 import sys
-
-# Add parent paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '03-data-pipeline-service'))
+from datetime import datetime, timezone
 
 
 async def main():
@@ -33,26 +31,55 @@ async def main():
 
     days_to_keep = int(os.environ.get("DAYS_TO_KEEP", "90"))
 
-    print(f"Project: {project_id}")
+    print(f"Project:      {project_id}")
     print(f"Days to keep: {days_to_keep}")
+    print(f"Timestamp:    {datetime.now(timezone.utc).isoformat()}")
     print()
 
     try:
-        from src.core.utils.quota_reset import cleanup_old_quota_records
+        from google.cloud import bigquery
 
-        result = await cleanup_old_quota_records(days_to_keep=days_to_keep)
+        client = bigquery.Client(project=project_id)
 
-        status = result.get("status", "UNKNOWN")
+        # Count records to be deleted first
+        print(f"Checking for quota records older than {days_to_keep} days...")
+
+        count_query = f"""
+        SELECT COUNT(*) as count
+        FROM `{project_id}.organizations.org_usage_quotas`
+        WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL @days_to_keep DAY)
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("days_to_keep", "INT64", days_to_keep),
+            ]
+        )
+
+        count_result = list(client.query(count_query, job_config=job_config).result())
+        rows_to_delete = count_result[0].count if count_result else 0
+
+        print(f"  Records to delete: {rows_to_delete}")
+
+        if rows_to_delete == 0:
+            print()
+            print("✓ No old quota records to delete")
+            print("=" * 60)
+            return
+
+        # Delete old records
+        print("  Deleting old records...")
+
+        delete_query = f"""
+        DELETE FROM `{project_id}.organizations.org_usage_quotas`
+        WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL @days_to_keep DAY)
+        """
+
+        client.query(delete_query, job_config=job_config).result()
 
         print()
-        if status == "SUCCESS":
-            print(f"✓ Quota cleanup complete")
-            print(f"  Cutoff date: {result.get('cutoff_date', '')}")
-            print(f"  Rows deleted: {result.get('rows_deleted', 0)}")
-        else:
-            print(f"✗ Quota cleanup failed: {result.get('error', 'Unknown error')}")
-            sys.exit(1)
-
+        print(f"✓ Quota cleanup complete")
+        print(f"  Rows deleted: {rows_to_delete}")
         print("=" * 60)
 
     except Exception as e:

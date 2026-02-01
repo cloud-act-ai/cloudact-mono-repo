@@ -1,0 +1,30 @@
+# Cloud Build configuration for scheduler jobs image
+# Usage: gcloud builds submit --config=05-scheduler-jobs/cloudbuild-jobs.yaml --substitutions=_ENV=test .
+
+steps:
+  # Build the jobs image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - '05-scheduler-jobs/Dockerfile'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cloudact-jobs-${_ENV}:${_TAG}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cloudact-jobs-${_ENV}:latest'
+      - '--build-arg'
+      - 'TARGET_ENV=${_ENV}'
+      - '--build-arg'
+      - 'VERSION=${_TAG}'
+      - '.'
+
+images:
+  - 'gcr.io/$PROJECT_ID/cloudact-jobs-${_ENV}:${_TAG}'
+  - 'gcr.io/$PROJECT_ID/cloudact-jobs-${_ENV}:latest'
+
+substitutions:
+  _ENV: test
+  _TAG: latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

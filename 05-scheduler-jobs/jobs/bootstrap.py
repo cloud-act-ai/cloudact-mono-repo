@@ -15,9 +15,7 @@ Environment:
 import asyncio
 import os
 import sys
-
-# Add parent paths to allow imports from api-service
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '02-api-service'))
+from datetime import datetime, timezone
 
 
 async def main():
@@ -30,10 +28,12 @@ async def main():
         print("ERROR: GCP_PROJECT_ID environment variable required")
         sys.exit(1)
 
-    print(f"Project: {project_id}")
+    print(f"Project:   {project_id}")
+    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     try:
+        # Import from API service code (available via PYTHONPATH=/app)
         from src.core.processors.setup.initial.onetime_bootstrap_processor import OnetimeBootstrapProcessor
 
         processor = OnetimeBootstrapProcessor()
@@ -45,9 +45,20 @@ async def main():
             }
         )
 
-        tables_created = result.get("tables_created", 0)
+        status = result.get("status", "UNKNOWN")
+        tables_created = result.get("tables_created", [])
+        tables_existed = result.get("tables_existed", [])
+
         print()
-        print(f"✓ Bootstrap complete: Created {tables_created} tables")
+        if status == "SUCCESS":
+            print(f"✓ Bootstrap complete")
+            print(f"  Tables created: {len(tables_created)}")
+            print(f"  Tables existed: {len(tables_existed)}")
+            print(f"  Total tables:   {result.get('total_tables', 0)}")
+        else:
+            print(f"✗ Bootstrap failed: {result.get('message', 'Unknown error')}")
+            sys.exit(1)
+
         print("=" * 60)
 
     except Exception as e:

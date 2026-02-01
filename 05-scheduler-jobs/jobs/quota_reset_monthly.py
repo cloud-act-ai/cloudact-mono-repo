@@ -5,6 +5,8 @@ Monthly Quota Reset Job
 Resets monthly pipeline counters for all organizations.
 Run at 00:05 UTC on the 1st of each month.
 
+Updates existing usage quota records to reset pipelines_run_month to 0.
+
 Usage:
     python jobs/quota_reset_monthly.py
 
@@ -15,9 +17,7 @@ Environment:
 import asyncio
 import os
 import sys
-
-# Add parent paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '03-data-pipeline-service'))
+from datetime import datetime, timezone
 
 
 async def main():
@@ -30,27 +30,49 @@ async def main():
         print("ERROR: GCP_PROJECT_ID environment variable required")
         sys.exit(1)
 
-    print(f"Project: {project_id}")
+    now = datetime.now(timezone.utc)
+    print(f"Project:   {project_id}")
+    print(f"Timestamp: {now.isoformat()}")
+    print(f"Day:       {now.day}")
     print()
 
+    # Only run on 1st of month (safety check, scheduler should handle this)
+    if now.day != 1:
+        print(f"⊘ Skipped: Not the 1st of the month (day={now.day})")
+        print("=" * 60)
+        return
+
     try:
-        from src.core.utils.quota_reset import reset_monthly_quotas
+        from google.cloud import bigquery
 
-        result = await reset_monthly_quotas()
+        client = bigquery.Client(project=project_id)
 
-        status = result.get("status", "UNKNOWN")
+        print("Resetting monthly quota counters for all active orgs...")
+
+        # Reset pipelines_run_month to 0 for today's quota records
+        update_query = f"""
+        UPDATE `{project_id}.organizations.org_usage_quotas`
+        SET pipelines_run_month = 0,
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE usage_date = CURRENT_DATE()
+        """
+
+        job = client.query(update_query)
+        job.result()
+
+        # Get count of affected orgs
+        count_query = f"""
+        SELECT COUNT(DISTINCT org_slug) as count
+        FROM `{project_id}.organizations.org_usage_quotas`
+        WHERE usage_date = CURRENT_DATE()
+        """
+        count_result = list(client.query(count_query).result())
+        orgs_reset = count_result[0].count if count_result else 0
 
         print()
-        if status == "SUCCESS":
-            print(f"✓ Monthly quota reset complete")
-            print(f"  Date: {result.get('date', '')}")
-            print(f"  Orgs reset: {result.get('orgs_reset', 0)}")
-        elif status == "SKIPPED":
-            print(f"⊘ Monthly quota reset skipped: {result.get('reason', '')}")
-        else:
-            print(f"✗ Monthly quota reset failed: {result.get('error', 'Unknown error')}")
-            sys.exit(1)
-
+        print(f"✓ Monthly quota reset complete")
+        print(f"  Date: {now.strftime('%Y-%m-%d')}")
+        print(f"  Orgs reset: {orgs_reset}")
         print("=" * 60)
 
     except Exception as e:

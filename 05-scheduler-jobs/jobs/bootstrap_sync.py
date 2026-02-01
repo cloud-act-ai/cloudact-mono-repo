@@ -18,9 +18,7 @@ import sys
 import json
 import yaml
 from pathlib import Path
-
-# Add parent paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '02-api-service'))
+from datetime import datetime, timezone
 
 
 async def main():
@@ -33,7 +31,8 @@ async def main():
         print("ERROR: GCP_PROJECT_ID environment variable required")
         sys.exit(1)
 
-    print(f"Project: {project_id}")
+    print(f"Project:   {project_id}")
+    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     try:
@@ -41,9 +40,8 @@ async def main():
 
         client = bigquery.Client(project=project_id)
 
-        # Load bootstrap config
-        api_service_path = Path(__file__).parent.parent.parent / "02-api-service"
-        config_dir = api_service_path / "configs" / "setup" / "bootstrap"
+        # Load bootstrap config from /app/configs (copied from API service)
+        config_dir = Path("/app/configs/setup/bootstrap")
         config_file = config_dir / "config.yml"
         schemas_dir = config_dir / "schemas"
 
@@ -57,6 +55,9 @@ async def main():
         dataset_name = config.get('dataset', {}).get('name', 'organizations')
         dataset_id = f"{project_id}.{dataset_name}"
 
+        print(f"Dataset: {dataset_name}")
+        print()
+
         # Check if dataset exists
         try:
             client.get_dataset(dataset_id)
@@ -68,6 +69,8 @@ async def main():
 
         columns_added = {}
         tables_config = config.get('tables', {})
+
+        print(f"Checking {len(tables_config)} tables for schema changes...")
 
         for table_name in tables_config.keys():
             schema_file = schemas_dir / f"{table_name}.json"

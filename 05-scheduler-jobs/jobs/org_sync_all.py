@@ -15,9 +15,7 @@ Environment:
 import asyncio
 import os
 import sys
-
-# Add parent paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '02-api-service'))
+from datetime import datetime, timezone
 
 
 async def main():
@@ -30,7 +28,8 @@ async def main():
         print("ERROR: GCP_PROJECT_ID environment variable required")
         sys.exit(1)
 
-    print(f"Project: {project_id}")
+    print(f"Project:   {project_id}")
+    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     try:
@@ -53,9 +52,10 @@ async def main():
 
         if not results:
             print("No active organizations found")
-            sys.exit(0)
+            print("=" * 60)
+            return
 
-        # Import sync function
+        # Import sync function (available via PYTHONPATH=/app)
         from src.core.services._shared.org_sync import sync_one_org_dataset
 
         success = 0
@@ -75,7 +75,7 @@ async def main():
 
         print()
         print("=" * 60)
-        print(f"Sync complete: {success} success, {failed} failed")
+        print(f"✓ Sync complete: {success} success, {failed} failed")
 
         if failed_orgs:
             print(f"Failed orgs: {', '.join(failed_orgs)}")
