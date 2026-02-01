@@ -116,7 +116,7 @@ create_job() {
         echo "  Updating existing job..."
         gcloud run jobs update "$JOB_NAME" \
             --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/api-service:latest" \
+            --image="gcr.io/${PROJECT_ID}/cloudact-api-service-${ENV}:latest" \
             --command="python" \
             --args="$SCRIPT_PATH" \
             --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${ENV}" \
@@ -131,7 +131,7 @@ create_job() {
         echo "  Creating new job..."
         gcloud run jobs create "$JOB_NAME" \
             --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/api-service:latest" \
+            --image="gcr.io/${PROJECT_ID}/cloudact-api-service-${ENV}:latest" \
             --command="python" \
             --args="$SCRIPT_PATH" \
             --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${ENV}" \
@@ -261,6 +261,30 @@ create_scheduler "cloudact-quota-cleanup-trigger" \
     "0 1 * * *" \
     "Delete quota records older than 90 days"
 
+# Billing sync retry (every 5 minutes)
+create_job "cloudact-billing-sync-retry" \
+    "05-scheduler-jobs/jobs/billing_sync.py,retry" \
+    "10m" \
+    "1Gi" \
+    "1"
+
+create_scheduler "cloudact-billing-sync-retry-trigger" \
+    "cloudact-billing-sync-retry" \
+    "*/5 * * * *" \
+    "Process pending billing sync queue items"
+
+# Billing sync reconcile (02:00 UTC daily)
+create_job "cloudact-billing-sync-reconcile" \
+    "05-scheduler-jobs/jobs/billing_sync.py,reconcile" \
+    "30m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-billing-sync-reconcile-trigger" \
+    "cloudact-billing-sync-reconcile" \
+    "0 2 * * *" \
+    "Full Stripe to BigQuery reconciliation"
+
 # =============================================================================
 # Summary
 # =============================================================================
@@ -280,6 +304,8 @@ echo "  - cloudact-quota-reset-daily     (00:00 UTC daily)"
 echo "  - cloudact-quota-reset-monthly   (00:05 UTC 1st of month)"
 echo "  - cloudact-stale-cleanup         (every 15 minutes)"
 echo "  - cloudact-quota-cleanup         (01:00 UTC daily)"
+echo "  - cloudact-billing-sync-retry    (every 5 minutes)"
+echo "  - cloudact-billing-sync-reconcile (02:00 UTC daily)"
 echo ""
 echo "View jobs:  ./list-jobs.sh $ENV"
 echo "Run job:    ./run-job.sh $ENV <job-name>"

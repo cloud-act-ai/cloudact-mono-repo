@@ -22,6 +22,8 @@ This service contains standalone Python scripts that run as Cloud Run Jobs. Thes
 | `quota-reset-monthly` | `jobs/quota_reset_monthly.py` | 00:05 1st | Reset monthly pipeline counters |
 | `stale-cleanup` | `jobs/stale_cleanup.py` | */15 * * * * | Fix stuck concurrent counters |
 | `quota-cleanup` | `jobs/quota_cleanup.py` | 01:00 UTC | Delete quota records >90 days |
+| `billing-sync-retry` | `jobs/billing_sync.py retry` | */5 * * * * | Process pending billing syncs |
+| `billing-sync-reconcile` | `jobs/billing_sync.py reconcile` | 02:00 UTC | Full Stripe→BigQuery reconciliation |
 
 ## Quick Start
 
@@ -122,7 +124,8 @@ Jobs are deployed as Cloud Run Jobs (not services). They:
     ├── quota_reset_daily.py    # Daily quota reset
     ├── quota_reset_monthly.py  # Monthly quota reset
     ├── stale_cleanup.py    # Stale concurrent cleanup
-    └── quota_cleanup.py    # Old quota record cleanup
+    ├── quota_cleanup.py    # Old quota record cleanup
+    └── billing_sync.py     # Stripe→BigQuery billing sync
 ```
 
 ## GCP Project Mapping

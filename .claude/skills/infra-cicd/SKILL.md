@@ -612,16 +612,62 @@ curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap" \
   -H "Content-Type: application/json"
 ```
 
-#### 3. Verify Scheduled Jobs Active
+#### 3. Test Run All Scheduled Jobs (CRITICAL)
+
+Run each job manually and verify success before go-live:
+
+```bash
+cd 05-scheduler-jobs
+
+# Quota jobs
+./scripts/run-job.sh prod quota-reset-daily
+./scripts/run-job.sh prod quota-reset-monthly
+./scripts/run-job.sh prod stale-cleanup
+./scripts/run-job.sh prod quota-cleanup
+
+# Billing sync jobs
+./scripts/run-job.sh prod billing-sync-retry
+./scripts/run-job.sh prod billing-sync-reconcile
+
+# Check execution status
+gcloud run jobs executions list --region=us-central1 --project=cloudact-prod
+```
+
+**Expected Results:**
+- All jobs should complete with status `Succeeded`
+- No errors in execution logs
+- Verify output in Cloud Console logs
+
+#### 4. Verify Scheduled Jobs Active
 ```bash
 # List all jobs and schedulers
 ./scripts/list-jobs.sh prod
 
 # Expected scheduled jobs:
-# - cloudact-quota-reset-daily     (00:00 UTC daily)
-# - cloudact-quota-reset-monthly   (00:05 UTC 1st of month)
-# - cloudact-stale-cleanup         (every 15 minutes)
-# - cloudact-quota-cleanup         (01:00 UTC daily)
+# - cloudact-quota-reset-daily        (00:00 UTC daily)
+# - cloudact-quota-reset-monthly      (00:05 UTC 1st of month)
+# - cloudact-stale-cleanup            (every 15 minutes)
+# - cloudact-quota-cleanup            (01:00 UTC daily)
+# - cloudact-billing-sync-retry       (every 5 minutes)
+# - cloudact-billing-sync-reconcile   (02:00 UTC daily)
+
+# Verify schedulers are ENABLED
+gcloud scheduler jobs list --location=us-central1 --project=cloudact-prod
+```
+
+#### 5. Monitor First Automatic Runs
+
+After go-live, monitor the first automatic execution of each scheduled job:
+
+```bash
+# Watch for executions
+watch -n 60 'gcloud run jobs executions list --region=us-central1 --project=cloudact-prod --limit=10'
+
+# Check logs for errors
+gcloud logging read "resource.type=cloud_run_job" \
+  --project=cloudact-prod \
+  --limit=50 \
+  --format="table(timestamp,textPayload)"
 ```
 
 ### Post-Go-Live (Ad-Hoc Operations)
@@ -647,6 +693,28 @@ curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap/sync" \
   -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
 ```
 
+### Troubleshooting Jobs
+
+| Issue | Solution |
+|-------|----------|
+| Job fails with auth error | Check service account permissions |
+| Job times out | Increase `--task-timeout` in create script |
+| Scheduler not triggering | Verify scheduler is ENABLED, check IAM |
+| Billing sync 401 | Set `CRON_SECRET` secret in GCP |
+| Job stuck in PENDING | Check Cloud Run quotas and limits |
+
+```bash
+# View job logs
+gcloud run jobs executions logs <execution-name> \
+  --project=cloudact-prod \
+  --region=us-central1
+
+# Manually trigger a scheduler
+gcloud scheduler jobs run cloudact-quota-reset-daily-trigger \
+  --location=us-central1 \
+  --project=cloudact-prod
+```
+
 ---
 
 ## Cloud Run Jobs
@@ -658,7 +726,7 @@ curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap/sync" \
 | Category | Jobs | Script Location |
 |----------|------|-----------------|
 | **Manual** | bootstrap, bootstrap-sync, org-sync-all | `jobs/*.py` |
-| **Scheduled** | quota-reset-daily, quota-reset-monthly, stale-cleanup, quota-cleanup | `jobs/*.py` |
+| **Scheduled** | quota-reset-daily, quota-reset-monthly, stale-cleanup, quota-cleanup, billing-sync-retry, billing-sync-reconcile | `jobs/*.py` |
 
 ### Quick Reference
 

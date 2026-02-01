@@ -274,6 +274,8 @@ cd 05-scheduler-jobs
 | `quota-reset-monthly` | 00:05 1st | Reset monthly pipeline counters |
 | `stale-cleanup` | */15 min | Fix stuck concurrent counters |
 | `quota-cleanup` | 01:00 UTC | Delete quota records >90 days |
+| `billing-sync-retry` | */5 min | Process pending billing syncs |
+| `billing-sync-reconcile` | 02:00 UTC | Full Stripe→BigQuery reconciliation |
 
 ## Docs
 

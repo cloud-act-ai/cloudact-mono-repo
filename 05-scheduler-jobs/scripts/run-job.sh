@@ -41,13 +41,15 @@ if [[ -z "$ENV" ]] || [[ -z "$JOB_NAME" ]]; then
     echo "Environments: test, stage, prod"
     echo ""
     echo "Available jobs:"
-    echo "  bootstrap           - Initial system bootstrap"
-    echo "  bootstrap-sync      - Sync bootstrap schema"
-    echo "  org-sync-all        - Sync all org datasets"
-    echo "  quota-reset-daily   - Reset daily quotas"
-    echo "  quota-reset-monthly - Reset monthly quotas"
-    echo "  stale-cleanup       - Fix stuck concurrent counters"
-    echo "  quota-cleanup       - Delete old quota records"
+    echo "  bootstrap              - Initial system bootstrap"
+    echo "  bootstrap-sync         - Sync bootstrap schema"
+    echo "  org-sync-all           - Sync all org datasets"
+    echo "  quota-reset-daily      - Reset daily quotas"
+    echo "  quota-reset-monthly    - Reset monthly quotas"
+    echo "  stale-cleanup          - Fix stuck concurrent counters"
+    echo "  quota-cleanup          - Delete old quota records"
+    echo "  billing-sync-retry     - Process pending billing syncs"
+    echo "  billing-sync-reconcile - Full Stripe→BigQuery reconciliation"
     exit 1
 fi
 
