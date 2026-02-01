@@ -102,6 +102,29 @@ steps:
     waitFor: ['build-frontend']
 
   # ============================================
+  # Build Scheduler Jobs Image
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-jobs'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:latest'
+      - '-f'
+      - '05-scheduler-jobs/Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-jobs'
+    args: ['push', '--all-tags', 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}']
+    waitFor: ['build-jobs']
+
+  # ============================================
   # Deploy API Service
   # ============================================
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -190,6 +213,34 @@ steps:
           --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${_ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
     waitFor: ['push-frontend', 'deploy-api-service', 'deploy-pipeline-service']
 
+  # ============================================
+  # Update Cloud Run Jobs with New Image
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'update-jobs'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Update all Cloud Run jobs to use the new image
+        JOBS="cloudact-bootstrap cloudact-bootstrap-sync cloudact-org-sync-all cloudact-quota-reset-daily cloudact-quota-reset-monthly cloudact-stale-cleanup cloudact-quota-cleanup cloudact-billing-sync-retry cloudact-billing-sync-reconcile"
+
+        for JOB in $$JOBS; do
+          if gcloud run jobs describe $$JOB --region=${_REGION} --project=${_PROJECT_ID} &>/dev/null; then
+            echo "Updating job: $$JOB"
+            gcloud run jobs update $$JOB \
+              --region=${_REGION} \
+              --project=${_PROJECT_ID} \
+              --image=gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:${TAG_NAME} \
+              --quiet || echo "Warning: Failed to update $$JOB"
+          else
+            echo "Job $$JOB does not exist, skipping"
+          fi
+        done
+
+        echo "Jobs image update complete"
+    waitFor: ['push-jobs']
+
 # Push all images
 images:
   - 'gcr.io/${_PROJECT_ID}/cloudact-api-service-${_ENV}:${TAG_NAME}'
@@ -201,6 +252,8 @@ images:
   - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${TAG_NAME}'
   - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:latest'
   - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:${TAG_NAME}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
