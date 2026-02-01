@@ -114,7 +114,7 @@ export function DocumentationPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Developer{" "}
-            <span style={{ color: '#FF6C5E' }}>Documentation</span>
+            <span className="font-semibold">Documentation</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Complete API reference, integration guides, and developer documentation for CloudAct.ai.

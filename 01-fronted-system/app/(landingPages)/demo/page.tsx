@@ -157,7 +157,7 @@ export default function DemoPage() {
           </div>
           <h1 className="ca-page-hero-title">
             See CloudAct.ai{" "}
-            <span style={{ color: '#FF6C5E' }}>In Action</span>
+            <span className="font-semibold">In Action</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Get a personalized demo of how CloudAct.ai can help you track, analyze,

@@ -215,7 +215,7 @@ export function AllResourcesPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Browse{" "}
-            <span style={{ color: '#FF6C5E' }}>Everything</span>
+            <span className="font-semibold">Everything</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             {ALL_RESOURCES.length} resources to help you master cloud cost optimization.
@@ -323,7 +323,7 @@ export function AllResourcesPageClient() {
                 type="button"
                 onClick={() => { setSearchQuery(""); setSelectedType("All"); }}
                 className="mt-4 text-sm font-medium"
-                style={{ color: '#FF6C5E' }}
+                className="text-slate-900 font-semibold"
               >
                 Clear all filters
               </button>

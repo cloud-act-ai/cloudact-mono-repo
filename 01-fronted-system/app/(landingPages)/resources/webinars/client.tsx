@@ -102,7 +102,7 @@ export function WebinarsPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Live &amp;{" "}
-            <span style={{ color: '#FF6C5E' }}>On-Demand</span>{" "}
+            <span className="font-semibold">On-Demand</span>{" "}
             Sessions
           </h1>
           <p className="ca-page-hero-subtitle">

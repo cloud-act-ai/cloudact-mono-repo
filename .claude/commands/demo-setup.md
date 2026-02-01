@@ -2,6 +2,78 @@
 
 Create demo account with realistic data for testing and demonstration.
 
+## MANDATORY: Automated Execution with Browser Automation
+
+**CRITICAL:** When this skill is invoked, Claude MUST:
+1. **Use Playwright/Browser automation** for signup and login - NEVER manual browser interaction
+2. **Check logs** before, during, and after EVERY step
+3. **Bug hunt and fix** any issues found before proceeding
+4. **Validate schemas** and Python data generation before loading data
+5. **Compare frontend vs backend** costs at the end
+6. **Fix pipelines** if any fail - do not stop until costs are visible
+
+## Execution Flow (MANDATORY)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 1: PRE-FLIGHT CHECKS                                     │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Check services running (8000, 8001, 3000)                   │
+│  2. Check bootstrap status in BigQuery                          │
+│  3. Run bootstrap if needed                                     │
+│  4. Check API/Pipeline service logs for errors                  │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 2: AUTOMATED ACCOUNT CREATION (Playwright)               │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Navigate to /signup                                         │
+│  2. Fill form: demo@cloudact.ai / demo1234 / Acme Inc          │
+│  3. Complete Stripe checkout (click "Start trial")              │
+│  4. Wait for redirect to dashboard                              │
+│  5. Extract org_slug from URL                                   │
+│  6. Fetch API key from backend                                  │
+│  7. CHECK LOGS: Supabase, API service, console errors           │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 3: SCHEMA VALIDATION & DATA GENERATION                   │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Read BigQuery schemas from configs/                         │
+│  2. Validate generate-demo-data.py matches schemas              │
+│  3. Check for missing columns in raw tables                     │
+│  4. FIX any schema mismatches before loading                    │
+│  5. Generate data with Python script                            │
+│  6. CHECK LOGS: bq load output, any errors                      │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 4: PIPELINE EXECUTION & FIXING                           │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Sync procedures: POST /api/v1/procedures/sync               │
+│  2. Run pipelines one by one                                    │
+│  3. If pipeline fails:                                          │
+│     - Check BigQuery procedure logs                             │
+│     - Check API service logs                                    │
+│     - Identify root cause                                       │
+│     - FIX the issue (schema, data, procedure)                   │
+│     - Re-run pipeline                                           │
+│  4. Repeat until ALL pipelines succeed                          │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 5: COST VALIDATION (Frontend vs Backend)                 │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Query backend API for costs                                 │
+│  2. Query BigQuery directly for costs                           │
+│  3. Login to frontend via Playwright                            │
+│  4. Navigate to dashboard                                       │
+│  5. Extract cost values from UI                                 │
+│  6. COMPARE all three sources                                   │
+│  7. Report any discrepancies                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Scripts
 
 All scripts in: `01-fronted-system/tests/demo-setup/`
@@ -11,6 +83,7 @@ All scripts in: `01-fronted-system/tests/demo-setup/`
 | `cleanup-demo-account.ts` | Delete user/org from Supabase + BigQuery |
 | `setup-demo-account.ts` | Create account via Playwright (includes Stripe checkout + API key) |
 | `load-demo-data-direct.ts` | Load raw data + run pipelines via API |
+| `generate-demo-data.py` | Generate realistic demo data matching schemas |
 
 ## Demo Account Values
 

@@ -17,7 +17,7 @@ import {
 // Inline styles for landing page design standards
 const eyebrowBadgeStyle = { backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }
 const eyebrowIconStyle = { color: '#ffffff' }
-const heroHighlightStyle = { color: '#FF6C5E' }
+const heroHighlightStyle = { fontWeight: 600 }
 const primaryButtonStyle = { backgroundColor: '#90FCA6', color: '#0f172a' }
 const secondaryButtonStyle = { backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0' }
 

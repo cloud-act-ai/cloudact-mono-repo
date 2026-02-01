@@ -220,7 +220,7 @@ export default function HelpPage() {
           </div>
           <h1 className="ca-page-hero-title">
             How Can We{" "}
-            <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>Help You?</span>
+            <span className="font-semibold">Help You?</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Search our knowledge base or browse categories to find answers to your questions.

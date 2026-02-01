@@ -244,7 +244,7 @@ export function ResourcesPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Resources &amp;{" "}
-            <span style={{ color: '#FF6C5E' }}>Learning Center</span>
+            <span className="font-semibold">Learning Center</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Everything you need to master cloud cost optimization - from guides and tutorials

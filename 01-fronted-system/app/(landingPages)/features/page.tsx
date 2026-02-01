@@ -50,7 +50,7 @@ export default function FeaturesPage() {
           </div>
           <h1 className="ca-page-hero-title">
             Every Feature You Need to{" "}
-            <span style={{ color: '#FF6C5E' }}>Master</span> Your Costs
+            <span className="font-semibold">Master</span> Your Costs
           </h1>
           <p className="ca-page-hero-subtitle">
             From GenAI tracking to multi-cloud analytics, CloudAct.ai provides enterprise-grade

@@ -11,11 +11,19 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 ├─ Next.js 16 + Supabase     ├─ Bootstrap (21 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
 ├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
-└─ Dashboard UI              ├─ Hierarchy CRUD            └─ Quota reset jobs
+└─ Dashboard UI              ├─ Hierarchy CRUD            └─ BigQuery writes
                              ├─ Quota enforcement
                              └─ Cost reads (Polars)
                                         ↓
                              BigQuery (organizations + {org_slug}_prod)
+
+Scheduler Jobs (Cloud Run Jobs)
+├─ bootstrap.py              # Initial system setup
+├─ org_sync_all.py           # Sync ALL org datasets
+├─ quota_reset_daily.py      # 00:00 UTC daily
+├─ quota_reset_monthly.py    # 00:05 UTC 1st of month
+├─ stale_cleanup.py          # Every 15 minutes
+└─ quota_cleanup.py          # 01:00 UTC daily
 ```
 
 ## Three Cost Types → FOCUS 1.3
@@ -239,6 +247,34 @@ cd 01-fronted-system/scripts/supabase_db
 - **encryption-flow** - GCP KMS for all credentials
 - **session-completion-checklist** - Tests/docs before close
 
+## Scheduler Jobs (Cloud Run Jobs)
+
+All scheduled operations run as Cloud Run Jobs from `05-scheduler-jobs/`.
+
+```bash
+cd 05-scheduler-jobs
+
+# Create all jobs (first time per environment)
+./scripts/create-all-jobs.sh prod
+
+# Run manual jobs
+./scripts/run-job.sh prod bootstrap
+./scripts/run-job.sh prod org-sync-all
+
+# List jobs
+./scripts/list-jobs.sh prod
+```
+
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| `bootstrap` | Manual | Initialize organizations dataset + 21 meta tables |
+| `bootstrap-sync` | Manual | Add new columns to existing meta tables |
+| `org-sync-all` | Manual | Sync ALL org datasets (loops through active orgs) |
+| `quota-reset-daily` | 00:00 UTC | Reset daily pipeline counters |
+| `quota-reset-monthly` | 00:05 1st | Reset monthly pipeline counters |
+| `stale-cleanup` | */15 min | Fix stuck concurrent counters |
+| `quota-cleanup` | 01:00 UTC | Delete quota records >90 days |
+
 ## Docs
 
 | Doc | Path |
@@ -246,8 +282,9 @@ cd 01-fronted-system/scripts/supabase_db
 | API Service | `02-api-service/CLAUDE.md` |
 | Pipeline Service | `03-data-pipeline-service/CLAUDE.md` |
 | Frontend | `01-fronted-system/CLAUDE.md` |
+| Scheduler Jobs | `05-scheduler-jobs/CLAUDE.md` |
 | Claude Config | `.claude/SUMMARY.md` |
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.1.9** | 2026-01-25
+**v4.2.0** | 2026-01-31

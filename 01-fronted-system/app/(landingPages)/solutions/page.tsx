@@ -206,7 +206,7 @@ export default function SolutionsPage() {
           </div>
           <h1 className="ca-page-hero-title">
             Built for How You{" "}
-            <span style={{ color: '#FF6C5E' }}>Actually Work</span>
+            <span className="font-semibold">Actually Work</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Whether you're a FinOps engineer optimizing costs, a CFO managing budgets, or a developer

@@ -192,7 +192,7 @@ function AnnouncementBanner({ isVisible, onClose }: { isVisible: boolean; onClos
   if (!isVisible) return null
 
   return (
-    <div className="bg-gradient-to-r from-[#FF6C5E] via-[#FF8066] to-[#FF6C5E] text-white relative z-[100]">
+    <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] text-white relative z-[100]">
       <div className="container mx-auto px-4 py-2.5 flex items-center justify-center gap-3">
         <Sparkles className="w-4 h-4 text-white/90 hidden sm:block" />
         <span className="px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold uppercase rounded">New</span>

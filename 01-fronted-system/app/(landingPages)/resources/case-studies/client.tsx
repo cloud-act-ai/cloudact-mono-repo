@@ -138,7 +138,7 @@ export function CaseStudiesPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Real-World{" "}
-            <span style={{ color: '#FF6C5E' }}>Success Stories</span>
+            <span className="font-semibold">Success Stories</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             See how engineering and finance teams use CloudAct.ai to optimize cloud costs and gain visibility.
@@ -206,7 +206,7 @@ export function CaseStudiesPageClient() {
                   <div className="text-xs text-slate-500">Saved</div>
                 </div>
                 <div className="text-center border-x border-slate-200">
-                  <div className="text-lg font-bold" style={{ color: '#FF6C5E' }}>{study.metrics.reduction}</div>
+                  <div className="text-lg font-bold" className="text-emerald-600">{study.metrics.reduction}</div>
                   <div className="text-xs text-slate-500">Reduction</div>
                 </div>
                 <div className="text-center">

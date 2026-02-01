@@ -78,7 +78,7 @@ export default function PartnersPage() {
             Partner Program
           </div>
           <h1 className="ca-page-hero-title">
-            Grow with <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>CloudAct</span>
+            Grow with <span className="font-semibold">CloudAct</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Join our partner ecosystem and help enterprises optimize their cloud and GenAI costs.

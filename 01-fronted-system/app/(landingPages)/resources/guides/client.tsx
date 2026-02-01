@@ -111,7 +111,7 @@ export function GuidesPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Step-by-Step{" "}
-            <span style={{ color: '#FF6C5E' }}>Tutorials</span>
+            <span className="font-semibold">Tutorials</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Comprehensive guides to help you master cloud cost optimization and get the most from CloudAct.ai.

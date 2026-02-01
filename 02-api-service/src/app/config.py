@@ -221,29 +221,28 @@ class Settings(BaseSettings):
     )
 
     # ============================================
-    # Schema Auto-Sync Configuration
+    # Schema Auto-Sync Configuration (DISABLED FOR GO-LIVE)
     # ============================================
-    # On startup, automatically sync missing columns in bootstrap tables.
-    # Safe because BigQuery only allows adding columns (never delete).
-    # Any issues caught in staging before reaching production.
+    # These are now ad-hoc operations via admin endpoints.
+    # Use POST /api/v1/admin/bootstrap for initial setup.
+    # Use POST /api/v1/organizations/{org}/sync for org schema sync.
     auto_sync_schema: bool = Field(
-        default=True,
-        description="Auto-sync bootstrap schema columns on startup. Set AUTO_SYNC_SCHEMA=false to disable."
+        default=False,
+        description="DEPRECATED: Auto-sync disabled for go-live. Use admin endpoints instead."
     )
 
-    # Org schema sync - disabled by default (can be slow with many orgs)
-    # Enable temporarily after schema changes: AUTO_SYNC_ORG_SCHEMA=true
+    # Org schema sync - disabled (use admin endpoints)
     auto_sync_org_schema: bool = Field(
         default=False,
-        description="Auto-sync org dataset schemas on startup. Disabled by default - enable temporarily when needed."
+        description="DEPRECATED: Auto-sync disabled for go-live. Use POST /api/v1/organizations/{org}/sync instead."
     )
 
-    # Maximum orgs to sync per startup (prevents long startup times)
+    # Maximum orgs to sync per request (for ad-hoc sync operations)
     auto_sync_org_limit: int = Field(
         default=50,
         ge=1,
         le=1000,
-        description="Max orgs to sync when AUTO_SYNC_ORG_SCHEMA=true. Set higher for full sync."
+        description="Max orgs to sync per ad-hoc sync request."
     )
 
     # ============================================
@@ -776,19 +775,22 @@ class Settings(BaseSettings):
     )
 
     # ============================================
-    # Auto-Bootstrap Configuration
+    # Auto-Bootstrap Configuration (DISABLED FOR GO-LIVE)
     # ============================================
+    # Bootstrap is now an ad-hoc operation via POST /api/v1/admin/bootstrap
+    # Organization sync is via POST /api/v1/organizations/{org}/sync
     auto_bootstrap: bool = Field(
-        default=True,
-        description="Auto-run bootstrap/sync on startup. Set AUTO_BOOTSTRAP=false to disable."
+        default=False,
+        description="DEPRECATED: Auto-bootstrap disabled for go-live. Use POST /api/v1/admin/bootstrap instead."
     )
 
     # ============================================
-    # Org Dataset Auto-Sync Configuration
+    # Org Dataset Auto-Sync Configuration (DISABLED FOR GO-LIVE)
     # ============================================
+    # Org sync is now an ad-hoc operation for existing customers
     auto_sync_org_datasets: bool = Field(
-        default=True,
-        description="Auto-sync org datasets on startup (idempotent, safe for concurrent instances). Set AUTO_SYNC_ORG_DATASETS=false to disable."
+        default=False,
+        description="DEPRECATED: Auto-sync disabled for go-live. Use POST /api/v1/organizations/{org}/sync instead."
     )
 
 

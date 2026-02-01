@@ -584,5 +584,163 @@ done
 └── README.md               # Full documentation
 ```
 
+## Go-Live Checklist
+
+> **All scheduled operations run as Cloud Run Jobs from `05-scheduler-jobs/`**
+
+### Pre-Go-Live (One-Time Setup)
+
+#### 1. Create All Cloud Run Jobs
+```bash
+cd 05-scheduler-jobs
+
+# Create all jobs + Cloud Scheduler triggers
+./scripts/create-all-jobs.sh prod
+
+# Verify jobs created
+./scripts/list-jobs.sh prod
+```
+
+#### 2. Run Bootstrap (Manual - One-Time)
+```bash
+# Via Cloud Run Job (RECOMMENDED)
+./scripts/run-job.sh prod bootstrap
+
+# Or via API endpoint
+curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap" \
+  -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}" \
+  -H "Content-Type: application/json"
+```
+
+#### 3. Verify Scheduled Jobs Active
+```bash
+# List all jobs and schedulers
+./scripts/list-jobs.sh prod
+
+# Expected scheduled jobs:
+# - cloudact-quota-reset-daily     (00:00 UTC daily)
+# - cloudact-quota-reset-monthly   (00:05 UTC 1st of month)
+# - cloudact-stale-cleanup         (every 15 minutes)
+# - cloudact-quota-cleanup         (01:00 UTC daily)
+```
+
+### Post-Go-Live (Ad-Hoc Operations)
+
+#### Sync All Org Datasets (For Existing Customers)
+```bash
+cd 05-scheduler-jobs
+
+# Sync ALL orgs (loops through active orgs in BigQuery)
+./scripts/run-job.sh prod org-sync-all
+
+# This queries organizations.org_profiles for active orgs
+# and syncs each org's dataset schema
+```
+
+#### Bootstrap Sync (Add New Columns to Meta Tables)
+```bash
+# Via Cloud Run Job
+./scripts/run-job.sh prod bootstrap-sync
+
+# Or via API
+curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap/sync" \
+  -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
+```
+
 ---
-**Last Updated:** 2025-12-30
+
+## Cloud Run Jobs
+
+> **Location:** `05-scheduler-jobs/`
+
+### Job Categories
+
+| Category | Jobs | Script Location |
+|----------|------|-----------------|
+| **Manual** | bootstrap, bootstrap-sync, org-sync-all | `jobs/*.py` |
+| **Scheduled** | quota-reset-daily, quota-reset-monthly, stale-cleanup, quota-cleanup | `jobs/*.py` |
+
+### Quick Reference
+
+```bash
+cd 05-scheduler-jobs
+
+# Create all jobs (first time per environment)
+./scripts/create-all-jobs.sh prod
+
+# Run manual jobs
+./scripts/run-job.sh prod bootstrap
+./scripts/run-job.sh prod bootstrap-sync
+./scripts/run-job.sh prod org-sync-all
+
+# List jobs and status
+./scripts/list-jobs.sh prod
+```
+
+### Job Details
+
+#### Manual Jobs
+
+| Job | Script | Purpose | Timeout |
+|-----|--------|---------|---------|
+| `cloudact-bootstrap` | `jobs/bootstrap.py` | Initialize organizations dataset + 21 meta tables | 30m |
+| `cloudact-bootstrap-sync` | `jobs/bootstrap_sync.py` | Add new columns to existing meta tables | 30m |
+| `cloudact-org-sync-all` | `jobs/org_sync_all.py` | Sync ALL org datasets (loops through active orgs) | 60m |
+
+#### Scheduled Jobs
+
+| Job | Script | Schedule | Purpose |
+|-----|--------|----------|---------|
+| `cloudact-quota-reset-daily` | `jobs/quota_reset_daily.py` | 00:00 UTC | Reset daily pipeline counters |
+| `cloudact-quota-reset-monthly` | `jobs/quota_reset_monthly.py` | 00:05 1st | Reset monthly pipeline counters |
+| `cloudact-stale-cleanup` | `jobs/stale_cleanup.py` | */15 * * * * | Fix stuck concurrent counters |
+| `cloudact-quota-cleanup` | `jobs/quota_cleanup.py` | 01:00 UTC | Delete quota records >90 days |
+
+### org-sync-all Job (Key Job)
+
+This job loops through ALL active organizations:
+
+```python
+# Queries BigQuery for active orgs
+query = """
+    SELECT org_slug
+    FROM `{project_id}.organizations.org_profiles`
+    WHERE status = 'ACTIVE'
+    ORDER BY org_slug
+"""
+
+# Syncs each org's dataset
+for row in results:
+    await sync_org_dataset(row.org_slug)
+```
+
+### Job Management
+
+```bash
+# List all jobs
+gcloud run jobs list --project=cloudact-prod --region=us-central1
+
+# View job details
+gcloud run jobs describe cloudact-bootstrap --project=cloudact-prod --region=us-central1
+
+# View execution history
+gcloud run jobs executions list --job=cloudact-bootstrap --project=cloudact-prod --region=us-central1
+
+# Pause scheduler
+gcloud scheduler jobs pause cloudact-quota-reset-daily-trigger \
+  --project=cloudact-prod --location=us-central1
+
+# Resume scheduler
+gcloud scheduler jobs resume cloudact-quota-reset-daily-trigger \
+  --project=cloudact-prod --location=us-central1
+```
+
+### GCP Project Mapping
+
+| Environment | GCP Project |
+|-------------|-------------|
+| test, stage | cloudact-testing-1 |
+| prod | cloudact-prod |
+
+---
+**Last Updated:** 2026-01-31

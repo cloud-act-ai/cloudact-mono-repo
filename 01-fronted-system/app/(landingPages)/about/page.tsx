@@ -97,7 +97,7 @@ export default function AboutPage() {
           </div>
           <h1 className="ca-page-hero-title">
             Democratizing Cost Intelligence{" "}
-            <span style={{ color: '#FF6C5E' }}>for the GenAI Era</span>
+            <span className="font-semibold">for the GenAI Era</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             We believe every organization should have access to enterprise-grade cost intelligence.

@@ -16,7 +16,7 @@ export function HowItWorks() {
       title: "Analyze",
       desc: "Our engine ingests 12 months using CUR data and unifies it with OpenAI/Datadog usage logs automatically.",
       action: "Instant Backfill",
-      color: "coral"
+      color: "mint"
     },
     {
       num: "03",
@@ -39,9 +39,9 @@ export function HowItWorks() {
           >
             {/* Accent line */}
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-1 rounded-full bg-[#FF6C5E]" />
+              <div className="w-12 h-1 rounded-full bg-[#90FCA6]" />
             </div>
-            <span className="inline-block text-sm font-semibold text-[#FF6C5E] uppercase tracking-wider mb-3">
+            <span className="inline-block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
               How It Works
             </span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-4">
@@ -55,7 +55,7 @@ export function HowItWorks() {
 
         <div className="grid md:grid-cols-3 gap-8 relative">
           {/* Connector Line (Desktop) */}
-          <div className="hidden md:block absolute top-14 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-[#90FCA6] via-[#FF6C5E] to-[#90FCA6] -z-10" />
+          <div className="hidden md:block absolute top-14 left-[20%] right-[20%] h-0.5 bg-gradient-to-r from-[#90FCA6] via-slate-300 to-[#90FCA6] -z-10" />
 
           {steps.map((step, i) => (
             <motion.div
@@ -67,11 +67,7 @@ export function HowItWorks() {
               className="relative flex flex-col items-center text-center"
             >
               {/* Number Circle */}
-              <div className={`w-28 h-28 bg-white rounded-full flex items-center justify-center text-4xl font-bold shadow-lg border-4 mb-6 z-10 ${
-                step.color === "mint"
-                  ? "border-[#90FCA6]/30 text-emerald-600"
-                  : "border-[#FF6C5E]/30 text-[#FF6C5E]"
-              }`}>
+              <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center text-4xl font-bold shadow-lg border-4 mb-6 z-10 border-[#90FCA6]/30 text-emerald-600">
                 {step.num}
               </div>
 
@@ -82,11 +78,7 @@ export function HowItWorks() {
               <p className="text-slate-600 leading-relaxed mb-4 max-w-sm">{step.desc}</p>
 
               {/* Action Badge */}
-              <div className={`inline-flex items-center text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wide ${
-                step.color === "mint"
-                  ? "bg-[#90FCA6]/20 text-emerald-700"
-                  : "bg-[#FF6C5E]/15 text-[#FF6C5E]"
-              }`}>
+              <div className="inline-flex items-center text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wide bg-[#90FCA6]/20 text-emerald-700">
                 {step.action}
               </div>
             </motion.div>

@@ -126,7 +126,7 @@ export default function CareersPage() {
             Careers
           </div>
           <h1 className="ca-page-hero-title">
-            Build the Future of <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>FinOps</span>
+            Build the Future of <span className="font-semibold">FinOps</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Join our mission to help companies optimize their cloud and GenAI spending.

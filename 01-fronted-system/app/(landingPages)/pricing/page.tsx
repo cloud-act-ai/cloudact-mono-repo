@@ -108,10 +108,10 @@ export default function PricingPage() {
             </span>
           </div>
           <h1 className="ca-page-hero-title">
-            Simple, <span style={{ color: '#FF6C5E' }}>Transparent</span> Pricing
+            Simple, <span className="font-semibold">Transparent</span> Pricing
           </h1>
           <p className="ca-page-hero-subtitle">
-            <span style={{ color: '#FF6C5E', fontWeight: 500 }}>Start optimizing your cloud costs today.</span>{" "}
+            <span <strong>>Start optimizing your cloud costs today.</span>{" "}
             14-day free trial on all plans. No credit card required.
           </p>
 
@@ -317,10 +317,10 @@ export default function PricingPage() {
             <span className="text-xs font-semibold" style={{ color: '#ffffff' }}>FAQ</span>
           </div>
           <h2 className="ca-section-title">
-            Frequently Asked <span style={{ color: '#FF6C5E' }}>Questions</span>
+            Frequently Asked <span className="font-semibold">Questions</span>
           </h2>
           <p className="ca-section-subtitle">
-            <span style={{ color: '#FF6C5E', fontWeight: 500 }}>Everything you need to know</span>{" "}
+            <span <strong>>Everything you need to know</span>{" "}
             about our pricing and plans
           </p>
         </div>
@@ -372,11 +372,11 @@ export default function PricingPage() {
             <span className="text-xs font-semibold" style={{ color: '#0f172a' }}>Start Optimizing Today</span>
           </div>
           <h2 className="ca-final-cta-title">
-            Ready to <span style={{ color: '#FF6C5E' }}>Optimize</span> Your Cloud Costs?
+            Ready to <span className="font-semibold">Optimize</span> Your Cloud Costs?
           </h2>
           <p className="ca-final-cta-subtitle">
             Join teams{" "}
-            <span style={{ color: '#FF6C5E', fontWeight: 500 }}>already saving with CloudAct.ai</span>.
+            <span <strong>>already saving with CloudAct.ai</span>.
             Get started in minutes with our 14-day free trial.
           </p>
           <div className="ca-final-cta-buttons">

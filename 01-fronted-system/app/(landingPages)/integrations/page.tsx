@@ -99,7 +99,7 @@ export default function IntegrationsPage() {
           </div>
           <h1 className="ca-page-hero-title">
             Connect Your{" "}
-            <span style={{ color: '#FF6C5E' }}>Entire Stack</span>
+            <span className="font-semibold">Entire Stack</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             50+ integrations with cloud providers, GenAI platforms, and SaaS tools.

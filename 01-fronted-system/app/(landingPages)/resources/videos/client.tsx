@@ -112,7 +112,7 @@ export function VideosPageClient() {
           </div>
           <h1 className="ca-page-hero-title">
             Learn by{" "}
-            <span style={{ color: '#FF6C5E' }}>Watching</span>
+            <span className="font-semibold">Watching</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Quick video tutorials and walkthroughs to help you get the most from CloudAct.ai.

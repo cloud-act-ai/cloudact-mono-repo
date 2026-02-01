@@ -80,7 +80,7 @@ export default function InvestorsPage() {
             Investor Relations
           </div>
           <h1 className="ca-page-hero-title">
-            Invest in the Future of <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>FinOps</span>
+            Invest in the Future of <span className="font-semibold">FinOps</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             CloudAct.ai is transforming how companies manage cloud and GenAI costs.

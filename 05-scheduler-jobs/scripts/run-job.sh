@@ -1,0 +1,140 @@
+#!/bin/bash
+# =============================================================================
+# Run Cloud Run Job
+# =============================================================================
+# Executes a Cloud Run Job manually.
+#
+# Usage:
+#   ./run-job.sh <environment> <job-name>
+#   ./run-job.sh prod bootstrap
+#   ./run-job.sh test org-sync-all
+#
+# Available jobs:
+#   - bootstrap           Initial system bootstrap
+#   - bootstrap-sync      Sync bootstrap schema
+#   - org-sync-all        Sync all org datasets
+#   - quota-reset-daily   Reset daily quotas
+#   - quota-reset-monthly Reset monthly quotas
+#   - stale-cleanup       Fix stuck concurrent counters
+#   - quota-cleanup       Delete old quota records
+#
+# =============================================================================
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Arguments
+ENV="${1:-}"
+JOB_NAME="${2:-}"
+
+if [[ -z "$ENV" ]] || [[ -z "$JOB_NAME" ]]; then
+    echo -e "${RED}ERROR: Environment and job name required${NC}"
+    echo ""
+    echo "Usage: $0 <environment> <job-name>"
+    echo ""
+    echo "Environments: test, stage, prod"
+    echo ""
+    echo "Available jobs:"
+    echo "  bootstrap           - Initial system bootstrap"
+    echo "  bootstrap-sync      - Sync bootstrap schema"
+    echo "  org-sync-all        - Sync all org datasets"
+    echo "  quota-reset-daily   - Reset daily quotas"
+    echo "  quota-reset-monthly - Reset monthly quotas"
+    echo "  stale-cleanup       - Fix stuck concurrent counters"
+    echo "  quota-cleanup       - Delete old quota records"
+    exit 1
+fi
+
+# Environment configuration
+case "$ENV" in
+    test|stage)
+        PROJECT_ID="cloudact-testing-1"
+        ;;
+    prod)
+        PROJECT_ID="cloudact-prod"
+        ;;
+    *)
+        echo -e "${RED}ERROR: Invalid environment: $ENV${NC}"
+        echo "  Valid environments: test, stage, prod"
+        exit 1
+        ;;
+esac
+
+# Normalize job name (add cloudact- prefix if not present)
+if [[ ! "$JOB_NAME" =~ ^cloudact- ]]; then
+    FULL_JOB_NAME="cloudact-${JOB_NAME}"
+else
+    FULL_JOB_NAME="$JOB_NAME"
+fi
+
+REGION="us-central1"
+
+echo "============================================================"
+echo -e "${BLUE}Running Cloud Run Job${NC}"
+echo "============================================================"
+echo "Environment:  $ENV"
+echo "Project:      $PROJECT_ID"
+echo "Job:          $FULL_JOB_NAME"
+echo "Region:       $REGION"
+echo "============================================================"
+echo ""
+
+# Set project
+gcloud config set project "$PROJECT_ID" --quiet
+
+# Check if job exists
+if ! gcloud run jobs describe "$FULL_JOB_NAME" --region="$REGION" &>/dev/null; then
+    echo -e "${RED}ERROR: Job not found: $FULL_JOB_NAME${NC}"
+    echo ""
+    echo "Available jobs:"
+    gcloud run jobs list --region="$REGION" --format="table(name)" 2>/dev/null || echo "  (none found)"
+    exit 1
+fi
+
+# Confirm for production
+if [[ "$ENV" == "prod" ]]; then
+    echo -e "${YELLOW}⚠️  WARNING: Running job in PRODUCTION${NC}"
+    read -p "Are you sure? (yes/no): " confirm
+    if [[ "$confirm" != "yes" ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+    echo ""
+fi
+
+# Execute job
+echo -e "${YELLOW}Executing job...${NC}"
+EXECUTION=$(gcloud run jobs execute "$FULL_JOB_NAME" \
+    --region="$REGION" \
+    --wait \
+    --format="value(metadata.name)" 2>&1) || {
+    echo -e "${RED}✗ Job execution failed${NC}"
+    exit 1
+}
+
+echo ""
+echo -e "${GREEN}✓ Job executed successfully${NC}"
+echo ""
+echo "Execution: $EXECUTION"
+echo ""
+
+# Show logs
+echo "============================================================"
+echo -e "${BLUE}Job Logs${NC}"
+echo "============================================================"
+gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=$FULL_JOB_NAME" \
+    --limit=50 \
+    --format="table(timestamp,textPayload)" \
+    --order=asc \
+    2>/dev/null || echo "  (no logs found yet - may take a moment)"
+
+echo ""
+echo "============================================================"
+echo -e "${GREEN}Done${NC}"
+echo "============================================================"

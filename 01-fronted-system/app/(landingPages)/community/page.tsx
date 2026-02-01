@@ -102,7 +102,7 @@ export default function CommunityPage() {
           </div>
           <h1 className="ca-page-hero-title">
             Join Our{" "}
-            <span className="ca-hero-highlight-mint" style={{ color: '#FF6C5E' }}>Community</span>
+            <span className="font-semibold">Community</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Connect with cloud cost optimization experts, share best practices, and get help from the CloudAct.ai community.
