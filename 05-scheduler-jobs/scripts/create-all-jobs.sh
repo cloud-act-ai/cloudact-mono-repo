@@ -3,11 +3,19 @@
 # Create All Cloud Run Jobs
 # =============================================================================
 # Creates Cloud Run Jobs and Cloud Scheduler triggers for CloudAct.
+# Deletes existing jobs first for a clean slate.
 #
 # Usage:
 #   ./create-all-jobs.sh <environment>
 #   ./create-all-jobs.sh prod
-#   ./create-all-jobs.sh test
+#   ./create-all-jobs.sh stage
+#
+# Job Categories:
+#   MANUAL (Release)  - Run before/after releases
+#   EVERY 5 MINUTES   - High-frequency operational jobs
+#   EVERY 15 MINUTES  - Medium-frequency maintenance jobs
+#   DAILY             - Daily maintenance and cleanup
+#   MONTHLY           - Monthly quota resets
 #
 # =============================================================================
 
@@ -18,6 +26,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Get script directory
@@ -39,10 +48,14 @@ case "$ENV" in
     test|stage)
         PROJECT_ID="cloudact-testing-1"
         FULL_ENV="staging"
+        SECRET_ENV="test"  # Secrets in cloudact-testing-1 use -test suffix
+        SUPABASE_SECRET_ENV="stage"  # Exception: supabase-access-token uses -stage
         ;;
     prod)
         PROJECT_ID="cloudact-prod"
         FULL_ENV="production"
+        SECRET_ENV="prod"
+        SUPABASE_SECRET_ENV="prod"
         ;;
     *)
         echo -e "${RED}ERROR: Invalid environment: $ENV${NC}"
@@ -103,8 +116,67 @@ fi
 # Job Definitions
 # =============================================================================
 
-# Image name for jobs (uses dedicated jobs image with job scripts included)
 IMAGE_NAME="cloudact-jobs-${ENV}"
+
+# All jobs to manage (for deletion) - including old names for cleanup
+ALL_JOBS=(
+    # Old names (for cleanup)
+    "cloudact-supabase-migrate"
+    "cloudact-bootstrap"
+    "cloudact-bootstrap-sync"
+    "cloudact-org-sync-all"
+    "cloudact-billing-sync-retry"
+    "cloudact-stale-cleanup"
+    "cloudact-quota-reset-daily"
+    "cloudact-quota-cleanup"
+    "cloudact-billing-sync-reconcile"
+    "cloudact-quota-reset-monthly"
+    # New names with category prefix
+    "cloudact-manual-supabase-migrate"
+    "cloudact-manual-bootstrap"
+    "cloudact-manual-bootstrap-sync"
+    "cloudact-manual-org-sync-all"
+    "cloudact-5min-billing-sync-retry"
+    "cloudact-15min-stale-cleanup"
+    "cloudact-daily-quota-reset"
+    "cloudact-daily-quota-cleanup"
+    "cloudact-daily-billing-reconcile"
+    "cloudact-monthly-quota-reset"
+)
+
+# All schedulers to manage (for deletion)
+ALL_SCHEDULERS=(
+    # Old names
+    "cloudact-billing-sync-retry-trigger"
+    "cloudact-stale-cleanup-trigger"
+    "cloudact-quota-reset-daily-trigger"
+    "cloudact-quota-cleanup-trigger"
+    "cloudact-billing-sync-reconcile-trigger"
+    "cloudact-quota-reset-monthly-trigger"
+    # New names
+    "cloudact-5min-billing-sync-retry-trigger"
+    "cloudact-15min-stale-cleanup-trigger"
+    "cloudact-daily-quota-reset-trigger"
+    "cloudact-daily-quota-cleanup-trigger"
+    "cloudact-daily-billing-reconcile-trigger"
+    "cloudact-monthly-quota-reset-trigger"
+)
+
+delete_job() {
+    local JOB_NAME="$1"
+    if gcloud run jobs describe "$JOB_NAME" --region="$REGION" &>/dev/null; then
+        echo "  Deleting: $JOB_NAME"
+        gcloud run jobs delete "$JOB_NAME" --region="$REGION" --quiet 2>/dev/null || true
+    fi
+}
+
+delete_scheduler() {
+    local SCHEDULER_NAME="$1"
+    if gcloud scheduler jobs describe "$SCHEDULER_NAME" --location="$REGION" &>/dev/null; then
+        echo "  Deleting: $SCHEDULER_NAME"
+        gcloud scheduler jobs delete "$SCHEDULER_NAME" --location="$REGION" --quiet 2>/dev/null || true
+    fi
+}
 
 create_job() {
     local JOB_NAME="$1"
@@ -112,91 +184,30 @@ create_job() {
     local TIMEOUT="$3"
     local MEMORY="${4:-2Gi}"
     local CPU="${5:-1}"
+    local EXTRA_SECRETS="${6:-}"
 
-    echo ""
-    echo -e "${YELLOW}Creating job: $JOB_NAME${NC}"
+    echo -e "  ${CYAN}Creating: $JOB_NAME${NC}"
 
-    # Delete existing job if exists
-    if gcloud run jobs describe "$JOB_NAME" --region="$REGION" &>/dev/null; then
-        echo "  Updating existing job..."
-        gcloud run jobs update "$JOB_NAME" \
-            --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
-            --command="python" \
-            --args="$SCRIPT_PATH" \
-            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
-            --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest" \
-            --service-account="$SERVICE_ACCOUNT" \
-            --task-timeout="$TIMEOUT" \
-            --memory="$MEMORY" \
-            --cpu="$CPU" \
-            --max-retries=1 \
-            --quiet
-    else
-        echo "  Creating new job..."
-        gcloud run jobs create "$JOB_NAME" \
-            --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
-            --command="python" \
-            --args="$SCRIPT_PATH" \
-            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
-            --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest" \
-            --service-account="$SERVICE_ACCOUNT" \
-            --task-timeout="$TIMEOUT" \
-            --memory="$MEMORY" \
-            --cpu="$CPU" \
-            --max-retries=1 \
-            --quiet
+    local SECRETS="CA_ROOT_API_KEY=ca-root-api-key-${SECRET_ENV}:latest"
+    if [[ -n "$EXTRA_SECRETS" ]]; then
+        SECRETS="${SECRETS},${EXTRA_SECRETS}"
     fi
 
-    echo -e "${GREEN}  ✓ Job created: $JOB_NAME${NC}"
-}
+    gcloud run jobs create "$JOB_NAME" \
+        --region="$REGION" \
+        --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
+        --command="python" \
+        --args="$SCRIPT_PATH" \
+        --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
+        --set-secrets="$SECRETS" \
+        --service-account="$SERVICE_ACCOUNT" \
+        --task-timeout="$TIMEOUT" \
+        --memory="$MEMORY" \
+        --cpu="$CPU" \
+        --max-retries=1 \
+        --quiet
 
-# Special function for supabase-migrate job (needs SUPABASE_ACCESS_TOKEN secret)
-create_supabase_migrate_job() {
-    local JOB_NAME="cloudact-supabase-migrate"
-    local SCRIPT_PATH="jobs/supabase_migrate.py"
-    local TIMEOUT="15m"
-    local MEMORY="2Gi"
-    local CPU="1"
-
-    echo ""
-    echo -e "${YELLOW}Creating job: $JOB_NAME${NC}"
-
-    # Delete existing job if exists
-    if gcloud run jobs describe "$JOB_NAME" --region="$REGION" &>/dev/null; then
-        echo "  Updating existing job..."
-        gcloud run jobs update "$JOB_NAME" \
-            --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
-            --command="python" \
-            --args="$SCRIPT_PATH" \
-            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
-            --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,SUPABASE_ACCESS_TOKEN=supabase-access-token-${ENV}:latest" \
-            --service-account="$SERVICE_ACCOUNT" \
-            --task-timeout="$TIMEOUT" \
-            --memory="$MEMORY" \
-            --cpu="$CPU" \
-            --max-retries=1 \
-            --quiet
-    else
-        echo "  Creating new job..."
-        gcloud run jobs create "$JOB_NAME" \
-            --region="$REGION" \
-            --image="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest" \
-            --command="python" \
-            --args="$SCRIPT_PATH" \
-            --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=${FULL_ENV}" \
-            --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,SUPABASE_ACCESS_TOKEN=supabase-access-token-${ENV}:latest" \
-            --service-account="$SERVICE_ACCOUNT" \
-            --task-timeout="$TIMEOUT" \
-            --memory="$MEMORY" \
-            --cpu="$CPU" \
-            --max-retries=1 \
-            --quiet
-    fi
-
-    echo -e "${GREEN}  ✓ Job created: $JOB_NAME${NC}"
+    echo -e "  ${GREEN}✓ $JOB_NAME${NC}"
 }
 
 create_scheduler() {
@@ -205,13 +216,7 @@ create_scheduler() {
     local SCHEDULE="$3"
     local DESCRIPTION="$4"
 
-    echo ""
-    echo -e "${YELLOW}Creating scheduler: $SCHEDULER_NAME${NC}"
-
-    # Delete existing scheduler if exists
-    if gcloud scheduler jobs describe "$SCHEDULER_NAME" --location="$REGION" &>/dev/null; then
-        gcloud scheduler jobs delete "$SCHEDULER_NAME" --location="$REGION" --quiet
-    fi
+    echo -e "  ${CYAN}Creating scheduler: $SCHEDULER_NAME${NC}"
 
     gcloud scheduler jobs create http "$SCHEDULER_NAME" \
         --location="$REGION" \
@@ -223,122 +228,179 @@ create_scheduler() {
         --time-zone="UTC" \
         --quiet
 
-    echo -e "${GREEN}  ✓ Scheduler created: $SCHEDULER_NAME${NC}"
+    echo -e "  ${GREEN}✓ $SCHEDULER_NAME${NC}"
 }
 
 # =============================================================================
-# Create Manual Jobs (No Scheduler)
+# STEP 1: Delete All Existing Jobs and Schedulers
 # =============================================================================
 
 echo ""
 echo "============================================================"
-echo -e "${BLUE}Creating Manual Jobs${NC}"
+echo -e "${YELLOW}Deleting Existing Jobs & Schedulers${NC}"
 echo "============================================================"
 
-# Bootstrap job
-create_job "cloudact-bootstrap" \
-    "jobs/bootstrap.py" \
+echo "Deleting schedulers..."
+for scheduler in "${ALL_SCHEDULERS[@]}"; do
+    delete_scheduler "$scheduler"
+done
+
+echo "Deleting jobs..."
+for job in "${ALL_JOBS[@]}"; do
+    delete_job "$job"
+done
+
+echo -e "${GREEN}✓ Cleanup complete${NC}"
+
+# =============================================================================
+# STEP 2: Create MANUAL Jobs (Run Before/After Releases)
+# =============================================================================
+
+echo ""
+echo "============================================================"
+echo -e "${BLUE}MANUAL JOBS${NC} ${YELLOW}(Run before/after releases)${NC}"
+echo "============================================================"
+echo ""
+echo -e "${YELLOW}NOTE: Run these jobs in order after each release:${NC}"
+echo "  1. supabase-migrate  - Before deploying frontend"
+echo "  2. bootstrap-sync    - After deploying API service"
+echo "  3. org-sync-all      - After bootstrap-sync completes"
+echo ""
+
+# 1. Supabase Migrate (BEFORE frontend deploy)
+create_job "cloudact-manual-supabase-migrate" \
+    "jobs/manual/supabase_migrate.py" \
+    "15m" \
+    "2Gi" \
+    "1" \
+    "SUPABASE_ACCESS_TOKEN=supabase-access-token-${SUPABASE_SECRET_ENV}:latest"
+
+# 2. Bootstrap (Initial setup only)
+create_job "cloudact-manual-bootstrap" \
+    "jobs/manual/bootstrap.py" \
     "30m" \
     "4Gi" \
     "2"
 
-# Bootstrap sync job
-create_job "cloudact-bootstrap-sync" \
-    "jobs/bootstrap_sync.py" \
+# 3. Bootstrap Sync (AFTER API deploy - syncs new columns)
+create_job "cloudact-manual-bootstrap-sync" \
+    "jobs/manual/bootstrap_sync.py" \
     "30m" \
     "4Gi" \
     "2"
 
-# Org sync all job
-create_job "cloudact-org-sync-all" \
-    "jobs/org_sync_all.py" \
+# 4. Org Sync All (AFTER bootstrap-sync)
+create_job "cloudact-manual-org-sync-all" \
+    "jobs/manual/org_sync_all.py" \
     "60m" \
     "4Gi" \
     "2"
 
-# Supabase migrate job (requires SUPABASE_ACCESS_TOKEN secret)
-create_supabase_migrate_job
-
 # =============================================================================
-# Create Scheduled Jobs
+# STEP 3: Create EVERY 5 MINUTES Jobs
 # =============================================================================
 
 echo ""
 echo "============================================================"
-echo -e "${BLUE}Creating Scheduled Jobs${NC}"
+echo -e "${BLUE}EVERY 5 MINUTES${NC}"
 echo "============================================================"
 
-# Daily quota reset (00:00 UTC)
-create_job "cloudact-quota-reset-daily" \
-    "jobs/quota_reset_daily.py" \
-    "15m" \
-    "2Gi" \
-    "1"
-
-create_scheduler "cloudact-quota-reset-daily-trigger" \
-    "cloudact-quota-reset-daily" \
-    "0 0 * * *" \
-    "Reset daily pipeline quotas at midnight UTC"
-
-# Monthly quota reset (00:05 UTC on 1st)
-create_job "cloudact-quota-reset-monthly" \
-    "jobs/quota_reset_monthly.py" \
-    "15m" \
-    "2Gi" \
-    "1"
-
-create_scheduler "cloudact-quota-reset-monthly-trigger" \
-    "cloudact-quota-reset-monthly" \
-    "5 0 1 * *" \
-    "Reset monthly pipeline quotas on 1st of month"
-
-# Stale cleanup (every 15 minutes)
-create_job "cloudact-stale-cleanup" \
-    "jobs/stale_cleanup.py" \
-    "10m" \
-    "2Gi" \
-    "1"
-
-create_scheduler "cloudact-stale-cleanup-trigger" \
-    "cloudact-stale-cleanup" \
-    "*/15 * * * *" \
-    "Fix stuck concurrent pipeline counters"
-
-# Quota cleanup (01:00 UTC daily)
-create_job "cloudact-quota-cleanup" \
-    "jobs/quota_cleanup.py" \
-    "30m" \
-    "2Gi" \
-    "1"
-
-create_scheduler "cloudact-quota-cleanup-trigger" \
-    "cloudact-quota-cleanup" \
-    "0 1 * * *" \
-    "Delete quota records older than 90 days"
-
-# Billing sync retry (every 5 minutes)
-create_job "cloudact-billing-sync-retry" \
-    "jobs/billing_sync.py,retry" \
+create_job "cloudact-5min-billing-sync-retry" \
+    "jobs/every_5min/billing_sync_retry.py" \
     "10m" \
     "1Gi" \
     "1"
 
-create_scheduler "cloudact-billing-sync-retry-trigger" \
-    "cloudact-billing-sync-retry" \
+create_scheduler "cloudact-5min-billing-sync-retry-trigger" \
+    "cloudact-5min-billing-sync-retry" \
     "*/5 * * * *" \
-    "Process pending billing sync queue items"
+    "Process pending billing sync queue (every 5 min)"
 
-# Billing sync reconcile (02:00 UTC daily)
-create_job "cloudact-billing-sync-reconcile" \
-    "jobs/billing_sync.py,reconcile" \
+# =============================================================================
+# STEP 4: Create EVERY 15 MINUTES Jobs
+# =============================================================================
+
+echo ""
+echo "============================================================"
+echo -e "${BLUE}EVERY 15 MINUTES${NC}"
+echo "============================================================"
+
+create_job "cloudact-15min-stale-cleanup" \
+    "jobs/every_15min/stale_cleanup.py" \
+    "10m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-15min-stale-cleanup-trigger" \
+    "cloudact-15min-stale-cleanup" \
+    "*/15 * * * *" \
+    "Fix stuck concurrent pipeline counters (every 15 min)"
+
+# =============================================================================
+# STEP 5: Create DAILY Jobs
+# =============================================================================
+
+echo ""
+echo "============================================================"
+echo -e "${BLUE}DAILY JOBS${NC}"
+echo "============================================================"
+
+# 00:00 UTC - Quota reset daily
+create_job "cloudact-daily-quota-reset" \
+    "jobs/daily/quota_reset_daily.py" \
+    "15m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-daily-quota-reset-trigger" \
+    "cloudact-daily-quota-reset" \
+    "0 0 * * *" \
+    "Reset daily pipeline quotas (00:00 UTC)"
+
+# 01:00 UTC - Quota cleanup
+create_job "cloudact-daily-quota-cleanup" \
+    "jobs/daily/quota_cleanup.py" \
     "30m" \
     "2Gi" \
     "1"
 
-create_scheduler "cloudact-billing-sync-reconcile-trigger" \
-    "cloudact-billing-sync-reconcile" \
+create_scheduler "cloudact-daily-quota-cleanup-trigger" \
+    "cloudact-daily-quota-cleanup" \
+    "0 1 * * *" \
+    "Delete quota records older than 90 days (01:00 UTC)"
+
+# 02:00 UTC - Billing reconcile
+create_job "cloudact-daily-billing-reconcile" \
+    "jobs/daily/billing_sync_reconcile.py" \
+    "30m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-daily-billing-reconcile-trigger" \
+    "cloudact-daily-billing-reconcile" \
     "0 2 * * *" \
-    "Full Stripe to BigQuery reconciliation"
+    "Full Stripe→BigQuery reconciliation (02:00 UTC)"
+
+# =============================================================================
+# STEP 6: Create MONTHLY Jobs
+# =============================================================================
+
+echo ""
+echo "============================================================"
+echo -e "${BLUE}MONTHLY JOBS${NC}"
+echo "============================================================"
+
+# 00:05 UTC on 1st - Monthly quota reset
+create_job "cloudact-monthly-quota-reset" \
+    "jobs/monthly/quota_reset_monthly.py" \
+    "15m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-monthly-quota-reset-trigger" \
+    "cloudact-monthly-quota-reset" \
+    "5 0 1 * *" \
+    "Reset monthly pipeline quotas (00:05 UTC on 1st)"
 
 # =============================================================================
 # Summary
@@ -349,18 +411,26 @@ echo "============================================================"
 echo -e "${GREEN}✓ All jobs created successfully!${NC}"
 echo "============================================================"
 echo ""
-echo "Manual Jobs (run with ./run-job.sh):"
-echo "  - cloudact-bootstrap"
-echo "  - cloudact-bootstrap-sync"
-echo "  - cloudact-org-sync-all"
+echo -e "${YELLOW}MANUAL JOBS (Run before/after releases):${NC}"
+echo "  cloudact-manual-supabase-migrate  - Run BEFORE frontend deploy"
+echo "  cloudact-manual-bootstrap         - Initial setup (one-time)"
+echo "  cloudact-manual-bootstrap-sync    - Run AFTER API deploy"
+echo "  cloudact-manual-org-sync-all      - Run AFTER bootstrap-sync"
 echo ""
-echo "Scheduled Jobs:"
-echo "  - cloudact-quota-reset-daily     (00:00 UTC daily)"
-echo "  - cloudact-quota-reset-monthly   (00:05 UTC 1st of month)"
-echo "  - cloudact-stale-cleanup         (every 15 minutes)"
-echo "  - cloudact-quota-cleanup         (01:00 UTC daily)"
-echo "  - cloudact-billing-sync-retry    (every 5 minutes)"
-echo "  - cloudact-billing-sync-reconcile (02:00 UTC daily)"
+echo -e "${CYAN}SCHEDULED JOBS:${NC}"
+echo "  Every 5 min:"
+echo "    cloudact-5min-billing-sync-retry"
+echo ""
+echo "  Every 15 min:"
+echo "    cloudact-15min-stale-cleanup"
+echo ""
+echo "  Daily:"
+echo "    cloudact-daily-quota-reset        (00:00 UTC)"
+echo "    cloudact-daily-quota-cleanup      (01:00 UTC)"
+echo "    cloudact-daily-billing-reconcile  (02:00 UTC)"
+echo ""
+echo "  Monthly:"
+echo "    cloudact-monthly-quota-reset      (00:05 UTC on 1st)"
 echo ""
 echo "View jobs:  ./list-jobs.sh $ENV"
 echo "Run job:    ./run-job.sh $ENV <job-name>"
