@@ -206,7 +206,7 @@ steps:
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --memory=8Gi \
+          --memory=2Gi \
           --cpu=2 \
           --timeout=60 \
           --min-instances=1 \

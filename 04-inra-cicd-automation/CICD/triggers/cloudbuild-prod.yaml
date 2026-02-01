@@ -196,12 +196,13 @@ steps:
         PIPELINE_URL="https://pipeline.cloudact.ai"
         APP_URL="https://cloudact.ai"
         
-        # Clear secret-based env vars before setting as plain env vars
+        # Clear secret-bound env vars before setting as plain env vars
+        # These were previously set as secrets but should be plain env vars (baked into image at build time)
         gcloud run services update cloudact-frontend-${_ENV} \
           --project=${_PROJECT_ID} \
           --region=${_REGION} \
-          --remove-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" \
-          --quiet || true
+          --remove-secrets="NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,supabase-anon-key-${_ENV},stripe-publishable-key-${_ENV}" \
+          --quiet 2>/dev/null || true
 
         gcloud run deploy cloudact-frontend-${_ENV} \
           --project=${_PROJECT_ID} \
@@ -209,7 +210,7 @@ steps:
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --memory=8Gi \
+          --memory=2Gi \
           --cpu=2 \
           --timeout=60 \
           --min-instances=1 \
