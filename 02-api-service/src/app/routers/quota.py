@@ -2,6 +2,11 @@
 Quota Management API Routes
 Provides quota usage information for organizations.
 
+ARCHITECTURE:
+- Subscription limits (daily_limit, monthly_limit, etc.) are read from Supabase organizations table
+- Usage tracking (pipelines_run_today, etc.) is read from BigQuery org_usage_quotas table
+- Provider count is read from BigQuery org_integration_credentials table
+
 Security Enhancements:
 - Issue #29: Generic error messages (no details leaked)
 - Issue #30: Rate limiting (100 req/min per org)
@@ -15,6 +20,7 @@ from datetime import datetime, date
 import logging
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.app.config import settings
 from src.app.dependencies.auth import get_org_or_admin_auth, AuthResult
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
@@ -78,6 +84,10 @@ async def get_quota(
     - Monthly pipeline runs
     - Concurrent pipelines running
 
+    ARCHITECTURE:
+    - Limits are read from Supabase organizations table (source of truth for billing)
+    - Usage is read from BigQuery org_usage_quotas table (where pipelines write)
+
     Accepts EITHER:
     - Organization API Key (X-API-Key header) - self-service access
     - Root API Key (X-CA-Root-Key header) - admin can access any org
@@ -124,9 +134,30 @@ async def get_quota(
     today = datetime.utcnow().date()
 
     try:
-        # Query org_usage_quotas and org_subscriptions for complete quota info
-        # Also count configured providers from org_integration_credentials
-        # Note: We use subscription limits as source of truth (handle subscription upgrades)
+        # STEP 1: Get subscription limits from Supabase organizations table
+        supabase = get_supabase_client()
+        org_result = supabase.table("organizations").select(
+            "daily_pipeline_limit, monthly_pipeline_limit, concurrent_pipeline_limit, "
+            "seat_limit, providers_limit, subscription_plan"
+        ).eq("org_slug", org_slug).single().execute()
+
+        if not org_result.data:
+            raise handle_not_found(
+                resource_type="Organization",
+                resource_id=org_slug,
+                context={"reason": "no_organization"}
+            )
+
+        org_data = org_result.data
+
+        # Extract limits from Supabase (with defaults)
+        daily_limit = org_data.get("daily_pipeline_limit") or _DEFAULT_LIMITS["daily_limit"]
+        monthly_limit = org_data.get("monthly_pipeline_limit") or _DEFAULT_LIMITS["monthly_limit"]
+        concurrent_limit = org_data.get("concurrent_pipeline_limit") or _DEFAULT_LIMITS["concurrent_limit"]
+        seat_limit = org_data.get("seat_limit") or _DEFAULT_LIMITS["seat_limit"]
+        providers_limit = org_data.get("providers_limit") or _DEFAULT_LIMITS["providers_limit"]
+
+        # STEP 2: Get usage from BigQuery org_usage_quotas and provider count
         query = f"""
         WITH provider_count AS (
             SELECT COUNT(DISTINCT provider) as configured_providers_count
@@ -140,19 +171,11 @@ async def get_quota(
             u.pipelines_run_month,
             u.concurrent_pipelines_running,
             u.usage_date,
-            s.daily_limit,
-            s.monthly_limit,
-            s.concurrent_limit,
-            s.seat_limit,
-            s.providers_limit,
-            s.plan_name,
             COALESCE(p.configured_providers_count, 0) as configured_providers_count
-        FROM `{settings.gcp_project_id}.organizations.org_subscriptions` s
-        LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
-            ON s.org_slug = u.org_slug
-            AND u.usage_date = @usage_date
+        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` u
         CROSS JOIN provider_count p
-        WHERE s.org_slug = @org_slug
+        WHERE u.org_slug = @org_slug
+            AND u.usage_date = @usage_date
         LIMIT 1
         """
 
@@ -164,49 +187,20 @@ async def get_quota(
             ]
         ))
 
-        if not results:
-            # Issue #29: Generic error message
-            raise handle_not_found(
-                resource_type="Organization",
-                resource_id=org_slug,
-                context={"reason": "no_subscription"}
-            )
+        # Default usage values if no record exists yet
+        pipelines_run_today = 0
+        pipelines_run_month = 0
+        concurrent_running = 0
+        configured_providers_count = 0
+        usage_date = today
 
-        row = results[0]
-
-        # Extract values (handle NULL from LEFT JOIN when no usage record exists yet)
-        # Use explicit None checks to preserve 0 values (0 means disabled, not "use default")
-        pipelines_run_today = row.get("pipelines_run_today")
-        pipelines_run_today = pipelines_run_today if pipelines_run_today is not None else 0
-
-        pipelines_run_month = row.get("pipelines_run_month")
-        pipelines_run_month = pipelines_run_month if pipelines_run_month is not None else 0
-
-        concurrent_running = row.get("concurrent_pipelines_running")
-        concurrent_running = concurrent_running if concurrent_running is not None else 0
-
-        # For limits, use SUBSCRIPTION_LIMITS defaults when NULL (not when 0)
-        daily_limit = row.get("daily_limit")
-        daily_limit = daily_limit if daily_limit is not None else _DEFAULT_LIMITS["daily_limit"]
-
-        monthly_limit = row.get("monthly_limit")
-        monthly_limit = monthly_limit if monthly_limit is not None else _DEFAULT_LIMITS["monthly_limit"]
-
-        concurrent_limit = row.get("concurrent_limit")
-        concurrent_limit = concurrent_limit if concurrent_limit is not None else _DEFAULT_LIMITS["concurrent_limit"]
-
-        # Resource limits (seat_limit and providers_limit)
-        seat_limit = row.get("seat_limit")
-        seat_limit = seat_limit if seat_limit is not None else _DEFAULT_LIMITS["seat_limit"]
-
-        providers_limit = row.get("providers_limit")
-        providers_limit = providers_limit if providers_limit is not None else _DEFAULT_LIMITS["providers_limit"]
-
-        # Resource usage counts
-        configured_providers_count = row.get("configured_providers_count")
-        configured_providers_count = configured_providers_count if configured_providers_count is not None else 0
-
-        usage_date = row.get("usage_date")
+        if results:
+            row = results[0]
+            pipelines_run_today = row.get("pipelines_run_today") or 0
+            pipelines_run_month = row.get("pipelines_run_month") or 0
+            concurrent_running = row.get("concurrent_pipelines_running") or 0
+            configured_providers_count = row.get("configured_providers_count") or 0
+            usage_date = row.get("usage_date") or today
 
         # Calculate usage percentages
         daily_usage_percent = (pipelines_run_today / daily_limit * 100) if daily_limit > 0 else 0

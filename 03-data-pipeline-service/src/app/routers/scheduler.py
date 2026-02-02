@@ -7,7 +7,7 @@ Supports hourly triggers, queue processing, and org pipeline configurations.
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 import uuid
 import logging
 from croniter import croniter
@@ -15,6 +15,7 @@ import pytz
 
 from src.app.dependencies.auth import verify_api_key_header, verify_admin_key, OrgContext, get_current_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.app.config import settings
 from google.cloud import bigquery
 import json
@@ -188,7 +189,7 @@ async def get_pipelines_due_now(
     - is_active = TRUE
     - next_run_time <= NOW()
     - Org status = ACTIVE
-    - Org quota not exceeded
+    - Org quota not exceeded (checked via Supabase)
 
     Args:
         bq_client: BigQuery client instance
@@ -197,63 +198,110 @@ async def get_pipelines_due_now(
     Returns:
         List of pipeline configurations ready to run
     """
-    # Note: This assumes org_pipeline_configs table exists in organizations dataset
-    # Schema should be created as part of scheduler setup
-    today = get_utc_date()  # Use UTC date for consistency
-    # BUG-007 FIX: Also check concurrent limit to avoid queueing pipelines
-    # for orgs that are already at their concurrent limit
+    # Get due pipelines from BigQuery (pipeline configs remain in BQ)
     query = f"""
-    WITH due_pipelines AS (
-        SELECT
-            c.config_id,
-            c.org_slug,
-            c.provider,
-            c.domain,
-            c.pipeline_template,
-            c.schedule_cron,
-            c.timezone,
-            c.parameters,
-            c.next_run_time,
-            c.priority,
-            p.status as org_status,
-            s.daily_limit,
-            s.concurrent_limit,
-            COALESCE(u.pipelines_run_today, 0) as pipelines_run_today,
-            COALESCE(u.concurrent_pipelines_running, 0) as concurrent_pipelines_running
-        FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
-        INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
-            ON c.org_slug = p.org_slug
-        LEFT JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-            -- FIX: Include TRIAL orgs, not just ACTIVE (matches auth.py validation)
-            ON p.org_slug = s.org_slug AND s.status IN ('ACTIVE', 'TRIAL')
-        LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
-            ON p.org_slug = u.org_slug AND u.usage_date = @usage_date
-        WHERE c.is_active = TRUE
-          AND c.next_run_time <= CURRENT_TIMESTAMP()
-          AND p.status = 'ACTIVE'
-    )
     SELECT
-        config_id, org_slug, provider, domain, pipeline_template,
-        schedule_cron, timezone, parameters, next_run_time, priority,
-        org_status, daily_limit, pipelines_run_today,
-        concurrent_limit, concurrent_pipelines_running
-    FROM due_pipelines
-    WHERE pipelines_run_today < daily_limit
-      -- BUG-007 FIX: Skip orgs at concurrent limit
-      AND concurrent_pipelines_running < COALESCE(concurrent_limit, 999999)
-    ORDER BY next_run_time ASC, priority DESC
+        c.config_id,
+        c.org_slug,
+        c.provider,
+        c.domain,
+        c.pipeline_template,
+        c.schedule_cron,
+        c.timezone,
+        c.parameters,
+        c.next_run_time,
+        c.priority,
+        p.status as org_status
+    FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
+    INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
+        ON c.org_slug = p.org_slug
+    WHERE c.is_active = TRUE
+      AND c.next_run_time <= CURRENT_TIMESTAMP()
+      AND p.status = 'ACTIVE'
+    ORDER BY c.next_run_time ASC, c.priority DESC
     LIMIT @limit
     """
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("limit", "INT64", limit),
-            bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+            bigquery.ScalarQueryParameter("limit", "INT64", limit * 2)  # Get extra to filter by quota
         ]
     )
 
-    results = bq_client.client.query(query, job_config=job_config).result()
-    return [dict(row) for row in results]
+    results = list(bq_client.client.query(query, job_config=job_config).result())
+
+    if not results:
+        return []
+
+    # Check quota availability via Supabase for each org
+    supabase = get_supabase_client()
+    filtered_pipelines = []
+
+    # Get unique org_slugs from results
+    org_slugs = list(set(row['org_slug'] for row in results))
+
+    # Batch get quota status from Supabase
+    org_quota_map = {}
+    for org_slug in org_slugs:
+        try:
+            # Get org limits from organizations table
+            org_result = supabase.table("organizations").select(
+                "id, daily_limit, monthly_limit, concurrent_limit"
+            ).eq("org_slug", org_slug).eq("status", "ACTIVE").single().execute()
+
+            if not org_result.data:
+                continue
+
+            org_data = org_result.data
+            org_id = org_data["id"]
+
+            # Get current quota usage
+            quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
+
+            if quota_result.data:
+                quota = quota_result.data
+                org_quota_map[org_slug] = {
+                    "daily_limit": org_data.get("daily_limit", 10),
+                    "monthly_limit": org_data.get("monthly_limit", 300),
+                    "concurrent_limit": org_data.get("concurrent_limit", 3),
+                    "pipelines_run_today": quota.get("pipelines_run_today", 0),
+                    "pipelines_run_month": quota.get("pipelines_run_month", 0),
+                    "concurrent_running": quota.get("concurrent_running", 0),
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get quota for org {org_slug}: {e}")
+            continue
+
+    # Filter pipelines based on quota
+    for row in results:
+        row_dict = dict(row)
+        org_slug = row_dict['org_slug']
+
+        if org_slug not in org_quota_map:
+            continue
+
+        quota = org_quota_map[org_slug]
+
+        # Check daily limit
+        if quota["pipelines_run_today"] >= quota["daily_limit"]:
+            continue
+
+        # Check concurrent limit
+        if quota["concurrent_running"] >= quota["concurrent_limit"]:
+            continue
+
+        # Add quota info to row
+        row_dict["daily_limit"] = quota["daily_limit"]
+        row_dict["concurrent_limit"] = quota["concurrent_limit"]
+        row_dict["pipelines_run_today"] = quota["pipelines_run_today"]
+        row_dict["concurrent_pipelines_running"] = quota["concurrent_running"]
+
+        filtered_pipelines.append(row_dict)
+
+        if len(filtered_pipelines) >= limit:
+            break
+
+    return filtered_pipelines
 
 
 async def enqueue_pipeline(
@@ -572,8 +620,7 @@ async def process_queue(
                 logger.info(f"At concurrency limit ({current_processing}/{settings.pipeline_global_concurrent_limit}), stopping batch")
                 break
 
-            # Get next pipeline from queue (excluding orgs at their concurrent limit)
-            today = get_utc_date()  # Use UTC date for consistency
+            # Get next pipeline from queue (we'll check concurrent limits via Supabase)
             query = f"""
             SELECT
                 q.run_id,
@@ -582,36 +629,57 @@ async def process_queue(
                 q.scheduled_time,
                 q.priority
             FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue` q
-            LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
-                ON q.org_slug = u.org_slug AND u.usage_date = @usage_date
             WHERE q.state = 'QUEUED'
-              -- Only pick pipelines from orgs NOT at their concurrent limit
-              AND (
-                  u.org_slug IS NULL  -- No quota record yet = OK to run
-                  OR COALESCE(u.concurrent_pipelines_running, 0) < COALESCE(u.concurrent_limit, 999)
-              )
             ORDER BY q.priority DESC, q.scheduled_time ASC
-            LIMIT 1
+            LIMIT 10
             """
 
-            results = list(bq_client.client.query(
-                query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-                ])
-            ).result())
+            results = list(bq_client.client.query(query).result())
 
             if not results:
                 # Queue is empty
                 break
 
-            queue_item = dict(results[0])
-            run_id = queue_item['run_id']
-            org_slug = queue_item['org_slug']
-            pipeline_id = queue_item['pipeline_id']
+            # Find first pipeline from an org not at concurrent limit (via Supabase)
+            supabase = get_supabase_client()
+            queue_item = None
+            run_id = None
+            org_slug = None
+            pipeline_id = None
 
-            # Note: Per-org concurrent limit is enforced in the queue query above
-            # Only pipelines from orgs NOT at their concurrent limit are returned
+            for row in results:
+                candidate = dict(row)
+                candidate_org_slug = candidate['org_slug']
+
+                try:
+                    # Get org_id and concurrent limit from Supabase
+                    org_result = supabase.table("organizations").select(
+                        "id, concurrent_limit"
+                    ).eq("org_slug", candidate_org_slug).single().execute()
+
+                    if not org_result.data:
+                        continue
+
+                    org_id = org_result.data["id"]
+                    concurrent_limit = org_result.data.get("concurrent_limit", 3)
+
+                    # Get current concurrent count
+                    quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
+                    if quota_result.data:
+                        current_concurrent = quota_result.data.get("concurrent_running", 0)
+                        if current_concurrent < concurrent_limit:
+                            queue_item = candidate
+                            run_id = candidate['run_id']
+                            org_slug = candidate_org_slug
+                            pipeline_id = candidate['pipeline_id']
+                            break
+                except Exception as check_err:
+                    logger.warning(f"Failed to check concurrent limit for {candidate_org_slug}: {check_err}")
+                    continue
+
+            if not queue_item:
+                # No pipelines available (all orgs at concurrent limit or queue empty)
+                break
 
             # Update queue state to PROCESSING
             update_query = f"""
@@ -629,23 +697,15 @@ async def process_queue(
 
             bq_client.client.query(update_query, job_config=job_config).result()
 
-            # BUG-002 FIX: Increment concurrent counter when starting pipeline
-            # Capture reservation_date for proper decrement later
-            scheduler_reservation_date = get_utc_date()
-            increment_query = f"""
-            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-                updated_at = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug AND usage_date = @usage_date
-            """
+            # BUG-002 FIX: Increment concurrent counter when starting pipeline via Supabase
             try:
-                bq_client.client.query(
-                    increment_query,
-                    job_config=bigquery.QueryJobConfig(query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("usage_date", "DATE", scheduler_reservation_date)
-                    ])
-                ).result()
+                # Get org_id for Supabase operations
+                org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
+                if org_result.data:
+                    org_id = org_result.data["id"]
+                    # Use increment_pipeline_count RPC which handles concurrent increment
+                    supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
+                    logger.debug(f"Incremented concurrent counter for {org_slug} via Supabase")
             except Exception as inc_err:
                 logger.warning(f"Failed to increment scheduler concurrent counter for {org_slug}: {inc_err}")
 
@@ -687,8 +747,8 @@ async def process_queue(
             parameters = json.loads(config['parameters']) if config['parameters'] else {}
 
             # Create closure with captured variables for this iteration
-            # BUG-002 FIX: Pass org_slug and reservation_date for concurrent counter management
-            def make_execute_and_update(exec_instance, rid, cfg, bq, org_slug_captured, reservation_date_captured):
+            # BUG-002 FIX: Pass org_slug for concurrent counter management via Supabase
+            def make_execute_and_update(exec_instance, rid, cfg, bq, org_slug_captured):
                 async def execute_and_update():
                     try:
                         result = await exec_instance.execute(parameters)
@@ -795,32 +855,23 @@ async def process_queue(
                             bq.client.query(delete_queue_query, job_config=run_job_config).result()
 
                     finally:
-                        # BUG-002 FIX: Always decrement concurrent counter regardless of success/failure
-                        # Use captured reservation_date to ensure we decrement the correct day's record
+                        # BUG-002 FIX: Always decrement concurrent counter via Supabase
                         try:
-                            decrement_query = f"""
-                            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-                            SET concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
-                                updated_at = CURRENT_TIMESTAMP()
-                            WHERE org_slug = @org_slug AND usage_date = @usage_date
-                            """
-                            bq.client.query(
-                                decrement_query,
-                                job_config=bigquery.QueryJobConfig(query_parameters=[
-                                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug_captured),
-                                    bigquery.ScalarQueryParameter("usage_date", "DATE", reservation_date_captured)
-                                ])
-                            ).result()
-                            logger.debug(f"Decremented concurrent counter for {org_slug_captured} on {reservation_date_captured}")
+                            supabase_client = get_supabase_client()
+                            org_result = supabase_client.table("organizations").select("id").eq("org_slug", org_slug_captured).single().execute()
+                            if org_result.data:
+                                org_id = org_result.data["id"]
+                                supabase_client.rpc("decrement_concurrent", {"p_org_id": org_id}).execute()
+                                logger.debug(f"Decremented concurrent counter for {org_slug_captured} via Supabase")
                         except Exception as dec_err:
                             logger.error(f"Failed to decrement scheduler concurrent counter for {org_slug_captured}: {dec_err}")
 
                 return execute_and_update
 
             # Spawn background task (returns immediately)
-            # BUG-002 FIX: Pass org_slug and reservation_date for concurrent counter decrement
+            # BUG-002 FIX: Pass org_slug for concurrent counter decrement via Supabase
             background_tasks.add_task(make_execute_and_update(
-                executor, run_id, config, bq_client, org_slug, scheduler_reservation_date
+                executor, run_id, config, bq_client, org_slug
             ))
 
             # Track for response
@@ -1239,106 +1290,30 @@ async def delete_org_pipeline(
     summary="Reset daily quotas (Daily)",
     description="Called by Cloud Scheduler to reset daily quota counters (ADMIN ONLY)"
 )
-async def reset_daily_quotas(
-    admin_context: None = Depends(verify_admin_key),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+async def reset_daily_quotas_endpoint(
+    admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset daily quota counters by creating new records for today.
+    Reset daily quota counters via Supabase.
 
     Logic:
-    1. MERGE to create/update today's quota records with zeroed daily counters
-    2. Carry over monthly count from previous day's record
-    3. Archive/DELETE records older than 90 days
-    4. Return count of records created/updated/archived
+    1. Get all active organizations from Supabase
+    2. Call get_or_create_quota RPC for each org to ensure today's record exists
+    3. Return count of orgs reset
 
     Security:
     - Requires admin API key
-    - Validates before executing destructive operations
 
     Performance:
-    - Batch processes all orgs in single MERGE
-    - Archives old data to prevent table bloat
+    - Uses Supabase RPC for atomic operations
     """
+    from src.core.utils.quota_reset import reset_daily_quotas
+
     try:
-        reset_count = 0
-        archived_count = 0
+        result = await reset_daily_quotas()
 
-        # MERGE to create today's records OR reset existing ones
-        # This properly handles the daily reset by creating fresh records
-        reset_query = f"""
-        MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
-        USING (
-            SELECT
-                CONCAT(p.org_slug, '_', FORMAT_DATE('%Y%m%d', CURRENT_DATE())) as usage_id,
-                p.org_slug,
-                CURRENT_DATE() as usage_date,
-                -- Carry over monthly count from latest record this month
-                COALESCE(
-                    (SELECT pipelines_run_month
-                     FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` m
-                     WHERE m.org_slug = p.org_slug
-                       AND m.usage_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-                       AND m.usage_date < CURRENT_DATE()
-                     ORDER BY m.usage_date DESC
-                     LIMIT 1),
-                    0
-                ) as pipelines_run_month,
-                s.daily_limit,
-                s.monthly_limit,
-                s.concurrent_limit
-            FROM `{settings.gcp_project_id}.organizations.org_profiles` p
-            INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-                -- FIX: Include TRIAL orgs, not just ACTIVE (matches auth.py validation)
-                ON p.org_slug = s.org_slug AND s.status IN ('ACTIVE', 'TRIAL')
-            WHERE p.status = 'ACTIVE'
-        ) S
-        ON T.usage_id = S.usage_id
-        WHEN MATCHED THEN
-            UPDATE SET
-                pipelines_run_today = 0,
-                pipelines_failed_today = 0,
-                pipelines_succeeded_today = 0,
-                concurrent_pipelines_running = 0,
-                max_concurrent_reached = 0,
-                daily_limit = S.daily_limit,
-                monthly_limit = S.monthly_limit,
-                concurrent_limit = S.concurrent_limit,
-                updated_at = CURRENT_TIMESTAMP()
-        WHEN NOT MATCHED THEN
-            INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-                    pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-                    max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
-                    created_at, updated_at)
-            VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, S.pipelines_run_month, 0, 0,
-                    S.daily_limit, S.monthly_limit, S.concurrent_limit,
-                    CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
-        """
-
-        reset_job = bq_client.client.query(reset_query)
-        reset_job.result()
-        reset_count = reset_job.num_dml_affected_rows or 0
-
-        logger.info(f"Reset daily quotas: {reset_count} records created/updated for today")
-
-        # Archive/delete records older than 90 days
-        archive_query = f"""
-        DELETE FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
-        """
-
-        archive_job = bq_client.client.query(archive_query)
-        archive_job.result()
-        archived_count = archive_job.num_dml_affected_rows or 0
-
-        logger.info(f"Archived {archived_count} old quota records")
-
-        # Issue #21: Standardized status to UPPERCASE
         return {
-            "status": "SUCCESS",
-            "records_reset": reset_count,
-            "records_archived": archived_count,
-            "message": f"Reset {reset_count} daily quotas for today, archived {archived_count} old records",
+            **result,
             "executed_at": datetime.now(timezone.utc).isoformat()
         }
 
@@ -1439,29 +1414,17 @@ async def cleanup_orphaned_pipelines(
                 cleaned_count = cleanup_job.num_dml_affected_rows or 0
 
                 if cleaned_count > 0:
-                    # Decrement concurrent_pipelines_running counter
-                    # Update the most recent quota record (could be today or yesterday for cross-day pipelines)
-                    decrement_query = f"""
-                    UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-                    SET
-                        concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
-                        updated_at = CURRENT_TIMESTAMP()
-                    WHERE org_slug = @org_slug
-                      AND usage_date = (
-                          SELECT MAX(usage_date)
-                          FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-                          WHERE org_slug = @org_slug
-                      )
-                    """
-
-                    job_config = bigquery.QueryJobConfig(
-                        query_parameters=[
-                            bigquery.ScalarQueryParameter("cleaned_count", "INT64", cleaned_count),
-                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-                        ]
-                    )
-
-                    bq_client.client.query(decrement_query, job_config=job_config).result()
+                    # Decrement concurrent_pipelines_running counter via Supabase
+                    try:
+                        supabase = get_supabase_client()
+                        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
+                        if org_result.data:
+                            org_id = org_result.data["id"]
+                            # Decrement for each cleaned pipeline
+                            for _ in range(cleaned_count):
+                                supabase.rpc("decrement_concurrent", {"p_org_id": org_id}).execute()
+                    except Exception as dec_err:
+                        logger.warning(f"Failed to decrement concurrent counter for {org_slug}: {dec_err}")
 
                     total_cleaned += cleaned_count
                     org_details.append({
@@ -1502,57 +1465,42 @@ async def cleanup_orphaned_pipelines(
 )
 async def reset_concurrent_counter(
     org_slug: str,
-    admin_context: None = Depends(verify_admin_key),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset concurrent_pipelines_running counter to 0 for a specific org.
+    Reset concurrent_pipelines_running counter to 0 for a specific org via Supabase.
 
     Use this when the counter is stuck due to pipeline crashes or bugs.
     This does NOT affect actual running pipelines - use cleanup-orphaned-pipelines for that.
     """
     try:
+        supabase = get_supabase_client()
+
+        # Get org_id from organizations table
+        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
+
+        if not org_result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization {org_slug} not found"
+            )
+
+        org_id = org_result.data["id"]
+
+        # Get current quota value
+        quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
+        old_value = quota_result.data.get("concurrent_running", 0) if quota_result.data else 0
+
+        # Reset concurrent_running to 0 in org_quotas
         today = get_utc_date()
-
-        # First get current value for logging
-        check_query = f"""
-        SELECT concurrent_pipelines_running
-        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        WHERE org_slug = @org_slug AND usage_date = @usage_date
-        """
-
-        check_results = list(bq_client.client.query(
-            check_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-            ])
-        ).result())
-
-        old_value = check_results[0]['concurrent_pipelines_running'] if check_results else 0
-
-        # Reset to 0
-        reset_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = 0,
-            updated_at = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug AND usage_date = @usage_date
-        """
-
-        job = bq_client.client.query(
-            reset_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-            ])
-        )
-        job.result()
-
-        rows_affected = job.num_dml_affected_rows or 0
+        supabase.table("org_quotas").update({
+            "concurrent_running": 0,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("org_id", org_id).eq("usage_date", today.isoformat()).execute()
 
         logger.info(
             f"Reset concurrent counter for org {org_slug}: {old_value} -> 0",
-            extra={"org_slug": org_slug, "old_value": old_value, "rows_affected": rows_affected}
+            extra={"org_slug": org_slug, "old_value": old_value}
         )
 
         return {
@@ -1560,10 +1508,11 @@ async def reset_concurrent_counter(
             "org_slug": org_slug,
             "old_value": old_value,
             "new_value": 0,
-            "rows_affected": rows_affected,
             "message": f"Reset concurrent counter from {old_value} to 0"
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to reset concurrent counter for {org_slug}: {e}", exc_info=True)
         raise HTTPException(
@@ -1577,74 +1526,32 @@ async def reset_concurrent_counter(
     summary="Reset monthly quotas (Monthly)",
     description="Called by Cloud Scheduler on 1st of each month to reset monthly quota counters (ADMIN ONLY)"
 )
-async def reset_monthly_quotas(
-    admin_context: None = Depends(verify_admin_key),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+async def reset_monthly_quotas_endpoint(
+    admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset monthly quota counters for all organizations.
+    Reset monthly quota counters for all organizations via Supabase.
 
     Should be called on the 1st of each month at 00:00 UTC by Cloud Scheduler.
-    This runs AFTER the daily quota reset to ensure today's record exists.
 
     Logic:
     1. Check if today is the 1st of the month (skip if not)
-    2. Update all today's quota records to set pipelines_run_month = 0
+    2. Call Supabase reset_monthly_quotas RPC
     3. Return count of records updated
 
     Security:
     - Requires admin API key
-    - Only resets monthly counter, preserves all other data
 
     Schedule:
     - Run at 00:05 UTC on 1st of month (after daily reset at 00:00)
     """
+    from src.core.utils.quota_reset import reset_monthly_quotas
+
     try:
-        today = get_utc_date()
-
-        # Only run on the 1st of the month
-        if today.day != 1:
-            logger.warning(
-                f"Monthly quota reset called on day {today.day}, skipping (should be day 1)"
-            )
-            return {
-                "status": "SKIPPED",
-                "reason": f"Not first of month (day={today.day})",
-                "executed_at": datetime.now(timezone.utc).isoformat()
-            }
-
-        # Update today's records to reset monthly count
-        update_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET pipelines_run_month = 0,
-            updated_at = CURRENT_TIMESTAMP()
-        WHERE usage_date = @today
-        """
-
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("today", "DATE", today)
-            ]
-        )
-
-        query_job = bq_client.client.query(update_query, job_config=job_config)
-        query_job.result()
-
-        rows_updated = query_job.num_dml_affected_rows or 0
-
-        logger.info(
-            f"Monthly quota reset complete",
-            extra={
-                "date": today.isoformat(),
-                "orgs_reset": rows_updated
-            }
-        )
+        result = await reset_monthly_quotas()
 
         return {
-            "status": "SUCCESS",
-            "date": today.isoformat(),
-            "orgs_reset": rows_updated,
-            "message": f"Reset monthly quotas for {rows_updated} organizations",
+            **result,
             "executed_at": datetime.now(timezone.utc).isoformat()
         }
 
@@ -1661,23 +1568,20 @@ async def reset_monthly_quotas(
     summary="Reset stale concurrent counts (Every 15 min)",
     description="Called by Cloud Scheduler to cleanup stale concurrent counters (ADMIN ONLY)"
 )
-async def reset_stale_concurrent(
-    admin_context: None = Depends(verify_admin_key),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+async def reset_stale_concurrent_endpoint(
+    admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset concurrent pipeline counts that are stale.
+    Reset concurrent pipeline counts that are stale via Supabase.
 
     Handles cases where pipelines crashed without decrementing the concurrent count.
     Any pipeline that's been "running" for more than 1 hour is considered stale.
 
-    Also handles cross-midnight scenarios by checking the last 3 days of quota records.
-
     Logic:
-    1. Find orgs with concurrent_pipelines_running > 0 in last 3 days
-    2. Count actually running pipelines (RUNNING/PENDING < 1 hour old)
+    1. Find orgs with concurrent_running > 0 in Supabase org_quotas
+    2. Count actually running pipelines in BigQuery (RUNNING/PENDING < 1 hour old)
     3. Fix any discrepancies between counter and actual count
-    4. Mark stale pipelines as FAILED
+    4. Mark stale pipelines as FAILED in BigQuery
 
     Security:
     - Requires admin API key
@@ -1686,136 +1590,13 @@ async def reset_stale_concurrent(
     Schedule:
     - Run every 15 minutes
     """
+    from src.core.utils.quota_reset import reset_stale_concurrent_counts
+
     try:
-        today = get_utc_date()
-        from datetime import timedelta
-        yesterday = today - timedelta(days=1)
-        day_before = today - timedelta(days=2)
-
-        # Find orgs with stale concurrent counts (last 3 days for cross-midnight scenarios)
-        query = f"""
-        WITH stale_pipelines AS (
-            SELECT
-                org_slug,
-                COUNT(*) as stale_count
-            FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
-            WHERE status IN ('RUNNING', 'PENDING')
-              AND start_time < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
-            GROUP BY org_slug
-        ),
-        recent_quotas AS (
-            SELECT
-                org_slug,
-                usage_date,
-                concurrent_pipelines_running
-            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            WHERE usage_date IN (@today, @yesterday, @day_before)
-        )
-        SELECT
-            q.org_slug,
-            q.usage_date,
-            q.concurrent_pipelines_running,
-            COALESCE(s.stale_count, 0) as stale_count
-        FROM recent_quotas q
-        LEFT JOIN stale_pipelines s ON q.org_slug = s.org_slug
-        WHERE q.concurrent_pipelines_running > 0
-        """
-
-        results = list(bq_client.client.query(
-            query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("today", "DATE", today),
-                bigquery.ScalarQueryParameter("yesterday", "DATE", yesterday),
-                bigquery.ScalarQueryParameter("day_before", "DATE", day_before)
-            ])
-        ).result())
-
-        orgs_fixed = 0
-
-        for row in results:
-            org_slug = row["org_slug"]
-            row_usage_date = row["usage_date"]
-            current_count = row["concurrent_pipelines_running"]
-
-            # For previous days, concurrent count should always be 0
-            if row_usage_date < today:
-                actual_count = 0
-            else:
-                # For today, calculate actual running count (recent pipelines only)
-                actual_query = f"""
-                SELECT COUNT(*) as actual_count
-                FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
-                WHERE org_slug = @org_slug
-                  AND status IN ('RUNNING', 'PENDING')
-                  AND start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
-                """
-
-                actual_result = list(bq_client.client.query(
-                    actual_query,
-                    job_config=bigquery.QueryJobConfig(query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-                    ])
-                ).result())
-
-                actual_count = actual_result[0]["actual_count"] if actual_result else 0
-
-            if current_count != actual_count:
-                # Fix the count
-                update_query = f"""
-                UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-                SET concurrent_pipelines_running = @actual_count,
-                    updated_at = CURRENT_TIMESTAMP()
-                WHERE org_slug = @org_slug AND usage_date = @usage_date
-                """
-
-                bq_client.client.query(
-                    update_query,
-                    job_config=bigquery.QueryJobConfig(query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("actual_count", "INT64", actual_count),
-                        bigquery.ScalarQueryParameter("usage_date", "DATE", row_usage_date)
-                    ])
-                ).result()
-
-                logger.info(
-                    f"Fixed stale concurrent count for org",
-                    extra={
-                        "org_slug": org_slug,
-                        "usage_date": str(row_usage_date),
-                        "old_count": current_count,
-                        "new_count": actual_count
-                    }
-                )
-
-                orgs_fixed += 1
-
-        # Mark stale pipelines as FAILED
-        mark_stale_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
-        SET status = 'FAILED',
-            end_time = CURRENT_TIMESTAMP(),
-            error_message = 'Pipeline timed out (stale after 1 hour)'
-        WHERE status IN ('RUNNING', 'PENDING')
-          AND start_time < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
-        """
-
-        stale_job = bq_client.client.query(mark_stale_query)
-        stale_job.result()
-        pipelines_marked_failed = stale_job.num_dml_affected_rows or 0
-
-        logger.info(
-            f"Stale concurrent count reset complete",
-            extra={
-                "orgs_fixed": orgs_fixed,
-                "pipelines_marked_failed": pipelines_marked_failed
-            }
-        )
+        result = await reset_stale_concurrent_counts()
 
         return {
-            "status": "SUCCESS",
-            "orgs_fixed": orgs_fixed,
-            "pipelines_marked_failed": pipelines_marked_failed,
-            "message": f"Fixed {orgs_fixed} orgs, marked {pipelines_marked_failed} pipelines as failed",
+            **result,
             "executed_at": datetime.now(timezone.utc).isoformat()
         }
 

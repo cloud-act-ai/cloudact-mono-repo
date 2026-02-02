@@ -21,6 +21,7 @@ import re
 import uuid
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.app.dependencies.auth import get_current_org
 from src.app.config import settings
 from src.core.providers import provider_registry
@@ -1297,52 +1298,36 @@ async def _setup_integration(
 
             current_integration_count = count_result[0]["provider_count"]
 
-            # Get org's provider limit from subscription
-            # Allow both ACTIVE and TRIAL statuses (matches auth.py:617)
-            limit_query = f"""
-            SELECT providers_limit
-            FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-            WHERE org_slug = @org_slug AND status IN ('ACTIVE', 'TRIAL')
-            ORDER BY created_at DESC
-            LIMIT 1
-            """
+            # Get org's provider limit from Supabase organizations table
+            from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
 
-            limit_result = list(bq_client.client.query(
-                limit_query,
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    ]
-                )
-            ).result())
+            try:
+                supabase = get_supabase_client()
+                org_result = supabase.table("organizations").select(
+                    "providers_limit, subscription_plan, subscription_status"
+                ).eq("org_slug", org_slug).single().execute()
 
-            if not limit_result:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="No active or trial subscription found for organization. Please complete billing setup."
-                )
-
-            providers_limit = limit_result[0]["providers_limit"]
-
-            # Fallback to SUBSCRIPTION_LIMITS if providers_limit is NULL
-            if providers_limit is None:
-                from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
-                # Get plan name to look up default limits
-                plan_query = f"""
-                SELECT plan_name FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-                WHERE org_slug = @org_slug AND status IN ('ACTIVE', 'TRIAL')
-                ORDER BY created_at DESC LIMIT 1
-                """
-                plan_result = list(bq_client.client.query(
-                    plan_query,
-                    job_config=bigquery.QueryJobConfig(
-                        query_parameters=[
-                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        ]
+                if not org_result.data:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Organization not found. Please complete billing setup."
                     )
-                ).result())
-                if plan_result:
-                    plan_name = plan_result[0]["plan_name"]
+
+                org_data = org_result.data
+                subscription_status = org_data.get("subscription_status", "ACTIVE")
+
+                # Check if subscription is active or trial
+                if subscription_status not in ("ACTIVE", "TRIAL"):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Subscription is {subscription_status}. Please contact support."
+                    )
+
+                providers_limit = org_data.get("providers_limit")
+
+                # Fallback to SUBSCRIPTION_LIMITS if providers_limit is NULL
+                if providers_limit is None:
+                    plan_name = org_data.get("subscription_plan", "STARTER")
                     try:
                         plan_enum = SubscriptionPlan(plan_name)
                         providers_limit = SUBSCRIPTION_LIMITS[plan_enum]["providers_limit"]
@@ -1350,8 +1335,12 @@ async def _setup_integration(
                     except (ValueError, KeyError):
                         providers_limit = 3  # Default to STARTER limit
                         logger.warning(f"Unknown plan {plan_name}, using default providers_limit=3")
-                else:
-                    providers_limit = 3  # Default to STARTER limit
+
+            except HTTPException:
+                raise
+            except Exception as supabase_error:
+                logger.error(f"Failed to get provider limit from Supabase: {supabase_error}")
+                providers_limit = 3  # Default to STARTER limit
 
             # Check if adding new integration would exceed limit
             if current_integration_count >= providers_limit:

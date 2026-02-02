@@ -12,8 +12,6 @@ import {
   Coffee,
   Zap,
   Target,
-  CheckCircle2,
-  Building2,
   Mail,
 } from "lucide-react"
 import "../premium.css"

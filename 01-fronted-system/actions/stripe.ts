@@ -17,7 +17,6 @@ import { stripe, getStripe } from "@/lib/stripe"
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { headers } from "next/headers"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
-import { syncSubscriptionToBackend } from "./backend-onboarding"
 
 // Price ID validation - verify it's a valid Stripe price format
 // Price IDs start with "price_" and are fetched dynamically from Stripe
@@ -963,61 +962,13 @@ export async function changeSubscriptionPlan(
       }
     }
 
-    // Sync subscription limits to backend BigQuery immediately
-    // This ensures the backend is updated even if webhooks are delayed
-    let syncWarning: string | null = null
-    let syncQueued = false
-
-    try {
-      const syncResult = await syncSubscriptionToBackend({
-        orgSlug,
-        orgId: org.id,
-        planName: planId,
-        billingStatus: updatedSubscription.status,
-        trialEndsAt: updatedSubscription.trial_end
-          ? new Date(updatedSubscription.trial_end * 1000).toISOString()
-          : undefined,
-        dailyLimit: limits.pipelines_per_day_limit,
-        monthlyLimit: limits.pipelines_per_day_limit * 30,
-        seatLimit: limits.seat_limit,
-        providersLimit: limits.providers_limit,
-        concurrentLimit: limits.concurrent_pipelines_limit,
-        syncType: 'plan_change',
-      })
-
-      if (syncResult.success) {
-        // Update audit log with sync success
-        await adminClient
-          .from("plan_change_audit")
-          .update({ sync_status: 'synced' })
-          .eq("org_id", org.id)
-          .eq("stripe_subscription_id", updatedSubscription.id)
-          .is("sync_status", 'pending')
-      } else {
-        syncWarning = syncResult.error || "Backend sync failed"
-        syncQueued = syncResult.queued || false
-
-        // Update audit log with sync failure
-        await adminClient
-          .from("plan_change_audit")
-          .update({
-            sync_status: syncQueued ? 'pending' : 'failed',
-            sync_error: syncResult.error
-          })
-          .eq("org_id", org.id)
-          .eq("stripe_subscription_id", updatedSubscription.id)
-      }
-    } catch (syncErr: unknown) {
-      syncWarning = syncErr instanceof Error ? syncErr.message : "Backend sync error"
-      // Non-blocking - don't fail the plan change if backend sync fails
-    }
-
-    // Combine warnings from Supabase update and BigQuery sync
-    let finalSyncWarning = syncWarning
-    if (supabaseUpdateFailed) {
-      const supabaseMsg = "Database limits update failed - will sync on next webhook"
-      finalSyncWarning = syncWarning ? `${supabaseMsg}. ${syncWarning}` : supabaseMsg
-    }
+    // Update audit log as synced (quotas now managed in Supabase)
+    await adminClient
+      .from("plan_change_audit")
+      .update({ sync_status: 'synced' })
+      .eq("org_id", org.id)
+      .eq("stripe_subscription_id", updatedSubscription.id)
+      .is("sync_status", 'pending')
 
     return {
       success: true,
@@ -1033,9 +984,9 @@ export async function changeSubscriptionPlan(
         currentPeriodEnd: new Date(periodEnd * 1000),
       },
       error: null,
-      // Include sync warning so UI can show appropriate message
-      syncWarning: finalSyncWarning,
-      syncQueued: syncQueued || supabaseUpdateFailed,
+      // Supabase update warning if it failed
+      syncWarning: supabaseUpdateFailed ? "Database limits update failed - will sync on next webhook" : null,
+      syncQueued: supabaseUpdateFailed,
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to change plan"
@@ -1330,44 +1281,10 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
 
     if (isDev) console.log("[Billing Resync] Supabase updated successfully")
 
-    // Sync to backend BigQuery
-    try {
-      const syncResult = await syncSubscriptionToBackend({
-        orgSlug,
-        orgId: org.id,
-        planName: planId,
-        billingStatus: subscription.status,
-        trialEndsAt: subscription.trial_end
-          ? new Date(subscription.trial_end * 1000).toISOString()
-          : undefined,
-        dailyLimit: limits.pipelines_per_day_limit,
-        monthlyLimit: limits.pipelines_per_day_limit * 30,
-        seatLimit: limits.seat_limit,
-        providersLimit: limits.providers_limit,
-        concurrentLimit: limits.concurrent_pipelines_limit,
-        syncType: 'reconciliation',
-      })
-
-      if (syncResult.success) {
-        if (isDev) console.log("[Billing Resync] Backend sync successful")
-        return {
-          success: true,
-          message: "Billing data successfully synced from Stripe to Supabase and backend."
-        }
-      } else {
-        if (isDev) console.warn("[Billing Resync] Backend sync failed:", syncResult.error)
-        return {
-          success: true,
-          message: `Supabase updated, but backend sync ${syncResult.queued ? 'queued for retry' : 'failed'}. ${syncResult.error || ''}`
-        }
-      }
-    } catch (syncErr: unknown) {
-      const errorMessage = syncErr instanceof Error ? syncErr.message : "Backend sync error"
-      if (isDev) console.error("[Billing Resync] Backend sync error:", syncErr)
-      return {
-        success: true,
-        message: `Supabase updated successfully, but backend sync failed: ${errorMessage}`
-      }
+    // Quotas now managed in Supabase - no BigQuery sync needed
+    return {
+      success: true,
+      message: "Billing data successfully synced from Stripe to Supabase."
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to resync billing data"

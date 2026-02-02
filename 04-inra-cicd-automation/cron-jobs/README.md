@@ -2,13 +2,13 @@
 
 Scheduled tasks for CloudAct. Run manually or via cron/Cloud Scheduler.
 
+> **Note:** Billing sync jobs (billing-sync-retry.sh, billing-reconciliation.sh, billing-sync-stats.sh)
+> have been removed. Subscription data is now managed entirely in Supabase.
+
 ## Scripts
 
 | Script | Purpose | Schedule |
 |--------|---------|----------|
-| `billing-sync-retry.sh` | Process failed Stripe→BigQuery syncs | Every 5 minutes |
-| `billing-reconciliation.sh` | Full Stripe↔Supabase reconciliation | Daily at 2 AM UTC |
-| `billing-sync-stats.sh` | Get sync queue statistics | Every 15 minutes |
 | `run-all-cleanup.sh` | Database cleanup (rate limits, tokens, etc.) | Daily at 3 AM UTC |
 
 ## Quota Reset Jobs (Pipeline Service)
@@ -27,61 +27,30 @@ Scheduled tasks for CloudAct. Run manually or via cron/Cloud Scheduler.
 ### 1. Set Environment Variables
 
 ```bash
-# Required for billing scripts
-export APP_URL="${CLOUDACT_APP_URL:-https://app.cloudact.io}"
-export CRON_SECRET="your-secure-cron-secret-min-32-chars"
-
 # Required for cleanup script
 export SUPABASE_URL="https://xxx.supabase.co"
 export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 ```
 
-### 2. Add CRON_SECRET to Frontend Environment
-
-Add to your `.env.local` or production environment:
-```
-CRON_SECRET=your-secure-cron-secret-min-32-chars
-```
-
-### 3. Make Scripts Executable
+### 2. Make Scripts Executable
 
 ```bash
-chmod +x 04-inra-cicd-automation/scripts/cron/*.sh
+chmod +x 04-inra-cicd-automation/cron-jobs/*.sh
 ```
 
-### 4. Schedule via Cron
+### 3. Schedule via Cron
 
 ```bash
 # Edit crontab
 crontab -e
 
 # Add entries (adjust paths):
-*/5 * * * * /path/to/04-inra-cicd-automation/scripts/cron/billing-sync-retry.sh >> /var/log/billing-sync-retry.log 2>&1
-0 2 * * * /path/to/04-inra-cicd-automation/scripts/cron/billing-reconciliation.sh >> /var/log/billing-reconciliation.log 2>&1
-*/15 * * * * /path/to/04-inra-cicd-automation/scripts/cron/billing-sync-stats.sh >> /var/log/billing-sync-stats.log 2>&1
-0 3 * * * /path/to/04-inra-cicd-automation/scripts/cron/run-all-cleanup.sh >> /var/log/cleanup.log 2>&1
+0 3 * * * /path/to/04-inra-cicd-automation/cron-jobs/run-all-cleanup.sh >> /var/log/cleanup.log 2>&1
 ```
 
-### 5. Or Use Cloud Scheduler (GCP)
+### 4. Or Use Cloud Scheduler (GCP) for Quota Jobs
 
 ```bash
-# Billing sync retry (every 5 minutes)
-gcloud scheduler jobs create http billing-sync-retry \
-  --schedule="*/5 * * * *" \
-  --uri="${CLOUDACT_APP_URL}/api/cron/billing-sync" \
-  --http-method=POST \
-  --headers="Content-Type=application/json,x-cron-secret=${CRON_SECRET}" \
-  --message-body='{"action":"retry","limit":10}'
-
-# Billing reconciliation (daily at 2 AM UTC)
-gcloud scheduler jobs create http billing-reconciliation \
-  --schedule="0 2 * * *" \
-  --uri="${CLOUDACT_APP_URL}/api/cron/billing-sync" \
-  --http-method=POST \
-  --headers="Content-Type=application/json,x-cron-secret=${CRON_SECRET}" \
-  --message-body='{"action":"reconcile"}' \
-  --attempt-deadline=300s
-
 # ============================================
 # Quota Management Jobs (Pipeline Service)
 # ============================================
@@ -133,44 +102,8 @@ gcloud scheduler jobs create http orphaned-pipeline-cleanup \
 ## Manual Execution
 
 ```bash
-cd 04-inra-cicd-automation/scripts/cron
-
-# Run billing sync retry
-./billing-sync-retry.sh
-
-# Run with custom limit
-./billing-sync-retry.sh 20
-
-# Run reconciliation
-./billing-reconciliation.sh
-
-# Get stats
-./billing-sync-stats.sh
+cd 04-inra-cicd-automation/cron-jobs
 
 # Run cleanup
 ./run-all-cleanup.sh
 ```
-
-## Monitoring
-
-The `billing-sync-stats.sh` script outputs metrics in a format suitable for:
-- Prometheus (parse the key=value output)
-- CloudWatch (log parsing)
-- Datadog (log parsing or custom metrics)
-
-Example output:
-```
-billing_sync_pending=3
-billing_sync_processing=0
-billing_sync_failed=1
-billing_sync_completed_today=42
-billing_sync_oldest_pending=2024-01-15T10:30:00Z
-```
-
-## Alerts
-
-The scripts include built-in alerts:
-- `pending > 50`: Too many syncs waiting
-- `failed > 10`: Too many permanent failures
-
-Configure your monitoring system to watch for `[ALERT]` in logs.

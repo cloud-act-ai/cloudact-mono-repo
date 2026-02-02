@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Mail,
   ArrowRight,
-  CheckCircle2,
 } from "lucide-react"
 import "../premium.css"
 

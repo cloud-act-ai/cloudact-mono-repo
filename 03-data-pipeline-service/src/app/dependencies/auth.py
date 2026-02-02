@@ -3,6 +3,8 @@ API Key Authentication with Organization-Centric Architecture
 Secure multi-org authentication using centralized organizations dataset.
 Supports subscription validation, quota management, and credential retrieval.
 Fallback to local file-based API keys for development.
+
+Quota enforcement is handled via Supabase (not BigQuery).
 """
 
 import hashlib
@@ -27,6 +29,7 @@ from src.app.config import settings
 from src.core.exceptions import classify_exception
 from src.core.security.kms_encryption import decrypt_value
 from src.core.utils.rate_limiter import get_rate_limiter
+from src.core.utils.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -588,13 +591,13 @@ async def validate_quota(
     """
     Validate org has not exceeded daily/monthly pipeline quotas.
 
-    Checks organizations.org_usage_quotas table.
+    Uses Supabase org_quotas table for usage tracking and organizations table for limits.
     Returns quota info or raises HTTPException if exceeded.
 
     Args:
         org: Organization object from get_current_org
         subscription: Subscription info from validate_subscription
-        bq_client: BigQuery client instance
+        bq_client: BigQuery client instance (kept for backward compatibility)
 
     Returns:
         Dict containing:
@@ -611,122 +614,83 @@ async def validate_quota(
         HTTPException: 429 if quota exceeded
     """
     org_slug = org["org_slug"]
-    today = datetime.now(timezone.utc).date()
-
-    # Get or create today's usage record
-    query = f"""
-    SELECT
-        usage_id,
-        pipelines_run_today,
-        pipelines_run_month,
-        concurrent_pipelines_running,
-        daily_limit,
-        monthly_limit,
-        concurrent_limit
-    FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-    WHERE org_slug = @org_slug
-        AND usage_date = @usage_date
-    LIMIT 1
-    """
 
     try:
-        results = list(bq_client.query(
-            query,
-            parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-            ]
-        ))
+        supabase = get_supabase_client()
 
-        if not results:
-            # Create today's usage record using MERGE for idempotency
-            # This prevents race conditions when multiple concurrent requests try to create
-            # the same usage record - MERGE handles the conflict gracefully
-            usage_id = f"{org_slug}_{today.strftime('%Y%m%d')}"
-            merge_query = f"""
-            MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
-            USING (SELECT @usage_id as usage_id) S
-            ON T.usage_id = S.usage_id
-            WHEN NOT MATCHED THEN
-                INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-                        pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-                        max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
-                        created_at, updated_at)
-                VALUES (@usage_id, @org_slug, @usage_date, 0, 0, 0, 0, 0, 0,
-                        @daily_limit, @monthly_limit, @concurrent_limit,
-                        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
-            """
+        # Get organization ID and limits from Supabase
+        org_result = supabase.table("organizations").select(
+            "id, daily_limit, monthly_limit, concurrent_limit"
+        ).eq("org_slug", org_slug).single().execute()
 
-            bq_client.client.query(
-                merge_query,
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                        bigquery.ScalarQueryParameter("daily_limit", "INT64", subscription["max_pipelines_per_day"]),
-                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["max_pipelines_per_month"]),
-                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription["max_concurrent_pipelines"])
-                    ]
+        if not org_result.data:
+            logger.error(f"Organization not found in Supabase: {org_slug}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found"
+            )
+
+        org_data = org_result.data
+        org_id = org_data["id"]
+
+        # Use limits from Supabase organizations table (updated by Stripe webhooks)
+        # Fall back to subscription limits if Supabase doesn't have them
+        daily_limit = org_data.get("daily_limit") or subscription["max_pipelines_per_day"]
+        monthly_limit = org_data.get("monthly_limit") or subscription["max_pipelines_per_month"]
+        concurrent_limit = org_data.get("concurrent_limit") or subscription["max_concurrent_pipelines"]
+
+        # Call the check_quota_available function in Supabase
+        # This function handles get_or_create for today's quota record
+        quota_check = supabase.rpc("check_quota_available", {"p_org_id": org_id}).execute()
+
+        if not quota_check.data or len(quota_check.data) == 0:
+            logger.error(f"Failed to check quota for org: {org_slug}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Quota check failed"
+            )
+
+        quota_result = quota_check.data[0]
+
+        # Check if quota is available
+        if not quota_result["can_run"]:
+            reason = quota_result.get("reason", "Quota exceeded")
+            logger.warning(f"Quota exceeded for org {org_slug}: {reason}")
+
+            if "Concurrent" in reason:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"{reason} ({quota_result['concurrent_used']}/{quota_result['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
+                    headers={"Retry-After": "300"}  # 5 minutes
                 )
-            ).result()
+            elif "Daily" in reason:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"{reason} ({quota_result['daily_used']}/{quota_result['daily_limit']} pipelines/day). Try again tomorrow.",
+                    headers={"Retry-After": "86400"}  # 24 hours
+                )
+            elif "Monthly" in reason:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"{reason} ({quota_result['monthly_used']}/{quota_result['monthly_limit']} pipelines/month). Upgrade your plan.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=reason
+                )
 
-            # Return fresh quota
-            return {
-                "pipelines_run_today": 0,
-                "pipelines_run_month": 0,
-                "concurrent_pipelines_running": 0,
-                "daily_limit": subscription["max_pipelines_per_day"],
-                "monthly_limit": subscription["max_pipelines_per_month"],
-                "concurrent_limit": subscription["max_concurrent_pipelines"],
-                "remaining_today": subscription["max_pipelines_per_day"],
-                "remaining_month": subscription["max_pipelines_per_month"]
-            }
-
-        # Check existing usage
-        usage = results[0]
-
-        # Use subscription limits (fresh) not usage table limits (may be stale)
-        daily_limit = subscription["max_pipelines_per_day"]
-        monthly_limit = subscription["max_pipelines_per_month"]
-        concurrent_limit = subscription["max_concurrent_pipelines"]
-
-        # Check daily limit
-        if usage["pipelines_run_today"] >= daily_limit:
-            logger.warning(f"Daily quota exceeded for org: {org_slug}")
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily pipeline quota exceeded ({daily_limit} pipelines/day). Try again tomorrow.",
-                headers={"Retry-After": "86400"}  # 24 hours
-            )
-
-        # Check monthly limit
-        if usage["pipelines_run_month"] >= monthly_limit:
-            logger.warning(f"Monthly quota exceeded for org: {org_slug}")
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Monthly pipeline quota exceeded ({monthly_limit} pipelines/month). Upgrade your plan.",
-            )
-
-        # Check concurrent limit
-        if usage["concurrent_pipelines_running"] >= concurrent_limit:
-            logger.warning(f"Concurrent pipeline limit reached for org: {org_slug}")
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Concurrent pipeline limit reached ({concurrent_limit} pipelines). Wait for running pipelines to complete.",
-                headers={"Retry-After": "300"}  # 5 minutes
-            )
-
-        # Return quota info using subscription limits (fresh)
+        # Return quota info
         quota_info = {
-            "pipelines_run_today": usage["pipelines_run_today"],
-            "pipelines_run_month": usage["pipelines_run_month"],
-            "concurrent_pipelines_running": usage["concurrent_pipelines_running"],
-            "daily_limit": daily_limit,
-            "monthly_limit": monthly_limit,
-            "concurrent_limit": concurrent_limit,
-            "remaining_today": daily_limit - usage["pipelines_run_today"],
-            "remaining_month": monthly_limit - usage["pipelines_run_month"]
+            "pipelines_run_today": quota_result["daily_used"],
+            "pipelines_run_month": quota_result["monthly_used"],
+            "concurrent_pipelines_running": quota_result["concurrent_used"],
+            "daily_limit": quota_result["daily_limit"],
+            "monthly_limit": quota_result["monthly_limit"],
+            "concurrent_limit": quota_result["concurrent_limit"],
+            "remaining_today": quota_result["daily_limit"] - quota_result["daily_used"],
+            "remaining_month": quota_result["monthly_limit"] - quota_result["monthly_used"],
+            "org_id": org_id  # Include org_id for later use in increment/decrement
         }
 
         logger.info(f"Quota validated for org: {org_slug} - {quota_info['remaining_today']} remaining today")
@@ -745,92 +709,52 @@ async def validate_quota(
 async def increment_pipeline_usage(
     org_slug: str,
     pipeline_status: str,
-    bq_client: BigQueryClient
+    bq_client: BigQueryClient = None
 ):
     """
-    DEPRECATED: This function is not used in production.
+    Update pipeline usage counters in Supabase.
 
-    In the current architecture, quota updates are handled by the api-service:
-    - Pipeline service calls report_pipeline_completion_to_api_service()
-    - Which calls api-service's /validator/complete/{org_slug} endpoint
-    - Which calls api-service's increment_pipeline_usage()
-
-    This function is kept for backwards compatibility with tests.
-    DO NOT USE in new code - use report_pipeline_completion_to_api_service() instead.
-
-    Updates organizations.org_usage_quotas.
+    Uses Supabase RPC functions for atomic updates:
+    - RUNNING: calls increment_pipeline_count() to increment daily/monthly/concurrent
+    - SUCCESS/FAILED: calls decrement_concurrent() to decrement concurrent and update success/fail stats
 
     Args:
         org_slug: Organization identifier
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
-        bq_client: BigQuery client instance
+        bq_client: BigQuery client instance (ignored, kept for backward compatibility)
     """
-    today = datetime.now(timezone.utc).date()
+    try:
+        supabase = get_supabase_client()
 
-    # Determine which counters to increment
-    if pipeline_status == "RUNNING":
-        # Increment concurrent counter AND daily/monthly to reserve quota
-        update_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-            pipelines_run_today = pipelines_run_today + 1,
-            pipelines_run_month = pipelines_run_month + 1
-        WHERE org_slug = @org_slug
-            AND usage_date = @usage_date
-        """
+        # Get organization ID from Supabase
+        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
 
-        try:
-            bq_client.client.query(
-                update_query,
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-                    ]
-                )
-            ).result()
+        if not org_result.data:
+            logger.error(f"Organization not found in Supabase for usage update: {org_slug}")
+            return
 
-            logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
+        org_id = org_result.data["id"]
 
-        except Exception as e:
-            logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
+        if pipeline_status == "RUNNING":
+            # Increment all counters using Supabase RPC function
+            result = supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
+            logger.info(f"Incremented pipeline usage for org {org_slug}: status={pipeline_status}")
 
-    elif pipeline_status in ["SUCCESS", "FAILED"]:
-        # Decrement concurrent and update success/failed counters
-        # NOTE: daily/monthly already incremented when RUNNING started
-        success_increment = 1 if pipeline_status == "SUCCESS" else 0
-        failed_increment = 1 if pipeline_status == "FAILED" else 0
+        elif pipeline_status in ["SUCCESS", "FAILED"]:
+            # Decrement concurrent and update success/failed counters
+            succeeded = pipeline_status == "SUCCESS"
+            result = supabase.rpc("decrement_concurrent", {
+                "p_org_id": org_id,
+                "p_succeeded": succeeded
+            }).execute()
+            logger.info(f"Updated pipeline completion for org {org_slug}: status={pipeline_status}")
 
-        update_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET
-            pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
-            pipelines_failed_today = pipelines_failed_today + @failed_increment,
-            concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
-        WHERE org_slug = @org_slug
-            AND usage_date = @usage_date
-        """
+        else:
+            logger.warning(f"Unknown pipeline status: {pipeline_status}")
+            return
 
-        try:
-            bq_client.client.query(
-                update_query,
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                        bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
-                        bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment)
-                    ]
-                )
-            ).result()
-
-            logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
-
-        except Exception as e:
-            logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
-    else:
-        logger.warning(f"Unknown pipeline status: {pipeline_status}")
-        return
+    except Exception as e:
+        logger.error(f"Failed to update pipeline usage in Supabase: {e}", exc_info=True)
 
 
 async def get_org_credentials(

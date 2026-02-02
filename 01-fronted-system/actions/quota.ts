@@ -173,7 +173,7 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     const providersLimit = backendProvidersLimit ?? org.providers_limit ?? 3
     // Use backend limits if available, otherwise fall back to Supabase/defaults
     const dailyLimit = backendDailyLimit || org.pipelines_per_day_limit || 6
-    // Use actual monthly_limit from backend API - avoid hardcoded multiplier calculation
+    // Use actual pipelines_per_month_limit from backend API - avoid hardcoded multiplier calculation
     // Backend returns the exact plan limits from BigQuery (org_subscriptions table)
     const monthlyLimit = backendMonthlyLimit > 0 ? backendMonthlyLimit : (dailyLimit * 30)
     // Use backend configured providers count as source of truth (BigQuery org_integration_credentials)

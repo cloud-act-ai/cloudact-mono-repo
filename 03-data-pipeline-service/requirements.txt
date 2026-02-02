@@ -50,6 +50,9 @@ pendulum==3.0.0
 croniter==2.0.1
 circuitbreaker==2.0.0
 
+# Supabase
+supabase==2.10.0
+
 # Development
 pytest==7.4.4
 pytest-asyncio==0.23.3

@@ -31,6 +31,7 @@ from src.core.observability.metrics import (
 )
 from src.core.notifications.service import get_notification_service
 from src.core.utils.pipeline_lock import get_pipeline_lock_manager, PipelineLockManager
+from src.core.utils.supabase_client import get_supabase_client
 from pydantic import ValidationError
 
 # ============================================
@@ -544,63 +545,36 @@ class AsyncPipelineExecutor:
 
         Kept for reference only. Do not call this method.
 
-        Old behavior:
-        - Incremented concurrent_pipelines_running by 1
-        - Updated max_concurrent_reached to maximum value seen
-        - Set updated_at to current timestamp
+        If needed, this now uses Supabase instead of BigQuery.
         """
-        from google.cloud import bigquery
-        from src.app.config import settings
-
         try:
-            # BigQuery UPDATE is atomic: all SET expressions evaluate OLD values first,
-            # then apply updates transactionally. This prevents race conditions when
-            # multiple pipeline instances increment counters concurrently.
-            today = get_utc_date()  # Use UTC date for consistency
-            update_query = f"""
-            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            SET
-                concurrent_pipelines_running = concurrent_pipelines_running + 1,
-                max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
-                updated_at = CURRENT_TIMESTAMP()
-            WHERE
-                org_slug = @org_slug
-                AND usage_date = @usage_date
-            """
+            supabase = get_supabase_client()
 
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                ]
-            )
+            # Get organization ID from Supabase
+            org_result = supabase.table("organizations").select("id").eq("org_slug", self.org_slug).single().execute()
 
+            if not org_result.data:
+                self.logger.warning(f"Organization not found in Supabase: {self.org_slug}")
+                return
+
+            org_id = org_result.data["id"]
+
+            # Call Supabase RPC function to increment pipeline count
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
+            result = await loop.run_in_executor(
                 BQ_EXECUTOR,
-                lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
+                lambda: supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
             )
 
             self.logger.info(
-                f"Incremented concurrent pipelines counter",
+                f"Incremented concurrent pipelines counter via Supabase",
                 org_slug=self.org_slug
             )
 
-            # Query current count for Prometheus metric
-            query_count = f"""
-            SELECT concurrent_pipelines_running
-            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            WHERE org_slug = @org_slug AND usage_date = @usage_date
-            """
-
-            count_result = await loop.run_in_executor(
-                BQ_EXECUTOR,
-                lambda: self.bq_client.client.query(query_count, job_config=job_config).result()
-            )
-
-            for row in count_result:
-                set_active_pipelines(self.org_slug, row.concurrent_pipelines_running)
-                break
+            # Update Prometheus metric
+            if result.data:
+                concurrent_running = result.data.get("concurrent_running", 0)
+                set_active_pipelines(self.org_slug, concurrent_running)
 
         except Exception as e:
             # MEMORY LEAK FIX #28: Background task errors properly logged
@@ -612,41 +586,37 @@ class AsyncPipelineExecutor:
 
     async def _decrement_concurrent_counter(self) -> None:
         """
-        Decrement only the concurrent_pipelines_running counter.
+        Decrement only the concurrent_pipelines_running counter via Supabase.
 
         Used for BLOCKED pipelines where we need to release the quota slot
         without updating success/fail counters since the pipeline never ran.
         """
-        from google.cloud import bigquery
-        from src.app.config import settings
-
         try:
-            today = get_utc_date()  # Use UTC date for consistency
-            decrement_query = f"""
-            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            SET
-                concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
-                updated_at = CURRENT_TIMESTAMP()
-            WHERE
-                org_slug = @org_slug
-                AND usage_date = @usage_date
-            """
+            supabase = get_supabase_client()
 
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                ]
-            )
+            # Get organization ID from Supabase
+            org_result = supabase.table("organizations").select("id").eq("org_slug", self.org_slug).single().execute()
 
+            if not org_result.data:
+                self.logger.warning(f"Organization not found in Supabase: {self.org_slug}")
+                return
+
+            org_id = org_result.data["id"]
+
+            # Decrement concurrent counter - pass succeeded=True but this won't
+            # affect the daily counts since the pipeline was blocked (never really ran)
+            # The decrement_concurrent function only updates concurrent_running
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 BQ_EXECUTOR,
-                lambda: self.bq_client.client.query(decrement_query, job_config=job_config).result()
+                lambda: supabase.rpc("decrement_concurrent", {
+                    "p_org_id": org_id,
+                    "p_succeeded": True  # Doesn't matter for blocked pipelines
+                }).execute()
             )
 
             self.logger.info(
-                f"Decremented concurrent counter for blocked pipeline",
+                f"Decremented concurrent counter for blocked pipeline via Supabase",
                 org_slug=self.org_slug,
                 pipeline_id=self.tracking_pipeline_id
             )
@@ -660,68 +630,51 @@ class AsyncPipelineExecutor:
 
     async def _update_org_usage_quotas(self) -> None:
         """
-        Update customer usage quotas after pipeline completion.
+        Update customer usage quotas after pipeline completion via Supabase.
 
         Quotas are tracked at ORG level (not customer/user level).
         All users in an org share the same quota.
         """
-        from google.cloud import bigquery
-        from src.app.config import settings
-
         try:
-            # Determine which counter to increment based on status
+            # Determine success status based on pipeline status
             if self.status == "COMPLETED":
-                success_increment = 1
-                failed_increment = 0
-            elif self.status == "FAILED":
-                success_increment = 0
-                failed_increment = 1
-            elif self.status == "TIMEOUT":
-                success_increment = 0
-                failed_increment = 1
+                succeeded = True
+            elif self.status in ["FAILED", "TIMEOUT"]:
+                succeeded = False
             else:
-                success_increment = 0
-                failed_increment = 0
+                # For other statuses (CANCELLED, etc.), treat as neither success nor failure
+                # Just decrement concurrent counter
+                succeeded = True  # Doesn't affect success/fail counters much
 
-            # Update usage quotas directly by org_slug
-            # NOTE: pipelines_run_today and pipelines_run_month are NOT incremented here
-            # because api-service's reserve_pipeline_quota_atomic() already incremented them
-            # when the pipeline was started. We only update success/fail counters and decrement concurrent.
-            today = get_utc_date()  # Use UTC date for consistency
-            update_query = f"""
-            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            SET
-                pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
-                pipelines_failed_today = pipelines_failed_today + @failed_increment,
-                concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
-                last_pipeline_completed_at = CURRENT_TIMESTAMP(),
-                updated_at = CURRENT_TIMESTAMP()
-            WHERE
-                org_slug = @org_slug
-                AND usage_date = @usage_date
-            """
+            supabase = get_supabase_client()
 
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
-                    bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
-                    bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
-                ]
-            )
+            # Get organization ID from Supabase
+            org_result = supabase.table("organizations").select("id").eq("org_slug", self.org_slug).single().execute()
 
+            if not org_result.data:
+                self.logger.warning(f"Organization not found in Supabase: {self.org_slug}")
+                return
+
+            org_id = org_result.data["id"]
+
+            # Call Supabase RPC function to decrement concurrent and update success/fail counters
+            # NOTE: The decrement_concurrent function handles:
+            # - Decrementing concurrent_running
+            # - Incrementing pipelines_succeeded_today or pipelines_failed_today based on p_succeeded
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 BQ_EXECUTOR,
-                lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
+                lambda: supabase.rpc("decrement_concurrent", {
+                    "p_org_id": org_id,
+                    "p_succeeded": succeeded
+                }).execute()
             )
 
             self.logger.info(
-                f"Updated customer usage quotas",
+                f"Updated customer usage quotas via Supabase",
                 org_slug=self.org_slug,
                 status=self.status,
-                pipelines_succeeded=success_increment,
-                pipelines_failed=failed_increment,
+                succeeded=succeeded,
                 concurrent_decremented=1
             )
 

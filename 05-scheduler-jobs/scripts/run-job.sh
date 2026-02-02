@@ -49,15 +49,15 @@ if [[ -z "$ENV" ]] || [[ -z "$JOB_NAME" ]]; then
     echo "    manual-org-sync-all      - Sync all org datasets (AFTER bootstrap-sync)"
     echo ""
     echo "  SCHEDULED (auto-run, can also run manually):"
-    echo "    5min-billing-sync-retry     - Process pending billing syncs (every 5 min)"
     echo "    15min-stale-cleanup         - Fix stuck concurrent counters (every 15 min)"
     echo "    daily-quota-reset           - Reset daily quotas (00:00 UTC)"
     echo "    daily-quota-cleanup         - Delete old quota records (01:00 UTC)"
-    echo "    daily-billing-reconcile     - Full Stripe→BigQuery reconciliation (02:00 UTC)"
     echo "    monthly-quota-reset         - Reset monthly quotas (1st of month)"
     echo ""
     echo "  SHORTCUTS (legacy names still work):"
     echo "    bootstrap, org-sync-all, stale-cleanup, quota-reset, etc."
+    echo ""
+    echo "  NOTE: Billing sync jobs removed (consolidated to Supabase)"
     exit 1
 fi
 
@@ -94,9 +94,6 @@ case "$JOB_NAME" in
         FULL_JOB_NAME="cloudact-manual-org-sync-all"
         ;;
     # Shortcuts for scheduled jobs
-    billing-sync-retry|billing-retry)
-        FULL_JOB_NAME="cloudact-5min-billing-sync-retry"
-        ;;
     stale-cleanup|stale)
         FULL_JOB_NAME="cloudact-15min-stale-cleanup"
         ;;
@@ -106,11 +103,13 @@ case "$JOB_NAME" in
     quota-cleanup)
         FULL_JOB_NAME="cloudact-daily-quota-cleanup"
         ;;
-    billing-sync-reconcile|billing-reconcile|reconcile)
-        FULL_JOB_NAME="cloudact-daily-billing-reconcile"
-        ;;
     quota-reset-monthly|quota-monthly)
         FULL_JOB_NAME="cloudact-monthly-quota-reset"
+        ;;
+    # Deprecated billing sync jobs - show helpful message
+    billing-sync-retry|billing-retry|billing-sync-reconcile|billing-reconcile|reconcile)
+        echo -e "${RED}ERROR: Billing sync jobs have been removed (consolidated to Supabase)${NC}"
+        exit 1
         ;;
     # Already has prefix
     cloudact-*)

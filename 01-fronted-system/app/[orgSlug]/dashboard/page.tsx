@@ -292,11 +292,6 @@ export default function DashboardPage() {
     const filteredTotal = filteredDailyData.reduce((sum, d) => sum + d.value, 0)
     const filteredDailyAvg = filteredDailyData.length > 0 ? filteredTotal / filteredDailyData.length : 0
 
-    // For MTD: use filtered total if time range is mtd, otherwise show filtered period total
-    const totalMtd = timeRange === "mtd"
-      ? filteredTotal
-      : (periodCosts?.mtd ?? filteredTotal)
-
     // Daily rate from filtered data
     const dailyRate = filteredDailyAvg
 
@@ -328,7 +323,8 @@ export default function DashboardPage() {
   }, [genaiCost, cloudCost, subscriptionCost])
 
   // Prepare breakdown items for category chart from FILTERED data
-  const categoryBreakdown = useMemo(() => {
+  // TODO: Use this for category breakdown chart component
+  const _categoryBreakdown = useMemo(() => {
     return [
       {
         key: "genai",

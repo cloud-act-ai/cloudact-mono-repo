@@ -12,10 +12,12 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
 ├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
 └─ Dashboard UI              ├─ Hierarchy CRUD            └─ BigQuery writes
-                             ├─ Quota enforcement
-                             └─ Cost reads (Polars)
-                                        ↓
-                             BigQuery (organizations + {org_slug}_prod)
+        │                    ├─ Quota enforcement
+        │                    └─ Cost reads (Polars)
+        ↓                               ↓
+Supabase (Auth + Quotas)     BigQuery (organizations + {org_slug}_prod)
+├─ organizations             └─ org_subscriptions, cost_data, etc.
+└─ org_quotas (usage)
 
 Scheduler Jobs (Cloud Run Jobs)
 ├─ bootstrap.py              # Initial system setup
@@ -38,13 +40,14 @@ All → `cost_data_standard_1_3` (FOCUS 1.3 unified)
 
 ## Plan Quotas
 
-| Plan | Daily | Monthly | Seats | Providers | Price |
-|------|-------|---------|-------|-----------|-------|
-| Starter | 6 | 180 | 2 | 3 | $19 |
-| Professional | 25 | 750 | 6 | 6 | $69 |
-| Scale | 100 | 3000 | 11 | 10 | $199 |
+| Plan | Daily | Monthly | Concurrent | Seats | Providers | Price |
+|------|-------|---------|------------|-------|-----------|-------|
+| Starter | 6 | 180 | 1 | 2 | 3 | $19 |
+| Professional | 25 | 750 | 2 | 6 | 6 | $69 |
+| Scale | 100 | 3000 | 5 | 11 | 10 | $199 |
 
-**Tables:** `org_subscriptions` (limits) + `org_usage_quotas` (usage)
+**Supabase Tables:** `organizations` (limits) + `org_quotas` (usage tracking)
+**BigQuery Tables:** `org_subscriptions` (plan metadata) + `org_usage_quotas` (historical)
 
 ## x_* Pipeline Lineage (8001 ONLY)
 
@@ -274,8 +277,8 @@ cd 05-scheduler-jobs
 | `quota-reset-monthly` | 00:05 1st | Reset monthly pipeline counters |
 | `stale-cleanup` | */15 min | Fix stuck concurrent counters |
 | `quota-cleanup` | 01:00 UTC | Delete quota records >90 days |
-| `billing-sync-retry` | */5 min | Process pending billing syncs |
-| `billing-sync-reconcile` | 02:00 UTC | Full Stripe→BigQuery reconciliation |
+
+> **Note:** Billing sync jobs removed (subscription data consolidated to Supabase).
 
 ## Docs
 
@@ -289,4 +292,4 @@ cd 05-scheduler-jobs
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.2.0** | 2026-01-31
+**v4.2.0** | 2026-02-01

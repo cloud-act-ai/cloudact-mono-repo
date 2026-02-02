@@ -19,6 +19,7 @@ import html
 from pathlib import Path
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.core.security.kms_encryption import encrypt_value, decrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult, verify_admin_key
@@ -783,10 +784,10 @@ async def onboard_org(
     Onboard a new organization to the platform.
 
     TWO-DATASET ARCHITECTURE:
-    1. Creates org record in organizations.org_profiles
-    2. Stores API key in organizations.org_api_keys (centralized auth)
-    3. Creates subscription in organizations.org_subscriptions
-    4. Creates usage tracking in organizations.org_usage_quotas
+    1. Creates org record in BigQuery organizations.org_profiles
+    2. Stores API key in BigQuery organizations.org_api_keys (centralized auth)
+    3. Creates subscription in Supabase organizations table (quota limits)
+    4. Creates usage tracking in BigQuery organizations.org_usage_quotas
     5. Creates org dataset with ONLY operational tables (no API keys)
     6. Runs dry-run pipeline to validate infrastructure
 
@@ -875,14 +876,15 @@ async def onboard_org(
     async def cleanup_partial_org(org_slug: str, step_failed: str):
         """
         Cleanup partial org data if onboarding fails.
-        Removes org profile, API keys, subscription, usage quota, and org-specific dataset.
+        Removes org profile, API keys, usage quota, and org-specific dataset from BigQuery.
+        Also removes organization record from Supabase.
         """
         logger.warning(f"Cleaning up partial org data after failure at {step_failed}: {org_slug}")
 
+        # Cleanup BigQuery tables
         cleanup_queries = [
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_profiles` WHERE org_slug = @org_slug",
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_api_keys` WHERE org_slug = @org_slug",
-            f"DELETE FROM `{settings.gcp_project_id}.organizations.org_subscriptions` WHERE org_slug = @org_slug",
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` WHERE org_slug = @org_slug",
             # FIX ISSUE 2.1 & 2.2: Cleanup hierarchy data on partial failure
             f"DELETE FROM `{settings.gcp_project_id}.organizations.org_hierarchy` WHERE org_slug = @org_slug",
@@ -901,6 +903,13 @@ async def onboard_org(
                 ).result()
             except Exception as cleanup_error:
                 logger.error(f"Cleanup failed for query: {query[:50]}... Error: {cleanup_error}")
+
+        # Cleanup Supabase organization record
+        try:
+            supabase = get_supabase_client()
+            supabase.table("organizations").delete().eq("org_slug", org_slug).execute()
+        except Exception as supabase_error:
+            logger.error(f"Supabase cleanup failed for org {org_slug}: {supabase_error}")
 
         # Delete org-specific dataset if it was created
         try:
@@ -1015,36 +1024,23 @@ async def onboard_org(
                 detail="Failed to update organization profile. Please check server logs for details."
             )
 
-        # STEP 2: Update subscription with new plan limits
+        # STEP 2: Update subscription in Supabase with new plan limits
         try:
-            update_subscription_query = f"""
-            UPDATE `{settings.gcp_project_id}.organizations.org_subscriptions`
-            SET
-                plan_name = @plan_name,
-                daily_limit = @daily_limit,
-                monthly_limit = @monthly_limit,
-                concurrent_limit = @concurrent_limit,
-                updated_at = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug
-            """
+            supabase = get_supabase_client()
+            update_data = {
+                "subscription_plan": request.subscription_plan,
+                "daily_pipeline_limit": plan_limits["daily_limit"],
+                "monthly_pipeline_limit": plan_limits["monthly_limit"],
+                "concurrent_pipeline_limit": plan_limits["concurrent_limit"],
+                "seat_limit": plan_limits["seat_limit"],
+                "providers_limit": plan_limits["providers_limit"],
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            supabase.table("organizations").update(update_data).eq("org_slug", org_slug).execute()
 
-            bq_client.client.query(
-                update_subscription_query,
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
-                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
-                        # Use max_monthly from SUBSCRIPTION_LIMITS (single source of truth)
-                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
-                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"])
-                    ]
-                )
-            ).result()
-
-            logger.info(f"Updated subscription for: {org_slug} (daily: {plan_limits['max_daily']}, concurrent: {plan_limits['max_concurrent']})")
+            logger.info(f"Updated subscription for: {org_slug} (daily: {plan_limits['daily_limit']}, concurrent: {plan_limits['concurrent_limit']})")
         except Exception as e:
-            logger.error(f"Failed to update subscription: {e}", exc_info=True)
+            logger.error(f"Failed to update subscription in Supabase: {e}", exc_info=True)
             # Non-fatal - continue with API key regeneration
 
         # STEP 3: Update usage quota limits (keep current usage, update limits)
@@ -1329,41 +1325,35 @@ async def onboard_org(
         )
 
     # ============================================
-    # STEP 3: Create subscription in organizations.org_subscriptions
+    # STEP 3: Create subscription in Supabase organizations table
     # ============================================
     try:
-        logger.info(f"Creating subscription for organization: {org_slug}")
+        logger.info(f"Creating subscription for organization: {org_slug} in Supabase")
 
-        subscription_id = str(uuid.uuid4())
         trial_end = date.today() + timedelta(days=14)  # 14-day trial period
 
-        insert_subscription_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.organizations.org_subscriptions`
-        (subscription_id, org_slug, plan_name, status, daily_limit, monthly_limit,
-         concurrent_limit, seat_limit, providers_limit, trial_end_date, created_at)
-        VALUES
-        (@subscription_id, @org_slug, @plan_name, 'ACTIVE', @daily_limit, @monthly_limit,
-         @concurrent_limit, @seat_limit, @providers_limit, @trial_end_date, CURRENT_TIMESTAMP())
-        """
+        supabase = get_supabase_client()
+        org_data = {
+            "org_slug": org_slug,
+            "company_name": request.company_name,
+            "admin_email": request.admin_email,
+            "subscription_plan": request.subscription_plan,
+            "subscription_status": "ACTIVE",
+            "daily_pipeline_limit": plan_limits["daily_limit"],
+            "monthly_pipeline_limit": plan_limits["monthly_limit"],
+            "concurrent_pipeline_limit": plan_limits["concurrent_limit"],
+            "seat_limit": plan_limits["seat_limit"],
+            "providers_limit": plan_limits["providers_limit"],
+            "trial_end_date": trial_end.isoformat(),
+            "default_currency": request.default_currency,
+            "default_timezone": request.default_timezone,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
 
-        bq_client.client.query(
-            insert_subscription_query,
-            job_config=bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
-                    bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
-                    bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"]),
-                    bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
-                ]
-            )
-        ).result()
+        supabase.table("organizations").insert(org_data).execute()
 
-        logger.info(f"Subscription created: {subscription_id}")
+        logger.info(f"Subscription created in Supabase for: {org_slug}")
 
     except Exception as e:
         # Cleanup partial org data
@@ -1376,7 +1366,7 @@ async def onboard_org(
             resource_type="subscription",
             context={
                 "event_type": "subscription_creation_failed",
-                "table": "org_subscriptions",
+                "table": "organizations (Supabase)",
                 "plan": request.subscription_plan
             }
         )
@@ -2147,9 +2137,9 @@ async def update_subscription_limits(
     - Admin manually adjusts limits
 
     Updates:
-    - org_subscriptions table (plan_name, daily_limit, monthly_limit, concurrent_limit)
-    - org_usage_quotas table (daily_limit for enforcement)
-    - org_profiles table (subscription_plan)
+    - Supabase organizations table (subscription_plan, daily_pipeline_limit, etc.)
+    - BigQuery org_usage_quotas table (daily_limit for enforcement)
+    - BigQuery org_profiles table (subscription_plan)
 
     Requires CA_ROOT_API_KEY authentication (admin only).
     """
@@ -2274,55 +2264,39 @@ async def update_subscription_limits(
             )
 
     # ============================================
-    # STEP 3: Update org_subscriptions table
+    # STEP 3: Update Supabase organizations table (subscription limits)
     # ============================================
     try:
-        # Build dynamic SET clause to only update provided fields
-        set_clauses = [
-            "plan_name = @plan_name",
-            "daily_limit = @daily_limit",
-            "monthly_limit = @monthly_limit",
-            "concurrent_limit = @concurrent_limit",
-            "seat_limit = @seat_limit",
-            "providers_limit = @providers_limit",
-            "updated_at = CURRENT_TIMESTAMP()"
-        ]
-        query_params = [
-            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-            bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
-            bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
-            bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-            bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
-            bigquery.ScalarQueryParameter("seat_limit", "INT64", seat_limit),
-            bigquery.ScalarQueryParameter("providers_limit", "INT64", providers_limit)
-        ]
+        supabase = get_supabase_client()
+
+        # Build update data
+        update_data = {
+            "subscription_plan": plan_name,
+            "daily_pipeline_limit": daily_limit,
+            "monthly_pipeline_limit": monthly_limit,
+            "concurrent_pipeline_limit": concurrent_limit,
+            "seat_limit": seat_limit,
+            "providers_limit": providers_limit,
+            "updated_at": datetime.utcnow().isoformat()
+        }
 
         # Add status if provided
         if subscription_status:
-            set_clauses.append("status = @status")
-            query_params.append(bigquery.ScalarQueryParameter("status", "STRING", subscription_status))
+            update_data["subscription_status"] = subscription_status
 
         # Add trial_end_date if provided
         if trial_end_date:
-            set_clauses.append("trial_end_date = @trial_end_date")
-            query_params.append(bigquery.ScalarQueryParameter("trial_end_date", "STRING", trial_end_date))
+            update_data["trial_end_date"] = trial_end_date
 
-        update_subscription_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_subscriptions`
-        SET
-            {", ".join(set_clauses)}
-        WHERE org_slug = @org_slug
-        """
+        result = supabase.table("organizations").update(update_data).eq("org_slug", org_slug).execute()
 
-        bq_client.client.query(
-            update_subscription_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=query_params)
-        ).result()
-
-        logger.info(f"Updated org_subscriptions for: {org_slug} (plan: {plan_name}, daily: {daily_limit})")
+        if not result.data:
+            logger.warning(f"No rows updated in Supabase for org: {org_slug}")
+        else:
+            logger.info(f"Updated Supabase organizations for: {org_slug} (plan: {plan_name}, daily: {daily_limit})")
 
     except Exception as e:
-        logger.error(f"Failed to update org_subscriptions: {e}", exc_info=True)
+        logger.error(f"Failed to update Supabase organizations: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update subscription. Please check server logs for details."
@@ -2502,8 +2476,9 @@ async def delete_organization(
     Delete/offboard an organization (Admin only).
 
     This endpoint:
-    1. Removes org from all meta tables (org_profiles, org_api_keys, org_subscriptions, etc.)
-    2. Optionally deletes the org's BigQuery dataset if delete_dataset=True
+    1. Removes org from all BigQuery meta tables (org_profiles, org_api_keys, etc.)
+    2. Removes org subscription from Supabase organizations table
+    3. Optionally deletes the org's BigQuery dataset if delete_dataset=True
 
     REQUIRES: X-CA-Root-Key header (admin authentication)
 
@@ -2533,11 +2508,11 @@ async def delete_organization(
     dataset_deleted = False
 
     try:
-        # List of meta tables to clean up (MUST include ALL org-scoped tables)
+        # List of BigQuery meta tables to clean up (MUST include ALL org-scoped tables)
+        # NOTE: org_subscriptions is now in Supabase, not BigQuery
         meta_tables = [
             "org_profiles",
             "org_api_keys",
-            "org_subscriptions",
             "org_credentials",
             "integration_status",
             "audit_logs",
@@ -2549,7 +2524,7 @@ async def delete_organization(
             "org_alert_history",
         ]
 
-        # Delete from each meta table
+        # Delete from each meta table in BigQuery
         for table in meta_tables:
             try:
                 delete_query = f"""
@@ -2569,6 +2544,15 @@ async def delete_organization(
             except Exception as e:
                 # Table might not exist or have no data - log but continue
                 logger.warning(f"Could not delete from {table}: {e}")
+
+        # Delete organization record from Supabase
+        try:
+            supabase = get_supabase_client()
+            supabase.table("organizations").delete().eq("org_slug", org_slug).execute()
+            deleted_tables.append("organizations (Supabase)")
+            logger.info(f"Deleted org data from Supabase organizations table")
+        except Exception as e:
+            logger.warning(f"Could not delete from Supabase organizations: {e}")
 
         # Optionally delete the org's dataset
         if request.delete_dataset:
@@ -2657,7 +2641,7 @@ class GetSubscriptionResponse(BaseModel):
     "/organizations/{org_slug}/subscription",
     response_model=GetSubscriptionResponse,
     summary="Get subscription details for an organization",
-    description="Retrieves current subscription details from BigQuery"
+    description="Retrieves current subscription details from Supabase"
 )
 async def get_subscription(
     org_slug: str,
@@ -2672,6 +2656,8 @@ async def get_subscription(
     - All limits (daily, monthly, concurrent, seat, providers)
     - Trial end date
     - Timestamps
+
+    NOTE: Subscription data is stored in Supabase organizations table.
 
     Accepts EITHER:
     - Organization API Key (X-API-Key header) - self-service access
@@ -2690,55 +2676,34 @@ async def get_subscription(
     logger.info(f"Getting subscription details for organization: {org_slug}")
 
     try:
-        query = f"""
-        SELECT
-            subscription_id,
-            org_slug,
-            plan_name,
-            status,
-            daily_limit,
-            monthly_limit,
-            concurrent_limit,
-            seat_limit,
-            providers_limit,
-            trial_end_date,
-            created_at,
-            updated_at
-        FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-        WHERE org_slug = @org_slug
-        LIMIT 1
-        """
+        supabase = get_supabase_client()
+        result = supabase.table("organizations").select(
+            "org_slug, stripe_subscription_id, subscription_plan, subscription_status, "
+            "daily_pipeline_limit, monthly_pipeline_limit, concurrent_pipeline_limit, "
+            "seat_limit, providers_limit, trial_end_date, created_at, updated_at"
+        ).eq("org_slug", org_slug).single().execute()
 
-        result = list(bq_client.client.query(
-            query,
-            job_config=bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-                ]
-            )
-        ).result())
-
-        if not result:
+        if not result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No subscription found for organization '{org_slug}'"
             )
 
-        row = result[0]
+        row = result.data
 
         return GetSubscriptionResponse(
             org_slug=row["org_slug"],
-            subscription_id=row["subscription_id"] or "",
-            plan_name=row["plan_name"] or "STARTER",
-            status=row["status"] or "ACTIVE",
-            daily_limit=row["daily_limit"] or 10,
-            monthly_limit=row["monthly_limit"] or 300,
-            concurrent_limit=row["concurrent_limit"] or 1,
+            subscription_id=row.get("stripe_subscription_id") or "",
+            plan_name=row.get("subscription_plan") or "STARTER",
+            status=row.get("subscription_status") or "ACTIVE",
+            daily_limit=row.get("daily_pipeline_limit") or 10,
+            monthly_limit=row.get("monthly_pipeline_limit") or 300,
+            concurrent_limit=row.get("concurrent_pipeline_limit") or 1,
             seat_limit=row.get("seat_limit"),
             providers_limit=row.get("providers_limit"),
             trial_end_date=str(row["trial_end_date"]) if row.get("trial_end_date") else None,
-            created_at=row["created_at"].isoformat() if row.get("created_at") else None,
-            updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None
+            created_at=row["created_at"] if row.get("created_at") else None,
+            updated_at=row["updated_at"] if row.get("updated_at") else None
         )
 
     except HTTPException:

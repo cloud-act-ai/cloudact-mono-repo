@@ -376,9 +376,9 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
 
     // Send invite email via SMTP
     // ERR-001 FIX: Check email send result and inform user
-    console.log(`[inviteMember] Attempting to send invite email to ${normalizedEmail}...`)
-    console.log(`[inviteMember] Invite link: ${inviteLink}`)
-    console.log(`[inviteMember] Inviter: ${inviterName}, Org: ${org.org_name}, Role: ${role}`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[inviteMember] Sending invite to ${normalizedEmail}, Role: ${role}`)
+    }
 
     const emailSent = await sendInviteEmail({
       to: normalizedEmail,
@@ -387,8 +387,6 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       role,
       inviteLink,
     })
-
-    console.log(`[inviteMember] Email send result: ${emailSent ? "SUCCESS" : "FAILED"}`)
 
     if (!emailSent) {
       console.warn(`[inviteMember] Email failed to send to ${normalizedEmail} for org ${orgSlug}`)
@@ -989,12 +987,9 @@ export async function resendInvite(orgSlug: string, inviteId: string) {
     const inviterName = inviterProfile?.full_name || inviterProfile?.email?.split("@")[0] || "A team member"
 
     // Send new invite email
-    console.log(`[resendInvite] Preparing to send email...`)
-    console.log(`[resendInvite] To: ${existingInvite.email}`)
-    console.log(`[resendInvite] Inviter: ${inviterName}`)
-    console.log(`[resendInvite] Org: ${org.org_name}`)
-    console.log(`[resendInvite] Role: ${existingInvite.role}`)
-    console.log(`[resendInvite] Link: ${inviteLink}`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[resendInvite] Sending to ${existingInvite.email}, Role: ${existingInvite.role}`)
+    }
 
     const emailSent = await sendInviteEmail({
       to: existingInvite.email,
@@ -1003,8 +998,6 @@ export async function resendInvite(orgSlug: string, inviteId: string) {
       role: existingInvite.role,
       inviteLink,
     })
-
-    console.log(`[resendInvite] Email send result: ${emailSent ? "SUCCESS" : "FAILED"}`)
 
     if (!emailSent) {
       console.warn(`[resendInvite] Email failed to send to ${existingInvite.email} for org ${orgSlug}`)

@@ -16,6 +16,7 @@ import os
 
 from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.core.security.kms_encryption import encrypt_value, decrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
@@ -684,10 +685,11 @@ async def create_org(
     Create a new organization.
 
     This will:
-    1. Create org profile in organizations.org_profiles
-    2. Create subscription in organizations.org_subscriptions
-    3. Create org-specific BigQuery datasets
-    4. Return org details
+    1. Create org profile in BigQuery organizations.org_profiles
+    2. Create subscription in Supabase organizations table
+    3. Create initial usage quota in BigQuery organizations.org_usage_quotas
+    4. Create org-specific BigQuery datasets
+    5. Return org details
 
     - **org_slug**: Unique organization identifier (lowercase, alphanumeric, underscores only)
     - **description**: Optional description
@@ -739,43 +741,36 @@ async def create_org(
             detail="Operation failed. Please check server logs for details."
         )
 
-    # Step 2: Create subscription
+    # Step 2: Create subscription in Supabase
     try:
-        import uuid
-        from datetime import date
+        from datetime import date, datetime
 
-        logger.info(f"Creating subscription for: {org_slug}")
+        logger.info(f"Creating subscription for: {org_slug} in Supabase")
 
-        subscription_id = str(uuid.uuid4())
-        trial_end = date.today()  # No trial for admin-created orgs
+        supabase = get_supabase_client()
 
-        insert_subscription_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.organizations.org_subscriptions`
-        (subscription_id, org_slug, plan_name, status, daily_limit, monthly_limit,
-         concurrent_limit, trial_end_date, created_at)
-        VALUES
-        (@subscription_id, @org_slug, 'STARTER', 'ACTIVE', @daily_limit, @monthly_limit,
-         @concurrent_limit, @trial_end_date, CURRENT_TIMESTAMP())
-        """
+        # Insert organization record with subscription limits into Supabase
+        org_data = {
+            "org_slug": org_slug,
+            "company_name": request.description or org_slug,
+            "admin_email": "admin@example.com",  # Placeholder
+            "subscription_plan": "STARTER",
+            "subscription_status": "ACTIVE",
+            "daily_pipeline_limit": plan_limits["daily_limit"],
+            "monthly_pipeline_limit": plan_limits["monthly_limit"],
+            "concurrent_pipeline_limit": plan_limits["concurrent_limit"],
+            "seat_limit": plan_limits["seat_limit"],
+            "providers_limit": plan_limits["providers_limit"],
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
 
-        bq_client.client.query(
-            insert_subscription_query,
-            job_config=bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["daily_limit"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["monthly_limit"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["concurrent_limit"]),
-                    bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
-                ]
-            )
-        ).result()
+        supabase.table("organizations").insert(org_data).execute()
 
-        logger.info(f"Subscription created for: {org_slug}")
+        logger.info(f"Subscription created for: {org_slug} in Supabase")
 
     except Exception as e:
-        logger.error(f"Failed to create subscription: {str(e)}", exc_info=True)
+        logger.error(f"Failed to create subscription in Supabase: {str(e)}", exc_info=True)
         # Cleanup org profile
         try:
             bq_client.client.query(
@@ -785,7 +780,7 @@ async def create_org(
                 )
             ).result()
         except Exception as cleanup_error:
-            logger.warning(f"Cleanup failed after API key creation error for {org_slug}: {cleanup_error}")
+            logger.warning(f"Cleanup failed after Supabase creation error for {org_slug}: {cleanup_error}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
@@ -829,7 +824,7 @@ async def create_org(
 
     except Exception as e:
         logger.error(f"Failed to create usage quota: {str(e)}", exc_info=True)
-        # Cleanup org profile and subscription
+        # Cleanup org profile and Supabase organization record
         try:
             bq_client.client.query(
                 f"DELETE FROM `{settings.gcp_project_id}.organizations.org_profiles` WHERE org_slug = @org_slug",
@@ -837,14 +832,11 @@ async def create_org(
                     query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
-            bq_client.client.query(
-                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_subscriptions` WHERE org_slug = @org_slug",
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
-                )
-            ).result()
+            # Cleanup Supabase organization record
+            supabase = get_supabase_client()
+            supabase.table("organizations").delete().eq("org_slug", org_slug).execute()
         except Exception as cleanup_error:
-            logger.warning(f"Cleanup failed after subscription creation error for {org_slug}: {cleanup_error}")
+            logger.warning(f"Cleanup failed after usage quota creation error for {org_slug}: {cleanup_error}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
@@ -875,7 +867,7 @@ async def create_org(
 
     # If all datasets failed, cleanup and raise error
     if datasets_created == 0 and dataset_errors:
-        # Cleanup org profile and subscription
+        # Cleanup org profile and Supabase organization record
         try:
             bq_client.client.query(
                 f"DELETE FROM `{settings.gcp_project_id}.organizations.org_profiles` WHERE org_slug = @org_slug",
@@ -883,12 +875,9 @@ async def create_org(
                     query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
-            bq_client.client.query(
-                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_subscriptions` WHERE org_slug = @org_slug",
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
-                )
-            ).result()
+            # Cleanup Supabase organization record
+            supabase = get_supabase_client()
+            supabase.table("organizations").delete().eq("org_slug", org_slug).execute()
         except Exception as cleanup_error:
             logger.warning(f"Cleanup failed after dataset creation error for {org_slug}: {cleanup_error}")
 

@@ -143,6 +143,8 @@ ALL_JOBS=(
     "cloudact-daily-billing-reconcile"
     "cloudact-monthly-quota-reset"
 )
+# Note: billing sync jobs (5min-billing-sync-retry, daily-billing-reconcile) are deprecated
+# and will be deleted but not recreated (consolidated to Supabase)
 
 # All schedulers to manage (for deletion)
 ALL_SCHEDULERS=(
@@ -161,6 +163,7 @@ ALL_SCHEDULERS=(
     "cloudact-daily-billing-reconcile-trigger"
     "cloudact-monthly-quota-reset-trigger"
 )
+# Note: billing sync schedulers are deprecated and will be deleted but not recreated
 
 delete_job() {
     local JOB_NAME="$1"
@@ -297,28 +300,9 @@ create_job "cloudact-manual-org-sync-all" \
     "2"
 
 # =============================================================================
-# STEP 3: Create EVERY 5 MINUTES Jobs
+# STEP 3: Create EVERY 15 MINUTES Jobs
 # =============================================================================
-
-echo ""
-echo "============================================================"
-echo -e "${BLUE}EVERY 5 MINUTES${NC}"
-echo "============================================================"
-
-create_job "cloudact-5min-billing-sync-retry" \
-    "jobs/every_5min/billing_sync_retry.py" \
-    "10m" \
-    "1Gi" \
-    "1"
-
-create_scheduler "cloudact-5min-billing-sync-retry-trigger" \
-    "cloudact-5min-billing-sync-retry" \
-    "*/5 * * * *" \
-    "Process pending billing sync queue (every 5 min)"
-
-# =============================================================================
-# STEP 4: Create EVERY 15 MINUTES Jobs
-# =============================================================================
+# Note: EVERY 5 MINUTES billing sync jobs removed (consolidated to Supabase)
 
 echo ""
 echo "============================================================"
@@ -337,7 +321,7 @@ create_scheduler "cloudact-15min-stale-cleanup-trigger" \
     "Fix stuck concurrent pipeline counters (every 15 min)"
 
 # =============================================================================
-# STEP 5: Create DAILY Jobs
+# STEP 4: Create DAILY Jobs
 # =============================================================================
 
 echo ""
@@ -369,20 +353,10 @@ create_scheduler "cloudact-daily-quota-cleanup-trigger" \
     "0 1 * * *" \
     "Delete quota records older than 90 days (01:00 UTC)"
 
-# 02:00 UTC - Billing reconcile
-create_job "cloudact-daily-billing-reconcile" \
-    "jobs/daily/billing_sync_reconcile.py" \
-    "30m" \
-    "2Gi" \
-    "1"
-
-create_scheduler "cloudact-daily-billing-reconcile-trigger" \
-    "cloudact-daily-billing-reconcile" \
-    "0 2 * * *" \
-    "Full Stripe→BigQuery reconciliation (02:00 UTC)"
+# Note: billing-reconcile job removed (consolidated to Supabase)
 
 # =============================================================================
-# STEP 6: Create MONTHLY Jobs
+# STEP 5: Create MONTHLY Jobs
 # =============================================================================
 
 echo ""
@@ -418,19 +392,17 @@ echo "  cloudact-manual-bootstrap-sync    - Run AFTER API deploy"
 echo "  cloudact-manual-org-sync-all      - Run AFTER bootstrap-sync"
 echo ""
 echo -e "${CYAN}SCHEDULED JOBS:${NC}"
-echo "  Every 5 min:"
-echo "    cloudact-5min-billing-sync-retry"
-echo ""
 echo "  Every 15 min:"
 echo "    cloudact-15min-stale-cleanup"
 echo ""
 echo "  Daily:"
 echo "    cloudact-daily-quota-reset        (00:00 UTC)"
 echo "    cloudact-daily-quota-cleanup      (01:00 UTC)"
-echo "    cloudact-daily-billing-reconcile  (02:00 UTC)"
 echo ""
 echo "  Monthly:"
 echo "    cloudact-monthly-quota-reset      (00:05 UTC on 1st)"
+echo ""
+echo -e "${YELLOW}NOTE: Billing sync jobs removed (consolidated to Supabase)${NC}"
 echo ""
 echo "View jobs:  ./list-jobs.sh $ENV"
 echo "Run job:    ./run-job.sh $ENV <job-name>"

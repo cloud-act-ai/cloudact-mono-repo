@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
-import { ArrowRight, ChevronLeft, ChevronRight, Play, Zap, TrendingDown, Shield } from 'lucide-react'
+import { ArrowRight, Play, Zap, TrendingDown, Shield } from 'lucide-react'
 import Link from 'next/link'
 import "../premium.css"
 
@@ -46,10 +46,11 @@ export function HeroSlider() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 30 })
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi])
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi])
-  
-  const onSelect = useCallback((api: any) => {
+  // Navigation callbacks - available for future UI buttons
+  const _scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi])
+  const _scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi])
+
+  const onSelect = useCallback((api: { selectedScrollSnap: () => number }) => {
     setSelectedIndex(api.selectedScrollSnap())
   }, [])
 
@@ -79,7 +80,7 @@ export function HeroSlider() {
       
       <div className="ca-slider-viewport" ref={emblaRef}>
         <div className="ca-slider-container">
-          {HERO_SLIDES.map((slide, index) => (
+          {HERO_SLIDES.map((slide) => (
             <div className="ca-slide" key={slide.id}>
               <div className="ca-slide-content">
                 <div className="ca-slide-badge">

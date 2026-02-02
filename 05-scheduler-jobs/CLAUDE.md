@@ -16,11 +16,6 @@ This service contains standalone Python scripts that run as Cloud Run Jobs. Thes
 | `cloudact-manual-bootstrap-sync` | `jobs/manual/bootstrap_sync.py` | Add new columns to meta tables | AFTER API deploy |
 | `cloudact-manual-org-sync-all` | `jobs/manual/org_sync_all.py` | Sync ALL org datasets | AFTER bootstrap-sync |
 
-### Scheduled Jobs (Every 5 Minutes)
-| Cloud Run Job | Script | Schedule | Purpose |
-|---------------|--------|----------|---------|
-| `cloudact-5min-billing-sync-retry` | `jobs/every_5min/billing_sync_retry.py` | `*/5 * * * *` | Process pending billing syncs |
-
 ### Scheduled Jobs (Every 15 Minutes)
 | Cloud Run Job | Script | Schedule | Purpose |
 |---------------|--------|----------|---------|
@@ -31,12 +26,14 @@ This service contains standalone Python scripts that run as Cloud Run Jobs. Thes
 |---------------|--------|----------|---------|
 | `cloudact-daily-quota-reset` | `jobs/daily/quota_reset_daily.py` | `0 0 * * *` | Reset daily pipeline quotas |
 | `cloudact-daily-quota-cleanup` | `jobs/daily/quota_cleanup.py` | `0 1 * * *` | Delete quota records >90 days |
-| `cloudact-daily-billing-reconcile` | `jobs/daily/billing_sync_reconcile.py` | `0 2 * * *` | Full Stripe→BigQuery reconciliation |
 
 ### Scheduled Jobs (Monthly)
 | Cloud Run Job | Script | Schedule | Purpose |
 |---------------|--------|----------|---------|
 | `cloudact-monthly-quota-reset` | `jobs/monthly/quota_reset_monthly.py` | `5 0 1 * *` | Reset monthly pipeline quotas |
+
+> **Note:** Billing sync jobs (5min-billing-sync-retry, daily-billing-reconcile) have been removed.
+> Subscription data is now managed entirely in Supabase.
 
 ## Quick Start
 
@@ -54,7 +51,7 @@ cd 05-scheduler-jobs
 
 # Or use full names
 ./scripts/run-job.sh stage manual-bootstrap
-./scripts/run-job.sh stage 5min-billing-sync-retry
+./scripts/run-job.sh stage 15min-stale-cleanup
 
 # List jobs and schedulers
 ./scripts/list-jobs.sh stage
@@ -92,14 +89,11 @@ Run these jobs in order after each release:
     │   ├── bootstrap_sync.py     # Sync bootstrap schema
     │   ├── org_sync_all.py       # Sync all org datasets
     │   └── supabase_migrate.py   # Supabase DB migrations
-    ├── every_5min/               # 5-minute interval jobs
-    │   └── billing_sync_retry.py # Process billing sync queue
     ├── every_15min/              # 15-minute interval jobs
     │   └── stale_cleanup.py      # Fix stuck concurrent counters
     ├── daily/                    # Daily jobs
     │   ├── quota_reset_daily.py  # Reset daily quotas (00:00 UTC)
-    │   ├── quota_cleanup.py      # Cleanup old quota records (01:00 UTC)
-    │   └── billing_sync_reconcile.py  # Full billing reconciliation (02:00 UTC)
+    │   └── quota_cleanup.py      # Cleanup old quota records (01:00 UTC)
     └── monthly/                  # Monthly jobs
         └── quota_reset_monthly.py # Reset monthly quotas (00:05 UTC 1st)
 ```
@@ -131,8 +125,6 @@ Run these jobs in order after each release:
 | `stale-cleanup` | `cloudact-15min-stale-cleanup` |
 | `quota-reset` | `cloudact-daily-quota-reset` |
 | `quota-cleanup` | `cloudact-daily-quota-cleanup` |
-| `billing-retry` | `cloudact-5min-billing-sync-retry` |
-| `reconcile` | `cloudact-daily-billing-reconcile` |
 | `quota-monthly` | `cloudact-monthly-quota-reset` |
 
 ## Go-Live Checklist
@@ -153,11 +145,6 @@ gcloud builds submit --config=05-scheduler-jobs/cloudbuild-jobs.yaml \
 # 4. Verify schedulers are active
 ./scripts/list-jobs.sh prod
 ```
-
-## Known Issues
-
-- **Billing sync jobs**: Require frontend endpoint `/api/cron/billing-sync` which doesn't exist yet
-- **Schedulers paused**: `cloudact-5min-billing-sync-retry-trigger` and `cloudact-daily-billing-reconcile-trigger` are paused until frontend endpoint is deployed
 
 ---
 **v4.2.0** | 2026-02-01

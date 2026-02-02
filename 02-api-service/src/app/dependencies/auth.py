@@ -20,6 +20,7 @@ from google.cloud import bigquery
 import threading
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.app.config import settings
 from src.core.security.kms_encryption import decrypt_value
 
@@ -493,7 +494,7 @@ async def get_current_org(
     # Hash the API key
     org_api_key_hash = hash_api_key(api_key)
 
-    # Query organizations.org_api_keys for authentication
+    # Query organizations.org_api_keys for authentication (no subscription join)
     query = f"""
     SELECT
         k.org_api_key_id,
@@ -504,24 +505,13 @@ async def get_current_org(
         p.company_name,
         p.admin_email,
         p.status as org_status,
-        p.org_dataset_id,
-        s.subscription_id,
-        s.plan_name,
-        s.status as subscription_status,
-        s.daily_limit,
-        s.monthly_limit,
-        s.concurrent_limit,
-        s.trial_end_date,
-        s.subscription_end_date
+        p.org_dataset_id
     FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
     INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
         ON k.org_slug = p.org_slug
-    INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-        ON p.org_slug = s.org_slug
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND s.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 
@@ -583,6 +573,61 @@ async def get_current_org(
                 f"Skipping auth metrics update - org_api_key_id is None for org: {row.get('org_slug')}"
             )
 
+        # Get subscription limits from Supabase organizations table
+        org_slug = row["org_slug"]
+        try:
+            supabase = get_supabase_client()
+            sub_result = supabase.table("organizations").select(
+                "subscription_plan, subscription_status, daily_pipeline_limit, "
+                "monthly_pipeline_limit, concurrent_pipeline_limit, seat_limit, "
+                "providers_limit, trial_end_date, subscription_end_date, stripe_subscription_id"
+            ).eq("org_slug", org_slug).single().execute()
+
+            if sub_result.data:
+                sub_data = sub_result.data
+                subscription = {
+                    "subscription_id": sub_data.get("stripe_subscription_id"),
+                    "plan_name": sub_data.get("subscription_plan", "STARTER"),
+                    "status": sub_data.get("subscription_status", "ACTIVE"),
+                    "daily_limit": sub_data.get("daily_pipeline_limit") or settings.fallback_daily_limit,
+                    "monthly_limit": sub_data.get("monthly_pipeline_limit") or settings.fallback_monthly_limit,
+                    "concurrent_limit": sub_data.get("concurrent_pipeline_limit") or settings.fallback_concurrent_limit,
+                    "seat_limit": sub_data.get("seat_limit"),
+                    "providers_limit": sub_data.get("providers_limit"),
+                    "trial_end_date": sub_data.get("trial_end_date"),
+                    "subscription_end_date": sub_data.get("subscription_end_date")
+                }
+            else:
+                # Fallback to defaults if no Supabase record
+                subscription = {
+                    "subscription_id": None,
+                    "plan_name": "STARTER",
+                    "status": "ACTIVE",
+                    "daily_limit": settings.fallback_daily_limit,
+                    "monthly_limit": settings.fallback_monthly_limit,
+                    "concurrent_limit": settings.fallback_concurrent_limit,
+                    "seat_limit": 2,
+                    "providers_limit": 3,
+                    "trial_end_date": None,
+                    "subscription_end_date": None
+                }
+                logger.warning(f"No Supabase record for org {org_slug}, using default limits")
+        except Exception as sub_error:
+            logger.error(f"Failed to get subscription from Supabase: {sub_error}")
+            # Fallback to defaults
+            subscription = {
+                "subscription_id": None,
+                "plan_name": "STARTER",
+                "status": "ACTIVE",
+                "daily_limit": settings.fallback_daily_limit,
+                "monthly_limit": settings.fallback_monthly_limit,
+                "concurrent_limit": settings.fallback_concurrent_limit,
+                "seat_limit": 2,
+                "providers_limit": 3,
+                "trial_end_date": None,
+                "subscription_end_date": None
+            }
+
         # Build org object
         org = {
             "org_slug": row["org_slug"],
@@ -592,16 +637,7 @@ async def get_current_org(
             "org_dataset_id": row["org_dataset_id"],
             "org_api_key_id": row["org_api_key_id"],
             "scopes": row.get("scopes", []),
-            "subscription": {
-                "subscription_id": row["subscription_id"],
-                "plan_name": row["plan_name"],
-                "status": row["subscription_status"],
-                "daily_limit": row["daily_limit"],
-                "monthly_limit": row["monthly_limit"],
-                "concurrent_limit": row["concurrent_limit"],
-                "trial_end_date": row.get("trial_end_date"),
-                "subscription_end_date": row.get("subscription_end_date")
-            }
+            "subscription": subscription
         }
 
         logger.info(
@@ -797,7 +833,7 @@ async def validate_quota(
 
         # IMPORTANT: Use subscription limits (source of truth), NOT usage table limits
         # The usage table limits can become stale when subscription changes (upgrade/downgrade)
-        # Subscription limits are always fresh from org_subscriptions table
+        # Subscription limits are always fresh from Supabase organizations table
         daily_limit = subscription["daily_limit"]
         monthly_limit = subscription["monthly_limit"]
         concurrent_limit = subscription["concurrent_limit"]
@@ -1474,7 +1510,7 @@ async def get_org_from_api_key(
     Look up org data from API key hash using centralized organizations dataset.
 
     UPDATED: Now reads from organizations.org_api_keys (centralized API keys).
-    This is more secure as API keys are stored in a centralized, access-controlled dataset.
+    Subscription status is checked from Supabase organizations table.
 
     Args:
         org_api_key_hash: SHA256 hash of API key
@@ -1483,22 +1519,19 @@ async def get_org_from_api_key(
     Returns:
         Dict with org_slug and org_api_key_id if found and active, None otherwise
     """
-    # Query centralized organizations.org_api_keys table
+    # Query centralized organizations.org_api_keys table (no subscription join)
     query = f"""
     SELECT
         k.org_slug,
         k.org_api_key_id,
         k.is_active,
         k.expires_at,
-        p.status AS org_profile_status,
-        c.status AS org_subscription_status
+        p.status AS org_profile_status
     FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
     JOIN `{settings.gcp_project_id}.organizations.org_profiles` p ON k.org_slug = p.org_slug
-    JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` c ON k.org_slug = c.org_slug
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND c.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 

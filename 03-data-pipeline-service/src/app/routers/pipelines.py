@@ -14,6 +14,7 @@ import logging
 from src.app.dependencies.auth import verify_api_key, verify_api_key_header, verify_admin_key, OrgContext
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.utils.supabase_client import get_supabase_client
 from src.core.pipeline import AsyncPipelineExecutor  # Standardized on AsyncPipelineExecutor
 from src.core.pipeline.template_resolver import resolve_template, get_template_path
 from src.app.config import settings
@@ -934,10 +935,35 @@ async def trigger_pipeline(
     import uuid
     pipeline_logging_id = str(uuid.uuid4())
 
-    # ATOMIC: Insert pipeline run ONLY IF:
-    # 1. No RUNNING/PENDING pipeline exists (prevent duplicates)
-    # 2. Concurrent limit not exceeded (prevent race condition)
-    # This single DML operation prevents race conditions by being atomic
+    # Check concurrent limit via Supabase BEFORE attempting BigQuery insert
+    # This prevents race conditions by checking limits atomically in Supabase
+    supabase = get_supabase_client()
+    try:
+        # Get org_id from organizations table
+        org_result = supabase.table("organizations").select(
+            "id, concurrent_limit"
+        ).eq("org_slug", org.org_slug).single().execute()
+
+        if org_result.data:
+            org_id = org_result.data["id"]
+            concurrent_limit = org_result.data.get("concurrent_limit", 3)
+
+            # Get current concurrent count from Supabase
+            quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
+            if quota_result.data:
+                current_running = quota_result.data.get("concurrent_running", 0)
+                if current_running >= concurrent_limit:
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Concurrent pipeline limit exceeded. You have {current_running} pipelines running (limit: {concurrent_limit}). Please wait for a pipeline to complete."
+                    )
+    except HTTPException:
+        raise
+    except Exception as quota_err:
+        logger.warning(f"Failed to check concurrent limit via Supabase: {quota_err}")
+        # Continue anyway - BigQuery will also check
+
+    # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists (prevent duplicates)
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
     (pipeline_logging_id, pipeline_id, org_slug, org_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
@@ -962,14 +988,6 @@ async def trigger_pipeline(
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
     )
-    AND (
-        -- ATOMIC concurrent limit check
-        -- BUG-003 FIX: Use parameterized date instead of CURRENT_DATE()
-        SELECT COALESCE(concurrent_pipelines_running, 0) < COALESCE(concurrent_limit, 999999)
-        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        WHERE org_slug = @org_slug
-          AND usage_date = @usage_date
-    )
     """
 
     import json
@@ -984,8 +1002,6 @@ async def trigger_pipeline(
             bigquery.ScalarQueryParameter("user_id", "STRING", org.user_id),
             bigquery.ScalarQueryParameter("run_date", "DATE", run_date),
             bigquery.ScalarQueryParameter("parameters", "STRING", json.dumps(parameters) if parameters else "{}"),
-            # BUG-003 FIX: Add usage_date for consistent date handling
-            bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today),
         ]
     )
 
@@ -1062,29 +1078,25 @@ async def trigger_pipeline(
             )
         else:
             # No duplicate - must be concurrent limit exceeded
-            # Re-fetch current quota to show accurate error message
-            # BUG-003 FIX: Use parameterized date instead of CURRENT_DATE()
-            quota_check_query = f"""
-            SELECT concurrent_pipelines_running, concurrent_limit
-            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            WHERE org_slug = @org_slug
-              AND usage_date = @usage_date
-            """
+            # Re-fetch current quota from Supabase to show accurate error message
+            current_running = 0
+            concurrent_limit = 1
 
-            quota_check_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", utc_today),
-                ]
-            )
+            try:
+                supabase_client = get_supabase_client()
+                org_result = supabase_client.table("organizations").select(
+                    "id, concurrent_limit"
+                ).eq("org_slug", org.org_slug).single().execute()
 
-            quota_results = list(bq_client.client.query(quota_check_query, job_config=quota_check_config).result())
-            if quota_results:
-                current_running = quota_results[0].get("concurrent_pipelines_running", 0)
-                concurrent_limit = quota_results[0].get("concurrent_limit", 1)
-            else:
-                current_running = 0
-                concurrent_limit = 1
+                if org_result.data:
+                    org_id = org_result.data["id"]
+                    concurrent_limit = org_result.data.get("concurrent_limit", 1)
+
+                    quota_result = supabase_client.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
+                    if quota_result.data:
+                        current_running = quota_result.data.get("concurrent_running", 0)
+            except Exception as quota_err:
+                logger.warning(f"Failed to get quota info from Supabase: {quota_err}")
 
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

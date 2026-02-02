@@ -63,7 +63,8 @@ const SOLUTIONS_MENU = {
   ],
 }
 
-const RESOURCES_MENU = {
+// Resources menu - kept for future navigation expansion
+const _RESOURCES_MENU = {
   title: "Resources",
   columns: [
     {
@@ -187,8 +188,8 @@ const WEBSITE_JSON_LD = {
 
 const JSON_LD_STRING = JSON.stringify([ORGANIZATION_JSON_LD, SOFTWARE_JSON_LD, WEBSITE_JSON_LD])
 
-// Top Announcement Banner Component
-function AnnouncementBanner({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) {
+// Top Announcement Banner Component - kept for promotional campaigns
+function _AnnouncementBanner({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) {
   if (!isVisible) return null
 
   return (
@@ -294,7 +295,8 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [openAccordion, setOpenAccordion] = useState<string | null>(null)
-  const [showBanner, setShowBanner] = useState(true)
+  // Banner state - kept for promotional campaigns
+  const [_showBanner, _setShowBanner] = useState(true)
 
   useEffect(() => {
     if (typeof window === "undefined") return

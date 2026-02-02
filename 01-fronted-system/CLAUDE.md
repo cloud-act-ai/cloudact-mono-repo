@@ -46,7 +46,27 @@ npx vitest      # Tests
 **`app/(landingPages)/`** - Public: `/`, `/features`, `/pricing`
 **`app/[orgSlug]/`** - Console: `dashboard/`, `analytics/`, `settings/`
 
-## Quota Warning Banner
+## Quota System (Supabase-based)
+
+**Architecture Change (2026-02-01):** Quotas consolidated to Supabase from BigQuery.
+
+### Quota Tables
+
+| Table | Purpose |
+|-------|---------|
+| `organizations` | Limit columns: `pipelines_per_day_limit`, `pipelines_per_month_limit`, `concurrent_pipelines_limit`, `seat_limit`, `providers_limit` |
+| `org_quotas` | Daily usage tracking: `pipelines_run_today`, `pipelines_run_month`, `concurrent_running` |
+
+### RPC Functions (service_role only)
+
+| Function | Purpose |
+|----------|---------|
+| `check_quota_available(org_id)` | Check if org can run pipelines |
+| `increment_pipeline_count(org_id)` | Atomic increment on pipeline start |
+| `decrement_concurrent(org_id, succeeded)` | Decrement on pipeline complete |
+| `get_or_create_quota(org_id)` | Get/create today's quota record |
+
+### Quota Warning Banner
 
 **Component:** `components/quota-warning-banner.tsx`
 
@@ -57,6 +77,14 @@ npx vitest      # Tests
 | 100% | Exceeded | Red |
 
 **Actions:** `actions/quota.ts` → `getQuotaUsage(orgSlug)`
+
+### Plan Limits
+
+| Plan | Daily | Monthly | Concurrent | Seats | Providers |
+|------|-------|---------|------------|-------|-----------|
+| Starter | 6 | 180 | 1 | 2 | 3 |
+| Professional | 25 | 750 | 2 | 6 | 6 |
+| Scale | 100 | 3000 | 5 | 11 | 10 |
 
 ## Key Directories
 
@@ -159,6 +187,13 @@ Location: `scripts/supabase_db/[0-9][0-9]_*.sql`
 
 Tracked in: `schema_migrations` table
 
+### Migration Limitations
+
+**IMPORTANT:** The Supabase Management API has issues with complex SQL:
+- Multi-statement files with PL/pgSQL `$$` blocks may silently fail
+- Migration shows SUCCESS but DDL may not execute
+- For migrations with functions, run each statement individually via Supabase SQL Editor
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -208,4 +243,4 @@ cd 04-inra-cicd-automation/CICD
 | Max Instances | 20 (prod) |
 
 ---
-**v4.1.9** | 2026-01-18
+**v4.2.0** | 2026-02-01

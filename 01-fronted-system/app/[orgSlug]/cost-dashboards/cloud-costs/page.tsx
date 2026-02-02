@@ -127,7 +127,8 @@ export default function CloudCostsPage() {
   })
   // Service-level breakdown for table (fetched separately)
   const [serviceData, setServiceData] = useState<ServiceBreakdown[]>([])
-  const [isLoadingServices, setIsLoadingServices] = useState(false)
+  // Loading state for services - TODO: Use for table loading indicator
+  const [_isLoadingServices, setIsLoadingServices] = useState(false)
 
   // Time range handlers using unified filters (instant, no API call)
   // FIX-CUSTOM-001: When range is "custom", don't include customRange in the update.

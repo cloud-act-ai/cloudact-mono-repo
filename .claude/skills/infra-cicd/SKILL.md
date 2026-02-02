@@ -625,10 +625,6 @@ cd 05-scheduler-jobs
 ./scripts/run-job.sh prod stale-cleanup
 ./scripts/run-job.sh prod quota-cleanup
 
-# Billing sync jobs
-./scripts/run-job.sh prod billing-sync-retry
-./scripts/run-job.sh prod billing-sync-reconcile
-
 # Check execution status
 gcloud run jobs executions list --region=us-central1 --project=cloudact-prod
 ```
@@ -648,8 +644,7 @@ gcloud run jobs executions list --region=us-central1 --project=cloudact-prod
 # - cloudact-quota-reset-monthly      (00:05 UTC 1st of month)
 # - cloudact-stale-cleanup            (every 15 minutes)
 # - cloudact-quota-cleanup            (01:00 UTC daily)
-# - cloudact-billing-sync-retry       (every 5 minutes)
-# - cloudact-billing-sync-reconcile   (02:00 UTC daily)
+# Note: Billing sync jobs removed (consolidated to Supabase)
 
 # Verify schedulers are ENABLED
 gcloud scheduler jobs list --location=us-central1 --project=cloudact-prod
@@ -700,7 +695,6 @@ curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap/sync" \
 | Job fails with auth error | Check service account permissions |
 | Job times out | Increase `--task-timeout` in create script |
 | Scheduler not triggering | Verify scheduler is ENABLED, check IAM |
-| Billing sync 401 | Set `CRON_SECRET` secret in GCP |
 | Job stuck in PENDING | Check Cloud Run quotas and limits |
 
 ```bash
@@ -726,7 +720,7 @@ gcloud scheduler jobs run cloudact-quota-reset-daily-trigger \
 | Category | Jobs | Script Location |
 |----------|------|-----------------|
 | **Manual** | bootstrap, bootstrap-sync, org-sync-all | `jobs/*.py` |
-| **Scheduled** | quota-reset-daily, quota-reset-monthly, stale-cleanup, quota-cleanup, billing-sync-retry, billing-sync-reconcile | `jobs/*.py` |
+| **Scheduled** | quota-reset-daily, quota-reset-monthly, stale-cleanup, quota-cleanup | `jobs/*.py` |
 
 ### Quick Reference
 

@@ -88,21 +88,20 @@ QUERY_TEMPLATES = {
 
     # --------------------------------------------
     # QUOTA USAGE
-    # SECURITY: Must filter by org_slug to prevent cross-org data leakage
+    # NOTE: Quota data has been migrated to Supabase.
+    # This query template is deprecated and returns empty results.
+    # Use the Supabase API for quota checks: GET /api/v1/organizations/{org}/quota
     # --------------------------------------------
     "quota_usage": """
         SELECT
-            org_slug,
-            pipelines_run_today as daily_runs,
-            pipelines_run_month as monthly_runs,
-            daily_limit,
-            monthly_limit,
-            SAFE_DIVIDE(pipelines_run_today, daily_limit) * 100 as daily_usage_percent,
-            SAFE_DIVIDE(pipelines_run_month, monthly_limit) * 100 as monthly_usage_percent
-        FROM `{project}.organizations.org_usage_quotas`
-        WHERE org_slug = @org_slug
-          AND usage_date = @usage_date
-          AND daily_limit > 0
+            @org_slug as org_slug,
+            0 as daily_runs,
+            0 as monthly_runs,
+            0 as daily_limit,
+            0 as monthly_limit,
+            0.0 as daily_usage_percent,
+            0.0 as monthly_usage_percent
+        WHERE FALSE  -- Always returns empty - quota data is in Supabase
     """,
 
     # ============================================

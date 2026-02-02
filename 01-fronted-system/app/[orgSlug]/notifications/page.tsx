@@ -19,7 +19,6 @@ import {
   History,
   Send,
   Pause,
-  Play,
   Trash2,
   Edit3,
   TestTube2,
@@ -27,10 +26,7 @@ import {
   Activity,
   Zap,
   Calendar,
-  Filter,
   MoreVertical,
-  ChevronDown,
-  Info,
 } from "lucide-react"
 
 // Premium components

@@ -41,11 +41,12 @@ export function createServiceRoleClient() {
     )
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  // Use SUPABASE_URL for server-side (runtime), fallback to NEXT_PUBLIC_SUPABASE_URL (build-time)
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+    throw new Error("Missing Supabase environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
   }
 
   return createSupabaseClient(supabaseUrl, serviceRoleKey, {

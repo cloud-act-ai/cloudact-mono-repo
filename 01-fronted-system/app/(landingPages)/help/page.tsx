@@ -347,7 +347,7 @@ export default function HelpPage() {
           </div>
 
           <div className="ca-help-faq-container" role="region" aria-label="Frequently Asked Questions">
-            {filteredFaqs.map((faq, index) => {
+            {filteredFaqs.map((faq) => {
               const originalIndex = FAQS.findIndex(f => f.question === faq.question)
               return (
                 <div

@@ -70,11 +70,9 @@ import {
 } from "@/actions/account"
 import {
   checkBackendOnboarding,
-  syncSubscriptionToBackend,
   onboardToBackend,
   getOrgDataForReonboarding,
 } from "@/actions/backend-onboarding"
-import { getBillingInfo } from "@/actions/stripe"
 
 // Premium components - same as dashboard/pipeline pages
 import { StatRow } from "@/components/ui/stat-row"
@@ -156,7 +154,6 @@ export default function OrganizationSettingsPage() {
   const [backendError, setBackendError] = useState<string | null>(null)
   const [isResyncing, setIsResyncing] = useState(false)
   const [loadingBackendStatus, setLoadingBackendStatus] = useState(true)
-  const [isBillingSyncing, setIsBillingSyncing] = useState(false)
 
   // Contact details state
   const [contactDetails, setContactDetails] = useState<OrgContactDetails>({
@@ -243,80 +240,12 @@ export default function OrganizationSettingsPage() {
         })
 
         if (onboardResult.success) {
-          // After successful re-onboarding, sync Stripe billing data to BigQuery
-          try {
-            // Fetch current billing info from Stripe
-            const { data: billingInfo, error: billingError } = await getBillingInfo(orgSlug)
-
-            if (billingError || !billingInfo) {
-              // Non-blocking - show success but warn about billing sync
-              setSuccess(
-                onboardResult.apiKey
-                  ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync failed - ${billingError || "no billing data"}`
-                  : `Backend connection restored! Warning: Billing sync failed - ${billingError || "no billing data"}`
-              )
-              await loadBackendStatus()
-              setTimeout(() => setSuccess(null), 10000)
-              return
-            }
-
-            // Extract subscription details if available
-            if (billingInfo.subscription) {
-              const sub = billingInfo.subscription
-
-              // Get actual plan limits from Supabase (set by Stripe webhooks)
-              const supabase = createClient()
-              const { data: orgLimits } = await supabase
-                .from("organizations")
-                .select("seat_limit, providers_limit, pipelines_per_day_limit, concurrent_pipelines_limit")
-                .eq("org_slug", orgSlug)
-                .single()
-
-              // Use actual limits from Supabase (not hardcoded defaults!)
-              const dailyLimit = orgLimits?.pipelines_per_day_limit || 6
-              const monthlyLimit = dailyLimit * 30
-
-              // Sync billing data to backend with actual limits
-              const syncResult = await syncSubscriptionToBackend({
-                orgSlug,
-                planName: sub.plan.id,
-                billingStatus: sub.status,
-                dailyLimit,
-                monthlyLimit,
-                seatLimit: orgLimits?.seat_limit,
-                providersLimit: orgLimits?.providers_limit,
-                concurrentLimit: orgLimits?.concurrent_pipelines_limit,
-                syncType: 'reconciliation',
-              })
-
-              if (syncResult.success) {
-                setSuccess(
-                  onboardResult.apiKey
-                    ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Billing data synced.`
-                    : "Backend connection restored and billing data synced successfully!"
-                )
-              } else {
-                setSuccess(
-                  onboardResult.apiKey
-                    ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync ${syncResult.queued ? 'queued for retry' : 'failed'}.`
-                    : `Backend connection restored! Warning: Billing sync ${syncResult.queued ? 'queued for retry' : 'failed'}.`
-                )
-              }
-            } else {
-              // No active subscription - just show re-onboarding success
-              setSuccess(
-                onboardResult.apiKey
-                  ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) No active subscription to sync.`
-                  : "Backend connection restored successfully! No active subscription to sync."
-              )
-            }
-          } catch {
-            setSuccess(
-              onboardResult.apiKey
-                ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync error.`
-                : "Backend connection restored! Warning: Billing sync error."
-            )
-          }
+          // Show success message (subscription data is managed in Supabase now)
+          setSuccess(
+            onboardResult.apiKey
+              ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!)`
+              : "Backend connection restored successfully!"
+          )
 
           await loadBackendStatus()
           // Keep success message longer for API key display
@@ -325,114 +254,15 @@ export default function OrganizationSettingsPage() {
           setError(onboardResult.error || "Failed to re-onboard organization")
         }
       } else {
-        // Just sync subscription/locale data to backend
-        // First, get actual billing info and limits from Supabase
-        const supabase = createClient()
-        const { data: orgData, error: orgError } = await supabase
-          .from("organizations")
-          .select("plan, billing_status, seat_limit, providers_limit, pipelines_per_day_limit, concurrent_pipelines_limit")
-          .eq("org_slug", orgSlug)
-          .single()
-
-        if (orgError || !orgData) {
-          setError("Failed to fetch organization data")
-          return
-        }
-
-        // Use actual limits from Supabase (not hardcoded defaults!)
-        const dailyLimit = orgData.pipelines_per_day_limit || 6
-        const monthlyLimit = dailyLimit * 30
-
-        const result = await syncSubscriptionToBackend({
-          orgSlug,
-          billingStatus: orgData.billing_status || "active",
-          planName: orgData.plan || "starter",
-          dailyLimit,
-          monthlyLimit,
-          seatLimit: orgData.seat_limit,
-          providersLimit: orgData.providers_limit,
-          concurrentLimit: orgData.concurrent_pipelines_limit,
-          syncType: "reconciliation",
-        })
-
-        if (result.success) {
-          setSuccess(`Backend connection resynced! (Daily limit: ${dailyLimit}, Monthly: ${monthlyLimit})`)
-          await loadBackendStatus()
-          setTimeout(() => setSuccess(null), 4000)
-        } else {
-          setError(result.error || "Failed to resync backend connection")
-        }
+        // Backend is already connected - show confirmation
+        // (Subscription data is managed in Supabase, no sync needed)
+        setSuccess("Backend connection verified successfully!")
+        setTimeout(() => setSuccess(null), 4000)
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to resync backend connection")
     } finally {
       setIsResyncing(false)
-    }
-  }
-
-  // Handle billing sync only (without re-onboarding)
-  const handleSyncBilling = async () => {
-    setIsBillingSyncing(true)
-    setError(null)
-    setSuccess(null)
-
-    try {
-      // Fetch current billing info from Stripe
-      const { data: billingInfo, error: billingError } = await getBillingInfo(orgSlug)
-
-      if (billingError || !billingInfo) {
-        setError(`Failed to fetch billing info: ${billingError || "no billing data"}`)
-        return
-      }
-
-      // If there's an active subscription, sync to backend
-      if (billingInfo.subscription) {
-        const sub = billingInfo.subscription
-
-        // Get actual plan limits from Supabase (set by Stripe webhooks)
-        const supabase = createClient()
-        const { data: orgData, error: orgError } = await supabase
-          .from("organizations")
-          .select("seat_limit, providers_limit, pipelines_per_day_limit, concurrent_pipelines_limit")
-          .eq("org_slug", orgSlug)
-          .single()
-
-        if (orgError || !orgData) {
-          setError("Failed to fetch organization limits")
-          return
-        }
-
-        // Use actual limits from Supabase (not hardcoded defaults!)
-        const dailyLimit = orgData.pipelines_per_day_limit || 6
-        const monthlyLimit = dailyLimit * 30  // Monthly = daily * 30
-
-        // Sync billing data to backend with actual limits
-        const syncResult = await syncSubscriptionToBackend({
-          orgSlug,
-          planName: sub.plan.id,
-          billingStatus: sub.status,
-          dailyLimit,
-          monthlyLimit,
-          seatLimit: orgData.seat_limit,
-          providersLimit: orgData.providers_limit,
-          concurrentLimit: orgData.concurrent_pipelines_limit,
-          syncType: 'reconciliation',
-        })
-
-        if (syncResult.success) {
-          setSuccess(`Billing data synced successfully! (Daily limit: ${dailyLimit}, Monthly: ${monthlyLimit})`)
-        } else {
-          setError(`Billing sync failed: ${syncResult.error || "Unknown error"}`)
-        }
-      } else {
-        setSuccess("No active subscription to sync.")
-      }
-
-      setTimeout(() => setSuccess(null), 4000)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to sync billing data")
-    } finally {
-      setIsBillingSyncing(false)
     }
   }
 
@@ -1621,31 +1451,6 @@ export default function OrganizationSettingsPage() {
             </p>
           </div>
 
-          {/* Billing Sync Button - Only show when backend is connected */}
-          {backendOnboarded && apiKeyValid !== false && (
-            <div className="flex-1">
-              <Button
-                onClick={handleSyncBilling}
-                disabled={isBillingSyncing || loadingBackendStatus}
-                className="h-11 px-6 text-[13px] font-semibold rounded-xl border-2 border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:shadow-sm transition-all"
-              >
-                {isBillingSyncing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Sync Billing
-                  </>
-                )}
-              </Button>
-              <p className="text-[12px] text-slate-900/50 mt-2">
-                Refresh billing data from Stripe and sync to backend
-              </p>
-            </div>
-          )}
         </div>
       </div>
         </TabsContent>

@@ -3,10 +3,7 @@ import Link from "next/link"
 import {
   TrendingUp,
   ArrowRight,
-  Building2,
   DollarSign,
-  Users,
-  Globe,
   BarChart3,
   Target,
   Mail,

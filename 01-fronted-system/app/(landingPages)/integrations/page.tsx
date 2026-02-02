@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Plug,
   Settings,
-  Rocket,
 } from "lucide-react"
 import "../premium.css"
 

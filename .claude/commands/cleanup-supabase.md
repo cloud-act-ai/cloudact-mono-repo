@@ -79,8 +79,6 @@ mcp__plugin_supabase_supabase__execute_sql
   project_id: $PROJECT_ID
   query: |
     TRUNCATE TABLE public.activity_logs CASCADE;
-    TRUNCATE TABLE public.billing_sync_queue CASCADE;
-    TRUNCATE TABLE public.plan_change_audit CASCADE;
     TRUNCATE TABLE public.stripe_webhook_events CASCADE;
     TRUNCATE TABLE public.usage_tracking CASCADE;
     TRUNCATE TABLE public.account_deletion_tokens CASCADE;
@@ -128,7 +126,7 @@ Report summary:
 
 | Schema | Tables |
 |--------|--------|
-| `public` | organizations, organization_members, profiles, org_api_keys_secure, invites, activity_logs, usage_tracking, rate_limits, account_deletion_tokens, stripe_webhook_events, billing_sync_queue, plan_change_audit, subscription_meta, subscription_providers_meta |
+| `public` | organizations, organization_members, profiles, org_api_keys_secure, invites, activity_logs, usage_tracking, rate_limits, account_deletion_tokens, stripe_webhook_events, subscription_meta, subscription_providers_meta |
 | `auth` | users (and cascades to identities, sessions, etc.) |
 
 ## Safety Notes

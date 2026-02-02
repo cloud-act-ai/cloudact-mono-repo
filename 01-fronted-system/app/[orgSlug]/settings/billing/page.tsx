@@ -142,7 +142,7 @@ export default function BillingPage() {
       if (result.url) {
         router.push(result.url)
       }
-    } catch (portalError) {
+    } catch {
       setError("Failed to open billing portal")
     } finally {
       setIsRedirectingToPortal(false)

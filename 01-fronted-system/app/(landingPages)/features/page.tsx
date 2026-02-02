@@ -22,7 +22,6 @@ import {
   Layers,
   Blocks,
   Settings,
-  Zap,
   Lock,
   Plug,
 } from "lucide-react"
