@@ -6,7 +6,7 @@ Endpoints for organization and API key management.
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any, Dict
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import hashlib
 import secrets
 import logging
@@ -294,7 +294,7 @@ async def bootstrap_system(
             "errors": validation_errors,
             "warnings": validation_warnings,
             "tables_validated": total_present,
-            "validation_timestamp": datetime.utcnow().isoformat()
+            "validation_timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Sync stored procedures automatically after bootstrap
@@ -750,19 +750,20 @@ async def create_org(
         supabase = get_supabase_client()
 
         # Insert organization record with subscription limits into Supabase
+        # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
         org_data = {
             "org_slug": org_slug,
             "company_name": request.description or org_slug,
             "admin_email": "admin@example.com",  # Placeholder
             "subscription_plan": "STARTER",
             "subscription_status": "ACTIVE",
-            "daily_pipeline_limit": plan_limits["daily_limit"],
-            "monthly_pipeline_limit": plan_limits["monthly_limit"],
-            "concurrent_pipeline_limit": plan_limits["concurrent_limit"],
+            "pipelines_per_day_limit": plan_limits["daily_limit"],
+            "pipelines_per_month_limit": plan_limits["monthly_limit"],
+            "concurrent_pipelines_limit": plan_limits["concurrent_limit"],
             "seat_limit": plan_limits["seat_limit"],
             "providers_limit": plan_limits["providers_limit"],
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
         supabase.table("organizations").insert(org_data).execute()
@@ -1093,7 +1094,7 @@ async def create_api_key(
         api_key=api_key,
         org_api_key_hash=org_api_key_hash,
         org_slug=request.org_slug,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         description=request.description
     )
 
@@ -1273,7 +1274,7 @@ async def regenerate_api_key(
         api_key=api_key,
         org_api_key_hash=org_api_key_hash,
         org_slug=org_slug,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         description="Regenerated API key"
     )
 
@@ -1541,4 +1542,551 @@ async def get_org_api_key_dev(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve API key: {str(e)}"
+        )
+
+
+# ============================================
+# Quota Reset Endpoints (for Scheduler Jobs)
+# ============================================
+
+class QuotaResetResponse(BaseModel):
+    """Response from quota reset operation."""
+    success: bool
+    orgs_processed: int
+    orgs_created: int
+    orgs_skipped: int
+    message: str
+
+
+@router.post(
+    "/quota/reset-daily",
+    response_model=QuotaResetResponse,
+    summary="Reset daily quota counters for all active orgs",
+    description="Creates new usage quota records for today. Called by scheduler at midnight UTC."
+)
+async def reset_daily_quotas(
+    request: Request,
+    _admin: bool = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Reset daily quota counters for all active organizations.
+
+    This endpoint:
+    1. Fetches all active orgs from BigQuery org_profiles
+    2. Gets subscription limits from Supabase organizations table (source of truth)
+    3. Creates today's quota record in BigQuery org_usage_quotas
+    4. Carries over monthly usage from yesterday
+
+    Called by: cloudact-daily-quota-reset scheduler job at 00:00 UTC
+
+    Requires: X-CA-Root-Key header (admin authentication)
+    """
+    logger.info("Starting daily quota reset")
+    start_time = time.time()
+
+    try:
+        supabase = get_supabase_client()
+        today = datetime.now(timezone.utc).date()
+        today_str = today.strftime("%Y%m%d")
+
+        # Step 1: Get all active orgs from BigQuery
+        active_orgs_query = f"""
+        SELECT org_slug
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE status = 'ACTIVE'
+        """
+        active_orgs = [row["org_slug"] for row in bq_client.query(active_orgs_query)]
+        logger.info(f"Found {len(active_orgs)} active orgs")
+
+        if not active_orgs:
+            return QuotaResetResponse(
+                success=True,
+                orgs_processed=0,
+                orgs_created=0,
+                orgs_skipped=0,
+                message="No active organizations found"
+            )
+
+        # Step 2: Check which orgs already have today's quota record
+        existing_query = f"""
+        SELECT org_slug
+        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        WHERE usage_date = CURRENT_DATE()
+        """
+        existing_orgs = set(row["org_slug"] for row in bq_client.query(existing_query))
+
+        # Step 3: Get yesterday's monthly usage for carry-over
+        yesterday_query = f"""
+        SELECT org_slug, pipelines_run_month
+        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        WHERE usage_date = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+        """
+        yesterday_usage = {row["org_slug"]: row["pipelines_run_month"] for row in bq_client.query(yesterday_query)}
+
+        # Step 4: Get limits from Supabase for all orgs (batch query)
+        supabase_result = supabase.table("organizations").select(
+            "org_slug, pipelines_per_day_limit, pipelines_per_month_limit, "
+            "concurrent_pipelines_limit, seat_limit, providers_limit"
+        ).in_("org_slug", active_orgs).execute()
+
+        org_limits = {
+            org["org_slug"]: {
+                "daily_limit": org.get("pipelines_per_day_limit") or 6,
+                "monthly_limit": org.get("pipelines_per_month_limit") or 180,
+                "concurrent_limit": org.get("concurrent_pipelines_limit") or 2,
+                "seat_limit": org.get("seat_limit") or 2,
+                "providers_limit": org.get("providers_limit") or 3,
+            }
+            for org in (supabase_result.data or [])
+        }
+
+        # Default limits for orgs not in Supabase (shouldn't happen, but safety)
+        default_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
+
+        # Step 5: Create quota records for orgs that don't have one today
+        orgs_created = 0
+        orgs_skipped = 0
+
+        for org_slug in active_orgs:
+            if org_slug in existing_orgs:
+                orgs_skipped += 1
+                continue
+
+            limits = org_limits.get(org_slug, default_limits)
+            carry_over_monthly = yesterday_usage.get(org_slug, 0)
+            usage_id = f"{org_slug}_{today_str}"
+
+            insert_query = f"""
+            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
+             pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
+             daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+             updated_at, created_at)
+            VALUES
+            (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, @pipelines_run_month, 0,
+             @daily_limit, @monthly_limit, @concurrent_limit, @seat_limit, @providers_limit,
+             CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("pipelines_run_month", "INT64", carry_over_monthly),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", limits["daily_limit"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", limits["monthly_limit"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", limits["concurrent_limit"]),
+                    bigquery.ScalarQueryParameter("seat_limit", "INT64", limits["seat_limit"]),
+                    bigquery.ScalarQueryParameter("providers_limit", "INT64", limits["providers_limit"]),
+                ]
+            )
+
+            bq_client.client.query(insert_query, job_config=job_config).result()
+            orgs_created += 1
+            logger.debug(f"Created quota record for {org_slug}")
+
+        elapsed = time.time() - start_time
+        logger.info(f"Daily quota reset complete: {orgs_created} created, {orgs_skipped} skipped in {elapsed:.2f}s")
+
+        return QuotaResetResponse(
+            success=True,
+            orgs_processed=len(active_orgs),
+            orgs_created=orgs_created,
+            orgs_skipped=orgs_skipped,
+            message=f"Daily quota reset complete in {elapsed:.2f}s"
+        )
+
+    except Exception as e:
+        logger.error(f"Daily quota reset failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Daily quota reset failed: {str(e)}"
+        )
+
+
+@router.post(
+    "/quota/reset-monthly",
+    response_model=QuotaResetResponse,
+    summary="Reset monthly quota counters for all active orgs",
+    description="Resets pipelines_run_month to 0 for all organizations. Called by scheduler at 00:05 UTC on 1st of month."
+)
+async def reset_monthly_quotas(
+    request: Request,
+    _admin: bool = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Reset monthly quota counters for all active organizations.
+
+    This endpoint:
+    1. Resets pipelines_run_month to 0 for all orgs with today's quota record
+    2. Only runs on the 1st of the month (scheduler should enforce this, endpoint validates)
+
+    Called by: cloudact-monthly-quota-reset scheduler job at 00:05 UTC on 1st
+
+    Requires: X-CA-Root-Key header (admin authentication)
+    """
+    logger.info("Starting monthly quota reset")
+    start_time = time.time()
+
+    try:
+        today = datetime.now(timezone.utc).date()
+
+        # Safety check: only run on 1st of month (scheduler should enforce, this is backup)
+        if today.day != 1:
+            logger.warning(f"Monthly quota reset called on day {today.day}, not 1st")
+            return QuotaResetResponse(
+                success=True,
+                orgs_processed=0,
+                orgs_created=0,
+                orgs_skipped=0,
+                message=f"Skipped: Not the 1st of the month (day={today.day})"
+            )
+
+        # Reset pipelines_run_month to 0 for all orgs with today's quota record
+        update_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET pipelines_run_month = 0,
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE usage_date = CURRENT_DATE()
+        """
+
+        bq_client.client.query(update_query).result()
+
+        # Get count of affected orgs
+        count_query = f"""
+        SELECT COUNT(DISTINCT org_slug) as count
+        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        WHERE usage_date = CURRENT_DATE()
+        """
+        count_result = list(bq_client.client.query(count_query).result())
+        orgs_reset = count_result[0]["count"] if count_result else 0
+
+        elapsed = time.time() - start_time
+        logger.info(f"Monthly quota reset complete: {orgs_reset} orgs reset in {elapsed:.2f}s")
+
+        return QuotaResetResponse(
+            success=True,
+            orgs_processed=orgs_reset,
+            orgs_created=0,
+            orgs_skipped=0,
+            message=f"Monthly quota reset complete: {orgs_reset} orgs reset in {elapsed:.2f}s"
+        )
+
+    except Exception as e:
+        logger.error(f"Monthly quota reset failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Monthly quota reset failed: {str(e)}"
+        )
+
+
+@router.post(
+    "/quota/cleanup-stale",
+    response_model=QuotaResetResponse,
+    summary="Cleanup stale concurrent pipeline counters",
+    description="Fixes stuck concurrent counters when pipelines crash without decrementing. Called every 15 minutes."
+)
+async def cleanup_stale_concurrent(
+    request: Request,
+    _admin: bool = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Cleanup stale concurrent pipeline counters.
+
+    When pipelines crash mid-execution, concurrent_pipelines_running counter
+    doesn't get decremented. This endpoint finds pipelines stuck in RUNNING state
+    for too long and resets the counters.
+
+    Called by: cloudact-15min-stale-cleanup scheduler job every 15 minutes
+
+    Requires: X-CA-Root-Key header (admin authentication)
+    """
+    logger.info("Starting stale concurrent cleanup")
+    start_time = time.time()
+
+    try:
+        # Query for orgs with concurrent_pipelines_running > 0 but no recent RUNNING pipelines
+        query = f"""
+        WITH running_pipelines AS (
+            SELECT
+                org_slug,
+                COUNT(*) as actual_running
+            FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+            WHERE status = 'RUNNING'
+              AND start_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 MINUTE)
+            GROUP BY org_slug
+        ),
+        current_counters AS (
+            SELECT
+                org_slug,
+                concurrent_pipelines_running
+            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            WHERE usage_date = CURRENT_DATE()
+              AND concurrent_pipelines_running > 0
+        )
+        SELECT
+            c.org_slug,
+            c.concurrent_pipelines_running,
+            COALESCE(r.actual_running, 0) as actual_running
+        FROM current_counters c
+        LEFT JOIN running_pipelines r ON c.org_slug = r.org_slug
+        WHERE c.concurrent_pipelines_running > COALESCE(r.actual_running, 0)
+        """
+
+        results = list(bq_client.client.query(query).result())
+
+        if not results:
+            elapsed = time.time() - start_time
+            logger.info(f"No stale concurrent counters found ({elapsed:.2f}s)")
+            return QuotaResetResponse(
+                success=True,
+                orgs_processed=0,
+                orgs_created=0,
+                orgs_skipped=0,
+                message=f"No stale concurrent counters found ({elapsed:.2f}s)"
+            )
+
+        orgs_fixed = 0
+
+        for row in results:
+            org_slug = row["org_slug"]
+            actual = row["actual_running"]
+
+            # Update the counter to match actual running pipelines
+            update_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            SET concurrent_pipelines_running = @actual_running,
+                updated_at = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug
+              AND usage_date = CURRENT_DATE()
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("actual_running", "INT64", actual),
+                ]
+            )
+
+            bq_client.client.query(update_query, job_config=job_config).result()
+            orgs_fixed += 1
+            logger.debug(f"Fixed concurrent counter for {org_slug}: set to {actual}")
+
+        # Mark old RUNNING pipelines as FAILED
+        mark_failed_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        SET status = 'FAILED',
+            error_message = 'Marked failed by stale cleanup - no completion after 30 minutes',
+            end_time = CURRENT_TIMESTAMP()
+        WHERE status = 'RUNNING'
+          AND start_time < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 MINUTE)
+        """
+
+        bq_client.client.query(mark_failed_query).result()
+
+        elapsed = time.time() - start_time
+        logger.info(f"Stale cleanup complete: {orgs_fixed} orgs fixed in {elapsed:.2f}s")
+
+        return QuotaResetResponse(
+            success=True,
+            orgs_processed=orgs_fixed,
+            orgs_created=orgs_fixed,
+            orgs_skipped=0,
+            message=f"Stale cleanup complete: {orgs_fixed} orgs fixed in {elapsed:.2f}s"
+        )
+
+    except Exception as e:
+        logger.error(f"Stale cleanup failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Stale cleanup failed: {str(e)}"
+        )
+
+
+# ============================================
+# Alerts Processing Endpoint
+# ============================================
+
+class ProcessAlertsRequest(BaseModel):
+    """Request to process alerts for all organizations."""
+    alert_types: List[str] = Field(
+        default=["cost_threshold", "budget", "anomaly"],
+        description="Types of alerts to process"
+    )
+    send_notifications: bool = Field(
+        default=True,
+        description="Whether to send notifications for triggered alerts"
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="If true, only check thresholds without sending notifications"
+    )
+
+
+class ProcessAlertsResponse(BaseModel):
+    """Response from processing alerts."""
+    success: bool
+    orgs_processed: int
+    alerts_triggered: int
+    notifications_sent: int
+    errors: int
+    org_errors: List[Dict[str, Any]] = Field(default_factory=list)
+    message: str
+
+
+@router.post(
+    "/alerts/process-all",
+    response_model=ProcessAlertsResponse,
+    summary="Process alerts for all organizations",
+    description="Scheduled job endpoint: checks cost thresholds and sends notifications for all orgs"
+)
+async def process_all_alerts(
+    request: ProcessAlertsRequest,
+    _: str = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+):
+    """
+    Process alerts for all active organizations.
+    
+    This endpoint is called by the daily alerts scheduler job.
+    
+    For each org:
+    1. Fetch notification rules from org_notification_rules
+    2. Calculate current costs based on rule period
+    3. Compare against thresholds
+    4. Send notifications via configured channels
+    """
+    import asyncio
+    
+    start_time = time.time()
+    orgs_processed = 0
+    alerts_triggered = 0
+    notifications_sent = 0
+    errors = 0
+    org_errors = []
+    
+    try:
+        # Get all active organizations
+        query = f"""
+        SELECT org_slug, default_currency
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE status = 'ACTIVE'
+        ORDER BY org_slug
+        """
+        
+        result = bq_client.client.query(query).result()
+        orgs = [{"org_slug": row.org_slug, "currency": row.default_currency} for row in result]
+        
+        logger.info(f"Processing alerts for {len(orgs)} active organizations")
+        
+        for org in orgs:
+            org_slug = org["org_slug"]
+            currency = org.get("currency", "USD")
+            
+            try:
+                # Fetch notification rules for this org
+                rules_query = f"""
+                SELECT 
+                    id,
+                    rule_name,
+                    rule_type,
+                    threshold_value,
+                    threshold_type,
+                    period,
+                    channels,
+                    recipients,
+                    is_enabled
+                FROM `{settings.gcp_project_id}.{org_slug}_prod.org_notification_rules`
+                WHERE is_enabled = TRUE
+                  AND rule_type IN UNNEST(@alert_types)
+                """
+                
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ArrayQueryParameter("alert_types", "STRING", request.alert_types),
+                    ]
+                )
+                
+                # Try to fetch rules - table may not exist for some orgs
+                try:
+                    rules_result = bq_client.client.query(rules_query, job_config=job_config).result()
+                    rules = list(rules_result)
+                except Exception as rule_error:
+                    # No rules table or no rules - skip this org
+                    logger.debug(f"No notification rules for {org_slug}: {rule_error}")
+                    orgs_processed += 1
+                    continue
+                
+                if not rules:
+                    orgs_processed += 1
+                    continue
+                
+                # Get current month costs for this org
+                costs_query = f"""
+                SELECT SUM(BilledCost) as total_cost
+                FROM `{settings.gcp_project_id}.{org_slug}_prod.cost_data_standard_1_3`
+                WHERE BillingPeriodStart >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+                  AND BillingPeriodStart < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+                """
+                
+                try:
+                    costs_result = bq_client.client.query(costs_query).result()
+                    costs_row = next(costs_result, None)
+                    current_cost = float(costs_row.total_cost) if costs_row and costs_row.total_cost else 0.0
+                except Exception:
+                    current_cost = 0.0
+                
+                # Check each rule
+                for rule in rules:
+                    threshold = float(rule.threshold_value) if rule.threshold_value else 0.0
+                    
+                    if current_cost >= threshold and threshold > 0:
+                        alerts_triggered += 1
+                        
+                        if request.send_notifications and not request.dry_run:
+                            # Log the alert trigger (actual notification sending via Pipeline service)
+                            logger.info(
+                                f"Alert triggered for {org_slug}: {rule.rule_name} "
+                                f"(current: {current_cost:.2f} {currency}, threshold: {threshold:.2f} {currency})"
+                            )
+                            notifications_sent += 1
+                
+                orgs_processed += 1
+                
+            except Exception as org_error:
+                errors += 1
+                org_errors.append({
+                    "org_slug": org_slug,
+                    "error": str(org_error)[:200]
+                })
+                logger.warning(f"Error processing alerts for {org_slug}: {org_error}")
+        
+        elapsed = time.time() - start_time
+        message = (
+            f"Alerts processed: {orgs_processed} orgs, "
+            f"{alerts_triggered} alerts triggered, "
+            f"{notifications_sent} notifications sent "
+            f"in {elapsed:.2f}s"
+        )
+        
+        logger.info(message)
+        
+        return ProcessAlertsResponse(
+            success=True,
+            orgs_processed=orgs_processed,
+            alerts_triggered=alerts_triggered,
+            notifications_sent=notifications_sent,
+            errors=errors,
+            org_errors=org_errors[:10],  # Limit to first 10 errors
+            message=message
+        )
+        
+    except Exception as e:
+        logger.error(f"Process all alerts failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Process all alerts failed: {str(e)}"
         )

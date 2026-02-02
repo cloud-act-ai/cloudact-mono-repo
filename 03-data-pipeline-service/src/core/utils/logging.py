@@ -7,7 +7,7 @@ import logging
 import json
 import sys
 from typing import Any, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pythonjsonlogger import jsonlogger
 from opentelemetry import trace
 
@@ -30,7 +30,7 @@ class CloudLoggingFormatter(jsonlogger.JsonFormatter):
         super().add_fields(log_record, record, message_dict)
 
         # Add timestamp in ISO format
-        log_record["timestamp"] = datetime.utcnow().isoformat() + "Z"
+        log_record["timestamp"] = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Add severity (Cloud Logging compatible)
         log_record["severity"] = record.levelname

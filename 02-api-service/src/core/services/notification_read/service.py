@@ -13,7 +13,7 @@ Features:
 import polars as pl
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 
 from google.cloud import bigquery
@@ -554,7 +554,7 @@ class NotificationReadService:
                 row = results[0]
                 stats = NotificationStatsResponse(
                     org_slug=org_slug,
-                    computed_at=datetime.utcnow(),
+                    computed_at=datetime.now(timezone.utc),
                     total_channels=row.total_channels or 0,
                     active_channels=row.active_channels or 0,
                     email_channels=row.email_channels or 0,
@@ -580,7 +580,7 @@ class NotificationReadService:
             else:
                 stats = NotificationStatsResponse(
                     org_slug=org_slug,
-                    computed_at=datetime.utcnow(),
+                    computed_at=datetime.now(timezone.utc),
                 )
 
             self._cache.set(cache_key, stats, ttl=30)

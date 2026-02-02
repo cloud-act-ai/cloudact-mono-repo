@@ -126,10 +126,10 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     let backendDailyLimit = 0
     let backendMonthlyLimit = 0
     let backendConcurrentLimit = 20
-    // Resource limits from backend (fresh BigQuery data, updated after Stripe upgrades)
+    // Resource limits from backend (fallback - Supabase is now source of truth after 2026-02-01)
     let backendSeatLimit: number | null = null
     let backendProvidersLimit: number | null = null
-    // Resource usage counts from backend (source of truth for valid integrations)
+    // Resource usage counts from backend (source of truth for valid integrations via BigQuery)
     let backendConfiguredProvidersCount: number | null = null
 
     try {
@@ -162,21 +162,19 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
       }
     } catch (quotaError) {
       // Backend quota check failed - use defaults from Supabase
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getOrgQuotaUsage] Backend quota check failed:", quotaError)
-      }
+      // BUG-FIX: Log warning in all environments to detect backend connectivity issues
+      console.warn("[getQuotaUsage] Backend quota API failed, using Supabase fallback:",
+        quotaError instanceof Error ? quotaError.message : "Unknown error")
     }
 
-    // Use backend limits as source of truth (fresh BigQuery data after Stripe upgrades)
-    // Fall back to Supabase values only if backend doesn't return them
-    const seatLimit = backendSeatLimit ?? org.seat_limit ?? 2
-    const providersLimit = backendProvidersLimit ?? org.providers_limit ?? 3
-    // Use backend limits if available, otherwise fall back to Supabase/defaults
-    const dailyLimit = backendDailyLimit || org.pipelines_per_day_limit || 6
-    // Use actual pipelines_per_month_limit from backend API - avoid hardcoded multiplier calculation
-    // Backend returns the exact plan limits from BigQuery (org_subscriptions table)
+    // LIMITS: Supabase organizations table is source of truth (updated by Stripe webhooks)
+    // Backend values are fallback only (for backward compatibility during migration)
+    const seatLimit = org.seat_limit ?? backendSeatLimit ?? 2
+    const providersLimit = org.providers_limit ?? backendProvidersLimit ?? 3
+    const dailyLimit = org.pipelines_per_day_limit || backendDailyLimit || 6
+    // Monthly limit from Supabase, fallback to backend or calculate from daily
     const monthlyLimit = backendMonthlyLimit > 0 ? backendMonthlyLimit : (dailyLimit * 30)
-    // Use backend configured providers count as source of truth (BigQuery org_integration_credentials)
+    // USAGE COUNTS: Backend is source of truth for provider count (BigQuery org_integration_credentials)
     // Fall back to Supabase-based count only if backend doesn't return it
     const finalConfiguredProviders = backendConfiguredProvidersCount ?? configuredProviders
 

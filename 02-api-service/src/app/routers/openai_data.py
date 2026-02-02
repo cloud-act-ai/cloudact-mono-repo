@@ -10,7 +10,7 @@ URL Structure: /api/v1/integrations/{org_slug}/openai/pricing|subscriptions
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import re
 
@@ -233,7 +233,7 @@ async def create_pricing(
     try:
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.openai_model_pricing"
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Check if model_id already exists
         check_query = f"""
@@ -636,7 +636,7 @@ async def create_subscription(
     try:
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.openai_subscriptions"
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Check if subscription_id already exists
         check_query = f"""

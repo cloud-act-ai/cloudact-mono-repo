@@ -141,9 +141,11 @@ ALL_JOBS=(
     "cloudact-daily-quota-reset"
     "cloudact-daily-quota-cleanup"
     "cloudact-daily-billing-reconcile"
+    "cloudact-daily-stale-cleanup"
     "cloudact-monthly-quota-reset"
 )
 # Note: billing sync jobs (5min-billing-sync-retry, daily-billing-reconcile) are deprecated
+# Note: 15min-stale-cleanup moved to daily-stale-cleanup (self-healing handles most cases)
 # and will be deleted but not recreated (consolidated to Supabase)
 
 # All schedulers to manage (for deletion)
@@ -161,9 +163,11 @@ ALL_SCHEDULERS=(
     "cloudact-daily-quota-reset-trigger"
     "cloudact-daily-quota-cleanup-trigger"
     "cloudact-daily-billing-reconcile-trigger"
+    "cloudact-daily-stale-cleanup-trigger"
     "cloudact-monthly-quota-reset-trigger"
 )
 # Note: billing sync schedulers are deprecated and will be deleted but not recreated
+# Note: 15min-stale-cleanup-trigger moved to daily-stale-cleanup-trigger
 
 delete_job() {
     local JOB_NAME="$1"
@@ -266,8 +270,8 @@ echo "============================================================"
 echo ""
 echo -e "${YELLOW}NOTE: Run these jobs in order after each release:${NC}"
 echo "  1. supabase-migrate  - Before deploying frontend"
-echo "  2. bootstrap-sync    - After deploying API service"
-echo "  3. org-sync-all      - After bootstrap-sync completes"
+echo "  2. bootstrap         - Smart: fresh if new, sync if exists"
+echo "  3. org-sync-all      - After bootstrap completes"
 echo ""
 
 # 1. Supabase Migrate (BEFORE frontend deploy)
@@ -278,21 +282,16 @@ create_job "cloudact-manual-supabase-migrate" \
     "1" \
     "SUPABASE_ACCESS_TOKEN=supabase-access-token-${SUPABASE_SECRET_ENV}:latest"
 
-# 2. Bootstrap (Initial setup only)
+# 2. Smart Bootstrap (auto-detects fresh vs sync)
+# - Fresh bootstrap if organizations dataset doesn't exist
+# - Sync if dataset exists (adds new columns)
 create_job "cloudact-manual-bootstrap" \
-    "jobs/manual/bootstrap.py" \
+    "jobs/manual/bootstrap_smart.py" \
     "30m" \
     "4Gi" \
     "2"
 
-# 3. Bootstrap Sync (AFTER API deploy - syncs new columns)
-create_job "cloudact-manual-bootstrap-sync" \
-    "jobs/manual/bootstrap_sync.py" \
-    "30m" \
-    "4Gi" \
-    "2"
-
-# 4. Org Sync All (AFTER bootstrap-sync)
+# 3. Org Sync All (AFTER bootstrap)
 create_job "cloudact-manual-org-sync-all" \
     "jobs/manual/org_sync_all.py" \
     "60m" \
@@ -300,29 +299,10 @@ create_job "cloudact-manual-org-sync-all" \
     "2"
 
 # =============================================================================
-# STEP 3: Create EVERY 15 MINUTES Jobs
+# STEP 3: Create DAILY Jobs
 # =============================================================================
+# Note: EVERY 15 MINUTES stale cleanup moved to daily (self-healing handles most cases)
 # Note: EVERY 5 MINUTES billing sync jobs removed (consolidated to Supabase)
-
-echo ""
-echo "============================================================"
-echo -e "${BLUE}EVERY 15 MINUTES${NC}"
-echo "============================================================"
-
-create_job "cloudact-15min-stale-cleanup" \
-    "jobs/every_15min/stale_cleanup.py" \
-    "10m" \
-    "2Gi" \
-    "1"
-
-create_scheduler "cloudact-15min-stale-cleanup-trigger" \
-    "cloudact-15min-stale-cleanup" \
-    "*/15 * * * *" \
-    "Fix stuck concurrent pipeline counters (every 15 min)"
-
-# =============================================================================
-# STEP 4: Create DAILY Jobs
-# =============================================================================
 
 echo ""
 echo "============================================================"
@@ -353,10 +333,34 @@ create_scheduler "cloudact-daily-quota-cleanup-trigger" \
     "0 1 * * *" \
     "Delete quota records older than 90 days (01:00 UTC)"
 
+# 02:00 UTC - Stale concurrent cleanup (safety net - self-healing handles most cases)
+create_job "cloudact-daily-stale-cleanup" \
+    "jobs/daily/stale_cleanup.py" \
+    "10m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-daily-stale-cleanup-trigger" \
+    "cloudact-daily-stale-cleanup" \
+    "0 2 * * *" \
+    "Fix stuck concurrent counters - safety net (02:00 UTC)"
+
+# 08:00 UTC - Daily alerts processing
+create_job "cloudact-daily-alerts" \
+    "jobs/daily/alerts_daily.py" \
+    "30m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-daily-alerts-trigger" \
+    "cloudact-daily-alerts" \
+    "0 8 * * *" \
+    "Process cost alerts for all organizations (08:00 UTC)"
+
 # Note: billing-reconcile job removed (consolidated to Supabase)
 
 # =============================================================================
-# STEP 5: Create MONTHLY Jobs
+# STEP 4: Create MONTHLY Jobs
 # =============================================================================
 
 echo ""
@@ -387,21 +391,20 @@ echo "============================================================"
 echo ""
 echo -e "${YELLOW}MANUAL JOBS (Run before/after releases):${NC}"
 echo "  cloudact-manual-supabase-migrate  - Run BEFORE frontend deploy"
-echo "  cloudact-manual-bootstrap         - Initial setup (one-time)"
-echo "  cloudact-manual-bootstrap-sync    - Run AFTER API deploy"
-echo "  cloudact-manual-org-sync-all      - Run AFTER bootstrap-sync"
+echo "  cloudact-manual-bootstrap         - Smart: fresh if new, sync if exists"
+echo "  cloudact-manual-org-sync-all      - Run AFTER bootstrap"
 echo ""
 echo -e "${CYAN}SCHEDULED JOBS:${NC}"
-echo "  Every 15 min:"
-echo "    cloudact-15min-stale-cleanup"
-echo ""
 echo "  Daily:"
 echo "    cloudact-daily-quota-reset        (00:00 UTC)"
 echo "    cloudact-daily-quota-cleanup      (01:00 UTC)"
+echo "    cloudact-daily-stale-cleanup      (02:00 UTC) - safety net"
+echo "    cloudact-daily-alerts             (08:00 UTC)"
 echo ""
 echo "  Monthly:"
 echo "    cloudact-monthly-quota-reset      (00:05 UTC on 1st)"
 echo ""
+echo -e "${YELLOW}NOTE: Stale cleanup moved from 15min to daily (self-healing handles most cases)${NC}"
 echo -e "${YELLOW}NOTE: Billing sync jobs removed (consolidated to Supabase)${NC}"
 echo ""
 echo "View jobs:  ./list-jobs.sh $ENV"

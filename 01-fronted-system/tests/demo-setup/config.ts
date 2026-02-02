@@ -59,7 +59,7 @@ export const DEFAULT_DEMO_ACCOUNT: DemoAccountConfig = {
     firstName: 'Demo',
     lastName: 'User',
     email: 'demo@cloudact.ai',
-    password: 'demo1234',
+    password: 'Demo1234',  // Must have uppercase letter for Supabase validation
     phone: '5551234567',
     countryCode: '+1',
     companyName: 'Acme Inc',  // System creates org_slug as acme_inc_{timestamp}

@@ -10,7 +10,7 @@ To add a new provider: just update providers.yml - no code changes needed.
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from google.cloud import bigquery
 
@@ -140,7 +140,7 @@ class KMSStoreIntegrationProcessor:
                 )
                 if connectivity_result["valid"]:
                     validation_status = "VALID"
-                    last_validated_at = datetime.utcnow()
+                    last_validated_at = datetime.now(timezone.utc)
                 else:
                     validation_status = "INVALID"
                     validation_error = connectivity_result.get("error", "Validation failed")

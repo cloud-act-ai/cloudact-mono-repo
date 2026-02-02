@@ -680,7 +680,6 @@ async def get_cost_trend(
     - Providers active in period
     """
     from datetime import timedelta
-    from src.core.services._shared import DatePeriod
 
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
@@ -772,7 +771,6 @@ async def get_granular_trend(
     - Organization changed
     """
     from datetime import timedelta
-    from src.core.services._shared import DatePeriod
 
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
@@ -1230,7 +1228,7 @@ async def get_total_costs(
                     extra={
                         "org_slug": org_slug,
                         "base_range": first_range,
-                        "mismatched_tyaspe": cost_type,
+                        "mismatched_type": cost_type,
                         "mismatched_range": dr
                     }
                 )

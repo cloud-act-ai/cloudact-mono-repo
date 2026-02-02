@@ -880,7 +880,20 @@ export async function getCostTrendGranular(
       }
     }
 
-    const result = await response.json()
+    // NULL-001 FIX: Use safeJsonParse with fallback handling
+    const result = await safeJsonParse<{
+      success: boolean
+      data?: GranularCostRow[]
+      summary?: {
+        total_cost: number
+        record_count: number
+        granular_rows: number
+        date_range: { start: string; end: string }
+        available_filters: GranularFiltersAvailable
+      }
+      currency?: string
+      cache_hit?: boolean
+    }>(response, { success: false })
 
     return {
       success: result.success,

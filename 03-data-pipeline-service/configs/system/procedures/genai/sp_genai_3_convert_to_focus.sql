@@ -145,11 +145,9 @@ BEGIN
           ELSE provider
         END as ServiceProviderName,
 
-        -- Service category based on cost type
-        CASE cost_type
-          WHEN 'infrastructure' THEN 'Compute'
-          ELSE 'AI and Machine Learning'
-        END as ServiceCategory,
+        -- Service category: Use lowercase 'genai' for frontend compatibility
+        -- Infrastructure costs (GPUs) are also classified as genai since they support LLM workloads
+        'genai' as ServiceCategory,
 
         -- Service name
         CASE cost_type

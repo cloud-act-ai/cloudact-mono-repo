@@ -18,7 +18,7 @@ Fixes Applied:
 """
 
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, Any, List, Optional
 from google.cloud import bigquery
 
@@ -121,7 +121,7 @@ class InfrastructureUsageProcessor:
                 }
 
             # Add lineage metadata (standardized x_ prefix columns)
-            now = datetime.utcnow().isoformat() + "Z"
+            now = datetime.now(timezone.utc).isoformat() + "Z"
             pipeline_id = f"genai_infrastructure_usage_{provider}"
             credential_id = credentials.get("credential_id", "default") if credentials else "default"
             for record in usage_records:

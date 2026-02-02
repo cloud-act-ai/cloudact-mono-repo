@@ -742,7 +742,7 @@ class AsyncPipelineExecutor:
             )
             # Return summary indicating blocked execution
             self.status = "BLOCKED"
-            self.end_time = datetime.utcnow()
+            self.end_time = datetime.now(timezone.utc)
 
             # Log state transition: PENDING -> BLOCKED
             try:
@@ -813,7 +813,7 @@ class AsyncPipelineExecutor:
                     }
                 )
 
-            self.start_time = datetime.utcnow()
+            self.start_time = datetime.now(timezone.utc)
             self.status = "RUNNING"
             # Start metadata logger background workers
             await self.metadata_logger.start()
@@ -839,7 +839,7 @@ class AsyncPipelineExecutor:
 
         except asyncio.TimeoutError:
             self.status = "TIMEOUT"
-            self.end_time = datetime.utcnow()
+            self.end_time = datetime.now(timezone.utc)
             timeout_minutes = self.config.get('timeout_minutes', 30) if self.config else 30
             timeout_seconds = timeout_minutes * 60
             error_message = f"TIMEOUT: Pipeline execution exceeded {timeout_minutes} minutes ({timeout_seconds}s)"
@@ -918,7 +918,7 @@ class AsyncPipelineExecutor:
                         reason="Pipeline cancelled by user request",
                         trigger_type=self.trigger_type,
                         user_id=self.user_id,
-                        duration_in_state_ms=int((datetime.utcnow() - self.start_time).total_seconds() * 1000) if self.start_time else None,
+                        duration_in_state_ms=int((datetime.now(timezone.utc) - self.start_time).total_seconds() * 1000) if self.start_time else None,
                         metadata={
                             "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
                             "total_steps": len(self.step_dag) if self.step_dag else 0
@@ -933,7 +933,7 @@ class AsyncPipelineExecutor:
             else:
                 # Regular ValueError - treat as failure
                 self.status = "FAILED"
-                self.end_time = datetime.utcnow()
+                self.end_time = datetime.now(timezone.utc)
                 error_message = str(e)
 
                 # Create enhanced error context
@@ -1000,7 +1000,7 @@ class AsyncPipelineExecutor:
 
         except Exception as e:
             self.status = "FAILED"
-            self.end_time = datetime.utcnow()
+            self.end_time = datetime.now(timezone.utc)
             error_message = str(e)
 
             # Create enhanced error context
@@ -1177,7 +1177,7 @@ class AsyncPipelineExecutor:
             # Check for cancellation before each level
             if await self._check_cancellation():
                 self.status = "CANCELLED"
-                self.end_time = datetime.utcnow()
+                self.end_time = datetime.now(timezone.utc)
                 cancellation_msg = f"Pipeline cancelled before level {level_idx + 1}/{len(execution_levels)}"
                 self.logger.warning(cancellation_msg)
                 raise ValueError(cancellation_msg)
@@ -1249,7 +1249,7 @@ class AsyncPipelineExecutor:
 
         # All steps completed
         self.status = "COMPLETED"
-        self.end_time = datetime.utcnow()
+        self.end_time = datetime.now(timezone.utc)
 
         self.logger.info("Pipeline completed successfully")
 
@@ -1311,7 +1311,7 @@ class AsyncPipelineExecutor:
             timeout_seconds=step_timeout_seconds
         )
 
-        step_start = datetime.utcnow()
+        step_start = datetime.now(timezone.utc)
         step_status = "RUNNING"
         rows_processed = None
         error_message = None
@@ -1397,7 +1397,7 @@ class AsyncPipelineExecutor:
                 entity_type="STEP",
                 entity_name=step_id,
                 reason="Step completed successfully",
-                duration_in_state_ms=int((datetime.utcnow() - step_start).total_seconds() * 1000),
+                duration_in_state_ms=int((datetime.now(timezone.utc) - step_start).total_seconds() * 1000),
                 trigger_type=self.trigger_type,
                 user_id=self.user_id,
                 metadata={"rows_processed": rows_processed} if rows_processed else None
@@ -1439,7 +1439,7 @@ class AsyncPipelineExecutor:
                 error_message=error_message,
                 stack_trace=error_ctx.get('stack_trace'),
                 retry_count=0,
-                duration_in_state_ms=int((datetime.utcnow() - step_start).total_seconds() * 1000),
+                duration_in_state_ms=int((datetime.now(timezone.utc) - step_start).total_seconds() * 1000),
                 trigger_type=self.trigger_type,
                 user_id=self.user_id
             )
@@ -1479,7 +1479,7 @@ class AsyncPipelineExecutor:
                 error_message=error_message,
                 stack_trace=error_ctx.get('stack_trace'),
                 retry_count=0,
-                duration_in_state_ms=int((datetime.utcnow() - step_start).total_seconds() * 1000),
+                duration_in_state_ms=int((datetime.now(timezone.utc) - step_start).total_seconds() * 1000),
                 trigger_type=self.trigger_type,
                 user_id=self.user_id,
                 metadata={
@@ -1491,7 +1491,7 @@ class AsyncPipelineExecutor:
             raise
 
         finally:
-            step_end = datetime.utcnow()
+            step_end = datetime.now(timezone.utc)
 
             # End distributed tracing span for step
             if step_span:
@@ -1608,7 +1608,7 @@ class AsyncPipelineExecutor:
             # x_pipeline_run_date from parameters or current date
             if "x_pipeline_run_date" not in context:
                 from datetime import datetime
-                context["x_pipeline_run_date"] = context.get("start_date") or datetime.utcnow().date().isoformat()
+                context["x_pipeline_run_date"] = context.get("start_date") or datetime.now(timezone.utc).date().isoformat()
 
             result = await engine.execute(step_config, context)
 

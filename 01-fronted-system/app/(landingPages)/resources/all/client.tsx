@@ -322,8 +322,7 @@ export function AllResourcesPageClient() {
               <button
                 type="button"
                 onClick={() => { setSearchQuery(""); setSelectedType("All"); }}
-                className="mt-4 text-sm font-medium"
-                className="text-slate-900 font-semibold"
+                className="mt-4 text-sm font-medium text-slate-900 font-semibold"
               >
                 Clear all filters
               </button>

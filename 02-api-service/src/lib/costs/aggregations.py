@@ -3,13 +3,28 @@ Cost Aggregations
 
 Polars-based aggregation functions for cost data.
 Provides consistent grouping and summarization across all endpoints.
+
+CURR-001 NOTE: These aggregations sum costs without currency conversion.
+If data contains multiple BillingCurrency values, totals may be inaccurate.
+For multi-currency orgs, ensure data is filtered to single currency OR
+use per-currency aggregation methods.
 """
 
+import logging
 import polars as pl
 from typing import List, Dict, Any, Optional
 from datetime import date
 
 from src.lib.costs.calculations import calculate_percentage
+from src.lib.costs.constants import (
+    detect_category,
+    normalize_category,
+    is_genai_provider,
+    is_cloud_provider,
+    CATEGORY_OTHER,
+)
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -36,6 +51,16 @@ def aggregate_by_provider(
     """
     if df.is_empty():
         return []
+
+    # CURR-001 FIX: Check for multiple currencies and warn
+    if "BillingCurrency" in df.columns:
+        unique_currencies = df.select("BillingCurrency").unique().to_series().to_list()
+        if len(unique_currencies) > 1:
+            logger.warning(
+                f"[aggregate_by_provider] CURR-001: Summing costs across {len(unique_currencies)} "
+                f"currencies without conversion: {unique_currencies}. "
+                "Totals may be inaccurate for multi-currency data."
+            )
 
     # Ensure cost column is numeric
     df = df.with_columns(
@@ -650,36 +675,16 @@ def aggregate_granular(
         for db_col, api_field in hierarchy_field_mapping.items():
             item[api_field] = row.get(db_col)
 
-        # Derive category from source_system or provider
-        source_system = row.get("x_source_system", "")
-        if source_system == "subscription_costs_daily":
-            item["category"] = "subscription"
-        elif _is_genai_provider(item["provider"]):
-            item["category"] = "genai"
-        elif _is_cloud_provider(item["provider"]):
-            item["category"] = "cloud"
-        else:
-            item["category"] = row.get("ServiceCategory", "other") or "other"
+        # Derive category using centralized detection logic
+        item["category"] = detect_category(
+            provider=item["provider"],
+            source_system=row.get("x_source_system"),
+            service_category=row.get("ServiceCategory"),
+        )
 
         granular_data.append(item)
 
     return granular_data
 
 
-def _is_genai_provider(provider: str) -> bool:
-    """Check if provider is a GenAI provider."""
-    genai_providers = [
-        "openai", "anthropic", "google ai", "cohere", "mistral",
-        "gemini", "claude", "azure openai", "aws bedrock", "vertex ai"
-    ]
-    provider_lower = (provider or "").lower()
-    return any(p in provider_lower for p in genai_providers)
-
-
-def _is_cloud_provider(provider: str) -> bool:
-    """Check if provider is a Cloud provider."""
-    cloud_providers = [
-        "gcp", "aws", "azure", "google", "amazon", "microsoft", "oci", "oracle"
-    ]
-    provider_lower = (provider or "").lower()
-    return any(p in provider_lower for p in cloud_providers)
+# Note: _is_genai_provider and _is_cloud_provider moved to src/lib/costs/constants.py

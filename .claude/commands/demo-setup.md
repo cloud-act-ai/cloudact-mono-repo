@@ -90,7 +90,7 @@ All scripts in: `01-fronted-system/tests/demo-setup/`
 | Field | Value |
 |-------|-------|
 | Email | `demo@cloudact.ai` |
-| Password | `demo1234` |
+| Password | `Demo1234` |
 | Company | `Acme Inc` |
 | Org Slug | `acme_inc_{timestamp}` (auto-generated, base36) |
 | Plan | `scale` (14-day trial) |
@@ -273,24 +273,35 @@ Stage 2: Pipelines (API 8001)
 1. **Bootstrap first** - Required before signup, otherwise no API key created
 2. **Date range required** - Demo data spans Dec 2025 - Jan 2026, use `?start_date=2025-12-01&end_date=2026-01-31`
 3. **GenAI pricing REQUIRED** - Load `genai_payg_pricing` before running cost calculation, otherwise costs are $0
-4. **x_source_system** - Must be set for cost categorization:
+4. **x_source_system MUST NOT BE NULL** - SQL `!= 'value'` returns NULL when column is NULL:
    - `'subscription_costs_daily'` for SaaS
-   - `'genai_costs_daily_unified'` for GenAI
-   - `'cloud_*_billing_raw_daily'` for Cloud
-5. **ServiceProviderName** - Must use full names for API filtering:
-   - `"Amazon Web Services"` (NOT "aws")
-   - `"Microsoft Azure"` (NOT "azure")
-   - `"Oracle Cloud Infrastructure"` (NOT "oci")
-   - `"Google Cloud"` (NOT "gcp")
-6. **Model/pricing match** - Usage model names must EXACTLY match pricing entries
+   - `'genai_costs_daily'` for GenAI (NOT 'genai_costs_daily_unified')
+   - `'cloud_costs_daily'` for Cloud
+   - **BUG:** `x_source_system != 'subscription_costs_daily'` fails when NULL - always set a value!
+5. **ServiceCategory** - Must match frontend expectations (lowercase):
+   - `'genai'` for GenAI (API normalizes: LLM, AI/ML, AI and Machine Learning → genai)
+   - `'cloud'` for cloud (API normalizes: Cloud, Compute, Storage → cloud)
+   - `'subscription'` for subscriptions (API normalizes: SaaS, Software → subscription)
+6. **ServiceProviderName** - Must use canonical short codes for API/frontend filtering:
+   - `"gcp"` (NOT "Google Cloud")
+   - `"aws"` (NOT "Amazon Web Services")
+   - `"azure"` (NOT "Microsoft Azure")
+   - `"oci"` (NOT "Oracle Cloud Infrastructure")
+   - `"openai"`, `"anthropic"`, `"gemini"` for GenAI providers
+7. **Model/pricing match** - Usage model names must EXACTLY match pricing entries
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | API shows $0 | Use date range: `?start_date=2025-12-01&end_date=2026-01-31` (demo data spans Dec 2025 - Jan 2026) |
+| GenAI API returns 0 records | **x_source_system is NULL** - SQL `!= 'subscription_costs_daily'` returns NULL when column is NULL. Set to `'genai_costs_daily'` |
+| SaaS not showing in Top Subscriptions | **x_source_system missing** - Set to `'subscription_costs_daily'` for subscription data |
+| "No cloud costs yet" in dashboard | **ServiceProviderName wrong format** - Use short codes: `gcp`, `aws`, `azure`, `oci` (not full names) |
+| GenAI showing under "SaaS Subscriptions" | **ServiceCategory wrong** - Use `'genai'` (lowercase, API normalizes from LLM/AI-ML) |
+| Cloud costs very low | Demo data has realistic small values (~$370 total). Multiply by 100 for demo visibility |
 | Pipeline stuck PENDING | Check for duplicate runs, wait for completion |
-| No costs calculated | Verify `x_source_system` field is set in FOCUS table |
+| No costs calculated | Verify `x_source_system` field is set in FOCUS table (must NOT be NULL!) |
 | Missing FOCUS data | Check procedure logs, verify raw tables have data |
 | Procedure not found | Run `POST /api/v1/procedures/sync` (port 8001) |
 | Signup 400 error | Disable email confirmation in Supabase Auth settings |
@@ -405,19 +416,32 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/daily?start_date=2025-12
 ```sql
 -- Verify FOCUS table totals match API
 SELECT
+  ServiceCategory,
   x_source_system,
   COUNT(*) as records,
   ROUND(SUM(CAST(BilledCost AS FLOAT64)), 2) as total_cost
 FROM `{project}.{dataset}.cost_data_standard_1_3`
 WHERE ChargePeriodStart >= '2025-12-01' AND ChargePeriodStart < '2026-02-01'
-GROUP BY x_source_system;
+GROUP BY ServiceCategory, x_source_system;
+
+-- Expected (after fixes applied):
+-- | ServiceCategory | x_source_system          | records | total_cost |
+-- |-----------------|--------------------------|---------|------------|
+-- | LLM             | genai_costs_daily        | 330     | 165520.83  |
+-- | Cloud           | cloud_costs_daily        | 540     | 36941.92   |
+-- | SaaS            | subscription_costs_daily | 15      | 6301.40    |
+
+-- Verify provider names are correct
+SELECT DISTINCT ServiceCategory, ServiceProviderName
+FROM `{project}.{dataset}.cost_data_standard_1_3`
+ORDER BY ServiceCategory;
 
 -- Expected:
--- | x_source_system            | records | total_cost |
--- |----------------------------|---------|------------|
--- | subscription_costs_daily   | 105     | 1422.90    |
--- | cloud_*_billing_raw_daily  | 523     | 382.35     |
--- | genai_costs_daily_unified  | 480     | 232887.63  |
+-- | ServiceCategory | ServiceProviderName |
+-- |-----------------|---------------------|
+-- | Cloud           | gcp, aws, azure, oci |
+-- | LLM             | openai, anthropic, gemini |
+-- | SaaS            | slack, notion, figma, zoom, ... |
 ```
 
 ### 3. Frontend Validation
@@ -487,6 +511,71 @@ ADD COLUMN IF NOT EXISTS x_genai_provider STRING;
 -- 4. Sync procedures
 curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d '{"force": true}'
+```
+
+### FOCUS Data Fix Commands (Critical)
+
+When FOCUS data loads but dashboard shows wrong categories or "No costs":
+
+```sql
+-- Fix ServiceCategory to match frontend expectations (LOWERCASE!)
+-- The API normalizes these, but for direct inserts use lowercase:
+UPDATE `{project}.{dataset}.cost_data_standard_1_3`
+SET ServiceCategory = CASE
+  WHEN LOWER(ServiceCategory) IN ('llm', 'ai/ml', 'ai and machine learning', 'ai') THEN 'genai'
+  WHEN LOWER(ServiceCategory) IN ('cloud', 'compute', 'storage', 'networking') THEN 'cloud'
+  WHEN LOWER(ServiceCategory) IN ('saas', 'software') THEN 'subscription'
+  ELSE ServiceCategory
+END
+WHERE LOWER(ServiceCategory) IN ('llm', 'ai/ml', 'ai and machine learning', 'ai', 'cloud', 'compute', 'storage', 'networking', 'saas', 'software');
+
+-- Fix ServiceProviderName to canonical short codes for cloud
+UPDATE `{project}.{dataset}.cost_data_standard_1_3`
+SET ServiceProviderName = CASE
+  WHEN ServiceProviderName = 'Google Cloud' THEN 'gcp'
+  WHEN ServiceProviderName = 'Amazon Web Services' THEN 'aws'
+  WHEN ServiceProviderName = 'Microsoft Azure' THEN 'azure'
+  WHEN ServiceProviderName = 'Oracle Cloud Infrastructure' THEN 'oci'
+  ELSE ServiceProviderName
+END
+WHERE ServiceCategory = 'cloud';
+
+-- Fix x_source_system (CRITICAL - NULL causes API filter failure)
+UPDATE `{project}.{dataset}.cost_data_standard_1_3`
+SET x_source_system = CASE
+  WHEN ServiceCategory = 'genai' THEN 'genai_costs_daily'
+  WHEN ServiceCategory = 'cloud' THEN 'cloud_costs_daily'
+  WHEN ServiceCategory = 'subscription' THEN 'subscription_costs_daily'
+  ELSE x_source_system
+END
+WHERE x_source_system IS NULL;
+
+-- Scale up cloud costs for visibility (optional - demo has low realistic values)
+UPDATE `{project}.{dataset}.cost_data_standard_1_3`
+SET
+  BilledCost = CAST(CAST(BilledCost AS FLOAT64) * 100 AS NUMERIC),
+  EffectiveCost = CAST(CAST(EffectiveCost AS FLOAT64) * 100 AS NUMERIC)
+WHERE ServiceCategory = 'cloud';
+```
+
+## Environment Configuration
+
+| Environment | GCP Project | Dataset Suffix | API Base URL |
+|-------------|-------------|----------------|--------------|
+| local | cloudact-testing-1 | `_local` | localhost:8000 |
+| stage | cloudact-testing-1 | `_stage` | stage-api.cloudact.ai |
+| prod | cloudact-prod | `_prod` | api.cloudact.ai |
+
+### Service Account Setup by Environment
+
+```bash
+# Local/Stage
+gcloud config set account cloudact-testing-1@cloudact-testing-1.iam.gserviceaccount.com
+gcloud config set project cloudact-testing-1
+
+# Production
+gcloud config set account cloudact-prod@cloudact-prod.iam.gserviceaccount.com
+gcloud config set project cloudact-prod
 ```
 
 ## Reference

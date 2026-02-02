@@ -142,12 +142,19 @@ export function getCurrencyDisplay(currencyCode: string | null | undefined): Cur
 /**
  * Validate and normalize a date value
  * Returns current date for null, undefined, or invalid dates
+ * TZ-001 FIX: Logs warning when invalid date is converted to current date
  */
 function safeDate(value: unknown): Date {
   if (value === null || value === undefined) return new Date()
   const d = typeof value === "string" ? new Date(value) : value as Date
   // Check if date is valid (NaN check)
-  if (!(d instanceof Date) || isNaN(d.getTime())) return new Date()
+  if (!(d instanceof Date) || isNaN(d.getTime())) {
+    // TZ-001 FIX: Log warning for invalid dates (helps identify data issues)
+    if (typeof console !== "undefined") {
+      console.warn(`[i18n] Invalid date value "${String(value)}" converted to current date`)
+    }
+    return new Date()
+  }
   return d
 }
 
@@ -288,8 +295,8 @@ export function formatDateOnly(
     // Validate day based on month (handle Feb 30, Apr 31, etc.)
     const daysInMonth = new Date(year, month, 0).getDate()
     if (day > daysInMonth) {
-      // Invalid date like Feb 30 - log warning and return empty
-      if (typeof console !== "undefined" && isDevelopment()) {
+      // FORMAT-001 FIX: Log warning in all environments for invalid dates
+      if (typeof console !== "undefined") {
         console.warn(`[i18n] Invalid date: ${dateString} (${month}/${day} doesn't exist)`)
       }
       return ""

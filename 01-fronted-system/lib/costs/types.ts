@@ -83,12 +83,24 @@ export interface TimeSeriesPoint {
 }
 
 /**
+ * Cost category type - canonical lowercase values
+ * These match the API response categories from aggregate_granular
+ */
+export type CostCategory = "genai" | "cloud" | "subscription" | "other"
+
+/**
+ * Legacy category type - for backward compatibility
+ * @deprecated Use CostCategory instead
+ */
+export type LegacyCostCategory = "Cloud" | "SaaS" | "LLM"
+
+/**
  * Cost filter options
  */
 export interface CostFilterOptions {
   dateRange?: DateRange
   providers?: string[]
-  categories?: ("Cloud" | "SaaS" | "LLM")[]
+  categories?: CostCategory[]
   minAmount?: number
   maxAmount?: number
 }

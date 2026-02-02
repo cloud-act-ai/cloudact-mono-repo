@@ -184,6 +184,30 @@ function SignupForm() {
       return
     }
 
+    // VAL-001 FIX: Password strength validation
+    // Require: min 8 chars, at least 1 uppercase, 1 lowercase, 1 number
+    if (password.length < 8) {
+      setServerError("Password must be at least 8 characters long")
+      setIsLoading(false)
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      setServerError("Password must contain at least one uppercase letter")
+      setIsLoading(false)
+      return
+    }
+    if (!/[a-z]/.test(password)) {
+      setServerError("Password must contain at least one lowercase letter")
+      setIsLoading(false)
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      setServerError("Password must contain at least one number")
+      setIsLoading(false)
+      return
+    }
+
+
     // Check rate limiting first
     const normalizedEmail = email.trim().toLowerCase()
     const rateLimitCheck = await checkSignupRateLimit(normalizedEmail)
@@ -236,6 +260,10 @@ function SignupForm() {
 
       if (signupError) {
         await logSignupFailure(normalizedEmail, signupError.message)
+        // FLOW-003 FIX: Handle email-already-exists with specific message
+        if (signupError.message.toLowerCase().includes("already") || signupError.message.toLowerCase().includes("registered")) {
+          throw new Error("This email is already registered. Please sign in instead.")
+        }
         throw new Error(signupError.message)
       }
       if (!authData.user) {

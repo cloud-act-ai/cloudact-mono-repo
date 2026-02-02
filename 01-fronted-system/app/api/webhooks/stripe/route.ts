@@ -7,16 +7,16 @@
  * 3. Idempotency: In-memory + database deduplication with async-safe processing tracking
  * 4. Event Cache Management: 1-hour TTL + LRU eviction (max 1000 events)
  * 5. Plan ID Validation: Explicit handling with lower bound validation for all limits
- * 6. Backend Sync Retry: 2 retries with 1s exponential backoff for backend sync failures
- * 7. Backend Quota Sync: Always syncs when org_slug exists (not dependent on backend_onboarded)
- * 8. Sync Status Tracking: backend_quota_synced flag tracks successful syncs to BigQuery
+ * 6. Replay Attack Prevention: Rejects events older than 5 minutes
+ * 7. Optimistic Locking: Prevents out-of-order event processing via stripe_webhook_last_event_at
  *
- * BACKEND SYNC BEHAVIOR:
- * - checkout.session.completed: Syncs subscription quotas to BigQuery org_subscriptions table
- * - customer.subscription.updated: Syncs plan changes and quota updates
- * - customer.subscription.deleted: Syncs cancellation with zero quotas
- * - All syncs include retry logic and proper error handling
- * - Sync status tracked in organizations.backend_quota_synced column
+ * QUOTA MANAGEMENT (Supabase-based):
+ * - All quota limits stored in Supabase organizations table
+ * - checkout.session.completed: Updates plan limits directly in Supabase
+ * - customer.subscription.updated: Updates plan limits and billing status
+ * - customer.subscription.deleted: Marks subscription as canceled
+ * - Usage tracking via org_quotas table with RPC functions
+ * - No BigQuery sync required (quotas consolidated to Supabase as of 2026-02-01)
  *
  * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
@@ -421,7 +421,7 @@ export async function POST(request: NextRequest) {
             ...planDetails.limits,
           })
           .eq("id", metadata.org_id)
-          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${eventTimestamp}`)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${eventTimestamp},and(stripe_webhook_last_event_at.eq.${eventTimestamp},stripe_webhook_last_event_id.neq.${event.id})`)
           .select();
 
         if (updateError) {
@@ -498,7 +498,7 @@ export async function POST(request: NextRequest) {
           .from("organizations")
           .update(updatePayload)
           .eq("stripe_subscription_id", subscription.id)
-          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${subEventTimestamp}`)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${subEventTimestamp},and(stripe_webhook_last_event_at.eq.${subEventTimestamp},stripe_webhook_last_event_id.neq.${event.id})`)
           .select();
 
         if (updateError) {
@@ -510,7 +510,7 @@ export async function POST(request: NextRequest) {
               .from("organizations")
               .update(updatePayload)
               .eq("stripe_customer_id", customerId)
-              .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${subEventTimestamp}`)
+              .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${subEventTimestamp},and(stripe_webhook_last_event_at.eq.${subEventTimestamp},stripe_webhook_last_event_id.neq.${event.id})`)
               .select();
 
             if (fallbackError) {
@@ -562,7 +562,7 @@ export async function POST(request: NextRequest) {
           .from("organizations")
           .update(cancelPayload)
           .eq("stripe_subscription_id", subscription.id)
-          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${deleteEventTimestamp}`)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${deleteEventTimestamp},and(stripe_webhook_last_event_at.eq.${deleteEventTimestamp},stripe_webhook_last_event_id.neq.${event.id})`)
           .select();
 
         if (updateError) {
@@ -574,7 +574,7 @@ export async function POST(request: NextRequest) {
               .from("organizations")
               .update(cancelPayload)
               .eq("stripe_customer_id", customerId)
-              .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${deleteEventTimestamp}`)
+              .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${deleteEventTimestamp},and(stripe_webhook_last_event_at.eq.${deleteEventTimestamp},stripe_webhook_last_event_id.neq.${event.id})`)
               .select();
 
             if (fallbackError) {

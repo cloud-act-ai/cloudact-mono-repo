@@ -272,7 +272,7 @@ class NotificationSettingsService:
             )
 
         channel_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # If setting as default, unset other defaults of same type
         if channel.is_default:
@@ -566,7 +566,7 @@ class NotificationSettingsService:
                 )
 
         rule_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         row = {
             "rule_id": rule_id,
@@ -797,7 +797,7 @@ class NotificationSettingsService:
             )
 
         summary_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         row = {
             "summary_id": summary_id,
@@ -1173,7 +1173,7 @@ class NotificationSettingsService:
             )
 
         alert_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Encrypt Slack webhook if provided
         channel_config_json = None
@@ -1412,7 +1412,7 @@ class NotificationSettingsService:
     ) -> str:
         """Record an alert evaluation in history."""
         history_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         row = {
             "alert_history_id": history_id,

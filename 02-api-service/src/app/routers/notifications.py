@@ -8,7 +8,7 @@ Integrates with pipeline service for sending notifications and cost service for 
 import os
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 import httpx
 
@@ -239,7 +239,7 @@ async def test_channel(
                 "channel_id": channel_id,
                 "channel_type": channel.channel_type.value,
                 "channel_name": channel.name,
-                "test_time": datetime.utcnow().isoformat(),
+                "test_time": datetime.now(timezone.utc).isoformat(),
             }
         }
 
@@ -822,7 +822,7 @@ async def preview_summary(
             "subject": f"[CloudAct] {summary.name} - {period_label}",
             "period": period_label,
             "sections": sections,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "currency": summary.currency_display or "USD",
         }
 
@@ -897,7 +897,7 @@ async def send_summary_now(
                 for p in top_providers
             ],
             "currency": summary.currency_display or "USD",
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Send via pipeline service

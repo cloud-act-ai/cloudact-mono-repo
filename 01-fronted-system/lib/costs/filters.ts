@@ -62,14 +62,14 @@ export function filterByProvider(records: CostRecord[], providers: string[]): Co
 
 /**
  * Filter records by categories
+ * @param categories - Array of lowercase category values: "genai", "cloud", "subscription", "other"
  */
 export function filterByCategory(
   records: CostRecord[],
-  categories: ("Cloud" | "SaaS" | "LLM")[]
+  categories: ("genai" | "cloud" | "subscription" | "other")[]
 ): CostRecord[] {
-  const lowerCategories = categories.map((c) => c.toLowerCase())
   return records.filter((r) =>
-    lowerCategories.includes(r.ServiceCategory?.toLowerCase() || "")
+    categories.includes((r.ServiceCategory?.toLowerCase() || "other") as "genai" | "cloud" | "subscription" | "other")
   )
 }
 

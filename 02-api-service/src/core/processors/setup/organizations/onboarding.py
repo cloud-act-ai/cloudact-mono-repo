@@ -6,7 +6,7 @@ import csv
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from google.cloud import bigquery
@@ -272,7 +272,7 @@ class OrgOnboardingProcessor:
             self.logger.warning(f"No hierarchy data found in {csv_path}, skipping seeding")
             return result
 
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
         # org_hierarchy is in central dataset for consistency with other org_* tables
         table_id = f"{self.settings.gcp_project_id}.organizations.org_hierarchy"
 
@@ -461,7 +461,7 @@ class OrgOnboardingProcessor:
 
         subscriptions_csv = config.get("subscriptions_csv")
         pricing_csv = config.get("genai_pricing_csv")
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Seed subscriptions
         if subscriptions_csv:

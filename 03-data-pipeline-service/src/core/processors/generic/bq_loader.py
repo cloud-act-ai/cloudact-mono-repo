@@ -22,7 +22,7 @@ import logging
 import json
 import uuid
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.cloud import bigquery
 from google.cloud.bigquery import SchemaField
@@ -308,7 +308,7 @@ class BQLoader:
         # Add ingestion timestamp if not present
         for row in rows:
             if "ingestion_timestamp" not in row:
-                row["ingestion_timestamp"] = datetime.utcnow().isoformat()
+                row["ingestion_timestamp"] = datetime.now(timezone.utc).isoformat()
 
         job_config = bigquery.LoadJobConfig(
             write_disposition=write_disposition,
@@ -359,8 +359,8 @@ class BQLoader:
         run_id = context.get("run_id") or str(uuid.uuid4())
         pipeline_id = context.get("pipeline_id", "generic_bq_loader")
         credential_id = context.get("credential_id", "default")
-        run_date = context.get("start_date") or datetime.utcnow().date().isoformat()
-        ingested_at = datetime.utcnow().isoformat()
+        run_date = context.get("start_date") or datetime.now(timezone.utc).date().isoformat()
+        ingested_at = datetime.now(timezone.utc).isoformat()
 
         for row in rows:
             # PIPE-004 FIX: Always force org_slug from context for multi-tenant isolation

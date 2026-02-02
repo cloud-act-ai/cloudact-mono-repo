@@ -13,12 +13,13 @@ URL Structure: /api/v1/integrations/{org_slug}/{provider}/setup|validate
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any, Literal
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import logging
 import json
 import re
 import uuid
+import csv
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.utils.supabase_client import get_supabase_client
@@ -1677,7 +1678,7 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
             return {"status": "SUCCESS", "message": "No default pricing CSV found", "rows_seeded": 0}
 
         rows = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
@@ -1801,7 +1802,7 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
             return {"status": "SUCCESS", "message": "No default subscriptions CSV found", "rows_seeded": 0}
 
         rows = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
@@ -1930,7 +1931,7 @@ async def _initialize_genai_pricing(org_slug: str, provider: str, force: bool = 
             return {"status": "SUCCESS", "message": "No default pricing CSV found", "rows_seeded": 0}
 
         rows = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Parse helpers for optional fields
         def parse_int(val: Any) -> Optional[int]:
@@ -2134,7 +2135,7 @@ async def _initialize_subscriptions(org_slug: str, provider: str, force: bool = 
             return {"status": "SUCCESS", "message": "No default subscriptions CSV found", "rows_seeded": 0}
 
         rows = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
@@ -2347,7 +2348,7 @@ async def _initialize_gemini_pricing(org_slug: str, force: bool = False) -> Dict
             return {"status": "SUCCESS", "message": "No default pricing CSV found", "rows_seeded": 0}
 
         rows = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
@@ -2452,7 +2453,7 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
             return {"status": "SUCCESS", "message": "No default subscriptions CSV found", "rows_seeded": 0}
 
         rows = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)

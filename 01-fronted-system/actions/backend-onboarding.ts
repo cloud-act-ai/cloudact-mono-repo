@@ -80,26 +80,30 @@ async function generateRevealToken(
 async function _revealApiKeyInternal(revealToken: string, userId: string): Promise<string> {
   const adminClient = createServiceRoleClient()
 
-  // Fetch token from Supabase
-  const { data: tokenData, error: fetchError } = await adminClient
+  // SEC-001 FIX: Atomic token consumption - delete and return in single operation
+  // This prevents race condition where two requests could both consume the same token
+  const { data: deletedTokens, error: deleteError } = await adminClient
     .from("reveal_tokens")
-    .select("org_slug, user_id, expires_at")
+    .delete()
     .eq("token", revealToken)
-    .single()
+    .select("org_slug, user_id, expires_at")
 
-  if (fetchError || !tokenData) {
+  // If no token was deleted, it was already used or does not exist
+  if (deleteError || !deletedTokens || deletedTokens.length === 0) {
     throw new Error("Token not found or already used")
   }
 
+  const tokenData = deletedTokens[0]
+
   // Verify token belongs to this user
   if (tokenData.user_id !== userId) {
+    // Token was consumed but belongs to different user - security violation
+    console.error("[SEC-001] Token user mismatch - possible token theft attempt")
     throw new Error("Token does not belong to this user")
   }
 
-  // Check expiration
+  // Check expiration (token already consumed, so just validate)
   if (new Date(tokenData.expires_at) < new Date()) {
-    // Delete expired token
-    await adminClient.from("reveal_tokens").delete().eq("token", revealToken)
     throw new Error("Token has expired")
   }
 
@@ -108,9 +112,6 @@ async function _revealApiKeyInternal(revealToken: string, userId: string): Promi
   if (!apiKey) {
     throw new Error("API key not found in secure storage")
   }
-
-  // Consume the token (one-time use) - delete it
-  await adminClient.from("reveal_tokens").delete().eq("token", revealToken)
 
   return apiKey
 }

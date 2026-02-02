@@ -206,7 +206,7 @@ export function CaseStudiesPageClient() {
                   <div className="text-xs text-slate-500">Saved</div>
                 </div>
                 <div className="text-center border-x border-slate-200">
-                  <div className="text-lg font-bold" className="text-emerald-600">{study.metrics.reduction}</div>
+                  <div className="text-lg font-bold text-emerald-600">{study.metrics.reduction}</div>
                   <div className="text-xs text-slate-500">Reduction</div>
                 </div>
                 <div className="text-center">

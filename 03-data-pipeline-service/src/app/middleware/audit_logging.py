@@ -8,7 +8,7 @@ import json
 import logging
 import threading
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import Request
 
 from src.app.config import settings
@@ -77,7 +77,7 @@ class AuditLogger:
             "request_id": request_id,
             "status": status,
             "error_message": error_message,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Log to Python logger for immediate visibility

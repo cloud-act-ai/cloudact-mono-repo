@@ -12,6 +12,7 @@ import { getCachedApiKey } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
+  safeJsonParse,
   extractErrorMessage,
   isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
@@ -178,8 +179,12 @@ export async function previewHierarchyImport(
       }
     }
 
-    const data = await response.json()
-    return { success: true, data: data as SyncPreview }
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<SyncPreview>(response, null as unknown as SyncPreview)
+    if (!data) {
+      return { success: false, error: "Invalid response from server" }
+    }
+    return { success: true, data }
   } catch (err) {
     const errorMessage = logError("previewHierarchyImport", err)
     return { success: false, error: errorMessage }
@@ -242,8 +247,12 @@ export async function importHierarchy(
       }
     }
 
-    const data = await response.json()
-    return { success: true, data: data as ImportResult }
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<ImportResult>(response, null as unknown as ImportResult)
+    if (!data) {
+      return { success: false, error: "Invalid response from server" }
+    }
+    return { success: true, data }
   } catch (err) {
     const errorMessage = logError("importHierarchy", err)
     return { success: false, error: errorMessage }

@@ -43,6 +43,8 @@ from src.app.models.hierarchy_models import (
     DeletionBlockedResponse,
     AncestorResponse,
     DescendantsResponse,
+    # Validation patterns
+    LEVEL_CODE_PATTERN,
 )
 
 router = APIRouter()
@@ -315,6 +317,15 @@ async def list_entities(
 ):
     """List all hierarchy entities."""
     check_auth_result_access(auth, org_slug)  # SEC-002: IDOR protection
+
+    # UNV-001 FIX: Validate level_code format to prevent injection and invalid queries
+    if level_code is not None:
+        if not LEVEL_CODE_PATTERN.match(level_code):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid level_code format. Must be 2-30 lowercase characters, starting with a letter."
+            )
+
     try:
         return await service.get_all_entities(org_slug, level_code, include_inactive)
     except ValueError as e:

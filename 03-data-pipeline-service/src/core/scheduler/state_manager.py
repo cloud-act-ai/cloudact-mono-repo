@@ -16,7 +16,7 @@ FAILED → PENDING (retry)
 import uuid
 import asyncio
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.cloud import bigquery
 from tenacity import (
@@ -98,8 +98,8 @@ class PipelineStateManager:
             "config_id": config_id,
             "state": PipelineState.SCHEDULED.value,
             "scheduled_time": scheduled_time.isoformat(),
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
             "pipeline_logging_id": None,
             "retry_count": 0,
             "error_message": None,
@@ -185,7 +185,7 @@ class PipelineStateManager:
                 bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
                 bigquery.ScalarQueryParameter("from_state", "STRING", from_state),
                 bigquery.ScalarQueryParameter("to_state", "STRING", to_state),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow()),
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc)),
                 bigquery.ScalarQueryParameter("metadata", "JSON", metadata)
             ]
         )
@@ -288,7 +288,7 @@ class PipelineStateManager:
             List of pipeline runs that are due to execute
         """
         if date is None:
-            date = datetime.utcnow().strftime("%Y-%m-%d")
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         query = f"""
         SELECT *
@@ -360,7 +360,7 @@ class PipelineStateManager:
                 bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
                 bigquery.ScalarQueryParameter("state", "STRING", PipelineState.RUNNING.value),
                 bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow())
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc))
             ]
         )
 
@@ -422,7 +422,7 @@ class PipelineStateManager:
             query_parameters=[
                 bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
                 bigquery.ScalarQueryParameter("state", "STRING", PipelineState.COMPLETED.value),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow()),
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc)),
                 bigquery.ScalarQueryParameter("duration", "INT64", execution_duration_seconds)
             ]
         )
@@ -487,7 +487,7 @@ class PipelineStateManager:
                 bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
                 bigquery.ScalarQueryParameter("state", "STRING", new_state),
                 bigquery.ScalarQueryParameter("error_message", "STRING", error_message),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow())
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc))
             ]
         )
 
@@ -573,7 +573,7 @@ class PipelineStateManager:
             Dictionary with pipeline status summary
         """
         if date is None:
-            date = datetime.utcnow().strftime("%Y-%m-%d")
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         query = f"""
         WITH pipeline_stats AS (

@@ -5,7 +5,7 @@ Thread-safe BigQuery client with connection pooling and retry logic.
 
 import json
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Iterator
 from pathlib import Path
 import logging
@@ -844,12 +844,12 @@ class BigQueryPoolManager:
             # Simple query to verify connection
             list(self._client.query("SELECT 1"))
             self._is_healthy = True
-            self._last_health_check = datetime.utcnow()
+            self._last_health_check = datetime.now(timezone.utc)
             return True
         except Exception as e:
             logger.error(f"BigQuery health check failed: {e}")
             self._is_healthy = False
-            self._last_health_check = datetime.utcnow()
+            self._last_health_check = datetime.now(timezone.utc)
             return False
 
     def shutdown(self) -> None:

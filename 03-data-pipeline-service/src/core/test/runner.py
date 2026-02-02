@@ -11,7 +11,7 @@ import inspect
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
@@ -87,7 +87,7 @@ class TestRunner:
                 status_icon = "✓" if result.passed else "✗"
                 logger.info(f"  {status_icon} {method_name} ({result.duration_ms:.1f}ms)")
 
-        suite_result.ended_at = datetime.utcnow()
+        suite_result.ended_at = datetime.now(timezone.utc)
         return suite_result
 
     async def _run_single_test(

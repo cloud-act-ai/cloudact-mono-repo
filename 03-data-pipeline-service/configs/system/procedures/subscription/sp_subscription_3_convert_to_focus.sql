@@ -281,7 +281,9 @@ BEGIN
         'SaaS Subscription' AS ResourceType,
 
         -- Service (REQUIRED fields - all populated)
-        COALESCE(sp.category, 'SaaS') AS ServiceCategory,
+        -- ServiceCategory: Use lowercase 'subscription' for frontend compatibility
+        -- (sp.category contains plan category like 'design', 'ai', 'communication' - not the FOCUS category)
+        'subscription' AS ServiceCategory,
         CONCAT(INITCAP(REPLACE(spc.provider, '_', ' ')), ' ', UPPER(spc.plan_name)) AS ServiceName,
         COALESCE(sp.category, spc.plan_name) AS ServiceSubcategory,
 
@@ -304,7 +306,7 @@ BEGIN
           'plan_name', spc.plan_name,
           'billing_cycle', spc.billing_cycle,
           'pricing_model', spc.pricing_model,
-          'category', COALESCE(sp.category, 'SaaS'),
+          'category', 'subscription',
           'department', COALESCE(sp.department, 'IT'),
           'owner_email', COALESCE(sp.owner_email, 'unassigned'),
           'auto_renew', CAST(COALESCE(sp.auto_renew, FALSE) AS STRING),

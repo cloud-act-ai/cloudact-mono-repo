@@ -23,6 +23,19 @@ from typing import Dict, List, Any
 # Configuration
 GCP_PROJECT = "cloudact-testing-1"
 
+# =============================================================================
+# Category Constants (must match frontend expectations)
+# =============================================================================
+# Frontend expects lowercase category names in GranularCostRow.category:
+#   - "genai" (NOT "LLM" or "AI/ML")
+#   - "cloud" (NOT "Cloud")
+#   - "subscription" (NOT "SaaS" or "Software")
+#   - "other"
+
+CATEGORY_GENAI = "genai"
+CATEGORY_CLOUD = "cloud"
+CATEGORY_SUBSCRIPTION = "subscription"
+
 # Provider configurations
 GENAI_PROVIDERS = {
     "openai": {

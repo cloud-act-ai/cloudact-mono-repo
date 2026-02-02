@@ -7,7 +7,7 @@ import yaml
 import uuid
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from great_expectations.data_context import AbstractDataContext
 from great_expectations.core.batch import RuntimeBatchRequest
@@ -272,7 +272,7 @@ class DataQualityValidator:
             pipeline_logging_id: Pipeline run ID
             dq_config_path: Path to DQ config file
         """
-        executed_at = datetime.utcnow()
+        executed_at = datetime.now(timezone.utc)
         ingestion_date = executed_at.date()
 
         # Aggregate results

@@ -24,7 +24,7 @@ Scheduler Jobs (Cloud Run Jobs)
 ├─ org_sync_all.py           # Sync ALL org datasets
 ├─ quota_reset_daily.py      # 00:00 UTC daily
 ├─ quota_reset_monthly.py    # 00:05 UTC 1st of month
-├─ stale_cleanup.py          # Every 15 minutes
+├─ stale_cleanup.py          # 02:00 UTC daily (safety net, self-healing handles most)
 └─ quota_cleanup.py          # 01:00 UTC daily
 ```
 
@@ -126,7 +126,7 @@ cd 01-fronted-system && npm run dev
 | Field | Value |
 |-------|-------|
 | Email | demo@cloudact.ai |
-| Password | demo1234 |
+| Password | Demo1234 |
 | Company | Acme Inc |
 | Org Pattern | `acme_inc_{timestamp}` (auto-generated from company + base36 timestamp) |
 
@@ -274,10 +274,12 @@ cd 05-scheduler-jobs
 | `bootstrap-sync` | Manual | Add new columns to existing meta tables |
 | `org-sync-all` | Manual | Sync ALL org datasets (loops through active orgs) |
 | `quota-reset-daily` | 00:00 UTC | Reset daily pipeline counters |
-| `quota-reset-monthly` | 00:05 1st | Reset monthly pipeline counters |
-| `stale-cleanup` | */15 min | Fix stuck concurrent counters |
 | `quota-cleanup` | 01:00 UTC | Delete quota records >90 days |
+| `stale-cleanup` | 02:00 UTC | Fix stuck concurrent counters (safety net) |
+| `alerts-daily` | 08:00 UTC | Process cost alerts for all orgs |
+| `quota-reset-monthly` | 00:05 1st | Reset monthly pipeline counters |
 
+> **Note:** Stale cleanup moved to daily (self-healing handles most cases at validation time).
 > **Note:** Billing sync jobs removed (subscription data consolidated to Supabase).
 
 ## Docs

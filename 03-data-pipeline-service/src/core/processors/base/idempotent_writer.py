@@ -27,7 +27,7 @@ Usage:
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from google.cloud import bigquery
@@ -283,7 +283,7 @@ class IdempotentWriterMixin:
         Returns:
             Enriched data with lineage columns
         """
-        ingested_at = datetime.utcnow().isoformat()
+        ingested_at = datetime.now(timezone.utc).isoformat()
         run_date_str = run_date.isoformat() if isinstance(run_date, date) else str(run_date)
 
         enriched_data = []

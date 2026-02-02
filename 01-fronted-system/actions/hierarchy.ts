@@ -279,7 +279,11 @@ export async function createHierarchyLevel(
       return { success: false, error: `Failed to create level: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json() as HierarchyLevel
+    // NULL-001 FIX: Use safeJsonParse with type checking
+    const data = await safeJsonParse<HierarchyLevel>(response, null as unknown as HierarchyLevel)
+    if (!data || !data.id) {
+      return { success: false, error: "Invalid response from server" }
+    }
     return { success: true, data }
   } catch (error) {
     logError("createHierarchyLevel", error)
@@ -426,7 +430,11 @@ export async function getEntity(
       return { success: false, error: `Failed to fetch entity: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json() as HierarchyEntity
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<HierarchyEntity>(response, null as unknown as HierarchyEntity)
+    if (!data || !data.id) {
+      return { success: false, error: "Invalid response from server" }
+    }
     return { success: true, data }
   } catch (error) {
     logError("getEntity", error)
@@ -476,7 +484,11 @@ export async function createEntity(
       return { success: false, error: `Failed to create entity: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json() as HierarchyEntity
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<HierarchyEntity>(response, null as unknown as HierarchyEntity)
+    if (!data || !data.id) {
+      return { success: false, error: "Invalid response from server" }
+    }
     return { success: true, data }
   } catch (error) {
     logError("createEntity", error)
@@ -523,7 +535,11 @@ export async function updateEntity(
       return { success: false, error: `Failed to update entity: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json() as HierarchyEntity
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<HierarchyEntity>(response, null as unknown as HierarchyEntity)
+    if (!data || !data.id) {
+      return { success: false, error: "Invalid response from server" }
+    }
     return { success: true, data }
   } catch (error) {
     logError("updateEntity", error)
@@ -573,7 +589,11 @@ export async function moveEntity(
       return { success: false, error: `Failed to move entity: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json() as HierarchyEntity
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<HierarchyEntity>(response, null as unknown as HierarchyEntity)
+    if (!data || !data.id) {
+      return { success: false, error: "Invalid response from server" }
+    }
     return { success: true, data }
   } catch (error) {
     logError("moveEntity", error)
@@ -618,7 +638,11 @@ export async function checkCanDelete(
       return { success: false, error: `Failed to check deletion: ${extractErrorMessage(errorText)}` }
     }
 
-    const data = await response.json() as DeletionBlockedResponse
+    // NULL-001 FIX: Use safeJsonParse with null checking
+    const data = await safeJsonParse<DeletionBlockedResponse>(response, null as unknown as DeletionBlockedResponse)
+    if (!data) {
+      return { success: false, error: "Invalid response from server" }
+    }
     return { success: true, data }
   } catch (error) {
     logError("checkCanDelete", error)

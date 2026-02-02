@@ -1025,16 +1025,17 @@ async def onboard_org(
             )
 
         # STEP 2: Update subscription in Supabase with new plan limits
+        # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
         try:
             supabase = get_supabase_client()
             update_data = {
                 "subscription_plan": request.subscription_plan,
-                "daily_pipeline_limit": plan_limits["daily_limit"],
-                "monthly_pipeline_limit": plan_limits["monthly_limit"],
-                "concurrent_pipeline_limit": plan_limits["concurrent_limit"],
+                "pipelines_per_day_limit": plan_limits["daily_limit"],
+                "pipelines_per_month_limit": plan_limits["monthly_limit"],
+                "concurrent_pipelines_limit": plan_limits["concurrent_limit"],
                 "seat_limit": plan_limits["seat_limit"],
                 "providers_limit": plan_limits["providers_limit"],
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }
             supabase.table("organizations").update(update_data).eq("org_slug", org_slug).execute()
 
@@ -1333,22 +1334,23 @@ async def onboard_org(
         trial_end = date.today() + timedelta(days=14)  # 14-day trial period
 
         supabase = get_supabase_client()
+        # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
         org_data = {
             "org_slug": org_slug,
             "company_name": request.company_name,
             "admin_email": request.admin_email,
             "subscription_plan": request.subscription_plan,
             "subscription_status": "ACTIVE",
-            "daily_pipeline_limit": plan_limits["daily_limit"],
-            "monthly_pipeline_limit": plan_limits["monthly_limit"],
-            "concurrent_pipeline_limit": plan_limits["concurrent_limit"],
+            "pipelines_per_day_limit": plan_limits["daily_limit"],
+            "pipelines_per_month_limit": plan_limits["monthly_limit"],
+            "concurrent_pipelines_limit": plan_limits["concurrent_limit"],
             "seat_limit": plan_limits["seat_limit"],
             "providers_limit": plan_limits["providers_limit"],
             "trial_end_date": trial_end.isoformat(),
             "default_currency": request.default_currency,
             "default_timezone": request.default_timezone,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
         supabase.table("organizations").insert(org_data).execute()
@@ -2265,6 +2267,7 @@ async def update_subscription_limits(
 
     # ============================================
     # STEP 3: Update Supabase organizations table (subscription limits)
+    # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
     # ============================================
     try:
         supabase = get_supabase_client()
@@ -2272,12 +2275,12 @@ async def update_subscription_limits(
         # Build update data
         update_data = {
             "subscription_plan": plan_name,
-            "daily_pipeline_limit": daily_limit,
-            "monthly_pipeline_limit": monthly_limit,
-            "concurrent_pipeline_limit": concurrent_limit,
+            "pipelines_per_day_limit": daily_limit,
+            "pipelines_per_month_limit": monthly_limit,
+            "concurrent_pipelines_limit": concurrent_limit,
             "seat_limit": seat_limit,
             "providers_limit": providers_limit,
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Add status if provided
@@ -2677,9 +2680,10 @@ async def get_subscription(
 
     try:
         supabase = get_supabase_client()
+        # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
         result = supabase.table("organizations").select(
             "org_slug, stripe_subscription_id, subscription_plan, subscription_status, "
-            "daily_pipeline_limit, monthly_pipeline_limit, concurrent_pipeline_limit, "
+            "pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit, "
             "seat_limit, providers_limit, trial_end_date, created_at, updated_at"
         ).eq("org_slug", org_slug).single().execute()
 
@@ -2696,9 +2700,9 @@ async def get_subscription(
             subscription_id=row.get("stripe_subscription_id") or "",
             plan_name=row.get("subscription_plan") or "STARTER",
             status=row.get("subscription_status") or "ACTIVE",
-            daily_limit=row.get("daily_pipeline_limit") or 10,
-            monthly_limit=row.get("monthly_pipeline_limit") or 300,
-            concurrent_limit=row.get("concurrent_pipeline_limit") or 1,
+            daily_limit=row.get("pipelines_per_day_limit") or 10,
+            monthly_limit=row.get("pipelines_per_month_limit") or 300,
+            concurrent_limit=row.get("concurrent_pipelines_limit") or 1,
             seat_limit=row.get("seat_limit"),
             providers_limit=row.get("providers_limit"),
             trial_end_date=str(row["trial_end_date"]) if row.get("trial_end_date") else None,

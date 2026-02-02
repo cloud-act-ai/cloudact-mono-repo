@@ -378,8 +378,9 @@ async def get_current_org(
     org_api_key_hash = hash_api_key(api_key)
 
     # Query organizations.org_api_keys for authentication
-    # IMPORTANT: Allow both ACTIVE and TRIAL subscription statuses for auth
-    # This prevents auth failures during subscription transitions
+    # NOTE: Subscription validation is done by API service (/api/v1/validator/validate)
+    # This query only validates API key and org status, not subscription
+    # Subscription data comes from Supabase (source of truth since 2026-02-01)
     query = f"""
     SELECT
         k.org_api_key_id,
@@ -391,23 +392,21 @@ async def get_current_org(
         p.admin_email,
         p.status as org_status,
         p.org_dataset_id,
-        s.subscription_id,
-        s.plan_name,
-        s.status as subscription_status,
-        s.daily_limit as max_pipelines_per_day,
-        s.monthly_limit as max_pipelines_per_month,
-        s.concurrent_limit as max_concurrent_pipelines,
-        s.trial_end_date,
-        s.subscription_end_date
+        -- Default subscription values (actual limits validated by API service)
+        'default' as subscription_id,
+        'STARTER' as plan_name,
+        'ACTIVE' as subscription_status,
+        6 as max_pipelines_per_day,
+        180 as max_pipelines_per_month,
+        2 as max_concurrent_pipelines,
+        NULL as trial_end_date,
+        NULL as subscription_end_date
     FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
     INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
         ON k.org_slug = p.org_slug
-    INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-        ON p.org_slug = s.org_slug
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND s.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 
@@ -461,7 +460,7 @@ async def get_current_org(
         row = results[0]
 
         # Check if API key has expired
-        if row.get("expires_at") and isinstance(row.get("expires_at"), datetime) and row["expires_at"] < datetime.utcnow():
+        if row.get("expires_at") and isinstance(row.get("expires_at"), datetime) and row["expires_at"] < datetime.now(timezone.utc):
             logger.warning(
                 f"Authentication failed - API key expired",
                 extra={
@@ -585,8 +584,8 @@ async def validate_subscription(
 
 async def validate_quota(
     org: Dict = Depends(get_current_org),
-    subscription: Dict = Depends(validate_subscription),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    _subscription: Dict = Depends(validate_subscription),  # Validates subscription, result used by Supabase RPC
+    _bq_client: BigQueryClient = Depends(get_bigquery_client)  # Kept for backward compatibility
 ) -> Dict[str, Any]:
     """
     Validate org has not exceeded daily/monthly pipeline quotas.
@@ -618,9 +617,9 @@ async def validate_quota(
     try:
         supabase = get_supabase_client()
 
-        # Get organization ID and limits from Supabase
+        # Get organization ID from Supabase (limits come from check_quota_available RPC)
         org_result = supabase.table("organizations").select(
-            "id, daily_limit, monthly_limit, concurrent_limit"
+            "id"
         ).eq("org_slug", org_slug).single().execute()
 
         if not org_result.data:
@@ -633,11 +632,9 @@ async def validate_quota(
         org_data = org_result.data
         org_id = org_data["id"]
 
-        # Use limits from Supabase organizations table (updated by Stripe webhooks)
-        # Fall back to subscription limits if Supabase doesn't have them
-        daily_limit = org_data.get("daily_limit") or subscription["max_pipelines_per_day"]
-        monthly_limit = org_data.get("monthly_limit") or subscription["max_pipelines_per_month"]
-        concurrent_limit = org_data.get("concurrent_limit") or subscription["max_concurrent_pipelines"]
+        # NOTE: Quota limits are stored in Supabase organizations table
+        # (pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit)
+        # The check_quota_available RPC function uses these limits internally
 
         # Call the check_quota_available function in Supabase
         # This function handles get_or_create for today's quota record
@@ -709,7 +706,7 @@ async def validate_quota(
 async def increment_pipeline_usage(
     org_slug: str,
     pipeline_status: str,
-    bq_client: BigQueryClient = None
+    _bq_client: Optional[BigQueryClient] = None  # Kept for backward compatibility, quota uses Supabase now
 ):
     """
     Update pipeline usage counters in Supabase.
@@ -721,7 +718,7 @@ async def increment_pipeline_usage(
     Args:
         org_slug: Organization identifier
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
-        bq_client: BigQuery client instance (ignored, kept for backward compatibility)
+        _bq_client: Deprecated, kept for backward compatibility (quota moved to Supabase)
     """
     try:
         supabase = get_supabase_client()
@@ -737,13 +734,13 @@ async def increment_pipeline_usage(
 
         if pipeline_status == "RUNNING":
             # Increment all counters using Supabase RPC function
-            result = supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
+            supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
             logger.info(f"Incremented pipeline usage for org {org_slug}: status={pipeline_status}")
 
         elif pipeline_status in ["SUCCESS", "FAILED"]:
             # Decrement concurrent and update success/failed counters
             succeeded = pipeline_status == "SUCCESS"
-            result = supabase.rpc("decrement_concurrent", {
+            supabase.rpc("decrement_concurrent", {
                 "p_org_id": org_id,
                 "p_succeeded": succeeded
             }).execute()
@@ -1027,7 +1024,8 @@ async def get_org_from_api_key(
         Dict with org_slug and org_api_key_id if found and active, None otherwise
     """
     # Query centralized organizations.org_api_keys table
-    # IMPORTANT: Allow both ACTIVE and TRIAL subscription statuses
+    # NOTE: Subscription validation is done by API service, not here
+    # Subscription status moved to Supabase (2026-02-01), BigQuery org_subscriptions deprecated
     query = f"""
     SELECT
         k.org_slug,
@@ -1035,14 +1033,12 @@ async def get_org_from_api_key(
         k.is_active,
         k.expires_at,
         p.status AS org_profile_status,
-        c.status AS org_subscription_status
+        'ACTIVE' AS org_subscription_status  -- Default, real check done by API validator
     FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
     JOIN `{settings.gcp_project_id}.organizations.org_profiles` p ON k.org_slug = p.org_slug
-    JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` c ON k.org_slug = c.org_slug
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND c.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 
@@ -1069,7 +1065,7 @@ async def get_org_from_api_key(
         row = results[0]
 
         # Check if API key has expired
-        if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
+        if row.get("expires_at") and row["expires_at"] < datetime.now(timezone.utc):
             logger.warning(f"API key expired for org: {row['org_slug']}")
             return None
 
@@ -1266,7 +1262,7 @@ async def optional_auth(
         return None
 
     try:
-        return await verify_api_key(x_api_key, bq_client)
+        return await verify_api_key(x_api_key=x_api_key, x_user_id=None, bq_client=bq_client)
     except HTTPException:
         return None
 

@@ -43,19 +43,19 @@ if [[ -z "$ENV" ]] || [[ -z "$JOB_NAME" ]]; then
     echo "Available jobs:"
     echo ""
     echo "  MANUAL (Run before/after releases):"
-    echo "    manual-supabase-migrate  - Run Supabase migrations (BEFORE frontend)"
-    echo "    manual-bootstrap         - Initial system bootstrap (one-time)"
-    echo "    manual-bootstrap-sync    - Sync bootstrap schema (AFTER API deploy)"
-    echo "    manual-org-sync-all      - Sync all org datasets (AFTER bootstrap-sync)"
+    echo "    migrate              - Run Supabase migrations (BEFORE frontend)"
+    echo "    bootstrap            - Smart bootstrap (fresh if new, sync if exists)"
+    echo "    org-sync-all         - Sync all org datasets (AFTER bootstrap)"
     echo ""
     echo "  SCHEDULED (auto-run, can also run manually):"
-    echo "    15min-stale-cleanup         - Fix stuck concurrent counters (every 15 min)"
-    echo "    daily-quota-reset           - Reset daily quotas (00:00 UTC)"
-    echo "    daily-quota-cleanup         - Delete old quota records (01:00 UTC)"
-    echo "    monthly-quota-reset         - Reset monthly quotas (1st of month)"
+    echo "    stale-cleanup        - Fix stuck concurrent counters (02:00 UTC, safety net)"
+    echo "    quota-reset          - Reset daily quotas (00:00 UTC)"
+    echo "    quota-cleanup        - Delete old quota records (01:00 UTC)"
+    echo "    alerts               - Process cost alerts (08:00 UTC)"
+    echo "    quota-monthly        - Reset monthly quotas (1st of month)"
     echo ""
     echo "  SHORTCUTS (legacy names still work):"
-    echo "    bootstrap, org-sync-all, stale-cleanup, quota-reset, etc."
+    echo "    bootstrap-sync → bootstrap (now smart auto-detect)"
     echo ""
     echo "  NOTE: Billing sync jobs removed (consolidated to Supabase)"
     exit 1
@@ -84,24 +84,25 @@ case "$JOB_NAME" in
     supabase-migrate|migrate)
         FULL_JOB_NAME="cloudact-manual-supabase-migrate"
         ;;
-    bootstrap)
+    bootstrap|bootstrap-smart|bootstrap-sync)
+        # Smart bootstrap: auto-detects fresh vs sync
         FULL_JOB_NAME="cloudact-manual-bootstrap"
-        ;;
-    bootstrap-sync)
-        FULL_JOB_NAME="cloudact-manual-bootstrap-sync"
         ;;
     org-sync-all|org-sync)
         FULL_JOB_NAME="cloudact-manual-org-sync-all"
         ;;
     # Shortcuts for scheduled jobs
     stale-cleanup|stale)
-        FULL_JOB_NAME="cloudact-15min-stale-cleanup"
+        FULL_JOB_NAME="cloudact-daily-stale-cleanup"
         ;;
     quota-reset-daily|quota-reset|quota-daily)
         FULL_JOB_NAME="cloudact-daily-quota-reset"
         ;;
     quota-cleanup)
         FULL_JOB_NAME="cloudact-daily-quota-cleanup"
+        ;;
+    alerts|daily-alerts)
+        FULL_JOB_NAME="cloudact-daily-alerts"
         ;;
     quota-reset-monthly|quota-monthly)
         FULL_JOB_NAME="cloudact-monthly-quota-reset"

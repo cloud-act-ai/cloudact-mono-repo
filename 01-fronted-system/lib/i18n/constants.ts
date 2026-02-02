@@ -342,30 +342,38 @@ export function getTimezoneInfo(value: string): TimezoneInfo | undefined {
 
 /**
  * Check if currency code is valid
+ * NULL-001 FIX: Check for null/undefined before includes()
  */
-export function isValidCurrency(code: string): boolean {
-  return CURRENCY_CODES.includes(code)
+export function isValidCurrency(code: string | null | undefined): boolean {
+  if (!code || typeof code !== "string") return false
+  return CURRENCY_CODES.includes(code.toUpperCase())
 }
 
 /**
  * Check if timezone is valid
+ * NULL-001 FIX: Check for null/undefined before includes()
  */
-export function isValidTimezone(value: string): boolean {
+export function isValidTimezone(value: string | null | undefined): boolean {
+  if (!value || typeof value !== "string") return false
   return TIMEZONE_VALUES.includes(value)
 }
 
 /**
  * Check if country code is valid
+ * NULL-001 FIX: Check for null/undefined before includes()
  */
-export function isValidCountry(code: string): boolean {
-  return COUNTRY_CODES.includes(code)
+export function isValidCountry(code: string | null | undefined): boolean {
+  if (!code || typeof code !== "string") return false
+  return COUNTRY_CODES.includes(code.toUpperCase())
 }
 
 /**
  * Check if language code is valid
+ * NULL-001 FIX: Check for null/undefined before includes()
  */
-export function isValidLanguage(code: string): boolean {
-  return LANGUAGE_CODES.includes(code)
+export function isValidLanguage(code: string | null | undefined): boolean {
+  if (!code || typeof code !== "string") return false
+  return LANGUAGE_CODES.includes(code.toLowerCase())
 }
 
 /**

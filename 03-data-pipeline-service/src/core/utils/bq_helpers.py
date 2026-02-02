@@ -14,7 +14,7 @@ import hashlib
 import io
 import json
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 
@@ -157,7 +157,7 @@ def create_dlq_record(
         error_message=str(error)[:1000],  # Truncate long error messages
         error_type=type(error).__name__,
         raw_data=json.dumps(row, default=str)[:10000],  # Truncate large payloads
-        failed_at=datetime.utcnow().isoformat() + "Z",
+        failed_at=datetime.now(timezone.utc).isoformat() + "Z",
         pipeline_id=pipeline_id,
         step_id=step_id,
         retry_count=0

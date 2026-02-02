@@ -339,7 +339,7 @@
     "name": "ServiceCategory",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Highest-level classification based on core function. Values: 'Compute', 'Storage', 'Database', 'Networking', 'AI/ML', 'SaaS', 'Support', 'Other'."
+    "description": "Highest-level classification. API normalizes to: 'genai', 'cloud', 'subscription', 'other'. Raw values (Compute, Storage, AI/ML, etc.) are preserved in BigQuery but normalized for API responses."
   },
   {
     "name": "ServiceName",

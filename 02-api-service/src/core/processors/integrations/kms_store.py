@@ -17,7 +17,7 @@ import logging
 import re
 import uuid
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, Callable, TypeVar
 from google.cloud import bigquery
 
@@ -358,7 +358,7 @@ class KMSStoreIntegrationProcessor:
                 )
                 if connectivity_result["valid"]:
                     validation_status = "VALID"
-                    last_validated_at = datetime.utcnow()
+                    last_validated_at = datetime.now(timezone.utc)
                 else:
                     validation_status = "INVALID"
                     validation_error = connectivity_result.get("error", "Validation failed")
@@ -419,7 +419,7 @@ class KMSStoreIntegrationProcessor:
             # BUG-028 FIX: Mark existing credential for deactivation with grace period
             # Instead of immediate deactivation, set deactivation_date to allow grace period
             # This prevents disruption during credential rotation
-            deactivation_date = datetime.utcnow() + timedelta(hours=CREDENTIAL_ROTATION_GRACE_HOURS)
+            deactivation_date = datetime.now(timezone.utc) + timedelta(hours=CREDENTIAL_ROTATION_GRACE_HOURS)
 
             deactivate_query = f"""
             UPDATE `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
@@ -460,7 +460,7 @@ class KMSStoreIntegrationProcessor:
 
             # SECURITY FIX #6: Calculate expiration date
             expiration_days = config.get("expiration_days", DEFAULT_CREDENTIAL_EXPIRATION_DAYS)
-            expires_at = datetime.utcnow() + timedelta(days=expiration_days)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=expiration_days)
 
             insert_query = f"""
             INSERT INTO `{self.settings.gcp_project_id}.organizations.org_integration_credentials`

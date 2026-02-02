@@ -9,7 +9,7 @@ URL Structure: /api/v1/integrations/{org_slug}/{provider}/pricing|subscriptions
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import logging
 import re
@@ -307,7 +307,7 @@ async def create_pricing(
     try:
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Check if exists for this provider
         check_query = f"SELECT COUNT(*) as cnt FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider"
@@ -983,7 +983,7 @@ async def create_subscription(
     try:
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Check if exists for this provider
         check_query = f"SELECT COUNT(*) as cnt FROM `{table_id}` WHERE subscription_id = @subscription_id AND provider = @provider"

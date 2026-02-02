@@ -16,7 +16,7 @@ Security Enhancements:
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import logging
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
@@ -131,14 +131,15 @@ async def get_quota(
     logger.info(f"Getting quota information for organization: {org_slug}")
 
     # Get current UTC date for quota lookup
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
 
     try:
         # STEP 1: Get subscription limits from Supabase organizations table
+        # NOTE: Column names match Stripe webhook updates (2026-02-01 consolidation)
         supabase = get_supabase_client()
         org_result = supabase.table("organizations").select(
-            "daily_pipeline_limit, monthly_pipeline_limit, concurrent_pipeline_limit, "
-            "seat_limit, providers_limit, subscription_plan"
+            "pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit, "
+            "seat_limit, providers_limit, plan"
         ).eq("org_slug", org_slug).single().execute()
 
         if not org_result.data:
@@ -151,9 +152,10 @@ async def get_quota(
         org_data = org_result.data
 
         # Extract limits from Supabase (with defaults)
-        daily_limit = org_data.get("daily_pipeline_limit") or _DEFAULT_LIMITS["daily_limit"]
-        monthly_limit = org_data.get("monthly_pipeline_limit") or _DEFAULT_LIMITS["monthly_limit"]
-        concurrent_limit = org_data.get("concurrent_pipeline_limit") or _DEFAULT_LIMITS["concurrent_limit"]
+        # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
+        daily_limit = org_data.get("pipelines_per_day_limit") or _DEFAULT_LIMITS["daily_limit"]
+        monthly_limit = org_data.get("pipelines_per_month_limit") or _DEFAULT_LIMITS["monthly_limit"]
+        concurrent_limit = org_data.get("concurrent_pipelines_limit") or _DEFAULT_LIMITS["concurrent_limit"]
         seat_limit = org_data.get("seat_limit") or _DEFAULT_LIMITS["seat_limit"]
         providers_limit = org_data.get("providers_limit") or _DEFAULT_LIMITS["providers_limit"]
 

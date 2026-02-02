@@ -5,7 +5,7 @@ Validates organization configuration and infrastructure before actual onboarding
 import logging
 import hashlib
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -38,7 +38,7 @@ class OrgDryRunProcessor:
             "passed": passed,
             "message": message,
             "details": details or {},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         if passed:

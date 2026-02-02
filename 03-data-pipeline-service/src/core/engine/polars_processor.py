@@ -7,7 +7,7 @@ import polars as pl
 from typing import Dict, Any, List, Optional, Iterator
 from pathlib import Path
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import json
 
 from google.cloud import bigquery
@@ -215,12 +215,12 @@ class PolarsProcessor:
         Returns:
             DataFrame with metadata columns added
         """
-        ingestion_date = ingestion_date or datetime.utcnow().date()
+        ingestion_date = ingestion_date or datetime.now(timezone.utc).date()
 
         df = df.with_columns([
             pl.lit(pipeline_logging_id).alias("pipeline_logging_id"),
             pl.lit(ingestion_date).alias("ingestion_date"),
-            pl.lit(datetime.utcnow()).alias("ingestion_timestamp"),
+            pl.lit(datetime.now(timezone.utc)).alias("ingestion_timestamp"),
         ])
 
         logger.debug(

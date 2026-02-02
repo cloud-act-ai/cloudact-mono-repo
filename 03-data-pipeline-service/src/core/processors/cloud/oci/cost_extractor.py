@@ -9,7 +9,7 @@ ps_type: cloud.oci.cost_extractor
 
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from src.core.processors.cloud.oci.authenticator import OCIAuthenticator
@@ -98,7 +98,7 @@ class OCICostExtractor:
             pipeline_id = context.get("pipeline_id", "cloud_cost_oci")
             credential_id = context.get("credential_id", "")
             pipeline_run_date = date_filter or start_date.strftime("%Y-%m-%d")
-            ingested_at = datetime.utcnow().isoformat()
+            ingested_at = datetime.now(timezone.utc).isoformat()
 
             # Query Usage API
             rows = await self._query_costs(
@@ -170,7 +170,7 @@ class OCICostExtractor:
 
             # Transform to rows with full schema mapping
             rows = []
-            ingestion_ts = datetime.utcnow().isoformat()
+            ingestion_ts = datetime.now(timezone.utc).isoformat()
 
             for item in response.data.items:
                 row = {

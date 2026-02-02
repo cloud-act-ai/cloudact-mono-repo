@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
 """
-Daily Quota Reset Job
-=====================
-Resets daily pipeline counters at midnight UTC.
+Stale Concurrent Cleanup Job (Daily Safety Net)
+================================================
+Fixes stuck concurrent pipeline counters across ALL organizations.
 
-Calls the API service's /api/v1/admin/quota/reset-daily endpoint which:
-1. Gets active orgs from BigQuery org_profiles
-2. Fetches subscription limits from Supabase (source of truth for billing)
-3. Creates new usage quota records in BigQuery for today
-4. Carries over monthly usage from yesterday
+This job serves as a DAILY SAFETY NET. Most stale counters are now fixed
+automatically via self-healing in the quota reservation flow:
+- When an org requests a pipeline, stale counters for THAT org are cleaned up
+- This eliminates the need for frequent (every 15 min) scheduled cleanup
 
-Run at 00:00 UTC daily.
+This daily job catches edge cases:
+- Orgs that haven't run pipelines recently but have stale counters
+- Any counters that slipped through self-healing
+
+Calls the API service's /api/v1/admin/quota/cleanup-stale endpoint which:
+1. Finds pipelines stuck in RUNNING state for too long (all orgs)
+2. Resets the concurrent_pipelines_running counters
+3. Marks stale RUNNING pipelines as FAILED
+
+Schedule: Daily at 02:00 UTC (after quota reset at 00:00 UTC)
 
 Usage:
-    python jobs/daily/quota_reset_daily.py
+    python jobs/daily/stale_cleanup.py
 
 Environment:
     GCP_PROJECT_ID: GCP Project ID
@@ -45,7 +53,7 @@ def get_api_service_url(project_id: str) -> str:
 
 async def main():
     print("=" * 60)
-    print("CloudAct Daily Quota Reset Job")
+    print("CloudAct Stale Concurrent Cleanup Job")
     print("=" * 60)
 
     project_id = os.environ.get("GCP_PROJECT_ID")
@@ -59,7 +67,7 @@ async def main():
         sys.exit(1)
 
     api_url = get_api_service_url(project_id)
-    endpoint = f"{api_url}/api/v1/admin/quota/reset-daily"
+    endpoint = f"{api_url}/api/v1/admin/quota/cleanup-stale"
 
     print(f"Project:   {project_id}")
     print(f"API URL:   {api_url}")
@@ -67,7 +75,7 @@ async def main():
     print()
 
     try:
-        print("Calling API to reset daily quotas...")
+        print("Calling API to cleanup stale concurrent counters...")
         print(f"Endpoint: POST {endpoint}")
         print()
 
@@ -82,10 +90,9 @@ async def main():
 
             if response.status_code == 200:
                 result = response.json()
-                print("✓ Daily quota reset complete")
+                print("✓ Stale cleanup complete")
                 print(f"  Orgs processed: {result.get('orgs_processed', 0)}")
-                print(f"  Orgs created:   {result.get('orgs_created', 0)}")
-                print(f"  Orgs skipped:   {result.get('orgs_skipped', 0)}")
+                print(f"  Orgs fixed:     {result.get('orgs_created', 0)}")
                 print(f"  Message:        {result.get('message', '')}")
             else:
                 print(f"✗ API call failed with status {response.status_code}")
@@ -98,7 +105,7 @@ async def main():
         print("✗ API call timed out after 300 seconds")
         sys.exit(1)
     except Exception as e:
-        print(f"✗ Daily quota reset failed: {e}")
+        print(f"✗ Stale cleanup failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

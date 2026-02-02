@@ -195,10 +195,22 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     // Remove any trailing slashes or extra spaces
     origin = origin.trim().replace(/\/+$/, "")
 
+    // VAL-001b FIX: Validate origin is a valid URL to prevent XSS via redirect
+    try {
+      const parsedUrl = new URL(origin)
+      // Only allow http/https protocols
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return { url: null, error: "Invalid application URL protocol" }
+      }
+    } catch {
+      return { url: null, error: "Invalid application URL format" }
+    }
+
     // FIX IDEM-002: Include company name hash in idempotency key
     // This prevents duplicate sessions for same user+plan but allows retry with different company
     // Using simple hash function to keep key length reasonable
-    const companyHash = orgSlug.split('_')[0].slice(0, 8)
+    // IDEM-002 FIX: Use full orgSlug hash to prevent collisions
+    const companyHash = Array.from(orgSlug).reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0).toString(36).replace('-', 'n')
     const idempotencyKey = `onboarding_${user.id}_${priceId}_${companyHash}`
 
     // Fetch price details to check for specific trial period
@@ -348,6 +360,17 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
 
     // Remove any trailing slashes or extra spaces
     origin = origin.trim().replace(/\/+$/, "")
+
+    // VAL-001b FIX: Validate origin is a valid URL to prevent XSS via redirect
+    try {
+      const parsedUrl = new URL(origin)
+      // Only allow http/https protocols
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return { url: null, error: "Invalid application URL protocol" }
+      }
+    } catch {
+      return { url: null, error: "Invalid application URL format" }
+    }
 
     // Generate idempotency key to prevent duplicate sessions
     const idempotencyKey = `checkout_${org.id}_${priceId}`
@@ -500,7 +523,11 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
 
     if (subscription) {
       try {
-        const priceItem = subscription.items.data[0]?.price
+        // NULL-001 FIX: Validate subscription items array before accessing
+        if (!subscription.items?.data?.length) {
+          console.warn("[getBillingInfo] Subscription has no items, using org defaults")
+        }
+        const priceItem = subscription.items?.data?.[0]?.price
         const product = priceItem?.product
 
         // priceItem may be null - use org defaults in that case
@@ -544,14 +571,21 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
         }
 
         // Get payment method from subscription
+        // VAL-001 FIX: Validate payment method card data is complete
         if (subscription.default_payment_method && typeof subscription.default_payment_method === "object") {
           const pm = subscription.default_payment_method
           if (pm.card) {
-            billingInfo.paymentMethod = {
-              brand: pm.card.brand || "unknown",
-              last4: pm.card.last4 || "****",
-              expMonth: pm.card.exp_month || 0,
-              expYear: pm.card.exp_year || 0,
+            // Only include payment method if we have minimum valid data
+            const hasValidCardData = pm.card.brand && pm.card.last4 && pm.card.exp_month && pm.card.exp_year
+            if (hasValidCardData) {
+              billingInfo.paymentMethod = {
+                brand: pm.card.brand,
+                last4: pm.card.last4,
+                expMonth: pm.card.exp_month,
+                expYear: pm.card.exp_year,
+              }
+            } else {
+              console.warn("[getBillingInfo] Incomplete card data from Stripe, skipping payment method display")
             }
           }
         }
@@ -874,7 +908,15 @@ export async function changeSubscriptionPlan(
     // Get limits from Stripe product metadata
     const metadata = isValidProduct ? (product as Stripe.Product).metadata || {} : {}
 
-    if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay || !metadata.concurrentPipelines) {
+    // ERR-001b FIX: Log which metadata fields are missing for easier debugging
+    const missingFields: string[] = []
+    if (!metadata.teamMembers) missingFields.push("teamMembers")
+    if (!metadata.providers) missingFields.push("providers")
+    if (!metadata.pipelinesPerDay) missingFields.push("pipelinesPerDay")
+    if (!metadata.concurrentPipelines) missingFields.push("concurrentPipelines")
+
+    if (missingFields.length > 0) {
+      console.error(`[changeSubscriptionPlan] Missing Stripe product metadata: ${missingFields.join(", ")}. Product: ${isValidProduct ? (product as Stripe.Product).id : "unknown"}`)
       return { success: false, subscription: null, error: "Plan configuration error. Please contact support." }
     }
 
@@ -1120,16 +1162,18 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
 }
 
 /**
- * Re-sync billing data from Stripe to Supabase and Backend
+ * Re-sync billing data from Stripe to Supabase
  *
  * This function performs a manual hard refresh of billing data:
  * 1. Fetches latest subscription from Stripe (source of truth)
- * 2. Updates Supabase organization record
- * 3. Syncs subscription limits to BigQuery backend
+ * 2. Updates Supabase organization record with plan limits
+ *
+ * Note: Quotas consolidated to Supabase (2026-02-01) - no BigQuery sync needed.
+ * Backend reads limits from Supabase via API.
  *
  * Use cases:
  * - Webhook missed or delayed
- * - Manual reconciliation after backend changes
+ * - Manual reconciliation
  * - User reports billing data is out of sync
  *
  * SECURITY: Only owners can trigger re-sync

@@ -1,7 +1,6 @@
 {
-  "version": "v4.1.9",
-  "release": "v4.1.9",
-  "release_timestamp": "2026-01-29T15:45:00-08:00",
-  "build_number": "auto",
-  "git_sha": "auto"
+  "version": "v4.3.0",
+  "release": "v4.3.0",
+  "release_timestamp": "2026-02-02T12:00:00Z",
+  "changelog": "Category naming standardization - consistent lowercase categories across procedures, API, and frontend"
 }

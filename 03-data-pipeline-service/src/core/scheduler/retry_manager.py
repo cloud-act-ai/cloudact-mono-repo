@@ -7,7 +7,7 @@ Implements configurable retry strategies with backoff and error filtering.
 
 import asyncio
 from typing import Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
 from tenacity import (
@@ -149,7 +149,7 @@ class RetryManager:
         # Cap at 60 minutes
         delay_minutes = min(delay_minutes, 60)
 
-        retry_time = datetime.utcnow() + timedelta(minutes=delay_minutes)
+        retry_time = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
 
         logger.debug(
             f"Calculated retry time: {retry_time.isoformat()}",
@@ -190,7 +190,7 @@ class RetryManager:
             query_parameters=[
                 bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
                 bigquery.ScalarQueryParameter("retry_time", "TIMESTAMP", retry_time),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow())
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc))
             ]
         )
 

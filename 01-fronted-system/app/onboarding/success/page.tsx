@@ -144,28 +144,33 @@ function SuccessContent() {
       }
 
       // Send welcome email (non-blocking - don't fail if email fails)
-      try {
-        const userMetadata = user.user_metadata || {}
-        const firstName = userMetadata.first_name || userMetadata.name || "there"
-        const userName = userMetadata.last_name
-          ? `${firstName} ${userMetadata.last_name}`
-          : firstName
+      // NULL-001 FIX: Validate user.email before sending
+      if (user?.email) {
+        try {
+          const userMetadata = user.user_metadata || {}
+          const firstName = userMetadata.first_name || userMetadata.name || "there"
+          const userName = userMetadata.last_name
+            ? `${firstName} ${userMetadata.last_name}`
+            : firstName
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-        const dashboardLink = `${appUrl}/${result.orgSlug}/integrations`
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+          const dashboardLink = `${appUrl}/${result.orgSlug}/integrations`
 
-        // Get org name from user metadata (pending_company_name) or fallback
-        const orgName = userMetadata.pending_company_name || result.orgSlug || "your organization"
+          // Get org name from user metadata (pending_company_name) or fallback
+          const orgName = userMetadata.pending_company_name || result.orgSlug || "your organization"
 
-        await sendWelcomeEmailAction({
-          to: user.email!,
-          name: userName,
-          orgName: orgName,
-          dashboardLink: dashboardLink,
-        })
-      } catch (emailError) {
-        // Non-critical - don't fail onboarding if email fails
-        console.warn("[Onboarding Success] Failed to send welcome email:", emailError)
+          await sendWelcomeEmailAction({
+            to: user.email,
+            name: userName,
+            orgName: orgName,
+            dashboardLink: dashboardLink,
+          })
+        } catch (emailError) {
+          // Non-critical - don't fail onboarding if email fails
+          console.warn("[Onboarding Success] Failed to send welcome email:", emailError)
+        }
+      } else {
+        console.warn("[Onboarding Success] User email not available, skipping welcome email")
       }
 
       // Show success toast

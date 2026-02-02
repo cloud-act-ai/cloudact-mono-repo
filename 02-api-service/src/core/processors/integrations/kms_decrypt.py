@@ -17,7 +17,7 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Callable, TypeVar
 from google.cloud import bigquery
 
@@ -164,7 +164,7 @@ class CredentialDecryptionAuditLogger:
             bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 
             audit_id = str(uuid.uuid4())
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
 
             # Build audit log entry
             audit_entry = {

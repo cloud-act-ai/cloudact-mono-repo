@@ -9,7 +9,7 @@ to prevent race conditions in distributed systems.
 import uuid
 import asyncio
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.cloud import bigquery
 from tenacity import (
@@ -94,8 +94,8 @@ class QueueManager:
             "config": config,
             "priority": priority,
             "status": QueueStatus.QUEUED.value,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
             "worker_id": None,
             "error_message": None
         }
@@ -160,7 +160,7 @@ class QueueManager:
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("worker_id", "STRING", worker_id),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow())
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc))
             ]
         )
 
@@ -231,7 +231,7 @@ class QueueManager:
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("queue_id", "STRING", queue_id),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow())
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc))
             ]
         )
 
@@ -272,7 +272,7 @@ class QueueManager:
             query_parameters=[
                 bigquery.ScalarQueryParameter("queue_id", "STRING", queue_id),
                 bigquery.ScalarQueryParameter("error", "STRING", error),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.utcnow())
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now(timezone.utc))
             ]
         )
 

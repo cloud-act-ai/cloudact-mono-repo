@@ -17,7 +17,7 @@ Security:
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query, Path as FastAPIPath
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any, Literal
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from enum import Enum
 import re
 import html
@@ -1079,7 +1079,7 @@ async def add_custom_pricing(
 
     # SECURITY FIX: Issue #2 - Safe dataset construction
     dataset = get_safe_dataset_name(org_slug)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     effective_date = pricing.effective_from or date.today()
 
     # Issue 28: Get audit info
@@ -1917,7 +1917,7 @@ async def seed_default_pricing(
     dataset = get_safe_dataset_name(org_slug)
     flows_to_seed = [flow] if flow else list(GenAIFlow)
     results: Dict[str, SeedResultItem] = {}
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Locate pricing data directory
     # Issue #9 Fix: Use environment variable or relative paths (no hardcoded absolute paths)

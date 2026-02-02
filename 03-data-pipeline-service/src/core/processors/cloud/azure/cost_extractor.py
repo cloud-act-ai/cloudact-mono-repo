@@ -9,7 +9,7 @@ ps_type: cloud.azure.cost_extractor
 
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 import httpx
@@ -101,7 +101,7 @@ class AzureCostExtractor:
             pipeline_id = context.get("pipeline_id", "cloud_cost_azure")
             credential_id = context.get("credential_id", "")
             pipeline_run_date = date_filter or start_date.strftime("%Y-%m-%d")
-            ingested_at = datetime.utcnow().isoformat()
+            ingested_at = datetime.now(timezone.utc).isoformat()
 
             # Query Cost Management API
             rows = await self._query_costs(
@@ -206,7 +206,7 @@ class AzureCostExtractor:
 
         # Get column names from response
         columns = [col["name"] for col in data.get("properties", {}).get("columns", [])]
-        ingestion_ts = datetime.utcnow().isoformat()
+        ingestion_ts = datetime.now(timezone.utc).isoformat()
 
         # Transform response to rows with proper schema mapping
         rows = []

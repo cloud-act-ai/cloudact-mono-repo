@@ -9,7 +9,7 @@ ps_type: cloud.aws.cur_extractor
 
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import io
 import uuid
 
@@ -121,7 +121,7 @@ class AWSCURExtractor:
             pipeline_id = context.get("pipeline_id", "cloud_cost_aws")
             credential_id = context.get("credential_id", "")
             pipeline_run_date = date_filter or date.today().isoformat()
-            ingested_at = datetime.utcnow().isoformat()
+            ingested_at = datetime.now(timezone.utc).isoformat()
 
             # Extract data from files
             rows = []
@@ -224,7 +224,7 @@ class AWSCURExtractor:
         - lineItem/UnblendedCost -> unblended_cost
         - product/productName -> product_name
         """
-        ingestion_ts = datetime.utcnow().isoformat()
+        ingestion_ts = datetime.now(timezone.utc).isoformat()
 
         # AWS CUR column name mapping (both Parquet and CSV formats)
         # Parquet uses underscores, CSV uses slashes

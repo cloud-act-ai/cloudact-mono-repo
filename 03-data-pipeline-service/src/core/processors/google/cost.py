@@ -9,7 +9,7 @@ Usage in pipeline:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from google.cloud import bigquery
 
@@ -274,7 +274,7 @@ class CostProcessor:
                 "total_cost_usd": round(total_cost, 6),
                 "requests": usage.get("requests", 0),
                 "pricing_source": "ref_model_pricing",
-                "calculated_at": datetime.utcnow().isoformat()
+                "calculated_at": datetime.now(timezone.utc).isoformat()
             })
 
         return cost_records, unknown_models

@@ -37,7 +37,7 @@ Usage Example:
             step_logging_id = generate_logging_id()
 
             # Log pipeline start
-            pipeline_start = datetime.utcnow()
+            pipeline_start = datetime.now(timezone.utc)
             await logger.log_pipeline_start(
                 pipeline_logging_id=pipeline_logging_id,
                 pipeline_id="data_ingestion_v1",
@@ -47,7 +47,7 @@ Usage Example:
             )
 
             # Log step start
-            step_start = datetime.utcnow()
+            step_start = datetime.now(timezone.utc)
             await logger.log_step_start(
                 step_logging_id=step_logging_id,
                 pipeline_logging_id=pipeline_logging_id,
@@ -104,7 +104,7 @@ import uuid
 import socket
 import subprocess
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from google.cloud import bigquery
@@ -187,7 +187,7 @@ class CircuitBreaker:
     def record_failure(self):
         """Record a failed operation."""
         self.failure_count += 1
-        self.last_failure_time = datetime.utcnow()
+        self.last_failure_time = datetime.now(timezone.utc)
 
         if self.failure_count >= self.failure_threshold:
             self.is_open = True
@@ -208,7 +208,7 @@ class CircuitBreaker:
 
         # Check if timeout has elapsed
         if self.last_failure_time:
-            elapsed = (datetime.utcnow() - self.last_failure_time).total_seconds()
+            elapsed = (datetime.now(timezone.utc) - self.last_failure_time).total_seconds()
             if elapsed >= self.timeout_seconds:
                 logger.info(
                     "Circuit breaker attempting to close after timeout",
@@ -432,7 +432,7 @@ class MetadataLogger:
             parameters_serialized = _serialize_datetime_values(parameters) if parameters else None
             parameters_json_str = json.dumps(parameters_serialized) if parameters_serialized is not None else None
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             log_entry = {
                 "insertId": f"{pipeline_logging_id}_start",  # Idempotency
                 "json": {
@@ -520,7 +520,7 @@ class MetadataLogger:
             parameters: Pipeline parameters (kept as dict for BigQuery JSON type)
         """
         try:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Serialize datetime values in parameters dict then convert to JSON string
@@ -736,7 +736,7 @@ class MetadataLogger:
             metadata_serialized = _serialize_datetime_values(metadata) if metadata else None
             metadata_json_str = json.dumps(metadata_serialized) if metadata_serialized is not None else None
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             log_entry = {
                 "insertId": f"{step_logging_id}_start",  # Idempotency
                 "json": {
@@ -836,7 +836,7 @@ class MetadataLogger:
                 - stack_trace_truncated: First 2000 chars
         """
         try:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Build error_context JSON for separate column (BigQuery best practice)
@@ -969,7 +969,7 @@ class MetadataLogger:
         """
         try:
             transition_id = str(uuid.uuid4())
-            transition_time = datetime.utcnow()
+            transition_time = datetime.now(timezone.utc)
 
             # Serialize metadata if provided
             metadata_serialized = _serialize_datetime_values(metadata) if metadata else None

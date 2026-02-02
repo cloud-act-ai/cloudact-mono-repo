@@ -111,7 +111,7 @@ export default function PricingPage() {
             Simple, <span className="font-semibold">Transparent</span> Pricing
           </h1>
           <p className="ca-page-hero-subtitle">
-            <span <strong>>Start optimizing your cloud costs today.</span>{" "}
+            <span className="font-semibold">Start optimizing your cloud costs today.</span>{" "}
             14-day free trial on all plans. No credit card required.
           </p>
 
@@ -320,7 +320,7 @@ export default function PricingPage() {
             Frequently Asked <span className="font-semibold">Questions</span>
           </h2>
           <p className="ca-section-subtitle">
-            <span <strong>>Everything you need to know</span>{" "}
+            <span className="font-semibold">Everything you need to know</span>{" "}
             about our pricing and plans
           </p>
         </div>
@@ -376,7 +376,7 @@ export default function PricingPage() {
           </h2>
           <p className="ca-final-cta-subtitle">
             Join teams{" "}
-            <span <strong>>already saving with CloudAct.ai</span>.
+            <span className="font-semibold">already saving with CloudAct.ai</span>.
             Get started in minutes with our 14-day free trial.
           </p>
           <div className="ca-final-cta-buttons">

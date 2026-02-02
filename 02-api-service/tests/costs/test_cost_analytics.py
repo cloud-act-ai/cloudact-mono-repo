@@ -268,8 +268,8 @@ class TestGetCostsEndpoint:
         mock_cost_service.get_costs = AsyncMock(return_value=MagicMock(
             success=True,
             data=[
-                {"Provider": "openai", "BilledCost": 150.50, "ServiceCategory": "LLM"},
-                {"Provider": "anthropic", "BilledCost": 75.25, "ServiceCategory": "LLM"},
+                {"Provider": "openai", "BilledCost": 150.50, "ServiceCategory": "genai"},
+                {"Provider": "anthropic", "BilledCost": 75.25, "ServiceCategory": "genai"},
             ],
             summary={"total_cost": 225.75},
             pagination={"limit": 1000, "offset": 0, "total": 2},
@@ -428,8 +428,8 @@ class TestGetCostByServiceEndpoint:
         mock_cost_service.get_cost_by_service = AsyncMock(return_value=MagicMock(
             success=True,
             data=[
-                {"ServiceCategory": "LLM", "ServiceName": "GPT-4", "TotalCost": 3000.0},
-                {"ServiceCategory": "SaaS", "ServiceName": "Slack", "TotalCost": 500.0},
+                {"ServiceCategory": "genai", "ServiceName": "GPT-4", "TotalCost": 3000.0},
+                {"ServiceCategory": "subscription", "ServiceName": "Slack", "TotalCost": 500.0},
             ],
             summary=None,
             pagination=None,

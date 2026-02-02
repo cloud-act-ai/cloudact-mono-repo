@@ -10,7 +10,7 @@ Usage in pipeline:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
 from src.app.config import get_settings
@@ -39,8 +39,8 @@ class GoogleUsageProcessor:
         if not org_slug:
             return {"status": "FAILED", "error": "org_slug is required"}
             
-        start_date = config.get("start_date") or (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
-        end_date = config.get("end_date") or datetime.utcnow().strftime("%Y-%m-%d")
+        start_date = config.get("start_date") or (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        end_date = config.get("end_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         self.logger.info(
             f"Fetching Google usage for {org_slug} (Stub)",
