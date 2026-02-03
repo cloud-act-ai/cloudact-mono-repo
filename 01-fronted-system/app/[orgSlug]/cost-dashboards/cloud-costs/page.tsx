@@ -6,7 +6,7 @@ import { Cloud } from "lucide-react"
 import { getOrgSlug } from "@/lib/utils"
 
 import {
-  CostTrendChart,
+  DailyTrendChart,
   CostRingChart,
   CostBreakdownChart,
   CostDataTable,
@@ -489,21 +489,19 @@ export default function CloudCostsPage() {
 
       {/* Daily Cost Trend Chart - Bar with Moving Average Line */}
       {dailyTrendData.length > 0 && (
-        <CostTrendChart
-          title="Cloud Daily Cost Trend"
-          subtitle={`${rollingAvgLabel} overlay on daily spend`}
+        <DailyTrendChart
+          title="Cloud Cost Trend"
+          subtitle={`${rollingAvgLabel} overlay on ${timeRange === "365" || timeRange === "ytd" ? "monthly" : timeRange === "90" ? "weekly" : "daily"} spend`}
           data={dailyTrendData.map(d => ({
             date: d.date,
             label: d.label,
             value: d.value,
-            rollingAvg: d.lineValue,
           }))}
-          showBars={true}
-          showLine={true}
+          timeRange={timeRange}
           barColor="#4285F4"
           lineColor="#FF6C5E"
-          enableZoom={true}
           height={320}
+          mobileHeight={240}
           loading={isLoading}
         />
       )}

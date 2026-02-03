@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 
 import {
-  CostTrendChart,
+  DailyTrendChart,
   CostRingChart,
   CostBreakdownChart,
   CostDataTable,
@@ -450,21 +450,19 @@ export default function CostOverviewPage() {
       {/* Daily Cost Trend Chart - Full Width (75% visual weight) */}
       {dailyTrendData.length > 0 && (
         <div className="animate-fade-up animation-delay-300">
-          <CostTrendChart
-            title="Daily Cost Trend"
-            subtitle={`${rollingAvgLabel} overlay on daily spend`}
+          <DailyTrendChart
+            title="Cost Trend"
+            subtitle={`${rollingAvgLabel} overlay on ${timeRange === "365" || timeRange === "ytd" ? "monthly" : timeRange === "90" ? "weekly" : "daily"} spend`}
             data={dailyTrendData.map(d => ({
               date: d.date,
               label: d.label,
               value: d.value,
-              rollingAvg: d.lineValue,
             }))}
-            showBars={true}
-            showLine={true}
+            timeRange={timeRange}
             barColor="#90FCA6"
             lineColor="#FF6C5E"
-            enableZoom={true}
             height={360}
+            mobileHeight={280}
             loading={isLoading}
           />
         </div>
