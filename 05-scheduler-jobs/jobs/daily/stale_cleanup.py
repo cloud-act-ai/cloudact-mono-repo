@@ -13,7 +13,7 @@ This daily job catches edge cases:
 - Orgs that haven't run pipelines recently but have stale counters
 - Any counters that slipped through self-healing
 
-Calls the API service's /api/v1/admin/quota/cleanup-stale endpoint which:
+Calls the API service's /api/v1/quota/cleanup-stale endpoint which:
 1. Finds pipelines stuck in RUNNING state for too long (all orgs)
 2. Resets the concurrent_pipelines_running counters
 3. Marks stale RUNNING pipelines as FAILED
@@ -67,7 +67,7 @@ async def main():
         sys.exit(1)
 
     api_url = get_api_service_url(project_id)
-    endpoint = f"{api_url}/api/v1/admin/quota/cleanup-stale"
+    endpoint = f"{api_url}/api/v1/quota/cleanup-stale"
 
     print(f"Project:   {project_id}")
     print(f"API URL:   {api_url}")

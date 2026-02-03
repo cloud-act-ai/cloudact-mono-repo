@@ -4,7 +4,7 @@ Monthly Quota Reset Job
 =======================
 Resets monthly pipeline counters for all organizations.
 
-Calls the API service's /api/v1/admin/quota/reset-monthly endpoint which:
+Calls the API service's /api/v1/quota/reset-monthly endpoint which:
 1. Resets pipelines_run_month to 0 for all orgs with today's quota record
 2. Only runs on the 1st of the month
 
@@ -57,7 +57,7 @@ async def main():
         sys.exit(1)
 
     api_url = get_api_service_url(project_id)
-    endpoint = f"{api_url}/api/v1/admin/quota/reset-monthly"
+    endpoint = f"{api_url}/api/v1/quota/reset-monthly"
 
     now = datetime.now(timezone.utc)
     print(f"Project:   {project_id}")

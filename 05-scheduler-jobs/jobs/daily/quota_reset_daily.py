@@ -4,7 +4,7 @@ Daily Quota Reset Job
 =====================
 Resets daily pipeline counters at midnight UTC.
 
-Calls the API service's /api/v1/admin/quota/reset-daily endpoint which:
+Calls the API service's /api/v1/quota/reset-daily endpoint which:
 1. Gets active orgs from BigQuery org_profiles
 2. Fetches subscription limits from Supabase (source of truth for billing)
 3. Creates new usage quota records in BigQuery for today
@@ -59,7 +59,7 @@ async def main():
         sys.exit(1)
 
     api_url = get_api_service_url(project_id)
-    endpoint = f"{api_url}/api/v1/admin/quota/reset-daily"
+    endpoint = f"{api_url}/api/v1/quota/reset-daily"
 
     print(f"Project:   {project_id}")
     print(f"API URL:   {api_url}")
