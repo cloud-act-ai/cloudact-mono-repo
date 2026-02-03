@@ -144,6 +144,11 @@ celerybeat.pid
 .env.stage
 .env.prod
 .env.admin
+.env.test
+.env.production
+.env.local.original
+.env.local.backup
+.env*.backup
 .envrc
 .venv
 env/
@@ -156,6 +161,8 @@ venv.bak/
 credentials/
 *.json.key
 *service-account*.json
+**/test-credentials.ts
+**/verify_openai_key.py
 
 # Spyder project settings
 .spyderproject

@@ -19,7 +19,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # GitHub repository info
-GITHUB_OWNER="gc-cloudact-ai"
+GITHUB_OWNER="cloud-act-ai"
 GITHUB_REPO="cloudact-mono-repo"
 
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
