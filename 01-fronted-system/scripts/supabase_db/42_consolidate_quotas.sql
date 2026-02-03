@@ -454,13 +454,5 @@ BEGIN
   END IF;
 END $$;
 
--- =============================================
--- Register migration
--- =============================================
-INSERT INTO schema_migrations (version, name, executed_at)
-VALUES (
-  42,
-  '42_consolidate_quotas',
-  NOW()
-)
-ON CONFLICT (version) DO NOTHING;
+-- Migration tracking is handled by the migration job
+-- (removed self-registration to avoid schema mismatch)
