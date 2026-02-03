@@ -159,6 +159,7 @@ venv.bak/
 
 # Credentials (NEVER commit)
 credentials/
+secrets/
 *.json.key
 *service-account*.json
 **/test-credentials.ts
