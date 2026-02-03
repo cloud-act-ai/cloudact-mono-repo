@@ -84,9 +84,9 @@ COMMENT ON COLUMN org_quotas.last_pipeline_at IS 'Timestamp of last pipeline exe
 CREATE INDEX IF NOT EXISTS idx_org_quotas_org_date
   ON org_quotas(org_id, usage_date DESC);
 
--- Index for monthly aggregation queries
-CREATE INDEX IF NOT EXISTS idx_org_quotas_org_month
-  ON org_quotas(org_id, date_trunc('month', usage_date));
+-- Note: No functional index for monthly aggregation
+-- date_trunc() is STABLE, not IMMUTABLE, so can't be used in index
+-- Monthly queries will use the org_id + date range from idx_org_quotas_org_date
 
 -- Index for cleanup of old records
 CREATE INDEX IF NOT EXISTS idx_org_quotas_date
