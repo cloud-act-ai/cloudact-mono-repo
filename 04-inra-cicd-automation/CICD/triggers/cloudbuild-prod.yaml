@@ -149,8 +149,8 @@ steps:
           --max-instances=10 \
           --port=8000 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
-          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=production,PIPELINE_SERVICE_URL=$$PIPELINE_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption" \
-          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=production,PIPELINE_SERVICE_URL=$$PIPELINE_URL,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption,SUPABASE_URL=${_SUPABASE_URL}" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
     waitFor: ['push-api-service']
 
   # ============================================
