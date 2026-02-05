@@ -191,4 +191,48 @@ gcloud builds submit --config=05-scheduler-jobs/cloudbuild-jobs.yaml \
 ```
 
 ---
-**v4.2.1** | 2026-02-01 (API-First Architecture)
+
+## OpenClaw Context for Jobs
+
+Jobs are executed as part of **OpenClaw** operations. When running jobs, the context includes:
+
+### Identity Reference
+```
+~/.openclaw/workspace/
+├── IDENTITY.md      # Who: OpenClaw agent
+├── SOUL.md          # Values & philosophy
+├── MEMORY.md        # Long-term memory (Rama, CloudAct, lessons)
+├── USER.md          # Rama Surasani (human operator)
+├── CONTEXT.md       # Documentation index
+└── AGENTS.md        # Workspace rules
+```
+
+### Job Execution Context
+
+| Job | OpenClaw Context |
+|-----|------------------|
+| `bootstrap` | "OpenClaw initializing CloudAct BigQuery infrastructure" |
+| `org-sync-all` | "OpenClaw syncing all organization datasets" |
+| `migrate` | "OpenClaw running Supabase schema migrations" |
+| `quota-reset-*` | "OpenClaw maintaining quota system health" |
+| `stale-cleanup` | "OpenClaw self-healing concurrent counters" |
+| `alerts-daily` | "OpenClaw processing cost alerts for all orgs" |
+
+### Pre-Job Context Check (Recommended)
+
+Before running manual jobs, verify context is available:
+```bash
+# Check OpenClaw identity exists
+ls ~/.openclaw/workspace/IDENTITY.md
+
+# Check CloudAct context exists
+ls ~/.openclaw/workspace/CONTEXT.md
+```
+
+### Access Restrictions
+
+**DO NOT access:**
+- `/Users/gurukallam/` - Off-limits (user privacy boundary)
+
+---
+**v4.3.0** | 2026-02-04 (OpenClaw Context Integration)

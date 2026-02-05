@@ -3,6 +3,7 @@
 -- The 'admin' role doesn't exist in organization_members.role enum
 -- Valid roles are: 'owner', 'collaborator', 'read_only'
 -- This migration updates all policies that reference 'admin' to use 'owner' only
+-- NOTE: subscriptions table was dropped in migration 15, so skipping those policies
 
 -- =============================================
 -- ORGANIZATION_MEMBERS TABLE POLICIES
@@ -106,57 +107,6 @@ USING (
         AND status = 'active'
     )
 );
-
--- =============================================
--- SUBSCRIPTIONS TABLE POLICIES
--- =============================================
-
--- Fix: Admins can create saas subscriptions
-DROP POLICY IF EXISTS "Admins can create saas subscriptions" ON subscriptions;
-CREATE POLICY "Admins can create saas subscriptions"
-ON subscriptions FOR INSERT
-WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM organization_members om
-        WHERE om.org_id = subscriptions.org_id
-        AND om.user_id = auth.uid()
-        AND om.role = 'owner'
-        AND om.status = 'active'
-    )
-);
-
--- Fix: Admins can update saas subscriptions
-DROP POLICY IF EXISTS "Admins can update saas subscriptions" ON subscriptions;
-CREATE POLICY "Admins can update saas subscriptions"
-ON subscriptions FOR UPDATE
-USING (
-    EXISTS (
-        SELECT 1 FROM organization_members om
-        WHERE om.org_id = subscriptions.org_id
-        AND om.user_id = auth.uid()
-        AND om.role = 'owner'
-        AND om.status = 'active'
-    )
-);
-
--- Fix: Admins can delete saas subscriptions
-DROP POLICY IF EXISTS "Admins can delete saas subscriptions" ON subscriptions;
-CREATE POLICY "Admins can delete saas subscriptions"
-ON subscriptions FOR DELETE
-USING (
-    EXISTS (
-        SELECT 1 FROM organization_members om
-        WHERE om.org_id = subscriptions.org_id
-        AND om.user_id = auth.uid()
-        AND om.role = 'owner'
-        AND om.status = 'active'
-    )
-);
-
--- Also fix the duplicate policy names from 12_saas_subscriptions_table.sql
-DROP POLICY IF EXISTS "Admins can create subscriptions" ON subscriptions;
-DROP POLICY IF EXISTS "Admins can update subscriptions" ON subscriptions;
-DROP POLICY IF EXISTS "Admins can delete subscriptions" ON subscriptions;
 
 -- =============================================
 -- SUBSCRIPTION_PROVIDERS_META TABLE POLICIES
