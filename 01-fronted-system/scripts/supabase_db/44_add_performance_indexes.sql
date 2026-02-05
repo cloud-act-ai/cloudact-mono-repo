@@ -9,9 +9,14 @@
 CREATE INDEX IF NOT EXISTS idx_profiles_email_lower 
     ON profiles (lower(email));
 
--- 2. security_events: composite index for combined filters
-CREATE INDEX IF NOT EXISTS idx_security_events_user_type_created 
-    ON security_events (user_id, event_type, created_at DESC);
+-- 2. security_events: composite index for combined filters (skip if table doesn't exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'security_events') THEN
+        CREATE INDEX IF NOT EXISTS idx_security_events_user_type_created
+            ON security_events (user_id, event_type, created_at DESC);
+    END IF;
+END $$;
 
 -- 3. org_quotas: partial index for concurrent pipeline checks
 CREATE INDEX IF NOT EXISTS idx_org_quotas_concurrent_running 
@@ -34,7 +39,13 @@ CREATE INDEX IF NOT EXISTS idx_integrations_org_status
 -- Analyze tables to update statistics
 -- =============================================
 ANALYZE profiles;
-ANALYZE security_events;
+-- ANALYZE security_events only if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'security_events') THEN
+        ANALYZE security_events;
+    END IF;
+END $$;
 ANALYZE org_quotas;
 ANALYZE organization_members;
 ANALYZE invites;
