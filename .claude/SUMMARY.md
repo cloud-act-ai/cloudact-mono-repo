@@ -1,12 +1,12 @@
 # CloudAct Claude Configuration Summary
 
-**Last Updated:** 2026-01-25 | **Version:** v4.1.9
+**Last Updated:** 2026-02-05 | **Version:** v4.3.0
 
 ## Quick Reference
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 22 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 23 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 16 | `.claude/commands/{name}.md` |
 | Hooks (Root) | 6 | `.claude/hookify.*.local.md` + `hooks/` |
 | Hooks (Frontend) | 4 | `01-fronted-system/.claude/hookify.*.local.md` |
@@ -23,7 +23,7 @@
 ├── debug-config.md                  # Test credentials & URLs
 ├── SUMMARY.md                       # This file
 │
-├── skills/                          # 22 specialized agents
+├── skills/                          # 23 specialized agents
 │   ├── api-dev/SKILL.md
 │   ├── bigquery-ops/SKILL.md
 │   ├── bootstrap-onboard/SKILL.md
@@ -39,6 +39,7 @@
 │   ├── infra-cicd/SKILL.md
 │   ├── integration-setup/SKILL.md
 │   ├── pipeline-ops/SKILL.md
+│   ├── pr-review/SKILL.md           # NEW: PR review & merge
 │   ├── provider-mgmt/SKILL.md
 │   ├── quota-mgmt/SKILL.md
 │   ├── security-audit/SKILL.md
@@ -87,13 +88,14 @@
 
 ---
 
-## Skills Reference (22 Total)
+## Skills Reference (23 Total)
 
 ### Infrastructure & Deployment
 | Skill | Purpose |
 |-------|---------|
 | `/infra-cicd` | Releases, deploy test/stage/prod, backups, rollbacks |
 | `/deploy-check` | Pre-deployment validation, health checks |
+| `/pr-review` | PR review, validation, test execution, safe merge |
 | `/env-setup` | Dev environment, Docker, GCP credentials |
 | `/supabase-migrate` | Database migrations (local/stage/prod) |
 
@@ -281,4 +283,4 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 
 ---
 
-*Updated: 2026-01-25 | Duplicates removed | Structure verified*
+*Updated: 2026-02-05 | Added pr-review skill | Structure verified*

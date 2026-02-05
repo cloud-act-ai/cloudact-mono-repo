@@ -521,6 +521,43 @@ Quick reference for triggering each skill with example prompts.
 
 ---
 
+## pr-review
+
+**Purpose:** PR review, validation, test execution, and safe merge
+
+```
+# Reviewing PRs
+"Review PR #123"
+"Analyze the changes in PR 45"
+"Check PR #67 for breaking changes"
+"What files changed in PR #89?"
+
+# Validation & Tests
+"Run tests for PR #123 before merge"
+"Validate PR 45 is safe to merge"
+"Check if PR #67 passes all checks"
+"Run full test suite for PR #89"
+
+# Security & Quality
+"Check PR #123 for security issues"
+"Review PR 45 for large deletions"
+"Are there any secrets in PR #67?"
+"Check brand files in PR #89"
+
+# Merge Operations
+"Approve and merge PR #123"
+"Squash merge PR 45 after tests pass"
+"Request changes on PR #67 - needs tests"
+"Merge PR #89 to main"
+
+# Full Workflow
+"Full PR review workflow for #123"
+"Complete validation and merge for PR #45"
+"Review, test, and merge PR #67"
+```
+
+---
+
 ## Combined Scenarios
 
 These prompts trigger multiple skills together:
@@ -533,6 +570,10 @@ These prompts trigger multiple skills together:
 # Deployment Preparation
 "Prepare for production release with full testing"
 → test-orchestration + security-audit + deploy-check + config-validator
+
+# PR Review & Merge
+"Review and merge PR #123 with full validation"
+→ pr-review + test-orchestration + security-audit
 
 # Cost Investigation
 "Why are Engineering department costs not showing correctly?"
@@ -558,4 +599,4 @@ These prompts trigger multiple skills together:
 
 ---
 
-*Last Updated: 2024-12-25*
+*Last Updated: 2026-02-05*
