@@ -73,6 +73,205 @@ const QUICK_ACTION_ICON_CLASSES = {
   purple: "bg-purple-500 text-white",
 } as const
 
+// ═══════════════════════════════════════════════════════════════
+// PERF: Memoized helper functions (moved outside component)
+// ═══════════════════════════════════════════════════════════════
+
+const getPipelineIcon = (pipelineId: string) => {
+  if (pipelineId.includes("openai") || pipelineId.includes("anthropic") || pipelineId.includes("gemini")) {
+    return <Brain className="h-4 w-4" />
+  }
+  if (pipelineId.includes("gcp") || pipelineId.includes("aws") || pipelineId.includes("azure")) {
+    return <Cloud className="h-4 w-4" />
+  }
+  if (pipelineId.includes("saas") || pipelineId.includes("subscription")) {
+    return <Wallet className="h-4 w-4" />
+  }
+  return <Database className="h-4 w-4" />
+}
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "completed":
+    case "success":
+      return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
+    case "running":
+    case "in_progress":
+      return "bg-blue-500/10 text-blue-600 border-blue-500/20"
+    case "failed":
+    case "error":
+      return "bg-red-500/10 text-red-600 border-red-500/20"
+    default:
+      return "bg-slate-100 text-slate-600 border-slate-200"
+  }
+}
+
+const formatTimeAgo = (dateStr?: string) => {
+  if (!dateStr) return "Unknown"
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return "Invalid date"
+
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+
+  if (diffMs < 0) return "Just now"
+
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return "Just now"
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  return `${diffDays}d ago`
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PERF: Memoized child components to prevent unnecessary re-renders
+// ═══════════════════════════════════════════════════════════════
+
+interface IntegrationCardProps {
+  integration: IntegrationItem
+}
+
+const IntegrationCard = React.memo(function IntegrationCard({ integration }: IntegrationCardProps) {
+  return (
+    <div
+      className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white border border-slate-100 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl transition-colors ${
+          integration.status === "connected"
+            ? "bg-emerald-50 group-hover:bg-emerald-100"
+            : "bg-slate-50 group-hover:bg-slate-100"
+        }`}>
+          {integration.type === "subscription" ? (
+            <Wallet className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+          ) : integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") || integration.provider.includes("OCI") ? (
+            <Cloud className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+          ) : (
+            <Zap className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+          )}
+        </div>
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-slate-900 truncate block">
+            {integration.name}
+          </span>
+          <span className="text-[10px] text-slate-400 capitalize">
+            {integration.type === "subscription" ? "SaaS" : "API"}
+          </span>
+        </div>
+      </div>
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
+        integration.status === "connected"
+          ? "bg-emerald-50 text-emerald-700"
+          : integration.status === "pending"
+          ? "bg-amber-50 text-amber-700"
+          : "bg-red-50 text-red-700"
+      }`}>
+        <div className={`w-1.5 h-1.5 rounded-full ${
+          integration.status === "connected"
+            ? "bg-emerald-500"
+            : integration.status === "pending"
+            ? "bg-amber-500"
+            : "bg-red-500"
+        }`} />
+        {integration.status === "connected" ? "Active" : integration.status === "pending" ? "Pending" : "Error"}
+      </div>
+    </div>
+  )
+})
+
+interface PipelineRunItemProps {
+  pipeline: PipelineRunSummary
+}
+
+const PipelineRunItem = React.memo(function PipelineRunItem({ pipeline }: PipelineRunItemProps) {
+  return (
+    <div
+      className="group flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 hover:bg-slate-50/50 transition-colors"
+    >
+      <div
+        className={`flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors ${getStatusColor(pipeline.status)}`}
+      >
+        {getPipelineIcon(pipeline.pipeline_id)}
+      </div>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5 min-w-0">
+            <p className="text-sm font-medium text-slate-900 truncate">{pipeline.pipeline_id}</p>
+            <p className="text-xs text-slate-500 truncate">
+              {pipeline.duration_ms
+                ? `Completed in ${(pipeline.duration_ms / 1000).toFixed(1)}s`
+                : pipeline.error_message
+                ? pipeline.error_message.slice(0, 50)
+                : "Processing..."}
+            </p>
+          </div>
+          <Badge
+            variant={
+              pipeline.status === "COMPLETED" ? "success"
+              : pipeline.status === "FAILED" ? "destructive"
+              : "outline"
+            }
+            className="text-[10px] flex-shrink-0"
+          >
+            {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+            {pipeline.status === "FAILED" && <AlertCircle className="h-3 w-3 mr-1" />}
+            {pipeline.status === "RUNNING" && <Activity className="h-3 w-3 mr-1 animate-pulse" />}
+            {pipeline.status}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+          <Clock className="h-3 w-3" />
+          {formatTimeAgo(pipeline.start_time)}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+interface QuickActionCardProps {
+  action: QuickAction
+}
+
+const QuickActionCard = React.memo(function QuickActionCard({ action }: QuickActionCardProps) {
+  return (
+    <Link href={action.href}>
+      <Card
+        className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${QUICK_ACTION_COLOR_CLASSES[action.color]} hover:-translate-y-1 hover:shadow-lg`}
+      >
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 sm:space-y-3">
+            <div
+              className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-md transition-transform duration-200 group-hover:scale-105 shrink-0`}
+            >
+              {action.icon}
+            </div>
+            <div className="space-y-0.5">
+              <h3 className="text-sm sm:text-[15px] font-semibold text-slate-900">{action.title}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">{action.description}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+})
+
+// PERF: Memoized loading state component
+const DashboardLoadingState = React.memo(function DashboardLoadingState() {
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto py-4 sm:py-5 lg:py-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
+        </div>
+      </div>
+    </div>
+  )
+})
+
 export default function DashboardPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
@@ -402,65 +601,15 @@ export default function DashboardPage() {
     },
   ], [orgSlug])
 
-  const getPipelineIcon = (pipelineId: string) => {
-    if (pipelineId.includes("openai") || pipelineId.includes("anthropic") || pipelineId.includes("gemini")) {
-      return <Brain className="h-4 w-4" />
-    }
-    if (pipelineId.includes("gcp") || pipelineId.includes("aws") || pipelineId.includes("azure")) {
-      return <Cloud className="h-4 w-4" />
-    }
-    if (pipelineId.includes("saas") || pipelineId.includes("subscription")) {
-      return <Wallet className="h-4 w-4" />
-    }
-    return <Database className="h-4 w-4" />
-  }
+  // PERF: Memoize completed pipelines count to avoid recalculating on each render
+  const completedPipelinesCount = useMemo(() => 
+    recentPipelines.filter(p => p.status === "COMPLETED").length,
+    [recentPipelines]
+  )
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-      case "success":
-        return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
-      case "running":
-      case "in_progress":
-        return "bg-blue-500/10 text-blue-600 border-blue-500/20"
-      case "failed":
-      case "error":
-        return "bg-red-500/10 text-red-600 border-red-500/20"
-      default:
-        return "bg-slate-100 text-slate-600 border-slate-200"
-    }
-  }
-
-  const formatTimeAgo = (dateStr?: string) => {
-    if (!dateStr) return "Unknown"
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) return "Invalid date"
-
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-
-    if (diffMs < 0) return "Just now"
-
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return "Just now"
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    return `${diffDays}d ago`
-  }
-
+  // PERF: Use memoized loading state component
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="max-w-7xl mx-auto py-4 sm:py-5 lg:py-6">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
-          </div>
-        </div>
-      </div>
-    )
+    return <DashboardLoadingState />
   }
 
   return (
@@ -678,50 +827,7 @@ export default function DashboardPage() {
             <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {integrations.length > 0 ? (
                 integrations.map((integration) => (
-                  <div
-                    key={integration.provider}
-                    className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white border border-slate-100 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl transition-colors ${
-                        integration.status === "connected"
-                          ? "bg-emerald-50 group-hover:bg-emerald-100"
-                          : "bg-slate-50 group-hover:bg-slate-100"
-                      }`}>
-                        {integration.type === "subscription" ? (
-                          <Wallet className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
-                        ) : integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") || integration.provider.includes("OCI") ? (
-                          <Cloud className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
-                        ) : (
-                          <Zap className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-sm font-medium text-slate-900 truncate block">
-                          {integration.name}
-                        </span>
-                        <span className="text-[10px] text-slate-400 capitalize">
-                          {integration.type === "subscription" ? "SaaS" : "API"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
-                      integration.status === "connected"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : integration.status === "pending"
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-red-50 text-red-700"
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        integration.status === "connected"
-                          ? "bg-emerald-500"
-                          : integration.status === "pending"
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                      }`} />
-                      {integration.status === "connected" ? "Active" : integration.status === "pending" ? "Pending" : "Error"}
-                    </div>
-                  </div>
+                  <IntegrationCard key={integration.provider} integration={integration} />
                 ))
               ) : (
                 <div className="col-span-full text-center py-8">
@@ -756,25 +862,7 @@ export default function DashboardPage() {
         </div>
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {quickActions.map((action) => (
-            <Link key={action.title} href={action.href}>
-              <Card
-                className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br border ${QUICK_ACTION_COLOR_CLASSES[action.color]} hover:-translate-y-1 hover:shadow-lg`}
-              >
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 sm:space-y-3">
-                    <div
-                      className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl ${QUICK_ACTION_ICON_CLASSES[action.color]} shadow-md transition-transform duration-200 group-hover:scale-105 shrink-0`}
-                    >
-                      {action.icon}
-                    </div>
-                    <div className="space-y-0.5">
-                      <h3 className="text-sm sm:text-[15px] font-semibold text-slate-900">{action.title}</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed">{action.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <QuickActionCard key={action.title} action={action} />
           ))}
         </div>
       </section>
@@ -794,7 +882,7 @@ export default function DashboardPage() {
           </div>
           {recentPipelines.length > 0 && (
             <span className="text-[10px] text-slate-400">
-              {recentPipelines.filter(p => p.status === "COMPLETED").length}/{recentPipelines.length} completed
+              {completedPipelinesCount}/{recentPipelines.length} completed
             </span>
           )}
         </div>
@@ -803,47 +891,7 @@ export default function DashboardPage() {
             {recentPipelines.length > 0 ? (
               <div className="divide-y divide-slate-100">
                 {recentPipelines.map((pipeline) => (
-                  <div
-                    key={pipeline.pipeline_logging_id}
-                    className="group flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 hover:bg-slate-50/50 transition-colors"
-                  >
-                    <div
-                      className={`flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors ${getStatusColor(pipeline.status)}`}
-                    >
-                      {getPipelineIcon(pipeline.pipeline_id)}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{pipeline.pipeline_id}</p>
-                          <p className="text-xs text-slate-500 truncate">
-                            {pipeline.duration_ms
-                              ? `Completed in ${(pipeline.duration_ms / 1000).toFixed(1)}s`
-                              : pipeline.error_message
-                              ? pipeline.error_message.slice(0, 50)
-                              : "Processing..."}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={
-                            pipeline.status === "COMPLETED" ? "success"
-                            : pipeline.status === "FAILED" ? "destructive"
-                            : "outline"
-                          }
-                          className="text-[10px] flex-shrink-0"
-                        >
-                          {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                          {pipeline.status === "FAILED" && <AlertCircle className="h-3 w-3 mr-1" />}
-                          {pipeline.status === "RUNNING" && <Activity className="h-3 w-3 mr-1 animate-pulse" />}
-                          {pipeline.status}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                        <Clock className="h-3 w-3" />
-                        {formatTimeAgo(pipeline.start_time)}
-                      </div>
-                    </div>
-                  </div>
+                  <PipelineRunItem key={pipeline.pipeline_logging_id} pipeline={pipeline} />
                 ))}
               </div>
             ) : (
