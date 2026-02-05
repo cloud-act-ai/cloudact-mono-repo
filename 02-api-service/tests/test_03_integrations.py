@@ -497,7 +497,8 @@ async def test_get_single_integration(
         data = response.json()
 
         assert data["provider"] == "OPENAI"
-        assert data["validation_status"] == "VALID"
+        # Note: validation_status is serialized as "status" via serialization_alias
+        assert data["status"] == "VALID"
         assert data["credential_name"] == "Production Key"
 
 

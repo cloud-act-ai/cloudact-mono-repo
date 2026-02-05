@@ -73,11 +73,14 @@ PIPELINE_TABLES = [
 
 @pytest.fixture
 def schema_files() -> Dict[str, Path]:
-    """Get all schema JSON files."""
+    """Get all BigQuery schema JSON files (excludes meta files like schema_versions.json)."""
     schemas = {}
+    # Files to exclude (not BigQuery schemas, but JSON Schema or meta files)
+    exclude_files = {"schema_versions"}
     if API_SCHEMAS_DIR.exists():
         for schema_file in API_SCHEMAS_DIR.glob("*.json"):
-            schemas[schema_file.stem] = schema_file
+            if schema_file.stem not in exclude_files:
+                schemas[schema_file.stem] = schema_file
     return schemas
 
 

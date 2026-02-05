@@ -294,4 +294,34 @@ cd 05-scheduler-jobs
 | Specs | `00-requirements-specs/*.md` |
 
 ---
-**v4.2.0** | 2026-02-01
+
+## OpenClaw Context
+
+This codebase is managed by **OpenClaw**, an AI agent framework that provides persistent memory, identity, and operational context for Claude.
+
+### OpenClaw Identity Files (Reference These)
+
+| File | Purpose | Location |
+|------|---------|----------|
+| `IDENTITY.md` | Agent name, persona, avatar | `~/.openclaw/workspace/` |
+| `SOUL.md` | Core values, operational philosophy | `~/.openclaw/workspace/` |
+| `MEMORY.md` | Long-term curated memory (Rama, CloudAct, lessons) | `~/.openclaw/workspace/` |
+| `USER.md` | Human operator info (Rama Surasani) | `~/.openclaw/workspace/` |
+| `CONTEXT.md` | Knowledge index, doc pointers | `~/.openclaw/workspace/` |
+| `HEARTBEAT.md` | Periodic check-in tasks | `~/.openclaw/workspace/` |
+| `AGENTS.md` | Workspace rules, memory management | `~/.openclaw/workspace/` |
+
+### Context Flow for Jobs
+
+When running scheduler jobs, the execution context should include:
+1. **Who is running**: OpenClaw (Claude agent for CloudAct)
+2. **Why**: Part of CloudAct operations (bootstrap, migrations, sync)
+3. **Context source**: Reference `~/.openclaw/workspace/` files for identity/memory
+
+### Access Restrictions
+
+**DO NOT access:**
+- `/Users/gurukallam/` - Off-limits (user privacy boundary)
+
+---
+**v4.3.0** | 2026-02-04
