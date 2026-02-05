@@ -536,7 +536,8 @@ async def test_get_single_integration_not_configured(
         data = response.json()
 
         assert data["provider"] == "ANTHROPIC"
-        assert data["validation_status"] == "NOT_CONFIGURED"
+        # Note: validation_status is serialized as "status" via serialization_alias
+        assert data["status"] == "NOT_CONFIGURED"
         assert data["credential_name"] is None
 
 
