@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { DM_Sans, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
+import { ThemeProvider } from "@/components/theme-provider"
 import { site } from "@/lib/site"
 import "./globals.css"
 
@@ -104,8 +105,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${dmSans.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        {children}
-        <Toaster position="top-right" richColors closeButton duration={5000} />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster position="top-right" richColors closeButton duration={5000} />
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

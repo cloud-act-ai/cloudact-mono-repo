@@ -1877,6 +1877,59 @@ button[role="combobox"] > span:first-child {
   color: #F5F5F7 !important;
 }
 
+.dark .console-main-gradient {
+  background: #0f172a;
+}
+
+.dark .health-card,
+.dark .metric-card,
+.dark .console-stat-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark .health-card:hover,
+.dark .metric-card:hover,
+.dark .console-stat-card:hover {
+  border-color: #475569;
+}
+
+.dark .console-table-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark .console-table-header {
+  background: #1a2332;
+}
+
+.dark .console-table-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .console-input,
+.dark .console-select,
+.dark .console-textarea {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark .console-input:focus,
+.dark .console-select:focus,
+.dark .console-textarea:focus {
+  border-color: #90FCA6;
+}
+
+.dark .console-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.dark [data-sidebar="sidebar"] {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
 /* ============================================
    CONSOLE SCROLLBARS - Enhanced for Apple Health Style
    Brand colors with smooth transitions

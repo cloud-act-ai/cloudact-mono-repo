@@ -1,8 +1,21 @@
 # SaaS Subscription Costs
 
-**v12.7** | 2026-01-15
+**v12.8** | 2026-02-05
 
 > Fixed-cost SaaS tracking (Canva, ChatGPT Plus, Slack) → FOCUS 1.3
+
+---
+
+## Workflow
+
+```
+1. User adds subscription plan → Frontend form
+2. API validates + stores → BigQuery subscription_plans table
+3. Edit creates NEW version → Old row gets end_date (version history)
+4. Pipeline calculates daily costs → sp_subscription_2_calculate_daily_costs
+5. FOCUS conversion → sp_subscription_3_convert_to_focus → cost_data_standard_1_3
+6. Dashboard displays → Unified cost analytics
+```
 
 ---
 
@@ -17,36 +30,21 @@ UI + Actions    →      CRUD + Validation     →     Cost Calculation
 
 ---
 
-## Data Flow
-
-```
-Add Plan → API validates → BigQuery subscription_plans
-        → Pipeline calculates daily costs → FOCUS 1.3
-```
-
-**Version History:** Edit creates NEW row, OLD row gets `end_date`
-
----
-
 ## API Endpoints (Port 8000)
 
-```bash
-GET/POST /api/v1/subscriptions/{org}/providers/{p}/plans           # List/Create
-POST     /api/v1/subscriptions/{org}/providers/{p}/plans/{id}/edit-version  # Edit
-DELETE   /api/v1/subscriptions/{org}/providers/{p}/plans/{id}      # Soft delete
-```
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET/POST | `/subscriptions/{org}/providers/{p}/plans` | List / Create |
+| POST | `/subscriptions/{org}/providers/{p}/plans/{id}/edit-version` | Edit (versioned) |
+| DELETE | `/subscriptions/{org}/providers/{p}/plans/{id}` | Soft delete |
 
 ---
 
 ## Pipeline (Port 8001)
 
-```bash
-POST /api/v1/pipelines/run/{org}/subscription/costs/subscription_cost
-```
-
-**Stored Procedures:**
-- `sp_subscription_2_calculate_daily_costs` - Daily amortization
-- `sp_subscription_3_convert_to_focus` - FOCUS 1.3
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /pipelines/run/{org}/subscription/costs/subscription_cost` | Calculate daily costs + FOCUS |
 
 ---
 
@@ -58,12 +56,19 @@ POST /api/v1/pipelines/run/{org}/subscription/costs/subscription_cost
 | `billing_cycle` | monthly, annual, quarterly |
 | `pricing_model` | PER_SEAT, FLAT_FEE |
 | `hierarchy_*` | Dept/Project/Team allocation |
+| `end_date` | NULL = current version, set = historical |
 
 ---
 
-## Multi-Currency
+## Integration Standards
 
-Templates (USD) → converted to org currency → stored with `source_currency`, `exchange_rate_used`
+| Standard | Implementation |
+|----------|----------------|
+| Version history | Edit creates new row, old row gets `end_date` — never overwrites |
+| Multi-currency | Templates in USD → converted to org currency at creation |
+| FX tracking | Stored with `source_currency`, `exchange_rate_used` |
+| Daily amortization | `sp_subscription_2_calculate_daily_costs` divides monthly by days |
+| FOCUS compliance | `sp_subscription_3_convert_to_focus` maps to standard schema |
 
 ---
 
@@ -71,5 +76,5 @@ Templates (USD) → converted to org currency → stored with `source_currency`,
 
 | File | Purpose |
 |------|---------|
-| `02-api-service/src/app/routers/subscription_plans.py` | CRUD |
-| `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml` | Pipeline |
+| `02-api-service/src/app/routers/subscription_plans.py` | CRUD endpoints |
+| `03-data-pipeline-service/configs/subscription/costs/subscription_cost.yml` | Pipeline config |

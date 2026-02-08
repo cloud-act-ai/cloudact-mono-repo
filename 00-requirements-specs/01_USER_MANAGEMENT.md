@@ -1,8 +1,20 @@
 # User Management
 
-**v2.2** | 2026-01-15
+**v2.3** | 2026-02-05
 
 > Supabase Auth + RBAC for teams
+
+---
+
+## User Lifecycle Workflow
+
+```
+1. Owner signs up → Supabase auth + org created
+2. Owner invites member → Email sent with 48h token
+3. Member accepts → Account created, added to org
+4. Role assigned → owner / collaborator / read_only
+5. Member manages → Settings → Members page
+```
 
 ---
 
@@ -10,21 +22,24 @@
 
 | Route | Purpose |
 |-------|---------|
-| `/signup` | Create account |
+| `/signup` | Create account + org |
 | `/login` | Sign in |
 | `/{org}/settings/members` | Team management |
 
 ---
 
-## Roles
+## Roles & Permissions
 
 | Role | Billing | Members | Integrations | Pipelines |
 |------|---------|---------|--------------|-----------|
-| owner | ✓ | ✓ | ✓ | ✓ |
-| collaborator | ✗ | ✗ | ✓ | ✓ |
-| read_only | ✗ | ✗ | ✗ | ✓ (view) |
+| owner | Full | Full | Full | Full |
+| collaborator | View only | View only | Full | Full |
+| read_only | None | None | View only | View only |
 
-**1 owner per org** - transfer required before leaving
+**Standards:**
+- 1 owner per org — transfer required before leaving
+- Seat limits enforced per plan (Starter: 2, Professional: 6, Scale: 11)
+- Owner cannot be removed — must transfer ownership first
 
 ---
 
@@ -32,19 +47,21 @@
 
 | Table | Purpose |
 |-------|---------|
-| `auth.users` | Supabase auth |
-| `profiles` | Extended user data |
-| `organizations` | Org metadata |
-| `organization_members` | User ↔ Org |
-| `invites` | Pending invites |
+| `auth.users` | Supabase auth (email, password hash) |
+| `profiles` | Extended user data (name, avatar) |
+| `organizations` | Org metadata (name, slug, currency) |
+| `organization_members` | User ↔ Org mapping with role |
+| `invites` | Pending invitations with token + expiry |
 
 ---
 
-## Team Invites
+## Team Invite Standard
 
-- Owner invites → Email → Accept → Member added
-- 48-hour token expiry
-- Seat limit per plan
+- Owner sends invite → email notification
+- Token valid for **48 hours**
+- Seat limit checked before invite creation
+- Duplicate email check (already member = rejected)
+- Rate limit: 10 invites per hour per org
 
 ---
 
@@ -52,5 +69,6 @@
 
 | File | Purpose |
 |------|---------|
-| `01-fronted-system/actions/members.ts` | Team actions |
+| `01-fronted-system/actions/members.ts` | Team management actions |
 | `01-fronted-system/actions/account.ts` | Account actions |
+| `01-fronted-system/app/[orgSlug]/settings/members/` | Members UI |

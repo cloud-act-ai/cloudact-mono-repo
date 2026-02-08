@@ -1,248 +1,110 @@
-# Notifications & Alerts System Requirements
+# Notifications & Alerts
 
-**Version:** 3.0 | **Updated:** 2026-01-18 | **Status:** Production-Ready
+**v3.1** | 2026-02-05 | **Status:** Production-Ready
 
----
-
-## Overview
-
-CloudAct provides a multi-tenant, config-driven notification and alert system that monitors cost data and sends notifications through multiple channels.
+> Multi-tenant, config-driven notification and alert system
 
 ---
 
-## System Architecture
+## Alert Workflow
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           NOTIFICATION FLOW                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│   Frontend   │───▶│ API Service  │───▶│   Pipeline   │───▶│  Channels    │
-│    (3000)    │    │    (8000)    │    │    (8001)    │    │              │
-│              │    │              │    │              │    │  - Email     │
-│ Settings UI  │    │ Channel CRUD │    │ Alert Engine │    │  - Slack     │
-│ Alert Rules  │    │ Rule Config  │    │ Send Notif   │    │  - Webhook   │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+1. Admin configures alert rules → Frontend Settings UI
+2. API stores channel + rule config → API Service (8000)
+3. Cloud Scheduler triggers → POST /alerts/scheduler/evaluate
+4. Alert Engine evaluates → BigQuery query per rule
+5. Condition check → Operator evaluation (gt, lt, between, etc.)
+6. Recipient resolution → org_owners / all_members / hierarchy_node / custom
+7. Parallel channel send → Email + Slack + Webhook (concurrent)
+8. Cooldown applied → Prevent duplicate alerts within configured period
+9. History logged → Alert results stored for audit
 ```
 
 ---
 
-## Functional Requirements
+## Architecture
 
-### FR-001: Alert Configuration
-
-| Requirement | Description | Status |
-|-------------|-------------|--------|
-| FR-001.1 | YAML-based alert configuration (no code changes needed) | ✅ Done |
-| FR-001.2 | Support multiple thresholds per alert type | ✅ Done |
-| FR-001.3 | Configurable cooldown periods | ✅ Done |
-| FR-001.4 | Cron-based scheduling with timezone support | ✅ Done |
-
-### FR-002: Notification Channels
-
-| Requirement | Description | Status |
-|-------------|-------------|--------|
-| FR-002.1 | Email notifications via SMTP | ✅ Done |
-| FR-002.2 | Slack notifications via webhooks | ✅ Done |
-| FR-002.3 | Generic webhook notifications | ✅ Done |
-| FR-002.4 | Microsoft Teams support | 🔲 Planned |
-| FR-002.5 | PagerDuty integration | 🔲 Planned |
-| FR-002.6 | SMS notifications | 🔲 Planned |
-
-### FR-003: Alert Types
-
-| Alert Type | Query Source | Trigger Condition | Status |
-|------------|--------------|-------------------|--------|
-| Subscription Cost | BigQuery cost_data_standard_1_3 | Cost > threshold | ✅ Done |
-| Cloud Cost | BigQuery cost_data_standard_1_3 | Cost > threshold | ✅ Done |
-| GenAI Cost | BigQuery cost_data_standard_1_3 | Cost > threshold | ✅ Done |
-| Budget Percentage | BigQuery + org_budgets | Usage > X% | 🔲 Planned |
-| Anomaly Detection | BigQuery time series | Deviation > threshold | 🔲 Planned |
-| Quota Warning | Usage quotas | Usage > 80/90/100% | ✅ Done |
-
-### FR-004: Recipient Resolution
-
-| Resolver | Description | Status |
-|----------|-------------|--------|
-| org_owners | Query Supabase for organization owners | ✅ Done |
-| all_members | All active organization members | ✅ Done |
-| hierarchy_node | BigQuery org_hierarchy owners | ✅ Done |
-| custom | Static email list in config | ✅ Done |
+```
+Frontend (3000)     → API Service (8000)    → Pipeline Service (8001)  → Channels
+Settings UI           Channel CRUD            Alert Engine               Email (SMTP)
+Alert Rules           Rule Config             Send Notifications         Slack (Webhook)
+                                                                         Generic Webhook
+```
 
 ---
 
-## Non-Functional Requirements
+## Alert Types
 
-### NFR-001: Reliability
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| Retry with exponential backoff | 3 attempts, 1s base delay, 30s max | ✅ Done |
-| Retryable errors | Server 5xx, ConnectionError, SMTPException | ✅ Done |
-| Non-retryable errors | Client 4xx (configuration issues) | ✅ Done |
-| Jitter on retries | ±25% to prevent thundering herd | ✅ Done |
-
-### NFR-002: Performance
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| Parallel channel sending | asyncio.gather() for concurrent delivery | ✅ Done |
-| Connection pooling | Shared aiohttp sessions per adapter | ✅ Done |
-| Configurable query timeout | ALERT_QUERY_TIMEOUT_SECONDS (default: 60s) | ✅ Done |
-| Configurable send timeout | NOTIFICATION_TIMEOUT_SECONDS (default: 30s) | ✅ Done |
-
-### NFR-003: Multi-Tenancy
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| Org isolation | Composite cache keys: `org_slug:provider_type` | ✅ Done |
-| Org-specific configs | Per-org provider configurations | ✅ Done |
-| Cross-org prevention | Validate org_slug in all queries | ✅ Done |
-
-### NFR-004: Thread Safety
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| Singleton pattern | Double-checked locking with threading.Lock | ✅ Done |
-| Cache operations | threading.RLock for thread-safe access | ✅ Done |
-| Session locks | Thread-safe asyncio.Lock initialization | ✅ Done |
-
-### NFR-005: Security
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| XSS protection | html_escape() on user content in HTML | ✅ Done |
-| Credential protection | URL sanitization in logs | ✅ Done |
-| Input validation | Regex for org_slug, email, URLs | ✅ Done |
-| KMS encryption | API Service encrypts channel credentials | ✅ Done |
-
-### NFR-006: Graceful Shutdown
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| Session cleanup | close_all_sessions() on app shutdown | ✅ Done |
-| Connection release | aiohttp sessions properly closed | ✅ Done |
+| Alert Type | Source | Trigger | Status |
+|------------|--------|---------|--------|
+| Subscription Cost | `cost_data_standard_1_3` | Cost > threshold | Done |
+| Cloud Cost | `cost_data_standard_1_3` | Cost > threshold | Done |
+| GenAI Cost | `cost_data_standard_1_3` | Cost > threshold | Done |
+| Quota Warning | Usage quotas | Usage > 80/90/100% | Done |
+| Budget Percentage | `org_budgets` | Usage > X% | Planned |
+| Anomaly Detection | Time series | Deviation > threshold | Planned |
 
 ---
 
-## Configuration
+## Notification Channels
 
-### Environment Variables
-
-```bash
-# Alert Configuration
-ALERT_QUERY_TIMEOUT_SECONDS=60       # BigQuery query timeout
-ALERT_PARALLEL_CHANNELS=true         # Send to channels concurrently
-
-# Notification Configuration
-NOTIFICATION_RETRY_MAX_ATTEMPTS=3    # Max retry attempts
-NOTIFICATION_RETRY_DELAY_SECONDS=1.0 # Initial backoff delay
-NOTIFICATION_TIMEOUT_SECONDS=30      # Per-notification timeout
-
-# Email (SMTP)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=support@cloudact.ai
-SMTP_PASSWORD=<app-password>
-FROM_EMAIL=support@cloudact.ai
-FROM_NAME=CloudAct.ai Support
-
-# Slack
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
-```
-
-### Alert YAML Format
-
-```yaml
-alerts:
-  - id: subscription_cost_threshold
-    name: "Subscription Cost Threshold"
-    enabled: true
-
-    schedule:
-      cron: "0 8 * * *"
-      timezone: "UTC"
-
-    source:
-      type: bigquery
-      query_template: subscription_costs
-      params:
-        period: current_month
-
-    conditions:
-      - field: total_cost
-        operator: gt
-        value: 20
-        unit: USD
-
-    recipients:
-      type: org_owners
-
-    notification:
-      template: subscription_cost_alert
-      severity: warning
-      channels:
-        - email
-        - slack
-
-    cooldown:
-      enabled: true
-      hours: 24
-```
+| Channel | Protocol | Status |
+|---------|----------|--------|
+| Email | SMTP (smtp.gmail.com:587) | Done |
+| Slack | Incoming Webhooks | Done |
+| Generic Webhook | HTTP POST | Done |
+| Microsoft Teams | Webhook connector | Planned |
+| PagerDuty | API | Planned |
 
 ---
 
 ## Condition Operators
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `gt` | Greater than | `value: 100` |
-| `lt` | Less than | `value: 50` |
-| `eq` | Equals | `value: "active"` |
-| `gte` | Greater or equal | `value: 10` |
-| `lte` | Less or equal | `value: 80` |
-| `ne` | Not equals | `value: "inactive"` |
-| `between` | Range inclusive | `value: [10, 100]` |
-| `not_between` | Outside range | `value: [10, 100]` |
-| `contains` | String contains | `value: "test"` |
-| `not_contains` | String excludes | `value: "test"` |
-| `in` | List membership | `value: ["us", "eu"]` |
-| `not_in` | Not in list | `value: ["test", "dev"]` |
-| `is_null` | Value is null | (no value needed) |
-| `is_not_null` | Value not null | (no value needed) |
-| `percentage_of_exceeds` | Percentage check | `value: [limit, 90]` |
+| Operator | Description |
+|----------|-------------|
+| `gt`, `lt`, `eq`, `gte`, `lte`, `ne` | Standard comparisons |
+| `between`, `not_between` | Range checks (inclusive) |
+| `contains`, `not_contains` | String matching |
+| `in`, `not_in` | List membership |
+| `is_null`, `is_not_null` | Null checks |
+| `percentage_of_exceeds` | Percentage threshold |
 
 ---
 
-## File Structure
+## Recipient Resolution
 
-```
-03-data-pipeline-service/
-├── src/
-│   ├── app/
-│   │   └── routers/
-│   │       └── alerts.py              # Alert API endpoints
-│   └── core/
-│       ├── alerts/
-│       │   ├── engine.py              # AlertEngine orchestrator
-│       │   ├── models.py              # Pydantic models
-│       │   ├── config_loader.py       # YAML parser
-│       │   ├── query_executor.py      # BigQuery queries
-│       │   ├── condition_evaluator.py # Operators
-│       │   └── recipient_resolver.py  # Supabase/BQ lookups
-│       └── notifications/
-│           ├── registry.py            # Provider registry
-│           ├── adapters.py            # Email/Slack/Webhook
-│           ├── alert_sender.py        # Alert sender helper
-│           └── base.py                # Exceptions
-├── configs/
-│   └── alerts/
-│       └── subscription_alerts.yml    # Alert definitions
-└── docs/
-    ├── NOTIFICATION_ARCHITECTURE.md
-    └── FULL_STACK_NOTIFICATION_ARCHITECTURE.md
-```
+| Resolver | Description |
+|----------|-------------|
+| `org_owners` | Query Supabase for organization owners |
+| `all_members` | All active organization members |
+| `hierarchy_node` | BigQuery org_hierarchy owners |
+| `custom` | Static email list in config |
+
+---
+
+## Reliability Standards
+
+| Standard | Implementation |
+|----------|----------------|
+| Retry | 3 attempts, exponential backoff (1s base, 30s max, ±25% jitter) |
+| Retryable errors | Server 5xx, ConnectionError, SMTPException |
+| Non-retryable | Client 4xx (configuration issues) |
+| Parallel send | `asyncio.gather()` for concurrent channel delivery |
+| Timeouts | Query: 60s, Notification: 30s (configurable) |
+| Thread safety | Double-checked locking, RLock for cache, asyncio.Lock for sessions |
+| Multi-tenancy | Composite cache keys `org_slug:provider_type`, org_slug validated in all queries |
+| Graceful shutdown | `close_all_sessions()` on app shutdown |
+
+---
+
+## Security Standards
+
+| Standard | Implementation |
+|----------|----------------|
+| XSS protection | `html_escape()` on user content in HTML templates |
+| Credential protection | URL sanitization in logs |
+| Input validation | Regex for org_slug, email, URLs |
+| KMS encryption | Channel credentials encrypted by API Service |
 
 ---
 
@@ -250,52 +112,42 @@ alerts:
 
 ### Pipeline Service (8001)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/alerts/scheduler/evaluate` | Cloud Scheduler trigger |
-| GET | `/api/v1/alerts/configs` | List all alert configs |
-| GET | `/api/v1/alerts/configs/{id}` | Get specific config |
-| POST | `/api/v1/alerts/configs/{id}/test` | Test alert manually |
-| POST | `/api/v1/alerts/orgs/{org}/evaluate` | Evaluate for org |
-| GET | `/api/v1/alerts/orgs/{org}/history` | Get alert history |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/alerts/scheduler/evaluate` | Cloud Scheduler trigger |
+| GET | `/alerts/configs` | List alert configs |
+| POST | `/alerts/configs/{id}/test` | Test alert manually |
+| POST | `/alerts/orgs/{org}/evaluate` | Evaluate for specific org |
+| GET | `/alerts/orgs/{org}/history` | Alert history |
 
 ### API Service (8000)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET/POST | `/api/v1/notifications/{org}/channels` | Channel CRUD |
-| PUT/DELETE | `/api/v1/notifications/{org}/channels/{id}` | Channel update/delete |
-| POST | `/api/v1/notifications/{org}/channels/{id}/test` | Test channel |
-| GET/POST | `/api/v1/notifications/{org}/rules` | Rule CRUD |
-| GET/POST | `/api/v1/notifications/{org}/org-alerts` | Org alerts CRUD |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET/POST | `/notifications/{org}/channels` | Channel CRUD |
+| PUT/DELETE | `/notifications/{org}/channels/{id}` | Channel update/delete |
+| POST | `/notifications/{org}/channels/{id}/test` | Test channel |
+| GET/POST | `/notifications/{org}/rules` | Rule CRUD |
+| GET/POST | `/notifications/{org}/org-alerts` | Org alerts CRUD |
 
 ---
 
-## Testing
+## Key Files
 
-```bash
-# Test $3 subscription cost alert
-curl -X POST "http://localhost:8001/api/v1/alerts/configs/subscription_cost_test_3/test?dry_run=false" \
-  -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
-
-# Evaluate all alerts
-curl -X POST "http://localhost:8001/api/v1/alerts/scheduler/evaluate" \
-  -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
-
-# List alert configs
-curl "http://localhost:8001/api/v1/alerts/configs" \
-  -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
-```
+| File | Purpose |
+|------|---------|
+| `03-data-pipeline-service/src/core/alerts/engine.py` | AlertEngine orchestrator |
+| `03-data-pipeline-service/src/core/alerts/condition_evaluator.py` | Condition operators |
+| `03-data-pipeline-service/src/core/alerts/recipient_resolver.py` | Recipient lookups |
+| `03-data-pipeline-service/src/core/notifications/adapters.py` | Email/Slack/Webhook |
+| `03-data-pipeline-service/configs/alerts/` | Alert YAML definitions |
 
 ---
 
 ## Future Enhancements
 
-- [ ] Microsoft Teams integration
-- [ ] PagerDuty integration
-- [ ] SMS notifications via Twilio
-- [ ] Jira ticket creation
-- [ ] Budget-based alerts
-- [ ] Anomaly detection
-- [ ] Alert aggregation (digest mode)
-- [ ] Alert acknowledgment workflow
+- Microsoft Teams + PagerDuty integrations
+- SMS via Twilio
+- Budget-based alerts + anomaly detection
+- Alert aggregation (digest mode)
+- Acknowledgment workflow

@@ -1,6 +1,6 @@
 # Console UI Design Standards
 
-**v2.9** | 2026-01-15
+**v3.0** | 2026-02-05
 
 > Apple Health design pattern for FinOps. Single source of truth for CloudAct console styling.
 
@@ -8,10 +8,7 @@
 
 ## Design Philosophy
 
-```
-White surfaces dominate. Mint for features. Coral for costs/alerts.
-Premium, minimal, Apple-inspired. 8px spacing grid.
-```
+White surfaces dominate. Mint for features. Coral for costs/alerts. Premium, minimal, Apple-inspired. 8px spacing grid. No icons — enterprise-ready, text-first approach.
 
 ---
 
@@ -32,115 +29,36 @@ Premium, minimal, Apple-inspired. 8px spacing grid.
 
 ---
 
-## Chart Colors (CSS Variables)
+## Chart Color Palettes
 
-| Variable | Hex | Use |
-|----------|-----|-----|
-| `--chart-1` | `#90FCA6` | Mint Primary |
-| `--chart-2` | `#B8FDCA` | Mint Light |
-| `--chart-3` | `#6EE890` | Mint Dark |
-| `--chart-4` | `rgba(144,252,166,0.7)` | Mint 70% |
-| `--chart-5` | `rgba(144,252,166,0.45)` | Mint 45% |
-| `--chart-6` | `#FF6C5E` | Coral (for cost charts) |
+All palettes defined in `lib/costs/design-tokens.ts`.
 
----
-
-## Chart Palettes (TypeScript)
-
-**File:** `lib/costs/design-tokens.ts`
-
-### Default Palette (8 colors)
-
-```typescript
-DEFAULT_CHART_PALETTE = [
-  "#4285F4", // Blue
-  "#FF9900", // Orange
-  "#10A37F", // Green
-  "#D97757", // Coral
-  "#8E75B2", // Purple
-  "#00CED1", // Cyan
-  "#FF6C5E", // Red
-  "#FFD700", // Gold
-]
-```
-
-### GenAI Palette
-
-```typescript
-GENAI_CHART_PALETTE = [
-  "#10A37F", // OpenAI Green
-  "#D97757", // Anthropic Coral
-  "#4285F4", // Google Blue
-  "#8E75B2", // Gemini Purple
-  "#FF7000", // Mistral Orange
-  "#5046E5", // Cohere Indigo
-  "#0078D4", // Azure Blue
-  "#FF9900", // AWS Orange
-]
-```
-
-### Cloud Palette
-
-```typescript
-CLOUD_CHART_PALETTE = [
-  "#4285F4", // GCP Blue
-  "#FF9900", // AWS Orange
-  "#0078D4", // Azure Blue
-  "#F80000", // Oracle Red
-  "#0080FF", // DigitalOcean Blue
-  "#00A95C", // Linode Green
-]
-```
-
-### Subscription Palette
-
-```typescript
-SUBSCRIPTION_CHART_PALETTE = [
-  "#FF6C5E", // Coral (primary)
-  "#4A154B", // Slack Purple
-  "#F24E1E", // Figma Orange
-  "#24292F", // GitHub Dark
-  "#0052CC", // Atlassian Blue
-  "#00A1E0", // Salesforce Blue
-]
-```
+| Palette | Colors | Use |
+|---------|--------|-----|
+| Default | Blue `#4285F4`, Orange `#FF9900`, Green `#10A37F`, Coral `#D97757`, Purple `#8E75B2`, Cyan `#00CED1`, Red `#FF6C5E`, Gold `#FFD700` | General charts |
+| GenAI | OpenAI `#10A37F`, Anthropic `#D97757`, Google `#4285F4`, Gemini `#8E75B2`, Mistral `#FF7000`, Cohere `#5046E5`, Azure `#0078D4`, AWS `#FF9900` | GenAI dashboards |
+| Cloud | GCP `#4285F4`, AWS `#FF9900`, Azure `#0078D4`, Oracle `#F80000` | Cloud dashboards |
+| Subscription | Coral `#FF6C5E`, Slack `#4A154B`, Figma `#F24E1E`, GitHub `#24292F`, Atlassian `#0052CC`, Salesforce `#00A1E0` | SaaS dashboards |
 
 ---
 
 ## Provider Colors
 
-### GenAI Providers
-
-| Provider | Hex | Variable |
-|----------|-----|----------|
-| OpenAI | `#10A37F` | `GENAI_PROVIDER_COLORS.openai` |
-| Anthropic | `#D97757` | `GENAI_PROVIDER_COLORS.anthropic` |
-| Google/Gemini | `#4285F4` | `GENAI_PROVIDER_COLORS.google` |
-| Gemini | `#8E75B2` | `GENAI_PROVIDER_COLORS.gemini` |
-| DeepSeek | `#5865F2` | `GENAI_PROVIDER_COLORS.deepseek` |
-| Azure OpenAI | `#0078D4` | `GENAI_PROVIDER_COLORS.azure_openai` |
-| AWS Bedrock | `#FF9900` | `GENAI_PROVIDER_COLORS.aws_bedrock` |
-| GCP Vertex | `#4285F4` | `GENAI_PROVIDER_COLORS.gcp_vertex` |
-
-### Cloud Providers
-
-| Provider | Hex | Variable |
-|----------|-----|----------|
-| GCP | `#4285F4` | `CLOUD_PROVIDER_COLORS.gcp` |
-| AWS | `#FF9900` | `CLOUD_PROVIDER_COLORS.aws` |
-| Azure | `#0078D4` | `CLOUD_PROVIDER_COLORS.azure` |
-| OCI | `#F80000` | `CLOUD_PROVIDER_COLORS.oci` |
-
-### SaaS Providers
-
-| Provider | Hex | Variable |
-|----------|-----|----------|
-| Slack | `#4A154B` | `SAAS_PROVIDER_COLORS.slack` |
-| Figma | `#F24E1E` | `SAAS_PROVIDER_COLORS.figma` |
-| Canva | `#00C4CC` | `SAAS_PROVIDER_COLORS.canva` |
-| GitHub | `#24292F` | `SAAS_PROVIDER_COLORS.github` |
-| Notion | `#000000` | `SAAS_PROVIDER_COLORS.notion` |
-| Jira | `#0052CC` | `SAAS_PROVIDER_COLORS.jira` |
+| Category | Provider | Hex |
+|----------|----------|-----|
+| GenAI | OpenAI | `#10A37F` |
+| GenAI | Anthropic | `#D97757` |
+| GenAI | Google/Gemini | `#4285F4` / `#8E75B2` |
+| GenAI | DeepSeek | `#5865F2` |
+| GenAI | Azure OpenAI | `#0078D4` |
+| GenAI | AWS Bedrock | `#FF9900` |
+| Cloud | GCP | `#4285F4` |
+| Cloud | AWS | `#FF9900` |
+| Cloud | Azure | `#0078D4` |
+| Cloud | OCI | `#F80000` |
+| SaaS | Slack | `#4A154B` |
+| SaaS | Canva | `#00C4CC` |
+| SaaS | GitHub | `#24292F` |
 
 ---
 
@@ -151,34 +69,12 @@ SUBSCRIPTION_CHART_PALETTE = [
 | GenAI | `#10A37F` | GenAI cost dashboards |
 | Cloud | `#4285F4` | Cloud cost dashboards |
 | Subscription | `#FF6C5E` | SaaS cost dashboards |
-| AI | `#10A37F` | AI-related subscriptions |
-| Design | `#F24E1E` | Design tool subscriptions |
-| Productivity | `#4285F4` | Productivity subscriptions |
-| Development | `#24292F` | Dev tool subscriptions |
-
----
-
-## Chart Usage
-
-```typescript
-import {
-  getProviderColor,
-  getChartColors,
-  GENAI_CHART_PALETTE
-} from "@/lib/costs/design-tokens"
-
-// Get specific provider color
-const color = getProviderColor("openai") // "#10A37F"
-
-// Get chart colors for a list
-const colors = getChartColors(providers, "genai")
-```
 
 ---
 
 ## Typography
 
-**Font:** DM Sans (loaded via next/font)
+**Font:** DM Sans (loaded via `next/font`)
 
 | Class | Size | Weight | Use |
 |-------|------|--------|-----|
@@ -191,35 +87,34 @@ const colors = getChartColors(providers, "genai")
 
 ---
 
-## Spacing (8px Grid)
+## Spacing & Layout Standards
 
-| Variable | Size | Tailwind |
-|----------|------|----------|
-| `--space-2` | 8px | `p-2` |
-| `--space-4` | 16px | `p-4` |
-| `--space-6` | 24px | `p-6` |
-| `--space-8` | 32px | `p-8` |
-
----
-
-## Border Radius
-
-| Variable | Size | Use |
-|----------|------|-----|
-| `--radius-sm` | 8px | Small buttons |
-| `--radius-md` | 12px | Buttons, inputs |
-| `--radius-lg` | 16px | Cards |
-| `--radius-xl` | 20px | Metric cards |
+| Standard | Value |
+|----------|-------|
+| Grid | 8px base (`--space-2`=8px, `--space-4`=16px, `--space-6`=24px, `--space-8`=32px) |
+| Border radius | sm=8px, md=12px, lg=16px, xl=20px |
+| Max width | `max-w-7xl` for all console pages |
 
 ---
 
-## Buttons
+## Button Standards
 
 | Class | Background | Text | Use |
 |-------|------------|------|-----|
 | `.cloudact-btn-primary` | Mint | Black | Console CTAs |
 | `.cloudact-btn-dark` | Obsidian | White | Auth flows |
 | `.cloudact-btn-destructive` | Coral | White | Delete actions |
+
+---
+
+## Usage Rules
+
+1. **Never use blue for buttons/links** — blue is charts only
+2. **Mint = features, Coral = costs** — consistent semantic meaning
+3. **Use provider colors for charts** — match brand identity
+4. **8px grid** — all spacing multiples of 8
+5. **`max-w-7xl`** — all console pages bounded
+6. **No icons** — enterprise-ready, text-first
 
 ---
 
@@ -231,13 +126,3 @@ const colors = getChartColors(providers, "genai")
 | `app/[orgSlug]/console.css` | Console styles |
 | `lib/costs/design-tokens.ts` | Chart palettes, provider colors |
 | `components/charts/` | Chart components |
-
----
-
-## Usage Rules
-
-1. **Never use blue for buttons/links** - Blue is charts only
-2. **Mint = features, Coral = costs** - Consistent semantic meaning
-3. **Use provider colors for charts** - Match brand colors
-4. **8px grid** - All spacing multiples of 8
-5. **max-w-7xl** - All console pages bounded

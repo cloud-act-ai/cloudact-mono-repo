@@ -1,38 +1,52 @@
 # Internationalization
 
-**v12.2** | 2026-01-15
+**v12.3** | 2026-02-05
 
-> Org-level i18n (currency, timezone)
+> Org-level i18n (currency, timezone, country)
+
+---
+
+## Workflow
+
+```
+Signup → Select Currency + Timezone → Stored on org record
+      → FX rates fetched (USD base) → Templates converted to org currency
+      → All cost data displayed in org currency
+```
 
 ---
 
 ## Core Attributes
 
-| Attribute | Standard | Selectable |
-|-----------|----------|------------|
-| Currency | ISO 4217 | Yes (signup) |
-| Timezone | IANA | Yes (signup) |
-| Country | ISO 3166-1 | Auto (from currency) |
-| Language | BCP 47 | Fixed (en) |
+| Attribute | Standard | Selectable | Notes |
+|-----------|----------|------------|-------|
+| Currency | ISO 4217 | Yes (signup) | Determines display + FX conversion |
+| Timezone | IANA | Yes (signup) | Affects date boundaries, cron schedules |
+| Country | ISO 3166-1 | Auto (from currency) | Derived, not user-selected |
+| Language | BCP 47 | Fixed (`en`) | English only (current) |
 
 ---
 
 ## Supported Currencies (16)
 
 **Major:** USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY, INR, SGD
+
 **Arab:** AED, SAR, QAR, KWD, BHD, OMR
 
 ---
 
 ## Supported Timezones (15)
 
-UTC, America/*, Europe/*, Asia/*, Australia/Sydney
+UTC, America/New_York, America/Chicago, America/Denver, America/Los_Angeles, Europe/London, Europe/Paris, Europe/Berlin, Asia/Tokyo, Asia/Shanghai, Asia/Singapore, Asia/Kolkata, Asia/Dubai, Australia/Sydney, Pacific/Auckland
 
 ---
 
-## FX Conversion
+## FX Conversion Standard
 
-Templates (USD) → converted to org currency at signup
+- All internal pricing templates stored in **USD**
+- Converted to org currency at signup using current exchange rates
+- Exchange rate stored with `source_currency`, `exchange_rate_used` fields
+- Cost data always displayed in org's selected currency
 
 ---
 
@@ -40,5 +54,5 @@ Templates (USD) → converted to org currency at signup
 
 | File | Purpose |
 |------|---------|
-| `lib/i18n/currencies.ts` | Currency config |
-| `lib/i18n/timezones.ts` | Timezone config |
+| `lib/i18n/currencies.ts` | Currency config + formatting |
+| `lib/i18n/timezones.ts` | Timezone config + display names |

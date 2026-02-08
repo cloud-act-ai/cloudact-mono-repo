@@ -1,8 +1,27 @@
 # Quotas & Rate Limiting
 
-**v1.0** | 2026-01-15
+**v1.1** | 2026-02-05
 
 > Plan-based resource limits with atomic enforcement
+
+---
+
+## Quota Enforcement Workflow
+
+```
+1. Pipeline request → API Service (8000)
+2. Read subscription limits from Supabase (source of truth for plans)
+3. Self-healing: cleanup_stale_concurrent_for_org(org_slug) if needed
+4. Atomic quota check-and-reserve → Single SQL UPDATE with WHERE clauses
+5. Return success OR 429 error with specific reason code
+6. Pipeline executes → Pipeline Service (8001)
+7. On complete → Decrement concurrent count, increment success/fail
+8. Daily reset → 00:00 UTC (Cloud Run Job, API-first)
+9. Monthly reset → 00:05 UTC 1st of month (Cloud Run Job)
+10. Stale cleanup → 02:00 UTC daily (safety net, most handled by self-healing)
+```
+
+**Self-healing:** When an org requests a pipeline, stale concurrent counters are cleaned before quota reservation (~50ms, zero overhead if no stale counters).
 
 ---
 
@@ -13,7 +32,7 @@
 | **Starter** | 6 | 180 | 20 | 2 | 3 | $19 |
 | **Professional** | 25 | 750 | 20 | 6 | 6 | $69 |
 | **Scale** | 100 | 3000 | 20 | 11 | 10 | $199 |
-| **Enterprise** | ∞ | ∞ | ∞ | ∞ | ∞ | Custom |
+| **Enterprise** | Custom | Custom | Custom | Custom | Custom | Custom |
 
 ---
 
@@ -24,60 +43,42 @@
 | `pipelines_run_today` | Daily pipeline executions | 00:00 UTC |
 | `pipelines_run_month` | Monthly pipeline executions | 1st of month |
 | `concurrent_pipelines_running` | Simultaneous executions | On completion |
-| `seat_limit` | Team members per org | N/A |
-| `providers_limit` | Integrations per org | N/A |
+| `seat_limit` | Team members per org | N/A (static) |
+| `providers_limit` | Integrations per org | N/A (static) |
 
 ---
 
 ## Data Storage
 
-| Table | Purpose |
-|-------|---------|
-| `org_subscriptions` | Plan limits (source of truth) |
-| `org_usage_quotas` | Daily/monthly usage tracking |
+| Table | Location | Purpose |
+|-------|----------|---------|
+| `organizations` | Supabase | Plan limits, billing status (source of truth) |
+| `org_subscriptions` | BigQuery | Plan metadata (synced from Supabase at onboarding) |
+| `org_usage_quotas` | BigQuery | Daily/monthly usage tracking |
 
 ---
 
-## Enforcement Flow
+## Quota Reset Schedule (Cloud Run Jobs)
 
-```
-Pipeline Request → API Service validates:
-1. Subscription status (ACTIVE/TRIAL)
-2. Atomic quota check-and-reserve
-3. Return success OR 429 error
-         ↓
-Pipeline executes → On complete:
-1. Decrement concurrent count
-2. Increment success/fail counters
-```
-
-**Atomic Check:** Single SQL UPDATE with WHERE clauses prevents race conditions
+| Job | Schedule | Action |
+|-----|----------|--------|
+| `quota-reset-daily` | 00:00 UTC | Reset `pipelines_run_today` + concurrent |
+| `quota-reset-monthly` | 00:05 UTC 1st | Reset `pipelines_run_month` |
+| `stale-cleanup` | 02:00 UTC daily | Fix stuck concurrent counts (safety net) |
+| `quota-cleanup` | 01:00 UTC daily | Delete quota records >90 days |
 
 ---
 
-## API Endpoints
+## API Endpoints (Port 8000)
 
-```bash
-# Get quota status (8000)
-GET /api/v1/organizations/{org}/quota
-
-# Validate before pipeline (8000)
-POST /api/v1/validator/validate/{org}
-```
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/organizations/{org}/quota` | Get current quota status |
+| POST | `/validator/validate/{org}` | Validate before pipeline run |
 
 ---
 
-## Quota Resets
-
-| Reset | Schedule | Action |
-|-------|----------|--------|
-| Daily | 00:00 UTC | Reset `pipelines_run_today`, concurrent |
-| Monthly | 1st 00:00 UTC | Reset `pipelines_run_month` |
-| Stale cleanup | Every 15 min | Fix stuck concurrent counts |
-
----
-
-## Rate Limiting (Separate)
+## Rate Limiting (Separate from Quotas)
 
 | Scope | Limit |
 |-------|-------|
@@ -86,15 +87,13 @@ POST /api/v1/validator/validate/{org}
 
 ---
 
-## Frontend Warnings
+## Frontend Warning Thresholds
 
 | Usage | Level | Color |
 |-------|-------|-------|
 | 80% | Warning | Yellow |
 | 90% | Critical | Orange |
-| 100% | Exceeded | Red |
-
-Component: `components/quota-warning-banner.tsx`
+| 100% | Exceeded | Red (blocked) |
 
 ---
 

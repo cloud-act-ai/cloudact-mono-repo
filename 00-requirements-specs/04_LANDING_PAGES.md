@@ -1,8 +1,18 @@
 # Landing Pages
 
-**v1.0** | 2026-01-15
+**v1.1** | 2026-02-05
 
-> Public marketing pages
+> Public marketing pages for CloudAct
+
+---
+
+## Page Workflow
+
+```
+User visits cloudact.ai → PublicLayout wrapper → Landing page content
+                        → /pricing → Plan comparison → Signup CTA
+                        → /signup → Stripe Checkout → Console dashboard
+```
 
 ---
 
@@ -10,8 +20,8 @@
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Home |
-| `/pricing` | Plan comparison |
+| `/` | Home — hero, features, social proof |
+| `/pricing` | Plan comparison (Starter/Professional/Scale) |
 | `/features` | Feature showcase |
 | `/about` | Company info |
 | `/contact` | Contact form |
@@ -20,16 +30,29 @@
 
 ---
 
-## Layout
+## Layout Structure
 
 ```
 app/(landingPages)/
-├─ layout.tsx         # PublicLayout wrapper
+├─ layout.tsx         # PublicLayout wrapper (header + footer)
 ├─ page.tsx          # Home
 ├─ pricing/page.tsx
 ├─ features/page.tsx
+├─ about/page.tsx
+├─ contact/page.tsx
 └─ legal/
+   ├─ privacy/page.tsx
+   └─ terms/page.tsx
 ```
+
+---
+
+## Design Standards
+
+- Enterprise-grade, Apple Health design pattern
+- No icons — text-first approach
+- Mint for features, Coral for costs
+- See `00_CONSOLE_UI_DESIGN_STANDARDS.md` for full color/typography specs
 
 ---
 
@@ -38,4 +61,4 @@ app/(landingPages)/
 | File | Purpose |
 |------|---------|
 | `app/(landingPages)/` | Page components |
-| `components/landing/` | Landing components |
+| `components/landing/` | Shared landing components |

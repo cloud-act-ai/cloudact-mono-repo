@@ -142,7 +142,7 @@ export default async function OrgLayout({
               userRole={membership.role}
             />
           </ErrorBoundary>
-          <main id="main-content" className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8" tabIndex={-1}>
+          <main id="main-content" className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 dark:bg-slate-950" tabIndex={-1}>
             <OrgProviders orgSlug={orgSlug}>
               {children}
             </OrgProviders>
