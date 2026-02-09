@@ -47,16 +47,25 @@ def safe_query(
     3. Executes parameterized query
     4. Returns results with metadata
     """
-    validate_org(org_slug)
-    estimated_bytes = guard_query(query, params)
-    rows = execute_query(query, params)
+    try:
+        validate_org(org_slug)
+        estimated_bytes = guard_query(query, params)
+        rows = execute_query(query, params)
 
-    return {
-        "org_slug": org_slug,
-        "rows": rows,
-        "count": len(rows),
-        "bytes_processed": estimated_bytes,
-    }
+        return {
+            "org_slug": org_slug,
+            "rows": rows,
+            "count": len(rows),
+            "bytes_processed": estimated_bytes,
+        }
+    except Exception as e:
+        logger.error(f"Query failed for {org_slug}: {e}")
+        return {
+            "org_slug": org_slug,
+            "rows": [],
+            "count": 0,
+            "error": str(e),
+        }
 
 
 def get_dataset(org_slug: str) -> str:
