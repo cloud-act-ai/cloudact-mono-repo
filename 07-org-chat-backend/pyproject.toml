@@ -1,0 +1,33 @@
+[project]
+name = "cloudact-chat-backend"
+version = "1.0.0"
+description = "Multi-tenant AI chat backend for CloudAct - Google ADK agents + MCP tools + BigQuery"
+requires-python = ">=3.11"
+dependencies = [
+    "google-adk[a2a]>=1.22",
+    "fastmcp>=2.0",
+    "google-cloud-bigquery>=3.14",
+    "google-cloud-kms>=2.21",
+    "google-cloud-logging>=3.9",
+    "google-cloud-secret-manager>=2.18",
+    "litellm>=1.40",
+    "fastapi>=0.109",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "python-json-logger>=2.0",
+    "tenacity>=8.2",
+    "pendulum>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "httpx>=0.26",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

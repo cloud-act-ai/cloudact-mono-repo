@@ -1,0 +1,61 @@
+# CloudAct Chat Backend — Agent Configuration
+# This file defines the agent hierarchy and their properties.
+
+orchestrator:
+  name: CloudActAI
+  description: "CloudAct AI assistant for cloud cost analytics"
+  prompt_file: system_prompts/orchestrator.md
+  tools: []  # Zero tools — routes only
+  sub_agents:
+    - cost_analyst
+    - alert_manager
+    - usage_analyst
+    - explorer
+
+cost_analyst:
+  name: CostAnalyst
+  description: "Analyzes cloud, GenAI, and SaaS costs"
+  prompt_file: system_prompts/cost_analyst.md
+  tools:
+    - query_costs
+    - compare_periods
+    - cost_breakdown
+    - cost_forecast
+    - top_cost_drivers
+
+alert_manager:
+  name: AlertManager
+  description: "Manages cost alerts and thresholds"
+  prompt_file: system_prompts/alert_manager.md
+  tools:
+    - list_alerts
+    - create_alert
+    - alert_history
+    - acknowledge_alert
+
+usage_analyst:
+  name: UsageAnalyst
+  description: "Analyzes GenAI and pipeline usage metrics"
+  prompt_file: system_prompts/usage_analyst.md
+  tools:
+    - genai_usage
+    - quota_status
+    - top_consumers
+    - pipeline_runs
+
+explorer:
+  name: Explorer
+  description: "Ad-hoc BigQuery data exploration"
+  prompt_file: system_prompts/explorer.md
+  tools:
+    - bigquery_toolset  # Optional, only when BigQueryToolset is available
+
+# Provider support
+supported_providers:
+  - OPENAI
+  - ANTHROPIC
+  - GEMINI
+  - DEEPSEEK
+
+# Default model for adk web / development
+default_model: gemini-2.0-flash
