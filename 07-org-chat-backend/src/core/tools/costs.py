@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Allowed values for enum-style parameters
 _VALID_GROUP_BY = {"provider", "service", "team", "day", "month"}
-_VALID_DIMENSIONS = {"provider", "service", "team", "region", "model"}
+_VALID_DIMENSIONS = {"provider", "service", "service_category", "team", "region", "model"}
 _VALID_PERIOD_TYPES = {"MTD", "MoM", "QoQ", "YoY"}
 
 
@@ -214,6 +214,7 @@ def cost_breakdown(
     dim_map = {
         "provider": "ServiceProviderName",
         "service": "ServiceName",
+        "service_category": "ServiceCategory",
         "team": "x_hierarchy_entity_name",
         "region": "RegionName",
         "model": "x_genai_model",
