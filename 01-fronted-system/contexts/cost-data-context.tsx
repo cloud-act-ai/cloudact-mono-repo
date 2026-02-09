@@ -540,6 +540,10 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
   // Track previous orgSlug to detect org changes (CACHE-004 fix)
   const prevOrgSlugRef = useRef<string>(orgSlug)
 
+  // RETRY-001: Track retry attempts to prevent infinite retry loops
+  const retryCountRef = useRef(0)
+  const MAX_RETRIES = 1
+
   // State
   const [state, setState] = useState<CostDataState>({
     // L1 CACHE: Granular Data (365 days, all dimensions)
@@ -844,6 +848,29 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         })
       }
 
+      // RETRY-001: Check if ALL results failed with auth errors (cold start scenario)
+      const allFailed = !totalCostsResult.success && !providerResult.success && !granularResult.success
+      const hasAuthError = [totalCostsResult.error, providerResult.error, granularResult.error]
+        .some(e => e && (e.includes("Authentication failed") || e.includes("Unable to access")))
+
+      if (allFailed && hasAuthError && retryCountRef.current < MAX_RETRIES) {
+        retryCountRef.current++
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[CostData] All fetches failed with auth errors, retrying (${retryCountRef.current}/${MAX_RETRIES})...`)
+        }
+        // Release fetching lock and schedule retry after delay
+        isFetchingRef.current = false
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            fetchCostData(clearBackendCache, filtersOverride)
+          }
+        }, 3000)
+        return
+      }
+
+      // Reset retry count on successful fetch
+      retryCountRef.current = 0
+
       // Update state with fetched data
       setState((prev) => ({
         ...prev,
@@ -1135,8 +1162,9 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         error: null,
       })
 
-      // Update previous org slug
+      // Update previous org slug and reset retry count
       prevOrgSlugRef.current = orgSlug
+      retryCountRef.current = 0
     }
   }, [orgSlug])
 

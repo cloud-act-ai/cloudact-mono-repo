@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { getOrgSlug } from "@/lib/utils"
+import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
   DollarSign,
   Brain,

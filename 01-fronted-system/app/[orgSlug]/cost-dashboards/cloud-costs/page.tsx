@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Cloud } from "lucide-react"
 import { getOrgSlug } from "@/lib/utils"
+import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 
 import {
   DailyTrendChart,

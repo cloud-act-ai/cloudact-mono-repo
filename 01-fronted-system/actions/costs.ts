@@ -15,7 +15,7 @@
  */
 
 import { logError } from "@/lib/utils"
-import { getAuthContext, requireOrgMembership } from "@/lib/auth-cache"
+import { getAuthContext, invalidateAuthCache, requireOrgMembership } from "@/lib/auth-cache"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
@@ -248,9 +248,20 @@ export async function getGenAICosts(
     }
     if (params.toString()) url += `?${params.toString()}`
 
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    })
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } })
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       // 404 means no data found for this org/date range - this is NOT an error
@@ -277,7 +288,7 @@ export async function getGenAICosts(
           error: `Invalid request: ${extractErrorMessage(errorText)}`,
         }
       }
-      // 401/403 indicate auth issues
+      // 401/403 indicate auth issues (still failing after retry)
       if (response.status === 401 || response.status === 403) {
         return {
           success: false,
@@ -396,9 +407,20 @@ export async function getCloudCosts(
     }
     if (params.toString()) url += `?${params.toString()}`
 
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    })
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } })
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       // 404 means no data found for this org/date range - this is NOT an error
@@ -425,7 +447,7 @@ export async function getCloudCosts(
           error: `Invalid request: ${extractErrorMessage(errorText)}`,
         }
       }
-      // 401/403 indicate auth issues
+      // 401/403 indicate auth issues (still failing after retry)
       if (response.status === 401 || response.status === 403) {
         return {
           success: false,
@@ -546,9 +568,22 @@ export async function getTotalCosts(
     if (params.toString()) url += `?${params.toString()}`
 
     // Use longer timeout for /total endpoint - it makes 3 parallel BigQuery calls internally
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    }, 60000)  // 60s timeout for heavy aggregation endpoint
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } }, 60000)
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    // Handles cold-start scenarios where API service hasn't loaded keys yet
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      // Wait briefly for API service to warm up
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       // 404 means no data found - this is NOT an error
@@ -564,7 +599,7 @@ export async function getTotalCosts(
           error: `Invalid request: ${extractErrorMessage(errorText)}`,
         }
       }
-      // 401/403 indicate auth issues
+      // 401/403 indicate auth issues (still failing after retry)
       if (response.status === 401 || response.status === 403) {
         return {
           success: false,
@@ -669,9 +704,20 @@ export async function getCostTrend(
     }
     const url = `${apiUrl}/api/v1/costs/${orgSlug}/trend?${params.toString()}`
 
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    })
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } })
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       // 404 means no data found - this is NOT an error
@@ -688,7 +734,7 @@ export async function getCostTrend(
           error: `Invalid request: ${extractErrorMessage(errorText)}`,
         }
       }
-      // 401/403 indicate auth issues
+      // 401/403 indicate auth issues (still failing after retry)
       if (response.status === 401 || response.status === 403) {
         return {
           success: false,
@@ -864,9 +910,20 @@ export async function getCostTrendGranular(
 
     const url = `${apiUrl}/api/v1/costs/${orgSlug}/trend-granular?${params.toString()}`
 
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    })
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } })
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -963,9 +1020,20 @@ export async function getCostByProvider(
     }
     if (params.toString()) url += `?${params.toString()}`
 
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    })
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } })
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       // 404 means no data found - this is NOT an error
@@ -982,7 +1050,7 @@ export async function getCostByProvider(
           error: `Invalid request: ${extractErrorMessage(errorText)}`,
         }
       }
-      // 401/403 indicate auth issues
+      // 401/403 indicate auth issues (still failing after retry)
       if (response.status === 401 || response.status === 403) {
         return {
           success: false,
@@ -1126,9 +1194,20 @@ export async function getCostByService(
     }
     if (params.toString()) url += `?${params.toString()}`
 
-    const response = await fetchWithTimeout(url, {
-      headers: { "X-API-Key": orgApiKey },
-    })
+    const makeRequest = async (apiKey: string) =>
+      fetchWithTimeout(url, { headers: { "X-API-Key": apiKey } })
+
+    let response = await makeRequest(orgApiKey)
+
+    // RETRY-001: On 401, invalidate auth cache and retry once with fresh credentials
+    if (response.status === 401 || response.status === 403) {
+      invalidateAuthCache(orgSlug)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const freshAuth = await getAuthContext(orgSlug)
+      if (freshAuth) {
+        response = await makeRequest(freshAuth.apiKey)
+      }
+    }
 
     if (!response.ok) {
       // 404 means no data found - this is NOT an error
@@ -1145,7 +1224,7 @@ export async function getCostByService(
           error: `Invalid request: ${extractErrorMessage(errorText)}`,
         }
       }
-      // 401/403 indicate auth issues
+      // 401/403 indicate auth issues (still failing after retry)
       if (response.status === 401 || response.status === 403) {
         return {
           success: false,
