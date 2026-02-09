@@ -75,10 +75,10 @@ DEFAULT_MODELS: Dict[str, List[Dict[str, str]]] = {
 
 def validate_org_slug(org_slug: str) -> None:
     """Validate org_slug format."""
-    if not org_slug or not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+    if not org_slug or not re.match(r'^[a-z0-9_]{3,50}$', org_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores.",
+            detail="Invalid org_slug format. Must be 3-50 lowercase alphanumeric characters with underscores.",
         )
 
 
@@ -221,9 +221,9 @@ async def upsert_chat_settings(
 
     # Verify credential exists and belongs to this org
     cred_query = f"""
-        SELECT credential_id, provider, status
+        SELECT credential_id, provider, validation_status
         FROM `{_credentials_table()}`
-        WHERE org_slug = @org_slug AND credential_id = @credential_id
+        WHERE org_slug = @org_slug AND credential_id = @credential_id AND is_active = TRUE
         LIMIT 1
     """
     cred_params = [
@@ -238,10 +238,10 @@ async def upsert_chat_settings(
         )
 
     cred_row = dict(cred_results[0])
-    if cred_row.get("status") != "active":
+    if cred_row.get("validation_status") != "VALID":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Credential is not active. Please re-configure the integration.",
+            detail="Credential is not valid. Please re-configure the integration.",
         )
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f UTC")
@@ -341,9 +341,9 @@ async def update_chat_settings(
     # If credential_id is being changed, validate it
     if "credential_id" in updates:
         cred_query = f"""
-            SELECT credential_id, status
+            SELECT credential_id, validation_status
             FROM `{_credentials_table()}`
-            WHERE org_slug = @org_slug AND credential_id = @credential_id
+            WHERE org_slug = @org_slug AND credential_id = @credential_id AND is_active = TRUE
             LIMIT 1
         """
         cred_params = [
@@ -457,9 +457,9 @@ async def list_providers(
 
     # Get existing credentials for this org
     cred_query = f"""
-        SELECT credential_id, provider, status, created_at
+        SELECT credential_id, provider, validation_status, created_at
         FROM `{_credentials_table()}`
-        WHERE org_slug = @org_slug AND status = 'active'
+        WHERE org_slug = @org_slug AND is_active = TRUE AND validation_status = 'VALID'
     """
     cred_params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
     cred_results = list(bq_client.query(cred_query, parameters=cred_params))
@@ -502,9 +502,9 @@ async def validate_llm_key(
 
     # Verify credential exists
     cred_query = f"""
-        SELECT credential_id, status
+        SELECT credential_id, validation_status
         FROM `{_credentials_table()}`
-        WHERE org_slug = @org_slug AND credential_id = @credential_id
+        WHERE org_slug = @org_slug AND credential_id = @credential_id AND is_active = TRUE
         LIMIT 1
     """
     cred_params = [
@@ -519,10 +519,10 @@ async def validate_llm_key(
         }
 
     cred_row = dict(cred_results[0])
-    if cred_row.get("status") != "active":
+    if cred_row.get("validation_status") != "VALID":
         return {
             "valid": False,
-            "error": "Credential is not active.",
+            "error": "Credential is not valid.",
         }
 
     return {

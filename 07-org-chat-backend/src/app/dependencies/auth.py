@@ -73,7 +73,7 @@ async def get_chat_context(
 
     rows = execute_query(
         f"""SELECT org_slug FROM `{org_dataset}.org_api_keys`
-            WHERE key_hash = @key_hash AND org_slug = @org_slug
+            WHERE org_api_key_hash = @key_hash AND org_slug = @org_slug
               AND is_active = TRUE LIMIT 1""",
         params=[
             bigquery.ScalarQueryParameter("key_hash", "STRING", api_key_hash),

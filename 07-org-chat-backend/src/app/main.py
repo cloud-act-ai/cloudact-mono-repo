@@ -38,7 +38,7 @@ from src.core.sessions.bq_session_store import (
     list_conversations,
     persist_message,
 )
-from src.core.security.kms_decryption import decrypt_value_base64
+from src.core.security.kms_decryption import decrypt_value, decrypt_value_base64
 from src.core.observability.logging import setup_logging
 from src.a2a.agent_card import get_agent_card
 
@@ -146,7 +146,11 @@ async def send_message(
         )
 
     try:
-        api_key = decrypt_value_base64(encrypted_cred)
+        # BigQuery BYTES column returns raw bytes; base64-encoded strings need decoding
+        if isinstance(encrypted_cred, bytes):
+            api_key = decrypt_value(encrypted_cred)
+        else:
+            api_key = decrypt_value_base64(encrypted_cred)
     except Exception as e:
         logger.error(f"KMS decryption failed for {org_slug}: {e}")
         return JSONResponse(
