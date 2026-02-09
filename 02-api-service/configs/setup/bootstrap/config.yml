@@ -168,3 +168,33 @@ tables:
       type: "DAY"
       field: "created_at"
     clustering: ["org_slug", "level", "level_code", "is_active"]
+
+  # ============================================
+  # AI Chat Tables
+  # Supports multi-tenant AI chat with BYOK LLM keys
+  # ============================================
+
+  org_chat_settings:
+    description: "AI chat configuration per organization (provider, model, BYOK credential)"
+    clustering: ["org_slug", "is_active"]
+
+  org_chat_conversations:
+    description: "Chat conversation metadata"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "user_id", "status"]
+
+  org_chat_messages:
+    description: "Chat messages within conversations"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "conversation_id", "role"]
+
+  org_chat_tool_calls:
+    description: "MCP tool call audit log for chat agents"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "conversation_id", "tool_name"]

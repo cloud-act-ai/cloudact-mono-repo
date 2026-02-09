@@ -1,0 +1,80 @@
+[
+  {
+    "name": "message_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the message (UUID)"
+  },
+  {
+    "name": "conversation_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "FK to org_chat_conversations"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug (multi-tenancy key)"
+  },
+  {
+    "name": "role",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Message role: user, assistant, tool"
+  },
+  {
+    "name": "content",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Message text content (plain text, markdown supported)"
+  },
+  {
+    "name": "agent_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Which sub-agent generated this response (CostAnalyst, AlertManager, etc.)"
+  },
+  {
+    "name": "tool_calls_json",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON array of tool invocations made during this message"
+  },
+  {
+    "name": "tool_results_json",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON array of tool results returned during this message"
+  },
+  {
+    "name": "model_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "LLM model that generated this response"
+  },
+  {
+    "name": "input_tokens",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Token usage for LLM input (prompt)"
+  },
+  {
+    "name": "output_tokens",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Token usage for LLM output (completion)"
+  },
+  {
+    "name": "latency_ms",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Response generation time in milliseconds"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this message was created"
+  }
+]

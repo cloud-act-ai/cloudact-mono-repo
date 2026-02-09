@@ -1,0 +1,33 @@
+# CloudAct Chat Backend — Allowed BigQuery Tables
+# Tools can ONLY query these tables. Anything else is blocked.
+
+# Per-org dataset: {org_slug}_prod
+org_tables:
+  - cost_data_standard_1_3      # FOCUS 1.3 unified cost data
+  - x_org_hierarchy              # Organization hierarchy (read-only copy)
+  - org_integration_credentials  # Credential metadata (never expose encrypted_value)
+  - org_integration_providers    # Provider configuration
+  - org_notification_rules       # Alert rules
+  - org_alert_history            # Alert trigger history
+  - org_chat_conversations       # Chat conversation metadata
+  - org_chat_messages            # Chat message history
+  - org_chat_tool_calls          # Tool call audit log
+
+# Central organizations dataset
+org_meta_tables:
+  - org_profiles                 # Org metadata
+  - org_subscriptions            # Plan and billing info
+  - org_usage_quotas             # Quota usage tracking
+  - org_meta_pipeline_runs       # Pipeline execution logs
+  - org_chat_settings            # Chat configuration per org
+
+# Tables that should NEVER be queried by chat tools
+blocked_tables:
+  - org_api_keys                 # API keys — security risk
+  - org_integration_credentials  # Only credential_id, never encrypted_value
+
+# Columns to NEVER return in results
+blocked_columns:
+  - encrypted_value              # KMS-encrypted credential
+  - api_key_hash                 # Hashed API keys
+  - kms_key_name                 # KMS key references

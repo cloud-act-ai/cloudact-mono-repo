@@ -1,0 +1,86 @@
+[
+  {
+    "name": "tool_call_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the tool call (UUID)"
+  },
+  {
+    "name": "message_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "FK to org_chat_messages"
+  },
+  {
+    "name": "conversation_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "FK to org_chat_conversations"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug (multi-tenancy key)"
+  },
+  {
+    "name": "agent_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Agent that made the tool call (CostAnalyst, AlertManager, UsageAnalyst, Explorer)"
+  },
+  {
+    "name": "tool_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tool that was called (query_costs, create_alert, genai_usage, etc.)"
+  },
+  {
+    "name": "tool_domain",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tool domain: costs, alerts, usage, explorer"
+  },
+  {
+    "name": "input_params",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "JSON of parameters passed to the tool"
+  },
+  {
+    "name": "output_result",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "JSON of result returned from the tool"
+  },
+  {
+    "name": "bytes_processed",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "BigQuery bytes scanned (from dry-run estimation)"
+  },
+  {
+    "name": "duration_ms",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Tool execution time in milliseconds"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tool call status: success, error"
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error detail if tool call failed"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this tool call was executed"
+  }
+]

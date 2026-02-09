@@ -1,0 +1,98 @@
+[
+  {
+    "name": "setting_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the chat setting entry (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug (multi-tenancy key)"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "LLM provider: OPENAI, ANTHROPIC, GEMINI, DEEPSEEK"
+  },
+  {
+    "name": "credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "FK to org_integration_credentials (KMS-encrypted API key)"
+  },
+  {
+    "name": "model_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "LLM model identifier (e.g., gpt-4o, claude-opus-4, gemini-2.0-flash)"
+  },
+  {
+    "name": "model_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable model display name"
+  },
+  {
+    "name": "temperature",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "LLM temperature setting (0.0 - 2.0, default 0.7)"
+  },
+  {
+    "name": "max_tokens",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Maximum output tokens per response (default 4096)"
+  },
+  {
+    "name": "include_org_context",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether to inject org metadata into system prompt (default true)"
+  },
+  {
+    "name": "enable_memory",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether to load conversation history (default true)"
+  },
+  {
+    "name": "max_history_messages",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Maximum messages to load per conversation (default 50)"
+  },
+  {
+    "name": "system_prompt_extra",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Optional custom instructions appended to system prompt"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Only one active chat setting per org"
+  },
+  {
+    "name": "configured_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who configured these settings"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this setting was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When this setting was last updated"
+  }
+]
