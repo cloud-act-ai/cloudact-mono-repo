@@ -1,0 +1,68 @@
+[
+  {
+    "name": "conversation_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the conversation (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug (multi-tenancy key)"
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Supabase user ID who owns this conversation"
+  },
+  {
+    "name": "title",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Conversation title (auto-generated from first message or user-set)"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "LLM provider used at conversation creation (snapshot)"
+  },
+  {
+    "name": "model_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "LLM model used at conversation creation (snapshot)"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Conversation status: active, archived"
+  },
+  {
+    "name": "message_count",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Running count of messages in this conversation"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this conversation was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When this conversation was last updated"
+  },
+  {
+    "name": "last_message_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of the most recent message"
+  }
+]
