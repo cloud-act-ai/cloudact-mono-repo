@@ -1,6 +1,6 @@
 # Integrations
 
-**v1.8** | 2026-02-05
+**v1.9** | 2026-02-08
 
 > Provider credential management. Related: [Cloud Costs](02_CLOUD_COSTS.md) | [GenAI Costs](02_GENAI_COSTS.md)
 
@@ -11,15 +11,15 @@
 ```
 1. User uploads credentials → Frontend integration page
 2. API validates format → Required fields check per provider
-3. KMS encryption → Credential stored as encrypted blob in BigQuery
-4. Connection test → Validate access to provider resources
-5. Status: active → Ready for pipeline runs
+3. KMS encryption → AES-256 via GCP Cloud KMS → Encrypted blob stored in BigQuery
+4. Connection test → Validate access via test API call to provider
+5. Validation status set → VALID / INVALID / PENDING / EXPIRED
 6. Pipeline runtime → Decrypt (5-min TTL) → Authenticate → Extract data
 ```
 
 ---
 
-## Supported Providers
+## Supported Providers (11+)
 
 | Category | Provider | Credential Type |
 |----------|----------|-----------------|
@@ -31,10 +31,43 @@
 | GenAI | OpenAI | API Key (`sk-*`) |
 | GenAI | Anthropic | API Key (`sk-ant-*`) |
 | GenAI | Gemini | API Key |
-| GenAI | Azure OpenAI | Service Principal |
-| GenAI | AWS Bedrock | IAM Role |
-| GenAI | GCP Vertex | Service Account |
-| SaaS | Various | Manual entry |
+| GenAI | DeepSeek | API Key |
+| SaaS | Canva | Manual entry |
+| SaaS | ChatGPT Plus | Manual entry |
+| SaaS | Slack | Manual entry |
+
+### Provider Configuration
+
+Single source of truth: `configs/system/providers.yml` — defines types, required fields, rate limits, and validation rules for all providers.
+
+---
+
+## Frontend Integration Pages
+
+| Route | Purpose |
+|-------|---------|
+| `/settings/integrations/cloud` | Cloud provider credential management |
+| `/integrations/genai/openai` | OpenAI API key setup |
+| `/integrations/genai/anthropic` | Anthropic API key setup |
+| `/integrations/genai/gemini` | Gemini API key setup |
+| `/integrations/genai/deepseek` | DeepSeek API key setup |
+| `/integrations/gcp` | GCP service account setup |
+| `/integrations/subscriptions` | SaaS subscription management |
+
+---
+
+## Credential Validation Flow
+
+```
+Upload credential → Encrypt (KMS AES-256) → Store → Test API call → Set validation_status
+```
+
+| Status | Meaning |
+|--------|---------|
+| `VALID` | Credential tested and working |
+| `INVALID` | Credential tested and failed |
+| `PENDING` | Credential stored, not yet tested |
+| `EXPIRED` | Credential previously valid, now expired |
 
 ---
 
@@ -43,10 +76,11 @@
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | POST | `/integrations/{org}/{provider}/setup` | Encrypt + store credential |
-| POST | `/integrations/{org}/{provider}/validate` | Test connection |
+| POST | `/integrations/{org}/{provider}/validate` | Test connection + set validation_status |
 | GET | `/integrations/{org}` | List all integrations |
+| GET | `/integrations/{org}/{provider}` | Get specific credential metadata |
+| PUT | `/integrations/{org}/{provider}` | Update credential |
 | DELETE | `/integrations/{org}/{provider}` | Remove integration |
-| PUT | `/integrations/{org}/{provider}/metadata` | Update metadata |
 
 ---
 
@@ -54,12 +88,12 @@
 
 | Standard | Implementation |
 |----------|----------------|
-| Encryption | GCP KMS AES-256 — credentials encrypted before storage |
+| Encryption | GCP KMS AES-256 -- credentials encrypted before storage |
 | Storage | Encrypted blob only in `org_integration_credentials` table |
-| Decryption | On-demand with 5-minute TTL cache |
-| Logging | SHA256 fingerprint (first 8 chars) — never log raw credentials |
-| Validation | Format + connection test before accepting |
-| Provider registry | `configs/system/providers.yml` — centralized provider definitions |
+| Decryption | On-demand with 5-minute TTL cache for decrypted values |
+| Logging | SHA256 fingerprint (first 8 chars) -- never log raw credentials |
+| Validation | Format check + connection test API call before accepting |
+| Provider registry | `configs/system/providers.yml` -- centralized provider definitions |
 
 ---
 
@@ -67,7 +101,7 @@
 
 | Table | Purpose |
 |-------|---------|
-| `org_integration_credentials` | KMS-encrypted credentials + status + metadata |
+| `org_integration_credentials` | KMS-encrypted credentials + validation_status + metadata |
 | `configs/system/providers.yml` | Provider registry (types, required fields, rate limits) |
 
 ---
@@ -78,5 +112,5 @@
 |------|---------|
 | `02-api-service/src/app/routers/integrations.py` | CRUD endpoints |
 | `02-api-service/src/lib/integrations/metadata_schemas.py` | Metadata validation per provider |
-| `03-data-pipeline-service/configs/system/providers.yml` | Provider registry |
+| `03-data-pipeline-service/configs/system/providers.yml` | Provider registry (single source of truth) |
 | `01-fronted-system/actions/integrations.ts` | Frontend server actions |

@@ -16,8 +16,8 @@ CloudAct's core principle: **Everything is a pipeline**. This skill manages the 
 
 | Type | Providers | Pipeline Path | FOCUS Converter |
 |------|-----------|---------------|-----------------|
-| **Cloud** | GCP, AWS, Azure, OCI | `cloud/{provider}/cost/billing` | `sp_cloud_1_convert_to_focus` |
-| **GenAI** | OpenAI, Anthropic, Gemini, Azure OpenAI, AWS Bedrock | `genai/payg/*` | `sp_genai_3_convert_to_focus` |
+| **Cloud** | GCP, AWS, Azure, OCI | `cloud/{provider}/cost/billing` | `sp_cloud_{provider}_convert_to_focus` |
+| **GenAI** | OpenAI, Anthropic, Gemini, DeepSeek, Azure OpenAI, AWS Bedrock, GCP Vertex | `genai/payg/*` | `sp_genai_3_convert_to_focus` |
 | **SaaS** | Canva, Slack, ChatGPT Plus | `subscription/costs/subscription_cost` | `sp_subscription_3_convert_to_focus` |
 
 All cost data flows to: `cost_data_standard_1_3` (FOCUS 1.3 unified format)

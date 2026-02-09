@@ -170,10 +170,10 @@ export class PricingTableErrorBoundary extends React.Component<
               <AlertTriangle className="h-5 w-5 text-[#FF6C5E]" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-[#FF6C5E] mb-1">
+              <h3 className="text-[14px] font-semibold text-[#FF6C5E] mb-1">
                 Unable to display pricing data
               </h3>
-              <p className="text-[13px] text-slate-600 mb-3">
+              <p className="text-[12px] text-slate-600 mb-3">
                 There was an error rendering the pricing table. This may be due to malformed data.
               </p>
               <Button
@@ -807,7 +807,7 @@ function PricingTableBaseInner({
                                     <Sparkles className="h-3 w-3 text-violet-500 flex-shrink-0" />
                                   )}
                                   <span className={cn(
-                                    "text-[12px] text-slate-800",
+                                    "text-[11px] text-slate-800",
                                     column.type === "currency" || column.type === "number" || column.type === "percentage"
                                       ? "font-mono"
                                       : "",
@@ -947,7 +947,7 @@ function PricingTableBaseInner({
                                     ) : (
                                       <div className="flex items-center gap-1">
                                         <span className={cn(
-                                          "text-[12px] font-mono",
+                                          "text-[11px] font-mono",
                                           column.editable ? "text-slate-800" : "text-slate-500"
                                         )}>
                                           {formatValue(row[column.key], column)}

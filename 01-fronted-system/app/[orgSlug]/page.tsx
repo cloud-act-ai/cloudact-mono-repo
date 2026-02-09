@@ -43,32 +43,32 @@ export default async function OrgRootRedirectPage({
       <div className="space-y-8 max-w-7xl">
         {/* Clean Header */}
         <div className="space-y-1">
-          <p className="text-[13px] font-medium text-slate-500 uppercase tracking-wide">Welcome back</p>
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">{org.org_name}</h1>
+          <p className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">Welcome back</p>
+          <h1 className="text-[28px] font-bold text-slate-900 tracking-tight">{org.org_name}</h1>
         </div>
 
         {/* Stats Row */}
         <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
           <div className="flex items-center gap-3">
             <div className="h-2.5 w-2.5 rounded-full bg-[#90FCA6]"></div>
-            <span className="text-[14px] font-semibold text-slate-900">Active</span>
+            <span className="text-[13px] font-semibold text-slate-900">Active</span>
           </div>
           <div className="h-5 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-slate-400" />
-            <span className="text-[14px] text-slate-600">
+            <span className="text-[13px] text-slate-600">
               <span className="font-semibold text-slate-900 capitalize">{org.plan}</span> Plan
             </span>
           </div>
           <div className="h-5 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-slate-400" />
-            <span className="text-[14px] text-slate-600">{org.default_currency || 'USD'}</span>
+            <span className="text-[13px] text-slate-600">{org.default_currency || 'USD'}</span>
           </div>
           <div className="h-5 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-slate-400" />
-            <span className="text-[14px] text-slate-600">
+            <span className="text-[13px] text-slate-600">
               <span className="font-semibold text-[#1a7a3a]">{integrationCount}</span> Integration{integrationCount !== 1 ? 's' : ''} active
             </span>
           </div>
@@ -77,10 +77,10 @@ export default async function OrgRootRedirectPage({
         {/* Quick Access Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Quick Access</h2>
+            <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Quick Access</h2>
             <Link
               href={`/${orgSlug}/cost-dashboards/overview`}
-              className="text-[13px] font-semibold text-[#1a7a3a] hover:text-[#0f5a25] transition-colors flex items-center gap-1"
+              className="text-[12px] font-semibold text-[#1a7a3a] hover:text-[#0f5a25] transition-colors flex items-center gap-1"
             >
               View Dashboards
               <ChevronRight className="h-3.5 w-3.5" />
@@ -100,8 +100,8 @@ export default async function OrgRootRedirectPage({
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#1a7a3a] transition-colors" />
               </div>
-              <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Cost Dashboards</h3>
-              <p className="text-[13px] text-slate-500 leading-relaxed">
+              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Cost Dashboards</h3>
+              <p className="text-[12px] text-slate-500 leading-relaxed">
                 Monitor cloud spending across all providers
               </p>
             </Link>
@@ -118,8 +118,8 @@ export default async function OrgRootRedirectPage({
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
               </div>
-              <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Operations</h3>
-              <p className="text-[13px] text-slate-500 leading-relaxed">
+              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Operations</h3>
+              <p className="text-[12px] text-slate-500 leading-relaxed">
                 Monitor pipeline runs and system status
               </p>
             </Link>
@@ -136,8 +136,8 @@ export default async function OrgRootRedirectPage({
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
               </div>
-              <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Settings</h3>
-              <p className="text-[13px] text-slate-500 leading-relaxed">
+              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Settings</h3>
+              <p className="text-[12px] text-slate-500 leading-relaxed">
                 Configure organization and preferences
               </p>
             </Link>
@@ -146,7 +146,7 @@ export default async function OrgRootRedirectPage({
 
         {/* Integrations Section */}
         <div className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Integrations</h2>
+          <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Integrations</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Cloud Providers */}
@@ -160,8 +160,8 @@ export default async function OrgRootRedirectPage({
                     <Cloud className="h-6 w-6 text-[#1a7a3a]" />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-semibold text-slate-900">Cloud Providers</h3>
-                    <p className="text-[13px] text-slate-500 mt-0.5">GCP, AWS, Azure</p>
+                    <h3 className="text-[14px] font-semibold text-slate-900">Cloud Providers</h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5">GCP, AWS, Azure</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -190,8 +190,8 @@ export default async function OrgRootRedirectPage({
                     <Brain className="h-6 w-6 text-[var(--cloudact-coral)]" />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-semibold text-slate-900">GenAI Providers</h3>
-                    <p className="text-[13px] text-slate-500 mt-0.5">OpenAI, Claude, Gemini</p>
+                    <h3 className="text-[14px] font-semibold text-slate-900">GenAI Providers</h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5">OpenAI, Claude, Gemini</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -220,8 +220,8 @@ export default async function OrgRootRedirectPage({
                     <CreditCard className="h-6 w-6 text-[#8B5CF6]" />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-semibold text-slate-900">SaaS Subscriptions</h3>
-                    <p className="text-[13px] text-slate-500 mt-0.5">Track subscription costs</p>
+                    <h3 className="text-[14px] font-semibold text-slate-900">SaaS Subscriptions</h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5">Track subscription costs</p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#8B5CF6] transition-colors" />
@@ -239,8 +239,8 @@ export default async function OrgRootRedirectPage({
                     <Wallet className="h-6 w-6 text-slate-600" />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-semibold text-slate-900">Billing & Plan</h3>
-                    <p className="text-[13px] text-slate-500 mt-0.5">
+                    <h3 className="text-[14px] font-semibold text-slate-900">Billing & Plan</h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5">
                       <span className="capitalize">{org.plan}</span> plan
                     </p>
                   </div>
@@ -258,13 +258,13 @@ export default async function OrgRootRedirectPage({
               <LayoutDashboard className="h-4 w-4 text-[#1a7a3a]" />
             </div>
             <div>
-              <p className="text-[14px] font-semibold text-slate-900">All systems operational</p>
-              <p className="text-[12px] text-slate-500">Redirecting to dashboards...</p>
+              <p className="text-[13px] font-semibold text-slate-900">All systems operational</p>
+              <p className="text-[11px] text-slate-500">Redirecting to dashboards...</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-[#90FCA6] animate-pulse"></div>
-            <span className="text-[13px] font-medium text-[#1a7a3a]">Active</span>
+            <span className="text-[12px] font-medium text-[#1a7a3a]">Active</span>
           </div>
         </div>
 

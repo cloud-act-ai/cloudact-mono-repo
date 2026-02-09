@@ -501,7 +501,7 @@ interface ProgressCellProps {
 export function ProgressCell({
   value,
   maxValue,
-  color = "#90FCA6",
+  color = "#10A37F",
   showValue = true,
   valueFormatter,
 }: ProgressCellProps) {

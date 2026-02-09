@@ -197,7 +197,7 @@ function MetricSparklineInner({
 
         {/* Value and change */}
         <div className="flex items-end justify-between mb-2">
-          <span className="text-xl font-bold text-slate-900 tabular-nums">
+          <span className="text-lg font-bold text-slate-900 tabular-nums">
             {compact ? formatValueCompact(currentValue) : formatValue(currentValue)}
           </span>
 

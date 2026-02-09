@@ -624,10 +624,10 @@ export function ProductScreenshots() {
             <span className="inline-block text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">
               See It In Action
             </span>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-4">
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-4">
               Built for GenAI & Modern Cloud
             </h2>
-            <p className="text-lg text-slate-600 leading-relaxed">
+            <p className="text-base text-slate-600 leading-relaxed">
               Track every <strong className="text-slate-900">LLM token</strong> and cloud resource with <strong className="text-slate-900">real-time GenAI analytics</strong> and intelligent anomaly detection.
             </p>
           </motion.div>
@@ -699,7 +699,7 @@ export function ProductScreenshots() {
               transition={{ duration: 0.3 }}
               className="text-center mt-8"
             >
-              <h3 className="text-xl font-bold text-slate-900 mb-2">{activeScreenshot.title}</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">{activeScreenshot.title}</h3>
               <p className="text-slate-600 max-w-lg mx-auto">{activeScreenshot.description}</p>
             </motion.div>
           </div>

@@ -453,7 +453,7 @@ export default function CloudCostsPage() {
                 <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
                   BilledCost
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
+                <p className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums">
                   {formatCost(totalCosts.cloud.total_billed_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
                 </p>
                 <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Gross (before credits)</p>
@@ -464,7 +464,7 @@ export default function CloudCostsPage() {
                 <p className="text-[10px] sm:text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">
                   Savings
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-emerald-600 tabular-nums">
+                <p className="text-lg sm:text-xl font-bold text-emerald-600 tabular-nums">
                   {totalCosts.cloud.total_savings && totalCosts.cloud.total_savings > 0
                     ? `-${formatCost(totalCosts.cloud.total_savings, orgCurrency)}`
                     : formatCost(totalCosts.cloud.total_savings ?? 0, orgCurrency)}
@@ -477,7 +477,7 @@ export default function CloudCostsPage() {
                 <p className="text-[10px] sm:text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">
                   EffectiveCost
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700 tabular-nums">
+                <p className="text-lg sm:text-xl font-bold text-blue-700 tabular-nums">
                   {formatCost(totalCosts.cloud.total_effective_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
                 </p>
                 <p className="text-[10px] sm:text-xs text-blue-500 mt-1">Net (after credits)</p>
@@ -498,8 +498,7 @@ export default function CloudCostsPage() {
             value: d.value,
           }))}
           timeRange={timeRange}
-          barColor="#4285F4"
-          lineColor="#FF6C5E"
+          category="cloud"
           height={320}
           mobileHeight={240}
           loading={isLoading}

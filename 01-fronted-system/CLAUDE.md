@@ -40,11 +40,13 @@ npx vitest      # Tests
 | Integration setup | 8000 | `X-API-Key` |
 | Pipeline execution | 8001 | `X-API-Key` |
 | Subscription CRUD | 8000 | `X-API-Key` |
+| Notifications | 8000 | `X-API-Key` |
+| Cost Alerts | 8000 | `X-API-Key` |
 
 ## Route Groups
 
-**`app/(landingPages)/`** - Public: `/`, `/features`, `/pricing`
-**`app/[orgSlug]/`** - Console: `dashboard/`, `analytics/`, `settings/`
+**`app/(landingPages)/`** - Public: `/`, `/features`, `/pricing`, `/demo`, `/docs`, + 32 total pages
+**`app/[orgSlug]/`** - Console: `dashboard/`, `analytics/`, `cost-dashboards/`, `pipelines/`, `integrations/`, `settings/`, `notifications/`
 
 ## Quota System (Supabase-based)
 
@@ -82,9 +84,9 @@ npx vitest      # Tests
 
 | Plan | Daily | Monthly | Concurrent | Seats | Providers |
 |------|-------|---------|------------|-------|-----------|
-| Starter | 6 | 180 | 1 | 2 | 3 |
-| Professional | 25 | 750 | 2 | 6 | 6 |
-| Scale | 100 | 3000 | 5 | 11 | 10 |
+| Starter | 6 | 180 | 20 | 2 | 3 |
+| Professional | 25 | 750 | 20 | 6 | 6 |
+| Scale | 100 | 3000 | 20 | 11 | 10 |
 
 ## Key Directories
 
@@ -95,7 +97,14 @@ actions/                  # Server actions
 ├─ pipelines.ts          # Pipeline execution
 ├─ subscription-providers.ts # SaaS CRUD
 ├─ quota.ts              # Quota status
+├─ notifications.ts      # Notification management
+├─ hierarchy.ts          # Hierarchy CRUD
+├─ hierarchy-export-import.ts # CSV import/export
 └─ stripe.ts             # Checkout
+
+contexts/
+├─ cost-data-context.tsx  # Unified cost filtering + caching
+└─ org-providers.tsx      # Available providers context
 
 lib/
 ├─ api/backend.ts        # Backend API client
@@ -119,6 +128,8 @@ await requireActiveSubscription(orgSlug)
 - **Obsidian** `#0a0a0b` - Dark buttons (auth)
 
 **Layout:** Apple Health pattern, `max-w-7xl`, 8px grid
+
+**Fonts:** DM Sans (UI) + JetBrains Mono (code)
 
 ## Environment
 
@@ -243,4 +254,4 @@ cd 04-inra-cicd-automation/CICD
 | Max Instances | 20 (prod) |
 
 ---
-**v4.2.0** | 2026-02-01
+**v4.3.0** | 2026-02-08

@@ -412,7 +412,7 @@ export default function HierarchySettingsPage() {
           <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${colors.bg}`}>
             <IconComponent className={`h-4 w-4 ${colors.icon}`} />
           </div>
-          <span className="font-semibold text-[14px] text-slate-900">{node.entity_name}</span>
+          <span className="font-semibold text-[13px] text-slate-900">{node.entity_name}</span>
           <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
             {node.entity_id}
           </span>
@@ -420,7 +420,7 @@ export default function HierarchySettingsPage() {
             {node.level_name}
           </span>
           {node.owner_name && (
-            <span className="text-[12px] text-slate-500 ml-auto mr-2">
+            <span className="text-[11px] text-slate-500 ml-auto mr-2">
               {node.owner_name}
             </span>
           )}
@@ -515,10 +515,10 @@ export default function HierarchySettingsPage() {
             <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               Organizational Hierarchy
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Manage your organizational structure
             </p>
           </div>
@@ -536,10 +536,10 @@ export default function HierarchySettingsPage() {
           <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
             Organizational Hierarchy
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
             Manage your organizational structure
           </p>
         </div>
@@ -571,7 +571,7 @@ export default function HierarchySettingsPage() {
         {levels.length > 0 && (
           <Button
             onClick={() => openCreateDialog("")}
-            className="console-button-primary h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
+            className="console-button-primary h-10 sm:h-11 px-4 sm:px-5 text-[12px] touch-manipulation"
           >
             <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Add Entity</span>
@@ -581,7 +581,7 @@ export default function HierarchySettingsPage() {
         <Button
           variant="outline"
           onClick={() => setExportImportOpen(true)}
-          className="h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
+          className="h-10 sm:h-11 px-4 sm:px-5 text-[12px] touch-manipulation"
         >
           <FileText className="mr-1.5 sm:mr-2 h-4 w-4" />
           <span className="hidden sm:inline">Export / Import</span>
@@ -595,7 +595,7 @@ export default function HierarchySettingsPage() {
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="tree"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
             >
               <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Org Structure</span>
@@ -607,7 +607,7 @@ export default function HierarchySettingsPage() {
                 <TabsTrigger
                   key={level.level_code}
                   value={level.level_code}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
                 >
                   <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="hidden sm:inline">{level.level_name_plural}</span>
@@ -629,8 +629,8 @@ export default function HierarchySettingsPage() {
                 <div className="h-16 w-16 rounded-2xl bg-[#90FCA6]/10 flex items-center justify-center mx-auto mb-4">
                   <Network className="h-8 w-8 text-[#90FCA6]" />
                 </div>
-                <p className="text-[15px] font-semibold text-slate-600">No hierarchy defined yet</p>
-                <p className="text-[13px] mt-1">Start by adding {rootLevel?.level_name.toLowerCase() || "an entity"}</p>
+                <p className="text-[14px] font-semibold text-slate-600">No hierarchy defined yet</p>
+                <p className="text-[12px] mt-1">Start by adding {rootLevel?.level_name.toLowerCase() || "an entity"}</p>
               </div>
             )}
           </div>
@@ -662,13 +662,13 @@ export default function HierarchySettingsPage() {
                       const childCount = allEntities.filter(e => e.parent_id === entity.entity_id).length
                       return (
                         <TableRow key={entity.entity_id} className="console-table-row">
-                          <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">
+                          <TableCell className="console-table-cell font-mono text-[12px] text-slate-600">
                             {entity.entity_id}
                           </TableCell>
                           <TableCell className="console-table-cell font-semibold text-slate-900">
                             {entity.entity_name}
                           </TableCell>
-                          <TableCell className="console-table-cell text-[12px] text-slate-500 font-mono">
+                          <TableCell className="console-table-cell text-[11px] text-slate-500 font-mono">
                             {entity.path_names.join(" → ")}
                           </TableCell>
                           <TableCell className="console-table-cell text-slate-600">
@@ -676,7 +676,7 @@ export default function HierarchySettingsPage() {
                           </TableCell>
                           {childLevel && (
                             <TableCell className="console-table-cell">
-                              <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full ${colors.badge} text-[12px] font-semibold`}>
+                              <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full ${colors.badge} text-[11px] font-semibold`}>
                                 {childCount}
                               </span>
                             </TableCell>
@@ -719,8 +719,8 @@ export default function HierarchySettingsPage() {
                       <TableRow>
                         <TableCell colSpan={childLevel ? 6 : 5} className="text-center py-12 text-slate-400">
                           <IconComponent className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                          <p className="text-[14px] font-medium">No {level.level_name_plural.toLowerCase()} yet</p>
-                          <p className="text-[12px] mt-1">
+                          <p className="text-[13px] font-medium">No {level.level_name_plural.toLowerCase()} yet</p>
+                          <p className="text-[11px] mt-1">
                             {level.parent_level ? `Add a ${levels.find(l => l.level === level.parent_level)?.level_name.toLowerCase() || "parent"} first` : `Add your first ${level.level_name.toLowerCase()}`}
                           </p>
                         </TableCell>

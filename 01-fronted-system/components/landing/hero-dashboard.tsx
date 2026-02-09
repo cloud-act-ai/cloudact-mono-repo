@@ -221,7 +221,7 @@ function MetricCard({ label, value, trend, trendUp, subtext, icon, highlight }: 
          {icon}
       </div>
       <div className="mt-2">
-         <div className="text-xl lg:text-2xl font-semibold text-slate-100 font-mono tracking-tight">{value}</div>
+         <div className="text-lg lg:text-xl font-semibold text-slate-100 font-mono tracking-tight">{value}</div>
          {subtext ? (
            <div className="text-xs text-amber-500 mt-1">{subtext}</div>
          ) : (

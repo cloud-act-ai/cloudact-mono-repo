@@ -451,28 +451,28 @@ export function ExportImportModal({
                 <div className="grid grid-cols-4 gap-2">
                   <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-center">
                     <Plus className="h-4 w-4 mx-auto text-green-600" />
-                    <p className="text-lg font-bold text-green-700">
+                    <p className="text-base font-bold text-green-700">
                       {preview.summary.creates}
                     </p>
                     <p className="text-xs text-green-600">Create</p>
                   </div>
                   <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center">
                     <Edit3 className="h-4 w-4 mx-auto text-blue-600" />
-                    <p className="text-lg font-bold text-blue-700">
+                    <p className="text-base font-bold text-blue-700">
                       {preview.summary.updates}
                     </p>
                     <p className="text-xs text-blue-600">Update</p>
                   </div>
                   <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-center">
                     <Trash2 className="h-4 w-4 mx-auto text-red-600" />
-                    <p className="text-lg font-bold text-red-700">
+                    <p className="text-base font-bold text-red-700">
                       {preview.summary.deletes}
                     </p>
                     <p className="text-xs text-red-600">Delete</p>
                   </div>
                   <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
                     <CheckCircle2 className="h-4 w-4 mx-auto text-slate-500" />
-                    <p className="text-lg font-bold text-slate-700">
+                    <p className="text-base font-bold text-slate-700">
                       {preview.summary.unchanged}
                     </p>
                     <p className="text-xs text-slate-500">Unchanged</p>

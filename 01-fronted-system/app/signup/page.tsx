@@ -63,7 +63,7 @@ function PremiumSelect({
   return (
     <div className="relative group">
       {Icon && (
-        <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focused ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+        <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focused ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
           <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
         </div>
       )}
@@ -74,7 +74,7 @@ function PremiumSelect({
         disabled={disabled}
         onFocus={onFocus}
         onBlur={onBlur}
-        className={`w-full h-[48px] sm:h-[52px] ${Icon ? 'pl-12' : 'pl-4'} pr-10 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={`w-full h-[48px] sm:h-[52px] ${Icon ? 'pl-12' : 'pl-4'} pr-10 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {placeholder && (
           <option value="" disabled>
@@ -87,7 +87,7 @@ function PremiumSelect({
           </option>
         ))}
       </select>
-      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-white/40 pointer-events-none" />
     </div>
   )
 }
@@ -316,10 +316,10 @@ function SignupForm() {
       <div className="space-y-6">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-[26px] sm:text-[32px] font-bold text-[#0a0a0b] tracking-[-0.02em] leading-tight">
+          <h1 className="text-[26px] sm:text-[32px] font-bold text-[#0a0a0b] dark:text-white tracking-[-0.02em] leading-tight">
             {isInviteFlow ? "Join your team" : step === 1 ? "Create your account" : "Set up organization"}
           </h1>
-          <p className="text-[14px] sm:text-[15px] text-gray-500 leading-relaxed">
+          <p className="text-[14px] sm:text-[15px] text-gray-500 dark:text-white/50 leading-relaxed">
             {isInviteFlow
               ? "Sign up to accept your team invitation"
               : step === 1
@@ -332,19 +332,19 @@ function SignupForm() {
         {!isInviteFlow && (
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${step >= 1 ? 'bg-[#90FCA6] text-[#0a0a0b]' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${step >= 1 ? 'bg-[#90FCA6] text-[#0a0a0b]' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
                 {step > 1 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
               </div>
-              <span className={`text-[13px] font-medium ${step >= 1 ? 'text-[#0a0a0b]' : 'text-gray-400'}`}>Account</span>
+              <span className={`text-[13px] font-medium ${step >= 1 ? 'text-[#0a0a0b] dark:text-white' : 'text-gray-400 dark:text-white/40'}`}>Account</span>
             </div>
-            <div className="flex-1 h-[2px] bg-gray-100 rounded-full overflow-hidden">
+            <div className="flex-1 h-[2px] bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
               <div className={`h-full bg-[#90FCA6] transition-all duration-500 ${step >= 2 ? 'w-full' : 'w-0'}`} />
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${step >= 2 ? 'bg-[#90FCA6] text-[#0a0a0b]' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${step >= 2 ? 'bg-[#90FCA6] text-[#0a0a0b]' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
                 2
               </div>
-              <span className={`text-[13px] font-medium ${step >= 2 ? 'text-[#0a0a0b]' : 'text-gray-400'}`}>Organization</span>
+              <span className={`text-[13px] font-medium ${step >= 2 ? 'text-[#0a0a0b] dark:text-white' : 'text-gray-400 dark:text-white/40'}`}>Organization</span>
             </div>
           </div>
         )}
@@ -356,11 +356,11 @@ function SignupForm() {
             <div className="grid grid-cols-2 gap-3">
               {/* First Name Field */}
               <div className="space-y-1.5">
-                <label htmlFor="firstName" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                <label htmlFor="firstName" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                   First name
                 </label>
                 <div className="relative">
-                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'firstName' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'firstName' ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
                     <User className="h-[18px] w-[18px]" strokeWidth={2} />
                   </div>
                   <input
@@ -374,7 +374,7 @@ function SignupForm() {
                     onChange={(e) => setFirstName(e.target.value)}
                     onFocus={() => setFocusedField('firstName')}
                     onBlur={() => setFocusedField(null)}
-                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10"
                     disabled={isLoading}
                     autoComplete="given-name"
                   />
@@ -383,11 +383,11 @@ function SignupForm() {
 
               {/* Last Name Field */}
               <div className="space-y-1.5">
-                <label htmlFor="lastName" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                <label htmlFor="lastName" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                   Last name
                 </label>
                 <div className="relative">
-                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'lastName' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'lastName' ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
                     <User className="h-[18px] w-[18px]" strokeWidth={2} />
                   </div>
                   <input
@@ -401,7 +401,7 @@ function SignupForm() {
                     onChange={(e) => setLastName(e.target.value)}
                     onFocus={() => setFocusedField('lastName')}
                     onBlur={() => setFocusedField(null)}
-                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10"
                     disabled={isLoading}
                     autoComplete="family-name"
                   />
@@ -411,11 +411,11 @@ function SignupForm() {
 
             {/* Email Field */}
             <div className="space-y-1.5" suppressHydrationWarning>
-              <label htmlFor="email" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+              <label htmlFor="email" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                 Email address
               </label>
               <div className="relative">
-                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'email' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'email' ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
                   <Mail className="h-[18px] w-[18px]" strokeWidth={2} />
                 </div>
                 <input
@@ -427,7 +427,7 @@ function SignupForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -436,11 +436,11 @@ function SignupForm() {
 
             {/* Password Field */}
             <div className="space-y-1.5" suppressHydrationWarning>
-              <label htmlFor="password" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+              <label htmlFor="password" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
-                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'password' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'password' ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
                   <Lock className="h-[18px] w-[18px]" strokeWidth={2} />
                 </div>
                 <input
@@ -453,7 +453,7 @@ function SignupForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="new-password"
                 />
@@ -462,7 +462,7 @@ function SignupForm() {
 
             {/* Phone Number */}
             <div className="space-y-1.5">
-              <label htmlFor="phone" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+              <label htmlFor="phone" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                 Phone number
               </label>
               <div className="flex gap-2">
@@ -471,7 +471,7 @@ function SignupForm() {
                     value={countryCode}
                     onChange={(e) => handleCountryChange(e.target.value)}
                     disabled={isLoading}
-                    className="w-full h-[48px] sm:h-[52px] pl-3 pr-8 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer"
+                    className="w-full h-[48px] sm:h-[52px] pl-3 pr-8 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer"
                   >
                     {COUNTRY_CODES.map((c) => (
                       <option key={`${c.code}-${c.country}`} value={c.code}>
@@ -479,10 +479,10 @@ function SignupForm() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-white/40 pointer-events-none" />
                 </div>
                 <div className="relative flex-1">
-                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'phone' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'phone' ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
                     <Phone className="h-[18px] w-[18px]" strokeWidth={2} />
                   </div>
                   <input
@@ -494,7 +494,7 @@ function SignupForm() {
                     onChange={handlePhoneChange}
                     onFocus={() => setFocusedField('phone')}
                     onBlur={() => setFocusedField(null)}
-                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10"
                     disabled={isLoading}
                     autoComplete="tel-national"
                   />
@@ -504,8 +504,8 @@ function SignupForm() {
 
             {/* Error Alert */}
             {serverError && (
-              <div className="p-3 rounded-xl bg-[#FFF5F3] border border-[#FF6C5E]/20">
-                <p className="text-[13px] font-medium text-[#CC4F35]">{serverError}</p>
+              <div className="p-3 rounded-xl bg-[#FFF5F3] dark:bg-[#FF6C5E]/10 border border-[#FF6C5E]/20">
+                <p className="text-[13px] font-medium text-[#CC4F35] dark:text-[#FF6C5E]">{serverError}</p>
               </div>
             )}
 
@@ -534,11 +534,11 @@ function SignupForm() {
           <form onSubmit={onSubmit} className="space-y-4" suppressHydrationWarning>
             {/* Company Name */}
             <div className="space-y-1.5">
-              <label htmlFor="companyName" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+              <label htmlFor="companyName" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                 Company name
               </label>
               <div className="relative">
-                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'company' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'company' ? 'text-[#16a34a]' : 'text-gray-400 dark:text-white/40'}`}>
                   <Building2 className="h-[18px] w-[18px]" strokeWidth={2} />
                 </div>
                 <input
@@ -552,7 +552,7 @@ function SignupForm() {
                   onChange={(e) => setCompanyName(e.target.value)}
                   onFocus={() => setFocusedField('company')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  className="w-full h-[48px] sm:h-[52px] pl-12 pr-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-[14px] sm:text-[15px] text-[#0a0a0b] dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 focus:border-[#90FCA6] focus:bg-white dark:focus:bg-white/10 focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="organization"
                 />
@@ -561,7 +561,7 @@ function SignupForm() {
 
             {/* Company Type */}
             <div className="space-y-1.5">
-              <label htmlFor="companyType" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+              <label htmlFor="companyType" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                 Company type
               </label>
               <PremiumSelect
@@ -580,7 +580,7 @@ function SignupForm() {
             {/* Currency and Timezone Row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label htmlFor="currency" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                <label htmlFor="currency" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                   Currency
                 </label>
                 <PremiumSelect
@@ -600,7 +600,7 @@ function SignupForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="timezone" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                <label htmlFor="timezone" className="block text-[12px] font-semibold text-gray-500 dark:text-white/60 uppercase tracking-wider">
                   Timezone
                 </label>
                 <PremiumSelect
@@ -622,8 +622,8 @@ function SignupForm() {
 
             {/* Error Alert */}
             {serverError && (
-              <div className="p-3 rounded-xl bg-[#FFF5F3] border border-[#FF6C5E]/20">
-                <p className="text-[13px] font-medium text-[#CC4F35]">{serverError}</p>
+              <div className="p-3 rounded-xl bg-[#FFF5F3] dark:bg-[#FF6C5E]/10 border border-[#FF6C5E]/20">
+                <p className="text-[13px] font-medium text-[#CC4F35] dark:text-[#FF6C5E]">{serverError}</p>
               </div>
             )}
 
@@ -633,7 +633,7 @@ function SignupForm() {
                 type="button"
                 onClick={() => setStep(1)}
                 disabled={isLoading}
-                className="w-1/3 h-[48px] sm:h-[52px] rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-white text-[14px] sm:text-[15px] font-semibold text-gray-600 transition-all duration-200 hover:border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+                className="w-1/3 h-[48px] sm:h-[52px] rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 text-[14px] sm:text-[15px] font-semibold text-gray-600 dark:text-white/70 transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/10 disabled:opacity-50"
               >
                 Back
               </button>
@@ -661,20 +661,20 @@ function SignupForm() {
         )}
 
         {/* Security Note */}
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100">
-          <Shield className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-          <p className="text-[12px] text-gray-500 leading-relaxed">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+          <Shield className="h-4 w-4 text-gray-400 dark:text-white/40 mt-0.5 shrink-0" />
+          <p className="text-[12px] text-gray-500 dark:text-white/50 leading-relaxed">
             By signing up, you agree to our{" "}
-            <Link href="/terms" className="text-[#0a0a0b] font-medium hover:underline">Terms of Service</Link>
+            <Link href="/terms" className="text-[#0a0a0b] dark:text-white font-medium hover:underline">Terms of Service</Link>
             {" "}and{" "}
-            <Link href="/privacy" className="text-[#0a0a0b] font-medium hover:underline">Privacy Policy</Link>
+            <Link href="/privacy" className="text-[#0a0a0b] dark:text-white font-medium hover:underline">Privacy Policy</Link>
           </p>
         </div>
 
         {/* Sign In Link */}
-        <div className="text-center text-[14px] text-gray-500">
+        <div className="text-center text-[14px] text-gray-500 dark:text-white/50">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-[#0a0a0b] hover:underline">
+          <Link href="/login" className="font-semibold text-[#0a0a0b] dark:text-white hover:underline">
             Sign in
           </Link>
         </div>
@@ -688,19 +688,19 @@ function SignupFormFallback() {
     <AuthLayout variant="signup">
       <div className="space-y-6">
         <div className="space-y-2">
-          <div className="h-8 w-56 bg-gray-100 rounded-lg animate-pulse" />
-          <div className="h-4 w-72 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="h-8 w-56 bg-gray-100 dark:bg-white/10 rounded-lg animate-pulse" />
+          <div className="h-4 w-72 bg-gray-100 dark:bg-white/10 rounded-lg animate-pulse" />
         </div>
         <div className="space-y-4">
           {/* First Name and Last Name row */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
-            <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+            <div className="h-[48px] bg-gray-100 dark:bg-white/10 rounded-xl animate-pulse" />
+            <div className="h-[48px] bg-gray-100 dark:bg-white/10 rounded-xl animate-pulse" />
           </div>
-          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 dark:bg-white/10 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 dark:bg-white/10 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 dark:bg-white/10 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 dark:bg-white/10 rounded-xl animate-pulse" />
         </div>
       </div>
     </AuthLayout>

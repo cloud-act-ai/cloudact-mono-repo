@@ -55,7 +55,7 @@ export function EnterpriseStats() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-50 mb-4">
                 <stat.icon className="w-6 h-6 text-emerald-600" />
               </div>
-              <div className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight mb-1">
+              <div className="text-2xl lg:text-4xl font-bold text-slate-900 tracking-tight mb-1">
                 {stat.value}
               </div>
               <div className="text-sm font-semibold text-slate-700 mb-1">{stat.label}</div>

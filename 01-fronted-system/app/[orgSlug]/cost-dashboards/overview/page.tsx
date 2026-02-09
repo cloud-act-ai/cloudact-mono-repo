@@ -459,8 +459,6 @@ export default function CostOverviewPage() {
               value: d.value,
             }))}
             timeRange={timeRange}
-            barColor="#90FCA6"
-            lineColor="#FF6C5E"
             height={360}
             mobileHeight={280}
             loading={isLoading}

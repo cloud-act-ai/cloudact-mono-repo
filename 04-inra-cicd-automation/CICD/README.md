@@ -16,7 +16,7 @@ Production-ready build, push, and deploy scripts for CloudAct services on Google
 |-------------|-------------|----------|--------|
 | `local` | `cloudact-testing-1` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
 | `test` | `cloudact-testing-1` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
-| `stage` | `cloudact-stage` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
+| `stage` | `cloudact-testing-1` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
 | `prod` | `cloudact-prod` | Prod (ovfxswhkkshouhsryzaf) | LIVE keys (pk_live_*) |
 
 ## Automatic Deployments (Cloud Build Triggers)
@@ -184,7 +184,7 @@ PROD (cloudact-prod):
 | Environment | GCP Project | Credentials |
 |------------|-------------|-------------|
 | `test` | `cloudact-testing-1` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
-| `stage` | `cloudact-stage` | `~/.gcp/cloudact-stage.json` |
+| `stage` | `cloudact-testing-1` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
 | `prod` | `cloudact-prod` | `~/.gcp/cloudact-prod.json` |
 
 ### Supabase Configuration
@@ -364,11 +364,11 @@ External Services:
 **Solution:** Before creating a new release, update version in BOTH config.py files:
 ```python
 release_version: str = Field(
-    default="v1.0.4",  # Update this!
+    default="v4.3.0",  # Update this!
     description="Git release tag version (e.g., v1.0.0)"
 )
 release_timestamp: str = Field(
-    default="2025-12-30T20:45:00Z",  # Update this!
+    default="2026-02-08T00:00:00Z",  # Update this!
     description="Release build timestamp in ISO 8601 format"
 )
 ```
@@ -388,7 +388,7 @@ release_timestamp: str = Field(
 | Environment | Service Account | Credentials File |
 |-------------|-----------------|------------------|
 | `test` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
-| `stage` | `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` | `~/.gcp/cloudact-stage.json` |
+| `stage` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
 | `prod` | `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` | `~/.gcp/cloudact-prod.json` |
 
 **Note:** Stage and prod use `cloudact-{env}@` NOT `cloudact-sa-{env}@`. This is configured in `environments.conf`.
@@ -537,9 +537,9 @@ gcloud run services update cloudact-frontend-prod \
 
 | Service | CPU | Memory | Timeout | Max Instances |
 |---------|-----|--------|---------|---------------|
-| api-service | 2 | 2Gi | 300s | 10 |
-| pipeline-service | 2 | 2Gi | 300s | 10 |
-| frontend | 1 | 1Gi | 60s | 20 |
+| api-service | 2 | 8Gi | 300s | 10 |
+| pipeline-service | 2 | 8Gi | 300s | 10 |
+| frontend | 2 | 8Gi | 60s | 20 |
 
 ## File Structure
 
@@ -594,7 +594,7 @@ Before deploying to production:
 
 | Environment | Version | Deployed |
 |-------------|---------|----------|
-| Production | v4.1.9 | 2026-01-18 |
+| Production | v4.3.0 | 2026-02-08 |
 | Stage | main | Auto-deploy on push |
 
 ## GCP Infrastructure Setup
@@ -612,15 +612,22 @@ Scripts located in `../gcp-setup/`:
 ./06-cloud-run-setup.sh      # Cloud Run services
 ```
 
-## Cron Jobs
+## Scheduler Jobs
 
-Scripts located in `../cron-jobs/`:
+Scheduled operations are now managed in `05-scheduler-jobs/`:
 
-| Job | Purpose | Schedule |
-|-----|---------|----------|
-| `billing-sync-retry.sh` | Retry failed Stripe syncs | Every 5 min |
-| `billing-reconciliation.sh` | Full Stripe↔Supabase reconciliation | Daily 2 AM UTC |
-| `run-all-cleanup.sh` | Database cleanup | Daily 3 AM UTC |
+```bash
+cd ../../05-scheduler-jobs/scripts
+./run-job.sh prod bootstrap         # Smart bootstrap
+./run-job.sh prod org-sync-all      # Sync all org datasets
+./run-job.sh prod migrate           # Supabase migrations
+./list-jobs.sh prod                 # List all jobs
+```
+
+See [05-scheduler-jobs/CLAUDE.md](../../05-scheduler-jobs/CLAUDE.md) for full documentation.
+
+> **Note:** Legacy `cron-jobs/` directory (billing-sync-retry, billing-reconciliation) is deprecated.
+> Billing data consolidated to Supabase (2026-02-01).
 
 ## Demo Data
 
@@ -637,4 +644,4 @@ Scripts located in `../load-demo-data/`:
 ```
 
 ---
-**Last Updated:** 2026-01-18
+**v4.3.0** | 2026-02-08

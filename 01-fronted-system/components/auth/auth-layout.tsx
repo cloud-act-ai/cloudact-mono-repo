@@ -68,12 +68,12 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
   return (
     <div className="min-h-svh w-full flex flex-col lg:flex-row">
       {/* Left Panel - Content Rich */}
-      <div className="hidden lg:flex lg:w-[50%] relative bg-gradient-to-br from-[#fafffe] via-white to-[#f0fdf4]">
+      <div className="hidden lg:flex lg:w-[50%] relative bg-gradient-to-br from-[#fafffe] via-white to-[#f0fdf4] dark:from-[#0a0a0b] dark:via-[#0f1a14] dark:to-[#0a0a0b]">
         {/* Decorative Elements */}
         <div className="absolute inset-0">
           {/* Top-left mint glow */}
           <div
-            className="absolute w-[600px] h-[600px] -top-[200px] -left-[200px]"
+            className="absolute w-[600px] h-[600px] -top-[200px] -left-[200px] dark:opacity-40"
             style={{
               background: "radial-gradient(circle, rgba(144,252,166,0.25) 0%, transparent 60%)",
               filter: "blur(80px)"
@@ -81,7 +81,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
           />
           {/* Bottom-right coral glow */}
           <div
-            className="absolute w-[400px] h-[400px] -bottom-[100px] -right-[100px]"
+            className="absolute w-[400px] h-[400px] -bottom-[100px] -right-[100px] dark:opacity-30"
             style={{
               background: "radial-gradient(circle, rgba(255,108,94,0.1) 0%, transparent 60%)",
               filter: "blur(60px)"
@@ -89,11 +89,11 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
           />
           {/* Subtle grid pattern */}
           <div
-            className="absolute inset-0 opacity-[0.03]"
+            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06]"
             style={{
               backgroundImage: `
-                linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)
+                linear-gradient(rgba(144,252,166,0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(144,252,166,0.2) 1px, transparent 1px)
               `,
               backgroundSize: "50px 50px"
             }}
@@ -110,7 +110,15 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                 alt="CloudAct.ai"
                 width={160}
                 height={32}
-                className="group-hover:scale-105 transition-transform"
+                className="group-hover:scale-105 transition-transform dark:hidden"
+                priority
+              />
+              <Image
+                src="/logos/cloudact-logo-white.svg"
+                alt="CloudAct.ai"
+                width={160}
+                height={32}
+                className="group-hover:scale-105 transition-transform hidden dark:block"
                 priority
               />
             </Link>
@@ -120,14 +128,14 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
           <div className="flex-1 flex flex-col justify-center w-full py-4">
             {/* Headline - Centered */}
             <div className={`text-center space-y-3 transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-              <h1 className="text-[30px] xl:text-[38px] font-bold text-[#0a0a0b] leading-[1.1] tracking-tight">
+              <h1 className="text-[30px] xl:text-[38px] font-bold text-[#0a0a0b] dark:text-white leading-[1.1] tracking-tight">
                 One dashboard for
                 <br />
                 <span className="bg-gradient-to-r from-[#16a34a] via-[#22c55e] to-[#16a34a] bg-clip-text text-transparent">GenAI, Cloud & SaaS</span>
                 <br />
                 spending
               </h1>
-              <p className="text-[14px] xl:text-[15px] text-gray-500 leading-relaxed max-w-lg mx-auto">
+              <p className="text-[13px] xl:text-[14px] text-gray-500 dark:text-white/50 leading-relaxed max-w-lg mx-auto">
                 Track, analyze, and optimize your tech spend across all your cloud and AI providers.
               </p>
             </div>
@@ -136,8 +144,8 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
             <div className={`flex items-center justify-between px-4 mt-6 transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               {stats.map((stat, index) => (
                 <div key={index} className="text-center flex-1">
-                  <div className="text-2xl xl:text-3xl font-black text-[#0a0a0b]">{stat.value}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">{stat.label}</div>
+                  <div className="text-xl xl:text-2xl font-black text-[#0a0a0b] dark:text-white">{stat.value}</div>
+                  <div className="text-[10px] text-gray-400 dark:text-white/40 mt-0.5 uppercase tracking-wider">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -148,15 +156,15 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                 {features.map((feature, index) => (
                   <div
                     key={index}
-                    className="group p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-gray-100 hover:border-[#90FCA6]/50 hover:shadow-lg hover:shadow-[#90FCA6]/15 hover:-translate-y-0.5 transition-all duration-300"
+                    className="group p-3 rounded-xl bg-white/80 dark:bg-white/5 backdrop-blur-sm border border-gray-100 dark:border-white/10 hover:border-[#90FCA6]/50 dark:hover:border-[#90FCA6]/30 hover:shadow-lg hover:shadow-[#90FCA6]/15 hover:-translate-y-0.5 transition-all duration-300"
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10">
                         <feature.icon className="h-4 w-4 text-[#16a34a]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="text-[12px] font-semibold text-[#0a0a0b] block">{feature.title}</span>
-                        <p className="text-[10px] text-gray-500 leading-tight">{feature.description}</p>
+                        <span className="text-[11px] font-semibold text-[#0a0a0b] dark:text-white block">{feature.title}</span>
+                        <p className="text-[10px] text-gray-500 dark:text-white/40 leading-tight">{feature.description}</p>
                       </div>
                     </div>
                   </div>
@@ -167,12 +175,12 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
             {/* Provider Logos - Responsive Grid */}
             <div className={`mt-8 transition-all duration-700 delay-400 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               <div className="text-center mb-4">
-                <p className="text-[12px] font-semibold text-[#0a0a0b] tracking-wide">Track Every Dollar</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Unified cost visibility across all your tools</p>
+                <p className="text-[11px] font-semibold text-[#0a0a0b] dark:text-white tracking-wide">Track Every Dollar</p>
+                <p className="text-[10px] text-gray-400 dark:text-white/40 mt-0.5">Unified cost visibility across all your tools</p>
               </div>
 
               {/* All Providers - 3 Column Grid for Better Layout */}
-              <div className="p-4 rounded-xl bg-white/70 backdrop-blur-sm border border-gray-100/80">
+              <div className="p-4 rounded-xl bg-white/70 dark:bg-white/5 backdrop-blur-sm border border-gray-100/80 dark:border-white/10">
                 <div className="grid grid-cols-3 gap-4">
                   {/* GenAI */}
                   <div className="text-center">
@@ -184,7 +192,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                       {providerGroups.genai.slice(0, 4).map((provider) => (
                         <div
                           key={provider.name}
-                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-white/10 shadow-sm border border-gray-50 dark:border-white/10 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
                           title={provider.name}
                         >
                           <Image src={provider.logo} alt={provider.name} width={18} height={18} className="opacity-90" />
@@ -194,7 +202,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                   </div>
 
                   {/* Cloud */}
-                  <div className="text-center border-x border-gray-100 px-2">
+                  <div className="text-center border-x border-gray-100 dark:border-white/10 px-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#3b82f6]/10 mb-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]" />
                       <span className="text-[9px] font-semibold text-[#3b82f6] uppercase tracking-wider">Cloud</span>
@@ -203,7 +211,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                       {providerGroups.cloud.map((provider) => (
                         <div
                           key={provider.name}
-                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-white/10 shadow-sm border border-gray-50 dark:border-white/10 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
                           title={provider.name}
                         >
                           <Image src={provider.logo} alt={provider.name} width={18} height={18} className="opacity-90" />
@@ -222,7 +230,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                       {providerGroups.saas.slice(0, 4).map((provider) => (
                         <div
                           key={provider.name}
-                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-white/10 shadow-sm border border-gray-50 dark:border-white/10 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
                           title={provider.name}
                         >
                           <Image src={provider.logo} alt={provider.name} width={18} height={18} className="opacity-90" />
@@ -255,32 +263,32 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                 ))}
               </div>
               <div>
-                <div className="text-[9px] font-semibold text-[#0a0a0b]">Built for teams</div>
-                <div className="text-[7px] text-gray-400">startups to enterprise</div>
+                <div className="text-[9px] font-semibold text-[#0a0a0b] dark:text-white">Built for teams</div>
+                <div className="text-[7px] text-gray-400 dark:text-white/40">startups to enterprise</div>
               </div>
             </div>
 
             {/* Google Cloud Badge */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-sm">
               <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
                 <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="#4285F4"/>
               </svg>
-              <span className="text-[8px] font-semibold text-[#0a0a0b] whitespace-nowrap">Google Cloud</span>
+              <span className="text-[8px] font-semibold text-[#0a0a0b] dark:text-white whitespace-nowrap">Google Cloud</span>
             </div>
 
             {/* Stripe Badge */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-sm">
               <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none">
                 <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" fill="#635BFF"/>
               </svg>
-              <span className="text-[8px] font-semibold text-[#0a0a0b] whitespace-nowrap">Stripe Secure</span>
+              <span className="text-[8px] font-semibold text-[#0a0a0b] dark:text-white whitespace-nowrap">Stripe Secure</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right Panel - Form */}
-      <div className="flex-1 flex flex-col min-h-svh bg-white dark:bg-[#0a0a0b] relative">
+      <div className="flex-1 flex flex-col min-h-svh bg-white dark:bg-[#111114] relative">
         {/* Mobile Logo Header */}
         <div className="lg:hidden p-4 sm:p-6 relative z-10 border-b border-gray-100 dark:border-white/10">
           <Link href="/" className="inline-flex items-center">

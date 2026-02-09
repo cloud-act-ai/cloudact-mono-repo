@@ -92,10 +92,10 @@ function SuccessContent() {
 
       {/* Success Message */}
       <div className="space-y-2">
-        <h1 className="text-[28px] font-bold text-black tracking-tight">
+        <h1 className="text-[24px] font-bold text-black tracking-tight">
           {message.title}
         </h1>
-        <p className="text-[15px] text-muted-foreground">
+        <p className="text-[14px] text-muted-foreground">
           {message.description}
         </p>
       </div>
@@ -105,16 +105,16 @@ function SuccessContent() {
         <div className="metric-card w-full">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-muted-foreground uppercase tracking-wide font-semibold">Provider</span>
-              <span className="text-[15px] font-semibold text-black">{providerDisplayName}</span>
+              <span className="text-[12px] text-muted-foreground uppercase tracking-wide font-semibold">Provider</span>
+              <span className="text-[14px] font-semibold text-black">{providerDisplayName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-muted-foreground uppercase tracking-wide font-semibold">Plan</span>
-              <span className="text-[15px] font-semibold text-black">{planName}</span>
+              <span className="text-[12px] text-muted-foreground uppercase tracking-wide font-semibold">Plan</span>
+              <span className="text-[14px] font-semibold text-black">{planName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-muted-foreground uppercase tracking-wide font-semibold">Action</span>
-              <span className={`text-[15px] font-semibold capitalize ${message.color}`}>
+              <span className="text-[12px] text-muted-foreground uppercase tracking-wide font-semibold">Action</span>
+              <span className={`text-[14px] font-semibold capitalize ${message.color}`}>
                 {action || "created"}
               </span>
             </div>
@@ -126,7 +126,7 @@ function SuccessContent() {
       <div className="flex flex-col sm:flex-row gap-3 w-full">
         <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add`} className="flex-1">
           <Button
-            className="w-full h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm"
+            className="w-full h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[14px] font-semibold shadow-sm"
           >
             Add Another Subscription
           </Button>
@@ -134,7 +134,7 @@ function SuccessContent() {
         <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`} className="flex-1">
           <Button
             variant="outline"
-            className="w-full h-[44px] px-6 border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl text-[15px] font-semibold"
+            className="w-full h-[44px] px-6 border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl text-[14px] font-semibold"
           >
             Back to {providerDisplayName}
           </Button>
@@ -144,7 +144,7 @@ function SuccessContent() {
       <Link href={`/${orgSlug}/integrations/subscriptions`} className="w-full">
         <Button
           variant="ghost"
-          className="w-full h-[44px] px-6 text-muted-foreground hover:bg-[#90FCA6]/5 rounded-xl text-[15px] font-medium"
+          className="w-full h-[44px] px-6 text-muted-foreground hover:bg-[#90FCA6]/5 rounded-xl text-[14px] font-medium"
         >
           View All Providers
         </Button>
@@ -160,8 +160,8 @@ function SuccessFallback() {
         <Loader2 className="h-10 w-10 animate-spin text-[#1a7a3a]" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-[24px] font-bold text-black">Loading...</h1>
-        <p className="text-[15px] text-muted-foreground">Please wait...</p>
+        <h1 className="text-[20px] font-bold text-black">Loading...</h1>
+        <p className="text-[14px] text-muted-foreground">Please wait...</p>
       </div>
     </div>
   )

@@ -96,13 +96,13 @@ export function FeatureTabs() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{activeFeature.title}</h3>
-              <p className="text-lg text-slate-600 leading-relaxed mb-8">{activeFeature.description}</p>
+              <h3 className="text-2xl md:text-4xl font-bold text-slate-900 mb-4">{activeFeature.title}</h3>
+              <p className="text-base text-slate-600 leading-relaxed mb-8">{activeFeature.description}</p>
 
               <div className="grid grid-cols-3 gap-6">
                 {activeFeature.stats.map((stat, i) => (
                   <div key={i} className="space-y-1">
-                    <p className={`text-2xl font-bold font-mono ${
+                    <p className={`text-xl font-bold font-mono ${
                       activeTabConfig?.color === "mint" ? "text-emerald-600" : "text-[#FF6C5E]"
                     }`}>{stat.value}</p>
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{stat.label}</p>
@@ -152,7 +152,7 @@ function MockAllocation() {
         <div className="absolute inset-0 border-[20px] border-[#90FCA6]/30 rounded-full" />
         <div className="absolute inset-0 border-[20px] border-[#90FCA6]/60 rounded-full" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <div className="text-3xl font-bold text-slate-800">100%</div>
+          <div className="text-2xl font-bold text-slate-800">100%</div>
           <div className="text-xs text-slate-500">Allocated</div>
         </div>
       </div>

@@ -24,7 +24,7 @@ export default function ProfileError({
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-coral/10 flex items-center justify-center">
             <AlertCircle className="h-6 w-6 text-coral" />
           </div>
-          <CardTitle className="text-xl">Something went wrong</CardTitle>
+          <CardTitle className="text-lg">Something went wrong</CardTitle>
           <CardDescription>
             We encountered an error while loading your settings. This could be a temporary issue.
           </CardDescription>

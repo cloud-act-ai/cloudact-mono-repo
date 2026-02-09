@@ -260,7 +260,7 @@ export default function AddFromTemplatePage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight">Choose a Plan Template</h1>
+            <h1 className="text-base sm:text-lg lg:text-xl font-bold tracking-tight">Choose a Plan Template</h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
               Select a predefined plan for {providerDisplayName}
             </p>
@@ -297,8 +297,8 @@ export default function AddFromTemplatePage() {
             <div className="inline-flex p-4 rounded-2xl bg-[#FF6C5E]/10 mb-4">
               <CreditCard className="h-12 w-12 text-[#FF6C5E]" />
             </div>
-            <h3 className="text-[20px] font-semibold text-[#FF6C5E] mb-2">Failed to Load Templates</h3>
-            <p className="text-[15px] text-[#FF6C5E]/80 mb-6">
+            <h3 className="text-[18px] font-semibold text-[#FF6C5E] mb-2">Failed to Load Templates</h3>
+            <p className="text-[14px] text-[#FF6C5E]/80 mb-6">
               {templateError}
             </p>
             <div className="flex gap-3 justify-center">
@@ -310,7 +310,7 @@ export default function AddFromTemplatePage() {
                 Try Again
               </Button>
               <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
-                <Button className="h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                <Button className="h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[14px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom Plan
                 </Button>
@@ -327,12 +327,12 @@ export default function AddFromTemplatePage() {
             <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
               <CreditCard className="h-12 w-12 text-muted-foreground" />
             </div>
-            <h3 className="text-[20px] font-semibold text-black mb-2">No templates available</h3>
-            <p className="text-[15px] text-muted-foreground mb-6">
+            <h3 className="text-[18px] font-semibold text-black mb-2">No templates available</h3>
+            <p className="text-[14px] text-muted-foreground mb-6">
               No predefined templates found for {providerDisplayName}. You can create a custom subscription plan instead.
             </p>
             <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
-              <Button className="h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+              <Button className="h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[14px] font-semibold shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Custom Plan
               </Button>
@@ -356,7 +356,7 @@ export default function AddFromTemplatePage() {
                     {plan.billing_cycle}
                   </Badge>
                 </div>
-                <CardTitle className="console-card-title text-lg">
+                <CardTitle className="console-card-title text-base">
                   {plan.display_name || plan.plan_name}
                 </CardTitle>
                 {plan.notes && (
@@ -369,7 +369,7 @@ export default function AddFromTemplatePage() {
                 {/* Pricing - converted to org currency */}
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-[#FF6C5E]">
+                    <div className="text-xl font-bold text-[#FF6C5E]">
                       {formatCurrency(convertFromUSD(plan.unit_price, orgCurrency), orgCurrency)}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -399,7 +399,7 @@ export default function AddFromTemplatePage() {
 
                 {/* Select Button */}
                 <Button
-                  className="w-full h-[40px] bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold group-hover:bg-[#006664]"
+                  className="w-full h-[40px] bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[14px] font-semibold group-hover:bg-[#006664]"
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSelectTemplate(plan)
@@ -446,14 +446,14 @@ export default function AddFromTemplatePage() {
               <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-900 mb-1.5 sm:mb-2">
+              <h3 className="text-[13px] sm:text-[14px] font-semibold text-slate-900 mb-1.5 sm:mb-2">
                 Adding a Subscription Plan
               </h3>
-              <div className="text-[12px] sm:text-[13px] text-slate-600 space-y-1.5 sm:space-y-2">
+              <div className="text-[11px] sm:text-[12px] text-slate-600 space-y-1.5 sm:space-y-2">
                 <p><strong>Templates:</strong> Pre-configured plans based on standard {providerDisplayName} pricing.</p>
                 <p><strong>Custom Plans:</strong> Create your own plan for negotiated or enterprise pricing.</p>
                 <p><strong>Currency:</strong> Prices are converted to your default currency ({orgCurrency}).</p>
-                <p className="text-[11px] sm:text-[12px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-2 sm:mt-3">
+                <p className="text-[11px] sm:text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-2 sm:mt-3">
                   <strong>Tip:</strong> After selecting a template, customize seats and assign to a team for cost allocation.
                 </p>
               </div>

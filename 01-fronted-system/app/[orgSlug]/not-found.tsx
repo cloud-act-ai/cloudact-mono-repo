@@ -16,7 +16,7 @@ export default function OrgNotFound() {
 
         <div className="space-y-2">
           <h1 className="text-6xl font-bold text-[#FF6C5E]">404</h1>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Page not found</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Page not found</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
             The page you are looking for does not exist in this organization or has been moved.
           </p>

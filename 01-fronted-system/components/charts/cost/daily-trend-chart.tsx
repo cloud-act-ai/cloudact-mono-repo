@@ -32,7 +32,7 @@ import {
 } from "recharts"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useChartConfig } from "../provider/chart-provider"
+import { useChartConfig, getCategoryChartColors } from "../provider/chart-provider"
 import { ChartTooltip } from "../shared/tooltip"
 import { CompactLegend } from "../shared/legend"
 import { ChartSkeleton } from "../shared/skeleton"
@@ -72,9 +72,11 @@ export interface DailyTrendChartProps {
   data: DailyTrendDataPoint[]
   /** Selected time range - enables smart aggregation */
   timeRange?: ChartTimeRange
-  /** Bar color - defaults to CloudAct mint */
+  /** Cost category - resolves bar/line colors from theme */
+  category?: "genai" | "cloud" | "subscription"
+  /** Bar color override (falls back to category → theme) */
   barColor?: string
-  /** Line color - defaults to CloudAct coral */
+  /** Line color override (falls back to category → theme) */
   lineColor?: string
   /** Rolling average window (in buckets, not days) */
   rollingWindow?: number
@@ -305,8 +307,9 @@ function DailyTrendChartInner({
   subtitle,
   data,
   timeRange,
-  barColor = "#90FCA6", // CloudAct mint
-  lineColor = "#FF6C5E", // CloudAct coral
+  category,
+  barColor,
+  lineColor,
   rollingWindow = 7,
   height = 300,
   mobileHeight,
@@ -315,6 +318,11 @@ function DailyTrendChartInner({
   className,
 }: DailyTrendChartProps) {
   const { formatValueCompact, theme } = useChartConfig()
+
+  // Resolve colors: explicit prop > category from theme > default (genai)
+  const categoryColors = getCategoryChartColors(category, theme)
+  const resolvedBarColor = barColor || categoryColors.bar
+  const resolvedLineColor = lineColor || categoryColors.line
   const responsiveHeight = mobileHeight ?? Math.max(height - 60, 200)
   const chartId = useId() // A11Y-001: Unique ID for ARIA relationships
 
@@ -348,10 +356,10 @@ function DailyTrendChartInner({
   // Legend items
   const legendItems = useMemo(
     () => [
-      { name: `${aggregationLabel} Cost`, color: barColor },
-      { name: avgLabel, color: lineColor },
+      { name: `${aggregationLabel} Cost`, color: resolvedBarColor },
+      { name: avgLabel, color: resolvedLineColor },
     ],
-    [barColor, lineColor, aggregationLabel, avgLabel]
+    [resolvedBarColor, resolvedLineColor, aggregationLabel, avgLabel]
   )
 
   // Loading state
@@ -359,7 +367,7 @@ function DailyTrendChartInner({
     return (
       <Card className={cn("overflow-hidden", className)}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">
+          <CardTitle className="text-[14px] sm:text-[16px] font-bold text-slate-900">
             {title}
           </CardTitle>
           {subtitle && (
@@ -378,7 +386,7 @@ function DailyTrendChartInner({
     return (
       <Card className={cn("overflow-hidden", className)}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">
+          <CardTitle className="text-[14px] sm:text-[16px] font-bold text-slate-900">
             {title}
           </CardTitle>
           {subtitle && (
@@ -405,9 +413,9 @@ function DailyTrendChartInner({
       >
         {/* Gradient for bar fill */}
         <defs>
-          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={barColor} stopOpacity={1} />
-            <stop offset="100%" stopColor={barColor} stopOpacity={0.6} />
+          <linearGradient id={`barGradient-${chartId}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={resolvedBarColor} stopOpacity={1} />
+            <stop offset="100%" stopColor={resolvedBarColor} stopOpacity={0.6} />
           </linearGradient>
         </defs>
 
@@ -459,8 +467,8 @@ function DailyTrendChartInner({
         {/* Daily cost bars */}
         <Bar
           dataKey="value"
-          name="Daily Cost"
-          fill="url(#barGradient)"
+          name={`${aggregationLabel} Cost`}
+          fill={`url(#barGradient-${chartId})`}
           radius={[4, 4, 0, 0]}
           maxBarSize={40}
           animationDuration={600}
@@ -471,16 +479,16 @@ function DailyTrendChartInner({
         <Line
           type="monotone"
           dataKey="rollingAvg"
-          name={`${rollingWindow}-Day Avg`}
-          stroke={lineColor}
+          name={avgLabel}
+          stroke={resolvedLineColor}
           strokeWidth={2.5}
           dot={false}
           activeDot={{
             r: 5,
-            fill: lineColor,
+            fill: resolvedLineColor,
             strokeWidth: 2,
             stroke: "#fff",
-            style: { filter: `drop-shadow(0 0 4px ${lineColor}80)` },
+            style: { filter: `drop-shadow(0 0 4px ${resolvedLineColor}80)` },
           }}
           animationDuration={800}
           animationEasing="ease-out"
@@ -501,7 +509,7 @@ function DailyTrendChartInner({
           <div>
             <CardTitle
               id={`${chartId}-title`}
-              className="text-[15px] sm:text-[17px] font-bold text-slate-900"
+              className="text-[14px] sm:text-[16px] font-bold text-slate-900"
             >
               {title}
             </CardTitle>

@@ -121,7 +121,7 @@ export function IntegrationsWall() {
           viewport={{ once: true }}
           className="text-center max-w-2xl mx-auto mb-10"
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-3">
+          <h2 className="text-2xl md:text-4xl font-bold text-slate-900 tracking-tight mb-3">
             Connects with everything you use
           </h2>
           <p className="text-base text-slate-600">

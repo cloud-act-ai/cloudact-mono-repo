@@ -169,7 +169,7 @@ export default function PlansPage() {
             <ArrowLeft className="h-4 w-4 text-slate-600" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Change Plan</h1>
+            <h1 className="text-xl font-bold text-slate-900">Change Plan</h1>
             <p className="text-sm text-slate-500">Select a plan that fits your needs</p>
           </div>
         </div>
@@ -189,7 +189,7 @@ export default function PlansPage() {
           <ArrowLeft className="h-4 w-4 text-slate-600" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Change Plan</h1>
+          <h1 className="text-xl font-bold text-slate-900">Change Plan</h1>
           <p className="text-sm text-slate-500">
             {isTrialing
               ? "Your trial will convert to the selected plan"
@@ -243,7 +243,7 @@ export default function PlansPage() {
                       {plan.icon}
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
+                      <h3 className="text-base font-bold text-slate-900">{plan.name}</h3>
                       {isCurrent && (
                         <Badge className="bg-slate-100 text-slate-600 text-xs">
                           Current Plan
@@ -254,7 +254,7 @@ export default function PlansPage() {
 
                   {/* Price */}
                   <div className="mb-6">
-                    <span className="text-3xl font-bold text-slate-900">${plan.price}</span>
+                    <span className="text-xl font-bold text-slate-900">${plan.price}</span>
                     <span className="text-slate-500">/month</span>
                   </div>
 

@@ -1,6 +1,6 @@
 # API Service (Port 8000)
 
-Frontend-facing API. Handles bootstrap, onboarding, integrations, subscriptions, hierarchy, quota enforcement, cost reads. Does NOT run pipelines (8001).
+Frontend-facing API. Handles bootstrap, onboarding, integrations, subscriptions, hierarchy, quota enforcement, cost reads, notifications, alerts. Does NOT run pipelines (8001).
 
 ## Production Requirements
 
@@ -12,39 +12,48 @@ Frontend-facing API. Handles bootstrap, onboarding, integrations, subscriptions,
 
 ```bash
 cd 02-api-service
+source venv/bin/activate
 python3 -m uvicorn src.app.main:app --port 8000 --reload
 python -m pytest tests/ -v
 ```
 
-## Routers
+## Routers (16)
 
 | Router | Endpoints | Purpose |
 |--------|-----------|---------|
-| Admin | `/api/v1/admin/*` | Bootstrap, sync |
-| Organizations | `/api/v1/organizations/*` | Onboarding, locale, quota |
-| Integrations | `/api/v1/integrations/*` | Credential setup/validate |
-| Subscriptions | `/api/v1/subscriptions/*` | SaaS plan CRUD |
-| Hierarchy | `/api/v1/hierarchy/*` | Dept/Project/Team CRUD |
-| Costs | `/api/v1/costs/*` | Polars-powered reads |
-| Validator | `/api/v1/validator/*` | Pipeline validation |
+| Admin | `/api/v1/admin/*` | Bootstrap, sync, quota resets, alert processing |
+| Organizations | `/api/v1/organizations/*` | Onboarding, locale, subscription, repair |
+| Integrations | `/api/v1/integrations/*` | Credential setup/validate (11+ providers) |
+| GenAI Pricing | `/api/v1/integrations/{org}/{provider}/pricing` | Model pricing & subscription CRUD |
+| GenAI | `/api/v1/genai/*` | GenAI usage, costs, pricing overrides |
+| Subscriptions | `/api/v1/subscriptions/*` | SaaS subscription plan CRUD |
+| Hierarchy | `/api/v1/hierarchy/*` | N-level hierarchy CRUD, import/export |
+| Costs | `/api/v1/costs/*` | Polars-powered cost reads + cache |
+| Quota | `/api/v1/organizations/{org}/quota` | Quota usage & limits |
+| Notifications | `/api/v1/{org}/notifications/*` | Channels, rules, summaries, history |
+| Cost Alerts | `/api/v1/{org}/cost-alerts/*` | Alert CRUD, presets, bulk ops |
+| Pipeline Logs | `/api/v1/pipelines/{org}/runs` | Execution logs, steps, transitions |
+| Pipeline Validator | `/api/v1/validator/*` | Validate config, check quota |
+| Pipelines Proxy | `/api/v1/pipelines/*` | Proxy to Pipeline Service (8001) |
+| OpenAI Data | `/api/v1/integrations/{org}/openai/*` | Legacy OpenAI pricing (migrated to GenAI Pricing) |
+| Health | `/health` | Liveness, readiness, version |
 
 ## Bootstrap Tables (21)
 
-| Table | Purpose |
-|-------|---------|
-| `org_profiles` | Org metadata + i18n |
-| `org_api_keys` | API keys |
-| `org_subscriptions` | Plans & limits |
-| `org_usage_quotas` | Daily/monthly usage |
-| `org_integration_credentials` | KMS-encrypted creds |
-| `org_hierarchy` | Dept/Project/Team |
-| `org_meta_pipeline_runs` | Execution logs |
+| Category | Tables |
+|----------|--------|
+| Core | `org_profiles`, `org_api_keys`, `org_subscriptions`, `org_usage_quotas`, `org_integration_credentials`, `org_hierarchy`, `org_audit_logs` |
+| Pipeline | `org_meta_pipeline_runs`, `org_meta_step_logs`, `org_meta_state_transitions`, `org_meta_dq_results`, `org_pipeline_configs`, `org_pipeline_execution_queue` |
+| Notifications | `org_notification_channels`, `org_notification_rules`, `org_notification_summaries`, `org_notification_history`, `org_scheduled_alerts`, `org_alert_history` |
+| Other | `org_cost_tracking`, `org_idempotency_keys` |
 
 **Schemas:** `configs/setup/bootstrap/schemas/*.json`
 
 ## Quota Enforcement
 
 **This service enforces all quotas before pipeline execution.**
+
+**Quota source:** Supabase (`organizations` for limits, `org_quotas` for usage tracking).
 
 ```python
 # Atomic check-and-reserve (prevents race conditions)
@@ -59,6 +68,8 @@ reserve_pipeline_quota_atomic(org_slug)
 | Providers | Count vs `providers_limit` |
 | Seats | Member count vs `seat_limit` |
 
+**Self-healing:** Stale concurrent counters cleaned automatically on each pipeline request.
+
 **Endpoint:** `GET /api/v1/organizations/{org}/quota`
 
 ## Services Architecture
@@ -66,13 +77,14 @@ reserve_pipeline_quota_atomic(org_slug)
 ```
 src/core/services/
 ├─ _shared/           # Cache, date_utils, validation
-├─ cost_read/         # Dashboard cost queries (Polars)
+├─ cost_read/         # Dashboard cost queries (Polars + LRU cache)
 ├─ usage_read/        # GenAI usage metrics (Polars)
-├─ hierarchy_crud/    # Dept/Project/Team CRUD
-└─ notification_crud/ # Channels/Rules CRUD
+├─ hierarchy_crud/    # N-level hierarchy CRUD + import/export
+├─ notification_crud/ # Channels/Rules/Summaries CRUD
+└─ integration_read/  # Integration metadata
 ```
 
-**Pattern:** `*_read/` = Polars + Cache | `*_crud/` = Direct BigQuery
+**Pattern:** `*_read/` = Polars + LRU Cache (100 entries, TTL until midnight) | `*_crud/` = Direct BigQuery
 
 ## Table Ownership
 
@@ -82,6 +94,7 @@ src/core/services/
 | `org_usage_quotas` | API (8000) | Quota updates |
 | `subscription_plans` | API (8000) | CRUD |
 | `org_hierarchy` | API (8000) | CRUD |
+| `org_notification_*` | API (8000) | CRUD |
 | `*_costs_daily` | Pipeline (8001) | Read-only |
 
 **Rule:** Tables with `x_*` fields → Pipeline writes, API reads only
@@ -91,35 +104,60 @@ src/core/services/
 ```bash
 # Bootstrap
 POST /api/v1/admin/bootstrap
+POST /api/v1/admin/bootstrap/sync
 
 # Onboard org
 POST /api/v1/organizations/onboard
+POST /api/v1/organizations/{org}/sync
 
 # Quota
 GET  /api/v1/organizations/{org}/quota
+POST /api/v1/admin/quota/reset-daily
+POST /api/v1/admin/quota/reset-monthly
+POST /api/v1/admin/quota/cleanup-stale
 
 # Integration setup
 POST /api/v1/integrations/{org}/{provider}/setup
+POST /api/v1/integrations/{org}/{provider}/validate
 
 # Subscription CRUD
 POST /api/v1/subscriptions/{org}/providers/{p}/plans
 
 # Hierarchy
 GET  /api/v1/hierarchy/{org}/tree
+POST /api/v1/hierarchy/{org}/import
+GET  /api/v1/hierarchy/{org}/export
+
+# Costs (Polars-powered)
+GET  /api/v1/costs/{org}/total
+GET  /api/v1/costs/{org}/summary
+GET  /api/v1/costs/{org}/trend-granular
+POST /api/v1/costs/{org}/cache/invalidate
+
+# Notifications
+GET  /api/v1/{org}/notifications/channels
+POST /api/v1/{org}/notifications/rules
+GET  /api/v1/{org}/notifications/history
+
+# Cost Alerts
+POST /api/v1/{org}/cost-alerts
+POST /api/v1/admin/alerts/process-all
 
 # Validation (for pipeline service)
 POST /api/v1/validator/validate/{org}
+POST /api/v1/validator/complete/{org}
 ```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `configs/setup/bootstrap/schemas/*.json` | 21 meta tables |
-| `src/app/routers/quota.py` | Quota endpoint |
-| `src/app/dependencies/auth.py` | Quota enforcement |
+| `configs/setup/bootstrap/schemas/*.json` | 21 meta table schemas |
+| `configs/setup/organizations/onboarding/schemas/*.json` | 30+ per-org table schemas |
+| `src/app/routers/` | 16 router files |
+| `src/app/dependencies/auth.py` | Quota enforcement + self-healing |
 | `src/app/models/org_models.py` | `SUBSCRIPTION_LIMITS` |
-| `src/core/services/*_read/` | Polars read services |
+| `src/core/services/cost_read/` | Polars cost read service |
 
 ## Deployment
 
@@ -159,9 +197,9 @@ Set via Cloud Run at deploy time:
 
 Before creating release tag, update version in `src/app/config.py`:
 ```python
-release_version: str = Field(default="v4.1.9")
-release_timestamp: str = Field(default="2026-01-18T00:00:00Z")
+release_version: str = Field(default="v4.3.0")
+release_timestamp: str = Field(default="2026-02-08T00:00:00Z")
 ```
 
 ---
-**v4.1.9** | 2026-01-18
+**v4.3.0** | 2026-02-08

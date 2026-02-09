@@ -164,10 +164,10 @@ export default function BillingPage() {
 
   if (isCheckingAuth) {
     return (
-      <div className="flex min-h-svh w-full items-center justify-center bg-white">
+      <div className="flex min-h-svh w-full items-center justify-center bg-white dark:bg-[#111114]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-[#6EE890]" />
-          <p className="text-sm text-gray-600">Verifying your account...</p>
+          <p className="text-sm text-gray-600 dark:text-white/50">Verifying your account...</p>
         </div>
       </div>
     )
@@ -180,24 +180,32 @@ export default function BillingPage() {
   const companyName = user?.user_metadata?.pending_company_name || "Your Company"
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center bg-white p-4 py-8 md:py-12">
+    <div className="flex min-h-svh w-full flex-col items-center bg-white dark:bg-[#111114] p-4 py-8 md:py-12">
       <div className="w-full max-w-[900px] space-y-4">
         {/* Header */}
         <div className="flex flex-col items-center gap-4 text-center">
           <Link href="/" className="inline-flex items-center">
-            {/* FIX BUG-001: Remove CSS height/width overrides */}
             <Image
               src="/logos/cloudact-logo-black.svg"
               alt="CloudAct.ai"
               width={160}
               height={32}
+              className="dark:hidden"
+              priority
+            />
+            <Image
+              src="/logos/cloudact-logo-white.svg"
+              alt="CloudAct.ai"
+              width={160}
+              height={32}
+              className="hidden dark:block"
               priority
             />
           </Link>
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-gray-900">Choose your plan</h1>
-            <p className="text-sm text-gray-600">
-              Setting up <span className="font-medium text-gray-900">{companyName}</span> - Start with a {trialDays}-day free trial
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Choose your plan</h1>
+            <p className="text-sm text-gray-600 dark:text-white/50">
+              Setting up <span className="font-medium text-gray-900 dark:text-white">{companyName}</span> - Start with a {trialDays}-day free trial
             </p>
           </div>
         </div>
@@ -212,8 +220,8 @@ export default function BillingPage() {
         {/* Plans */}
         {isLoadingPlans ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-            <span className="ml-3 text-gray-600">Loading plans...</span>
+            <Loader2 className="h-8 w-8 animate-spin text-gray-600 dark:text-white/50" />
+            <span className="ml-3 text-gray-600 dark:text-white/50">Loading plans...</span>
           </div>
         ) : plans.length === 0 ? (
           <div className="text-center py-16 text-gray-600">
@@ -231,8 +239,8 @@ export default function BillingPage() {
                 <div
                   key={plan.priceId}
                   className={cn(
-                    "relative cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:shadow-md flex flex-col",
-                    isSelected ? "border-[#90FCA6] ring-1 ring-[#90FCA6] bg-[#B8FDCA]/5" : "hover:border-[#90FCA6]/50 hover:ring-2 hover:ring-[#90FCA6]/10",
+                    "relative cursor-pointer rounded-xl border bg-white dark:bg-white/5 p-4 shadow-sm transition-all hover:shadow-md flex flex-col",
+                    isSelected ? "border-[#90FCA6] ring-1 ring-[#90FCA6] bg-[#B8FDCA]/5 dark:bg-[#90FCA6]/10" : "hover:border-[#90FCA6]/50 hover:ring-2 hover:ring-[#90FCA6]/10 dark:border-white/10",
                     isPopular && !isSelected && "border-[#90FCA6]/30"
                   )}
                   onClick={() => handleSelectPlan(plan.priceId)}
@@ -245,8 +253,8 @@ export default function BillingPage() {
 
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
-                      <p className="text-xs text-gray-600">{plan.description || "Perfect for growing teams"}</p>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{plan.name}</h3>
+                      <p className="text-xs text-gray-600 dark:text-white/50">{plan.description || "Perfect for growing teams"}</p>
                     </div>
                     {isSelected && (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#90FCA6]">
@@ -256,28 +264,28 @@ export default function BillingPage() {
                   </div>
 
                   <div className="flex items-baseline mb-3">
-                    <span className="text-3xl font-bold text-gray-900">{formatCurrency(plan.price, plan.currency)}</span>
-                    <span className="text-xs text-gray-600 ml-1">/{plan.interval}</span>
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(plan.price, plan.currency)}</span>
+                    <span className="text-xs text-gray-600 dark:text-white/50 ml-1">/{plan.interval}</span>
                   </div>
 
                   <ul className="space-y-1.5 mb-4 flex-1">
                     {/* Show limits as features */}
                     <li className="flex items-start gap-1.5 text-xs">
                       <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
-                      <span className="text-gray-600">{plan.limits.teamMembers} team members</span>
+                      <span className="text-gray-600 dark:text-white/50">{plan.limits.teamMembers} team members</span>
                     </li>
                     <li className="flex items-start gap-1.5 text-xs">
                       <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
-                      <span className="text-gray-600">{plan.limits.providers} providers</span>
+                      <span className="text-gray-600 dark:text-white/50">{plan.limits.providers} providers</span>
                     </li>
                     <li className="flex items-start gap-1.5 text-xs">
                       <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
-                      <span className="text-gray-600">{plan.limits.pipelinesPerDay} pipelines/day</span>
+                      <span className="text-gray-600 dark:text-white/50">{plan.limits.pipelinesPerDay} pipelines/day</span>
                     </li>
                     {plan.features.slice(0, 2).map((feature, i) => (
                       <li key={i} className="flex items-start gap-1.5 text-xs">
                         <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
-                        <span className="text-gray-600">{feature}</span>
+                        <span className="text-gray-600 dark:text-white/50">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -326,13 +334,13 @@ export default function BillingPage() {
             )}
           </button>
 
-          <p className="text-center text-xs text-gray-600">
+          <p className="text-center text-xs text-gray-600 dark:text-white/50">
             {trialDays}-day free trial • No credit card required • Cancel anytime
           </p>
         </div>
 
         {/* Trust Badges - Compact */}
-        <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
+        <div className="flex items-center justify-center gap-4 text-xs text-gray-600 dark:text-white/50">
           <div className="flex items-center gap-1">
             <Lock className="h-3 w-3" />
             <span>SSL encrypted</span>

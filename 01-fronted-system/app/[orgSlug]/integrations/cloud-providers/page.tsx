@@ -163,10 +163,10 @@ export default function CloudProvidersPage() {
     return (
       <div className="max-w-7xl mx-auto">
         <div className="mb-10">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-none">
             Cloud Providers
           </h1>
-          <p className="text-[15px] text-slate-500 mt-2">
+          <p className="text-[14px] text-slate-500 mt-2">
             Connect your cloud accounts to start tracking costs
           </p>
         </div>
@@ -175,7 +175,7 @@ export default function CloudProvidersPage() {
             <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
-            <p className="text-[14px] text-slate-500 font-medium">Loading providers...</p>
+            <p className="text-[13px] text-slate-500 font-medium">Loading providers...</p>
           </div>
         </div>
       </div>
@@ -186,10 +186,10 @@ export default function CloudProvidersPage() {
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
       {/* Header */}
       <div className="mb-6 sm:mb-10">
-        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+        <h1 className="text-[20px] sm:text-[28px] font-bold text-slate-900 tracking-tight leading-none">
           Cloud Providers
         </h1>
-        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+        <p className="text-[12px] sm:text-[14px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
           Connect your cloud accounts to start tracking costs
         </p>
       </div>
@@ -201,8 +201,8 @@ export default function CloudProvidersPage() {
             <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
-            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Connected</p>
+            <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5">Connected</p>
           </div>
         </div>
         <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
@@ -211,8 +211,8 @@ export default function CloudProvidersPage() {
             <Cloud className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500" />
           </div>
           <div>
-            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
-            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
+            <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5">Available</p>
           </div>
         </div>
         {comingSoonProviders.length > 0 && (
@@ -223,8 +223,8 @@ export default function CloudProvidersPage() {
                 <Server className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{comingSoonProviders.length}</p>
-                <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Soon</p>
+                <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{comingSoonProviders.length}</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5">Soon</p>
               </div>
             </div>
           </>
@@ -239,15 +239,15 @@ export default function CloudProvidersPage() {
               <AlertCircle className="h-5 w-5 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-slate-600 mt-1">
+              <p className="text-[12px] text-slate-600 mt-1">
                 Complete organization onboarding to configure integrations.
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-slate-900 hover:text-slate-900 transition-colors"
+                className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-semibold text-slate-900 hover:text-slate-900 transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-4 w-4" />
@@ -264,7 +264,7 @@ export default function CloudProvidersPage() {
             <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
-            <p className="text-[14px] font-medium text-red-700 mt-2">{error}</p>
+            <p className="text-[13px] font-medium text-red-700 mt-2">{error}</p>
           </div>
         </div>
       )}
@@ -275,7 +275,7 @@ export default function CloudProvidersPage() {
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/20 flex items-center justify-center flex-shrink-0">
               <Check className="h-5 w-5 text-[#1a7a3a]" />
             </div>
-            <p className="text-[14px] font-semibold text-[#1a7a3a] mt-2">{successMessage}</p>
+            <p className="text-[13px] font-semibold text-[#1a7a3a] mt-2">{successMessage}</p>
           </div>
         </div>
       )}
@@ -283,7 +283,7 @@ export default function CloudProvidersPage() {
       {/* Connected Providers */}
       {connectedProviders.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Connected</h2>
+          <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">Connected</h2>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
             {connectedProviders.map((provider) => {
               const integration = integrations[provider.backendKey]
@@ -310,14 +310,14 @@ export default function CloudProvidersPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="text-[15px] font-semibold text-slate-900">{provider.name}</h3>
+                            <h3 className="text-[14px] font-semibold text-slate-900">{provider.name}</h3>
                             {isEnabled && (
                               <span className="px-2.5 py-1 rounded-full bg-[#90FCA6]/15 text-[#1a7a3a] text-[10px] font-semibold uppercase">
                                 Connected
                               </span>
                             )}
                           </div>
-                          <p className="text-[13px] text-slate-500 mt-1">{provider.description}</p>
+                          <p className="text-[12px] text-slate-500 mt-1">{provider.description}</p>
                         </div>
                       </div>
 
@@ -325,7 +325,7 @@ export default function CloudProvidersPage() {
                         <button
                           onClick={() => handleValidate(provider.id)}
                           disabled={isValidating}
-                          className="h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation"
+                          className="h-9 sm:h-10 px-3 sm:px-4 text-[11px] sm:text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation"
                         >
                           {isValidating ? (
                             <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
@@ -335,7 +335,7 @@ export default function CloudProvidersPage() {
                           <span className="hidden sm:inline">Validate</span>
                         </button>
                         <Link href={`/${orgSlug}/integrations/${provider.href}`}>
-                          <button className="h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-lg sm:rounded-xl transition-colors flex items-center gap-1 sm:gap-1.5 touch-manipulation">
+                          <button className="h-9 sm:h-10 px-3 sm:px-4 text-[11px] sm:text-[12px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-lg sm:rounded-xl transition-colors flex items-center gap-1 sm:gap-1.5 touch-manipulation">
                             <span className="hidden sm:inline">Configure</span>
                             <span className="sm:hidden">Edit</span>
                             <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -360,7 +360,7 @@ export default function CloudProvidersPage() {
       {/* Available Providers */}
       {availableProviders.length > 0 && (
         <div className="space-y-3 sm:space-y-4">
-          <h2 className="text-[12px] sm:text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Available</h2>
+          <h2 className="text-[11px] sm:text-[12px] font-semibold text-slate-900 uppercase tracking-wide">Available</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {availableProviders.map((provider) => (
               <Link
@@ -377,11 +377,11 @@ export default function CloudProvidersPage() {
                       <ProviderLogo provider={provider.id} category="cloud" size={24} />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-900 truncate">{provider.name}</h3>
-                      <p className="text-[12px] sm:text-[13px] text-slate-500 mt-0.5 truncate">{provider.description}</p>
+                      <h3 className="text-[13px] sm:text-[14px] font-semibold text-slate-900 truncate">{provider.name}</h3>
+                      <p className="text-[11px] sm:text-[12px] text-slate-500 mt-0.5 truncate">{provider.description}</p>
                     </div>
                   </div>
-                  <button className="h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-lg sm:rounded-xl transition-colors flex-shrink-0">
+                  <button className="h-9 sm:h-10 px-3 sm:px-4 text-[11px] sm:text-[12px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-lg sm:rounded-xl transition-colors flex-shrink-0">
                     Connect
                   </button>
                 </div>
@@ -394,7 +394,7 @@ export default function CloudProvidersPage() {
       {/* Coming Soon */}
       {comingSoonProviders.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Coming Soon</h2>
+          <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">Coming Soon</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {comingSoonProviders.map((provider) => (
               <div
@@ -409,8 +409,8 @@ export default function CloudProvidersPage() {
                       <ProviderLogo provider={provider.id} category="cloud" size={24} fallbackColor="#94a3b8" />
                     </div>
                     <div>
-                      <h3 className="text-[15px] font-semibold text-slate-700">{provider.name}</h3>
-                      <p className="text-[13px] text-slate-500 mt-0.5">{provider.description}</p>
+                      <h3 className="text-[14px] font-semibold text-slate-700">{provider.name}</h3>
+                      <p className="text-[12px] text-slate-500 mt-0.5">{provider.description}</p>
                     </div>
                   </div>
                   <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold">
@@ -430,8 +430,8 @@ export default function CloudProvidersPage() {
             <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[14px] sm:text-[16px] font-semibold text-slate-900">Secure Storage</h3>
-            <p className="text-[12px] sm:text-[14px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
+            <h3 className="text-[13px] sm:text-[14px] font-semibold text-slate-900">Secure Storage</h3>
+            <p className="text-[11px] sm:text-[13px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
               All service account credentials are encrypted using Google Cloud KMS with AES-256 encryption.
             </p>
           </div>

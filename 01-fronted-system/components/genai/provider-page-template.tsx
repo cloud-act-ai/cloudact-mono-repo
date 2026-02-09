@@ -257,11 +257,11 @@ function CollapsibleSection({
           </div>
           <div className="text-left">
             <div className="flex items-center gap-2">
-              <h3 className="text-[15px] font-semibold text-slate-900">{title}</h3>
+              <h3 className="text-[14px] font-semibold text-slate-900">{title}</h3>
               {badge}
             </div>
             {description && (
-              <p className="text-[12px] text-slate-500 mt-0.5">{description}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
             )}
           </div>
         </div>
@@ -901,7 +901,7 @@ export function GenAIProviderPageTemplate({
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-[28px] font-bold text-black tracking-tight">
+                <h1 className="text-[24px] font-bold text-black tracking-tight">
                   {config.name}
                 </h1>
                 {isConnected ? (
@@ -915,7 +915,7 @@ export function GenAIProviderPageTemplate({
                   </Badge>
                 )}
               </div>
-              <p className="text-[14px] text-slate-600 leading-relaxed">
+              <p className="text-[13px] text-slate-600 leading-relaxed">
                 {config.description}
               </p>
             </div>
@@ -959,7 +959,7 @@ export function GenAIProviderPageTemplate({
       {/* Pricing Tables */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-slate-900">Pricing Reference</h2>
+          <h2 className="text-base font-semibold text-slate-900">Pricing Reference</h2>
           {!isConnected && (
             <Badge variant="outline" className="text-[10px] font-medium border-slate-200 text-slate-500">
               <Shield className="h-3 w-3 mr-1" />
@@ -1092,10 +1092,10 @@ export function GenAIProviderPageTemplate({
             <ExternalLink className="h-5 w-5 text-slate-600" />
           </div>
           <div>
-            <h3 className="text-[15px] font-semibold text-black mb-2">
+            <h3 className="text-[14px] font-semibold text-black mb-2">
               How to get your {config.name} API key
             </h3>
-            <ol className="list-decimal list-inside space-y-1.5 text-[13px] text-slate-700">
+            <ol className="list-decimal list-inside space-y-1.5 text-[12px] text-slate-700">
               {config.docsSteps.map((step, idx) => (
                 <li key={`step-${idx}`}>
                   <SafeStepContent content={step} />
@@ -1106,7 +1106,7 @@ export function GenAIProviderPageTemplate({
               href={config.docsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-medium text-[#007AFF] hover:underline"
+              className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-medium text-[#007AFF] hover:underline"
             >
               View documentation
               <ExternalLink className="h-3.5 w-3.5" />

@@ -3,11 +3,13 @@
 /**
  * OpenClaw-Inspired Dashboard Sidebar
  *
- * Flat grouped navigation with always-visible sections.
- * No accordion - all groups visible, items show directly.
+ * Flat grouped navigation with collapsible sections.
+ * Header: brand logo + title + subtitle.
+ * Section headers with toggle (minus/plus).
+ * Active item: light mint highlight.
  * Clean two-zone layout: scrollable nav + sticky footer.
  * Theme toggle (system/light/dark) in footer.
- * Mint accent for active items. Full dark mode support.
+ * Full dark mode support.
  */
 
 import type * as React from "react"
@@ -44,11 +46,14 @@ import {
   PanelLeftClose,
   PanelLeft,
   Settings,
-  TrendingUp,
   Bell,
   AlertTriangle,
   Calendar,
   History,
+  MessageSquare,
+  FileText,
+  Minus,
+  Plus,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -57,7 +62,6 @@ import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
@@ -111,6 +115,7 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   ownerOnly?: boolean
+  placeholder?: boolean
 }
 
 interface NavGroup {
@@ -123,14 +128,15 @@ function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
 
   return [
     {
-      label: "Dashboard",
+      label: "Chat",
       items: [
-        { title: "Dashboard", href: `/${orgSlug}/dashboard`, icon: LayoutDashboard },
+        { title: "Chat", href: `/${orgSlug}/chat`, icon: MessageSquare, placeholder: true },
       ],
     },
     {
-      label: "Cost Analytics",
+      label: "Control",
       items: [
+        { title: "Dashboard", href: `/${orgSlug}/dashboard`, icon: LayoutDashboard },
         { title: "Overview", href: `/${orgSlug}/cost-dashboards/overview`, icon: BarChart3 },
         { title: "GenAI Costs", href: `/${orgSlug}/cost-dashboards/genai-costs`, icon: Sparkles },
         { title: "Cloud Costs", href: `/${orgSlug}/cost-dashboards/cloud-costs`, icon: Cloud },
@@ -173,6 +179,12 @@ function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
         ...(isOwner ? [{ title: "Billing", href: `/${orgSlug}/billing`, icon: CreditCard }] : []),
       ],
     },
+    {
+      label: "Resources",
+      items: [
+        { title: "Docs", href: "/user-docs", icon: FileText },
+      ],
+    },
   ]
 }
 
@@ -204,12 +216,25 @@ export function DashboardSidebar({
   const [isLoading, setIsLoading] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [logoLoading, setLogoLoading] = useState(true)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   const formattedOrgName = formatOrgName(orgName)
   const { state, toggleSidebar } = useSidebar()
   const isCollapsed = state === "collapsed"
 
   const navGroups = getNavGroups(orgSlug, userRole)
+
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -253,51 +278,26 @@ export function DashboardSidebar({
     const url = new URL(href, "http://localhost")
     const tab = url.searchParams.get("tab")
     if (!tab) {
-      // "Overview" - active only when no tab param in current URL
       return pathname === url.pathname && !window.location.search.includes("tab=")
     }
     return pathname === url.pathname && window.location.search.includes(`tab=${tab}`)
   }
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-900" {...props}>
-      {/* Header: Logo + Org Name + Toggle */}
+    <Sidebar collapsible="icon" className="border-r border-slate-200/60 bg-white" {...props}>
+      {/* Header: Hamburger + Logo + Brand */}
       <div className={cn(
-        "border-b border-slate-200/60 dark:border-slate-700/60 hidden md:block",
+        "border-b border-slate-200/60 hidden md:block",
         isCollapsed ? "p-2" : "px-4 py-3"
       )}>
-        <div className="flex items-center justify-between">
-          <Link
-            href={`/${orgSlug}/cost-dashboards/overview`}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0"
-          >
-            <div className={cn(
-              "flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center",
-              "h-8 w-8 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm",
-              "transition-all duration-200 hover:border-[var(--cloudact-mint)] hover:shadow-md"
-            )}>
-              {logoLoading ? (
-                <div className="h-4 w-4 animate-pulse bg-slate-100 dark:bg-slate-700 rounded" />
-              ) : logoUrl ? (
-                <Image src={logoUrl} alt={formattedOrgName} width={32} height={32} className="object-contain" />
-              ) : (
-                <Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-              )}
-            </div>
-            {!isCollapsed && (
-              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate max-w-[140px] tracking-tight">
-                {formattedOrgName}
-              </span>
-            )}
-          </Link>
+        <div className="flex items-center gap-3">
           <button
             onClick={toggleSidebar}
             className={cn(
-              "flex-shrink-0 h-7 w-7 rounded-md flex items-center justify-center",
-              "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300",
-              "hover:bg-slate-100 dark:hover:bg-slate-800",
-              "transition-all duration-200 ease-in-out",
-              "focus-visible:outline-2 focus-visible:outline-[var(--cloudact-mint)] focus-visible:outline-offset-2",
+              "flex-shrink-0 h-8 w-8 rounded-md flex items-center justify-center",
+              "text-slate-500 hover:text-slate-700",
+              "hover:bg-slate-100",
+              "transition-all duration-200",
               isCollapsed && "mx-auto"
             )}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -305,132 +305,177 @@ export function DashboardSidebar({
           >
             {isCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
+
+          {!isCollapsed && (
+            <Link
+              href={`/${orgSlug}/dashboard`}
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-1 min-w-0"
+            >
+              <div className={cn(
+                "flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center",
+                "h-9 w-9 border border-slate-200 bg-white shadow-sm"
+              )}>
+                {logoLoading ? (
+                  <div className="h-4 w-4 animate-pulse bg-slate-100 rounded" />
+                ) : logoUrl ? (
+                  <Image src={logoUrl} alt={formattedOrgName} width={36} height={36} className="object-contain" />
+                ) : (
+                  <Image
+                    src="/logos/cloudact-icon.svg"
+                    alt="CloudAct"
+                    width={24}
+                    height={24}
+                    className="opacity-80"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = "none"
+                    }}
+                  />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[12px] font-black text-slate-900 tracking-wide uppercase leading-tight truncate">
+                  {formattedOrgName}
+                </p>
+                <p className="text-[9px] font-semibold text-slate-400 tracking-wider uppercase leading-tight">
+                  Cost Analytics
+                </p>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
 
       <SidebarContent className="px-0 py-1 overflow-y-auto">
         <SidebarMenu className="gap-0">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              {/* Group Label */}
-              {!isCollapsed && (
-                <div className="px-4 pt-4 pb-1 flex items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    {group.label}
-                  </span>
-                  <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-                </div>
-              )}
+          {navGroups.map((group) => {
+            const isGroupCollapsed = collapsedGroups.has(group.label)
 
-              {/* Collapsed: show only first item icon */}
-              {isCollapsed && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1 my-0.5">
-                    <Link href={group.items[0].href}>
-                      {(() => {
-                        const Icon = group.items[0].icon
-                        return <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                      })()}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {/* Expanded: show all items */}
-              {!isCollapsed && (
-                <div className="pb-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon
-                    const href = item.href
-                    const isNotificationItem = href.includes("/notifications")
-                    let active: boolean
-                    if (isNotificationItem) {
-                      // For notification items with query params, use special check
-                      if (typeof window !== "undefined") {
-                        active = isActiveNotification(href)
-                      } else {
-                        active = isActive(href.split("?")[0], !href.includes("?"))
+            return (
+              <div key={group.label}>
+                {/* Group Label with toggle */}
+                {!isCollapsed && (
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className="w-full px-4 pt-5 pb-2 flex items-center justify-between group cursor-pointer"
+                  >
+                    <span className="text-[11px] font-semibold text-slate-400 tracking-wide">
+                      {group.label}
+                    </span>
+                    <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
+                      {isGroupCollapsed
+                        ? <Plus className="h-3.5 w-3.5" />
+                        : <Minus className="h-3.5 w-3.5" />
                       }
-                    } else {
-                      active = isActive(href, href.endsWith("/dashboard"))
-                    }
+                    </span>
+                  </button>
+                )}
 
-                    return (
-                      <SidebarMenuItem key={href}>
-                        <SidebarMenuButton
-                          asChild
-                          className={cn(
-                            "h-[34px] px-3 text-[13px] font-medium rounded-md mx-2 transition-all duration-150",
-                            "flex items-center gap-3",
-                            active
-                              ? cn(
-                                  "font-semibold text-slate-900 dark:text-slate-100",
-                                  "bg-slate-100 dark:bg-slate-800",
-                                  "relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2",
-                                  "before:w-[3px] before:h-4 before:bg-[var(--cloudact-mint)] before:rounded-r-full"
-                                )
-                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200"
-                          )}
-                        >
-                          <Link href={href}>
-                            <Icon className={cn(
-                              "h-4 w-4 flex-shrink-0",
-                              active ? "text-slate-700 dark:text-slate-300" : ""
-                            )} />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+                {/* Collapsed sidebar: show only first item icon */}
+                {isCollapsed && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1 my-0.5">
+                      <Link href={group.items[0].href}>
+                        {(() => {
+                          const Icon = group.items[0].icon
+                          return <Icon className="h-4 w-4 text-slate-500" />
+                        })()}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+
+                {/* Expanded: show items when group is not collapsed */}
+                {!isCollapsed && !isGroupCollapsed && (
+                  <div className="pb-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const href = item.href
+                      const isNotificationItem = href.includes("/notifications")
+                      let active: boolean
+                      if (item.placeholder) {
+                        active = false
+                      } else if (isNotificationItem) {
+                        if (typeof window !== "undefined") {
+                          active = isActiveNotification(href)
+                        } else {
+                          active = isActive(href.split("?")[0], !href.includes("?"))
+                        }
+                      } else {
+                        active = isActive(href, href.endsWith("/dashboard"))
+                      }
+
+                      return (
+                        <SidebarMenuItem key={href}>
+                          <SidebarMenuButton
+                            asChild
+                            className={cn(
+                              "h-[36px] px-4 text-[13px] font-medium rounded-lg mx-2 transition-all duration-150",
+                              "flex items-center gap-3",
+                              active
+                                ? "font-semibold text-slate-900 bg-[#90FCA6]/15"
+                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                              item.placeholder && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            <Link href={item.placeholder ? "#" : href} onClick={item.placeholder ? (e) => e.preventDefault() : undefined}>
+                              <Icon className={cn(
+                                "h-4 w-4 flex-shrink-0",
+                                active ? "text-[#16a34a]" : ""
+                              )} />
+                              <span>{item.title}</span>
+                              {item.placeholder && (
+                                <span className="ml-auto text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  Soon
+                                </span>
+                              )}
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </SidebarMenu>
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter className="px-0 py-2 mt-auto border-t border-slate-200/60 dark:border-slate-700/60">
+      <SidebarFooter className="px-0 py-2 mt-auto border-t border-slate-200/60">
         <SidebarMenu className="gap-0">
 
-          {/* Theme Toggle */}
-          {!isCollapsed && (
-            <div className="px-4 py-2 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Theme</span>
-              <ThemeToggle compact />
-            </div>
-          )}
 
           {/* User Profile */}
           {!isCollapsed && (
             <Link
               href={`/${orgSlug}/settings/personal`}
               className={cn(
-                "px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group rounded-md mx-2 mb-1",
-                isActive(`/${orgSlug}/settings/personal`) && "bg-slate-100 dark:bg-slate-800"
+                "px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 transition-colors cursor-pointer group rounded-md mx-2 mb-1",
+                isActive(`/${orgSlug}/settings/personal`) && "bg-[#90FCA6]/10"
               )}
             >
               <div className={cn(
                 "h-8 w-8 rounded-lg border flex items-center justify-center flex-shrink-0 shadow-sm transition-all",
                 isActive(`/${orgSlug}/settings/personal`)
-                  ? "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] border-[var(--cloudact-mint)]"
-                  : "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 border-slate-200 dark:border-slate-600 group-hover:from-[var(--cloudact-mint)] group-hover:to-[var(--cloudact-mint-light)]"
+                  ? "bg-gradient-to-br from-[#90FCA6] to-[#6EE890] border-[#90FCA6]"
+                  : "bg-gradient-to-br from-slate-100 to-slate-200 border-slate-200 group-hover:from-[#90FCA6]/30 group-hover:to-[#90FCA6]/20"
               )}>
                 <span className={cn(
                   "text-xs font-bold transition-colors",
                   isActive(`/${orgSlug}/settings/personal`)
-                    ? "text-[var(--cloudact-mint-text)]"
-                    : "text-slate-600 dark:text-slate-300 group-hover:text-[var(--cloudact-mint-text)]"
+                    ? "text-[#0a0a0b]"
+                    : "text-slate-600"
                 )}>
                   {getUserInitials(userName)}
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-slate-900 dark:group-hover:text-slate-100">
+                <p className="text-[12px] font-semibold text-slate-800 truncate">
                   {formatUserName(userName)}
                 </p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                <p className="text-[11px] text-slate-400 truncate">
                   {userEmail}
                 </p>
               </div>
@@ -444,33 +489,15 @@ export function DashboardSidebar({
             >
               <div className={cn(
                 "h-8 w-8 rounded-full flex items-center justify-center transition-all",
-                "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
-                isActive(`/${orgSlug}/settings/personal`) && "ring-2 ring-[var(--cloudact-mint)]/30"
+                "bg-gradient-to-br from-[#90FCA6] to-[#6EE890]",
+                isActive(`/${orgSlug}/settings/personal`) && "ring-2 ring-[#90FCA6]/30"
               )}>
-                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
+                <span className="text-[#0a0a0b] text-[11px] font-semibold">
                   {getUserInitials(userName)}
                 </span>
               </div>
             </Link>
           )}
-
-          {/* Get Help */}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className={cn(
-                "h-[34px] px-3 text-[13px] font-medium text-slate-500 dark:text-slate-400",
-                "hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 rounded-md mx-2 transition-colors",
-                "flex items-center gap-3",
-                isCollapsed && "justify-center px-2"
-              )}
-            >
-              <Link href="/user-docs" target="_blank">
-                <HelpCircle className="h-4 w-4 flex-shrink-0" />
-                {!isCollapsed && <span>Get Help</span>}
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
 
           {/* Sign Out */}
           <SidebarMenuItem>
@@ -478,8 +505,8 @@ export function DashboardSidebar({
               onClick={handleLogout}
               disabled={isLoading}
               className={cn(
-                "h-[34px] px-3 text-[13px] font-medium text-slate-500 dark:text-slate-400",
-                "hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 rounded-md mx-2 transition-colors",
+                "h-[34px] px-4 text-[11px] font-medium text-slate-500",
+                "hover:bg-slate-50 hover:text-slate-800 rounded-md mx-2 transition-colors",
                 "flex items-center gap-3",
                 isCollapsed && "justify-center px-2"
               )}

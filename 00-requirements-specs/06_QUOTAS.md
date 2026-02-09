@@ -1,8 +1,8 @@
 # Quotas & Rate Limiting
 
-**v1.1** | 2026-02-05
+**v2.0** | 2026-02-08
 
-> Plan-based resource limits with atomic enforcement
+> Plan-based resource limits with atomic enforcement and self-healing.
 
 ---
 
@@ -11,7 +11,7 @@
 ```
 1. Pipeline request → API Service (8000)
 2. Read subscription limits from Supabase (source of truth for plans)
-3. Self-healing: cleanup_stale_concurrent_for_org(org_slug) if needed
+3. Self-healing: cleanup_stale_concurrent_for_org(org_slug) (~50ms, zero if no stale)
 4. Atomic quota check-and-reserve → Single SQL UPDATE with WHERE clauses
 5. Return success OR 429 error with specific reason code
 6. Pipeline executes → Pipeline Service (8001)
@@ -21,7 +21,9 @@
 10. Stale cleanup → 02:00 UTC daily (safety net, most handled by self-healing)
 ```
 
-**Self-healing:** When an org requests a pipeline, stale concurrent counters are cleaned before quota reservation (~50ms, zero overhead if no stale counters).
+**Self-healing:** Before every quota reservation, stale concurrent counters are cleaned for the requesting org. This adds ~50ms overhead only when stale counters exist, zero overhead otherwise.
+
+**Atomic reservation:** A single SQL UPDATE with WHERE clauses prevents race conditions. No separate read-then-write — the check and reserve happen in one statement.
 
 ---
 
@@ -32,7 +34,9 @@
 | **Starter** | 6 | 180 | 20 | 2 | 3 | $19 |
 | **Professional** | 25 | 750 | 20 | 6 | 6 | $69 |
 | **Scale** | 100 | 3000 | 20 | 11 | 10 | $199 |
-| **Enterprise** | Custom | Custom | Custom | Custom | Custom | Custom |
+| **Enterprise** | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited | Custom |
+
+**Note:** Concurrent limit is 20 for all standard plans. Enterprise has no limits.
 
 ---
 
@@ -53,8 +57,11 @@
 | Table | Location | Purpose |
 |-------|----------|---------|
 | `organizations` | Supabase | Plan limits, billing status (source of truth) |
+| `org_quotas` | Supabase | Current usage tracking (daily/monthly/concurrent) |
 | `org_subscriptions` | BigQuery | Plan metadata (synced from Supabase at onboarding) |
-| `org_usage_quotas` | BigQuery | Daily/monthly usage tracking |
+| `org_usage_quotas` | BigQuery | Historical usage tracking |
+
+**Supabase is the source of truth** for plan limits and current usage. BigQuery stores historical data.
 
 ---
 
@@ -75,6 +82,14 @@
 |--------|----------|---------|
 | GET | `/organizations/{org}/quota` | Get current quota status |
 | POST | `/validator/validate/{org}` | Validate before pipeline run |
+
+---
+
+## Frontend
+
+| Page | Purpose |
+|------|---------|
+| `/settings/quota-usage` | Quota usage dashboard (~18KB) |
 
 ---
 
@@ -118,3 +133,4 @@
 | `02-api-service/src/app/models/org_models.py` | `SUBSCRIPTION_LIMITS` |
 | `03-data-pipeline-service/src/core/utils/quota_reset.py` | Reset functions |
 | `01-fronted-system/components/quota-warning-banner.tsx` | Warning UI |
+| `01-fronted-system/app/[orgSlug]/settings/quota-usage/page.tsx` | Quota usage page |

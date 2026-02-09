@@ -114,7 +114,7 @@ export function CostMetricCard({
       iconContainer: "gap-1.5 sm:gap-2 mb-2 sm:mb-2.5",
       icon: "h-4 w-4 sm:h-4 sm:w-4",
       label: "text-[10px] sm:text-xs",
-      value: "text-xl sm:text-2xl",
+      value: "text-lg sm:text-xl",
       subtitle: "text-[10px] sm:text-xs",
     },
     default: {
@@ -122,7 +122,7 @@ export function CostMetricCard({
       iconContainer: "gap-2 sm:gap-2.5 mb-2.5 sm:mb-3",
       icon: "h-4 w-4 sm:h-5 sm:w-5",
       label: "text-xs sm:text-sm",
-      value: "text-2xl sm:text-3xl",
+      value: "text-lg sm:text-xl",
       subtitle: "text-xs sm:text-sm",
     },
     large: {
@@ -130,7 +130,7 @@ export function CostMetricCard({
       iconContainer: "gap-2.5 sm:gap-3 mb-3 sm:mb-4",
       icon: "h-5 w-5 sm:h-6 sm:w-6",
       label: "text-sm",
-      value: "text-3xl sm:text-4xl",
+      value: "text-xl sm:text-3xl",
       subtitle: "text-sm",
     },
   }

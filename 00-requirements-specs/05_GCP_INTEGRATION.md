@@ -1,21 +1,21 @@
 # GCP Integration
 
-**v1.1** | 2026-02-05
+**v2.0** | 2026-02-08
 
-> GCP billing exports, resource inventory, and Vertex AI monitoring
+> GCP billing exports, resource inventory, Vertex AI / Gemini API monitoring.
 
 ---
 
 ## Integration Workflow
 
 ```
-1. Upload SA JSON → Frontend integration page
+1. Upload SA JSON → Frontend integration page (/settings/integrations/gcp)
 2. Validate → Format check + IAM role verification + BQ access test
-3. KMS encrypt → Store in org_integration_credentials
+3. KMS encrypt → Store in org_integration_credentials (AES-256 via GCP Cloud KMS)
 4. Configure billing tables → Standard, Detailed, Pricing, CUD export tables
 5. Run pipeline → Decrypt SA → Auth to customer BQ → Extract billing data
 6. Write to CloudAct → {org_slug}_prod.cloud_gcp_billing_raw_daily
-7. FOCUS convert → sp_cloud_1_convert_to_focus → cost_data_standard_1_3
+7. FOCUS convert → sp_cloud_gcp_convert_to_focus → cost_data_standard_1_3
 ```
 
 ---
@@ -44,7 +44,7 @@
 
 ## Billing Export Tables
 
-Configure in **Settings → Integrations → GCP → Billing Export Tables**.
+Configure in **Settings > Integrations > GCP > Billing Export Tables**.
 
 | Table | Format | Purpose |
 |-------|--------|---------|
@@ -92,12 +92,14 @@ Configure in **Settings → Integrations → GCP → Billing Export Tables**.
 | Storage Buckets | `cloud/gcp/api/storage_buckets.yml` | `gcp_storage_buckets_raw` |
 | IAM Service Accounts | `cloud/gcp/api/iam_service_accounts.yml` | `gcp_iam_service_accounts_raw` |
 
-### GenAI Pipelines
+### GenAI Pipelines (Vertex AI / Gemini)
 
 | Pipeline | Config | Destination |
 |----------|--------|-------------|
 | Vertex AI GSU | `genai/commitment/gcp_vertex.yml` | Commitment data |
 | GCP GPU/TPU | `genai/infrastructure/gcp_gpu.yml` | Infrastructure data |
+| Vertex AI PAYG | `genai/payg/gcp_vertex.yml` | GenAI usage data |
+| Gemini API | `genai/payg/gemini.yml` | Gemini API usage data |
 
 ---
 
@@ -117,8 +119,9 @@ Configure in **Settings → Integrations → GCP → Billing Export Tables**.
 
 | Standard | Implementation |
 |----------|----------------|
-| KMS encryption | GCP Cloud KMS, decrypted only when needed (5-min TTL) |
-| Validation | Format check → IAM status check → BQ access test |
+| KMS encryption | GCP Cloud KMS AES-256, decrypted only when needed (5-min TTL) |
+| Credential upload | Service Account JSON uploaded via frontend, encrypted immediately |
+| Validation | Format check -> IAM status check -> BQ access test |
 | Audit logging | All operations logged, error messages sanitized |
 | Metadata filtering | Allowlist-based key filtering |
 
@@ -145,6 +148,17 @@ Configure in **Settings → Integrations → GCP → Billing Export Tables**.
 
 ---
 
+## Frontend
+
+| Page | Purpose |
+|------|---------|
+| `/settings/integrations/gcp` | GCP integration setup page |
+| Upload SA JSON | File upload with client-side format validation |
+| Billing table config | Form fields for all 4 export table paths |
+| Connection test | Validate button with success/failure feedback |
+
+---
+
 ## Key Files
 
 | Service | File | Purpose |
@@ -155,3 +169,4 @@ Configure in **Settings → Integrations → GCP → Billing Export Tables**.
 | Pipeline | `configs/cloud/gcp/cost/billing.yml` | Billing pipeline config |
 | Pipeline | `src/core/processors/cloud/gcp/external_bq_extractor.py` | BQ extractor |
 | Pipeline | `src/core/processors/cloud/gcp/authenticator.py` | Authentication |
+| Pipeline | `src/core/processors/genai/gcp_vertex_adapter.py` | Vertex AI adapter |

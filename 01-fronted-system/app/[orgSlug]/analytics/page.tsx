@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCostData } from "@/contexts/cost-data-context"
-import { DailyTrendChart, CostRingChart } from "@/components/charts"
+import { DailyTrendChart, CostRingChart, getCategoryColor } from "@/components/charts"
 import { TimeRangeFilter, CostSummaryGrid } from "@/components/costs"
 
 // Analytics-specific types
@@ -99,8 +99,7 @@ export default function AnalyticsPage() {
       key: cat.category.toLowerCase(),
       name: cat.category,
       value: cat.total_cost,
-      color: cat.category === "GenAI" ? "#8B5CF6" : 
-             cat.category === "Cloud" ? "#3B82F6" : "#10B981"
+      color: getCategoryColor(cat.category.toLowerCase() as "genai" | "cloud" | "subscription"),
     }))
   }, [getFilteredCategoryBreakdown])
 
@@ -164,7 +163,7 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-7 h-7 text-indigo-500" />
             Analytics Dashboard
           </h1>
@@ -200,7 +199,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Period Total</p>
-                <p className="text-2xl font-bold">${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                <p className="text-xl font-bold">${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                 <BarChart3 className="w-5 h-5 text-indigo-600" />
@@ -214,7 +213,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Daily Average</p>
-                <p className="text-2xl font-bold">${avgDailyCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                <p className="text-xl font-bold">${avgDailyCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                 <Activity className="w-5 h-5 text-blue-600" />
@@ -228,7 +227,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Active Providers</p>
-                <p className="text-2xl font-bold">{providerData.length}</p>
+                <p className="text-xl font-bold">{providerData.length}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <PieChart className="w-5 h-5 text-emerald-600" />
@@ -242,7 +241,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Active Insights</p>
-                <p className="text-2xl font-bold">{insights.length}</p>
+                <p className="text-xl font-bold">{insights.length}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
@@ -266,7 +265,7 @@ export default function AnalyticsPage() {
             {/* Cost Trend Chart */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Cost Trend</CardTitle>
+                <CardTitle className="text-base">Cost Trend</CardTitle>
                 <CardDescription>Daily spending over selected period</CardDescription>
               </CardHeader>
               <CardContent>
@@ -276,10 +275,9 @@ export default function AnalyticsPage() {
                   </div>
                 ) : (
                   <DailyTrendChart
+                    title="Cost Trend"
                     data={trendData}
                     height={256}
-                    showRollingAverage
-                    rollingWindow={7}
                   />
                 )}
               </CardContent>
@@ -288,7 +286,7 @@ export default function AnalyticsPage() {
             {/* Category Breakdown */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Category Breakdown</CardTitle>
+                <CardTitle className="text-base">Category Breakdown</CardTitle>
                 <CardDescription>Spending by category</CardDescription>
               </CardHeader>
               <CardContent>
@@ -298,9 +296,8 @@ export default function AnalyticsPage() {
                   </div>
                 ) : (
                   <CostRingChart
+                    title="Category Breakdown"
                     segments={categoryData}
-                    height={256}
-                    showLegend
                   />
                 )}
               </CardContent>
@@ -311,7 +308,7 @@ export default function AnalyticsPage() {
           {insights.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-amber-500" />
                   Active Insights
                 </CardTitle>
@@ -361,10 +358,9 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <DailyTrendChart
+                title="Detailed Trend Analysis"
                 data={trendData}
                 height={400}
-                showRollingAverage
-                rollingWindow={7}
               />
             </CardContent>
           </Card>

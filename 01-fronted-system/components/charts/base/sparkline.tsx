@@ -79,7 +79,7 @@ export function SparklineChart({
   className,
 }: SparklineChartProps) {
   const { theme } = useChartConfig()
-  const lineColor = color || theme.primary
+  const lineColor = color || theme.categories.genai
 
   // Transform data to chart format
   // DATA-001: Apply safeNumber to all values
@@ -299,7 +299,7 @@ export function MiniBarSparkline({
   className,
 }: MiniBarSparklineProps) {
   const { theme } = useChartConfig()
-  const barColor = color || theme.primary
+  const barColor = color || theme.categories.genai
 
   // DATA-001: Use safe values
   const safeData = useMemo(() => data.map(safeNumber), [data])

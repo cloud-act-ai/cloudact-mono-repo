@@ -105,6 +105,7 @@ BEGIN
        x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
        x_hierarchy_path, x_hierarchy_path_names,
        x_hierarchy_validated_at,
+       x_ingestion_date,
        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
        x_data_quality_score, x_created_at)
       SELECT
@@ -227,6 +228,7 @@ BEGIN
         END as x_hierarchy_validated_at,
 
         -- STATE-001 FIX: Lineage values for FOCUS 1.3 (Issue #1: snake_case)
+        cost_date as x_ingestion_date,
         COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
         COALESCE(x_credential_id, @p_credential_id, 'internal') as x_credential_id,
         COALESCE(x_pipeline_run_date, cost_date) as x_pipeline_run_date,

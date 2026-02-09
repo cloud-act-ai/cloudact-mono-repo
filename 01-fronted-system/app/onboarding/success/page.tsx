@@ -238,7 +238,7 @@ function SuccessContent() {
           <Loader2 className="h-10 w-10 animate-spin text-[#6EE890]" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">Setting up your organization...</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Setting up your organization...</h1>
           <p className="text-gray-600">
             Please wait while we complete your setup. This may take a moment.
           </p>
@@ -264,7 +264,7 @@ function SuccessContent() {
           <AlertTriangle className="h-10 w-10 text-[#FF6C5E]" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">Setup Failed</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Setup Failed</h1>
           <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6C5E]">
             <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
           </Alert>
@@ -308,8 +308,8 @@ function SuccessContent() {
         <Loader2 className="h-10 w-10 animate-spin text-[#6EE890]" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">Setup Complete!</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Setup Complete!</h1>
+        <p className="text-gray-600 dark:text-white/50">
           Redirecting to integrations...
         </p>
       </div>
@@ -324,8 +324,8 @@ function SuccessFallback() {
         <Loader2 className="h-10 w-10 animate-spin text-[#1a7a3a]" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">Loading...</h1>
-        <p className="text-gray-600">Please wait...</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Loading...</h1>
+        <p className="text-gray-600 dark:text-white/50">Please wait...</p>
       </div>
     </div>
   )
@@ -333,16 +333,24 @@ function SuccessFallback() {
 
 export default function SuccessPage() {
   return (
-    <div className="flex min-h-svh w-full flex-col bg-white">
+    <div className="flex min-h-svh w-full flex-col bg-white dark:bg-[#111114]">
       {/* Header with Logo */}
       <div className="p-6 md:p-8">
         <Link href="/" className="inline-flex items-center">
-          {/* FIX BUG-001: Remove CSS height/width overrides */}
           <Image
             src="/logos/cloudact-logo-black.svg"
             alt="CloudAct.ai"
             width={160}
             height={32}
+            className="dark:hidden"
+            priority
+          />
+          <Image
+            src="/logos/cloudact-logo-white.svg"
+            alt="CloudAct.ai"
+            width={160}
+            height={32}
+            className="hidden dark:block"
             priority
           />
         </Link>
@@ -356,7 +364,7 @@ export default function SuccessPage() {
       </div>
 
       {/* Footer */}
-      <div className="p-4 sm:p-6 text-center text-xs sm:text-sm text-gray-400 border-t border-gray-100">
+      <div className="p-4 sm:p-6 text-center text-xs sm:text-sm text-gray-400 dark:text-white/40 border-t border-gray-100 dark:border-white/10">
         <span>&copy; {new Date().getFullYear()} {site.company} All rights reserved.</span>
         <span className="mx-1 sm:mx-2">·</span>
         <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>

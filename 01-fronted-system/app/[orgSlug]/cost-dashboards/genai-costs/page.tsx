@@ -376,8 +376,7 @@ export default function GenAICostsPage() {
             value: d.value,
           }))}
           timeRange={timeRange}
-          barColor="#10A37F"
-          lineColor="#FF6C5E"
+          category="genai"
           height={320}
           mobileHeight={240}
           loading={isLoading}

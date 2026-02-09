@@ -1326,36 +1326,32 @@ async def onboard_org(
         )
 
     # ============================================
-    # STEP 3: Create subscription in Supabase organizations table
+    # STEP 3: Sync backend onboarding status to Supabase organizations table
     # ============================================
     try:
-        logger.info(f"Creating subscription for organization: {org_slug} in Supabase")
-
-        trial_end = date.today() + timedelta(days=14)  # 14-day trial period
+        logger.info(f"Syncing backend onboarding for organization: {org_slug} in Supabase")
 
         supabase = get_supabase_client()
-        # Column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
-        org_data = {
-            "org_slug": org_slug,
-            "company_name": request.company_name,
-            "admin_email": request.admin_email,
-            "subscription_plan": request.subscription_plan,
-            "subscription_status": "ACTIVE",
+        # Update existing org record (created by frontend signup) with backend quota limits
+        # Supabase column names: pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit
+        update_data = {
             "pipelines_per_day_limit": plan_limits["daily_limit"],
             "pipelines_per_month_limit": plan_limits["monthly_limit"],
             "concurrent_pipelines_limit": plan_limits["concurrent_limit"],
             "seat_limit": plan_limits["seat_limit"],
             "providers_limit": plan_limits["providers_limit"],
-            "trial_end_date": trial_end.isoformat(),
-            "default_currency": request.default_currency,
-            "default_timezone": request.default_timezone,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "backend_onboarded": True,
+            "backend_onboarded_at": datetime.now(timezone.utc).isoformat(),
+            "backend_quota_synced": True,
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
-        supabase.table("organizations").insert(org_data).execute()
+        result = supabase.table("organizations").update(update_data).eq("org_slug", org_slug).execute()
 
-        logger.info(f"Subscription created in Supabase for: {org_slug}")
+        if not result.data:
+            raise ValueError(f"Organization {org_slug} not found in Supabase - frontend signup may not have completed")
+
+        logger.info(f"Backend onboarding synced to Supabase for: {org_slug}")
 
     except Exception as e:
         # Cleanup partial org data

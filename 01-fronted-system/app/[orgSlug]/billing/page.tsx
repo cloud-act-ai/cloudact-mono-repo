@@ -466,8 +466,8 @@ export default function BillingPage() {
           <div className="h-16 w-16 rounded-2xl bg-rose-100 flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="h-8 w-8 text-rose-500" />
           </div>
-          <h2 className="text-[24px] font-bold text-slate-900 mb-3">Access Denied</h2>
-          <p className="text-[15px] text-slate-500 mb-6 leading-relaxed">
+          <h2 className="text-[20px] font-bold text-slate-900 mb-3">Access Denied</h2>
+          <p className="text-[14px] text-slate-500 mb-6 leading-relaxed">
             Only organization owners can access billing settings.
           </p>
           <Link href={`/${orgSlug}/dashboard`}>
@@ -487,7 +487,7 @@ export default function BillingPage() {
       {reason === "subscription_required" && (
         <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-          <p className="text-[13px] font-medium text-rose-700">
+          <p className="text-[12px] font-medium text-rose-700">
             Your subscription is not active. Please activate a plan to access your organization dashboard.
           </p>
         </div>
@@ -499,10 +499,10 @@ export default function BillingPage() {
           <CreditCard className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
             Billing & Subscription
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
             Manage your subscription plan and billing details
           </p>
         </div>
@@ -519,14 +519,14 @@ export default function BillingPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-[20px] font-bold text-slate-900">{billingInfo.subscription.plan.name} Plan</h2>
+                    <h2 className="text-[18px] font-bold text-slate-900">{billingInfo.subscription.plan.name} Plan</h2>
                     <span className={isCanceledButActive
                       ? "flex-shrink-0 bg-rose-50 text-rose-600 text-[11px] font-bold px-2.5 py-1 rounded-md border border-rose-200"
                       : "flex-shrink-0 bg-[#B8FDCA] text-[#1a7a3a] text-[11px] font-bold px-2.5 py-1 rounded-md border border-[var(--cloudact-mint)]/20"}>
                       {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[13px] text-slate-500">
+                  <div className="flex items-center gap-2 text-[12px] text-slate-500">
                     <span className="font-semibold text-slate-900 tabular-nums">
                       {formatCurrency(billingInfo.subscription.plan.price, billingInfo.subscription.plan.currency)}
                     </span>
@@ -542,7 +542,7 @@ export default function BillingPage() {
                   <button
                     onClick={handleResyncFromStripe}
                     disabled={isResyncing}
-                    className="h-10 px-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-[13px] font-medium transition-colors flex items-center gap-2"
+                    className="h-10 px-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-[12px] font-medium transition-colors flex items-center gap-2"
                     title="Sync billing data from Stripe"
                   >
                     <RefreshCw className={`h-4 w-4 ${isResyncing ? 'animate-spin' : ''}`} />
@@ -566,7 +566,7 @@ export default function BillingPage() {
             {isCanceledButActive && (
               <div className="mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-3">
                 <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-                <p className="text-[13px] font-medium text-rose-700">
+                <p className="text-[12px] font-medium text-rose-700">
                   Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
                   Click "Manage Subscription" to resume.
                 </p>
@@ -583,7 +583,7 @@ export default function BillingPage() {
                 ) : (
                   <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
                 )}
-                <p className={`text-[13px] font-medium ${
+                <p className={`text-[12px] font-medium ${
                   resyncMessage.type === 'success' ? 'text-[var(--cloudact-mint-text)]' : 'text-rose-700'
                 }`}>
                   {resyncMessage.text}
@@ -602,13 +602,13 @@ export default function BillingPage() {
               <Users className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none tabular-nums">
+              <p className="text-[20px] font-bold text-slate-900 leading-none tabular-nums">
                 {currentMemberCount}
-                <span className="text-[16px] text-slate-400 ml-1">
+                <span className="text-[14px] text-slate-400 ml-1">
                   / {seatLimit || 'Contact us'}
                 </span>
               </p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Team Members</p>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Team Members</p>
             </div>
           </div>
           <div className="h-8 w-px bg-slate-200"></div>
@@ -617,10 +617,10 @@ export default function BillingPage() {
               <Zap className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none tabular-nums">
+              <p className="text-[20px] font-bold text-slate-900 leading-none tabular-nums">
                 {providersLimit || 'Contact us'}
               </p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Integrations</p>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Integrations</p>
             </div>
           </div>
           <div className="h-8 w-px bg-slate-200"></div>
@@ -629,10 +629,10 @@ export default function BillingPage() {
               <Calendar className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none capitalize">
+              <p className="text-[20px] font-bold text-slate-900 leading-none capitalize">
                 {billingInfo.subscription.plan.interval}
               </p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Billing Cycle</p>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Billing Cycle</p>
             </div>
           </div>
         </div>
@@ -644,13 +644,13 @@ export default function BillingPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-[13px] font-semibold text-rose-900 mb-1">Payment Past Due</p>
-              <p className="text-[13px] text-rose-700 mb-3">
+              <p className="text-[12px] font-semibold text-rose-900 mb-1">Payment Past Due</p>
+              <p className="text-[12px] text-rose-700 mb-3">
                 Your last payment failed. Please update your payment method to avoid service interruption.
               </p>
               {isOwner && (
                 <button
-                  className="inline-flex items-center h-9 px-4 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-[13px] font-medium transition-colors"
+                  className="inline-flex items-center h-9 px-4 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-[12px] font-medium transition-colors"
                   onClick={handleManageSubscription}
                   disabled={isPortalLoading}
                 >
@@ -666,8 +666,8 @@ export default function BillingPage() {
         <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-200 flex items-center gap-3">
           <Loader2 className="h-4 w-4 animate-spin text-blue-500 flex-shrink-0" />
           <div>
-            <p className="text-[13px] font-semibold text-blue-900 mb-0.5">Processing your subscription...</p>
-            <p className="text-[13px] text-blue-700">
+            <p className="text-[12px] font-semibold text-blue-900 mb-0.5">Processing your subscription...</p>
+            <p className="text-[12px] text-blue-700">
               Please wait while we confirm your payment. This usually takes a few seconds.
             </p>
           </div>
@@ -691,12 +691,12 @@ export default function BillingPage() {
             <div className="flex items-start gap-3">
               <Calendar className={`h-4 w-4 ${iconColor} flex-shrink-0 mt-0.5`} />
               <div className="flex-1">
-                <p className={`text-[13px] font-semibold ${titleColor} mb-1`}>
+                <p className={`text-[12px] font-semibold ${titleColor} mb-1`}>
                   {isTrialExpired ? "Trial Expired" : isUrgent ? "Trial Ending Soon!" : "Free Trial"}
                   {!isTrialExpired && <span className="ml-2 text-[11px] px-2 py-0.5 rounded-md bg-white/60">{daysRemaining} days left</span>}
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className={`text-[13px] ${textColor}`}>
+                  <p className={`text-[12px] ${textColor}`}>
                     {isTrialExpired ? (
                       <>Your trial has expired. Subscribe now to continue using CloudAct.</>
                     ) : (
@@ -708,7 +708,7 @@ export default function BillingPage() {
                   </p>
                   {isOwner && (
                     <button
-                      className="console-button-primary h-9 px-4 text-[13px] whitespace-nowrap"
+                      className="console-button-primary h-9 px-4 text-[12px] whitespace-nowrap"
                       onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                     >
                       <CreditCard className="h-3.5 w-3.5 mr-2" />
@@ -726,8 +726,8 @@ export default function BillingPage() {
         <div className="mb-6 p-4 rounded-xl bg-[var(--cloudact-mint)]/5 border border-[#90FCA6]/20 flex items-center gap-3">
           <Check className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0" />
           <div>
-            <p className="text-[13px] font-semibold text-[var(--cloudact-mint-text)] mb-0.5">Plan Changed Successfully</p>
-            <p className="text-[13px] text-[var(--cloudact-mint-text)]">{planChangeSuccess}</p>
+            <p className="text-[12px] font-semibold text-[var(--cloudact-mint-text)] mb-0.5">Plan Changed Successfully</p>
+            <p className="text-[12px] text-[var(--cloudact-mint-text)]">{planChangeSuccess}</p>
           </div>
         </div>
       )}
@@ -738,13 +738,13 @@ export default function BillingPage() {
             <div className="flex items-start gap-3 flex-1">
               <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-[13px] font-semibold text-rose-900 mb-1">Cannot Downgrade</p>
-                <p className="text-[13px] text-rose-700">{downgradeLimitError}</p>
+                <p className="text-[12px] font-semibold text-rose-900 mb-1">Cannot Downgrade</p>
+                <p className="text-[12px] text-rose-700">{downgradeLimitError}</p>
               </div>
             </div>
             <button
               onClick={() => setDowngradeLimitError(null)}
-              className="shrink-0 h-auto p-2 hover:bg-rose-100 text-[13px] text-rose-600 hover:text-rose-700 rounded-lg transition-colors"
+              className="shrink-0 h-auto p-2 hover:bg-rose-100 text-[12px] text-rose-600 hover:text-rose-700 rounded-lg transition-colors"
             >
               Dismiss
             </button>
@@ -754,10 +754,10 @@ export default function BillingPage() {
 
       {/* Pricing Cards */}
       <div id="pricing" className="space-y-6">
-        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+        <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
           {hasStripeSubscription ? "Change Your Plan" : "Choose Your Plan"}
         </h2>
-        <p className="text-[15px] text-slate-500 mb-6 max-w-2xl">
+        <p className="text-[14px] text-slate-500 mb-6 max-w-2xl">
           {hasStripeSubscription
             ? "Upgrade or downgrade your plan instantly. All charges are prorated automatically."
             : `Select the perfect plan for your needs.${plans[0]?.trialDays ? ` All plans include a ${plans[0].trialDays}-day free trial.` : ''}`
@@ -768,8 +768,8 @@ export default function BillingPage() {
           <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
             <div>
-              <p className="text-[13px] font-semibold text-rose-900 mb-0.5">Error Loading Billing Info</p>
-              <p className="text-[13px] text-rose-700">{billingError}</p>
+              <p className="text-[12px] font-semibold text-rose-900 mb-0.5">Error Loading Billing Info</p>
+              <p className="text-[12px] text-rose-700">{billingError}</p>
             </div>
           </div>
         )}
@@ -779,11 +779,11 @@ export default function BillingPage() {
             <div className="flex items-start gap-3">
               <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-[13px] font-semibold text-rose-900 mb-1">Error Loading Plans</p>
-                <p className="text-[13px] text-rose-700 mb-3">{plansError}</p>
+                <p className="text-[12px] font-semibold text-rose-900 mb-1">Error Loading Plans</p>
+                <p className="text-[12px] text-rose-700 mb-3">{plansError}</p>
                 <button
                   onClick={fetchPlans}
-                  className="text-[13px] font-medium text-rose-600 hover:text-rose-700 underline hover:no-underline"
+                  className="text-[12px] font-medium text-rose-600 hover:text-rose-700 underline hover:no-underline"
                 >
                   Try again
                 </button>
@@ -796,7 +796,7 @@ export default function BillingPage() {
               <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                 <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
               </div>
-              <p className="text-[14px] text-slate-500 font-medium">Loading plans...</p>
+              <p className="text-[13px] text-slate-500 font-medium">Loading plans...</p>
             </div>
           </div>
         ) : (
@@ -841,24 +841,24 @@ export default function BillingPage() {
                   <div className="p-6 flex-1 flex flex-col">
                     {/* Plan Header */}
                     <div className="space-y-2 mb-6">
-                      <h3 className="text-[20px] font-bold text-slate-900">{plan.name}</h3>
-                      <p className="text-[13px] text-slate-500 leading-relaxed">{plan.description}</p>
+                      <h3 className="text-[18px] font-bold text-slate-900">{plan.name}</h3>
+                      <p className="text-[12px] text-slate-500 leading-relaxed">{plan.description}</p>
                     </div>
 
                     {/* Pricing */}
                     <div className="mb-6">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-[36px] font-bold text-slate-900 tabular-nums">
+                        <span className="text-[24px] font-bold text-slate-900 tabular-nums">
                           {formatCurrency(plan.price, orgCurrency)}
                         </span>
-                        <span className="text-[14px] font-medium text-slate-500">
+                        <span className="text-[13px] font-medium text-slate-500">
                           / {plan.interval}
                         </span>
                       </div>
                       {plan.trialDays && !hasStripeSubscription && (
                         <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200">
                           <Zap className="h-3 w-3 text-blue-600" />
-                          <span className="text-[12px] font-semibold text-blue-700">
+                          <span className="text-[11px] font-semibold text-blue-700">
                             {plan.trialDays}-day free trial
                           </span>
                         </div>
@@ -870,7 +870,7 @@ export default function BillingPage() {
                       {plan.features.length > 0 ? (
                         <ul className="space-y-2.5">
                           {plan.features.map((feature, i) => (
-                            <li key={i} className="flex items-start gap-2.5 text-[13px]">
+                            <li key={i} className="flex items-start gap-2.5 text-[12px]">
                               <div className="h-4 w-4 rounded-full bg-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                                 <Check className="h-3 w-3 text-[var(--cloudact-mint-text)]" />
                               </div>
@@ -879,7 +879,7 @@ export default function BillingPage() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-[13px] text-slate-500 italic">
+                        <p className="text-[12px] text-slate-500 italic">
                           Contact us for plan details
                         </p>
                       )}
@@ -889,7 +889,7 @@ export default function BillingPage() {
                     <div>
                       {isCurrentPlan ? (
                         <button
-                          className="h-11 px-6 w-full text-[var(--cloudact-mint-text)] bg-[var(--cloudact-mint)]/5 rounded-xl text-[14px] font-semibold border border-[#90FCA6]/20 cursor-not-allowed"
+                          className="h-11 px-6 w-full text-[var(--cloudact-mint-text)] bg-[var(--cloudact-mint)]/5 rounded-xl text-[13px] font-semibold border border-[#90FCA6]/20 cursor-not-allowed"
                           disabled
                         >
                           <Check className="h-4 w-4 mr-2 inline-block" />
@@ -897,7 +897,7 @@ export default function BillingPage() {
                         </button>
                       ) : (
                         <button
-                          className={`h-11 px-6 w-full rounded-xl text-[14px] font-semibold transition-all duration-200 ${
+                          className={`h-11 px-6 w-full rounded-xl text-[13px] font-semibold transition-all duration-200 ${
                             isUpgrade
                               ? "console-button-primary"
                               : "console-button-secondary"
@@ -940,17 +940,17 @@ export default function BillingPage() {
 
         {/* Trust Badges */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8 pt-8 border-t border-slate-200">
-          <div className="flex items-center gap-2.5 text-[13px] text-slate-500">
+          <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
             <CreditCard className="h-4 w-4 text-slate-400" />
             <span className="font-medium">Secure payments via Stripe</span>
           </div>
           <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-          <div className="flex items-center gap-2.5 text-[13px] text-slate-500">
+          <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
             <Lock className="h-4 w-4 text-slate-400" />
             <span className="font-medium">256-bit SSL encryption</span>
           </div>
           <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-          <div className="flex items-center gap-2.5 text-[13px] text-slate-500">
+          <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
             <Shield className="h-4 w-4 text-slate-400" />
             <span className="font-medium">GDPR compliant</span>
           </div>
@@ -958,15 +958,15 @@ export default function BillingPage() {
 
         {/* Enterprise CTA */}
         <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-[#90FCA6]/5 to-white border border-[#90FCA6]/20 text-center">
-          <h3 className="text-[20px] font-bold text-slate-900 mb-2">
+          <h3 className="text-[18px] font-bold text-slate-900 mb-2">
             Need enterprise pricing?
           </h3>
-          <p className="text-[15px] text-slate-600 mb-4">
+          <p className="text-[14px] text-slate-600 mb-4">
             Custom limits, dedicated support, and volume discounts
           </p>
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}?subject=Enterprise Pricing Inquiry`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#90FCA6] text-slate-900 text-[14px] font-semibold rounded-xl hover:bg-[#6EE890] transition-colors shadow-sm hover:shadow-md"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#6EE890] transition-colors shadow-sm hover:shadow-md"
           >
             Contact Sales
           </a>
@@ -975,7 +975,7 @@ export default function BillingPage() {
         {/* Cancel Link */}
         <div className="text-center space-y-2 pt-4">
           {isOwner && (
-            <p className="text-[13px] text-slate-500">
+            <p className="text-[12px] text-slate-500">
               {hasStripeSubscription && !isCanceledButActive ? (
                 <>
                   Want to cancel?{" "}
@@ -1003,7 +1003,7 @@ export default function BillingPage() {
         </div>
 
         {!isOwner && (
-          <p className="text-[13px] text-center text-slate-500 pt-4 italic">
+          <p className="text-[12px] text-center text-slate-500 pt-4 italic">
             Only organization owners can manage billing.
           </p>
         )}
@@ -1018,8 +1018,8 @@ export default function BillingPage() {
                 <CreditCard className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-[16px] font-bold text-slate-900">Payment Method</h3>
-                <p className="text-[13px] text-slate-500">Your default payment method for this subscription</p>
+                <h3 className="text-[14px] font-bold text-slate-900">Payment Method</h3>
+                <p className="text-[12px] text-slate-500">Your default payment method for this subscription</p>
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -1028,10 +1028,10 @@ export default function BillingPage() {
                   <span className="text-[11px] font-bold uppercase text-slate-700">{billingInfo.paymentMethod.brand}</span>
                 </div>
                 <div className="space-y-1">
-                  <p className="font-semibold text-[14px] text-slate-900">
+                  <p className="font-semibold text-[13px] text-slate-900">
                     {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} ending in {billingInfo.paymentMethod.last4}
                   </p>
-                  <p className="text-[13px] text-slate-500 flex items-center gap-2">
+                  <p className="text-[12px] text-slate-500 flex items-center gap-2">
                     Expires {billingInfo.paymentMethod.expMonth}/{billingInfo.paymentMethod.expYear}
                     {(() => {
                       const now = new Date()
@@ -1048,7 +1048,7 @@ export default function BillingPage() {
               </div>
               {isOwner && (
                 <button
-                  className="h-10 px-5 text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg text-[13px] font-semibold transition-colors"
+                  className="h-10 px-5 text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg text-[12px] font-semibold transition-colors"
                   onClick={handleManageSubscription}
                   disabled={isPortalLoading}
                 >
@@ -1063,8 +1063,8 @@ export default function BillingPage() {
       {/* Invoice History */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-1">Invoice History</h2>
-          <p className="text-[13px] text-slate-500">Download your past invoices and receipts</p>
+          <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide mb-1">Invoice History</h2>
+          <p className="text-[12px] text-slate-500">Download your past invoices and receipts</p>
         </div>
         <div className="p-6">
           {isLoadingBilling ? (
@@ -1073,13 +1073,13 @@ export default function BillingPage() {
                 <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                   <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                 </div>
-                <p className="text-[14px] text-slate-500 font-medium">Loading invoices...</p>
+                <p className="text-[13px] text-slate-500 font-medium">Loading invoices...</p>
               </div>
             </div>
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-6">
               <div className="min-w-[700px] px-6">
-                <div className="grid grid-cols-5 gap-4 pb-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-200">
+                <div className="grid grid-cols-5 gap-4 pb-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-200">
                   <span>Invoice</span>
                   <span>Date</span>
                   <span>Amount</span>
@@ -1092,9 +1092,9 @@ export default function BillingPage() {
                       key={invoice.id}
                       className="grid grid-cols-5 gap-4 items-center py-4 rounded-lg hover:bg-slate-50 transition-colors group"
                     >
-                      <span className="font-semibold text-[13px] text-slate-900">{invoice.number || invoice.id.slice(-8)}</span>
-                      <span className="text-[13px] text-slate-500">{formatDate(invoice.created)}</span>
-                      <span className="text-[13px] font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
+                      <span className="font-semibold text-[12px] text-slate-900">{invoice.number || invoice.id.slice(-8)}</span>
+                      <span className="text-[12px] text-slate-500">{formatDate(invoice.created)}</span>
+                      <span className="text-[12px] font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
                       <span
                         className={
                           invoice.status === "paid"
@@ -1142,8 +1142,8 @@ export default function BillingPage() {
               <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                 <Receipt className="h-8 w-8 text-slate-400" />
               </div>
-              <h3 className="text-[16px] font-bold text-slate-900 mb-2">No invoices yet</h3>
-              <p className="text-[13px] text-slate-500">Invoices will appear here once you subscribe to a plan</p>
+              <h3 className="text-[14px] font-bold text-slate-900 mb-2">No invoices yet</h3>
+              <p className="text-[12px] text-slate-500">Invoices will appear here once you subscribe to a plan</p>
             </div>
           )}
         </div>
@@ -1153,11 +1153,11 @@ export default function BillingPage() {
       <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-[20px] font-bold text-slate-900">
+            <DialogTitle className="text-[18px] font-bold text-slate-900">
               {confirmDialog.isUpgrade ? "Upgrade" : "Downgrade"} to {confirmDialog.plan?.name}?
             </DialogTitle>
             <DialogDescription asChild>
-              <div className="text-[13px] leading-relaxed space-y-3 pt-2 text-slate-600">
+              <div className="text-[12px] leading-relaxed space-y-3 pt-2 text-slate-600">
                 {confirmDialog.isUpgrade ? (
                   <>
                     <p>
@@ -1176,12 +1176,12 @@ export default function BillingPage() {
                       You&apos;ll receive a prorated credit on your next invoice.
                     </p>
                     <div className="rounded-lg bg-amber-50 p-3 border border-amber-200">
-                      <p className="text-amber-800 font-medium text-[13px]">
+                      <p className="text-amber-800 font-medium text-[12px]">
                         Note: Your plan limits will be reduced. Ensure you&apos;re within the new plan&apos;s limits before downgrading.
                       </p>
                     </div>
                     {confirmDialog.plan?.limits && (
-                      <div className="space-y-2 text-[13px]">
+                      <div className="space-y-2 text-[12px]">
                         <p className="font-medium text-slate-900">Current usage vs. new plan limits:</p>
                         <ul className="space-y-1">
                           <li className="flex items-center justify-between p-2 rounded bg-slate-50">
@@ -1204,13 +1204,13 @@ export default function BillingPage() {
           </DialogHeader>
           <DialogFooter className="gap-3 sm:gap-2">
             <button
-              className="console-button-secondary h-10 px-5 text-[13px]"
+              className="console-button-secondary h-10 px-5 text-[12px]"
               onClick={() => setConfirmDialog({ open: false, plan: null, isUpgrade: false })}
             >
               Cancel
             </button>
             <button
-              className="console-button-primary h-10 px-5 text-[13px]"
+              className="console-button-primary h-10 px-5 text-[12px]"
               onClick={() => confirmDialog.plan && handleChangePlan(confirmDialog.plan.priceId, confirmDialog.plan.name)}
             >
               {confirmDialog.isUpgrade ? "Confirm Upgrade" : "Confirm Downgrade"}

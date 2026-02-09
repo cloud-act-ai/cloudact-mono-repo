@@ -338,7 +338,7 @@ export function AddModelDialog({
                 {getIcon()}
               </div>
               <div>
-                <DialogTitle className="text-lg font-semibold text-slate-900">
+                <DialogTitle className="text-base font-semibold text-slate-900">
                   {getTitle()}
                 </DialogTitle>
                 <DialogDescription className="text-sm text-slate-500">

@@ -149,7 +149,7 @@ export function DailyCostChart({
     // Single bar for category or total
     const color = category
       ? getCategoryColor(category, theme)
-      : barColor || theme.primary
+      : barColor || theme.categories.genai
 
     return [{
       dataKey: "value",
@@ -163,7 +163,7 @@ export function DailyCostChart({
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-[17px] font-bold text-slate-900">
+        <CardTitle className="text-[16px] font-bold text-slate-900">
           {title}
         </CardTitle>
         {subtitle && (

@@ -104,10 +104,10 @@ export default function SecurityPage() {
               <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
                 Security
               </h1>
-              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                 Manage your password and account security
               </p>
             </div>
@@ -127,10 +127,10 @@ export default function SecurityPage() {
             <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               Security
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Manage your password and account security
             </p>
           </div>
@@ -146,14 +146,14 @@ export default function SecurityPage() {
       {error && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-          <p className="text-[13px] font-medium text-rose-700">{error}</p>
+          <p className="text-[12px] font-medium text-rose-700">{error}</p>
         </div>
       )}
 
       {success && (
         <div className="p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/20 flex items-center gap-3">
           <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#1a7a3a]">{success}</p>
+          <p className="text-[12px] font-medium text-[#1a7a3a]">{success}</p>
         </div>
       )}
 
@@ -168,10 +168,10 @@ export default function SecurityPage() {
                 <Key className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                <h3 className="text-[14px] font-semibold text-slate-900 tracking-tight">
                   Password
                 </h3>
-                <p className="text-[12px] text-slate-500 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   Reset your password via email verification
                 </p>
               </div>
@@ -180,7 +180,7 @@ export default function SecurityPage() {
             <button
               onClick={handleResetPassword}
               disabled={isResettingPassword}
-              className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isResettingPassword ? (
                 <>
@@ -235,8 +235,8 @@ export default function SecurityPage() {
                   <div style={{ color: tip.accent }}>{tip.icon}</div>
                 </div>
                 <div>
-                  <h3 className="text-[13px] font-semibold text-slate-900">{tip.title}</h3>
-                  <p className="text-[12px] text-slate-600 mt-0.5">{tip.description}</p>
+                  <h3 className="text-[12px] font-semibold text-slate-900">{tip.title}</h3>
+                  <p className="text-[11px] text-slate-600 mt-0.5">{tip.description}</p>
                 </div>
               </div>
             </PremiumCard>
@@ -251,10 +251,10 @@ export default function SecurityPage() {
             <Shield className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[15px] font-semibold text-slate-900 mb-1">
+            <h3 className="text-[14px] font-semibold text-slate-900 mb-1">
               Your account is protected
             </h3>
-            <p className="text-[13px] text-slate-600 leading-relaxed">
+            <p className="text-[12px] text-slate-600 leading-relaxed">
               All passwords are encrypted using industry-standard hashing algorithms.
               We never store your password in plain text.
             </p>

@@ -59,7 +59,7 @@ function Card({ quote, author, role, color, featured }: CardProps) {
         </div>
 
         {/* Quote */}
-        <p className="text-lg font-medium leading-relaxed text-slate-700">
+        <p className="text-base font-medium leading-relaxed text-slate-700">
           "{quote}"
         </p>
       </div>

@@ -350,10 +350,10 @@ export function CascadingHierarchySelector({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label className="text-[15px] font-medium">
+        <Label className="text-[14px] font-medium">
           {label} {required && <span className="text-[#FF6C5E]">*</span>}
         </Label>
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[12px] text-muted-foreground">
           {description || (required
             ? "Select the organizational hierarchy for cost allocation. All levels are required."
             : "Assign this cost to a specific part of your organization. Selection at any level is accepted."

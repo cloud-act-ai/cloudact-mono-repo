@@ -21,7 +21,7 @@ CloudAct uses a configuration-driven provider registry for cloud, LLM, and SaaS 
 | Type | Examples | Credential Type |
 |------|----------|-----------------|
 | cloud | GCP, AWS, Azure | service_account, access_key |
-| llm | OpenAI, Anthropic, Gemini | api_key |
+| llm | OpenAI, Anthropic, Gemini, DeepSeek | api_key |
 | saas | Custom subscriptions | varies |
 
 ## Provider Registry Structure

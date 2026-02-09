@@ -97,6 +97,8 @@ export interface BasePieChartProps {
   endAngle?: number
   /** Gap between segments (degrees) */
   paddingAngle?: number
+  /** Minimum angle for tiny segments so they remain visible */
+  minAngle?: number
   /** Chart size (width = height) */
   size?: number
   /** Show legend */
@@ -146,6 +148,7 @@ function BasePieChartInner({
   startAngle = 90,
   endAngle = -270,
   paddingAngle = 2,
+  minAngle = 0,
   size = 280,
   showLegend = true,
   legendPosition = "bottom",
@@ -375,6 +378,7 @@ function BasePieChartInner({
               startAngle={startAngle}
               endAngle={endAngle}
               paddingAngle={paddingAngle}
+              minAngle={minAngle}
               dataKey="value"
               nameKey="name"
               animationBegin={0}

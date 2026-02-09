@@ -442,7 +442,7 @@ export default function GCPIntegrationPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-[#1a7a3a] mx-auto mb-4" />
-          <p className="text-[14px] text-slate-500">Loading GCP integration...</p>
+          <p className="text-[13px] text-slate-500">Loading GCP integration...</p>
         </div>
       </div>
     )
@@ -453,7 +453,7 @@ export default function GCPIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-          <button className="h-10 px-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium text-[14px]">
+          <button className="h-10 px-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium text-[13px]">
             <ArrowLeft className="h-4 w-4" />
             Back to Providers
           </button>
@@ -466,8 +466,8 @@ export default function GCPIntegrationPage() {
           <ProviderLogo provider="gcp" size={40} />
         </div>
         <div>
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Google Cloud Platform</h1>
-          <p className="text-[15px] text-slate-500 mt-2">
+          <h1 className="text-[28px] font-bold text-slate-900 tracking-tight">Google Cloud Platform</h1>
+          <p className="text-[14px] text-slate-500 mt-2">
             Connect your GCP Service Account to enable billing data access and cloud cost analytics
           </p>
         </div>
@@ -481,8 +481,8 @@ export default function GCPIntegrationPage() {
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <h3 className="text-[15px] font-semibold text-slate-900">Error</h3>
-              <p className="text-[14px] text-red-700 mt-1">{error}</p>
+              <h3 className="text-[14px] font-semibold text-slate-900">Error</h3>
+              <p className="text-[13px] text-red-700 mt-1">{error}</p>
             </div>
           </div>
         </div>
@@ -495,8 +495,8 @@ export default function GCPIntegrationPage() {
               <CheckCircle2 className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h3 className="text-[15px] font-semibold text-slate-900">Success</h3>
-              <p className="text-[14px] text-[#1a7a3a] mt-1">{successMessage}</p>
+              <h3 className="text-[14px] font-semibold text-slate-900">Success</h3>
+              <p className="text-[13px] text-[#1a7a3a] mt-1">{successMessage}</p>
             </div>
           </div>
         </div>
@@ -511,8 +511,8 @@ export default function GCPIntegrationPage() {
                 <Key className="h-6 w-6 text-[#4285F4]" />
               </div>
               <div>
-                <h2 className="text-[18px] font-bold text-slate-900">Service Account Connection</h2>
-                <p className="text-[14px] text-slate-500 mt-1">
+                <h2 className="text-[16px] font-bold text-slate-900">Service Account Connection</h2>
+                <p className="text-[13px] text-slate-500 mt-1">
                   Upload your GCP Service Account JSON for secure authentication
                 </p>
               </div>
@@ -528,8 +528,8 @@ export default function GCPIntegrationPage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-[14px] font-semibold text-slate-900">Validation Error</h4>
-                  <p className="text-[13px] text-red-700 mt-1">{integration.last_error}</p>
+                  <h4 className="text-[13px] font-semibold text-slate-900">Validation Error</h4>
+                  <p className="text-[12px] text-red-700 mt-1">{integration.last_error}</p>
                 </div>
               </div>
             </div>
@@ -540,7 +540,7 @@ export default function GCPIntegrationPage() {
             <div className="space-y-6 p-6 border-2 border-slate-200 rounded-2xl bg-slate-50">
               {/* Step Indicator */}
               <div className="flex items-center justify-between">
-                <span className="text-[14px] font-semibold text-slate-900">Connection Wizard</span>
+                <span className="text-[13px] font-semibold text-slate-900">Connection Wizard</span>
                 <StepIndicator currentStep={wizardStep} totalSteps={3} />
               </div>
 
@@ -575,13 +575,13 @@ export default function GCPIntegrationPage() {
                     <div className="h-16 w-16 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center mx-auto mb-4">
                       <Upload className="h-8 w-8 text-[#1a7a3a]" />
                     </div>
-                    <p className="text-[16px] font-bold text-slate-900 mb-2">
+                    <p className="text-[14px] font-bold text-slate-900 mb-2">
                       {isDragging ? 'Drop your file here' : 'Upload Service Account JSON'}
                     </p>
-                    <p className="text-[14px] text-slate-500">
+                    <p className="text-[13px] text-slate-500">
                       Drag and drop or click to browse
                     </p>
-                    <p className="text-[13px] text-slate-400 mt-2">
+                    <p className="text-[12px] text-slate-400 mt-2">
                       Maximum file size: 50KB
                     </p>
                   </div>
@@ -598,8 +598,8 @@ export default function GCPIntegrationPage() {
                           <FileJson className="h-6 w-6 text-[#1a7a3a]" />
                         </div>
                         <div className="flex-1">
-                          <p className="font-semibold text-[15px] text-slate-900 mb-1">{uploadedFile.name}</p>
-                          <p className="text-[13px] text-slate-500">
+                          <p className="font-semibold text-[14px] text-slate-900 mb-1">{uploadedFile.name}</p>
+                          <p className="text-[12px] text-slate-500">
                             {(uploadedFile.size / 1024).toFixed(1)} KB
                           </p>
                         </div>
@@ -619,8 +619,8 @@ export default function GCPIntegrationPage() {
                             <Check className="h-4 w-4 text-[#1a7a3a]" />
                           </div>
                           <div>
-                            <p className="text-[12px] font-semibold text-slate-500 mb-1">Project ID</p>
-                            <p className="text-[14px] font-mono font-medium text-slate-900">{parsedSA.project_id}</p>
+                            <p className="text-[11px] font-semibold text-slate-500 mb-1">Project ID</p>
+                            <p className="text-[13px] font-mono font-medium text-slate-900">{parsedSA.project_id}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -628,8 +628,8 @@ export default function GCPIntegrationPage() {
                             <Check className="h-4 w-4 text-[#1a7a3a]" />
                           </div>
                           <div>
-                            <p className="text-[12px] font-semibold text-slate-500 mb-1">Service Account</p>
-                            <p className="text-[13px] font-mono text-slate-900 break-all">{parsedSA.client_email}</p>
+                            <p className="text-[11px] font-semibold text-slate-500 mb-1">Service Account</p>
+                            <p className="text-[12px] font-mono text-slate-900 break-all">{parsedSA.client_email}</p>
                           </div>
                         </div>
                       </div>
@@ -642,8 +642,8 @@ export default function GCPIntegrationPage() {
               {wizardStep === 3 && (
                 <div className="text-center py-8">
                   <Loader2 className="h-12 w-12 animate-spin text-[#1a7a3a] mx-auto mb-4" />
-                  <p className="text-[16px] font-bold text-slate-900 mb-2">Connecting to GCP...</p>
-                  <p className="text-[13px] text-muted-foreground">
+                  <p className="text-[14px] font-bold text-slate-900 mb-2">Connecting to GCP...</p>
+                  <p className="text-[12px] text-muted-foreground">
                     Encrypting and validating your credentials
                   </p>
                 </div>
@@ -652,7 +652,7 @@ export default function GCPIntegrationPage() {
               {/* Security Notice */}
               <div className="flex items-start gap-4 p-5 rounded-xl bg-[#90FCA6]/10 border border-[#90FCA6]/20">
                 <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                <p className="text-[14px] text-slate-600 leading-relaxed">
+                <p className="text-[13px] text-slate-600 leading-relaxed">
                   Your credentials will be encrypted using Google Cloud KMS before storage. We never store plain text credentials.
                 </p>
               </div>
@@ -663,7 +663,7 @@ export default function GCPIntegrationPage() {
                   <button
                     onClick={handleSetup}
                     disabled={!fileContent || uploadLoading}
-                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[14px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {uploadLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isConfigured ? "Update Credential" : "Connect GCP"}
@@ -673,7 +673,7 @@ export default function GCPIntegrationPage() {
                       setShowUpload(false)
                       clearFile()
                     }}
-                    className="h-12 px-6 text-[15px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
+                    className="h-12 px-6 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
                   >
                     Cancel
                   </button>
@@ -688,10 +688,10 @@ export default function GCPIntegrationPage() {
                   <Key className="h-6 w-6 text-[#1a7a3a]" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-[16px] text-slate-900 mb-1">
+                  <p className="font-semibold text-[14px] text-slate-900 mb-1">
                     {integration?.credential_name || "GCP Service Account"}
                   </p>
-                  <div className="flex items-center gap-2 text-[13px] text-slate-500">
+                  <div className="flex items-center gap-2 text-[12px] text-slate-500">
                     <Clock className="h-4 w-4" />
                     <span>Last validated: {formatDate(integration?.last_validated_at)}</span>
                   </div>
@@ -700,7 +700,7 @@ export default function GCPIntegrationPage() {
 
               <div className="flex items-start gap-4 p-5 rounded-xl bg-slate-50 border border-slate-200">
                 <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                <span className="text-[14px] text-slate-600 leading-relaxed">
+                <span className="text-[13px] text-slate-600 leading-relaxed">
                   Credentials are encrypted using Google Cloud KMS and never stored in plain text.
                 </span>
               </div>
@@ -711,10 +711,10 @@ export default function GCPIntegrationPage() {
               <div className="h-20 w-20 rounded-2xl bg-[#4285F4]/15 flex items-center justify-center mx-auto mb-6">
                 <Upload className="h-10 w-10 text-[#4285F4]" />
               </div>
-              <p className="text-[18px] font-bold text-slate-900 mb-3">
+              <p className="text-[16px] font-bold text-slate-900 mb-3">
                 No Service Account Connected
               </p>
-              <p className="text-[15px] text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
+              <p className="text-[14px] text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
                 Upload your GCP Service Account JSON to enable billing data access and start tracking cloud costs
               </p>
               <button
@@ -722,7 +722,7 @@ export default function GCPIntegrationPage() {
                   setShowUpload(true)
                   setWizardStep(1)
                 }}
-                className="h-12 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
+                className="h-12 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[14px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
               >
                 <Upload className="h-4 w-4" />
                 Start Connection Wizard
@@ -738,7 +738,7 @@ export default function GCPIntegrationPage() {
               <button
                 onClick={handleValidate}
                 disabled={uploadLoading}
-                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {uploadLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -752,7 +752,7 @@ export default function GCPIntegrationPage() {
                   setShowUpload(true)
                   setWizardStep(1)
                 }}
-                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
                 <Upload className="h-4 w-4" />
                 Update Credential
@@ -762,15 +762,15 @@ export default function GCPIntegrationPage() {
             {/* Delete Dialog */}
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
               <DialogTrigger asChild>
-                <button className="text-[#FF6C5E] hover:bg-[#FF6C5E]/10 h-11 px-5 rounded-xl font-semibold text-[14px] transition-colors flex items-center gap-2">
+                <button className="text-[#FF6C5E] hover:bg-[#FF6C5E]/10 h-11 px-5 rounded-xl font-semibold text-[13px] transition-colors flex items-center gap-2">
                   <Trash2 className="h-4 w-4" />
                   Remove
                 </button>
               </DialogTrigger>
               <DialogContent className="rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle className="text-[20px] font-bold text-slate-900">Remove GCP Integration</DialogTitle>
-                  <DialogDescription className="text-[14px] leading-relaxed text-slate-600 mt-2">
+                  <DialogTitle className="text-[18px] font-bold text-slate-900">Remove GCP Integration</DialogTitle>
+                  <DialogDescription className="text-[13px] leading-relaxed text-slate-600 mt-2">
                     Are you sure you want to remove this integration? This will delete the stored credentials
                     and any pipelines using this integration will stop working.
                   </DialogDescription>
@@ -778,14 +778,14 @@ export default function GCPIntegrationPage() {
                 <DialogFooter className="gap-3">
                   <button
                     onClick={() => setShowDeleteDialog(false)}
-                    className="h-11 px-5 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-semibold text-[14px] transition-colors"
+                    className="h-11 px-5 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-semibold text-[13px] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDelete}
                     disabled={uploadLoading}
-                    className="h-11 px-5 rounded-xl bg-[#FF6C5E] hover:bg-[#FF5533] text-white font-semibold text-[14px] transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="h-11 px-5 rounded-xl bg-[#FF6C5E] hover:bg-[#FF5533] text-white font-semibold text-[13px] transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {uploadLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     Remove Integration
@@ -809,8 +809,8 @@ export default function GCPIntegrationPage() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-[18px] font-bold text-slate-900">Billing Export Tables</h2>
-                  <p className="text-[14px] text-slate-500 mt-1">
+                  <h2 className="text-[16px] font-bold text-slate-900">Billing Export Tables</h2>
+                  <p className="text-[13px] text-slate-500 mt-1">
                     Configure your GCP billing export tables for cost data extraction
                   </p>
                 </div>
@@ -818,7 +818,7 @@ export default function GCPIntegrationPage() {
               {!showBillingConfig && (
                 <button
                   onClick={() => setShowBillingConfig(true)}
-                  className="h-10 px-4 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
+                  className="h-10 px-4 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
                 >
                   Configure
                 </button>
@@ -831,7 +831,7 @@ export default function GCPIntegrationPage() {
               <div className="space-y-6">
                 {/* Billing Export Table */}
                 <div>
-                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-2">
                     Standard Billing Export Table
                     <span className="text-slate-400 font-normal ml-1">(Required)</span>
                   </label>
@@ -840,16 +840,16 @@ export default function GCPIntegrationPage() {
                     value={billingExportTable}
                     onChange={(e) => setBillingExportTable(e.target.value)}
                     placeholder="project-id.dataset.gcp_billing_export_v1_XXXXXX"
-                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                    className="w-full h-12 px-4 text-[13px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
                   />
-                  <p className="mt-2 text-[13px] text-slate-500">
+                  <p className="mt-2 text-[12px] text-slate-500">
                     Standard billing export table (gcp_billing_export_v1_*). Found in BigQuery under your billing export dataset.
                   </p>
                 </div>
 
                 {/* Detailed Export Table */}
                 <div>
-                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-2">
                     Detailed/Resource Export Table
                   </label>
                   <input
@@ -857,16 +857,16 @@ export default function GCPIntegrationPage() {
                     value={detailedExportTable}
                     onChange={(e) => setDetailedExportTable(e.target.value)}
                     placeholder="project-id.dataset.gcp_billing_export_resource_v1_XXXXXX"
-                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                    className="w-full h-12 px-4 text-[13px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
                   />
-                  <p className="mt-2 text-[13px] text-slate-500">
+                  <p className="mt-2 text-[12px] text-slate-500">
                     Detailed billing export with resource-level data (gcp_billing_export_resource_v1_*). Provides more granular cost breakdown.
                   </p>
                 </div>
 
                 {/* Pricing Export Table */}
                 <div>
-                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-2">
                     Pricing Export Table
                   </label>
                   <input
@@ -874,16 +874,16 @@ export default function GCPIntegrationPage() {
                     value={pricingExportTable}
                     onChange={(e) => setPricingExportTable(e.target.value)}
                     placeholder="project-id.dataset.cloud_pricing_export"
-                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                    className="w-full h-12 px-4 text-[13px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
                   />
-                  <p className="mt-2 text-[13px] text-slate-500">
+                  <p className="mt-2 text-[12px] text-slate-500">
                     GCP pricing catalog export (cloud_pricing_export). Used for pricing lookups and cost optimization analysis.
                   </p>
                 </div>
 
                 {/* Committed Use Discounts Table */}
                 <div>
-                  <label className="block text-[14px] font-semibold text-slate-700 mb-2">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-2">
                     Committed Use Discounts Table
                   </label>
                   <input
@@ -891,9 +891,9 @@ export default function GCPIntegrationPage() {
                     value={cudTable}
                     onChange={(e) => setCudTable(e.target.value)}
                     placeholder="project-id.dataset.committed_use_discount_export"
-                    className="w-full h-12 px-4 text-[14px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                    className="w-full h-12 px-4 text-[13px] rounded-xl border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
                   />
-                  <p className="mt-2 text-[13px] text-slate-500">
+                  <p className="mt-2 text-[12px] text-slate-500">
                     GCP Committed Use Discounts (CUD) export. Used for analyzing commitment utilization and savings.
                   </p>
                 </div>
@@ -902,8 +902,8 @@ export default function GCPIntegrationPage() {
                 <div className="pt-4 border-t border-slate-200">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className="text-[15px] font-semibold text-slate-900">Additional Billing Accounts</h4>
-                      <p className="text-[13px] text-slate-500 mt-1">
+                      <h4 className="text-[14px] font-semibold text-slate-900">Additional Billing Accounts</h4>
+                      <p className="text-[12px] text-slate-500 mt-1">
                         Enterprise organizations can configure multiple billing accounts for different business units
                       </p>
                     </div>
@@ -915,7 +915,7 @@ export default function GCPIntegrationPage() {
                             { name: "", billing_export_table: "" }
                           ])
                         }}
-                        className="h-9 px-4 text-[13px] font-semibold rounded-lg border-2 border-[#90FCA6] text-[#1a7a3a] hover:bg-[#90FCA6]/10 transition-colors"
+                        className="h-9 px-4 text-[12px] font-semibold rounded-lg border-2 border-[#90FCA6] text-[#1a7a3a] hover:bg-[#90FCA6]/10 transition-colors"
                       >
                         + Add Account
                       </button>
@@ -927,7 +927,7 @@ export default function GCPIntegrationPage() {
                       {additionalAccounts.map((account, index) => (
                         <div key={index} className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-[13px] font-semibold text-slate-600">Billing Account {index + 1}</span>
+                            <span className="text-[12px] font-semibold text-slate-600">Billing Account {index + 1}</span>
                             <button
                               onClick={() => {
                                 setAdditionalAccounts(additionalAccounts.filter((_, i) => i !== index))
@@ -939,7 +939,7 @@ export default function GCPIntegrationPage() {
                           </div>
 
                           <div>
-                            <label className="block text-[13px] font-medium text-slate-600 mb-1">
+                            <label className="block text-[12px] font-medium text-slate-600 mb-1">
                               Account Name
                             </label>
                             <input
@@ -951,12 +951,12 @@ export default function GCPIntegrationPage() {
                                 setAdditionalAccounts(updated)
                               }}
                               placeholder="e.g., Production, Development, Marketing"
-                              className="w-full h-10 px-3 text-[13px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors"
+                              className="w-full h-10 px-3 text-[12px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-[13px] font-medium text-slate-600 mb-1">
+                            <label className="block text-[12px] font-medium text-slate-600 mb-1">
                               Standard Billing Export Table
                             </label>
                             <input
@@ -968,12 +968,12 @@ export default function GCPIntegrationPage() {
                                 setAdditionalAccounts(updated)
                               }}
                               placeholder="project-id.dataset.gcp_billing_export_v1_XXXXXX"
-                              className="w-full h-10 px-3 text-[13px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                              className="w-full h-10 px-3 text-[12px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-[13px] font-medium text-slate-600 mb-1">
+                            <label className="block text-[12px] font-medium text-slate-600 mb-1">
                               Detailed/Resource Export Table
                             </label>
                             <input
@@ -985,7 +985,7 @@ export default function GCPIntegrationPage() {
                                 setAdditionalAccounts(updated)
                               }}
                               placeholder="project-id.dataset.gcp_billing_export_resource_v1_XXXXXX"
-                              className="w-full h-10 px-3 text-[13px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
+                              className="w-full h-10 px-3 text-[12px] rounded-lg border-2 border-slate-200 focus:border-[#90FCA6] focus:ring-0 focus:outline-none transition-colors font-mono"
                             />
                           </div>
                         </div>
@@ -996,7 +996,7 @@ export default function GCPIntegrationPage() {
 
                 {/* Help Info */}
                 <div className="p-4 rounded-xl bg-[#4285F4]/10 border border-[#4285F4]/20">
-                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                  <p className="text-[12px] text-slate-600 leading-relaxed">
                     <strong className="text-slate-800">How to find your billing export tables:</strong><br />
                     1. Go to <a href="https://console.cloud.google.com/bigquery" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] hover:underline">BigQuery Console</a><br />
                     2. Find your billing export dataset (usually named like <code className="bg-slate-200 px-1 rounded">cloudact_cost_usage</code>)<br />
@@ -1009,7 +1009,7 @@ export default function GCPIntegrationPage() {
                   <button
                     onClick={handleSaveBillingConfig}
                     disabled={savingConfig || !billingExportTable.trim()}
-                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[14px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {savingConfig && <Loader2 className="h-4 w-4 animate-spin" />}
                     Save Configuration
@@ -1031,7 +1031,7 @@ export default function GCPIntegrationPage() {
                         }
                       }
                     }}
-                    className="h-12 px-6 text-[15px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
+                    className="h-12 px-6 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
                   >
                     Cancel
                   </button>
@@ -1045,16 +1045,16 @@ export default function GCPIntegrationPage() {
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
                       <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[13px] font-semibold text-slate-500 mb-1">Standard Billing Export</p>
-                        <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration?.metadata?.billing_export_table)}</p>
+                        <p className="text-[12px] font-semibold text-slate-500 mb-1">Standard Billing Export</p>
+                        <p className="text-[13px] font-mono text-slate-900 break-all">{String(integration?.metadata?.billing_export_table)}</p>
                       </div>
                     </div>
                     {integration?.metadata?.detailed_export_table && (
                       <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
                         <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-[13px] font-semibold text-slate-500 mb-1">Detailed Export</p>
-                          <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration.metadata.detailed_export_table)}</p>
+                          <p className="text-[12px] font-semibold text-slate-500 mb-1">Detailed Export</p>
+                          <p className="text-[13px] font-mono text-slate-900 break-all">{String(integration.metadata.detailed_export_table)}</p>
                         </div>
                       </div>
                     )}
@@ -1062,8 +1062,8 @@ export default function GCPIntegrationPage() {
                       <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
                         <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-[13px] font-semibold text-slate-500 mb-1">Pricing Export</p>
-                          <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration.metadata.pricing_export_table)}</p>
+                          <p className="text-[12px] font-semibold text-slate-500 mb-1">Pricing Export</p>
+                          <p className="text-[13px] font-mono text-slate-900 break-all">{String(integration.metadata.pricing_export_table)}</p>
                         </div>
                       </div>
                     )}
@@ -1071,15 +1071,15 @@ export default function GCPIntegrationPage() {
                       <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
                         <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-[13px] font-semibold text-slate-500 mb-1">Committed Use Discounts</p>
-                          <p className="text-[14px] font-mono text-slate-900 break-all">{String(integration.metadata.committed_use_discount_table)}</p>
+                          <p className="text-[12px] font-semibold text-slate-500 mb-1">Committed Use Discounts</p>
+                          <p className="text-[13px] font-mono text-slate-900 break-all">{String(integration.metadata.committed_use_discount_table)}</p>
                         </div>
                       </div>
                     )}
                     {/* Additional Billing Accounts Display */}
                     {integration?.metadata?.additional_billing_accounts && integration.metadata.additional_billing_accounts.length > 0 && (
                       <div className="pt-4 mt-4 border-t border-slate-200">
-                        <p className="text-[14px] font-semibold text-slate-700 mb-3">Additional Billing Accounts ({integration.metadata.additional_billing_accounts.length})</p>
+                        <p className="text-[13px] font-semibold text-slate-700 mb-3">Additional Billing Accounts ({integration.metadata.additional_billing_accounts.length})</p>
                         <div className="space-y-3">
                           {integration.metadata.additional_billing_accounts.map((account, index) => (
                             <div key={index} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
@@ -1087,12 +1087,12 @@ export default function GCPIntegrationPage() {
                                 <div className="h-6 w-6 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center">
                                   <Check className="h-4 w-4 text-[#1a7a3a]" />
                                 </div>
-                                <span className="text-[14px] font-semibold text-slate-900">{account.name}</span>
+                                <span className="text-[13px] font-semibold text-slate-900">{account.name}</span>
                               </div>
                               <div className="ml-8 space-y-1">
-                                <p className="text-[12px] text-slate-500">Standard: <span className="font-mono text-slate-700">{account.billing_export_table}</span></p>
+                                <p className="text-[11px] text-slate-500">Standard: <span className="font-mono text-slate-700">{account.billing_export_table}</span></p>
                                 {account.detailed_export_table && (
-                                  <p className="text-[12px] text-slate-500">Detailed: <span className="font-mono text-slate-700">{account.detailed_export_table}</span></p>
+                                  <p className="text-[11px] text-slate-500">Detailed: <span className="font-mono text-slate-700">{account.detailed_export_table}</span></p>
                                 )}
                               </div>
                             </div>
@@ -1106,15 +1106,15 @@ export default function GCPIntegrationPage() {
                     <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                       <AlertCircle className="h-8 w-8 text-slate-400" />
                     </div>
-                    <p className="text-[16px] font-bold text-slate-900 mb-2">
+                    <p className="text-[14px] font-bold text-slate-900 mb-2">
                       No Billing Tables Configured
                     </p>
-                    <p className="text-[14px] text-slate-500 mb-6 max-w-md mx-auto">
+                    <p className="text-[13px] text-slate-500 mb-6 max-w-md mx-auto">
                       Configure your GCP billing export tables to enable cost data extraction
                     </p>
                     <button
                       onClick={() => setShowBillingConfig(true)}
-                      className="h-11 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[14px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
+                      className="h-11 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[13px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
                     >
                       Configure Tables
                     </button>
@@ -1132,11 +1132,11 @@ export default function GCPIntegrationPage() {
           <div className="h-10 w-10 rounded-xl bg-[#4285F4]/15 flex items-center justify-center">
             <FileJson className="h-5 w-5 text-[#4285F4]" />
           </div>
-          <h3 className="text-[18px] font-bold text-slate-900">
+          <h3 className="text-[16px] font-bold text-slate-900">
             How to get your Service Account JSON
           </h3>
         </div>
-        <ol className="list-decimal list-inside space-y-3 text-[14px] leading-relaxed ml-1 text-slate-600">
+        <ol className="list-decimal list-inside space-y-3 text-[13px] leading-relaxed ml-1 text-slate-600">
           <li>
             Go to{' '}
             <a
@@ -1153,7 +1153,7 @@ export default function GCPIntegrationPage() {
           <li>Download the JSON file and upload it using the wizard above</li>
         </ol>
         <div className="mt-5 p-5 rounded-xl bg-[#90FCA6]/10 border border-[#90FCA6]/20">
-          <p className="text-[14px] text-slate-600 leading-relaxed">
+          <p className="text-[13px] text-slate-600 leading-relaxed">
             <strong className="text-slate-900 font-semibold">Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
           </p>
         </div>

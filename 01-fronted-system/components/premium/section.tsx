@@ -39,12 +39,12 @@ export function PremiumSection({
             )}
             <div>
               {title && (
-                <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">
+                <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
                   {title}
                 </h2>
               )}
               {subtitle && (
-                <p className="text-[12px] text-slate-400 mt-0.5">{subtitle}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>
               )}
             </div>
           </div>
@@ -111,11 +111,11 @@ export function PremiumFormSection({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="pb-2 border-b border-slate-100">
-        <h3 className="text-[15px] sm:text-[16px] font-semibold text-slate-900">
+        <h3 className="text-[14px] sm:text-[14px] font-semibold text-slate-900">
           {title}
         </h3>
         {description && (
-          <p className="text-[13px] text-slate-500 mt-1">{description}</p>
+          <p className="text-[12px] text-slate-500 mt-1">{description}</p>
         )}
       </div>
       <div className="space-y-4">{children}</div>
@@ -140,7 +140,7 @@ export function PremiumDivider({ className, label }: PremiumDividerProps) {
           <div className="w-full border-t border-slate-200" />
         </div>
         <div className="relative flex justify-center">
-          <span className="px-3 bg-white text-[12px] text-slate-400 font-medium uppercase tracking-wide">
+          <span className="px-3 bg-white text-[11px] text-slate-400 font-medium uppercase tracking-wide">
             {label}
           </span>
         </div>
@@ -224,11 +224,11 @@ export function PremiumInfoBanner({
         )}
         <div className="flex-1 min-w-0">
           {title && (
-            <h3 className={cn("text-[14px] sm:text-[15px] font-semibold", styles.title)}>
+            <h3 className={cn("text-[13px] sm:text-[14px] font-semibold", styles.title)}>
               {title}
             </h3>
           )}
-          <p className={cn("text-[12px] sm:text-[13px]", title && "mt-1", styles.text)}>
+          <p className={cn("text-[11px] sm:text-[12px]", title && "mt-1", styles.text)}>
             {description}
           </p>
           {action && <div className="mt-3">{action}</div>}
@@ -269,11 +269,11 @@ export function PremiumEmptySection({
           <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400" />
         </div>
       )}
-      <h3 className="text-[15px] sm:text-[17px] font-semibold text-slate-900">
+      <h3 className="text-[14px] sm:text-[16px] font-semibold text-slate-900">
         {title}
       </h3>
       {description && (
-        <p className="text-[13px] text-slate-500 mt-1 max-w-sm">
+        <p className="text-[12px] text-slate-500 mt-1 max-w-sm">
           {description}
         </p>
       )}

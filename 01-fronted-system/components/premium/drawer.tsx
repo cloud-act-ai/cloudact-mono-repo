@@ -239,7 +239,7 @@ const PremiumDrawerTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-[20px] sm:text-[24px] font-bold text-slate-900 tracking-tight leading-tight",
+      "text-[18px] sm:text-[20px] font-bold text-slate-900 tracking-tight leading-tight",
       className
     )}
     {...props}
@@ -258,7 +258,7 @@ const PremiumDrawerDescription = React.forwardRef<
   <DialogPrimitive.Description
     ref={ref}
     className={cn(
-      "text-[13px] sm:text-[14px] text-slate-500 mt-1.5 leading-relaxed",
+      "text-[12px] sm:text-[13px] text-slate-500 mt-1.5 leading-relaxed",
       className
     )}
     {...props}
@@ -332,10 +332,10 @@ function PremiumDrawerSection({
       {(title || description) && (
         <div className="space-y-0.5">
           {title && (
-            <h3 className="text-[14px] font-semibold text-slate-900">{title}</h3>
+            <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
           )}
           {description && (
-            <p className="text-[12px] text-slate-500">{description}</p>
+            <p className="text-[11px] text-slate-500">{description}</p>
           )}
         </div>
       )}
@@ -366,7 +366,7 @@ function PremiumFormField({
 }: PremiumFormFieldProps) {
   return (
     <div className={cn("space-y-2", className)} {...props}>
-      <label className="flex items-center gap-1 text-[13px] font-medium text-slate-700">
+      <label className="flex items-center gap-1 text-[12px] font-medium text-slate-700">
         {label}
         {required && <span className="text-[var(--cloudact-coral)]">*</span>}
       </label>
@@ -394,7 +394,7 @@ const PremiumInput = React.forwardRef<HTMLInputElement, PremiumInputProps>(
     <input
       ref={ref}
       className={cn(
-        "w-full h-11 sm:h-12 px-4 text-[14px] rounded-xl",
+        "w-full h-11 sm:h-12 px-4 text-[13px] rounded-xl",
         "bg-white border border-slate-200",
         "placeholder:text-slate-400 text-slate-900",
         "transition-all duration-200",
@@ -423,7 +423,7 @@ const PremiumTextarea = React.forwardRef<HTMLTextAreaElement, PremiumTextareaPro
     <textarea
       ref={ref}
       className={cn(
-        "w-full min-h-[100px] px-4 py-3 text-[14px] rounded-xl resize-none",
+        "w-full min-h-[100px] px-4 py-3 text-[13px] rounded-xl resize-none",
         "bg-white border border-slate-200",
         "placeholder:text-slate-400 text-slate-900",
         "transition-all duration-200",
@@ -452,7 +452,7 @@ const PremiumSelect = React.forwardRef<HTMLSelectElement, PremiumSelectProps>(
     <select
       ref={ref}
       className={cn(
-        "w-full h-11 sm:h-12 px-4 text-[14px] rounded-xl appearance-none cursor-pointer",
+        "w-full h-11 sm:h-12 px-4 text-[13px] rounded-xl appearance-none cursor-pointer",
         "bg-white border border-slate-200",
         "text-slate-900",
         "transition-all duration-200",
@@ -514,9 +514,9 @@ const PremiumButton = React.forwardRef<HTMLButtonElement, PremiumButtonProps>(
     }
 
     const sizes = {
-      sm: "h-9 px-4 text-[13px] rounded-lg",
-      md: "h-11 px-5 text-[14px] rounded-xl",
-      lg: "h-12 px-6 text-[15px] rounded-xl",
+      sm: "h-9 px-4 text-[12px] rounded-lg",
+      md: "h-11 px-5 text-[13px] rounded-xl",
+      lg: "h-12 px-6 text-[14px] rounded-xl",
     }
 
     return (

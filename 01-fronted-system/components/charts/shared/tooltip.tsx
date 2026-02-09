@@ -122,7 +122,7 @@ export function ChartTooltip({
                 year: "numeric"
               })
               return (
-                <span className="text-[12px] font-semibold text-slate-700">
+                <span className="text-[11px] font-semibold text-slate-700">
                   {formattedDate}
                 </span>
               )

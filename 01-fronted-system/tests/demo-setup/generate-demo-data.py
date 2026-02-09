@@ -387,7 +387,6 @@ class DemoDataGenerator:
                         "x_ingested_at": datetime.now().isoformat(),
                         "x_data_quality_score": 1.0,
                         "x_created_at": datetime.now().isoformat(),
-                        "credits_json": None,
                     }
                     records.append(record)
 

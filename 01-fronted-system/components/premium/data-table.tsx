@@ -131,7 +131,7 @@ function SearchInput({ value, onChange, placeholder = "Search...", className }: 
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "relative w-full h-11 pl-10 pr-10 text-[14px] rounded-xl border border-slate-200",
+          "relative w-full h-11 pl-10 pr-10 text-[13px] rounded-xl border border-slate-200",
           "bg-white/80 backdrop-blur-sm placeholder:text-slate-400 text-slate-900",
           "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40 focus:border-[var(--cloudact-mint)]",
           "focus:bg-white focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
@@ -177,7 +177,7 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "inline-flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-xl border transition-all duration-200",
+          "inline-flex items-center gap-2 h-10 px-4 text-[12px] font-semibold rounded-xl border transition-all duration-200",
           hasValue
             ? "bg-gradient-to-r from-[var(--cloudact-mint)]/15 to-[var(--cloudact-mint-light)]/15 border-[var(--cloudact-mint)]/40 text-[#1a7a3a] shadow-sm"
             : "bg-white/80 backdrop-blur-sm border-slate-200 text-slate-600 hover:border-[var(--cloudact-mint)]/30 hover:bg-[var(--cloudact-mint)]/5"
@@ -201,7 +201,7 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
               setIsOpen(false)
             }}
             className={cn(
-              "w-full px-4 py-2.5 text-left text-[13px] font-medium transition-all duration-150",
+              "w-full px-4 py-2.5 text-left text-[12px] font-medium transition-all duration-150",
               !hasValue
                 ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -223,7 +223,7 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
                   setIsOpen(false)
                 }}
                 className={cn(
-                  "w-full px-4 py-2.5 text-left text-[13px] font-medium transition-all duration-150",
+                  "w-full px-4 py-2.5 text-left text-[12px] font-medium transition-all duration-150",
                   isSelected
                     ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -263,12 +263,12 @@ function Pagination({
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-200/80 bg-gradient-to-r from-slate-50/50 to-transparent">
-      <div className="flex items-center gap-2.5 text-[13px] text-slate-500">
+      <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
         <span className="font-medium">Show</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30 focus:border-[var(--cloudact-mint)] transition-all cursor-pointer"
+          className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-[12px] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30 focus:border-[var(--cloudact-mint)] transition-all cursor-pointer"
         >
           {pageSizeOptions.map((size) => (
             <option key={size} value={size}>
@@ -298,7 +298,7 @@ function Pagination({
         </button>
 
         <div className="flex items-center px-4 h-9 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
-          <span className="text-[13px] font-semibold text-[#1a7a3a]">
+          <span className="text-[12px] font-semibold text-[#1a7a3a]">
             {startItem}–{endItem}
           </span>
         </div>
@@ -541,9 +541,9 @@ export function PremiumDataTable<T extends object>({
                 <div className="flex items-center gap-2">
                   {TitleIcon && <TitleIcon className="h-[18px] w-[18px] text-[#1a7a3a]" />}
                   <div>
-                    <span className="text-[15px] font-semibold text-slate-900">{title}</span>
+                    <span className="text-[14px] font-semibold text-slate-900">{title}</span>
                     {subtitle && (
-                      <span className="text-[12px] text-slate-500 ml-2">{subtitle}</span>
+                      <span className="text-[11px] text-slate-500 ml-2">{subtitle}</span>
                     )}
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export function PremiumDataTable<T extends object>({
                   {filters.length > 0 && (
                     <button
                       onClick={() => setFilters([])}
-                      className="inline-flex items-center gap-1 h-9 px-3 text-[13px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                      className="inline-flex items-center gap-1 h-9 px-3 text-[12px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                       Clear
@@ -716,7 +716,7 @@ export function PremiumDataTable<T extends object>({
                         <td
                           key={column.id}
                           className={cn(
-                            "px-4 py-3 text-[14px] text-slate-700",
+                            "px-4 py-3 text-[13px] text-slate-700",
                             column.align === "center" && "text-center",
                             column.align === "right" && "text-right",
                             column.hideOnMobile && "hidden lg:table-cell"
@@ -779,7 +779,7 @@ export function PremiumDataTable<T extends object>({
       {/* Results count when no pagination */}
       {!paginated && !loading && !isEmpty && (
         <div className="px-4 sm:px-6 py-3 border-t border-slate-200 bg-slate-50/50">
-          <p className="text-[12px] text-slate-500">
+          <p className="text-[11px] text-slate-500">
             Showing {sortedData.length} {sortedData.length === 1 ? "result" : "results"}
             {searchQuery && ` for "${searchQuery}"`}
           </p>

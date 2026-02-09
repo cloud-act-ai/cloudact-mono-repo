@@ -45,7 +45,7 @@ const textSizeClasses = {
   sm: "text-xs",
   md: "text-sm",
   lg: "text-base",
-  xl: "text-lg",
+  xl: "text-base",
 }
 
 export function UserAvatar({

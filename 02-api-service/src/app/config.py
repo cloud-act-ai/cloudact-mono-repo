@@ -764,6 +764,18 @@ class Settings(BaseSettings):
     anthropic_validation_model: str = Field(default="claude-3-haiku-20240307", description="Model for Anthropic validation")
 
     # ============================================
+    # Supabase Configuration
+    # ============================================
+    supabase_url: Optional[str] = Field(
+        default=None,
+        description="Supabase project URL (required for quota enforcement and onboarding sync)"
+    )
+    supabase_service_role_key: Optional[str] = Field(
+        default=None,
+        description="Supabase service role key for server-side access"
+    )
+
+    # ============================================
     # File Paths
     # ============================================
     configs_base_path: str = Field(default="./configs")
@@ -1061,6 +1073,12 @@ def get_settings() -> Settings:
             # This happens in Cloud Run where GOOGLE_APPLICATION_CREDENTIALS may be set in env file
             # but the file doesn't exist (local path baked into Docker image)
             pass
+
+    # Export Supabase vars to os.environ so supabase_client.py can read them
+    if settings_instance.supabase_url:
+        os.environ.setdefault("SUPABASE_URL", settings_instance.supabase_url)
+    if settings_instance.supabase_service_role_key:
+        os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", settings_instance.supabase_service_role_key)
 
     return settings_instance
 

@@ -518,10 +518,10 @@ export default function ProviderDetailPage() {
               <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
                 {providerDisplayName}
               </h1>
-              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                 Manage subscription plans for {providerDisplayName}
               </p>
             </div>
@@ -567,10 +567,10 @@ export default function ProviderDetailPage() {
             {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />}
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               {providerDisplayName}
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Manage subscription plans for {providerDisplayName}
             </p>
           </div>
@@ -579,7 +579,7 @@ export default function ProviderDetailPage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
             <Button
               onClick={openTemplateSheet}
-              className="h-11 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+              className="h-11 px-5 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
               data-testid="add-from-template-btn"
             >
               <Plus className="h-4 w-4" />
@@ -587,7 +587,7 @@ export default function ProviderDetailPage() {
             </Button>
             <Button
               onClick={openCustomSheet}
-              className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2"
               data-testid="add-custom-subscription-btn"
             >
               <Plus className="h-4 w-4" />
@@ -644,7 +644,7 @@ export default function ProviderDetailPage() {
 
         <PremiumCard hover={false}>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[13px] text-slate-600">
+            <p className="text-[12px] text-slate-600">
               Click a row to see more details. Toggle plans to include them in cost tracking.
             </p>
             {deletedPlansCount > 0 && (
@@ -668,8 +668,8 @@ export default function ProviderDetailPage() {
               <div className="inline-flex p-4 rounded-2xl bg-[#90FCA6]/10 mb-4">
                 <CreditCard className="h-12 w-12 text-[#1a7a3a]" />
               </div>
-              <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
-              <p className="text-[15px] text-muted-foreground mb-6">
+              <h3 className="text-[18px] font-semibold text-black mb-2">No subscriptions yet</h3>
+              <p className="text-[14px] text-muted-foreground mb-6">
                 Choose a predefined plan or create a custom one.
               </p>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
@@ -840,7 +840,7 @@ export default function ProviderDetailPage() {
                             <div className="col-span-2 md:col-span-4">
                               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
                                 <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                                <span className="text-[13px] font-medium text-amber-700">
+                                <span className="text-[12px] font-medium text-amber-700">
                                   Currency differs from org default ({orgCurrency})
                                 </span>
                               </div>
@@ -912,7 +912,7 @@ export default function ProviderDetailPage() {
                 <CreditCard className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div>
-                <SheetTitle className="text-xl font-semibold text-foreground">Select a Template</SheetTitle>
+                <SheetTitle className="text-lg font-semibold text-foreground">Select a Template</SheetTitle>
                 <SheetDescription className="mt-0.5">
                   Choose a plan for {providerDisplayName}
                 </SheetDescription>
@@ -933,7 +933,7 @@ export default function ProviderDetailPage() {
                 <div className="inline-flex p-4 rounded-2xl bg-[#90FCA6]/10 mb-4">
                   <CreditCard className="h-12 w-12 text-[#1a7a3a]" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">No Templates Available</h3>
+                <h3 className="text-base font-semibold text-foreground mb-2">No Templates Available</h3>
                 <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
                   There are no predefined templates for this provider. Create a custom plan instead.
                 </p>
@@ -977,7 +977,7 @@ export default function ProviderDetailPage() {
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-xl font-bold text-[#FF6C5E]">
+                          <div className="text-lg font-bold text-[#FF6C5E]">
                             {formatCurrency(convertedPrice, orgCurrency)}
                           </div>
                           <p className="text-xs text-muted-foreground/70 mt-0.5">
@@ -1032,7 +1032,7 @@ export default function ProviderDetailPage() {
                 <Plus className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div>
-                <SheetTitle className="text-xl font-semibold text-foreground">
+                <SheetTitle className="text-lg font-semibold text-foreground">
                   {isFromTemplate ? 'Customize Subscription' : 'Add Custom Subscription'}
                 </SheetTitle>
                 <SheetDescription className="mt-0.5">

@@ -44,7 +44,7 @@ export const QuickActionsCard = memo(function QuickActionsCard({
   return (
     <Card className="bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 border-gray-200/50 dark:border-gray-700/50 shadow-lg">
       <CardContent className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
           Quick Actions
         </h3>
         <div className="space-y-3">

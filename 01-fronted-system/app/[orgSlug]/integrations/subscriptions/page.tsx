@@ -62,13 +62,13 @@ function TrackingCard({
 
           {/* Info */}
           <div className="min-w-0 flex-1">
-            <h3 className="text-[15px] font-semibold text-slate-900 truncate tracking-tight">
+            <h3 className="text-[14px] font-semibold text-slate-900 truncate tracking-tight">
               {provider.display_name}
             </h3>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[12px] text-slate-500 font-medium">{category.label}</span>
+              <span className="text-[11px] text-slate-500 font-medium">{category.label}</span>
               <span className="text-slate-300">·</span>
-              <span className="text-[12px] font-semibold text-[#1a7a3a]">
+              <span className="text-[11px] font-semibold text-[#1a7a3a]">
                 {provider.plan_count} plan{provider.plan_count !== 1 ? 's' : ''}
               </span>
             </div>
@@ -79,7 +79,7 @@ function TrackingCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)}
-            className="h-9 px-4 text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5"
+            className="h-9 px-4 text-[12px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5"
           >
             Manage
             <ChevronRight className="h-3.5 w-3.5" />
@@ -116,7 +116,7 @@ function SetupCard({
             <ProviderLogo provider={provider.provider} category={provider.category} size={20} fallbackColor={category.accent} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-[14px] font-semibold text-slate-900 truncate">{provider.display_name}</h3>
+            <h3 className="text-[13px] font-semibold text-slate-900 truncate">{provider.display_name}</h3>
             <p className="text-[11px] text-amber-600 font-medium mt-0.5">Needs configuration</p>
           </div>
         </div>
@@ -124,7 +124,7 @@ function SetupCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)}
-            className="h-8 px-3 text-[12px] font-semibold bg-[#FF6C5E] hover:bg-[#E55A3C] text-white rounded-lg transition-colors flex items-center gap-1"
+            className="h-8 px-3 text-[11px] font-semibold bg-[#FF6C5E] hover:bg-[#E55A3C] text-white rounded-lg transition-colors flex items-center gap-1"
           >
             <Plus className="h-3 w-3" />
             Add Plans
@@ -174,7 +174,7 @@ function AvailableCard({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900 truncate transition-colors">
+          <h3 className="text-[12px] font-medium text-slate-700 group-hover:text-slate-900 truncate transition-colors">
             {provider.display_name}
           </h3>
           <p className="text-[11px] text-slate-400 mt-0.5">{category.label}</p>
@@ -297,10 +297,10 @@ export default function SubscriptionIntegrationsPage() {
               <Layers className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
                 Subscriptions
               </h1>
-              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                 Track your SaaS spending across all providers
               </p>
             </div>
@@ -320,16 +320,16 @@ export default function SubscriptionIntegrationsPage() {
             <Layers className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               Subscriptions
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Track your SaaS spending across all providers
             </p>
           </div>
         </div>
         <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-          <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 text-[13px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+          <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 text-[12px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
             <TrendingUp className="h-4 w-4" />
             View Costs
             <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
@@ -350,14 +350,14 @@ export default function SubscriptionIntegrationsPage() {
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend not connected" : "API key missing"}
               </h3>
-              <p className="text-[13px] text-slate-600 mt-1">
+              <p className="text-[12px] text-slate-600 mt-1">
                 Complete organization setup to start tracking subscriptions.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[12px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
+                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[11px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -370,14 +370,14 @@ export default function SubscriptionIntegrationsPage() {
       {error && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-          <p className="text-[13px] font-medium text-rose-700">{error}</p>
+          <p className="text-[12px] font-medium text-rose-700">{error}</p>
         </div>
       )}
 
       {successMessage && (
         <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
           <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#1a7a3a]">{successMessage}</p>
+          <p className="text-[12px] font-medium text-[#1a7a3a]">{successMessage}</p>
         </div>
       )}
 
@@ -385,7 +385,7 @@ export default function SubscriptionIntegrationsPage() {
       {trackingProviders.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
               Active Tracking
             </h2>
             <span className="text-[11px] text-[#1a7a3a] font-semibold bg-[#90FCA6]/10 px-2 py-0.5 rounded-full">
@@ -409,7 +409,7 @@ export default function SubscriptionIntegrationsPage() {
       {setupProviders.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
               Needs Configuration
             </h2>
             <span className="text-[11px] text-amber-600 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">
@@ -435,7 +435,7 @@ export default function SubscriptionIntegrationsPage() {
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[12px] sm:text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[11px] sm:text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
               Available Providers
             </h2>
             <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
@@ -451,7 +451,7 @@ export default function SubscriptionIntegrationsPage() {
               placeholder="Search providers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 sm:h-9 w-full sm:w-64 pl-9 pr-4 text-[14px] sm:text-[13px] bg-slate-100 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 placeholder:text-slate-400"
+              className="h-10 sm:h-9 w-full sm:w-64 pl-9 pr-4 text-[13px] sm:text-[12px] bg-slate-100 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -471,7 +471,7 @@ export default function SubscriptionIntegrationsPage() {
           <div className="mt-6 text-center">
             <button
               onClick={() => setShowAllAvailable(true)}
-              className="h-10 px-6 text-[13px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors inline-flex items-center gap-2"
+              className="h-10 px-6 text-[12px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors inline-flex items-center gap-2"
             >
               Show {filteredAvailable.length - 12} more providers
               <ChevronDown className="h-4 w-4" />
@@ -481,7 +481,7 @@ export default function SubscriptionIntegrationsPage() {
 
         {filteredAvailable.length === 0 && searchQuery && (
           <div className="py-12 text-center">
-            <p className="text-[14px] text-slate-500">No providers match "{searchQuery}"</p>
+            <p className="text-[13px] text-slate-500">No providers match "{searchQuery}"</p>
           </div>
         )}
       </section>
@@ -491,14 +491,14 @@ export default function SubscriptionIntegrationsPage() {
         <div className="h-12 w-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
           <Plus className="h-5 w-5 text-slate-600" />
         </div>
-        <h3 className="text-[16px] font-semibold text-slate-900 mb-1">
+        <h3 className="text-[14px] font-semibold text-slate-900 mb-1">
           Can't find your provider?
         </h3>
-        <p className="text-[13px] text-slate-500 mb-5 max-w-sm mx-auto">
+        <p className="text-[12px] text-slate-500 mb-5 max-w-sm mx-auto">
           Add custom subscriptions to track any SaaS tool not in our catalog.
         </p>
         <Link href={`/${orgSlug}/integrations/subscriptions/custom/add`}>
-          <button className="h-10 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+          <button className="h-10 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[12px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Custom Provider
           </button>
@@ -512,10 +512,10 @@ export default function SubscriptionIntegrationsPage() {
             <BookOpen className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[15px] font-semibold text-slate-900 mb-3">
+            <h3 className="text-[14px] font-semibold text-slate-900 mb-3">
               How Subscription Tracking Works
             </h3>
-            <div className="space-y-3 text-[13px] text-slate-600">
+            <div className="space-y-3 text-[12px] text-slate-600">
               <div className="flex items-start gap-2">
                 <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">1</span>
                 <p><strong>Enable a Provider:</strong> Click on any provider from the "Available Providers" section to enable tracking. For example, enable "Slack" to start tracking your Slack subscription.</p>
@@ -533,7 +533,7 @@ export default function SubscriptionIntegrationsPage() {
                 <p><strong>Track Costs:</strong> View aggregated costs in the <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`} className="text-[#007AFF] font-medium hover:underline">Subscription Costs Dashboard</Link>. Costs are calculated daily based on your plan configurations.</p>
               </div>
               <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                <p className="text-[12px] text-amber-800">
+                <p className="text-[11px] text-amber-800">
                   <strong>Tip:</strong> Use the same currency across all subscriptions (matching your organization's default currency) for accurate cost comparisons. Currency can be set in <Link href={`/${orgSlug}/settings/organization`} className="text-[#007AFF] font-medium hover:underline">Organization Settings</Link>.
                 </p>
               </div>

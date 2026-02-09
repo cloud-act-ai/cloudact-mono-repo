@@ -1,6 +1,6 @@
 # Billing & Stripe
 
-**v2.2** | 2026-02-05
+**v2.3** | 2026-02-08
 
 > Stripe subscriptions, checkout, webhooks
 
@@ -22,13 +22,17 @@
 
 ## Lifecycle Mapping
 
-| Stripe Status | Supabase `billing_status` | Pipelines Allowed |
-|---------------|---------------------------|-------------------|
-| trialing | trialing | Yes |
-| active | active | Yes |
-| past_due | past_due | No |
-| canceled | canceled | No |
-| incomplete | incomplete | No |
+| Stripe Status | Supabase `billing_status` | Pipelines Allowed | Frontend Behavior |
+|---------------|---------------------------|-------------------|-------------------|
+| trialing | trialing | Yes | Normal access |
+| active | active | Yes | Normal access |
+| past_due | past_due | No | Redirect to billing page |
+| canceled | canceled | No | Redirect to billing page |
+| incomplete | incomplete | No | Redirect to billing page |
+| unpaid | unpaid | No | Redirect to billing page |
+| incomplete_expired | incomplete_expired | No | Redirect to billing page |
+
+**Inactive statuses enforced:** `canceled`, `past_due`, `incomplete`, `unpaid`, `incomplete_expired` all redirect to the billing page. Only `trialing` and `active` allow normal access.
 
 ---
 
@@ -52,6 +56,19 @@
 | `customer.subscription.deleted` | Set `billing_status` to `canceled` in Supabase |
 
 **Supabase tables updated:** `organizations` (billing fields), `plan_change_audit` (history)
+
+---
+
+## Data Storage
+
+**Billing data lives in Supabase ONLY** — no BigQuery sync.
+
+| Data | Location | Purpose |
+|------|----------|---------|
+| Subscription state | `organizations` (Supabase) | billing_status, stripe_price_id, stripe_subscription_id |
+| Plan change history | `plan_change_audit` (Supabase) | Audit trail for plan upgrades/downgrades |
+| Quota limits | `organizations` (Supabase) | daily_pipeline_limit, monthly_pipeline_limit, etc. |
+| Quota usage | `org_quotas` (Supabase) | Daily/monthly counters, concurrent tracking |
 
 ---
 

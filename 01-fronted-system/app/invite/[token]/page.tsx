@@ -131,7 +131,7 @@ export default function InvitePage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-white">
+      <div className="flex min-h-svh items-center justify-center bg-white dark:bg-[#111114]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-[#6EE890]" />
           <p className="text-sm text-gray-600">Loading invite...</p>
@@ -142,7 +142,7 @@ export default function InvitePage() {
 
   if (error && !inviteData) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-white p-4">
+      <div className="flex min-h-svh items-center justify-center bg-white dark:bg-[#111114] p-4">
         <Card className="w-full max-w-md bg-white">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF5F3]">
@@ -161,7 +161,7 @@ export default function InvitePage() {
 
   if (success) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-white p-4">
+      <div className="flex min-h-svh items-center justify-center bg-white dark:bg-[#111114] p-4">
         <Card className="w-full max-w-md bg-white">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F0FDFA]">
@@ -183,7 +183,7 @@ export default function InvitePage() {
     currentUserEmail.toLowerCase() !== inviteData.email.toLowerCase()
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-white p-4">
+    <div className="flex min-h-svh items-center justify-center bg-white dark:bg-[#111114] p-4">
       <Card className="w-full max-w-md bg-white">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F0FDFA]">

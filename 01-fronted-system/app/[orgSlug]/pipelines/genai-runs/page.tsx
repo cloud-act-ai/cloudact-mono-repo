@@ -353,7 +353,7 @@ export default function GenAIRunsPage() {
       accessorKey: "pipeline_id",
       cell: (row) => (
         <div className="space-y-0.5">
-          <div className="text-[15px] font-semibold text-slate-900">{row.pipeline_id}</div>
+          <div className="text-[14px] font-semibold text-slate-900">{row.pipeline_id}</div>
           <div className="text-[11px] text-slate-500 font-mono">
             {row.pipeline_logging_id.slice(0, 8)}...
           </div>
@@ -378,7 +378,7 @@ export default function GenAIRunsPage() {
       header: "Started",
       accessorKey: "start_time",
       cell: (row) => (
-        <div className="text-[13px] text-slate-700">{formatDateTime(row.start_time)}</div>
+        <div className="text-[12px] text-slate-700">{formatDateTime(row.start_time)}</div>
       ),
     },
     {
@@ -398,7 +398,7 @@ export default function GenAIRunsPage() {
         }
         return (
           <div className="space-y-1.5">
-            <div className="text-[13px] font-medium text-slate-900">
+            <div className="text-[12px] font-medium text-slate-900">
               {formatDuration(row.duration_ms)}
             </div>
             <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
@@ -422,10 +422,10 @@ export default function GenAIRunsPage() {
     <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+        <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
           GenAI Pipelines
         </h1>
-        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+        <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
           Monitor your AI/ML cost pipeline executions
         </p>
       </div>
@@ -441,14 +441,14 @@ export default function GenAIRunsPage() {
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend not connected" : "API key missing"}
               </h3>
-              <p className="text-[13px] text-slate-600 mt-1">
+              <p className="text-[12px] text-slate-600 mt-1">
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[12px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
+                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[11px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -472,7 +472,7 @@ export default function GenAIRunsPage() {
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
           <p
-            className={`text-[13px] font-medium ${
+            className={`text-[12px] font-medium ${
               lastResult.success ? "text-[#1a7a3a]" : "text-rose-700"
             }`}
           >
@@ -494,7 +494,7 @@ export default function GenAIRunsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation
+                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation
                   ${
                     isActive
                       ? "border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5"
@@ -527,7 +527,7 @@ export default function GenAIRunsPage() {
       <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-          <p className="text-[13px] text-slate-700 font-medium">
+          <p className="text-[12px] text-slate-700 font-medium">
             {currentTabConfig?.description ||
               "GenAI pipelines track API usage and costs from LLM providers."}
           </p>
@@ -536,7 +536,7 @@ export default function GenAIRunsPage() {
 
       {/* Available Pipelines for Current Tab */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">
+        <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-4">
           {currentTabConfig?.label} Pipelines
         </h2>
         <PremiumCard>
@@ -580,13 +580,13 @@ export default function GenAIRunsPage() {
       {backendConnected && hasApiKey && (
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
               {currentTabConfig?.label} Run History
             </h2>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[13px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -626,7 +626,7 @@ export default function GenAIRunsPage() {
                 const detail = details as PipelineRunDetailType | undefined
                 if (!detail) {
                   return (
-                    <div className="text-center text-slate-500 text-[13px] py-6">
+                    <div className="text-center text-slate-500 text-[12px] py-6">
                       Failed to load details
                     </div>
                   )

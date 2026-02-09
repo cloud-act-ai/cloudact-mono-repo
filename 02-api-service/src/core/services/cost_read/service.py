@@ -242,7 +242,7 @@ class CostReadService:
                     "LOWER(ServiceCategory) IN ('genai', 'llm', 'ai and machine learning') OR "
                     "LOWER(x_source_system) LIKE '%genai%' OR "
                     "LOWER(x_source_system) LIKE '%llm%') AND "
-                    "x_source_system != 'subscription_costs_daily')"
+                    "COALESCE(x_source_system, '') != 'subscription_costs_daily')"
                 )
                 query_params.append(bigquery.ArrayQueryParameter("genai_providers", "STRING", genai_providers))
 

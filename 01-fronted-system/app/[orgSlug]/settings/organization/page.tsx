@@ -703,10 +703,10 @@ export default function OrganizationSettingsPage() {
             <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               Organization Settings
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Manage your organization locale, branding, and backend configuration
             </p>
           </div>
@@ -724,10 +724,10 @@ export default function OrganizationSettingsPage() {
           <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
             Organization Settings
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
             Manage your organization locale, branding, and backend configuration
           </p>
         </div>
@@ -758,7 +758,7 @@ export default function OrganizationSettingsPage() {
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="general"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">General</span>
@@ -766,7 +766,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="contact"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Contact</span>
@@ -774,7 +774,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="backend"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Backend</span>
@@ -782,7 +782,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="danger"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[12px] sm:text-[14px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:text-[#FF6C5E]/80 data-[state=inactive]:hover:border-[#FF6C5E]/50 data-[state=inactive]:bg-transparent data-[state=active]:border-[#FF6C5E] data-[state=active]:text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:text-[#FF6C5E]/80 data-[state=inactive]:hover:border-[#FF6C5E]/50 data-[state=inactive]:bg-transparent data-[state=active]:border-[#FF6C5E] data-[state=active]:text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Danger Zone</span>
@@ -800,8 +800,8 @@ export default function OrganizationSettingsPage() {
               <Building2 className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[17px] font-semibold text-slate-900">Organization Details</h2>
-              <p className="text-[13px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-slate-900">Organization Details</h2>
+              <p className="text-[12px] text-slate-500">
                 Your organization name and unique identifier
               </p>
             </div>
@@ -811,7 +811,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 sm:p-8 space-y-5">
           {/* Organization Name */}
           <div className="space-y-2">
-            <Label htmlFor="orgName" className="text-[14px] font-medium text-foreground">
+            <Label htmlFor="orgName" className="text-[13px] font-medium text-foreground">
               Organization Name <span className="text-[#FF6C5E]">*</span>
             </Label>
             <div className="flex gap-2">
@@ -822,7 +822,7 @@ export default function OrganizationSettingsPage() {
                 onChange={(e) => { setOrgName(e.target.value); setError(null); }}
                 placeholder="Enter organization name"
                 maxLength={100}
-                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] flex-1"
+                className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] flex-1"
               />
               {hasOrgNameChanges && (
                 <Button
@@ -835,14 +835,14 @@ export default function OrganizationSettingsPage() {
                 </Button>
               )}
             </div>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[12px] text-muted-foreground">
               Displayed in sidebar and throughout the app (2-100 characters)
             </p>
           </div>
 
           {/* Organization Slug (Read-only) */}
           <div className="space-y-2">
-            <Label htmlFor="orgSlugDisplay" className="text-[14px] font-medium text-foreground">
+            <Label htmlFor="orgSlugDisplay" className="text-[13px] font-medium text-foreground">
               Organization Slug
             </Label>
             <Input
@@ -851,9 +851,9 @@ export default function OrganizationSettingsPage() {
               value={orgSlug}
               readOnly
               disabled
-              className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
+              className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
             />
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[12px] text-muted-foreground">
               Unique identifier used in URLs (cannot be changed)
             </p>
           </div>
@@ -868,8 +868,8 @@ export default function OrganizationSettingsPage() {
               <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[17px] font-semibold text-slate-900">Organization Logo</h2>
-              <p className="text-[13px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-slate-900">Organization Logo</h2>
+              <p className="text-[12px] text-slate-500">
                 Upload or link your organization's logo (displayed in sidebar)
               </p>
             </div>
@@ -901,8 +901,8 @@ export default function OrganizationSettingsPage() {
               <Activity className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[17px] font-semibold text-slate-900">Locale Settings</h2>
-              <p className="text-[13px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-slate-900">Locale Settings</h2>
+              <p className="text-[12px] text-slate-500">
                 Configure currency, timezone, date format, and fiscal year
               </p>
             </div>
@@ -912,11 +912,11 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 sm:p-8 space-y-5">
           {/* Currency Selection */}
           <div className="space-y-2">
-            <Label htmlFor="currency" className="text-[14px] font-medium text-foreground">
+            <Label htmlFor="currency" className="text-[13px] font-medium text-foreground">
               Currency <span className="text-[#FF6C5E]">*</span>
             </Label>
             <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
-              <SelectTrigger id="currency" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="currency" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -927,18 +927,18 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[12px] text-muted-foreground">
               All costs displayed in this currency
             </p>
           </div>
 
           {/* Timezone Selection */}
           <div className="space-y-2">
-            <Label htmlFor="timezone" className="text-[14px] font-medium text-foreground">
+            <Label htmlFor="timezone" className="text-[13px] font-medium text-foreground">
               Timezone <span className="text-[#FF6C5E]">*</span>
             </Label>
             <Select value={timezone} onValueChange={handleTimezoneChange}>
-              <SelectTrigger id="timezone" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="timezone" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -949,19 +949,19 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[12px] text-muted-foreground">
               Used for dashboards and pipeline schedules
             </p>
           </div>
 
           {/* Fiscal Year Start */}
           <div className="space-y-2">
-            <Label htmlFor="fiscal-year" className="text-[14px] font-medium text-foreground">
+            <Label htmlFor="fiscal-year" className="text-[13px] font-medium text-foreground">
               Fiscal Year Start
             </Label>
             <div className="flex gap-2">
               <Select value={fiscalYearStart.toString()} onValueChange={(val) => { setFiscalYearStart(parseInt(val)); setError(null); }}>
-                <SelectTrigger id="fiscal-year" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg flex-1 hover:border-[#90FCA6] transition-colors">
+                <SelectTrigger id="fiscal-year" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg flex-1 hover:border-[#90FCA6] transition-colors">
                   <SelectValue placeholder="Select fiscal year start" />
                 </SelectTrigger>
                 <SelectContent>
@@ -983,18 +983,18 @@ export default function OrganizationSettingsPage() {
                 </Button>
               )}
             </div>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[12px] text-muted-foreground">
               Auto-suggested based on timezone
             </p>
           </div>
 
           {/* Date Format */}
           <div className="space-y-2">
-            <Label htmlFor="date-format" className="text-[14px] font-medium text-foreground">
+            <Label htmlFor="date-format" className="text-[13px] font-medium text-foreground">
               Date Format
             </Label>
             <Select value={dateFormat} onValueChange={(val) => { setDateFormat(val); setError(null); }}>
-              <SelectTrigger id="date-format" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="date-format" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select date format" />
               </SelectTrigger>
               <SelectContent>
@@ -1008,14 +1008,14 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-[12px] text-muted-foreground">
               How dates are displayed throughout the app
             </p>
           </div>
 
           {hasLocaleChanges && (
             <Alert className="bg-amber-50 border-amber-200">
-              <AlertDescription className="text-amber-800 text-[13px]">
+              <AlertDescription className="text-amber-800 text-[12px]">
                 You have unsaved locale changes
               </AlertDescription>
             </Alert>
@@ -1027,7 +1027,7 @@ export default function OrganizationSettingsPage() {
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all"
+              className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all"
             >
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Changes
@@ -1036,7 +1036,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1046,7 +1046,7 @@ export default function OrganizationSettingsPage() {
 
       {/* Information Note - Premium */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/10 to-transparent border border-[#90FCA6]/20">
-        <p className="text-[13px] text-slate-900/70 leading-relaxed">
+        <p className="text-[12px] text-slate-900/70 leading-relaxed">
           <strong className="text-[#1a7a3a] font-semibold">Note:</strong> Currency and timezone changes affect how data is displayed.
           Settings sync to BigQuery for cost calculations. All team members share these locale settings.
         </p>
@@ -1062,8 +1062,8 @@ export default function OrganizationSettingsPage() {
               <User className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[17px] font-semibold text-slate-900">Contact Details</h2>
-              <p className="text-[13px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-slate-900">Contact Details</h2>
+              <p className="text-[12px] text-slate-500">
                 Business contact person and address
               </p>
             </div>
@@ -1074,19 +1074,19 @@ export default function OrganizationSettingsPage() {
           {loadingContactDetails ? (
             <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
-              <span className="text-[14px] text-muted-foreground">Loading...</span>
+              <span className="text-[13px] text-muted-foreground">Loading...</span>
             </div>
           ) : (
             <>
               {/* Business Person Section */}
               <div className="space-y-4">
-                <h3 className="text-[14px] font-medium text-slate-700">
+                <h3 className="text-[13px] font-medium text-slate-700">
                   Contact Person
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="businessPersonName" className="text-[13px] font-medium text-foreground">
+                    <Label htmlFor="businessPersonName" className="text-[12px] font-medium text-foreground">
                       Full Name
                     </Label>
                     <Input
@@ -1095,12 +1095,12 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_name || ""}
                       onChange={(e) => updateContactField("business_person_name", e.target.value)}
                       placeholder="John Smith"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="businessPersonPosition" className="text-[13px] font-medium text-foreground">
+                    <Label htmlFor="businessPersonPosition" className="text-[12px] font-medium text-foreground">
                       Position / Title
                     </Label>
                     <Input
@@ -1109,12 +1109,12 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_position || ""}
                       onChange={(e) => updateContactField("business_person_position", e.target.value)}
                       placeholder="CTO, Finance Manager"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="businessPersonDepartment" className="text-[13px] font-medium text-foreground">
+                    <Label htmlFor="businessPersonDepartment" className="text-[12px] font-medium text-foreground">
                       Department
                     </Label>
                     <Input
@@ -1123,7 +1123,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_department || ""}
                       onChange={(e) => updateContactField("business_person_department", e.target.value)}
                       placeholder="Engineering, Finance"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
                 </div>
@@ -1132,7 +1132,7 @@ export default function OrganizationSettingsPage() {
               {/* Contact Info Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="contactEmail" className="text-[13px] font-medium text-foreground">
+                  <Label htmlFor="contactEmail" className="text-[12px] font-medium text-foreground">
                     Business Email
                   </Label>
                   <Input
@@ -1141,12 +1141,12 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_email || ""}
                     onChange={(e) => updateContactField("contact_email", e.target.value)}
                     placeholder="contact@company.com"
-                    className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                    className="h-10 px-3 text-[13px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contactPhone" className="text-[13px] font-medium text-foreground">
+                  <Label htmlFor="contactPhone" className="text-[12px] font-medium text-foreground">
                     Business Phone
                   </Label>
                   <Input
@@ -1155,20 +1155,20 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_phone || ""}
                     onChange={(e) => updateContactField("contact_phone", e.target.value)}
                     placeholder="+1 234-567-8900"
-                    className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                    className="h-10 px-3 text-[13px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                   />
                 </div>
               </div>
 
               {/* Address Section */}
               <div className="space-y-4 pt-4 border-t border-slate-200">
-                <h3 className="text-[14px] font-medium text-slate-700">
+                <h3 className="text-[13px] font-medium text-slate-700">
                   Business Address
                 </h3>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="addressLine1" className="text-[13px] font-medium text-foreground">
+                    <Label htmlFor="addressLine1" className="text-[12px] font-medium text-foreground">
                       Street Address
                     </Label>
                     <Input
@@ -1177,12 +1177,12 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_address_line1 || ""}
                       onChange={(e) => updateContactField("business_address_line1", e.target.value)}
                       placeholder="123 Main Street"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="addressLine2" className="text-[13px] font-medium text-foreground">
+                    <Label htmlFor="addressLine2" className="text-[12px] font-medium text-foreground">
                       Address Line 2 <span className="text-muted-foreground">(Optional)</span>
                     </Label>
                     <Input
@@ -1191,13 +1191,13 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_address_line2 || ""}
                       onChange={(e) => updateContactField("business_address_line2", e.target.value)}
                       placeholder="Suite 100, Floor 2"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="city" className="text-[13px] font-medium text-foreground">
+                      <Label htmlFor="city" className="text-[12px] font-medium text-foreground">
                         City
                       </Label>
                       <Input
@@ -1206,12 +1206,12 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_city || ""}
                         onChange={(e) => updateContactField("business_city", e.target.value)}
                         placeholder="San Francisco"
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="state" className="text-[13px] font-medium text-foreground">
+                      <Label htmlFor="state" className="text-[12px] font-medium text-foreground">
                         State / Province
                       </Label>
                       <Input
@@ -1220,12 +1220,12 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_state || ""}
                         onChange={(e) => updateContactField("business_state", e.target.value)}
                         placeholder="CA"
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="postalCode" className="text-[13px] font-medium text-foreground">
+                      <Label htmlFor="postalCode" className="text-[12px] font-medium text-foreground">
                         Postal Code
                       </Label>
                       <Input
@@ -1234,12 +1234,12 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_postal_code || ""}
                         onChange={(e) => updateContactField("business_postal_code", e.target.value)}
                         placeholder="94102"
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="country" className="text-[13px] font-medium text-foreground">
+                      <Label htmlFor="country" className="text-[12px] font-medium text-foreground">
                         Country Code
                       </Label>
                       <Input
@@ -1249,7 +1249,7 @@ export default function OrganizationSettingsPage() {
                         onChange={(e) => updateContactField("business_country", e.target.value.toUpperCase())}
                         placeholder="US"
                         maxLength={2}
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] uppercase"
+                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] uppercase"
                       />
                       <p className="text-[11px] text-muted-foreground">ISO 3166-1 (e.g., US, GB, IN)</p>
                     </div>
@@ -1273,7 +1273,7 @@ export default function OrganizationSettingsPage() {
           <Button
             onClick={handleSaveContactDetails}
             disabled={isSavingContactDetails || !hasContactChanges}
-            className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+            className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50"
           >
             {isSavingContactDetails ? (
               <>
@@ -1293,7 +1293,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleResetContactDetails}
               disabled={isSavingContactDetails}
               variant="outline"
-              className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1311,8 +1311,8 @@ export default function OrganizationSettingsPage() {
               <Activity className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[17px] font-semibold text-slate-900">Backend Connection</h2>
-              <p className="text-[13px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-slate-900">Backend Connection</h2>
+              <p className="text-[12px] text-slate-500">
                 BigQuery backend status and API key
               </p>
             </div>
@@ -1323,7 +1323,7 @@ export default function OrganizationSettingsPage() {
           {loadingBackendStatus ? (
             <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
-              <span className="text-[14px] text-muted-foreground">Checking connection...</span>
+              <span className="text-[13px] text-muted-foreground">Checking connection...</span>
             </div>
           ) : (
             <>
@@ -1352,10 +1352,10 @@ export default function OrganizationSettingsPage() {
                     } animate-ping opacity-75`} />
                   </div>
                   <div>
-                    <p className="text-[17px] font-semibold text-slate-900">
+                    <p className="text-[16px] font-semibold text-slate-900">
                       {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
                     </p>
-                    <p className="text-[13px] text-slate-600">
+                    <p className="text-[12px] text-slate-600">
                       {apiKeyValid === false
                         ? "API key is invalid or inactive in backend"
                         : backendOnboarded
@@ -1392,8 +1392,8 @@ export default function OrganizationSettingsPage() {
                       <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#1a7a3a]'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium text-slate-900">API Key</p>
-                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-slate-600'}`}>
+                      <p className="text-[14px] font-medium text-slate-900">API Key</p>
+                      <p className={`text-[12px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-slate-600'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
@@ -1411,7 +1411,7 @@ export default function OrganizationSettingsPage() {
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <p className="text-[13px] text-slate-600">
+                  <p className="text-[12px] text-slate-600">
                     <strong className="text-slate-700">How to fix:</strong> Your API key may have been rotated or deactivated.
                     Try "Resync Connection" below or contact support.
                   </p>
@@ -1426,7 +1426,7 @@ export default function OrganizationSettingsPage() {
             <Button
               onClick={handleResync}
               disabled={isResyncing || loadingBackendStatus}
-              className={`h-11 px-6 text-[13px] font-semibold rounded-xl transition-all ${
+              className={`h-11 px-6 text-[12px] font-semibold rounded-xl transition-all ${
                 (!backendOnboarded || apiKeyValid === false)
                   ? "bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 shadow-sm hover:shadow-md"
                   : "border-2 border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:shadow-sm"
@@ -1444,7 +1444,7 @@ export default function OrganizationSettingsPage() {
                 </>
               )}
             </Button>
-            <p className="text-[12px] text-slate-900/50 mt-2">
+            <p className="text-[11px] text-slate-900/50 mt-2">
               {(!backendOnboarded || apiKeyValid === false)
                 ? "Re-onboard your organization to generate a new API key and restore backend connection"
                 : "Re-synchronize your organization's locale and subscription data with the backend"}
@@ -1464,8 +1464,8 @@ export default function OrganizationSettingsPage() {
             <AlertTriangle className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h2 className="text-[22px] font-bold text-[#FF6C5E] tracking-tight">Danger Zone</h2>
-            <p className="text-[13px] text-slate-900/50 mt-1">
+            <h2 className="text-[20px] font-bold text-[#FF6C5E] tracking-tight">Danger Zone</h2>
+            <p className="text-[12px] text-slate-900/50 mt-1">
               Irreversible actions that require careful consideration
             </p>
           </div>
@@ -1477,7 +1477,7 @@ export default function OrganizationSettingsPage() {
             <div className="p-8">
               <div className="flex items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]" />
-                <span className="ml-2 text-[15px] text-slate-900/50">Loading organizations...</span>
+                <span className="ml-2 text-[14px] text-slate-900/50">Loading organizations...</span>
               </div>
             </div>
           </div>
@@ -1489,8 +1489,8 @@ export default function OrganizationSettingsPage() {
                   <Building2 className="h-5 w-5 text-[#FF6C5E]" />
                 </div>
                 <div>
-                  <h3 className="text-[17px] font-bold text-[#FF6C5E] tracking-tight">Organizations You Own</h3>
-                  <p className="text-[13px] text-slate-900/50">
+                  <h3 className="text-[16px] font-bold text-[#FF6C5E] tracking-tight">Organizations You Own</h3>
+                  <p className="text-[12px] text-slate-900/50">
                     Transfer ownership or delete before deleting your account
                   </p>
                 </div>
@@ -1507,8 +1507,8 @@ export default function OrganizationSettingsPage() {
                       <Building2 className="h-5 w-5 text-slate-900/40" />
                     </div>
                     <div>
-                      <p className="text-[15px] font-semibold text-slate-900">{org.org_name}</p>
-                      <div className="flex items-center gap-2 text-[12px] text-slate-900/50">
+                      <p className="text-[14px] font-semibold text-slate-900">{org.org_name}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-900/50">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
                         <Badge className="ml-1 bg-[#FF6C5E]/10 text-[#FF6C5E] border-0 text-[10px] font-semibold px-2 py-0.5">Owner</Badge>
@@ -1521,7 +1521,7 @@ export default function OrganizationSettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => openTransferDialog(org)}
-                        className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+                        className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
                       >
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Transfer
@@ -1531,7 +1531,7 @@ export default function OrganizationSettingsPage() {
                       variant="destructive"
                       size="sm"
                       onClick={() => openDeleteOrgDialog(org)}
-                      className="h-11 px-5 text-[13px] font-semibold rounded-xl bg-[#FF6C5E] hover:bg-[#E55A4E] text-white shadow-sm hover:shadow-md transition-all"
+                      className="h-11 px-5 text-[12px] font-semibold rounded-xl bg-[#FF6C5E] hover:bg-[#E55A4E] text-white shadow-sm hover:shadow-md transition-all"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -1679,8 +1679,8 @@ export default function OrganizationSettingsPage() {
                 <AlertTriangle className="h-5 w-5 text-[#FF6C5E]" />
               </div>
               <div>
-                <h3 className="text-[17px] font-bold text-[#FF6C5E] tracking-tight">Delete Account</h3>
-                <p className="text-[13px] text-slate-900/50">
+                <h3 className="text-[16px] font-bold text-[#FF6C5E] tracking-tight">Delete Account</h3>
+                <p className="text-[12px] text-slate-900/50">
                   Permanently delete your account and all associated data
                 </p>
               </div>
@@ -1693,7 +1693,7 @@ export default function OrganizationSettingsPage() {
                   <Mail className="h-5 w-5 text-[#1a7a3a] mt-0.5" />
                   <div>
                     <p className="font-semibold text-[#1a7a3a]">Verification email sent!</p>
-                    <p className="text-[13px] text-slate-900/60 mt-1">
+                    <p className="text-[12px] text-slate-900/60 mt-1">
                       Please check your inbox and click the confirmation link to complete account deletion.
                       The link will expire in 30 minutes.
                     </p>
@@ -1704,7 +1704,7 @@ export default function OrganizationSettingsPage() {
               <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 to-transparent border border-[#FF6C5E]/20">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-[#FF6C5E] mt-0.5" />
-                  <p className="text-[13px] text-[#FF6C5E] font-medium">
+                  <p className="text-[12px] text-[#FF6C5E] font-medium">
                     You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
                     Please transfer ownership or delete them before deleting your account.
                   </p>
@@ -1714,7 +1714,7 @@ export default function OrganizationSettingsPage() {
               <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 to-transparent border border-[#FF6C5E]/20">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-[#FF6C5E] mt-0.5" />
-                  <p className="text-[13px] text-[#FF6C5E] font-medium">
+                  <p className="text-[12px] text-[#FF6C5E] font-medium">
                     Deleting your account will permanently remove you from all organizations and cannot be
                     undone. Your data will be lost forever.
                   </p>
@@ -1728,7 +1728,7 @@ export default function OrganizationSettingsPage() {
                 <Button
                   variant="destructive"
                   disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                  className="h-11 px-6 text-[13px] font-semibold rounded-xl bg-[#FF6C5E] hover:bg-[#E55A4E] text-white shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+                  className="h-11 px-6 text-[12px] font-semibold rounded-xl bg-[#FF6C5E] hover:bg-[#E55A4E] text-white shadow-sm hover:shadow-md transition-all disabled:opacity-50"
                 >
                   {isRequestingDeletion ? (
                     <>

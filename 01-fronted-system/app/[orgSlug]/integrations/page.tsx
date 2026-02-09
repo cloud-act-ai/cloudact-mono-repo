@@ -197,10 +197,10 @@ export default function IntegrationsPage() {
                 <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
               </div>
               <div>
-                <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
                   Integrations
                 </h1>
-                <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                   Connect cloud providers, LLM APIs, and subscription services
                 </p>
               </div>
@@ -222,10 +222,10 @@ export default function IntegrationsPage() {
             <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               Integrations
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Connect cloud providers, LLM APIs, and subscription services
             </p>
           </div>
@@ -240,15 +240,15 @@ export default function IntegrationsPage() {
               <AlertCircle className="h-5 w-5 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-slate-600 mt-1">
+              <p className="text-[12px] text-slate-600 mt-1">
                 Complete organization onboarding to configure integrations.
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-slate-900 hover:text-slate-700 transition-colors"
+                className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-semibold text-slate-900 hover:text-slate-700 transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-4 w-4" />
@@ -266,7 +266,7 @@ export default function IntegrationsPage() {
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] shadow-[0_0_8px_rgba(144,252,166,0.5)] animate-pulse"></div>
-            <span className="text-[13px] sm:text-[14px] text-slate-600">
+            <span className="text-[12px] sm:text-[13px] text-slate-600">
               <span className="font-bold text-slate-900">{connectedCount}</span> Connected
             </span>
           </div>
@@ -275,7 +275,7 @@ export default function IntegrationsPage() {
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
               <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
             </div>
-            <span className="text-[13px] sm:text-[14px] text-slate-600">
+            <span className="text-[12px] sm:text-[13px] text-slate-600">
               <span className="font-bold text-slate-900">{cloudCount}</span> Cloud
             </span>
           </div>
@@ -284,7 +284,7 @@ export default function IntegrationsPage() {
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
               <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#FF6C5E]" />
             </div>
-            <span className="text-[13px] sm:text-[14px] text-slate-600">
+            <span className="text-[12px] sm:text-[13px] text-slate-600">
               <span className="font-bold text-slate-900">{genaiCount}</span> GenAI
             </span>
           </div>
@@ -293,7 +293,7 @@ export default function IntegrationsPage() {
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-slate-100 flex items-center justify-center">
               <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" />
             </div>
-            <span className="text-[13px] sm:text-[14px] text-slate-600">
+            <span className="text-[12px] sm:text-[13px] text-slate-600">
               <span className="font-bold text-slate-900">{saasCount}</span> SaaS
             </span>
           </div>
@@ -302,7 +302,7 @@ export default function IntegrationsPage() {
 
       {/* Integration Categories - Ultra-premium styling */}
       <div className="space-y-5">
-        <h2 className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Categories</h2>
+        <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Categories</h2>
 
         <div className="space-y-3">
           {INTEGRATION_CATEGORIES.map((category) => {
@@ -331,8 +331,8 @@ export default function IntegrationsPage() {
                         <Icon className="h-5 w-5 sm:h-7 sm:w-7" style={{ color: getAccentStyle(category.accent).css }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[16px] sm:text-[18px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors">{category.name}</h3>
-                        <p className="text-[12px] sm:text-[13px] text-slate-500 mt-0.5 sm:mt-1">{category.description}</p>
+                        <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors">{category.name}</h3>
+                        <p className="text-[11px] sm:text-[12px] text-slate-500 mt-0.5 sm:mt-1">{category.description}</p>
                       </div>
                     </div>
 
@@ -395,8 +395,8 @@ export default function IntegrationsPage() {
             <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[16px] sm:text-[18px] font-bold text-slate-900">Enterprise Security</h3>
-            <p className="text-[13px] sm:text-[14px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
+            <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900">Enterprise Security</h3>
+            <p className="text-[12px] sm:text-[13px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
               All credentials are encrypted using Google Cloud KMS. Your integration keys are protected with AES-256 encryption and never stored in plain text.
             </p>
           </div>

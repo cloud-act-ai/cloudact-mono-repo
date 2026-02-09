@@ -35,11 +35,14 @@ import {
   Calendar,
   History,
   Settings,
+  MessageSquare,
+  FileText,
+  Minus,
+  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { getOrgDetails } from "@/actions/organization-locale"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 interface MobileNavProps {
   isOpen: boolean
@@ -93,6 +96,7 @@ interface NavItem {
   title: string
   href: string
   icon: React.ComponentType<{ className?: string }>
+  placeholder?: boolean
 }
 
 interface NavGroup {
@@ -104,14 +108,15 @@ function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
   const isOwner = userRole === "owner"
   return [
     {
-      label: "Dashboard",
+      label: "Chat",
       items: [
-        { title: "Dashboard", href: `/${orgSlug}/dashboard`, icon: LayoutDashboard },
+        { title: "Chat", href: `/${orgSlug}/chat`, icon: MessageSquare, placeholder: true },
       ],
     },
     {
-      label: "Cost Analytics",
+      label: "Control",
       items: [
+        { title: "Dashboard", href: `/${orgSlug}/dashboard`, icon: LayoutDashboard },
         { title: "Overview", href: `/${orgSlug}/cost-dashboards/overview`, icon: BarChart3 },
         { title: "GenAI Costs", href: `/${orgSlug}/cost-dashboards/genai-costs`, icon: Sparkles },
         { title: "Cloud Costs", href: `/${orgSlug}/cost-dashboards/cloud-costs`, icon: Cloud },
@@ -154,6 +159,12 @@ function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
         ...(isOwner ? [{ title: "Billing", href: `/${orgSlug}/billing`, icon: CreditCard }] : []),
       ],
     },
+    {
+      label: "Resources",
+      items: [
+        { title: "Docs", href: "/user-docs", icon: FileText },
+      ],
+    },
   ]
 }
 
@@ -173,6 +184,19 @@ export function MobileNav({
 
   const formattedOrgName = formatOrgName(orgName)
   const navGroups = getNavGroups(orgSlug, userRole)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -223,81 +247,98 @@ export function MobileNav({
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
 
       {/* Navigation Panel */}
-      <div className="absolute inset-y-0 left-0 w-[280px] bg-white dark:bg-slate-900 shadow-xl flex flex-col animate-in slide-in-from-left duration-200 z-10">
+      <div className="absolute inset-y-0 left-0 w-[280px] bg-white shadow-xl flex flex-col animate-in slide-in-from-left duration-200 z-10">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg overflow-hidden bg-white border border-slate-200 shadow-sm flex items-center justify-center flex-shrink-0">
               {logoUrl ? (
-                <Image src={logoUrl} alt={formattedOrgName} width={32} height={32} className="object-contain" />
+                <Image src={logoUrl} alt={formattedOrgName} width={36} height={36} className="object-contain" />
               ) : (
-                <Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                <Building2 className="h-4 w-4 text-slate-400" />
               )}
             </div>
-            <span className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate">
-              {formattedOrgName}
-            </span>
+            <div className="min-w-0">
+              <p className="text-[12px] font-black text-slate-900 tracking-wide uppercase leading-tight truncate">
+                {formattedOrgName}
+              </p>
+              <p className="text-[9px] font-semibold text-slate-400 tracking-wider uppercase leading-tight">
+                Cost Analytics
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+            <X className="h-5 w-5 text-slate-500" />
           </button>
         </div>
 
-        {/* Navigation Content - Flat grouped like desktop */}
-        <div className="flex-1 overflow-y-auto py-2">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              {/* Group Label with dash separator */}
-              <div className="px-4 pt-3 pb-1 flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  {group.label}
-                </span>
-                <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
-              </div>
+        {/* Navigation Content - OpenClaw grouped style */}
+        <div className="flex-1 overflow-y-auto py-1">
+          {navGroups.map((group) => {
+            const isGroupCollapsed = collapsedGroups.has(group.label)
+            return (
+              <div key={group.label}>
+                {/* Group Label with toggle */}
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="w-full px-4 pt-4 pb-2 flex items-center justify-between group cursor-pointer"
+                >
+                  <span className="text-[11px] font-semibold text-slate-400 tracking-wide">
+                    {group.label}
+                  </span>
+                  <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
+                    {isGroupCollapsed
+                      ? <Plus className="h-3.5 w-3.5" />
+                      : <Minus className="h-3.5 w-3.5" />
+                    }
+                  </span>
+                </button>
 
-              {/* Group Items */}
-              <div className="px-2 pb-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  const active = isActive(item.href.split("?")[0], item.href.endsWith("/dashboard"))
+                {/* Group Items */}
+                {!isGroupCollapsed && (
+                  <div className="px-2 pb-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const active = item.placeholder ? false : isActive(item.href.split("?")[0], item.href.endsWith("/dashboard"))
 
-                  return (
-                    <button
-                      key={item.href}
-                      type="button"
-                      onClick={() => handleNavigation(item.href)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[44px]",
-                        active
-                          ? cn(
-                              "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold",
-                              "relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2",
-                              "before:w-[3px] before:h-4 before:bg-[var(--cloudact-mint)] before:rounded-r-full"
-                            )
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200"
-                      )}
-                    >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="text-[13px]">{item.title}</span>
-                    </button>
-                  )
-                })}
+                      return (
+                        <button
+                          key={item.href}
+                          type="button"
+                          onClick={() => !item.placeholder && handleNavigation(item.href)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[42px]",
+                            active
+                              ? "bg-[#90FCA6]/15 text-slate-900 font-semibold"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                            item.placeholder && "opacity-50 cursor-not-allowed"
+                          )}
+                        >
+                          <Icon className={cn(
+                            "h-4 w-4 flex-shrink-0",
+                            active ? "text-[#16a34a]" : ""
+                          )} />
+                          <span className="text-[13px]">{item.title}</span>
+                          {item.placeholder && (
+                            <span className="ml-auto text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                              Soon
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-100 dark:border-slate-800 p-4 space-y-3">
-          {/* Theme Toggle */}
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Theme</span>
-            <ThemeToggle compact />
-          </div>
-
+        <div className="border-t border-slate-100 p-4 space-y-3">
           {/* User Info */}
           <button
             type="button"
@@ -305,8 +346,8 @@ export function MobileNav({
             className={cn(
               "w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-colors min-h-[44px]",
               isActive(`/${orgSlug}/settings/personal`)
-                ? "bg-slate-100 dark:bg-slate-800"
-                : "hover:bg-slate-50 dark:hover:bg-slate-800"
+                ? "bg-slate-100"
+                : "hover:bg-slate-50"
             )}
           >
             <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]">
@@ -315,8 +356,8 @@ export function MobileNav({
               </span>
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-[12px] font-semibold text-slate-900 dark:text-slate-200 truncate">{userName}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{userEmail}</p>
+              <p className="text-[11px] font-semibold text-slate-900 truncate">{userName}</p>
+              <p className="text-[10px] text-slate-500 truncate">{userEmail}</p>
             </div>
           </button>
 
@@ -325,7 +366,7 @@ export function MobileNav({
             <Link
               href="/user-docs"
               target="_blank"
-              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[12px] font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
             >
               <HelpCircle className="h-3.5 w-3.5" />
               Help
@@ -333,7 +374,7 @@ export function MobileNav({
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[12px] font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-colors"
             >
               <LogOut className="h-3.5 w-3.5" />
               {isLoggingOut ? "..." : "Sign Out"}

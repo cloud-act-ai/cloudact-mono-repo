@@ -90,7 +90,7 @@ export function ChartEmptyState({
       {action && (
         <button
           onClick={action.onClick}
-          className="mt-4 inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors"
+          className="mt-4 inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-[12px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors"
         >
           {action.label}
         </button>

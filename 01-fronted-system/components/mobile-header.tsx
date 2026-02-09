@@ -132,7 +132,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
                 <Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
               )}
             </div>
-            <span className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[120px]">
+            <span className="text-[12px] font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[120px]">
               {formattedOrgName}
             </span>
           </Link>

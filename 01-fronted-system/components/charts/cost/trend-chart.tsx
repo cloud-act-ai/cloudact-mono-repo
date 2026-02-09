@@ -13,7 +13,7 @@
 import React, { useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
-import { useChartConfig } from "../provider/chart-provider"
+import { useChartConfig, getCategoryChartColors } from "../provider/chart-provider"
 import { BaseComboChart, type SeriesConfig } from "../base/combo-chart"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -140,6 +140,9 @@ export function CostTrendChart({
   // Determine loading state
   const isLoading = propLoading ?? contextLoading
 
+  // Resolve colors: explicit prop > category from theme > default (genai)
+  const categoryColors = getCategoryChartColors(_category, theme)
+
   // Build series config
   const series = useMemo<SeriesConfig[]>(() => {
     const result: SeriesConfig[] = []
@@ -149,7 +152,7 @@ export function CostTrendChart({
         type: "bar",
         dataKey: "value",
         name: barLabel,
-        color: barColor || theme.primary,
+        color: barColor || categoryColors.bar,
         radius: [4, 4, 0, 0],
         maxBarSize: 40,
       })
@@ -160,7 +163,7 @@ export function CostTrendChart({
         type: "line",
         dataKey: "rollingAvg",
         name: lineLabel,
-        color: lineColor || theme.accent,
+        color: lineColor || categoryColors.line,
         strokeWidth: 2,
         showArea: showAreaFill,
         areaOpacity: 0.15,
@@ -168,12 +171,12 @@ export function CostTrendChart({
     }
 
     return result
-  }, [showBars, showLine, barLabel, lineLabel, barColor, lineColor, showAreaFill, theme])
+  }, [showBars, showLine, barLabel, lineLabel, barColor, lineColor, showAreaFill, categoryColors])
 
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-[15px] sm:text-[17px] font-bold text-slate-900">
+        <CardTitle className="text-[14px] sm:text-[16px] font-bold text-slate-900">
           {title}
         </CardTitle>
         {subtitle && (

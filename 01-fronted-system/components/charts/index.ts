@@ -13,6 +13,7 @@ export {
   ChartProvider,
   useChartConfig,
   getCategoryColor,
+  getCategoryChartColors,
   getPaletteColor,
   getGradientId,
   type ChartTheme,
@@ -160,14 +161,6 @@ export {
   ChartEmptyState,
   type ChartEmptyStateProps,
 } from "./shared/empty-state"
-
-// Zoom Brush
-export {
-  ZoomBrush,
-  RangeSlider,
-  type ZoomBrushProps,
-  type RangeSliderProps,
-} from "./shared/zoom-brush"
 
 // Data Table (TanStack Table)
 export {

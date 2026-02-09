@@ -27,6 +27,19 @@ from src.core.security.kms_encryption import decrypt_value
 logger = logging.getLogger(__name__)
 
 
+def _map_billing_status(billing_status: str) -> str:
+    """Map Supabase billing_status to subscription status used by the validator."""
+    mapping = {
+        "trialing": "TRIAL",
+        "active": "ACTIVE",
+        "past_due": "PAST_DUE",
+        "canceled": "CANCELED",
+        "unpaid": "UNPAID",
+        "incomplete": "INCOMPLETE",
+    }
+    return mapping.get(billing_status, billing_status.upper() if billing_status else "ACTIVE")
+
+
 def get_utc_date() -> date:
     """
     Get current date in UTC timezone.
@@ -579,24 +592,24 @@ async def get_current_org(
         try:
             supabase = get_supabase_client()
             sub_result = supabase.table("organizations").select(
-                "subscription_plan, subscription_status, pipelines_per_day_limit, "
+                "plan, billing_status, pipelines_per_day_limit, "
                 "pipelines_per_month_limit, concurrent_pipelines_limit, seat_limit, "
-                "providers_limit, trial_end_date, subscription_end_date, stripe_subscription_id"
+                "providers_limit, trial_ends_at, current_period_end, stripe_subscription_id"
             ).eq("org_slug", org_slug).single().execute()
 
             if sub_result.data:
                 sub_data = sub_result.data
                 subscription = {
                     "subscription_id": sub_data.get("stripe_subscription_id"),
-                    "plan_name": sub_data.get("subscription_plan", "STARTER"),
-                    "status": sub_data.get("subscription_status", "ACTIVE"),
+                    "plan_name": (sub_data.get("plan") or "starter").upper(),
+                    "status": _map_billing_status(sub_data.get("billing_status", "active")),
                     "daily_limit": sub_data.get("pipelines_per_day_limit") or settings.fallback_daily_limit,
                     "monthly_limit": sub_data.get("pipelines_per_month_limit") or settings.fallback_monthly_limit,
                     "concurrent_limit": sub_data.get("concurrent_pipelines_limit") or settings.fallback_concurrent_limit,
                     "seat_limit": sub_data.get("seat_limit"),
                     "providers_limit": sub_data.get("providers_limit"),
-                    "trial_end_date": sub_data.get("trial_end_date"),
-                    "subscription_end_date": sub_data.get("subscription_end_date")
+                    "trial_end_date": sub_data.get("trial_ends_at"),
+                    "subscription_end_date": sub_data.get("current_period_end")
                 }
             else:
                 # Fallback to defaults if no Supabase record

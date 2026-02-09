@@ -11,8 +11,8 @@ export function SecuritySection() {
              <ShieldCheck className="w-3 h-3" />
              Enterprise Grade Security
            </div>
-           <h2 className="text-3xl font-bold text-slate-900">Your data never leaves your cloud.</h2>
-           <p className="text-lg text-slate-600 leading-relaxed">
+           <h2 className="text-2xl font-bold text-slate-900">Your data never leaves your cloud.</h2>
+           <p className="text-base text-slate-600 leading-relaxed">
              We operate with a <strong>Zero-Data-Retention</strong> policy. Our engine analyzes metadata via read-only roles and processes logs ephemerally. 
              We are SOC2 Type II compliant and ISO 27001 certified.
            </p>

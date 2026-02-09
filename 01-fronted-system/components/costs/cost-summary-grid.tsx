@@ -208,7 +208,7 @@ export function CostComparisonBanner({
       <div className="text-right">
         <p
           className={cn(
-            "text-lg font-bold tabular-nums",
+            "text-base font-bold tabular-nums",
             getTrendColorClass(comparison.trend)
           )}
         >

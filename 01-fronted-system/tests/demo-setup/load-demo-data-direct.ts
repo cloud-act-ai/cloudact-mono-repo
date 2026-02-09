@@ -747,7 +747,7 @@ async function runGenAIPipeline(
         orgSlug,
         apiKey,
         'genai/unified/consolidate',
-        {}
+        { start_date: START_DATE, end_date: END_DATE }
     )
 
     if (result.status === 'PENDING' || result.status === 'RUNNING') {

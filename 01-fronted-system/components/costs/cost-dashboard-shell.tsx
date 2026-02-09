@@ -206,11 +206,11 @@ export function CostDashboardShell({
                   <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+                  <h1 className="text-lg sm:text-xl lg:text-[24px] font-bold text-slate-900 tracking-tight leading-tight">
                     {title}
                   </h1>
                   {subtitle && (
-                    <p className="text-xs sm:text-[13px] text-slate-500 mt-0.5 sm:mt-1">{subtitle}</p>
+                    <p className="text-xs sm:text-[12px] text-slate-500 mt-0.5 sm:mt-1">{subtitle}</p>
                   )}
                 </div>
               </div>

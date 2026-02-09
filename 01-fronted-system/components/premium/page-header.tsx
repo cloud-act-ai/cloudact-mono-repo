@@ -32,11 +32,11 @@ export function PremiumPageHeader({
           </div>
         )}
         <div>
-          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               {subtitle}
             </p>
           )}
@@ -73,7 +73,7 @@ export function PremiumPageHeaderAction({
 }: PremiumPageHeaderActionProps) {
   const baseStyles = cn(
     "inline-flex items-center justify-center gap-2 h-10 sm:h-11 px-4 sm:px-5",
-    "text-[13px] sm:text-[14px] font-semibold rounded-xl",
+    "text-[12px] sm:text-[13px] font-semibold rounded-xl",
     "transition-all duration-200 touch-manipulation",
     "disabled:opacity-50 disabled:cursor-not-allowed"
   )
@@ -137,7 +137,7 @@ export function PremiumRefreshButton({
       className={cn(
         "inline-flex items-center justify-center gap-2 h-9 px-4",
         "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a]",
-        "text-[13px] font-semibold rounded-lg",
+        "text-[12px] font-semibold rounded-lg",
         "hover:bg-[var(--cloudact-mint)]/20",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         "transition-colors",

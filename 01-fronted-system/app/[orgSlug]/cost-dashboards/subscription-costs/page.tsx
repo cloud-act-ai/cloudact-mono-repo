@@ -380,8 +380,7 @@ export default function SubscriptionCostsPage() {
             value: d.value,
           }))}
           timeRange={timeRange}
-          barColor="#FF6C5E"
-          lineColor="#10A37F"
+          category="subscription"
           height={320}
           mobileHeight={240}
           loading={isLoading}

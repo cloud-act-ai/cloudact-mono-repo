@@ -131,7 +131,7 @@ function DataFreshnessIndicator({ timestamp, label = "Last updated" }: DataFresh
 
   return (
     <div
-      className="flex items-center gap-1.5 text-[11px] sm:text-[12px] text-slate-400"
+      className="flex items-center gap-1.5 text-[11px] sm:text-[11px] text-slate-400"
       title={date.toLocaleString()}
     >
       <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
@@ -211,16 +211,16 @@ function ErrorAlert({ message, action }: ErrorAlertProps) {
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-[15px] font-semibold text-red-800">
+          <h3 className="text-[14px] font-semibold text-red-800">
             Error loading data
           </h3>
-          <p className="text-[13px] text-red-700 mt-1">{message}</p>
+          <p className="text-[12px] text-red-700 mt-1">{message}</p>
           {action && (
             <div className="mt-3">
               {action.href ? (
                 <Link
                   href={action.href}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-red-700 hover:text-red-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-700 hover:text-red-600 transition-colors"
                 >
                   {action.label}
                   <ChevronRight className="h-4 w-4" />
@@ -229,7 +229,7 @@ function ErrorAlert({ message, action }: ErrorAlertProps) {
                 <button
                   type="button"
                   onClick={action.onClick}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-red-700 hover:text-red-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-700 hover:text-red-600 transition-colors"
                 >
                   {action.label}
                   <ChevronRight className="h-4 w-4" />
@@ -255,7 +255,7 @@ function BreadcrumbNav({ items }: BreadcrumbNavProps) {
   if (items.length === 0) return null
 
   return (
-    <nav className="flex items-center gap-1.5 text-[12px] sm:text-[13px] text-slate-500 mb-3 sm:mb-4">
+    <nav className="flex items-center gap-1.5 text-[11px] sm:text-[12px] text-slate-500 mb-3 sm:mb-4">
       {items.map((item, index) => (
         <React.Fragment key={item.label}>
           {index > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
@@ -400,11 +400,11 @@ export function PremiumPageShell({
                 </div>
               )}
               <div>
-                <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+                <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
                   {title}
                 </h1>
                 {subtitle && (
-                  <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                  <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                     {subtitle}
                   </p>
                 )}
@@ -494,7 +494,7 @@ export function PremiumSection({
               </div>
             )}
             <div>
-              <h2 className="text-[11px] sm:text-[12px] font-bold text-slate-500 uppercase tracking-wider">
+              <h2 className="text-[11px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 {title}
               </h2>
               {subtitle && (
@@ -603,7 +603,7 @@ export function FeatureCard({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-[15px] sm:text-[17px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors truncate">
+              <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors truncate">
                 {title}
               </h3>
               {badge && (
@@ -612,7 +612,7 @@ export function FeatureCard({
                 </span>
               )}
             </div>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 line-clamp-2">
+            <p className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">
               {description}
             </p>
           </div>
@@ -681,7 +681,7 @@ export function StatsBar({ stats, className }: StatsBarProps) {
                 <stat.icon className="h-4 w-4" />
               </div>
             )}
-            <span className="text-[13px] sm:text-[14px] text-slate-600">
+            <span className="text-[12px] sm:text-[13px] text-slate-600">
               <span className="font-bold text-slate-900">{stat.value}</span>
               {" "}{stat.label}
             </span>

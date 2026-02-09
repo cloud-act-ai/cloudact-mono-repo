@@ -159,10 +159,10 @@ export default async function SettingsPage({
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+        <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-none">
           Dashboard Settings
         </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+        <p className="text-[14px] text-slate-500 mt-2 max-w-lg">
           Configure your organization, integrations, and preferences
         </p>
       </div>
@@ -174,8 +174,8 @@ export default async function SettingsPage({
             <Cloud className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{cloudCount}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Cloud Providers</p>
+            <p className="text-[20px] font-bold text-slate-900 leading-none">{cloudCount}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">Cloud Providers</p>
           </div>
         </div>
 
@@ -184,8 +184,8 @@ export default async function SettingsPage({
             <Brain className="h-5 w-5 text-[#8B5CF6]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{llmCount}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">GenAI Providers</p>
+            <p className="text-[20px] font-bold text-slate-900 leading-none">{llmCount}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">GenAI Providers</p>
           </div>
         </div>
 
@@ -194,8 +194,8 @@ export default async function SettingsPage({
             <Shield className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">Protected</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Security Status</p>
+            <p className="text-[20px] font-bold text-slate-900 leading-none">Protected</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">Security Status</p>
           </div>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default async function SettingsPage({
       {settingsSections.map((section) => (
         <section key={section.id} className="mb-10">
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
               {section.title}
             </h2>
           </div>
@@ -233,10 +233,10 @@ export default async function SettingsPage({
                         <Icon className="h-5 w-5" style={{ color: item.accent }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-semibold text-slate-900 truncate tracking-tight">
+                        <h3 className="text-[14px] font-semibold text-slate-900 truncate tracking-tight">
                           {item.label}
                         </h3>
-                        <p className="text-[12px] text-slate-500 font-medium mt-0.5">
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                           {item.description}
                         </p>
                       </div>
@@ -262,17 +262,17 @@ export default async function SettingsPage({
         <div className="h-12 w-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
           <Database className="h-5 w-5 text-slate-600" />
         </div>
-        <h3 className="text-[16px] font-semibold text-slate-900 mb-1">
+        <h3 className="text-[14px] font-semibold text-slate-900 mb-1">
           Need Help?
         </h3>
-        <p className="text-[13px] text-slate-500 mb-5 max-w-sm mx-auto">
+        <p className="text-[12px] text-slate-500 mb-5 max-w-sm mx-auto">
           Check our documentation or contact support for configuration assistance.
         </p>
         <div className="flex gap-3 justify-center">
-          <button className="h-10 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-[#000000] text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+          <button className="h-10 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-[#000000] text-[12px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
             View Docs
           </button>
-          <button className="h-10 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+          <button className="h-10 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[12px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
             Contact Support
           </button>
         </div>

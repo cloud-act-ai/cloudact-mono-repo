@@ -388,7 +388,7 @@ export default function PipelinesPage() {
       accessorKey: "pipeline_id",
       cell: (row) => (
         <div className="space-y-0.5">
-          <div className="text-[15px] font-semibold text-slate-900">
+          <div className="text-[14px] font-semibold text-slate-900">
             {row.pipeline_id}
           </div>
           <div className="text-[11px] text-slate-500 font-mono">
@@ -415,7 +415,7 @@ export default function PipelinesPage() {
       header: "Started",
       accessorKey: "start_time",
       cell: (row) => (
-        <div className="text-[13px] text-slate-700">
+        <div className="text-[12px] text-slate-700">
           {formatDateTime(row.start_time)}
         </div>
       ),
@@ -425,7 +425,7 @@ export default function PipelinesPage() {
       header: "Duration",
       accessorKey: "duration_ms",
       cell: (row) => (
-        <div className="flex items-center gap-1 text-[13px] text-slate-900 tabular-nums">
+        <div className="flex items-center gap-1 text-[12px] text-slate-900 tabular-nums">
           <Clock className="h-3 w-3 text-slate-500" />
           {formatDuration(row.duration_ms)}
         </div>
@@ -469,10 +469,10 @@ export default function PipelinesPage() {
           <Play className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
             Pipelines
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
             Run data pipelines to fetch your cloud data
           </p>
         </div>
@@ -489,16 +489,16 @@ export default function PipelinesPage() {
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-slate-600 mt-1">
+              <p className="text-[12px] text-slate-600 mt-1">
                 {!backendConnected
                   ? "Your organization is not connected to the pipeline backend."
                   : "Your organization API key is missing."}
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="mt-3 h-10 px-5 bg-slate-900 text-white text-[13px] font-semibold rounded-xl hover:bg-slate-800 transition-colors inline-flex items-center gap-2">
+                <button className="mt-3 h-10 px-5 bg-slate-900 text-white text-[12px] font-semibold rounded-xl hover:bg-slate-800 transition-colors inline-flex items-center gap-2">
                   <Cloud className="h-4 w-4" />
                   Go to Organization Settings
                 </button>
@@ -512,7 +512,7 @@ export default function PipelinesPage() {
       <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-          <p className="text-[13px] text-slate-700 font-medium">
+          <p className="text-[12px] text-slate-700 font-medium">
             Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
           </p>
         </div>
@@ -533,7 +533,7 @@ export default function PipelinesPage() {
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
           <p
-            className={`text-[13px] font-medium ${
+            className={`text-[12px] font-medium ${
               lastResult.success ? "text-[#1a7a3a]" : "text-rose-700"
             }`}
           >
@@ -544,7 +544,7 @@ export default function PipelinesPage() {
 
       {/* Available Pipelines */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Available Pipelines</h2>
+        <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Available Pipelines</h2>
         <PremiumCard>
           {connectedPipelines.length === 0 ? (
             <EmptyState
@@ -589,11 +589,11 @@ export default function PipelinesPage() {
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Run History</h2>
+            <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Run History</h2>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[13px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -632,7 +632,7 @@ export default function PipelinesPage() {
                 const detail = details as PipelineRunDetailType | undefined
                 if (!detail) {
                   return (
-                    <div className="text-center text-slate-500 text-[13px] py-6">
+                    <div className="text-center text-slate-500 text-[12px] py-6">
                       Failed to load details
                     </div>
                   )
@@ -691,7 +691,7 @@ export default function PipelinesPage() {
 
       {/* Coming Soon */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 text-center">
-        <p className="text-[13px] text-slate-500 font-medium">
+        <p className="text-[12px] text-slate-500 font-medium">
           More pipelines coming soon: AWS Cost Explorer, Azure, LLM Usage Analytics
         </p>
       </div>

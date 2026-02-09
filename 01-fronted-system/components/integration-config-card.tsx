@@ -239,8 +239,8 @@ export function IntegrationConfigCard({
               />
             )}
             <div className="min-w-0">
-              <CardTitle className="text-[18px] font-bold text-slate-900 tracking-tight">{providerName}</CardTitle>
-              <CardDescription className="text-[13px] text-slate-500 mt-1 line-clamp-2">{providerDescription}</CardDescription>
+              <CardTitle className="text-[16px] font-bold text-slate-900 tracking-tight">{providerName}</CardTitle>
+              <CardDescription className="text-[12px] text-slate-500 mt-1 line-clamp-2">{providerDescription}</CardDescription>
             </div>
           </div>
           <StatusBadge status={status} />
@@ -260,7 +260,7 @@ export function IntegrationConfigCard({
           >
             <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
             <AlertTitle className="text-[#FF6C5E] font-semibold">Validation Error</AlertTitle>
-            <AlertDescription className="text-slate-700 mt-1 text-[13px]">{integration.last_error}</AlertDescription>
+            <AlertDescription className="text-slate-700 mt-1 text-[12px]">{integration.last_error}</AlertDescription>
           </Alert>
         )}
 
@@ -275,7 +275,7 @@ export function IntegrationConfigCard({
             <div className="space-y-3">
               <Label
                 htmlFor={`${provider}-credential`}
-                className="text-[14px] font-semibold text-slate-700"
+                className="text-[13px] font-semibold text-slate-700"
               >
                 {provider === "gcp" ? "Service Account JSON" : "API Key"}
               </Label>
@@ -283,7 +283,7 @@ export function IntegrationConfigCard({
                 <textarea
                   id={`${provider}-credential`}
                   className={cn(
-                    "flex min-h-[150px] w-full rounded-xl px-4 py-3 text-[14px] font-mono",
+                    "flex min-h-[150px] w-full rounded-xl px-4 py-3 text-[13px] font-mono",
                     "bg-white border border-slate-200",
                     "placeholder:text-slate-400 text-slate-900",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint)]/40 focus-visible:border-[var(--cloudact-mint)]",
@@ -308,7 +308,7 @@ export function IntegrationConfigCard({
                   disabled={localLoading}
                   aria-describedby={validationError ? `${provider}-error` : undefined}
                   className={cn(
-                    "h-12 rounded-xl font-mono text-[14px]",
+                    "h-12 rounded-xl font-mono text-[13px]",
                     "bg-white border border-slate-200",
                     "placeholder:text-slate-400",
                     "focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint)]/40 focus-visible:border-[var(--cloudact-mint)]",
@@ -318,11 +318,11 @@ export function IntegrationConfigCard({
                   )}
                 />
               )}
-              <p className="text-[12px] text-slate-500">{helperText}</p>
+              <p className="text-[11px] text-slate-500">{helperText}</p>
               {validationError && (
                 <p
                   id={`${provider}-error`}
-                  className="text-[12px] text-[#FF6C5E] font-medium flex items-center gap-1.5"
+                  className="text-[11px] text-[#FF6C5E] font-medium flex items-center gap-1.5"
                   role="alert"
                 >
                   <AlertCircle className="h-3.5 w-3.5" />
@@ -335,7 +335,7 @@ export function IntegrationConfigCard({
                 onClick={handleSetup}
                 disabled={!credential.trim() || localLoading}
                 className={cn(
-                  "h-11 px-5 rounded-xl text-[14px] font-semibold",
+                  "h-11 px-5 rounded-xl text-[13px] font-semibold",
                   "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
                   "text-slate-900 shadow-sm",
                   "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
@@ -354,7 +354,7 @@ export function IntegrationConfigCard({
                   setCredential("")
                 }}
                 className={cn(
-                  "h-11 px-5 rounded-xl text-[14px] font-medium",
+                  "h-11 px-5 rounded-xl text-[13px] font-medium",
                   "bg-white border border-slate-200",
                   "hover:bg-slate-50 hover:border-slate-300",
                   "transition-all duration-200"
@@ -381,10 +381,10 @@ export function IntegrationConfigCard({
                 <Key className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold text-slate-900">
+                <p className="text-[14px] font-semibold text-slate-900">
                   {integration?.credential_name || `${providerName} Credential`}
                 </p>
-                <div className="flex flex-wrap items-center gap-3 mt-1 text-[12px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-500">
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
                     Last validated: {formatDate(integration?.last_validated_at)}
@@ -406,7 +406,7 @@ export function IntegrationConfigCard({
               "border border-[var(--cloudact-mint)]/10"
             )}>
               <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-              <span className="text-[12px] text-slate-600 leading-relaxed">
+              <span className="text-[11px] text-slate-600 leading-relaxed">
                 Credentials are encrypted using Google Cloud KMS with AES-256 encryption.
               </span>
             </div>
@@ -421,14 +421,14 @@ export function IntegrationConfigCard({
             )}>
               <Sparkles className="h-7 w-7 text-slate-400" />
             </div>
-            <p className="text-[15px] text-slate-600 mb-6 max-w-md mx-auto leading-relaxed">
+            <p className="text-[14px] text-slate-600 mb-6 max-w-md mx-auto leading-relaxed">
               No {providerName} integration configured. Connect to start tracking usage and costs.
             </p>
             <Button
               onClick={() => setShowSetup(true)}
               size="lg"
               className={cn(
-                "h-12 px-6 rounded-xl text-[15px] font-semibold",
+                "h-12 px-6 rounded-xl text-[14px] font-semibold",
                 "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
                 "text-slate-900 shadow-sm",
                 "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
@@ -457,7 +457,7 @@ export function IntegrationConfigCard({
               onClick={handleValidate}
               disabled={isLoading || localLoading}
               className={cn(
-                "h-10 px-4 rounded-xl text-[13px] font-medium",
+                "h-10 px-4 rounded-xl text-[12px] font-medium",
                 "bg-white border border-slate-200",
                 "text-[#1a7a3a] hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30",
                 "shadow-sm hover:shadow",
@@ -476,7 +476,7 @@ export function IntegrationConfigCard({
               size="sm"
               onClick={() => setShowSetup(true)}
               className={cn(
-                "h-10 px-4 rounded-xl text-[13px] font-medium",
+                "h-10 px-4 rounded-xl text-[12px] font-medium",
                 "bg-white border border-slate-200",
                 "hover:bg-slate-50 hover:border-slate-300",
                 "shadow-sm hover:shadow",
@@ -495,7 +495,7 @@ export function IntegrationConfigCard({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-xl text-[13px] font-medium",
+                  "h-10 px-4 rounded-xl text-[12px] font-medium",
                   "text-[#FF6C5E] hover:text-[#FF6C5E]",
                   "hover:bg-[var(--cloudact-coral)]/10",
                   "transition-all duration-200"
@@ -507,10 +507,10 @@ export function IntegrationConfigCard({
             </DialogTrigger>
             <DialogContent className="sm:max-w-[480px] rounded-2xl border-slate-200/80 shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-[20px] font-bold text-slate-900 tracking-tight">
+                <DialogTitle className="text-[18px] font-bold text-slate-900 tracking-tight">
                   Remove {providerName} Integration
                 </DialogTitle>
-                <DialogDescription className="text-[14px] text-slate-500 mt-2 leading-relaxed">
+                <DialogDescription className="text-[13px] text-slate-500 mt-2 leading-relaxed">
                   Are you sure you want to remove this integration? This will delete the stored credentials and any
                   pipelines using this integration will stop working.
                 </DialogDescription>
@@ -520,7 +520,7 @@ export function IntegrationConfigCard({
                   variant="outline"
                   onClick={() => setShowDeleteDialog(false)}
                   className={cn(
-                    "h-11 px-5 rounded-xl text-[14px] font-medium",
+                    "h-11 px-5 rounded-xl text-[13px] font-medium",
                     "bg-white border border-slate-200",
                     "hover:bg-slate-50 hover:border-slate-300",
                     "transition-all duration-200"
@@ -533,7 +533,7 @@ export function IntegrationConfigCard({
                   onClick={handleDelete}
                   disabled={localLoading}
                   className={cn(
-                    "h-11 px-5 rounded-xl text-[14px] font-semibold",
+                    "h-11 px-5 rounded-xl text-[13px] font-semibold",
                     "bg-[var(--cloudact-coral)] hover:bg-[#e55a4d]",
                     "text-white shadow-sm",
                     "hover:shadow-[0_4px_20px_rgba(255,108,94,0.3)]",

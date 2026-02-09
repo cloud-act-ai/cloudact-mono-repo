@@ -108,7 +108,7 @@ export const defaultChartTheme: ChartTheme = {
     "#7C3AED",  // Purple (High contrast)
     "#FF9900",  // AWS Orange
     "#0078D4",  // Azure Blue
-    "#90FCA6",  // Mint (Brand primary)
+    "#F59E0B",  // Amber/Gold — NOTE: #90FCA6 (mint) is brand-only, NOT for chart data fills
     "#1DA1F2",  // Twitter Blue (SaaS)
   ],
 
@@ -293,6 +293,22 @@ export function getCategoryColor(
   theme: ChartTheme = defaultChartTheme
 ): string {
   return theme.categories[category]
+}
+
+/**
+ * Get bar + line color pair for a cost category.
+ * Pages use `category="cloud"` instead of hardcoded hex strings.
+ */
+export function getCategoryChartColors(
+  category: "genai" | "cloud" | "subscription" | undefined,
+  theme: ChartTheme = defaultChartTheme
+): { bar: string; line: string } {
+  switch (category) {
+    case "genai":        return { bar: theme.categories.genai, line: theme.accent }
+    case "cloud":        return { bar: theme.categories.cloud, line: theme.accent }
+    case "subscription": return { bar: theme.categories.subscription, line: theme.categories.genai }
+    default:             return { bar: theme.categories.genai, line: theme.accent }
+  }
 }
 
 /**

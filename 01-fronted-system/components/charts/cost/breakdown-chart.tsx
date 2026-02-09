@@ -199,7 +199,7 @@ function CostBreakdownChartInner({
         <div className="flex items-center justify-between">
           <CardTitle
             id={`${chartId}-title`}
-            className="text-[15px] sm:text-[17px] font-bold text-slate-900"
+            className="text-[14px] sm:text-[16px] font-bold text-slate-900"
           >
             {title}
           </CardTitle>

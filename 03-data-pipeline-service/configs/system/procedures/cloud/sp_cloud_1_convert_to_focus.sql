@@ -118,7 +118,7 @@ BEGIN
          x_hierarchy_entity_id, x_hierarchy_entity_name,
          x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
          x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+         x_ingestion_date, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to lookup hierarchy from resource tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -223,6 +223,7 @@ BEGIN
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
+          @p_start as x_ingestion_date,
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
           @p_start as x_pipeline_run_date,
@@ -280,7 +281,7 @@ BEGIN
          x_hierarchy_entity_id, x_hierarchy_entity_name,
          x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
          x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+         x_ingestion_date, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to lookup hierarchy from resource tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -422,6 +423,7 @@ BEGIN
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
+          @p_start as x_ingestion_date,
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
           @p_start as x_pipeline_run_date,
@@ -489,7 +491,7 @@ BEGIN
          x_hierarchy_entity_id, x_hierarchy_entity_name,
          x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
          x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+         x_ingestion_date, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to lookup hierarchy from resource tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -506,9 +508,9 @@ BEGIN
           -- BillingAccountId: Use billing_account_id if available, else subscription_id
           COALESCE(b.billing_account_id, b.subscription_id) as BillingAccountId,
 
-          -- Charge period from usage timestamps or derive from usage_date
-          COALESCE(b.usage_start_time, TIMESTAMP(b.usage_date)) as ChargePeriodStart,
-          COALESCE(b.usage_end_time, TIMESTAMP(DATE_ADD(b.usage_date, INTERVAL 1 DAY))) as ChargePeriodEnd,
+          -- Charge period from usage timestamps
+          b.usage_start_time as ChargePeriodStart,
+          COALESCE(b.usage_end_time, TIMESTAMP(DATE_ADD(DATE(b.usage_start_time), INTERVAL 1 DAY))) as ChargePeriodEnd,
           TIMESTAMP(b.billing_period_start) as BillingPeriodStart,
           TIMESTAMP(b.billing_period_end) as BillingPeriodEnd,
 
@@ -554,22 +556,22 @@ BEGIN
             WHEN 'Spot' THEN 'Dynamic'
             ELSE 'On-Demand'
           END as PricingCategory,
-          COALESCE(b.pricing_unit, b.unit_of_measure) as PricingUnit,
+          b.unit_of_measure as PricingUnit,
 
           -- FOCUS 1.3: Pricing details
-          CAST(COALESCE(b.pricing_quantity, b.usage_quantity) AS NUMERIC) as PricingQuantity,
-          CAST(COALESCE(b.payg_price, b.unit_price) AS NUMERIC) as ListUnitPrice,
+          CAST(b.usage_quantity AS NUMERIC) as PricingQuantity,
+          CAST(b.unit_price AS NUMERIC) as ListUnitPrice,
           CAST(b.effective_price AS NUMERIC) as ContractedUnitPrice,
 
           -- FOCUS 1.3 Cost Fields:
           -- ContractedCost: Cost at negotiated/effective price
           CAST(b.cost_in_billing_currency AS NUMERIC) as ContractedCost,
           -- EffectiveCost: Net cost after credits applied (credits reduce cost)
-          CAST(b.cost_in_billing_currency - COALESCE(b.azure_credit_applied, 0) AS NUMERIC) as EffectiveCost,
+          CAST(b.cost_in_billing_currency AS NUMERIC) as EffectiveCost,
           -- BilledCost: Gross cost as it appears on invoice
           CAST(b.cost_in_billing_currency AS NUMERIC) as BilledCost,
           -- ListCost: What it would cost at pay-as-you-go pricing
-          CAST(COALESCE(b.usage_quantity * b.payg_price, b.usage_quantity * b.unit_price, b.cost_in_billing_currency) AS NUMERIC) as ListCost,
+          CAST(COALESCE(b.usage_quantity * b.unit_price, b.cost_in_billing_currency) AS NUMERIC) as ListCost,
           COALESCE(b.billing_currency, 'USD') as BillingCurrency,
 
           -- FOCUS 1.3 ChargeCategory: Standardize Azure charge_type
@@ -606,15 +608,12 @@ BEGIN
             'service_family', b.service_family,
             'product_name', b.product_name,
             'consumed_service', b.consumed_service,
-            'payg_price', b.payg_price,
             'unit_price', b.unit_price,
             'effective_price', b.effective_price,
-            'azure_credit_applied', b.azure_credit_applied,
             'is_azure_credit_eligible', b.is_azure_credit_eligible,
             'cost_center', b.cost_center,
             'invoice_section_name', b.invoice_section_name,
-            'billing_profile_name', b.billing_profile_name,
-            'additional_info', SAFE.PARSE_JSON(b.additional_info_json)
+            'billing_profile_name', b.billing_profile_name
           ) as SkuPriceDetails,
 
           COALESCE(SAFE.PARSE_JSON(b.resource_tags_json), JSON_OBJECT()) as Tags,
@@ -626,11 +625,10 @@ BEGIN
           b.subscription_id as x_cloud_account_id,
 
           -- Commitment Discount: Reservations and Savings Plans
-          COALESCE(b.reservation_id, b.savings_plan_id, b.benefit_id) as CommitmentDiscountId,
-          COALESCE(b.reservation_name, b.savings_plan_name, b.benefit_name) as CommitmentDiscountName,
+          COALESCE(b.reservation_id, b.benefit_id) as CommitmentDiscountId,
+          COALESCE(b.reservation_name, b.benefit_name) as CommitmentDiscountName,
           CASE
             WHEN b.reservation_id IS NOT NULL THEN 'Reservation'
-            WHEN b.savings_plan_id IS NOT NULL THEN 'Savings Plan'
             WHEN b.benefit_id IS NOT NULL THEN 'Benefit'
             ELSE NULL
           END as CommitmentDiscountType,
@@ -645,6 +643,7 @@ BEGIN
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
+          @p_start as x_ingestion_date,
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
           @p_start as x_pipeline_run_date,
@@ -664,7 +663,7 @@ BEGIN
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.Department'),
           JSON_EXTRACT_SCALAR(SAFE.PARSE_JSON(b.resource_tags_json), '$.entity_id')
         )
-        WHERE b.usage_date BETWEEN @p_start AND @p_end
+        WHERE DATE(b.usage_start_time) BETWEEN @p_start AND @p_end
           -- Include all charges: positive costs AND credits (negative values or Credit charge_type)
           AND (b.cost_in_billing_currency != 0 OR b.charge_type IN ('Credit', 'Refund'))
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
@@ -699,7 +698,7 @@ BEGIN
          x_hierarchy_entity_id, x_hierarchy_entity_name,
          x_hierarchy_level_code, x_hierarchy_path, x_hierarchy_path_names,
          x_hierarchy_validated_at,
-         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+         x_ingestion_date, x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
         -- CTE to lookup hierarchy from resource tags
         WITH hierarchy_lookup AS (
           SELECT
@@ -748,27 +747,27 @@ BEGIN
           -- PricingCategory based on overage and cost type
           CASE
             WHEN b.overage_flag = 'Y' THEN 'Overage'
-            WHEN LOWER(COALESCE(b.cost_type, '')) = 'credit' THEN 'Credit'
+            WHEN LOWER(COALESCE(b.usage_type, '')) = 'credit' THEN 'Credit'
             ELSE 'On-Demand'
           END as PricingCategory,
           b.unit as PricingUnit,
 
           -- FOCUS 1.3: Pricing details from OCI
           CAST(b.computed_quantity AS NUMERIC) as PricingQuantity,
-          CAST(b.list_rate AS NUMERIC) as ListUnitPrice,
+          CAST(b.unit_price AS NUMERIC) as ListUnitPrice,
           CAST(b.unit_price AS NUMERIC) as ContractedUnitPrice,
 
           -- Cost fields: BilledCost is gross, EffectiveCost is net (after credits)
           CAST(b.cost AS NUMERIC) as ContractedCost,
-          -- EffectiveCost: Use my_cost if available (net cost), else gross + credits
-          CAST(COALESCE(b.my_cost, b.cost + COALESCE(b.credits_total, 0)) AS NUMERIC) as EffectiveCost,
+          -- EffectiveCost: OCI cost is the effective cost
+          CAST(b.cost AS NUMERIC) as EffectiveCost,
           CAST(b.cost AS NUMERIC) as BilledCost,
-          -- ListCost: Use list_rate * quantity if available, else fall back to cost
-          CAST(COALESCE(b.usage_quantity * b.list_rate, b.cost) AS NUMERIC) as ListCost,
+          -- ListCost: Use unit_price * quantity if available, else fall back to cost
+          CAST(COALESCE(b.usage_quantity * b.unit_price, b.cost) AS NUMERIC) as ListCost,
           COALESCE(b.currency, 'USD') as BillingCurrency,
 
-          -- ChargeCategory from OCI cost_type: Usage, Credit, Tax, etc.
-          CASE LOWER(COALESCE(b.cost_type, 'usage'))
+          -- ChargeCategory from OCI usage_type: Usage, Credit, Tax, etc.
+          CASE LOWER(COALESCE(b.usage_type, 'usage'))
             WHEN 'credit' THEN 'Credit'
             WHEN 'tax' THEN 'Tax'
             WHEN 'adjustment' THEN 'Adjustment'
@@ -780,7 +779,7 @@ BEGIN
             WHEN b.is_correction = TRUE THEN 'Correction'
             ELSE NULL
           END as ChargeClass,
-          COALESCE(b.cost_type, 'Usage') as ChargeType,
+          COALESCE(b.usage_type, 'Usage') as ChargeType,
           'Usage-Based' as ChargeFrequency,
 
           -- SubAccount: Use compartment for OCI account hierarchy
@@ -797,8 +796,6 @@ BEGIN
             'subscription_id', b.subscription_id,
             'billing_period', b.billing_period,
             'overage_flag', b.overage_flag,
-            'credits_total', b.credits_total,
-            'credits_json', SAFE.PARSE_JSON(b.credits_json),
             'availability_domain', b.availability_domain
           ) as SkuPriceDetails,
 
@@ -821,6 +818,7 @@ BEGIN
           CASE WHEN h.entity_id IS NOT NULL THEN CURRENT_TIMESTAMP() ELSE NULL END as x_hierarchy_validated_at,
 
           -- Lineage columns (REQUIRED)
+          @p_start as x_ingestion_date,
           @p_pipeline_id as x_pipeline_id,
           @p_credential_id as x_credential_id,
           @p_start as x_pipeline_run_date,
@@ -843,7 +841,7 @@ BEGIN
         -- Filter by usage_start_time (TIMESTAMP) for OCI data
         WHERE DATE(b.usage_start_time) BETWEEN @p_start AND @p_end
           -- Include all cost types for FOCUS compliance (credits have negative cost or cost_type='credit')
-          AND (b.cost != 0 OR LOWER(COALESCE(b.cost_type, '')) = 'credit')
+          AND (b.cost != 0 OR LOWER(COALESCE(b.usage_type, '')) = 'credit')
       """, p_project_id, p_dataset_id, p_project_id, p_project_id, p_dataset_id)
       USING p_start_date AS p_start, v_effective_end_date AS p_end, p_pipeline_id AS p_pipeline_id, p_credential_id AS p_credential_id, p_run_id AS p_run_id, v_org_slug AS v_org_slug;
 

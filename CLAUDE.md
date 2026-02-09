@@ -33,7 +33,7 @@ Scheduler Jobs (Cloud Run Jobs)
 | Type | Providers | Pipeline |
 |------|-----------|----------|
 | **Cloud** | GCP, AWS, Azure, OCI | `cloud/{provider}/cost/billing` |
-| **GenAI** | OpenAI, Anthropic, Gemini, Azure OpenAI, AWS Bedrock, GCP Vertex | `genai/payg/*` |
+| **GenAI** | OpenAI, Anthropic, Gemini, DeepSeek, Azure OpenAI, AWS Bedrock, GCP Vertex | `genai/payg/*` |
 | **SaaS** | Canva, Slack, ChatGPT Plus | `subscription/costs/subscription_cost` |
 
 All → `cost_data_standard_1_3` (FOCUS 1.3 unified)
@@ -53,10 +53,13 @@ All → `cost_data_standard_1_3` (FOCUS 1.3 unified)
 
 | Field | Purpose |
 |-------|---------|
+| `x_org_slug` | Organization identifier (multi-tenant row isolation) |
 | `x_pipeline_id` | Pipeline template |
 | `x_credential_id` | Credential used |
+| `x_pipeline_run_date` | Data date (idempotency key) |
 | `x_run_id` | Execution UUID |
 | `x_ingested_at` | Write timestamp |
+| `x_ingestion_date` | Partition key |
 
 **Rule:** API (8000) = NO x_* fields. Pipeline (8001) = MUST have x_* fields.
 

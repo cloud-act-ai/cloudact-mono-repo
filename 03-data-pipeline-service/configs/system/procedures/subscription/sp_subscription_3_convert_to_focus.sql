@@ -151,6 +151,7 @@ BEGIN
         x_org_slug, x_org_name, x_org_owner_email, x_org_default_currency, x_org_default_timezone,
         x_org_default_country, x_org_subscription_plan, x_org_subscription_status,
         -- Pipeline lineage fields (FOCUS extension)
+        x_ingestion_date,
         x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at,
         x_data_quality_score, x_created_at,
         -- 5-field hierarchy model (NEW design)
@@ -335,6 +336,7 @@ BEGIN
         COALESCE(os.status, 'ACTIVE') AS x_org_subscription_status,
 
         -- Pipeline lineage fields (FOCUS extension)
+        spc.cost_date AS x_ingestion_date,
         @p_pipeline_id AS x_pipeline_id,
         @p_credential_id AS x_credential_id,
         spc.cost_date AS x_pipeline_run_date,

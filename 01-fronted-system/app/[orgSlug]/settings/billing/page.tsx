@@ -170,10 +170,10 @@ export default function BillingPage() {
               <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
                 Billing & Subscription
               </h1>
-              <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
                 Manage your subscription plan and payment methods
               </p>
             </div>
@@ -193,10 +193,10 @@ export default function BillingPage() {
             <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
               Billing & Subscription
             </h1>
-            <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
               Manage your subscription plan and payment methods
             </p>
           </div>
@@ -212,7 +212,7 @@ export default function BillingPage() {
       {error && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
           <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-          <p className="text-[13px] font-medium text-rose-700">{error}</p>
+          <p className="text-[12px] font-medium text-rose-700">{error}</p>
         </div>
       )}
 
@@ -232,7 +232,7 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-[17px] font-bold text-slate-900">{planInfo.name} Plan</h3>
+                    <h3 className="text-[16px] font-bold text-slate-900">{planInfo.name} Plan</h3>
                     <Badge
                       className="text-[11px] font-semibold px-3 py-1 rounded-lg border-0"
                       style={{ backgroundColor: `${planInfo.color}15`, color: currentPlan === "professional" ? "#1a7a3a" : planInfo.color }}
@@ -242,7 +242,7 @@ export default function BillingPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {planInfo.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 text-[13px] text-slate-600">
+                      <div key={idx} className="flex items-center gap-1.5 text-[12px] text-slate-600">
                         <Check className="h-3.5 w-3.5 text-[#1a7a3a]" />
                         <span>{feature}</span>
                       </div>
@@ -253,7 +253,7 @@ export default function BillingPage() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href={`/${orgSlug}/settings/billing/plans`}>
-                  <button className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 w-full sm:w-auto justify-center">
+                  <button className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 w-full sm:w-auto justify-center">
                     <TrendingUp className="h-4 w-4" />
                     Upgrade Plan
                   </button>
@@ -279,19 +279,19 @@ export default function BillingPage() {
                 <div className="min-w-0 flex-1">
                   {billingInfo?.paymentMethod ? (
                     <>
-                      <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                      <h3 className="text-[14px] font-semibold text-slate-900 tracking-tight">
                         {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} •••• {billingInfo.paymentMethod.last4}
                       </h3>
-                      <p className="text-[12px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 mt-0.5">
                         Expires {billingInfo.paymentMethod.expMonth.toString().padStart(2, "0")}/{billingInfo.paymentMethod.expYear}
                       </p>
                     </>
                   ) : (
                     <>
-                      <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                      <h3 className="text-[14px] font-semibold text-slate-900 tracking-tight">
                         No payment method on file
                       </h3>
-                      <p className="text-[12px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 mt-0.5">
                         Add a payment method to upgrade your plan
                       </p>
                     </>
@@ -303,7 +303,7 @@ export default function BillingPage() {
               <button
                 onClick={handleOpenBillingPortal}
                 disabled={isRedirectingToPortal || !orgData?.stripe_customer_id}
-                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isRedirectingToPortal ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -331,16 +331,16 @@ export default function BillingPage() {
                       <Receipt className="h-5 w-5 text-slate-500" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-[14px] font-semibold text-slate-900">
+                      <h4 className="text-[13px] font-semibold text-slate-900">
                         Invoice {invoice.number || invoice.id.slice(-8)}
                       </h4>
-                      <p className="text-[12px] text-slate-500">
+                      <p className="text-[11px] text-slate-500">
                         {new Date(invoice.created).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-[14px] font-semibold text-slate-900">
+                    <span className="text-[13px] font-semibold text-slate-900">
                       {invoice.currency} {invoice.amountPaid.toFixed(2)}
                     </span>
                     <Badge className={`text-[11px] px-2 py-0.5 ${invoice.status === "paid" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"}`}>
@@ -351,7 +351,7 @@ export default function BillingPage() {
                         href={invoice.hostedInvoiceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[12px] text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-1"
                       >
                         View <ExternalLink className="h-3 w-3" />
                       </a>
@@ -365,8 +365,8 @@ export default function BillingPage() {
               <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                 <Receipt className="h-7 w-7 text-slate-400" />
               </div>
-              <h3 className="text-[17px] font-semibold text-slate-900 mb-1">No invoices yet</h3>
-              <p className="text-[13px] text-slate-500 max-w-xs mx-auto">
+              <h3 className="text-[16px] font-semibold text-slate-900 mb-1">No invoices yet</h3>
+              <p className="text-[12px] text-slate-500 max-w-xs mx-auto">
                 Your billing history will appear here once you upgrade to a paid plan
               </p>
             </div>
@@ -382,15 +382,15 @@ export default function BillingPage() {
               <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900 mb-1">
+              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">
                 Need help with billing?
               </h3>
-              <p className="text-[13px] text-slate-600 leading-relaxed mb-4">
+              <p className="text-[12px] text-slate-600 leading-relaxed mb-4">
                 Contact our support team for questions about billing, invoices, or plan changes.
               </p>
               <a
                 href={`mailto:${process.env.NEXT_PUBLIC_BILLING_EMAIL || "billing@cloudact.ai"}`}
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-slate-900 hover:text-slate-600 transition-colors"
+                className="inline-flex items-center gap-2 text-[12px] font-semibold text-slate-900 hover:text-slate-600 transition-colors"
               >
                 Contact Support
                 <ExternalLink className="h-3.5 w-3.5" />

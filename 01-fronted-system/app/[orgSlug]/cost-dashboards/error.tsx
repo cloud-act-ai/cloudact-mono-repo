@@ -28,8 +28,8 @@ export default function CostDashboardsError({
       <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
         <AlertCircle className="h-14 w-14 text-coral mx-auto" />
         <div className="space-y-2">
-          <h2 className="text-[22px] font-bold text-black">Something went wrong</h2>
-          <p className="text-[15px] text-muted-foreground leading-relaxed">
+          <h2 className="text-[20px] font-bold text-black">Something went wrong</h2>
+          <p className="text-[14px] text-muted-foreground leading-relaxed">
             We encountered an error loading this page. Please try again.
           </p>
         </div>

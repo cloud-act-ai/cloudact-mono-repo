@@ -12,9 +12,11 @@ Scripts and configurations for CloudAct infrastructure management.
 ├── CICD/             # CI/CD scripts (build, push, deploy)
 │   ├── build/        # Docker build scripts
 │   ├── push/         # Artifact Registry push scripts
-│   └── deploy/       # Cloud Run deploy scripts
-├── cron-jobs/        # Scheduled jobs (billing sync, cleanup)
-├── deployment/       # Legacy deployment scripts
+│   ├── deploy/       # Cloud Run deploy scripts
+│   ├── quick/        # Quick deploy shortcuts
+│   ├── secrets/      # Secret management
+│   ├── monitor/      # Log watching
+│   └── triggers/     # Cloud Build trigger docs
 ├── gcp-setup/        # GCP infrastructure setup
 │   ├── 00-gcp-enable-apis.sh
 │   ├── 01-setup-cloud-build.sh
@@ -22,8 +24,11 @@ Scripts and configurations for CloudAct infrastructure management.
 │   ├── 03-secrets-setup.sh
 │   ├── 04-iam-setup.sh
 │   └── 05-cloud-run-setup.sh
+├── load-demo-data/   # Demo data loading
 └── testing/          # Test utilities
 ```
+
+> **Note:** Scheduler jobs (bootstrap, quota reset, org sync, alerts) are in `05-scheduler-jobs/`. Legacy `cron-jobs/` and `deployment/` directories are deprecated.
 
 ## Quick Reference
 
@@ -86,7 +91,7 @@ cd CICD
 # All-in-one: build → push → deploy
 ./cicd.sh <service> <env> <project-id> [tag]
 ./cicd.sh api-service test cloudact-testing-1
-./cicd.sh pipeline-service prod cloudact-prod v1.2.3
+./cicd.sh pipeline-service prod cloudact-prod v4.3.0
 
 # Individual steps
 ./build/build.sh <service> <env> [tag]
@@ -97,32 +102,35 @@ cd CICD
 # Environments: test, stage, prod
 ```
 
-### Cron Jobs
+### Deployment (Automatic)
 
 ```bash
-cd cron-jobs
+# Stage (automatic on push to main)
+git push origin main
 
-# Billing sync retry
-./billing-sync-retry.sh
-
-# Billing reconciliation
-./billing-reconciliation.sh
-
-# Database cleanup
-./run-all-cleanup.sh
+# Production (via git tag)
+git tag v4.3.0 && git push origin v4.3.0
 ```
 
-### Deployment
+See [CICD/README.md](CICD/README.md) for full deployment documentation.
+
+### Scheduler Jobs
+
+All scheduled operations (bootstrap, quota resets, org sync, alerts) are managed in `05-scheduler-jobs/`.
 
 ```bash
-cd deployment
+cd ../05-scheduler-jobs/scripts
 
-# Deploy to staging
-./simple_deploy.sh stage
+# Run jobs
+./run-job.sh prod bootstrap
+./run-job.sh prod org-sync-all
+./run-job.sh prod migrate
 
-# Deploy to production
-./simple_deploy.sh prod
+# List jobs
+./list-jobs.sh prod
 ```
+
+See [05-scheduler-jobs/CLAUDE.md](../05-scheduler-jobs/CLAUDE.md) for full scheduler documentation.
 
 ## Environment Variables
 
@@ -131,8 +139,13 @@ cd deployment
 | `GCP_PROJECT_ID` | GCP project ID |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON |
 | `CA_ROOT_API_KEY` | Root API key for admin operations |
-| `CLOUDACT_APP_URL` | App URL for cron jobs |
-| `CRON_SECRET` | Secret for cron job authentication |
+
+## Environments
+
+| Env | GCP Project | Supabase | Stripe |
+|-----|-------------|----------|--------|
+| test/stage | cloudact-testing-1 | kwroaccbrxppfiysqlzs | TEST |
+| prod | cloudact-prod | ovfxswhkkshouhsryzaf | LIVE |
 
 ## Safety Notes
 
@@ -140,3 +153,7 @@ cd deployment
 - **Always dry-run first** before destructive operations
 - **KMS scripts** require appropriate IAM permissions
 - **Deploy scripts** require gcloud CLI configured
+- **Scheduler jobs** are in `05-scheduler-jobs/` - not here
+
+---
+**v4.3.0** | 2026-02-08

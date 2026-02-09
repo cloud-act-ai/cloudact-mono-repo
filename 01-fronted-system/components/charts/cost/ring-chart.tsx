@@ -211,7 +211,7 @@ function CostRingChartInner({
         <div className="flex items-center justify-between">
           <CardTitle
             id={`${chartId}-title`}
-            className="text-[15px] sm:text-[17px] font-bold"
+            className="text-[14px] sm:text-[16px] font-bold"
             style={{ color: titleColor || theme.text }}
           >
             {title}
@@ -243,6 +243,7 @@ function CostRingChartInner({
               innerRadius={innerRadius}
               outerRadius={outerRadius}
               paddingAngle={3}
+              minAngle={5}
               size={size}
               showLegend={false}
               loading={isLoading}
@@ -254,7 +255,7 @@ function CostRingChartInner({
 
             {/* Center content - responsive text sizes */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-lg sm:text-xl font-bold text-slate-900">
+              <span className="text-base sm:text-lg font-bold text-slate-900 truncate max-w-[calc(100%-16px)]">
                 {displayCenterValue}
               </span>
               {centerLabel && (
@@ -267,7 +268,11 @@ function CostRingChartInner({
           {showBreakdown && (
             <div className="flex-1 space-y-2 sm:space-y-2.5 min-w-0 w-full sm:w-auto">
               {segments.map((segment) => {
-                const percent = total > 0 ? (segment.value / total) * 100 : 0
+                const percentRaw = total > 0 ? (segment.value / total) * 100 : 0
+                // Show 1 decimal for small percentages so they don't round to 0%
+                const percent = percentRaw > 0 && percentRaw < 1
+                  ? percentRaw.toFixed(1)
+                  : percentRaw.toFixed(0)
                 const isClickable = !!onSegmentClick
 
                 return (
@@ -291,7 +296,7 @@ function CostRingChartInner({
                     } : undefined}
                     role={isClickable ? "button" : undefined}
                     tabIndex={isClickable ? 0 : undefined}
-                    aria-label={isClickable ? `${segment.name}: ${formatValue(segment.value)} (${percent.toFixed(0)}%)` : undefined}
+                    aria-label={isClickable ? `${segment.name}: ${formatValue(segment.value)} (${percent}%)` : undefined}
                   >
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                       <div
@@ -303,10 +308,10 @@ function CostRingChartInner({
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       <span className="font-medium text-slate-900 tabular-nums">
-                        {compact ? formatValueCompact(segment.value) : formatValue(segment.value)}
+                        {formatValueCompact(segment.value)}
                       </span>
-                      <span className="text-slate-400 text-[10px] sm:text-xs tabular-nums w-8 sm:w-10 text-right">
-                        {percent.toFixed(0)}%
+                      <span className="text-slate-400 text-[10px] sm:text-xs tabular-nums w-10 sm:w-12 text-right">
+                        {percent}%
                       </span>
                     </div>
                   </div>

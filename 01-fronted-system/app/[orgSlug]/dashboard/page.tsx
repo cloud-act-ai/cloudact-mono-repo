@@ -137,7 +137,7 @@ interface IntegrationCardProps {
 const IntegrationCard = React.memo(function IntegrationCard({ integration }: IntegrationCardProps) {
   return (
     <div
-      className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white border border-slate-100 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
+      className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl transition-colors ${
@@ -249,7 +249,7 @@ const QuickActionCard = React.memo(function QuickActionCard({ action }: QuickAct
               {action.icon}
             </div>
             <div className="space-y-0.5">
-              <h3 className="text-sm sm:text-[15px] font-semibold text-slate-900">{action.title}</h3>
+              <h3 className="text-sm sm:text-[14px] font-semibold text-slate-900">{action.title}</h3>
               <p className="text-xs text-slate-500 leading-relaxed">{action.description}</p>
             </div>
           </div>
@@ -262,7 +262,7 @@ const QuickActionCard = React.memo(function QuickActionCard({ action }: QuickAct
 // PERF: Memoized loading state component
 const DashboardLoadingState = React.memo(function DashboardLoadingState() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-transparent">
       <div className="max-w-7xl mx-auto py-4 sm:py-5 lg:py-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
@@ -618,10 +618,10 @@ export default function DashboardPage() {
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
             {greeting}
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
             Here&#39;s what&#39;s happening with your cloud costs today.
           </p>
         </div>
@@ -684,8 +684,6 @@ export default function DashboardPage() {
               value: d.value,
             }))}
             timeRange={timeRange}
-            barColor="#90FCA6"
-            lineColor="#FF6C5E"
             height={320}
             mobileHeight={240}
             loading={isLoading}
@@ -710,6 +708,7 @@ export default function DashboardPage() {
           <CostRingChart
             title="Total Spend by Category"
             segments={ringSegments}
+            compact
             centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "custom" ? "Period" : timeRange === "365" ? "365D" : timeRange === "90" ? "90D" : timeRange === "30" ? "30D" : "Total"}
             insight={!hasData
               ? "No cost data yet. Connect providers and run pipelines."

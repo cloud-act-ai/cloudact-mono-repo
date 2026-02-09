@@ -338,7 +338,7 @@ function ChannelCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-semibold text-slate-900 truncate">
+              <span className="text-[14px] font-semibold text-slate-900 truncate">
                 {channel.name}
               </span>
               {channel.is_default && (
@@ -347,7 +347,7 @@ function ChannelCard({
                 </span>
               )}
             </div>
-            <div className="text-[12px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-slate-500 mt-0.5">
               {channel.channel_type === "email" && channel.email_recipients?.join(", ")}
               {channel.channel_type === "slack" && channel.slack_channel}
               {channel.channel_type === "webhook" && "Webhook configured"}
@@ -426,14 +426,14 @@ function RuleCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[15px] font-semibold text-slate-900">
+              <span className="text-[14px] font-semibold text-slate-900">
                 {rule.name}
               </span>
               <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border ${getPriorityColor(rule.priority)}`}>
                 {rule.priority.toUpperCase()}
               </span>
             </div>
-            <div className="text-[12px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-slate-500 mt-0.5">
               {getRuleTypeLabel(rule.rule_type)}
               {rule.description && ` • ${rule.description}`}
             </div>
@@ -508,14 +508,14 @@ function SummaryCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-semibold text-slate-900">
+              <span className="text-[14px] font-semibold text-slate-900">
                 {summary.name}
               </span>
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full">
                 {summary.summary_type.toUpperCase()}
               </span>
             </div>
-            <div className="text-[12px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-slate-500 mt-0.5">
               {summary.schedule_cron} ({summary.schedule_timezone})
             </div>
             <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
@@ -599,11 +599,11 @@ function HistoryEntry({
             {statusIcon[entry.status] || <Bell className="h-4 w-4 text-slate-400" />}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-medium text-slate-900">
+            <div className="text-[13px] font-medium text-slate-900">
               {entry.subject}
             </div>
             {entry.body_preview && (
-              <div className="text-[12px] text-slate-500 mt-0.5 line-clamp-2">
+              <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
                 {entry.body_preview}
               </div>
             )}
@@ -624,7 +624,7 @@ function HistoryEntry({
               variant="ghost"
               size="sm"
               onClick={onAcknowledge}
-              className="h-8 px-2 text-[12px]"
+              className="h-8 px-2 text-[11px]"
             >
               Acknowledge
             </Button>
@@ -1013,7 +1013,7 @@ function CreateRuleDialog({
 
           {/* Threshold Configuration */}
           <div className="p-4 bg-slate-50 rounded-xl space-y-4">
-            <div className="text-[13px] font-semibold text-slate-700">Threshold Configuration</div>
+            <div className="text-[12px] font-semibold text-slate-700">Threshold Configuration</div>
 
             {(ruleType === "budget_percent" || ruleType === "anomaly_percent_change") && (
               <div className="space-y-2">
@@ -1079,12 +1079,12 @@ function CreateRuleDialog({
                     }}
                     className="rounded border-slate-300"
                   />
-                  <span className="text-[13px]">{channel.name}</span>
+                  <span className="text-[12px]">{channel.name}</span>
                   <span className="text-[11px] text-slate-500 capitalize">({channel.channel_type})</span>
                 </label>
               ))}
               {channels.filter((c) => c.is_active).length === 0 && (
-                <p className="text-[12px] text-slate-500 p-2">
+                <p className="text-[11px] text-slate-500 p-2">
                   No active channels. Create a channel first.
                 </p>
               )}
@@ -1279,7 +1279,7 @@ function CreateSummaryDialog({
                     }}
                     className="rounded border-slate-300"
                   />
-                  <span className="text-[13px]">{section.label}</span>
+                  <span className="text-[12px]">{section.label}</span>
                 </label>
               ))}
             </div>
@@ -1303,7 +1303,7 @@ function CreateSummaryDialog({
                     }}
                     className="rounded border-slate-300"
                   />
-                  <span className="text-[13px]">{channel.name}</span>
+                  <span className="text-[12px]">{channel.name}</span>
                   <span className="text-[11px] text-slate-500 capitalize">({channel.channel_type})</span>
                 </label>
               ))}
@@ -1679,10 +1679,10 @@ export default function NotificationsPage() {
     <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-slate-900 tracking-tight leading-tight">
+        <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
           Notifications
         </h1>
-        <p className="text-[13px] sm:text-[14px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+        <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
           Configure alerts, summaries, and notification channels
         </p>
       </div>
@@ -1695,10 +1695,10 @@ export default function NotificationsPage() {
               <AlertTriangle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-slate-600 mt-1">
+              <p className="text-[12px] text-slate-600 mt-1">
                 {!backendConnected
                   ? "Your organization is not connected to the backend."
                   : "Your organization API key is missing."}
@@ -1720,7 +1720,7 @@ export default function NotificationsPage() {
           ) : (
             <XCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
-          <p className={`text-[13px] font-medium ${
+          <p className={`text-[12px] font-medium ${
             message.type === "success" ? "text-[#1a7a3a]" : "text-rose-700"
           }`}>
             {message.text}
@@ -1787,8 +1787,8 @@ export default function NotificationsPage() {
                     <Plus className="h-5 w-5 text-[#1a7a3a]" />
                   </div>
                   <div>
-                    <div className="text-[14px] font-semibold text-slate-900">Add Channel</div>
-                    <div className="text-[12px] text-slate-500">Email, Slack, or Webhook</div>
+                    <div className="text-[13px] font-semibold text-slate-900">Add Channel</div>
+                    <div className="text-[11px] text-slate-500">Email, Slack, or Webhook</div>
                   </div>
                 </div>
               </PremiumCard>
@@ -1802,8 +1802,8 @@ export default function NotificationsPage() {
                     <AlertTriangle className="h-5 w-5 text-amber-600" />
                   </div>
                   <div>
-                    <div className="text-[14px] font-semibold text-slate-900">Create Alert</div>
-                    <div className="text-[12px] text-slate-500">Cost, pipeline, anomaly alerts</div>
+                    <div className="text-[13px] font-semibold text-slate-900">Create Alert</div>
+                    <div className="text-[11px] text-slate-500">Cost, pipeline, anomaly alerts</div>
                   </div>
                 </div>
               </PremiumCard>
@@ -1817,8 +1817,8 @@ export default function NotificationsPage() {
                     <Calendar className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <div className="text-[14px] font-semibold text-slate-900">Schedule Summary</div>
-                    <div className="text-[12px] text-slate-500">Daily, weekly, monthly reports</div>
+                    <div className="text-[13px] font-semibold text-slate-900">Schedule Summary</div>
+                    <div className="text-[11px] text-slate-500">Daily, weekly, monthly reports</div>
                   </div>
                 </div>
               </PremiumCard>
