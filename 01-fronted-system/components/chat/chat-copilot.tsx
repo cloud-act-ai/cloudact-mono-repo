@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Send, Loader2, Bot, User } from "lucide-react"
-import { sendMessage } from "@/lib/chat/client"
+import { sendMessage, getMessages } from "@/lib/chat/client"
 import type { ChatClientContext } from "@/lib/chat/client"
 import type { ChatMessage } from "@/lib/chat/constants"
 
@@ -37,6 +37,36 @@ export function ChatCopilot({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Load message history when opening an existing conversation
+  useEffect(() => {
+    if (!conversationId || !chatCtx) return
+    let cancelled = false
+
+    async function loadHistory() {
+      try {
+        const data = await getMessages(orgSlug, conversationId!, chatCtx)
+        if (!cancelled && data.messages) {
+          setMessages(
+            data.messages.map((m) => ({
+              id: m.message_id ?? m.id ?? `hist_${Math.random().toString(36).slice(2)}`,
+              conversation_id: conversationId!,
+              role: m.role,
+              content: m.content,
+              agent_name: m.agent_name,
+              model_id: m.model_id,
+              created_at: m.created_at,
+            }))
+          )
+        }
+      } catch {
+        // History load failed — start fresh
+      }
+    }
+    loadHistory()
+
+    return () => { cancelled = true }
+  }, [conversationId, orgSlug, chatCtx])
 
   // Handle initial message (from suggestion clicks)
   useEffect(() => {

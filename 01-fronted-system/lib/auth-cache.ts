@@ -61,7 +61,7 @@ const inFlightRequests = new Map<string, Promise<CachedAuthContext | null>>()
 
 export function isValidOrgSlug(orgSlug: string): boolean {
   if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
+  return /^[a-z0-9_]{3,50}$/.test(orgSlug)
 }
 
 // ============================================

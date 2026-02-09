@@ -87,6 +87,28 @@ export async function sendMessage(
 }
 
 /**
+ * Load message history for a conversation.
+ */
+export async function getMessages(
+  orgSlug: string,
+  conversationId: string,
+  ctx?: ChatClientContext
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ messages: any[] }> {
+  const response = await chatFetch(
+    `/api/v1/chat/${orgSlug}/conversations/${conversationId}/messages`,
+    { method: "GET", timeout: 15000 },
+    ctx
+  )
+
+  if (!response.ok) {
+    throw new Error("Failed to load messages")
+  }
+
+  return response.json()
+}
+
+/**
  * List conversations for the authenticated user.
  */
 export async function listConversations(

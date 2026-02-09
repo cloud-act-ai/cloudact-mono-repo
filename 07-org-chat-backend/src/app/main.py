@@ -186,12 +186,18 @@ async def send_message(
         session_service=session_service,
     )
 
-    # Create or get ADK session
-    session = await session_service.create_session(
+    # Get existing ADK session or create new one
+    session = await session_service.get_session(
         app_name="cloudact_chat",
         user_id=ctx.user_id,
         session_id=conversation_id,
     )
+    if not session:
+        session = await session_service.create_session(
+            app_name="cloudact_chat",
+            user_id=ctx.user_id,
+            session_id=conversation_id,
+        )
 
     # STEP 5: Execute agent
     user_content = types.Content(
@@ -258,6 +264,21 @@ async def get_conversations(
 
     conversations = list_conversations(org_slug, ctx.user_id)
     return {"org_slug": org_slug, "conversations": conversations}
+
+
+@app.get("/api/v1/chat/{org_slug}/conversations/{conversation_id}/messages")
+async def get_messages(
+    org_slug: str,
+    conversation_id: str,
+    ctx: ChatContext = Depends(get_chat_context),
+):
+    """Load message history for a conversation."""
+    _validate_path_org_slug(org_slug)
+    if ctx.org_slug != org_slug:
+        raise HTTPException(status_code=403, detail="Org mismatch")
+
+    messages = load_message_history(org_slug, conversation_id)
+    return {"org_slug": org_slug, "conversation_id": conversation_id, "messages": messages}
 
 
 @app.get("/api/v1/chat/{org_slug}/settings/status")

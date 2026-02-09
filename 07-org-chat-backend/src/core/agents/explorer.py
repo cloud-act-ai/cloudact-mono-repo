@@ -1,6 +1,6 @@
 """
 Explorer sub-agent.
-Ad-hoc BigQuery exploration using BigQueryToolset.
+Ad-hoc BigQuery exploration with org-scoped tools.
 Fallback agent for questions the specialists can't answer.
 """
 
@@ -11,6 +11,9 @@ from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 from google.genai import types
 
+from src.core.tools.explorer import list_org_tables, describe_table, run_read_query
+from src.core.tools.shared import bind_org_slug
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +23,11 @@ def create_explorer(
     generate_config: types.GenerateContentConfig,
     bigquery_toolset=None,
 ) -> LlmAgent:
-    tools = []
+    tools = [bind_org_slug(fn, org_slug) for fn in [
+        list_org_tables, describe_table, run_read_query,
+    ]]
+
+    # Also include external BigQueryToolset if provided
     if bigquery_toolset:
         tools.append(bigquery_toolset)
 
@@ -34,13 +41,15 @@ def create_explorer(
         ),
         instruction=f"""You are a data exploration agent for organization '{org_slug}'.
 
-You can list datasets, tables, and run read-only SQL queries against BigQuery.
+You can list datasets, tables, describe schemas, and run read-only SQL queries against BigQuery.
 
-CRITICAL RULES:
+RULES:
+- org_slug is already set — do NOT pass it to tool calls.
 - Only query the '{org_slug}_prod' dataset and 'organizations' dataset.
 - NEVER query other org datasets.
-- Always use parameterized queries when possible.
-- Limit results to 500 rows max.
+- Use list_org_tables to discover available tables.
+- Use describe_table to see column schemas before writing queries.
+- Use run_read_query for SELECT-only queries (max 500 rows).
 - For cost-related queries, prefer transferring back to CostAnalyst.
 - This is a fallback — use only when the specialized agents can't help.
 """,
