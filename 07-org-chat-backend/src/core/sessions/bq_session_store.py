@@ -190,6 +190,27 @@ def persist_message(
     row = {k: v for k, v in row.items() if v is not None}
 
     streaming_insert(_org_table("org_chat_messages"), [row])
+
+    # Update conversation metadata (message_count + last_message_at)
+    try:
+        now = _now()
+        settings = get_settings()
+        dataset = settings.organizations_dataset
+        execute_query(
+            f"""UPDATE `{dataset}.org_chat_conversations`
+                SET message_count = message_count + 1,
+                    last_message_at = @now,
+                    updated_at = @now
+                WHERE conversation_id = @conv_id AND org_slug = @org_slug""",
+            params=[
+                bigquery.ScalarQueryParameter("now", "STRING", now),
+                bigquery.ScalarQueryParameter("conv_id", "STRING", conversation_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            ],
+        )
+    except Exception as e:
+        logger.warning(f"Failed to update conversation metadata: {e}")
+
     return message_id
 
 

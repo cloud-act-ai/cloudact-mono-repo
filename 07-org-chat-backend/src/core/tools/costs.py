@@ -128,11 +128,17 @@ def compare_periods(
         current_end = today
         prev_start = date(today.year - 1, 1, 1)
         prev_end = date(today.year - 1, today.month, today.day)
-    else:
-        current_start = today.replace(day=1)
+    else:  # QoQ
+        current_quarter_month = ((today.month - 1) // 3) * 3 + 1
+        current_start = date(today.year, current_quarter_month, 1)
         current_end = today
-        prev_start = current_start - timedelta(days=30)
-        prev_end = current_start - timedelta(days=1)
+        if current_quarter_month == 1:
+            prev_start = date(today.year - 1, 10, 1)
+            prev_end = date(today.year - 1, 12, 31)
+        else:
+            prev_quarter_month = current_quarter_month - 3
+            prev_start = date(today.year, prev_quarter_month, 1)
+            prev_end = current_start - timedelta(days=1)
 
     provider_filter = ""
     params: List[bigquery.ScalarQueryParameter] = [

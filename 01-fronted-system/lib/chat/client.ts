@@ -10,7 +10,7 @@ const DEFAULT_TIMEOUT = 60000 // 60s for LLM responses
 async function chatFetch(
   path: string,
   options: RequestInit & { timeout?: number } = {},
-  apiKey?: string
+  context?: { apiKey?: string; orgSlug?: string; userId?: string }
 ): Promise<Response> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options
 
@@ -22,8 +22,14 @@ async function chatFetch(
     ...(fetchOptions.headers as Record<string, string>),
   }
 
-  if (apiKey) {
-    headers["X-API-Key"] = apiKey
+  if (context?.apiKey) {
+    headers["X-API-Key"] = context.apiKey
+  }
+  if (context?.orgSlug) {
+    headers["X-Org-Slug"] = context.orgSlug
+  }
+  if (context?.userId) {
+    headers["X-User-Id"] = context.userId
   }
 
   try {
@@ -38,6 +44,13 @@ async function chatFetch(
   }
 }
 
+/** Context required for authenticated chat backend calls. */
+export interface ChatClientContext {
+  apiKey: string
+  orgSlug: string
+  userId?: string
+}
+
 /**
  * Send a message and get a response from the chat backend.
  */
@@ -45,7 +58,7 @@ export async function sendMessage(
   orgSlug: string,
   message: string,
   conversationId?: string,
-  apiKey?: string
+  ctx?: ChatClientContext
 ): Promise<{
   conversation_id: string
   response: string
@@ -62,7 +75,7 @@ export async function sendMessage(
         conversation_id: conversationId,
       }),
     },
-    apiKey
+    ctx
   )
 
   if (!response.ok) {
@@ -78,12 +91,12 @@ export async function sendMessage(
  */
 export async function listConversations(
   orgSlug: string,
-  apiKey?: string
+  ctx?: ChatClientContext
 ): Promise<{ conversations: Conversation[] }> {
   const response = await chatFetch(
     `/api/v1/chat/${orgSlug}/conversations`,
     { method: "GET", timeout: 15000 },
-    apiKey
+    ctx
   )
 
   if (!response.ok) {
@@ -98,12 +111,12 @@ export async function listConversations(
  */
 export async function getChatStatus(
   orgSlug: string,
-  apiKey?: string
+  ctx?: ChatClientContext
 ): Promise<{ configured: boolean; provider?: string; model_id?: string; status?: string }> {
   const response = await chatFetch(
     `/api/v1/chat/${orgSlug}/settings/status`,
     { method: "GET", timeout: 10000 },
-    apiKey
+    ctx
   )
 
   if (!response.ok) {

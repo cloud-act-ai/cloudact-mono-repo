@@ -66,21 +66,35 @@ def create_agent_for_org(
 
 
 # ============================================
-# ADK Web / Dev default agent
+# ADK Web / Dev default agent (lazy)
 # ============================================
 # This `root_agent` is what `adk web` discovers when you run:
 #   cd 07-org-chat-backend/src/core/agents && adk web
 #
 # It uses Gemini (native ADK) with GOOGLE_API_KEY from environment.
-# For testing with other providers, set the appropriate env vars.
+# Lazy initialization avoids import-time side effects in production.
 
-_dev_org = os.environ.get("DEV_ORG_SLUG", "dev_org_local")
+_root_agent = None
 
-root_agent = create_orchestrator(
-    org_slug=_dev_org,
-    model=create_default_model(),
-    generate_config=types.GenerateContentConfig(
-        temperature=0.7,
-        max_output_tokens=4096,
-    ),
-)
+
+def _get_root_agent():
+    global _root_agent
+    if _root_agent is None:
+        _dev_org = os.environ.get("DEV_ORG_SLUG", "dev_org_local")
+        _root_agent = create_orchestrator(
+            org_slug=_dev_org,
+            model=create_default_model(),
+            generate_config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=4096,
+            ),
+        )
+    return _root_agent
+
+
+# ADK convention: module-level `root_agent` attribute
+# Use __getattr__ for lazy access so production imports don't trigger creation
+def __getattr__(name):
+    if name == "root_agent":
+        return _get_root_agent()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

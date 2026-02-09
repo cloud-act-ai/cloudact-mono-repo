@@ -8,12 +8,13 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Send, Loader2, Bot, User } from "lucide-react"
 import { sendMessage } from "@/lib/chat/client"
+import type { ChatClientContext } from "@/lib/chat/client"
 import type { ChatMessage } from "@/lib/chat/constants"
 
 interface ChatCopilotProps {
   orgSlug: string
   conversationId?: string
-  apiKey?: string
+  chatCtx?: ChatClientContext
   onConversationCreated?: (id: string) => void
   initialMessage?: string
 }
@@ -21,7 +22,7 @@ interface ChatCopilotProps {
 export function ChatCopilot({
   orgSlug,
   conversationId,
-  apiKey,
+  chatCtx,
   onConversationCreated,
   initialMessage,
 }: ChatCopilotProps) {
@@ -63,7 +64,7 @@ export function ChatCopilot({
       setMessages((prev) => [...prev, userMsg])
 
       try {
-        const result = await sendMessage(orgSlug, text, currentConvId, apiKey)
+        const result = await sendMessage(orgSlug, text, currentConvId, chatCtx)
 
         // Update conversation ID if new
         if (!currentConvId && result.conversation_id) {
@@ -97,7 +98,7 @@ export function ChatCopilot({
         inputRef.current?.focus()
       }
     },
-    [input, sending, currentConvId, orgSlug, apiKey, onConversationCreated]
+    [input, sending, currentConvId, orgSlug, chatCtx, onConversationCreated]
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

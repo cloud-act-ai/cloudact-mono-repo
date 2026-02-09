@@ -4,20 +4,31 @@
  * Main chat layout with conversation sidebar and chat area.
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ConversationList } from "./conversation-list"
 import { ChatCopilot } from "./chat-copilot"
 import { ChatWelcome } from "./chat-welcome"
 import { listConversations, getChatStatus } from "@/lib/chat/client"
+import type { ChatClientContext } from "@/lib/chat/client"
 import type { Conversation } from "@/lib/chat/constants"
 import { Loader2, Settings } from "lucide-react"
 import Link from "next/link"
 
-export function ChatLayout() {
+interface ChatLayoutProps {
+  apiKey?: string
+  userId?: string
+}
+
+export function ChatLayout({ apiKey, userId }: ChatLayoutProps) {
   const params = useParams<{ orgSlug: string; conversationId?: string }>()
   const router = useRouter()
   const orgSlug = params.orgSlug
+
+  const chatCtx = useMemo<ChatClientContext | undefined>(
+    () => apiKey ? { apiKey, orgSlug, userId } : undefined,
+    [apiKey, orgSlug, userId]
+  )
 
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,7 +41,7 @@ export function ChatLayout() {
   // Check if chat is configured
   useEffect(() => {
     async function checkConfig() {
-      const status = await getChatStatus(orgSlug)
+      const status = await getChatStatus(orgSlug, chatCtx)
       setConfigured(status.configured)
       if (status.configured) {
         loadConversations()
@@ -39,19 +50,19 @@ export function ChatLayout() {
       }
     }
     checkConfig()
-  }, [orgSlug]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orgSlug, chatCtx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadConversations = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await listConversations(orgSlug)
+      const data = await listConversations(orgSlug, chatCtx)
       setConversations(data.conversations || [])
     } catch {
       // Silently handle - empty state is fine
     } finally {
       setLoading(false)
     }
-  }, [orgSlug])
+  }, [orgSlug, chatCtx])
 
   const handleNewConversation = useCallback(() => {
     setActiveConversationId(undefined)
@@ -134,6 +145,7 @@ export function ChatLayout() {
           <ChatCopilot
             orgSlug={orgSlug}
             conversationId={activeConversationId}
+            chatCtx={chatCtx}
             onConversationCreated={handleConversationCreated}
             initialMessage={initialMessage}
           />

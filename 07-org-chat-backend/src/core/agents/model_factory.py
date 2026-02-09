@@ -15,10 +15,11 @@ from google.adk.models.lite_llm import LiteLlm
 logger = logging.getLogger(__name__)
 
 # Provider → LiteLlm prefix mapping
+# All providers use LiteLlm for BYOK to avoid global env var mutation
 PROVIDER_PREFIX = {
     "OPENAI": "openai",
     "ANTHROPIC": "anthropic",
-    "GEMINI": None,  # Native ADK
+    "GEMINI": "gemini",
     "DEEPSEEK": "deepseek",
 }
 
@@ -35,12 +36,12 @@ def create_model(
     provider: str,
     model_id: str,
     api_key: str,
-) -> Union[str, LiteLlm]:
+) -> LiteLlm:
     """
     Create an ADK-compatible model from customer's provider + key.
 
-    For Gemini: returns model string (ADK handles natively).
-    For others: returns LiteLlm wrapper.
+    All providers use LiteLlm to keep API keys per-request (no global state).
+    This prevents cross-tenant credential leakage in concurrent requests.
 
     Args:
         provider: Provider name (OPENAI, ANTHROPIC, GEMINI, DEEPSEEK).
@@ -48,14 +49,9 @@ def create_model(
         api_key: Decrypted API key (in memory only, never logged).
 
     Returns:
-        ADK-compatible model (str for Gemini, LiteLlm for others).
+        LiteLlm model wrapper.
     """
     provider_upper = provider.upper()
-
-    if provider_upper == "GEMINI":
-        os.environ["GOOGLE_API_KEY"] = api_key
-        logger.info(f"Created native Gemini model: {model_id}")
-        return model_id
 
     prefix = PROVIDER_PREFIX.get(provider_upper)
     if not prefix:

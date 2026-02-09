@@ -10,6 +10,7 @@ from google.adk.models.lite_llm import LiteLlm
 from google.genai import types
 
 from src.core.tools.alerts import list_alerts, create_alert, alert_history, acknowledge_alert
+from src.core.tools.shared import bind_org_slug
 
 
 def create_alert_manager(
@@ -17,6 +18,10 @@ def create_alert_manager(
     model: Union[str, LiteLlm],
     generate_config: types.GenerateContentConfig,
 ) -> LlmAgent:
+    tools = [bind_org_slug(fn, org_slug) for fn in [
+        list_alerts, create_alert, alert_history, acknowledge_alert,
+    ]]
+
     return LlmAgent(
         name="AlertManager",
         model=model,
@@ -29,12 +34,12 @@ def create_alert_manager(
 
 You manage cost alert rules and their trigger history.
 
-CRITICAL RULES:
-- Always pass org_slug='{org_slug}' to every tool call.
+RULES:
+- org_slug is already set — do NOT pass it to tool calls.
 - When creating alerts, confirm the threshold and severity with the user.
 - Suggest appropriate severity levels: info (monitoring), warning (action needed), critical (immediate).
 - Show alert history in chronological order with status indicators.
 - For acknowledgment, confirm the specific alert the user wants to acknowledge.
 """,
-        tools=[list_alerts, create_alert, alert_history, acknowledge_alert],
+        tools=tools,
     )

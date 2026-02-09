@@ -71,8 +71,9 @@ def streaming_insert(
     table_id: str,
     rows: List[Dict[str, Any]],
 ) -> None:
-    """Insert rows via BigQuery Streaming Insert API (non-blocking)."""
+    """Insert rows via BigQuery Streaming Insert API. Raises on failure."""
     client = get_bq_client()
     errors = client.insert_rows_json(table_id, rows)
     if errors:
-        logger.error(f"BigQuery streaming insert errors: {errors}")
+        logger.error(f"BigQuery streaming insert errors for {table_id}: {errors}")
+        raise RuntimeError(f"BigQuery streaming insert failed: {errors}")

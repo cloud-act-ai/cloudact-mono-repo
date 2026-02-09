@@ -6,7 +6,8 @@ Common BigQuery query patterns, validation, and result formatting.
 import re
 import logging
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Set
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from google.cloud import bigquery
 
@@ -74,3 +75,17 @@ def default_date_range() -> tuple[str, str]:
     today = date.today()
     first_of_month = today.replace(day=1)
     return first_of_month.isoformat(), today.isoformat()
+
+
+def bind_org_slug(tool_fn: Callable, org_slug: str) -> Callable:
+    """
+    Pre-bind org_slug to a tool function so the LLM cannot override it.
+
+    This is critical for multi-tenant isolation — without binding, the LLM
+    could be prompt-injected into querying a different org's data.
+    The bound function preserves the original name and docstring for ADK tool registration.
+    """
+    bound = partial(tool_fn, org_slug)
+    bound.__name__ = tool_fn.__name__
+    bound.__doc__ = tool_fn.__doc__
+    return bound

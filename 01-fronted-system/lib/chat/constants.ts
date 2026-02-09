@@ -67,14 +67,13 @@ export interface ChatMessage {
 
 export interface Conversation {
   conversation_id: string
-  org_slug: string
   title?: string
   provider: string
   model_id: string
   message_count: number
   status: string
   created_at: string
-  updated_at?: string
+  last_message_at?: string
 }
 
 export interface ChatSettings {

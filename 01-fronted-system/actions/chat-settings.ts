@@ -10,7 +10,7 @@ import type { ChatSettings, ChatSettingsInput, ProviderInfo } from "@/lib/chat/c
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 function isValidOrgSlug(orgSlug: string): boolean {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
+  return /^[a-z0-9_]{3,50}$/.test(orgSlug)
 }
 
 async function apiRequest(

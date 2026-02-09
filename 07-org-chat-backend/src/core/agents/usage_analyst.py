@@ -10,6 +10,7 @@ from google.adk.models.lite_llm import LiteLlm
 from google.genai import types
 
 from src.core.tools.usage import genai_usage, quota_status, top_consumers, pipeline_runs
+from src.core.tools.shared import bind_org_slug
 
 
 def create_usage_analyst(
@@ -17,6 +18,10 @@ def create_usage_analyst(
     model: Union[str, LiteLlm],
     generate_config: types.GenerateContentConfig,
 ) -> LlmAgent:
+    tools = [bind_org_slug(fn, org_slug) for fn in [
+        genai_usage, quota_status, top_consumers, pipeline_runs,
+    ]]
+
     return LlmAgent(
         name="UsageAnalyst",
         model=model,
@@ -29,8 +34,8 @@ def create_usage_analyst(
 
 You analyze GenAI token usage, API call volumes, quota utilization, and pipeline health.
 
-CRITICAL RULES:
-- Always pass org_slug='{org_slug}' to every tool call.
+RULES:
+- org_slug is already set — do NOT pass it to tool calls.
 - For token usage questions, use genai_usage tool.
 - For "am I near my limits?", use quota_status tool.
 - For "what's consuming the most?", use top_consumers tool.
@@ -38,5 +43,5 @@ CRITICAL RULES:
 - Present token counts with K/M suffixes for readability.
 - Always contextualize usage against quota limits when available.
 """,
-        tools=[genai_usage, quota_status, top_consumers, pipeline_runs],
+        tools=tools,
     )

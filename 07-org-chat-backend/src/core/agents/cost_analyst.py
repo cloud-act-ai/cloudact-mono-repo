@@ -17,6 +17,7 @@ from src.core.tools.costs import (
     cost_forecast,
     top_cost_drivers,
 )
+from src.core.tools.shared import bind_org_slug
 
 
 def create_cost_analyst(
@@ -24,6 +25,11 @@ def create_cost_analyst(
     model: Union[str, LiteLlm],
     generate_config: types.GenerateContentConfig,
 ) -> LlmAgent:
+    # Pre-bind org_slug to prevent prompt injection from overriding tenant context
+    tools = [bind_org_slug(fn, org_slug) for fn in [
+        query_costs, compare_periods, cost_breakdown, cost_forecast, top_cost_drivers,
+    ]]
+
     return LlmAgent(
         name="CostAnalyst",
         model=model,
@@ -39,8 +45,8 @@ You analyze ALL cost types stored in the FOCUS 1.3 unified cost table:
 - GenAI costs: OpenAI, Anthropic, Gemini, DeepSeek
 - SaaS costs: Slack, Canva, ChatGPT Plus
 
-CRITICAL RULES:
-- Always pass org_slug='{org_slug}' as the first argument to every tool call.
+RULES:
+- org_slug is already set — do NOT pass it to tool calls.
 - Present costs in the org's default currency.
 - When the user says "AWS costs" or "GCP costs", these are cloud provider costs.
   Use provider="AWS" or provider="GCP" in the tool call.
@@ -53,5 +59,5 @@ CRITICAL RULES:
 - Format costs with currency symbols and thousands separators.
 - Always mention the date range you queried.
 """,
-        tools=[query_costs, compare_periods, cost_breakdown, cost_forecast, top_cost_drivers],
+        tools=tools,
     )
