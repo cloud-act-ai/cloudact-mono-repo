@@ -10,9 +10,14 @@ from typing import Any, Dict, List, Optional
 
 from google.cloud import bigquery
 
-from src.core.tools.shared import safe_query, get_dataset, default_date_range
+from src.core.tools.shared import safe_query, get_dataset, default_date_range, validate_enum
 
 logger = logging.getLogger(__name__)
+
+# Allowed values for enum-style parameters
+_VALID_GROUP_BY = {"provider", "service", "team", "day", "month"}
+_VALID_DIMENSIONS = {"provider", "service", "team", "region", "model"}
+_VALID_PERIOD_TYPES = {"MTD", "MoM", "QoQ", "YoY"}
 
 
 def query_costs(
@@ -50,7 +55,10 @@ def query_costs(
         "day": "DATE(ChargePeriodStart)",
         "month": "FORMAT_TIMESTAMP('%Y-%m', ChargePeriodStart)",
     }
-    group_col = group_map.get(group_by or "provider", "ServiceProviderName")
+    effective_group = group_by or "provider"
+    if effective_group not in group_map:
+        validate_enum(effective_group, _VALID_GROUP_BY, "group_by")
+    group_col = group_map[effective_group]
 
     query = f"""
         SELECT
@@ -93,6 +101,7 @@ def compare_periods(
         period_type: Comparison type — MTD, MoM, QoQ, YoY.
         provider: Optional provider filter.
     """
+    validate_enum(period_type, _VALID_PERIOD_TYPES, "period_type")
     dataset = get_dataset(org_slug)
     today = date.today()
 
@@ -203,7 +212,8 @@ def cost_breakdown(
         "region": "RegionName",
         "model": "x_genai_model",
     }
-    dim_col = dim_map.get(dimension, "ServiceProviderName")
+    validate_enum(dimension, _VALID_DIMENSIONS, "dimension")
+    dim_col = dim_map[dimension]
 
     query = f"""
         SELECT

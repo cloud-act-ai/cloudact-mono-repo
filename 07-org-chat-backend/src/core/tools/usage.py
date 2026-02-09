@@ -7,9 +7,12 @@ from typing import Any, Dict, Optional
 
 from google.cloud import bigquery
 
-from src.core.tools.shared import safe_query, get_dataset, get_org_dataset, default_date_range
+from src.core.tools.shared import safe_query, get_dataset, get_org_dataset, default_date_range, validate_enum
 
 logger = logging.getLogger(__name__)
+
+_VALID_CONSUMER_DIMENSIONS = {"model", "service", "provider"}
+_VALID_PIPELINE_STATUSES = {"COMPLETED", "FAILED", "RUNNING", "CANCELLED"}
 
 
 def genai_usage(
@@ -123,7 +126,8 @@ def top_consumers(
         "service": "ServiceName",
         "provider": "ServiceProviderName",
     }
-    dim_col = dim_map.get(dimension, "x_genai_model")
+    validate_enum(dimension, _VALID_CONSUMER_DIMENSIONS, "dimension")
+    dim_col = dim_map[dimension]
 
     query = f"""
         SELECT
@@ -174,6 +178,7 @@ def pipeline_runs(
         query += " AND provider = @provider"
         params.append(bigquery.ScalarQueryParameter("provider", "STRING", provider))
     if status:
+        validate_enum(status, _VALID_PIPELINE_STATUSES, "status")
         query += " AND status = @status"
         params.append(bigquery.ScalarQueryParameter("status", "STRING", status))
 

@@ -3,9 +3,10 @@ Shared utilities for MCP tools.
 Common BigQuery query patterns, validation, and result formatting.
 """
 
+import re
 import logging
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from google.cloud import bigquery
 
@@ -16,6 +17,21 @@ from src.app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+_ORG_SLUG_PATTERN = re.compile(r"^[a-z0-9_]{3,50}$")
+
+
+def _validate_org_slug_format(org_slug: str) -> None:
+    """Fast format-only validation (no BQ lookup). Prevents injection in dataset names."""
+    if not org_slug or not _ORG_SLUG_PATTERN.match(org_slug):
+        raise ValueError(f"Invalid org_slug format: {org_slug!r}")
+
+
+def validate_enum(value: str, allowed: Set[str], field_name: str) -> str:
+    """Validate a value against an allowed set. Returns the value if valid."""
+    if value not in allowed:
+        raise ValueError(f"Invalid {field_name}: {value!r}. Allowed: {sorted(allowed)}")
+    return value
+
 
 def safe_query(
     org_slug: str,
@@ -25,7 +41,7 @@ def safe_query(
     """
     Execute a validated, guarded BigQuery query for an org.
 
-    1. Validates org_slug
+    1. Validates org_slug (format + existence)
     2. Dry-run gate (10 GB limit)
     3. Executes parameterized query
     4. Returns results with metadata
@@ -43,10 +59,9 @@ def safe_query(
 
 
 def get_dataset(org_slug: str) -> str:
-    """Get the per-tenant BigQuery dataset name."""
-    settings = get_settings()
-    env_suffix = "prod" if settings.environment == "production" else "prod"
-    return f"{org_slug}_{env_suffix}"
+    """Get the per-tenant BigQuery dataset name. Validates slug format first."""
+    _validate_org_slug_format(org_slug)
+    return f"{org_slug}_prod"
 
 
 def get_org_dataset() -> str:

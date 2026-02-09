@@ -11,6 +11,7 @@ This is NOT an ADK SessionService replacement — ADK manages in-memory sessions
 This layer syncs between ADK sessions and BigQuery (single source of truth).
 """
 
+import re
 import uuid
 import logging
 from datetime import datetime, timezone
@@ -23,6 +24,14 @@ from src.core.security.org_validator import validate_org
 from src.app.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+_ORG_SLUG_PATTERN = re.compile(r"^[a-z0-9_]{3,50}$")
+
+
+def _validate_org_slug_format(org_slug: str) -> None:
+    """Fast format-only validation. Prevents injection in table references."""
+    if not org_slug or not _ORG_SLUG_PATTERN.match(org_slug):
+        raise ValueError(f"Invalid org_slug format: {org_slug!r}")
 
 
 def _now() -> str:
@@ -75,6 +84,7 @@ def get_conversation(
     conversation_id: str,
 ) -> Optional[Dict[str, Any]]:
     """Load conversation metadata."""
+    _validate_org_slug_format(org_slug)
     settings = get_settings()
     dataset = settings.organizations_dataset
 
@@ -95,6 +105,7 @@ def list_conversations(
     limit: int = 20,
 ) -> List[Dict[str, Any]]:
     """List conversations for a user in an org."""
+    _validate_org_slug_format(org_slug)
     settings = get_settings()
     dataset = settings.organizations_dataset
 
@@ -123,6 +134,7 @@ def load_message_history(
     max_messages: int = 50,
 ) -> List[Dict[str, Any]]:
     """Load conversation message history from BigQuery."""
+    _validate_org_slug_format(org_slug)
     settings = get_settings()
     dataset = settings.organizations_dataset
     max_messages = max(1, min(max_messages, 200))
@@ -155,6 +167,7 @@ def persist_message(
     latency_ms: Optional[int] = None,
 ) -> str:
     """Persist a message to BigQuery via Streaming Insert. Returns message_id."""
+    _validate_org_slug_format(org_slug)
     message_id = f"msg_{uuid.uuid4().hex[:16]}"
 
     row = {
@@ -200,6 +213,7 @@ def persist_tool_call(
     error_message: Optional[str] = None,
 ) -> str:
     """Persist a tool call to BigQuery for auditing."""
+    _validate_org_slug_format(org_slug)
     tool_call_id = f"tc_{uuid.uuid4().hex[:12]}"
 
     row = {
@@ -232,6 +246,7 @@ def persist_tool_call(
 
 def load_chat_settings(org_slug: str) -> Optional[Dict[str, Any]]:
     """Load active chat settings for an org."""
+    _validate_org_slug_format(org_slug)
     settings = get_settings()
     dataset = settings.organizations_dataset
 
@@ -252,6 +267,7 @@ def load_encrypted_credential(
     credential_id: str,
 ) -> Optional[str]:
     """Load encrypted credential from org_integration_credentials."""
+    _validate_org_slug_format(org_slug)
     settings = get_settings()
     dataset = settings.organizations_dataset
 

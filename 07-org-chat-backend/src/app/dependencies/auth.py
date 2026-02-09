@@ -3,8 +3,8 @@ Authentication dependency for chat backend.
 Validates X-Org-Slug and X-API-Key headers from CopilotKit Runtime.
 """
 
+import re
 import hashlib
-import hmac
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -17,6 +17,8 @@ from src.app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+_ORG_SLUG_PATTERN = re.compile(r"^[a-z0-9_]{3,50}$")
+
 
 @dataclass
 class ChatContext:
@@ -27,6 +29,15 @@ class ChatContext:
 
 def _hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+def _validate_org_slug(org_slug: str) -> None:
+    """Validate org_slug format to prevent injection. Always enforced."""
+    if not org_slug or not _ORG_SLUG_PATTERN.match(org_slug):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid org_slug format. Must be 3-50 lowercase alphanumeric characters with underscores.",
+        )
 
 
 async def get_chat_context(
@@ -43,12 +54,19 @@ async def get_chat_context(
     """
     settings = get_settings()
 
+    # Always validate org_slug format, even in dev mode
+    effective_slug = x_org_slug or settings.default_org_slug
+    _validate_org_slug(effective_slug)
+
     if settings.disable_auth:
         return ChatContext(
-            org_slug=x_org_slug or settings.default_org_slug,
+            org_slug=effective_slug,
             user_id=x_user_id,
             api_key_hash="dev",
         )
+
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="X-API-Key header is required")
 
     api_key_hash = _hash_api_key(x_api_key)
     org_dataset = settings.organizations_dataset

@@ -9,6 +9,7 @@ Endpoints:
 - GET  /.well-known/agent.json → A2A agent discovery
 """
 
+import re
 import json
 import time
 import asyncio
@@ -18,7 +19,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -42,6 +43,18 @@ from src.core.observability.logging import setup_logging
 from src.a2a.agent_card import get_agent_card
 
 logger = logging.getLogger(__name__)
+
+_ORG_SLUG_PATTERN = re.compile(r"^[a-z0-9_]{3,50}$")
+
+
+def _validate_path_org_slug(org_slug: str) -> None:
+    """Validate org_slug from URL path before any processing."""
+    if not org_slug or not _ORG_SLUG_PATTERN.match(org_slug):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid org_slug format. Must be 3-50 lowercase alphanumeric characters with underscores.",
+        )
+
 
 # ADK session service — in-memory for fast access, BQ for persistence
 session_service = InMemorySessionService()
@@ -85,7 +98,7 @@ async def health():
 # ============================================
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=10000)
     conversation_id: Optional[str] = None
 
 
@@ -109,6 +122,7 @@ async def send_message(
     1. Load settings → 2. Decrypt key → 3. Load history → 4. Build agents
     → 5. Execute → 6. Persist → 7. Cleanup
     """
+    _validate_path_org_slug(org_slug)
     start_time = time.time()
 
     # Verify org matches
@@ -238,6 +252,7 @@ async def get_conversations(
     ctx: ChatContext = Depends(get_chat_context),
 ):
     """List conversations for the authenticated user."""
+    _validate_path_org_slug(org_slug)
     if ctx.org_slug != org_slug:
         raise HTTPException(status_code=403, detail="Org mismatch")
 
@@ -251,6 +266,7 @@ async def chat_settings_status(
     ctx: ChatContext = Depends(get_chat_context),
 ):
     """Check if chat is configured for the org."""
+    _validate_path_org_slug(org_slug)
     if ctx.org_slug != org_slug:
         raise HTTPException(status_code=403, detail="Org mismatch")
 
