@@ -211,6 +211,58 @@ export const OVERVIEW_CHART_PALETTE = [
 ] as const
 
 // ============================================
+// Monochromatic Ring Palettes (professional, single-hue)
+// Each category gets shades from saturated → light for ring chart segments
+// ============================================
+
+/** GenAI green shades (dark → light) */
+export const GENAI_MONO_PALETTE = [
+  "#0D8A65",
+  "#10A37F",
+  "#40B89A",
+  "#70CDB5",
+  "#A0E2D0",
+  "#D0F7EB",
+] as const
+
+/** Cloud blue shades (dark → light) */
+export const CLOUD_MONO_PALETTE = [
+  "#2968C8",
+  "#4285F4",
+  "#6BA0F6",
+  "#94BBF8",
+  "#BDD6FA",
+  "#E6F1FC",
+] as const
+
+/** Subscription coral shades (dark → light) */
+export const SUBSCRIPTION_MONO_PALETTE = [
+  "#E0483C",
+  "#FF6C5E",
+  "#FF8E82",
+  "#FFB0A6",
+  "#FFD2CA",
+  "#FFF4EE",
+] as const
+
+/**
+ * Get monochromatic shade for ring chart segments
+ * Gives each segment a distinct shade within the same color family
+ */
+export function getMonoShade(
+  index: number,
+  category: "genai" | "cloud" | "subscription"
+): string {
+  const palettes = {
+    genai: GENAI_MONO_PALETTE,
+    cloud: CLOUD_MONO_PALETTE,
+    subscription: SUBSCRIPTION_MONO_PALETTE,
+  }
+  const palette = palettes[category]
+  return palette[index % palette.length]
+}
+
+// ============================================
 // Chart Palette Map
 // ============================================
 

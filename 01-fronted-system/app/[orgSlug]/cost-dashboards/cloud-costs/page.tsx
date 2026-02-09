@@ -17,22 +17,17 @@ import {
   CostSummaryGrid,
   TimeRangeFilter,
   CostFilters,
-  getRollingAverageLabel,
-  type CostSummaryData,
   type CostFiltersState,
 } from "@/components/costs"
-import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
+import { useDailyTrendData, useCostSummary, useRollingAvgLabel } from "@/hooks/use-cost-dashboard"
 import {
   transformProvidersToBreakdownItems,
   CLOUD_PROVIDER_CONFIG,
+  CATEGORY_COLORS,
   type ProviderData,
-  // FinOps constants
-  calculateAllForecasts,
   // Design tokens
-  CLOUD_CHART_PALETTE,
-  getProviderColor,
-  DEFAULT_COLOR,
+  getMonoShade,
   formatCost,
 } from "@/lib/costs"
 import { getCostByService, type ServiceBreakdown } from "@/actions/costs"
@@ -263,79 +258,16 @@ export default function CloudCostsPage() {
     }
   }
 
-  // Get rolling average label based on selected time range
-  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
-
-  // Get daily trend data from unified filters (instant client-side filtering)
-  // Category is already set to "cloud" via setUnifiedFilters on mount
-  const dailyTrendData = useMemo(() => {
-    const timeSeries = getFilteredTimeSeries()
-    if (!timeSeries || timeSeries.length === 0) return []
-
-    // Calculate rolling average (overall period average as flat reference line)
-    const totalCost = timeSeries.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0)
-    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
-    const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
-
-    // Transform to chart format
-    return timeSeries
-      .filter((point) => {
-        // EDGE-001 FIX: Skip entries with invalid dates
-        if (!point.date) return false
-        const date = new Date(point.date)
-        return !isNaN(date.getTime())
-      })
-      .map((point) => {
-        const date = new Date(point.date)
-        // LOCALE-001 FIX: Use undefined to respect user's browser locale
-        // BUG-001 FIX: Format label based on data length - short format for large datasets
-        const label = timeSeries.length >= 90
-          ? date.toLocaleDateString(undefined, { day: "numeric" })  // Just day number for 90+ days
-          : date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-
-        return {
-          label,
-          value: Number.isFinite(point.total) ? point.total : 0, // EDGE-001 FIX: Validate value
-          lineValue: Math.round(rollingAvg * 100) / 100,
-          date: point.date,
-        }
-      })
-  }, [getFilteredTimeSeries])
-
-
-  // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
-  const summaryData: CostSummaryData = useMemo(() => {
-    // Calculate totals from time-filtered daily data (respects time range filter)
-    const filteredTotal = dailyTrendData.reduce((sum, d) => sum + d.value, 0)
-    const daysInPeriod = dailyTrendData.length || 1
-
-    // Calculate daily rate from filtered data
-    const dailyRate = filteredTotal / daysInPeriod
-
-    // Use FinOps standard calculations for forecasts
-    const { monthlyForecast } = calculateAllForecasts(
-      filteredTotal,
-      daysInPeriod
-    )
-
-    // CALC-001 FIX: Only show YTD when timeRange is "ytd", otherwise show period total
-    // Projecting a short period average to entire YTD is statistically unreliable
-    const ytdValue = timeRange === "ytd" ? filteredTotal : filteredTotal
-
-    return {
-      mtd: filteredTotal,       // Period spend (from filtered data)
-      dailyRate: dailyRate,     // Daily average (from filtered data)
-      forecast: monthlyForecast,
-      ytd: ytdValue,
-      currency: orgCurrency,
-    }
-  }, [dailyTrendData, timeRange, orgCurrency])
+  // Shared hooks — eliminates duplicated trend/summary logic
+  const rollingAvgLabel = useRollingAvgLabel(timeRange, customRange)
+  const dailyTrendData = useDailyTrendData()
+  const summaryData = useCostSummary(dailyTrendData, timeRange)
 
   // Convert providers to breakdown items using centralized helper
   const providerBreakdownItems = useMemo(() =>
     transformProvidersToBreakdownItems(
       providers as ProviderData[],
-      CLOUD_PROVIDER_CONFIG
+      { names: CLOUD_PROVIDER_CONFIG.names, colors: {}, defaultColor: CATEGORY_COLORS.cloud }
     ),
     [providers]
   )
@@ -376,11 +308,7 @@ export default function CloudCostsPage() {
         key: p.provider,
         name: CLOUD_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
         value: p.total_cost,
-        // Use provider-specific color or fall back to chart palette
-        // COLOR-001 fix: Use DEFAULT_COLOR constant instead of magic string
-        color: getProviderColor(p.provider, "cloud") !== DEFAULT_COLOR
-          ? getProviderColor(p.provider, "cloud")
-          : CLOUD_CHART_PALETTE[index % CLOUD_CHART_PALETTE.length],
+        color: getMonoShade(index, "cloud"),
       }))
   }, [providers])
 
@@ -433,11 +361,61 @@ export default function CloudCostsPage() {
       }
     >
       {/* Summary Metrics */}
-      <CostSummaryGrid data={summaryData} />
+      <div className="animate-fade-up">
+        <CostSummaryGrid data={summaryData} />
+      </div>
+
+      {/* Daily Cost Trend Chart - Bar with Moving Average Line */}
+      {dailyTrendData.length > 0 && (
+        <div className="animate-fade-up animation-delay-100">
+        <DailyTrendChart
+          title="Cloud Cost Trend"
+          subtitle={`${rollingAvgLabel} overlay on ${timeRange === "365" || timeRange === "ytd" ? "monthly" : timeRange === "90" ? "weekly" : "daily"} spend`}
+          data={dailyTrendData.map(d => ({
+            date: d.date,
+            label: d.label,
+            value: d.value,
+          }))}
+          timeRange={timeRange}
+          category="cloud"
+          height={320}
+          mobileHeight={240}
+          loading={isLoading}
+        />
+        </div>
+      )}
+
+      {/* Provider Breakdown with Ring Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-200">
+        {/* Ring Chart - Provider Breakdown */}
+        {ringSegments.length > 0 && (
+          <CostRingChart
+            title="Cloud Spend"
+            segments={ringSegments}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
+            insight={`Spending across ${ringSegments.length} cloud provider${ringSegments.length > 1 ? "s" : ""}.`}
+            size={200}
+            thickness={22}
+            titleColor="#4285F4"
+            className="premium-card"
+          />
+        )}
+
+        {/* Provider Breakdown */}
+        {providerBreakdownItems.length > 0 && (
+          <CostBreakdownChart
+            title="Cost by Provider"
+            items={providerBreakdownItems}
+            countLabel="services"
+            maxItems={5}
+            className="premium-card"
+          />
+        )}
+      </div>
 
       {/* FOCUS 1.3 Cost Breakdown (FinOps Standard) */}
       {totalCosts?.cloud && (
-        <Card className="border-slate-200 animate-fade-up animation-delay-100">
+        <Card className="border-slate-200 animate-fade-up animation-delay-300">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-slate-900">
               Cost Breakdown (FOCUS 1.3)
@@ -487,64 +465,20 @@ export default function CloudCostsPage() {
         </Card>
       )}
 
-      {/* Daily Cost Trend Chart - Bar with Moving Average Line */}
-      {dailyTrendData.length > 0 && (
-        <DailyTrendChart
-          title="Cloud Cost Trend"
-          subtitle={`${rollingAvgLabel} overlay on ${timeRange === "365" || timeRange === "ytd" ? "monthly" : timeRange === "90" ? "weekly" : "daily"} spend`}
-          data={dailyTrendData.map(d => ({
-            date: d.date,
-            label: d.label,
-            value: d.value,
-          }))}
-          timeRange={timeRange}
-          category="cloud"
-          height={320}
-          mobileHeight={240}
-          loading={isLoading}
-        />
-      )}
-
-      {/* Provider Breakdown with Ring Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-up animation-delay-200">
-        {/* Ring Chart - Provider Breakdown */}
-        {ringSegments.length > 0 && (
-          <CostRingChart
-            title="Cloud Spend"
-            segments={ringSegments}
-            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
-            insight={`Spending across ${ringSegments.length} cloud provider${ringSegments.length > 1 ? "s" : ""}.`}
-            size={200}
-            thickness={22}
-            titleColor="#4285F4"
-            className="premium-card"
-          />
-        )}
-
-        {/* Provider Breakdown */}
-        {providerBreakdownItems.length > 0 && (
-          <CostBreakdownChart
-            title="Cost by Provider"
-            items={providerBreakdownItems}
-            countLabel="services"
-            maxItems={5}
-            className="premium-card"
-          />
-        )}
-      </div>
-
       {/* Service Cost Details Table - FOCUS 1.3 breakdown */}
       {tableRows.length > 0 && (
-        <CostDataTable
-          title="Service Cost Details"
-          subtitle="FOCUS 1.3 cost breakdown by GCP service"
-          rows={tableRows}
-          showType
-          typeLabel="Provider"
-          showFocusCost
-          showUsage
-          maxRows={10}
-        />
+        <div className="animate-fade-up animation-delay-400">
+          <CostDataTable
+            title="Service Cost Details"
+            subtitle="FOCUS 1.3 cost breakdown by GCP service"
+            rows={tableRows}
+            showType
+            typeLabel="Provider"
+            showFocusCost
+            showUsage
+            maxRows={10}
+          />
+        </div>
       )}
     </CostDashboardShell>
   )

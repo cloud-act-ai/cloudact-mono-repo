@@ -286,6 +286,8 @@ export {
   getChartColors,
   getChartColorAtIndex,
   assignRingChartColors,
+  // Monochromatic ring palettes
+  getMonoShade,
   // Trend colors
   TREND_COLORS,
   getTrendColor,

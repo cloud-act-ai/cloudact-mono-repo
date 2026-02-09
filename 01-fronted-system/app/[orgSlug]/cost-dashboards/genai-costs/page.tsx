@@ -16,25 +16,20 @@ import {
   CostSummaryGrid,
   TimeRangeFilter,
   CostFilters,
-  getRollingAverageLabel,
-  type CostSummaryData,
   type CostFiltersState,
 } from "@/components/costs"
-import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import { useCostData, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 import {
   getDateInfo,
   transformProvidersToBreakdownItems,
   transformProvidersToTableRows,
   GENAI_PROVIDER_CONFIG,
+  CATEGORY_COLORS,
   type ProviderData,
-  // FinOps constants
-  calculateAllForecasts,
   // Design tokens
-  GENAI_CHART_PALETTE,
-  getProviderColor,
-  DEFAULT_COLOR,
+  getMonoShade,
 } from "@/lib/costs"
+import { useDailyTrendData, useCostSummary, useRollingAvgLabel } from "@/hooks/use-cost-dashboard"
 
 export default function GenAICostsPage() {
   const params = useParams()
@@ -207,81 +202,19 @@ export default function GenAICostsPage() {
     }
   }
 
-  // Get rolling average label based on selected time range
-  const rollingAvgLabel = useMemo(() => getRollingAverageLabel(timeRange, customRange), [timeRange, customRange])
-
-  // Get daily trend data from unified filters (instant client-side filtering)
-  // Category is already set to "genai" via setUnifiedFilters on mount
-  const dailyTrendData = useMemo(() => {
-    const timeSeries = getFilteredTimeSeries()
-    if (!timeSeries || timeSeries.length === 0) return []
-
-    // Calculate rolling average (overall period average as flat reference line)
-    const totalCost = timeSeries.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0)
-    const avgDaily = timeSeries.length > 0 ? totalCost / timeSeries.length : 0
-    const rollingAvg = Number.isFinite(avgDaily) ? avgDaily : 0
-
-    // Transform to chart format
-    return timeSeries
-      .filter((point) => {
-        // EDGE-001 FIX: Skip entries with invalid dates
-        if (!point.date) return false
-        const date = new Date(point.date)
-        return !isNaN(date.getTime())
-      })
-      .map((point) => {
-        const date = new Date(point.date)
-        // LOCALE-001 FIX: Use undefined to respect user's browser locale
-        // BUG-001 FIX: Format label based on data length - short format for large datasets
-        const label = timeSeries.length >= 90
-          ? date.toLocaleDateString(undefined, { day: "numeric" })  // Just day number for 90+ days
-          : date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-
-        return {
-          label,
-          value: Number.isFinite(point.total) ? point.total : 0, // EDGE-001 FIX: Validate value
-          lineValue: Math.round(rollingAvg * 100) / 100,
-          date: point.date,
-        }
-      })
-  }, [getFilteredTimeSeries])
+  // Shared hooks — eliminates duplicated trend/summary logic
+  const rollingAvgLabel = useRollingAvgLabel(timeRange, customRange)
+  const dailyTrendData = useDailyTrendData()
+  const summaryData = useCostSummary(dailyTrendData, timeRange)
 
   // PERF-001 FIX: Memoize dateInfo to avoid redundant calculations
   const dateInfo = useMemo(() => getDateInfo(), [])
-
-  // FILTER-FIX: Calculate summary data from TIME-FILTERED daily trend data
-  const summaryData: CostSummaryData = useMemo(() => {
-    // Calculate totals from time-filtered daily data (respects time range filter)
-    const filteredTotal = dailyTrendData.reduce((sum, d) => sum + d.value, 0)
-    const daysInPeriod = dailyTrendData.length || 1
-
-    // Calculate daily rate from filtered data
-    const dailyRate = filteredTotal / daysInPeriod
-
-    // Use FinOps standard calculations for forecasts
-    const { monthlyForecast } = calculateAllForecasts(
-      filteredTotal,
-      daysInPeriod
-    )
-
-    // CALC-001 FIX: Only show YTD when timeRange is "ytd", otherwise show period total
-    // Projecting a short period average to entire YTD is statistically unreliable
-    const ytdValue = timeRange === "ytd" ? filteredTotal : filteredTotal
-
-    return {
-      mtd: filteredTotal,       // Period spend (from filtered data)
-      dailyRate: dailyRate,     // Daily average (from filtered data)
-      forecast: monthlyForecast,
-      ytd: ytdValue,
-      currency: orgCurrency,
-    }
-  }, [dailyTrendData, timeRange, orgCurrency])
 
   // Convert providers to breakdown items using centralized helper
   const providerBreakdownItems = useMemo(() =>
     transformProvidersToBreakdownItems(
       providers as ProviderData[],
-      GENAI_PROVIDER_CONFIG
+      { names: GENAI_PROVIDER_CONFIG.names, colors: {}, defaultColor: CATEGORY_COLORS.genai }
     ),
     [providers]
   )
@@ -291,7 +224,7 @@ export default function GenAICostsPage() {
     return transformProvidersToTableRows(
       providers as ProviderData[],
       dateInfo,
-      GENAI_PROVIDER_CONFIG
+      { names: GENAI_PROVIDER_CONFIG.names, colors: {}, defaultColor: CATEGORY_COLORS.genai }
     )
   }, [providers, dateInfo])
 
@@ -306,11 +239,7 @@ export default function GenAICostsPage() {
         key: p.provider,
         name: GENAI_PROVIDER_CONFIG.names[p.provider.toLowerCase()] || p.provider,
         value: p.total_cost,
-        // Use provider-specific color or fall back to chart palette
-        // COLOR-001 fix: Use DEFAULT_COLOR constant instead of magic string
-        color: getProviderColor(p.provider, "genai") !== DEFAULT_COLOR
-          ? getProviderColor(p.provider, "genai")
-          : GENAI_CHART_PALETTE[index % GENAI_CHART_PALETTE.length],
+        color: getMonoShade(index, "genai"),
       }))
   }, [providers])
 
@@ -363,10 +292,13 @@ export default function GenAICostsPage() {
       }
     >
       {/* Summary Metrics */}
-      <CostSummaryGrid data={summaryData} />
+      <div className="animate-fade-up">
+        <CostSummaryGrid data={summaryData} />
+      </div>
 
       {/* Daily Cost Trend Chart - Bar with Moving Average Line */}
       {dailyTrendData.length > 0 && (
+        <div className="animate-fade-up animation-delay-100">
         <DailyTrendChart
           title="GenAI Cost Trend"
           subtitle={`${rollingAvgLabel} overlay on ${timeRange === "365" || timeRange === "ytd" ? "monthly" : timeRange === "90" ? "weekly" : "daily"} spend`}
@@ -381,6 +313,7 @@ export default function GenAICostsPage() {
           mobileHeight={240}
           loading={isLoading}
         />
+        </div>
       )}
 
       {/* Provider Breakdown with Ring Chart */}
@@ -413,14 +346,16 @@ export default function GenAICostsPage() {
 
       {/* Provider Details Table */}
       {tableRows.length > 0 && (
-        <CostDataTable
-          title="Cost Details"
-          rows={tableRows}
-          showType
-          typeLabel="Service"
-          showCount={false}
-          maxRows={10}
-        />
+        <div className="animate-fade-up animation-delay-300">
+          <CostDataTable
+            title="Cost Details"
+            rows={tableRows}
+            showType
+            typeLabel="Service"
+            showCount={false}
+            maxRows={10}
+          />
+        </div>
       )}
     </CostDashboardShell>
   )
