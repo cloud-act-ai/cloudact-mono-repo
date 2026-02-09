@@ -1,0 +1,190 @@
+# =============================================
+# CloudAct Platform - Dev-Cloud Environment
+# =============================================
+# Multi-tenant development setup with all 4 services
+# Points to cloudact-testing-1 GCP project
+#
+# Services:
+#   api-service        (8000) - FastAPI, bootstrap, org management
+#   pipeline-service   (8001) - Pipeline execution, BigQuery writes
+#   chat-backend       (8002) - AI chat (Google ADK + CopilotKit)
+#   frontend           (3000) - Next.js + Supabase auth + Stripe
+#
+# Usage:
+#   docker-compose -f docker-compose.dev-cloud.yml up -d          # Start all
+#   docker-compose -f docker-compose.dev-cloud.yml up -d --build  # Rebuild all
+#   docker-compose -f docker-compose.dev-cloud.yml logs -f        # View logs
+#   docker-compose -f docker-compose.dev-cloud.yml down            # Stop all
+#   docker-compose -f docker-compose.dev-cloud.yml down -v         # Stop + volumes
+#
+# Per-service:
+#   docker-compose -f docker-compose.dev-cloud.yml up -d api-service
+#   docker-compose -f docker-compose.dev-cloud.yml logs -f chat-backend
+# =============================================
+
+services:
+  # =============================================
+  # API Service - FastAPI (Port 8000)
+  # =============================================
+  api-service:
+    build:
+      context: ./02-api-service
+      dockerfile: Dockerfile
+    container_name: cloudact-api-dev
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./02-api-service/.env.dev-cloud
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=1
+      - ENABLE_API_DOCS=true
+      - CORS_ORIGINS=["http://localhost:3000","http://frontend:3000","http://localhost:8002"]
+      - PIPELINE_SERVICE_URL=http://pipeline-service:8001
+    volumes:
+      - ${GCP_CREDENTIALS_PATH:-~/.gcp/cloudact-testing-1-sa.json}:/app/credentials/service-account.json:ro
+      - ./02-api-service/src:/app/src:ro
+      - ./02-api-service/configs:/app/configs:ro
+    networks:
+      - cloudact-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --workers 1
+
+  # =============================================
+  # Pipeline Service - FastAPI (Port 8001)
+  # =============================================
+  pipeline-service:
+    build:
+      context: ./03-data-pipeline-service
+      dockerfile: Dockerfile
+    container_name: cloudact-pipeline-dev
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./03-data-pipeline-service/.env.dev-cloud
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      - PORT=8001
+      - API_HOST=0.0.0.0
+      - API_PORT=8001
+      - API_WORKERS=1
+      - ENABLE_API_DOCS=true
+      - API_SERVICE_URL=http://api-service:8000
+    volumes:
+      - ${GCP_CREDENTIALS_PATH:-~/.gcp/cloudact-testing-1-sa.json}:/app/credentials/service-account.json:ro
+      - ./03-data-pipeline-service/src:/app/src:ro
+      - ./03-data-pipeline-service/configs:/app/configs:ro
+    networks:
+      - cloudact-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --workers 1
+
+  # =============================================
+  # Chat Backend - FastAPI + Google ADK (Port 8002)
+  # =============================================
+  chat-backend:
+    build:
+      context: ./07-org-chat-backend
+      dockerfile: Dockerfile
+    container_name: cloudact-chat-dev
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./07-org-chat-backend/.env.dev-cloud
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      - API_HOST=0.0.0.0
+      - API_PORT=8002
+      - CORS_ORIGINS=["http://localhost:3000","http://frontend:3000"]
+    volumes:
+      - ${GCP_CREDENTIALS_PATH:-~/.gcp/cloudact-testing-1-sa.json}:/app/credentials/service-account.json:ro
+      - ./07-org-chat-backend/src:/app/src:ro
+      - ./07-org-chat-backend/src/configs:/app/src/configs:ro
+    networks:
+      - cloudact-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8002 --workers 1
+
+  # =============================================
+  # Frontend - Next.js (Port 3000)
+  # =============================================
+  frontend:
+    build:
+      context: ./01-fronted-system
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=https://kwroaccbrxppfiysqlzs.supabase.co
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cm9hY2NicnhwcGZpeXNxbHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMzUzOTAsImV4cCI6MjA3OTYxMTM5MH0.2NTsyuaovE1M8xQDtoZ2vyWeT0ZmtiMnJvbh_UCC1hE
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51STnd4DXGNX5XqKaoVFdJC7eOpG3Hcu7lMAzqduDWbg7SKZ9NKXvLGCZXwNF9NWWp4RlpBviiNd3vuLqpEcbMuby00Oh0B0JGv
+        - NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+        - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
+        - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    container_name: cloudact-frontend-dev
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./01-fronted-system/.env.dev-cloud
+    environment:
+      - NODE_ENV=production
+      # Browser-side URLs (must be localhost)
+      - NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      # Server-side URLs (internal Docker network)
+      - API_SERVICE_URL=http://api-service:8000
+      - PIPELINE_SERVICE_URL=http://pipeline-service:8001
+      # Chat Backend (internal, CopilotKit Runtime proxy)
+      - CHAT_BACKEND_URL=http://chat-backend:8002
+    depends_on:
+      api-service:
+        condition: service_healthy
+      pipeline-service:
+        condition: service_healthy
+      chat-backend:
+        condition: service_healthy
+    networks:
+      - cloudact-dev
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  cloudact-dev:
+    driver: bridge
+
+# =============================================
+# QUICK START:
+# =============================================
+# 1. Copy .env.dev-cloud to .env.local in each service (or use dev-cloud files directly)
+# 2. Set GCP_CREDENTIALS_PATH or place SA key at ~/.gcp/cloudact-testing-1-sa.json
+# 3. Replace REPLACE_WITH_* values in .env.dev-cloud files with real secrets
+# 4. Run: docker-compose -f docker-compose.dev-cloud.yml up -d --build
+# 5. Access:
+#    - Frontend:         http://localhost:3000
+#    - API Service:      http://localhost:8000/docs
+#    - Pipeline Service: http://localhost:8001/docs
+#    - Chat Backend:     http://localhost:8002/health
+# 6. Bootstrap (first time):
+#    curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
+#      -H "X-CA-Root-Key: test-api-key-for-cloudact-testing-32chars"
+# =============================================
