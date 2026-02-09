@@ -63,6 +63,9 @@ Thumbs.db
 # Test credentials (DO NOT COMMIT REAL CREDENTIALS)
 tests/fixtures/user_credentials.json
 
+# Auto-generated fumadocs source (regenerated on build)
+.source/
+
 # Scripts directory (dev utilities with env var dependencies)
 # Uncomment to exclude from deployment:
 # scripts/

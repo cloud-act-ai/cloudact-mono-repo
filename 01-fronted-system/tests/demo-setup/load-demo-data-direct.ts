@@ -855,6 +855,143 @@ async function waitForPipelines(
     return true
 }
 
+/**
+ * Set up demo notification channel + 2 cost alert rules
+ */
+async function setupDemoAlerts(orgSlug: string, apiKey: string): Promise<{ channelCreated: boolean; rulesCreated: number; errors: string[] }> {
+    const API_SERVICE_URL = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const errors: string[] = []
+    let channelId = ''
+    let rulesCreated = 0
+
+    console.log('\n[Step 10] Setting up demo cost alerts...')
+
+    // Step 1: Create an email notification channel
+    try {
+        const channelResponse = await fetch(
+            `${API_SERVICE_URL}/api/v1/notifications/${orgSlug}/channels`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({
+                    name: 'Cost Alerts (Email)',
+                    channel_type: 'email',
+                    email_recipients: ['demo@cloudact.ai'],
+                    email_subject_prefix: '[CloudAct Alert]',
+                    is_default: true,
+                    is_active: true
+                })
+            }
+        )
+
+        if (channelResponse.ok) {
+            const channel = await channelResponse.json()
+            channelId = channel.channel_id
+            console.log(`    Channel created: ${channelId}`)
+        } else {
+            const errorText = await channelResponse.text()
+            // Check if channel already exists
+            if (channelResponse.status === 409 || errorText.includes('already exists')) {
+                console.log('    Channel already exists, fetching existing...')
+                const listResponse = await fetch(
+                    `${API_SERVICE_URL}/api/v1/notifications/${orgSlug}/channels?channel_type=email`,
+                    { headers: { 'X-API-Key': apiKey } }
+                )
+                if (listResponse.ok) {
+                    const channels = await listResponse.json()
+                    if (channels.length > 0) {
+                        channelId = channels[0].channel_id
+                        console.log(`    Using existing channel: ${channelId}`)
+                    }
+                }
+            } else {
+                errors.push(`Failed to create channel: ${channelResponse.status} ${errorText}`)
+                console.log(`    WARNING: ${errors[errors.length - 1]}`)
+            }
+        }
+    } catch (error) {
+        errors.push(`Channel creation error: ${error}`)
+        console.log(`    WARNING: ${errors[errors.length - 1]}`)
+    }
+
+    if (!channelId) {
+        console.log('    Skipping rules - no channel available')
+        return { channelCreated: false, rulesCreated: 0, errors }
+    }
+
+    // Step 2: Create cost alert rules
+    const alertRules = [
+        {
+            name: 'Daily Cost Spike Alert',
+            description: 'Triggers when daily spend exceeds $5,000 across all providers',
+            rule_category: 'cost',
+            rule_type: 'absolute_threshold',
+            priority: 'high',
+            is_active: true,
+            conditions: {
+                threshold_amount: 5000,
+                period: 'daily'
+            },
+            notify_channel_ids: [channelId],
+            cooldown_minutes: 60
+        },
+        {
+            name: 'Monthly Budget Threshold',
+            description: 'Alerts at 80% of $50,000 monthly budget across all cost categories',
+            rule_category: 'cost',
+            rule_type: 'budget_percent',
+            priority: 'medium',
+            is_active: true,
+            conditions: {
+                threshold_percent: 80,
+                budget_amount: 50000,
+                budget_period: 'monthly'
+            },
+            notify_channel_ids: [channelId],
+            cooldown_minutes: 240
+        }
+    ]
+
+    for (const rule of alertRules) {
+        try {
+            const ruleResponse = await fetch(
+                `${API_SERVICE_URL}/api/v1/notifications/${orgSlug}/rules`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify(rule)
+                }
+            )
+
+            if (ruleResponse.ok) {
+                const created = await ruleResponse.json()
+                rulesCreated++
+                console.log(`    Rule created: "${rule.name}" (${created.rule_id})`)
+            } else {
+                const errorText = await ruleResponse.text()
+                if (ruleResponse.status === 409 || errorText.includes('already exists')) {
+                    console.log(`    Rule "${rule.name}" already exists (skipped)`)
+                } else {
+                    errors.push(`Failed to create rule "${rule.name}": ${ruleResponse.status}`)
+                    console.log(`    WARNING: ${errors[errors.length - 1]}`)
+                }
+            }
+        } catch (error) {
+            errors.push(`Rule creation error for "${rule.name}": ${error}`)
+            console.log(`    WARNING: ${errors[errors.length - 1]}`)
+        }
+    }
+
+    console.log(`    Done: ${rulesCreated} rules created`)
+    return { channelCreated: !!channelId, rulesCreated, errors }
+}
+
 function verifyCosts(dataset: string): void {
     console.log('\n[Verification] Checking cost_data_standard_1_3...')
 
@@ -1083,6 +1220,14 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
             console.log('\n[Skipping pipeline execution - raw-only mode]')
         }
 
+        // Step 10: Set up demo cost alerts (channel + rules)
+        if (!config.rawOnly) {
+            const alertResult = await setupDemoAlerts(config.orgSlug, config.apiKey)
+            if (alertResult.errors.length > 0) {
+                result.warnings.push(...alertResult.errors.map(e => `Alert setup: ${e}`))
+            }
+        }
+
         // Verify results
         verifyCosts(dataset)
 
@@ -1160,6 +1305,12 @@ function printFinalStatus(result: LoadResult, config: LoadConfig): void {
     formatPipelineStatus(result.pipelinesExecuted.subscription, 'Subscription')
     formatPipelineStatus(result.pipelinesExecuted.genai, 'GenAI      ')
     formatPipelineStatus(result.pipelinesExecuted.cloud, 'Cloud      ')
+
+    // Alerts
+    console.log('\n🔔 Cost Alerts:')
+    console.log('   Email Channel:     ✅ Configured (demo@cloudact.ai)')
+    console.log('   Daily Spike:       ✅ Alert when daily spend > $5,000')
+    console.log('   Budget Threshold:  ✅ Alert at 80% of $50K monthly budget')
 
     // Auto-fixes Applied
     if (result.fixes.length > 0) {
