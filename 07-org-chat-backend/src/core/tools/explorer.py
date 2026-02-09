@@ -5,7 +5,7 @@ Scoped to the org's dataset to prevent cross-tenant access.
 
 import re
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Set
 
 from google.cloud import bigquery
 
@@ -20,6 +20,27 @@ _DISALLOWED = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|MERGE|GRANT|REVOKE)\b",
     re.IGNORECASE,
 )
+
+# Pattern to extract dataset references from SQL (project.dataset.table or dataset.table)
+_TABLE_REF_PATTERN = re.compile(
+    r"(?:FROM|JOIN|,)\s+`?([a-zA-Z0-9_\-]+(?:\.[a-zA-Z0-9_\-]+){1,2})`?",
+    re.IGNORECASE,
+)
+
+
+def _extract_datasets_from_query(query: str) -> Set[str]:
+    """Extract all dataset names referenced in a SQL query."""
+    datasets = set()
+    for match in _TABLE_REF_PATTERN.finditer(query):
+        ref = match.group(1)
+        parts = ref.split(".")
+        if len(parts) == 3:
+            # project.dataset.table → dataset
+            datasets.add(parts[1])
+        elif len(parts) == 2:
+            # dataset.table → dataset
+            datasets.add(parts[0])
+    return datasets
 
 
 def list_org_tables(org_slug: str) -> Dict[str, Any]:
@@ -74,12 +95,16 @@ def describe_table(org_slug: str, table_name: str) -> Dict[str, Any]:
     allowed_datasets = [f"{org_slug}_prod", settings.organizations_dataset]
 
     if "." in table_name:
-        # Full reference — validate dataset
+        # Full reference — validate BOTH project and dataset
         parts = table_name.split(".")
         dataset = parts[-2] if len(parts) >= 2 else ""
         if dataset not in allowed_datasets:
             return {"error": f"Access denied: can only query datasets {allowed_datasets}"}
-        table_ref = table_name
+        # Validate project ID if provided (project.dataset.table)
+        if len(parts) == 3 and parts[0] != settings.gcp_project_id:
+            return {"error": f"Access denied: can only query tables in project {settings.gcp_project_id}"}
+        # Always reconstruct with our project ID to prevent cross-project attacks
+        table_ref = f"{settings.gcp_project_id}.{parts[-2]}.{parts[-1]}"
     else:
         # Try org dataset first, then shared
         table_ref = f"{settings.gcp_project_id}.{org_slug}_prod.{table_name}"
@@ -123,7 +148,16 @@ def run_read_query(org_slug: str, query: str) -> Dict[str, Any]:
 
     # Validate: must reference only allowed datasets
     settings = get_settings()
-    allowed_datasets = [f"{org_slug}_prod", settings.organizations_dataset]
+    allowed_datasets = {f"{org_slug}_prod", settings.organizations_dataset}
+
+    # SECURITY: Parse query to verify all referenced datasets are allowed
+    referenced_datasets = _extract_datasets_from_query(query)
+    disallowed = referenced_datasets - allowed_datasets
+    if disallowed:
+        return {
+            "error": f"Access denied: query references disallowed datasets {sorted(disallowed)}. "
+                     f"Only {sorted(allowed_datasets)} are permitted."
+        }
 
     # Ensure LIMIT is present (inject if missing)
     if not re.search(r"\bLIMIT\b", query, re.IGNORECASE):

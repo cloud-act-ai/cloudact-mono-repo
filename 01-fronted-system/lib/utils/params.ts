@@ -20,8 +20,9 @@ export function getOrgSlug(params: { orgSlug?: string | string[] }): string {
 
 /**
  * Validate orgSlug format
- * Valid: 2-100 chars, alphanumeric, underscore, hyphen
+ * Valid: 3-50 chars, lowercase alphanumeric + underscore only
+ * MUST match backend pattern: ^[a-z0-9_]{3,50}$ — enforced at EVERY layer
  */
 export function isValidOrgSlug(slug: string): boolean {
-  return /^[a-zA-Z0-9_-]{2,100}$/.test(slug)
+  return /^[a-z0-9_]{3,50}$/.test(slug)
 }

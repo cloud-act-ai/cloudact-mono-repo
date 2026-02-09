@@ -59,6 +59,16 @@ async def get_chat_context(
     _validate_org_slug(effective_slug)
 
     if settings.disable_auth:
+        if settings.environment not in ("development", "local", "test"):
+            logger.error(
+                "SECURITY: disable_auth=True rejected in non-development environment: %s",
+                settings.environment,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Auth bypass not allowed in this environment",
+            )
+        logger.warning("Auth disabled — dev mode. org_slug=%s user_id=%s", effective_slug, x_user_id)
         return ChatContext(
             org_slug=effective_slug,
             user_id=x_user_id,
