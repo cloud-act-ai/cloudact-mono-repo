@@ -10,11 +10,62 @@ description: |
 
 ## Overview
 
-CloudAct uses a two-phase initialization: system bootstrap (20 meta tables) and org onboarding (20+ org tables + 4 materialized views).
+CloudAct uses a two-phase initialization: system bootstrap (**23 meta tables**) and org onboarding (20+ org tables + 4 materialized views).
 
 **Key Principle: Only ADD, never DELETE. Incremental schema evolution without data loss.**
 
-## Quick Commands
+## Cloud Run Jobs (DEFAULT - Use for Stage/Prod)
+
+**ALL stage/prod bootstrap/sync runs via Cloud Run Jobs — NOT local API calls.**
+
+```bash
+cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs/scripts
+
+# Activate GCP credentials FIRST (ABSOLUTE paths - ~/ does NOT expand!)
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json  # stage
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json                    # prod
+
+# Bootstrap (smart: fresh if new, sync if exists)
+./run-job.sh stage bootstrap                  # Stage
+echo "yes" | ./run-job.sh prod bootstrap      # Prod (requires confirmation)
+
+# Org sync (AFTER bootstrap)
+./run-job.sh stage org-sync-all               # Stage
+echo "yes" | ./run-job.sh prod org-sync-all   # Prod
+```
+
+**`run-job.sh` valid envs:** `test`, `stage`, `prod` (NOT `local` — use `stage` for local).
+
+### Verify via Cloud Run Logs (ALWAYS CHECK)
+
+```bash
+# Bootstrap logs
+gcloud logging read \
+  "resource.type=cloud_run_job AND resource.labels.job_name=cloudact-manual-bootstrap \
+  AND timestamp>=\"$(date -u +%Y-%m-%dT00:00:00Z)\"" \
+  --project=$PROJECT --limit=30 \
+  --format="table(timestamp,textPayload)" --order=asc
+
+# Org sync logs
+gcloud logging read \
+  "resource.type=cloud_run_job AND resource.labels.job_name=cloudact-manual-org-sync-all \
+  AND timestamp>=\"$(date -u +%Y-%m-%dT00:00:00Z)\"" \
+  --project=$PROJECT --limit=30 \
+  --format="table(timestamp,textPayload)" --order=asc
+```
+
+### Smart Bootstrap Behavior (Verified 2026-02-12)
+
+| Scenario | Detection | Result |
+|----------|-----------|--------|
+| **Fresh** (no organizations dataset) | Auto-detect | Creates dataset + **23 tables** |
+| **Existing** (dataset exists, tables present) | Auto-detect | Sync: `Already in sync - no changes needed` |
+| **Conflict** (dataset exists, 0 tables) | Auto-fallback | Tries fresh → falls back to sync |
+
+**Stage verified:** `Tables created: 23, Tables existed: 0` (fresh after nuke)
+**Prod verified:** `Tables created: 0, Columns added: 0, Already in sync` (sync mode)
+
+## Quick Commands (Local/API - ONLY when user explicitly asks)
 
 ```bash
 # Check bootstrap status
@@ -247,12 +298,14 @@ curl POST /api/v1/admin/bootstrap/sync \
 
 ## Environments
 
-| Environment | GCP Project | API Service |
-|-------------|-------------|-------------|
-| Local | `cloudact-testing-1` | `http://localhost:8000` |
-| Test | `cloudact-testing-1` | Cloud Run URL |
-| Stage | `cloudact-stage` | Cloud Run URL |
-| Prod | `cloudact-prod` | `https://api.cloudact.ai` |
+| Environment | GCP Project | API Service | `run-job.sh` Arg |
+|-------------|-------------|-------------|------------------|
+| Local | `cloudact-testing-1` | `http://localhost:8000` | `stage` |
+| Test | `cloudact-testing-1` | Cloud Run URL | `test` |
+| Stage | `cloudact-testing-1` | Cloud Run URL | `stage` |
+| Prod | `cloudact-prod` | `https://api.cloudact.ai` | `prod` |
+
+> **Note:** No separate `cloudact-stage` project. local/test/stage all use `cloudact-testing-1`.
 
 ## Instructions
 

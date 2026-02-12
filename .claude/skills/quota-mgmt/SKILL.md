@@ -11,6 +11,41 @@ description: |
 ## Overview
 CloudAct enforces usage quotas per organization for API calls, pipeline runs, and data storage.
 
+## Environments
+
+| Env | GCP Project | Supabase Project | API URL | GCP Key File |
+|-----|-------------|-----------------|---------|--------------|
+| local | cloudact-testing-1 | `kwroaccbrxppfiysqlzs` | `http://localhost:8000` | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| test/stage | cloudact-testing-1 | `kwroaccbrxppfiysqlzs` | Cloud Run URL | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| prod | cloudact-prod | `ovfxswhkkshouhsryzaf` | `https://api.cloudact.ai` | `/Users/openclaw/.gcp/cloudact-prod.json` |
+
+> **Note:** local/test/stage all use `cloudact-testing-1`. No separate `cloudact-stage` project.
+> **Note:** Quota limits stored in Supabase `organizations` table. Usage tracked in BigQuery `org_usage_quotas`.
+
+### Quota Cloud Run Jobs
+
+```bash
+cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs/scripts
+
+# Daily quota reset (00:00 UTC)
+./run-job.sh stage quota-reset
+echo "yes" | ./run-job.sh prod quota-reset
+
+# Monthly quota reset (00:05 UTC 1st)
+./run-job.sh stage quota-monthly
+echo "yes" | ./run-job.sh prod quota-monthly
+
+# Stale cleanup (02:00 UTC - safety net)
+./run-job.sh stage stale-cleanup
+echo "yes" | ./run-job.sh prod stale-cleanup
+
+# Quota cleanup >90 days (01:00 UTC)
+./run-job.sh stage quota-cleanup
+echo "yes" | ./run-job.sh prod quota-cleanup
+```
+
+> **`run-job.sh` valid envs:** `test`, `stage`, `prod` (NOT `local` — use `stage` for local).
+
 ## Key Locations
 - **Quota Schema:** `02-api-service/configs/setup/bootstrap/schemas/quotas.json`
 - **Quota Router:** `02-api-service/src/app/routers/quotas.py`

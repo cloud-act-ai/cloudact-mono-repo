@@ -12,7 +12,51 @@ description: |
 CloudAct uses Supabase for authentication and user data. Migrations are managed via `migrate.sh` script
 which uses the Supabase Management API.
 
-## Quick Reference
+## Cloud Run Jobs (DEFAULT - Use for Stage/Prod)
+
+**ALL stage/prod migrations run via Cloud Run Jobs — NOT local `migrate.sh`.**
+
+```bash
+cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs/scripts
+
+# Activate GCP credentials FIRST (ABSOLUTE paths - ~/ does NOT expand!)
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json  # stage
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json                    # prod
+
+# Run migrations
+./run-job.sh stage migrate                  # Stage (cloudact-testing-1)
+echo "yes" | ./run-job.sh prod migrate      # Prod (requires confirmation)
+```
+
+**`run-job.sh` valid envs:** `test`, `stage`, `prod` (NOT `local` — use `stage` for local).
+
+### Verify via Cloud Run Logs (ALWAYS CHECK)
+
+```bash
+gcloud logging read \
+  "resource.type=cloud_run_job AND resource.labels.job_name=cloudact-manual-supabase-migrate \
+  AND timestamp>=\"$(date -u +%Y-%m-%dT00:00:00Z)\"" \
+  --project=$PROJECT \
+  --limit=30 \
+  --format="table(timestamp,textPayload)" \
+  --order=asc
+```
+
+**Expected patterns:**
+- All current: `Already applied: 48 migrations, No pending migrations`
+- Pending: `Pending migrations: N` → applies each
+- Failed: `✗ Failed:` → check error, may need manual fix via SQL Editor
+
+### Smart Migration Behavior (Verified 2026-02-12)
+
+| Scenario | Result |
+|----------|--------|
+| All applied | Skips all — `No pending migrations` |
+| New migrations | Applies only pending ones |
+| After Supabase nuke (TRUNCATE) | `schema_migrations` survives, tracking preserved |
+| Applied count > file count | Normal (48 applied vs 41 files — some consolidated) |
+
+## Local Script (ONLY when user explicitly asks)
 
 ### Check Status
 ```bash
@@ -23,7 +67,7 @@ cd 01-fronted-system/scripts/supabase_db
 ./migrate.sh --status --prod       # Production
 ```
 
-### Run Migrations
+### Run Migrations Locally
 ```bash
 ./migrate.sh                       # Local (default)
 ./migrate.sh --stage               # Stage (with confirmation)

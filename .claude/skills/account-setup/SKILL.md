@@ -28,6 +28,32 @@ Use when: testing account flows, debugging auth issues, validating signup/login,
 /account-setup full                         # Full lifecycle: all flows + console audit
 ```
 
+## Environments
+
+| Env | Frontend URL | API URL | Supabase Project | Stripe Mode | Env File |
+|-----|-------------|---------|-----------------|-------------|----------|
+| local | `http://localhost:3000` | `http://localhost:8000` | `kwroaccbrxppfiysqlzs` | TEST | `.env.local` |
+| test/stage | Cloud Run URL | Cloud Run URL | `kwroaccbrxppfiysqlzs` | TEST | `.env.stage` |
+| prod | `https://cloudact.ai` | `https://api.cloudact.ai` | `ovfxswhkkshouhsryzaf` | LIVE | `.env.prod` |
+
+> **Note:** local/test/stage all use the same Supabase project (`kwroaccbrxppfiysqlzs`). No separate `cloudact-stage`.
+> **Note:** `TEST_BASE_URL` env var controls which environment tests run against (default: `http://localhost:3000`).
+
+### Running Against Different Environments
+
+```bash
+cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/01-fronted-system
+
+# Local (default)
+npx playwright test tests/e2e/account-flows.spec.ts --project=account-noauth
+
+# Stage
+TEST_BASE_URL=https://cloudact-frontend-stage-xxx.run.app npx playwright test tests/e2e/account-flows.spec.ts --project=account-noauth
+
+# Prod (be cautious - real users!)
+TEST_BASE_URL=https://cloudact.ai npx playwright test tests/e2e/account-flows.spec.ts --project=account-noauth
+```
+
 ## Prerequisites
 
 | Requirement | Check Command | Expected |

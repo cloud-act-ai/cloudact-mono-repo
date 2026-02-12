@@ -260,6 +260,105 @@ cd 01-fronted-system/scripts/supabase_db
 - **encryption-flow** - GCP KMS for all credentials
 - **session-completion-checklist** - Tests/docs before close
 
+### Skills Architecture & Best Practices
+
+Skills are **structured domain knowledge** that guide Claude's behavior. They are NOT executable code — they are markdown documents that provide deep context about a specific CloudAct domain.
+
+#### How Skills Get Invoked
+
+| Trigger | Example | How It Works |
+|---------|---------|--------------|
+| **Slash command** | `/chat status acme_inc` | User explicitly types `/skill-name`. The Skill tool maps the name to `SKILL.md` frontmatter `name:` field. |
+| **Keyword match** | "debug the pipeline" | Claude matches user intent to the `description:` field in frontmatter. Keywords like "pipeline", "debug" match `/pipeline-ops`. |
+| **Context inference** | Editing `07-org-chat-backend/` files | Claude infers the relevant skill from file paths and conversation context. |
+
+**Priority:** Explicit slash command > keyword match > context inference.
+
+#### Skill File Structure (Trifecta)
+
+```
+.claude/skills/{name}/
+├── SKILL.md                    # REQUIRED — Main skill document
+│   ├── YAML Frontmatter        #   name: + description: (triggers)
+│   ├── # Heading               #   Overview, trigger, usage
+│   ├── ## Key Locations         #   File path tables
+│   ├── ## Procedures            #   Step-by-step workflows
+│   ├── ## Troubleshooting       #   Common issues + fixes
+│   └── ## Related Skills        #   Cross-references
+├── requirements/
+│   └── {name}.md               # OPTIONAL — Detailed spec (FRs, NFRs, Architecture, SDLC)
+└── tests/
+    └── {name}.md               # OPTIONAL — Test plan (unit, integration, E2E)
+```
+
+**26 skills** have the full trifecta (SKILL.md + requirements + tests).
+**2 utility skills** (`web-research`, `ui-ux-pro-max`) have SKILL.md only — they're external tools, not CloudAct features.
+
+#### SKILL.md Frontmatter Format
+
+```yaml
+---
+name: pipeline-ops
+description: |
+  Pipeline lifecycle management for CloudAct. Create, validate, run, and monitor pipelines.
+  Use when: creating new pipelines, validating pipeline configs, running pipelines, checking pipeline status,
+  debugging pipeline failures, or working with pipeline configurations in configs/{provider}/{domain}/*.yml.
+---
+```
+
+**Rules:**
+- `name:` must match the directory name and the slash command (e.g., `name: chat` → `/chat`)
+- `description:` first line = what it does, `Use when:` line = trigger keywords
+- Arguments (if any) go in description: `Arguments: <feature-name> [--compact]`
+
+#### Invocation Patterns
+
+| Pattern | Example | When to Use |
+|---------|---------|-------------|
+| **No args** | `/pipeline-ops` | Context-aware skills that infer from conversation |
+| **Subcommands** | `/chat status <org>` | Skills with discrete actions |
+| **Arguments** | `/bug-hunt quota-enforcement` | Skills that operate on a target |
+| **Flags** | `/bug-hunt pipelines --compact` | Optional behavior modifiers |
+
+#### Requirements File Format
+
+```
+## Overview → Source Specifications → Architecture (ASCII diagram)
+→ Functional Requirements (FR-XX-001) → Non-Functional Requirements (NFR-XX-001)
+→ SDLC (Development Workflow, Testing Approach, Deployment/CI/CD)
+→ Key Files → Related Skills
+```
+
+#### Best Practices for Defining Skills
+
+1. **One domain per skill** — `/chat` owns chat, `/pipeline-ops` owns pipelines. No overlap.
+2. **`Use when:` is the trigger** — Write it like search keywords. Claude matches these to user intent.
+3. **File paths are anchors** — Always include a Key Locations table with exact paths. This is how Claude finds code.
+4. **Related Skills create a graph** — Cross-reference skills that share boundaries (e.g., `/chat` → `/integration-setup` for credentials).
+5. **Procedures > Descriptions** — Step-by-step workflows are more useful than paragraphs of explanation.
+6. **Requirements are specs** — Use FR/NFR numbering. These survive context compression better than prose.
+7. **Tests validate the spec** — Test plans reference the FR numbers from requirements.
+
+#### Skill Categories (28 Total)
+
+| Category | Skills | Count |
+|----------|--------|-------|
+| Infrastructure | `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate` | 5 |
+| Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs` | 5 |
+| Pipelines & Ops | `pipeline-ops`, `bootstrap-onboard`, `test-orchestration` | 3 |
+| AI & Chat | `chat` | 1 |
+| Config & Integration | `integration-setup`, `provider-mgmt`, `config-validator`, `security-audit` | 4 |
+| Development | `frontend-dev`, `api-dev`, `quota-mgmt` | 3 |
+| Frontend & Billing | `home-page`, `account-setup`, `stripe-billing`, `ui-ux-pro-max` | 4 |
+| Research & Debug | `subscription-costs`, `web-research`, `bug-hunt` | 3 |
+
+#### Quick Reference
+
+```
+.claude/skills/PROMPT_EXAMPLES.md     # 25+ example prompts per skill
+.claude/SUMMARY.md                    # Full skills index with descriptions
+```
+
 ## Scheduler Jobs (Cloud Run Jobs)
 
 All scheduled operations run as Cloud Run Jobs from `05-scheduler-jobs/`.

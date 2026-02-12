@@ -16,7 +16,7 @@
  *
  * Demo Account Values:
  *   Email: demo@cloudact.ai
- *   Password: demo1234
+ *   Password: Demo1234
  *   Company: Acme Inc (system auto-generates org_slug as acme_inc_{timestamp} in base36)
  *   Plan: scale (free trial, no credit card required)
  */
@@ -92,8 +92,54 @@ async function waitForUrlChange(page: Page, expectedPath: string, timeout = 3000
 }
 
 /**
- * Fetch org API key from the dev endpoint
- * API key is already created during backend onboarding - we just need to GET it
+ * Query Supabase for the actual org slug by admin email
+ * Org slug format: {company_name}_{base36_timestamp} e.g. acme_inc_mlj3ql4q
+ * The base36 timestamp is generated at signup time - we must query to get it
+ */
+async function fetchOrgSlugFromSupabase(email: string): Promise<string | null> {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ENV_CONFIG.supabaseUrl
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        console.log('  Cannot query Supabase: missing URL or service role key')
+        return null
+    }
+
+    try {
+        // Query organizations joined with org_members and auth users to find by email
+        // Simpler: query organizations ordered by created_at desc, matching the base slug pattern
+        const baseSlug = DEFAULT_DEMO_ACCOUNT.companyName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_')
+        const response = await fetch(
+            `${supabaseUrl}/rest/v1/organizations?select=org_slug&org_slug=like.${baseSlug}*&order=created_at.desc&limit=1`,
+            {
+                headers: {
+                    'apikey': serviceRoleKey,
+                    'Authorization': `Bearer ${serviceRoleKey}`,
+                },
+            }
+        )
+
+        if (!response.ok) {
+            console.log(`  Supabase query failed: ${response.status}`)
+            return null
+        }
+
+        const data = await response.json()
+        if (data.length > 0) {
+            console.log(`  Found org slug from Supabase: ${data[0].org_slug}`)
+            return data[0].org_slug
+        }
+
+        console.log('  No matching org found in Supabase')
+        return null
+    } catch (error) {
+        console.log(`  Supabase query error: ${error}`)
+        return null
+    }
+}
+
+/**
+ * Fetch org API key from the dev endpoint (single attempt)
  */
 async function fetchOrgApiKey(orgSlug: string): Promise<string | null> {
     const caRootApiKey = ENV_CONFIG.caRootApiKey
@@ -103,7 +149,6 @@ async function fetchOrgApiKey(orgSlug: string): Promise<string | null> {
     }
 
     const apiUrl = `${TEST_CONFIG.apiServiceUrl}/api/v1/admin/dev/api-key/${orgSlug}`
-    console.log(`  Fetching API key from: ${apiUrl}`)
 
     try {
         const response = await fetch(apiUrl, {
@@ -114,22 +159,132 @@ async function fetchOrgApiKey(orgSlug: string): Promise<string | null> {
         })
 
         if (!response.ok) {
-            console.error(`  API request failed: ${response.status} ${response.statusText}`)
             return null
         }
 
         const data = await response.json()
         if (data.api_key) {
-            console.log(`  API key retrieved: ${data.api_key.substring(0, 20)}...`)
             return data.api_key
         }
 
-        console.error('  API key not found in response')
         return null
     } catch (error) {
-        console.error(`  Failed to fetch API key: ${error}`)
         return null
     }
+}
+
+/**
+ * Poll for API key with timeout - backend onboarding may take time
+ * Polls GET /admin/dev/api-key/{org} every 5s until found or timeout
+ */
+async function pollForApiKey(orgSlug: string, timeoutMs = 60000): Promise<string | null> {
+    console.log(`  Polling for API key (timeout: ${timeoutMs / 1000}s)...`)
+    const startTime = Date.now()
+    let attempt = 0
+
+    while (Date.now() - startTime < timeoutMs) {
+        attempt++
+        const apiKey = await fetchOrgApiKey(orgSlug)
+        if (apiKey) {
+            console.log(`  API key found after ${attempt} attempt(s): ${apiKey.substring(0, 20)}...`)
+            return apiKey
+        }
+
+        const elapsed = Math.round((Date.now() - startTime) / 1000)
+        console.log(`  Attempt ${attempt}: No API key yet (${elapsed}s elapsed)`)
+        await new Promise(resolve => setTimeout(resolve, 5000))
+    }
+
+    console.log(`  API key not found after ${Math.round(timeoutMs / 1000)}s`)
+    return null
+}
+
+/**
+ * Attempt manual onboarding via POST /organizations/onboard
+ * Fallback when backend onboarding didn't complete automatically
+ */
+async function attemptManualOnboarding(orgSlug: string, companyName: string, email: string): Promise<boolean> {
+    const caRootApiKey = ENV_CONFIG.caRootApiKey
+    if (!caRootApiKey) {
+        console.error('  Cannot attempt manual onboarding: missing CA_ROOT_API_KEY')
+        return false
+    }
+
+    const apiUrl = `${TEST_CONFIG.apiServiceUrl}/api/v1/organizations/onboard`
+    console.log(`  Attempting manual onboarding for ${orgSlug}...`)
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CA-Root-Key': caRootApiKey,
+            },
+            body: JSON.stringify({
+                org_slug: orgSlug,
+                company_name: companyName,
+                admin_email: email,
+            }),
+        })
+
+        if (response.ok) {
+            const data = await response.json()
+            console.log(`  Manual onboarding succeeded: ${JSON.stringify(data).substring(0, 100)}`)
+            return true
+        }
+
+        const errorText = await response.text()
+        // 409 = already onboarded, which is fine
+        if (response.status === 409) {
+            console.log('  Org already onboarded (409) - continuing')
+            return true
+        }
+
+        console.error(`  Manual onboarding failed: ${response.status} ${errorText}`)
+        return false
+    } catch (error) {
+        console.error(`  Manual onboarding error: ${error}`)
+        return false
+    }
+}
+
+/**
+ * Verify backend onboarding completed and retrieve API key
+ * 1. Poll for API key (60s)
+ * 2. If not found, attempt manual onboard → retry API key fetch
+ * 3. If still not found, throw error
+ */
+async function verifyOnboardingAndGetApiKey(orgSlug: string, companyName: string, email: string): Promise<string> {
+    console.log('\n[Onboarding Verification] Verifying backend onboarding...')
+
+    // Step 1: Poll for API key (may already exist from automatic onboarding)
+    let apiKey = await pollForApiKey(orgSlug, 60000)
+    if (apiKey) {
+        console.log('  Backend onboarding verified (API key found)')
+        return apiKey
+    }
+
+    // Step 2: API key not found - attempt manual onboarding
+    console.log('  API key not found - attempting manual onboarding fallback...')
+    const onboarded = await attemptManualOnboarding(orgSlug, companyName, email)
+
+    if (onboarded) {
+        // Wait a moment for onboarding to create API key
+        await new Promise(resolve => setTimeout(resolve, 5000))
+
+        // Retry API key fetch
+        apiKey = await pollForApiKey(orgSlug, 30000)
+        if (apiKey) {
+            console.log('  Backend onboarding verified after manual onboard (API key found)')
+            return apiKey
+        }
+    }
+
+    // Step 3: Still no API key - throw error
+    throw new Error(
+        `Backend onboarding failed for ${orgSlug}: API key not found after polling + manual onboard attempt. ` +
+        'Check API Service logs and ensure bootstrap has been run.'
+    )
 }
 
 /**
@@ -336,51 +491,60 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
             // Check where we ended up
             const finalUrl = page.url()
             const orgSlugMatch = finalUrl.match(/\/([^/]+)\/dashboard/)
-            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : config.companyName.toLowerCase().replace(/\s+/g, '_')
+            const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
+            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
+            if (!orgSlug) {
+                throw new Error('Could not determine org slug from URL or Supabase. Check Supabase connection and SUPABASE_SERVICE_ROLE_KEY.')
+            }
 
             if (finalUrl.includes('/dashboard')) {
                 console.log('  Organization setup completed!')
                 console.log(`  Org Slug: ${orgSlug}`)
                 console.log(`  Dashboard URL: ${finalUrl}`)
 
-                // Fetch the API key
-                console.log('\n[Step 7/7] Fetching API key...')
-                const apiKey = await fetchOrgApiKey(orgSlug)
+                // Verify onboarding + get API key
+                const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
 
                 return {
                     success: true,
                     message: 'Demo account created and onboarding completed!',
                     orgSlug,
-                    apiKey: apiKey || undefined,
+                    apiKey,
                     dashboardUrl: finalUrl,
                 }
             } else {
-                // Still on Stripe or somewhere else
+                // Still on Stripe or somewhere else - still verify onboarding
+                const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
+
                 return {
                     success: true,
-                    message: `Demo account created. Please complete Stripe checkout manually. Current page: ${finalUrl}`,
+                    message: `Demo account created. Current page: ${finalUrl}`,
                     orgSlug,
+                    apiKey,
                 }
             }
         } else if (currentUrl.includes('/dashboard')) {
             console.log('  Organization setup completed!')
 
-            // Extract org slug from URL (e.g., /acme_inc_ml01ua8p/dashboard)
+            // Extract org slug from URL (e.g., /acme_inc_mlj3ql4q/dashboard)
             const orgSlugMatch = currentUrl.match(/\/([^/]+)\/dashboard/)
-            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : config.companyName.toLowerCase().replace(/\s+/g, '_')
+            const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
+            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
+            if (!orgSlug) {
+                throw new Error('Could not determine org slug from URL or Supabase. Check Supabase connection and SUPABASE_SERVICE_ROLE_KEY.')
+            }
 
             console.log(`  Org Slug: ${orgSlug}`)
             console.log(`  Dashboard URL: ${currentUrl}`)
 
-            // Fetch the API key
-            console.log('\n[Step 7/7] Fetching API key...')
-            const apiKey = await fetchOrgApiKey(orgSlug)
+            // Verify onboarding + get API key
+            const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
 
             return {
                 success: true,
                 message: 'Demo account created and onboarding completed!',
                 orgSlug,
-                apiKey: apiKey || undefined,
+                apiKey,
                 dashboardUrl: currentUrl,
             }
         } else if (currentUrl.includes('/onboarding/success')) {
@@ -390,17 +554,20 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
             await page.waitForTimeout(3000)
             const finalUrl = page.url()
             const orgSlugMatch = finalUrl.match(/\/([^/]+)\/dashboard/)
-            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : config.companyName.toLowerCase().replace(/\s+/g, '_')
+            const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
+            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
+            if (!orgSlug) {
+                throw new Error('Could not determine org slug from URL or Supabase. Check Supabase connection and SUPABASE_SERVICE_ROLE_KEY.')
+            }
 
-            // Fetch the API key
-            console.log('\n[Step 7/7] Fetching API key...')
-            const apiKey = await fetchOrgApiKey(orgSlug)
+            // Verify onboarding + get API key
+            const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
 
             return {
                 success: true,
                 message: 'Demo account created and onboarding completed!',
                 orgSlug,
-                apiKey: apiKey || undefined,
+                apiKey,
                 dashboardUrl: finalUrl,
             }
         } else {
@@ -408,17 +575,20 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
             await page.waitForTimeout(5000)
             const finalUrl = page.url()
             const orgSlugMatch = finalUrl.match(/\/([^/]+)\/dashboard/)
-            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : config.companyName.toLowerCase().replace(/\s+/g, '_')
+            const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
+            const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
+            if (!orgSlug) {
+                throw new Error('Could not determine org slug from URL or Supabase. Check Supabase connection and SUPABASE_SERVICE_ROLE_KEY.')
+            }
 
-            // Try to fetch API key anyway
-            console.log('\n[Step 7/7] Fetching API key...')
-            const apiKey = await fetchOrgApiKey(orgSlug)
+            // Verify onboarding + get API key
+            const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
 
             return {
                 success: true,
                 message: `Demo account created. Current page: ${finalUrl}`,
                 orgSlug,
-                apiKey: apiKey || undefined,
+                apiKey,
             }
         }
     } catch (error) {

@@ -201,12 +201,21 @@ grep -i "error\|exception\|failed\|traceback" $REPO_ROOT/logs/*.log | grep -v "I
 Triggers a new revision of Cloud Run services (restarts without redeploying).
 
 **Step 1: Activate environment**
+
+| Env | GCP Project | Key File | Frontend URL | API URL |
+|-----|-------------|----------|-------------|---------|
+| local | N/A | N/A | `http://localhost:3000` | `http://localhost:8000` |
+| test/stage | cloudact-testing-1 | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` | Cloud Run URL | Cloud Run URL |
+| prod | cloudact-prod | `/Users/openclaw/.gcp/cloudact-prod.json` | `https://cloudact.ai` | `https://api.cloudact.ai` |
+
+> **Note:** local/test/stage all use `cloudact-testing-1`. No separate `cloudact-stage` project.
+> **Note:** Use ABSOLUTE key file paths. `~/.gcp/` does NOT expand in gcloud commands.
+
 ```bash
 ENV={env}
 case $ENV in
-  test)  PROJECT=cloudact-testing-1; KEY_FILE=~/.gcp/cloudact-testing-1-e44da390bf82.json ;;
-  stage) PROJECT=cloudact-stage; KEY_FILE=~/.gcp/cloudact-stage.json ;;
-  prod)  PROJECT=cloudact-prod; KEY_FILE=~/.gcp/cloudact-prod.json ;;
+  test|stage) PROJECT=cloudact-testing-1; KEY_FILE=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json ;;
+  prod)       PROJECT=cloudact-prod; KEY_FILE=/Users/openclaw/.gcp/cloudact-prod.json ;;
 esac
 
 gcloud auth activate-service-account --key-file=$KEY_FILE
@@ -240,9 +249,8 @@ sleep 10
 
 # Verify services are healthy
 case $ENV in
-  test)  API_URL="https://cloudact-api-service-test-zfq7lndpda-uc.a.run.app" ;;
-  stage) API_URL="https://cloudact-api-service-stage-zfq7lndpda-uc.a.run.app" ;;
-  prod)  API_URL="https://api.cloudact.ai" ;;
+  test|stage) API_URL="https://cloudact-api-service-test-zfq7lndpda-uc.a.run.app" ;;
+  prod)       API_URL="https://api.cloudact.ai" ;;
 esac
 
 curl -s "$API_URL/health" | python3 -m json.tool
@@ -420,7 +428,7 @@ lsof -i:3000,3001,8000,8001,8002  # Should show nothing
 
 ## Variables
 
-- `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
+- `$REPO_ROOT` = `/Users/openclaw/.openclaw/workspace/cloudact-mono-repo`
 
 ## Debug Account (for testing after restart)
 

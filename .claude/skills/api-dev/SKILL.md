@@ -11,6 +11,40 @@ description: |
 ## Overview
 CloudAct uses FastAPI with Pydantic for type-safe API development across two services.
 
+## Environments
+
+| Env | GCP Project | API URL | Pipeline URL | GCP Key File |
+|-----|-------------|---------|--------------|--------------|
+| local | cloudact-testing-1 | `http://localhost:8000` | `http://localhost:8001` | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| test/stage | cloudact-testing-1 | Cloud Run URL | Cloud Run URL | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| prod | cloudact-prod | `https://api.cloudact.ai` | `https://pipeline.cloudact.ai` | `/Users/openclaw/.gcp/cloudact-prod.json` |
+
+> **Note:** local/test/stage all use `cloudact-testing-1`. No separate `cloudact-stage` project.
+
+### Local Dev
+
+```bash
+REPO_ROOT=/Users/openclaw/.openclaw/workspace/cloudact-mono-repo
+
+# API Service (port 8000)
+cd $REPO_ROOT/02-api-service && source venv/bin/activate
+python -m uvicorn src.app.main:app --port 8000 --reload
+
+# Pipeline Service (port 8001)
+cd $REPO_ROOT/03-data-pipeline-service && source venv/bin/activate
+python -m uvicorn src.app.main:app --port 8001 --reload
+```
+
+### GCP Auth (for BigQuery access)
+
+```bash
+# Stage/test
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json
+
+# Prod
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json
+```
+
 ## Key Locations
 - **API Service App:** `02-api-service/src/app/`
 - **Pipeline Service App:** `03-data-pipeline-service/src/app/`

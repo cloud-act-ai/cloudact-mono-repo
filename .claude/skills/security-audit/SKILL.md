@@ -23,6 +23,29 @@ CloudAct implements defense-in-depth security with KMS encryption, API key hiera
 
 To fix 403 errors on Cloud Run: `./04-inra-cicd-automation/CICD/quick/fix-auth.sh <env>`
 
+## Environments
+
+| Env | GCP Project | KMS Keyring | API URL | GCP Key File |
+|-----|-------------|-------------|---------|--------------|
+| local | cloudact-testing-1 | `cloudact-testing-1` | `http://localhost:8000` | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| test/stage | cloudact-testing-1 | `cloudact-testing-1` | Cloud Run URL | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| prod | cloudact-prod | `cloudact-prod` | `https://api.cloudact.ai` | `/Users/openclaw/.gcp/cloudact-prod.json` |
+
+> **Note:** local/test/stage all use `cloudact-testing-1`. No separate `cloudact-stage` project.
+> **Note:** Use ABSOLUTE key file paths. `~/.gcp/` does NOT expand in gcloud commands.
+
+### GCP Auth (for security audits)
+
+```bash
+# Stage/test
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json
+gcloud config set project cloudact-testing-1
+
+# Prod
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json
+gcloud config set project cloudact-prod
+```
+
 ## Key Locations
 - **Security Docs:** `03-data-pipeline-service/SECURITY.md`
 - **KMS Encryption:** `02-api-service/src/core/security/kms_encryption.py`

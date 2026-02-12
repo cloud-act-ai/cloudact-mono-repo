@@ -1,6 +1,6 @@
-# /cleanup-bq - BigQuery Dataset Cleanup
+# /cleanup-bq - BigQuery Full Cleanup + Bootstrap
 
-Delete org and customer datasets from a BigQuery environment for fresh bootstrap.
+**Nuke ALL BigQuery datasets (except protected) and rebuild via Cloud Run Jobs.**
 
 ## Usage
 
@@ -10,148 +10,206 @@ Delete org and customer datasets from a BigQuery environment for fresh bootstrap
 
 ## Environments
 
-| Environment | GCP Project | Service Account |
-|-------------|-------------|-----------------|
-| `test` | cloudact-testing-1 | cloudact-testing-1@cloudact-testing-1.iam.gserviceaccount.com |
-| `stage` | cloudact-stage | cloudact-stage@cloudact-stage.iam.gserviceaccount.com |
-| `prod` | cloudact-prod | cloudact-prod@cloudact-prod.iam.gserviceaccount.com |
+| Input | GCP Project | Key File | `run-job.sh` Arg |
+|-------|-------------|----------|------------------|
+| `local` / `test` / `stage` | cloudact-testing-1 | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` | `stage` |
+| `prod` | cloudact-prod | `/Users/openclaw/.gcp/cloudact-prod.json` | `prod` |
 
-## Protected Datasets (NEVER DELETE)
+> **Note:** `local`, `test`, `stage` = same GCP project. No separate `cloudact-stage` project.
+> **Note:** `run-job.sh` only accepts `test`, `stage`, or `prod` (NOT `local`). Map `local` → `stage`.
 
-> **CRITICAL:** These datasets are managed by GCP Billing Export and must NEVER be deleted:
-
-| Dataset | Purpose |
-|---------|---------|
-| `gcp_billing_cud_dataset` | GCP Committed Use Discounts billing export |
-| `gcp_cloud_billing_dataset` | GCP Cloud Billing export |
-
-These are created and populated by GCP automatically. Deleting them would break billing data pipelines.
-
-## Datasets to Delete
+## What Gets Deleted
 
 | Pattern | Description |
 |---------|-------------|
-| `organizations` | CloudAct meta tables (21 bootstrap tables) |
-| `*_prod` | Customer org datasets (e.g., `acme_inc_prod`) |
+| `organizations` | CloudAct meta dataset (**23 bootstrap tables**) |
+| `*_prod` / `*_local` | ALL customer org datasets |
+| Any other non-protected | Everything else |
 
-## Examples
+## Protected Datasets (NEVER DELETE)
+
+| Dataset | Purpose | Exists In |
+|---------|---------|-----------|
+| `gcp_billing_cud_dataset` | GCP Committed Use Discounts billing export | **prod only** |
+| `gcp_cloud_billing_dataset` | GCP Cloud Billing export | **prod only** |
+
+> Protected datasets only exist in `cloudact-prod`. Stage/test has no billing datasets.
+
+## Full Workflow
 
 ```
-/cleanup-bq test    # Clean org + customer datasets in cloudact-testing-1
-/cleanup-bq stage   # Clean org + customer datasets in cloudact-stage
-/cleanup-bq prod    # Clean org + customer datasets in cloudact-prod (requires confirmation)
+Step 1: Activate GCP credentials (absolute paths!)
+Step 2: List datasets → confirm deletion count
+Step 3: Delete ALL datasets (skip protected in prod)
+Step 4: Verify BQ is clean
+Step 5: Bootstrap via Cloud Run Job → creates organizations + 23 tables
+Step 6: Org-sync via Cloud Run Job → syncs active org datasets (0 after nuke)
 ```
 
 ---
 
 ## Instructions
 
-When user runs `/cleanup-bq <env>`, execute the following:
+### Step 1: Parse Environment + Activate Credentials
 
-### Step 1: Parse and Validate Environment
+**CRITICAL:** Always use ABSOLUTE paths. `~/.gcp/` does NOT expand in gcloud commands.
 
 ```bash
-ENV=$1  # First argument: test, stage, or prod
-
 case $ENV in
-  test)
-    PROJECT=cloudact-testing-1
-    SERVICE_ACCOUNT=cloudact-testing-1@cloudact-testing-1.iam.gserviceaccount.com
-    ;;
-  stage)
-    PROJECT=cloudact-stage
-    SERVICE_ACCOUNT=cloudact-stage@cloudact-stage.iam.gserviceaccount.com
+  local|test|stage)
+    PROJECT="cloudact-testing-1"
+    KEY_FILE="/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json"
+    JOB_ENV="stage"
     ;;
   prod)
-    PROJECT=cloudact-prod
-    SERVICE_ACCOUNT=cloudact-prod@cloudact-prod.iam.gserviceaccount.com
-    # REQUIRE EXPLICIT CONFIRMATION FOR PROD
-    ;;
-  *)
-    echo "ERROR: Invalid environment. Use: test, stage, or prod"
-    exit 1
+    PROJECT="cloudact-prod"
+    KEY_FILE="/Users/openclaw/.gcp/cloudact-prod.json"
+    JOB_ENV="prod"
     ;;
 esac
+
+gcloud auth activate-service-account --key-file=$KEY_FILE
+gcloud config set project $PROJECT
 ```
 
 ### Step 2: If prod, ask for explicit confirmation
 
-**CRITICAL:** For prod environment, use AskUserQuestion to confirm:
-- "Are you sure you want to delete ALL datasets from PRODUCTION (cloudact-prod)? This is irreversible!"
-- Options: "Yes, delete prod" / "No, cancel"
+Use AskUserQuestion:
+- "Delete ALL datasets from PRODUCTION BigQuery (cloudact-prod) and re-bootstrap? This is irreversible!"
+- Options: "Yes, nuke + rebuild prod" / "No, cancel"
 
-If user cancels, abort immediately.
-
-### Step 3: Switch to correct service account
+### Step 3: List and Delete ALL Datasets
 
 ```bash
-gcloud config set account $SERVICE_ACCOUNT
-gcloud config set project $PROJECT
-```
-
-### Step 4: List all datasets
-
-```bash
-bq ls --project_id=$PROJECT
-```
-
-Display count to user: "Found X datasets to delete"
-
-### Step 5: Delete org and customer datasets (SKIP protected datasets)
-
-**IMPORTANT:** Skip these protected GCP billing datasets:
-- `gcp_billing_cud_dataset`
-- `gcp_cloud_billing_dataset`
-
-For each dataset (except protected):
-```bash
-bq rm -r -f "$PROJECT:$DATASET_ID"
-```
-
-Use a bash script approach:
-```bash
-# Protected datasets - NEVER DELETE
 PROTECTED="gcp_billing_cud_dataset gcp_cloud_billing_dataset"
+DELETED=0
 
-# Save datasets to file (excluding protected)
-bq ls 2>/dev/null | awk 'NR>2 {print $1}' > /tmp/bq_cleanup_datasets.txt
-
-# Delete each dataset (skip protected)
-while IFS= read -r ds; do
-  if [ -n "$ds" ]; then
-    # Check if protected
-    if echo "$PROTECTED" | grep -qw "$ds"; then
-      echo "SKIPPING (protected): $ds"
-    else
-      echo "Deleting: $ds" && bq rm -r -f "$PROJECT:$ds"
-    fi
+for ds in $(bq ls --project_id=$PROJECT 2>/dev/null | awk 'NR>2 {print $1}'); do
+  if echo "$PROTECTED" | grep -qw "$ds"; then
+    echo "SKIPPING (protected): $ds"
+  else
+    echo "Deleting: $ds"
+    bq rm -r -f "$PROJECT:$ds"
+    DELETED=$((DELETED + 1))
   fi
-done < /tmp/bq_cleanup_datasets.txt
+done
 
-# Cleanup
-rm -f /tmp/bq_cleanup_datasets.txt
+echo "Deleted $DELETED datasets"
 ```
 
-### Step 6: Verify and Report
+### Step 4: Verify BQ is Clean
 
 ```bash
-echo "Remaining datasets:"
 bq ls --project_id=$PROJECT
 ```
 
-Report summary:
-- Datasets deleted: X
-- Environment: $ENV ($PROJECT)
-- Status: Clean / Has remaining datasets
+- **Stage/test:** Should be completely empty (no protected datasets here)
+- **Prod:** Should show only `gcp_billing_cud_dataset` and `gcp_cloud_billing_dataset`
+
+### Step 5: Run Bootstrap via Cloud Run Job
+
+**Smart bootstrap auto-detects** fresh vs existing:
+- **Fresh** (no organizations dataset): Creates dataset + 23 tables → `Tables created: 23, Tables existed: 0`
+- **Existing** (organizations exists): Sync mode, adds new columns → `Tables created: 0, Tables existed: 23`
+
+```bash
+cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs/scripts
+
+# Stage/test (no confirmation needed)
+./run-job.sh stage bootstrap
+
+# Prod (requires confirmation)
+echo "yes" | ./run-job.sh prod bootstrap
+```
+
+### Step 6: Verify Bootstrap via Cloud Run Logs
+
+**Always check actual job logs** to confirm what happened (don't rely on exit code alone):
+
+```bash
+gcloud logging read \
+  "resource.type=cloud_run_job AND resource.labels.job_name=cloudact-manual-bootstrap AND timestamp>=\"$(date -u +%Y-%m-%dT00:00:00Z)\"" \
+  --project=$PROJECT \
+  --limit=30 \
+  --format="table(timestamp,textPayload)" \
+  --order=asc
+```
+
+**Expected output patterns:**
+- Fresh: `Tables created: 23, Tables existed: 0`
+- Sync: `Tables created: 0, Columns added: 0, Already in sync`
+- Conflict recovery: `Dataset already exists - will run sync instead`
+
+### Step 7: Run Org Sync via Cloud Run Job
+
+```bash
+# After nuke: "Found 0 active organizations" (expected, exits cleanly)
+./run-job.sh $JOB_ENV org-sync-all
+
+# Prod
+echo "yes" | ./run-job.sh prod org-sync-all
+```
+
+### Step 8: Verify Org Sync via Cloud Run Logs
+
+```bash
+gcloud logging read \
+  "resource.type=cloud_run_job AND resource.labels.job_name=cloudact-manual-org-sync-all AND timestamp>=\"$(date -u +%Y-%m-%dT00:00:00Z)\"" \
+  --project=$PROJECT \
+  --limit=30 \
+  --format="table(timestamp,textPayload)" \
+  --order=asc
+```
+
+### Step 9: Report Summary
+
+```
+=== BigQuery Cleanup + Bootstrap Complete ===
+Environment: $ENV ($PROJECT)
+Datasets deleted: X
+Protected (kept): gcp_billing_cud_dataset, gcp_cloud_billing_dataset (prod only)
+Bootstrap: OK (organizations + 23 tables)
+Org sync: OK (0 orgs after nuke is expected)
+```
 
 ---
+
+## Smart Bootstrap Behavior (Verified 2026-02-12)
+
+| Scenario | Detection | Result |
+|----------|-----------|--------|
+| **Fresh** (no `organizations` dataset) | Auto-detect | Creates dataset + **23 tables** |
+| **Existing** (dataset exists) | Auto-detect | Sync: adds new columns, skips existing |
+| **After nuke** | Fresh path | Full recreation |
+
+> **Correction:** Bootstrap creates **23 tables**, not 21 as previously documented.
+
+## Smart Migration Behavior (Verified 2026-02-12)
+
+| Scenario | Result |
+|----------|--------|
+| **Already applied** | "Already applied: 48 migrations, No pending" → skips |
+| **New migrations** | Applies only new ones |
+| **After Supabase nuke** | Schema tables survive TRUNCATE, migration tracking preserved |
+
+> **Note:** Applied count (48) > file count (41) because some migrations were consolidated.
+
+## Cloud Run Job Reference
+
+| Step | Command (stage) | Command (prod) |
+|------|-----------------|----------------|
+| Bootstrap | `./run-job.sh stage bootstrap` | `echo "yes" \| ./run-job.sh prod bootstrap` |
+| Org Sync | `./run-job.sh stage org-sync-all` | `echo "yes" \| ./run-job.sh prod org-sync-all` |
+
+**Scripts location:** `05-scheduler-jobs/scripts/`
+
+**`run-job.sh` valid envs:** `test`, `stage`, `prod` (NOT `local` — map local → stage)
 
 ## Safety Notes
 
 1. **Prod requires confirmation** - Never auto-delete prod without explicit user approval
-2. **Protected datasets preserved** - GCP billing datasets are NEVER deleted:
-   - `gcp_billing_cud_dataset` - CUD billing export
-   - `gcp_cloud_billing_dataset` - Cloud Billing export
-3. **Datasets deleted** - Only `organizations` and customer `*_prod` datasets
-4. **Requires bootstrap** - After cleanup, run bootstrap to recreate meta tables
-5. **Service account auth** - Uses environment-specific service accounts
+2. **Protected datasets preserved** - GCP billing datasets NEVER deleted (prod only)
+3. **Use absolute paths** - `~/.gcp/` does NOT expand; use `/Users/openclaw/.gcp/`
+4. **Cloud Run Jobs only** - Bootstrap/sync via Cloud Run Jobs, NOT local scripts
+5. **Prod needs `echo "yes" |`** - `run-job.sh prod` prompts for confirmation
+6. **Map local → stage** - `run-job.sh` doesn't accept `local`, use `stage` instead

@@ -11,6 +11,27 @@ description: |
 ## Overview
 CloudAct has comprehensive testing across all services with multi-org and multi-currency fixtures.
 
+## Environments
+
+| Env | GCP Project | Supabase Project | API URL | Pipeline URL | GCP Key File |
+|-----|-------------|-----------------|---------|--------------|--------------|
+| local | cloudact-testing-1 | `kwroaccbrxppfiysqlzs` | `http://localhost:8000` | `http://localhost:8001` | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| test/stage | cloudact-testing-1 | `kwroaccbrxppfiysqlzs` | Cloud Run URL | Cloud Run URL | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| prod | cloudact-prod | `ovfxswhkkshouhsryzaf` | `https://api.cloudact.ai` | `https://pipeline.cloudact.ai` | `/Users/openclaw/.gcp/cloudact-prod.json` |
+
+> **Note:** local/test/stage all use `cloudact-testing-1`. No separate `cloudact-stage` project.
+> **Note:** Unit tests run locally without GCP auth. Integration tests require GCP credentials.
+
+### GCP Auth (for integration tests)
+
+```bash
+# Stage/test (ABSOLUTE paths - ~/ does NOT expand!)
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json
+
+# Prod
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json
+```
+
 ## Key Locations
 - **Frontend Tests:** `01-fronted-system/tests/`
 - **API Tests:** `02-api-service/tests/`

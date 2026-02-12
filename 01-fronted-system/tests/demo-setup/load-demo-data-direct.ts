@@ -38,9 +38,9 @@ const PIPELINE_SERVICE_URL = process.env.PIPELINE_SERVICE_URL || 'http://localho
 const CA_ROOT_API_KEY = ENV_CONFIG.caRootApiKey
 const DEMO_DATA_PATH = path.resolve(__dirname, '../../../04-inra-cicd-automation/load-demo-data')
 
-// Default date range for demo data
-const START_DATE = '2025-01-01'
-const END_DATE = '2026-01-05'
+// Default date range for demo data (Dec 2025 - Jan 2026)
+const START_DATE = '2025-12-01'
+const END_DATE = '2026-01-31'
 
 interface LoadConfig {
     orgSlug: string
@@ -60,6 +60,30 @@ interface PipelineStatus {
     autoFixAttempted?: boolean
     autoFixSuccess?: boolean
     retried?: boolean
+}
+
+interface CategoryTotals {
+    genai: number
+    cloud: number
+    subscription: number
+    total: number
+}
+
+interface ValidationResult {
+    passed: boolean
+    bqTotals: CategoryTotals | null
+    apiTotals: CategoryTotals | null
+    expectedTotals: CategoryTotals
+    errors: string[]
+    warnings: string[]
+    comparisons: {
+        category: string
+        bq: number
+        api: number
+        expected: number
+        bqApiDiffPct: number
+        bqExpectedDiffPct: number
+    }[]
 }
 
 interface LoadResult {
@@ -82,6 +106,7 @@ interface LoadResult {
         genai: PipelineStatus
         cloud: PipelineStatus
     }
+    validation?: ValidationResult
     errors: string[]
     warnings: string[]
     fixes: string[]
@@ -161,6 +186,68 @@ function runCommand(command: string, description: string, allowFail = false): bo
     }
 }
 
+/**
+ * Check if BigQuery dataset exists for the org
+ */
+function checkDatasetExists(dataset: string): boolean {
+    const fullDataset = `${GCP_PROJECT_ID}:${dataset}`
+    console.log(`  Checking dataset: ${fullDataset}`)
+    try {
+        const result = spawnSync('bq', ['show', fullDataset], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            encoding: 'utf-8'
+        })
+        return result.status === 0
+    } catch {
+        return false
+    }
+}
+
+/**
+ * Attempt to create dataset via manual onboarding
+ */
+async function ensureDatasetExists(orgSlug: string, dataset: string): Promise<boolean> {
+    if (checkDatasetExists(dataset)) {
+        console.log(`    Dataset exists: ${dataset}`)
+        return true
+    }
+
+    console.log(`    Dataset missing: ${dataset} - attempting onboarding...`)
+    const apiServiceUrl = process.env.API_SERVICE_URL || 'http://localhost:8000'
+
+    try {
+        const response = await fetch(`${apiServiceUrl}/api/v1/organizations/onboard`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CA-Root-Key': CA_ROOT_API_KEY,
+            },
+            body: JSON.stringify({
+                org_slug: orgSlug,
+                company_name: orgSlug.replace(/_[a-z0-9]+$/, '').replace(/_/g, ' '),
+                admin_email: 'demo@cloudact.ai',
+            }),
+        })
+
+        if (response.ok || response.status === 409) {
+            console.log(`    Onboarding triggered (${response.status}), waiting for dataset...`)
+            await new Promise(resolve => setTimeout(resolve, 5000))
+
+            if (checkDatasetExists(dataset)) {
+                console.log(`    Dataset created: ${dataset}`)
+                return true
+            }
+        }
+
+        const errorText = await response.text()
+        console.error(`    Onboarding failed: ${response.status} ${errorText}`)
+        return false
+    } catch (error) {
+        console.error(`    Onboarding error: ${error}`)
+        return false
+    }
+}
+
 async function syncProcedures(): Promise<boolean> {
     console.log('\n[Step 1] Syncing stored procedures...')
 
@@ -204,12 +291,22 @@ async function syncProcedures(): Promise<boolean> {
 function loadPricingSeed(orgSlug: string, dataset: string): boolean {
     console.log('\n[Step 2] Loading GenAI pricing seed data...')
 
-    // CRITICAL FIX: Use script to add x_org_slug column before loading
-    // Bug: genai_payg_pricing.csv is missing x_org_slug (REQUIRED by schema)
-    const fixScript = path.resolve(__dirname, '../../../04-inra-cicd-automation/load-demo-data/scripts/fix_genai_pricing_for_org.sh')
-    const command = `bash ${fixScript} ${orgSlug} ${GCP_PROJECT_ID} ${dataset}`
+    // Pricing CSV has all x_* fields with placeholder org slug - just replace and load
+    const csvFile = `${DEMO_DATA_PATH}/data/pricing/genai_payg_pricing.csv`
+    const table = `${GCP_PROJECT_ID}:${dataset}.genai_payg_pricing`
+    const tmpFile = `/tmp/genai_payg_pricing_${orgSlug}.csv`
 
-    return runCommand(command, 'Loading genai_payg_pricing (with x_org_slug fix)')
+    const fixCommand = `sed 's/acme_inc_[a-z0-9]*/${orgSlug}/g' ${csvFile} > ${tmpFile}`
+    const loadCommand = `bq load --source_format=CSV --skip_leading_rows=1 --replace ${table} ${tmpFile}`
+
+    if (!runCommand(fixCommand, 'Replacing org slug in pricing data')) {
+        return false
+    }
+
+    const success = runCommand(loadCommand, 'Loading genai_payg_pricing to BigQuery')
+
+    runCommand(`rm -f ${tmpFile}`, 'Cleanup', true)
+    return success
 }
 
 function loadHierarchy(orgSlug: string, apiKey: string): boolean {
@@ -295,32 +392,39 @@ function loadHierarchy(orgSlug: string, apiKey: string): boolean {
 function loadGenAIData(orgSlug: string, dataset: string): boolean {
     console.log('\n[Step 3] Loading GenAI usage raw data...')
 
+    // Concatenate all provider files into one to avoid --replace overwriting previous providers
     const providers = ['openai', 'anthropic', 'gemini']
-    const allSuccess = true
+    const combinedFile = `/tmp/genai_all_usage_raw_${orgSlug}.json`
+    const table = `${GCP_PROJECT_ID}:${dataset}.genai_payg_usage_raw`
 
+    // Build combined file from all providers
+    let providerCount = 0
     for (const provider of providers) {
         const jsonFile = `${DEMO_DATA_PATH}/data/genai/${provider}_usage_raw.json`
-        const table = `${GCP_PROJECT_ID}:${dataset}.genai_payg_usage_raw`
-        const tmpFile = `/tmp/${provider}_usage_raw_fixed.json`
+        const appendOp = providerCount === 0 ? '>' : '>>'
+        const fixCommand = `sed 's/acme_inc_[a-z0-9]*/${orgSlug}/g' "${jsonFile}" ${appendOp} "${combinedFile}"`
 
-        // Create temp file with org_slug replaced (simple pattern replacement)
-        const fixCommand = `cat ${jsonFile} | sed 's/acme_inc_[0-9]*/${orgSlug}/g' > ${tmpFile}`
-        const loadCommand = `bq load --source_format=NEWLINE_DELIMITED_JSON ${table} ${tmpFile}`
-
-        if (!runCommand(fixCommand, `Preparing ${provider} data`, true)) {
-            console.log(`    (Skipped - file may not exist)`)
-            continue
+        if (runCommand(fixCommand, `Preparing ${provider} data`, true)) {
+            providerCount++
+        } else {
+            console.log(`    (Skipped ${provider} - file may not exist)`)
         }
-
-        if (!runCommand(loadCommand, `Loading ${provider} usage data`, true)) {
-            console.log(`    (Skipped - load failed)`)
-        }
-
-        // Cleanup
-        runCommand(`rm -f ${tmpFile}`, 'Cleanup', true)
     }
 
-    return allSuccess
+    if (providerCount === 0) {
+        console.log('    ERROR: No GenAI data files found')
+        return false
+    }
+
+    console.log(`    Combined ${providerCount} providers into single file`)
+
+    // Load all providers in one batch with --replace
+    const loadCommand = `bq load --source_format=NEWLINE_DELIMITED_JSON --replace --ignore_unknown_values ${table} "${combinedFile}"`
+    const success = runCommand(loadCommand, `Loading all GenAI usage data (${providerCount} providers)`)
+
+    // Cleanup
+    runCommand(`rm -f "${combinedFile}"`, 'Cleanup', true)
+    return success
 }
 
 function loadCloudData(orgSlug: string, dataset: string): boolean {
@@ -332,24 +436,26 @@ function loadCloudData(orgSlug: string, dataset: string): boolean {
         { name: 'azure', table: 'cloud_azure_billing_raw_daily' },
         { name: 'oci', table: 'cloud_oci_billing_raw_daily' }
     ]
-    const allSuccess = true
+    let allSuccess = true
 
     for (const provider of providers) {
         const jsonFile = `${DEMO_DATA_PATH}/data/cloud/${provider.name}_billing_raw.json`
         const table = `${GCP_PROJECT_ID}:${dataset}.${provider.table}`
         const tmpFile = `/tmp/${provider.name}_billing_raw_fixed.json`
 
-        // Create temp file with org_slug replaced (simple pattern replacement)
-        const fixCommand = `cat ${jsonFile} | sed 's/acme_inc_[0-9]*/${orgSlug}/g' > ${tmpFile}`
-        const loadCommand = `bq load --source_format=NEWLINE_DELIMITED_JSON ${table} ${tmpFile}`
+        // Replace placeholder org slug with actual org slug
+        const fixCommand = `sed 's/acme_inc_[a-z0-9]*/${orgSlug}/g' ${jsonFile} > ${tmpFile}`
+        const loadCommand = `bq load --source_format=NEWLINE_DELIMITED_JSON --replace --ignore_unknown_values ${table} ${tmpFile}`
 
         if (!runCommand(fixCommand, `Preparing ${provider.name} data`, true)) {
             console.log(`    (Skipped - file may not exist)`)
+            allSuccess = false
             continue
         }
 
         if (!runCommand(loadCommand, `Loading ${provider.name} billing data`, true)) {
             console.log(`    (Skipped - load failed)`)
+            allSuccess = false
         }
 
         // Cleanup
@@ -365,10 +471,9 @@ function loadSubscriptionPlans(orgSlug: string, dataset: string): boolean {
     const csvFile = `${DEMO_DATA_PATH}/data/subscriptions/subscription_plans.csv`
     const table = `${GCP_PROJECT_ID}:${dataset}.subscription_plans`
 
-    // Create temp file with org_slug replaced, then load
-    // The sed command replaces the first field (org_slug) in each CSV row
+    // Replace placeholder org slug with actual org slug, skip header row
     const tmpFile = '/tmp/subscription_plans_fixed.csv'
-    const fixCommand = `tail -n +2 ${csvFile} | sed 's/^[^,]*,/${orgSlug},/' > ${tmpFile}`
+    const fixCommand = `tail -n +2 ${csvFile} | sed 's/acme_inc_[a-z0-9]*/${orgSlug}/g' > ${tmpFile}`
     const loadCommand = `bq load --source_format=CSV --replace ${table} ${tmpFile}`
 
     // Create fixed file first
@@ -737,17 +842,288 @@ async function runSubscriptionPipeline(
     return result
 }
 
+/**
+ * Calculate GenAI PAYG costs via direct SQL (usage + pricing → costs_daily).
+ *
+ * The per-provider PAYG pipelines (genai/payg/openai etc.) require integration
+ * credentials which the demo account doesn't have. Instead, we calculate costs
+ * directly in BigQuery by JOINing usage_raw + pricing.
+ */
+function calculateGenAICostsViaSQL(orgSlug: string, dataset: string): boolean {
+    console.log('\n[Step 7a] Calculating GenAI PAYG costs via SQL (usage + pricing)...')
+
+    const fullDataset = `${GCP_PROJECT_ID}.${dataset}`
+    const runId = `demo_cost_calc_${Date.now().toString(36)}`
+
+    const sql = `
+INSERT INTO \`${fullDataset}.genai_payg_costs_daily\` (
+  cost_date, x_org_slug, provider, model, model_family, region,
+  input_tokens, output_tokens, cached_input_tokens, total_tokens,
+  input_cost_usd, output_cost_usd, cached_cost_usd, total_cost_usd,
+  discount_applied_pct, effective_rate_input, effective_rate_output,
+  request_count,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
+  calculated_at, x_ingestion_id, x_ingestion_date, x_genai_provider,
+  x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
+)
+SELECT
+  u.usage_date as cost_date,
+  u.x_org_slug,
+  u.provider,
+  u.model,
+  u.model_family,
+  COALESCE(u.region, p.region) as region,
+  u.input_tokens,
+  u.output_tokens,
+  u.cached_input_tokens,
+  u.total_tokens,
+  ROUND(SAFE_DIVIDE(u.input_tokens, 1000000) * p.input_per_1m, 6) as input_cost_usd,
+  ROUND(SAFE_DIVIDE(u.output_tokens, 1000000) * p.output_per_1m, 6) as output_cost_usd,
+  ROUND(SAFE_DIVIDE(IFNULL(u.cached_input_tokens, 0), 1000000) * IFNULL(p.cached_input_per_1m, p.input_per_1m * 0.5), 6) as cached_cost_usd,
+  ROUND(
+    SAFE_DIVIDE(u.input_tokens, 1000000) * p.input_per_1m
+    + SAFE_DIVIDE(u.output_tokens, 1000000) * p.output_per_1m
+    + SAFE_DIVIDE(IFNULL(u.cached_input_tokens, 0), 1000000) * IFNULL(p.cached_input_per_1m, p.input_per_1m * 0.5),
+  6) as total_cost_usd,
+  IFNULL(p.volume_discount_pct, 0) as discount_applied_pct,
+  p.input_per_1m as effective_rate_input,
+  p.output_per_1m as effective_rate_output,
+  u.request_count,
+  u.x_hierarchy_entity_id,
+  u.x_hierarchy_entity_name,
+  u.x_hierarchy_level_code,
+  u.x_hierarchy_path,
+  u.x_hierarchy_path_names,
+  CURRENT_TIMESTAMP() as calculated_at,
+  GENERATE_UUID() as x_ingestion_id,
+  CURRENT_DATE() as x_ingestion_date,
+  u.provider as x_genai_provider,
+  CONCAT('genai_payg_', u.provider) as x_pipeline_id,
+  'demo_direct_calc' as x_credential_id,
+  u.usage_date as x_pipeline_run_date,
+  '${runId}' as x_run_id,
+  CURRENT_TIMESTAMP() as x_ingested_at
+FROM \`${fullDataset}.genai_payg_usage_raw\` u
+JOIN \`${fullDataset}.genai_payg_pricing\` p
+  ON u.provider = p.provider
+  AND u.model = p.model
+  AND (u.region = p.region OR p.region = 'global' OR u.region IS NULL)
+WHERE p.status = 'active'
+  AND (p.effective_to IS NULL OR p.effective_to >= u.usage_date)
+`
+
+    // Delete ALL existing cost data to avoid duplicates from previous runs
+    const deleteSQL = `DELETE FROM \`${fullDataset}.genai_payg_costs_daily\` WHERE 1=1`
+    const delResult = spawnSync('bq', [
+        'query', '--use_legacy_sql=false', '--nouse_cache', deleteSQL
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+    if (delResult.status === 0) {
+        console.log('    Cleared existing genai_payg_costs_daily')
+    }
+
+    // Run the cost calculation
+    const result = spawnSync('bq', [
+        'query', '--use_legacy_sql=false', '--nouse_cache', sql
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+    if (result.status !== 0) {
+        console.error(`    ERROR: ${result.stderr}`)
+        return false
+    }
+
+    // Check how many rows were inserted
+    const countResult = spawnSync('bq', [
+        'query', '--use_legacy_sql=false', '--format=json',
+        `SELECT COUNT(*) as cnt, ROUND(SUM(total_cost_usd), 2) as total FROM \`${fullDataset}.genai_payg_costs_daily\``
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+    if (countResult.status === 0) {
+        try {
+            const rows = JSON.parse(countResult.stdout || '[]')
+            console.log(`    Calculated ${rows[0]?.cnt || 0} cost rows, total: $${rows[0]?.total || 0}`)
+        } catch {
+            console.log('    Cost calculation completed')
+        }
+    }
+
+    return true
+}
+
+/**
+ * Consolidate GenAI costs and convert to FOCUS directly via SQL.
+ *
+ * The consolidation pipeline processes one day at a time using start_date as p_cost_date.
+ * For demo data spanning multiple dates (Dec 25 - Jan 31), we consolidate all dates at once.
+ */
+function consolidateGenAIToFocusViaSQL(orgSlug: string, dataset: string): boolean {
+    console.log('\n[Step 7b-direct] Consolidating GenAI costs + converting to FOCUS via SQL...')
+
+    const fullDataset = `${GCP_PROJECT_ID}.${dataset}`
+    const runId = `demo_consolidate_${Date.now().toString(36)}`
+
+    // Step 1: Consolidate PAYG costs → genai_costs_daily_unified (all dates)
+    const consolidateSQL = `
+DELETE FROM \`${fullDataset}.genai_costs_daily_unified\` WHERE 1=1;
+
+INSERT INTO \`${fullDataset}.genai_costs_daily_unified\`
+(cost_date, x_org_slug, cost_type, provider, model, instance_type, gpu_type,
+ region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
+ infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
+ usage_quantity, usage_unit,
+ x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+ x_hierarchy_path, x_hierarchy_path_names,
+ source_table, consolidated_at,
+ x_ingestion_id, x_ingestion_date, x_genai_provider,
+ x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
+SELECT
+  cost_date, x_org_slug, 'payg' as cost_type, provider, model,
+  NULL as instance_type, NULL as gpu_type, region,
+  input_cost_usd, output_cost_usd,
+  NULL as commitment_cost_usd, NULL as overage_cost_usd,
+  NULL as infrastructure_cost_usd,
+  total_cost_usd, discount_applied_pct,
+  total_tokens as usage_quantity, 'tokens' as usage_unit,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
+  'genai_payg_costs_daily' as source_table, CURRENT_TIMESTAMP() as consolidated_at,
+  GENERATE_UUID() as x_ingestion_id, CURRENT_DATE() as x_ingestion_date,
+  x_genai_provider,
+  x_pipeline_id, x_credential_id, x_pipeline_run_date,
+  '${runId}' as x_run_id, CURRENT_TIMESTAMP() as x_ingested_at
+FROM \`${fullDataset}.genai_payg_costs_daily\`
+WHERE total_cost_usd > 0
+`
+
+    let result = spawnSync('bq', [
+        'query', '--use_legacy_sql=false', '--nouse_cache', consolidateSQL
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+    if (result.status !== 0) {
+        console.error(`    Consolidation failed: ${result.stderr}`)
+        return false
+    }
+    console.log('    Consolidated PAYG costs → genai_costs_daily_unified')
+
+    // Step 2: Convert to FOCUS 1.3 → cost_data_standard_1_3 (all dates)
+    const focusSQL = `
+DELETE FROM \`${fullDataset}.cost_data_standard_1_3\`
+WHERE x_genai_cost_type IS NOT NULL;
+
+INSERT INTO \`${fullDataset}.cost_data_standard_1_3\`
+(ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
+ BillingAccountId, BillingCurrency, HostProviderName,
+ InvoiceIssuerName, ServiceProviderName, ServiceCategory, ServiceName,
+ ResourceId, ResourceName, ResourceType, RegionId, RegionName,
+ ConsumedQuantity, ConsumedUnit, PricingCategory, PricingUnit,
+ EffectiveCost, BilledCost, ListCost, ListUnitPrice,
+ ContractedCost, ContractedUnitPrice,
+ ChargeCategory, ChargeType, ChargeFrequency,
+ SubAccountId, SubAccountName,
+ x_genai_cost_type, x_genai_provider, x_genai_model,
+ x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+ x_hierarchy_path, x_hierarchy_path_names,
+ x_ingestion_date, x_pipeline_id, x_credential_id,
+ x_pipeline_run_date, x_run_id, x_ingested_at,
+ x_data_quality_score, x_created_at)
+SELECT
+  TIMESTAMP(cost_date) as ChargePeriodStart,
+  TIMESTAMP(cost_date) as ChargePeriodEnd,
+  TIMESTAMP(DATE_TRUNC(cost_date, MONTH)) as BillingPeriodStart,
+  TIMESTAMP(LAST_DAY(cost_date, MONTH)) as BillingPeriodEnd,
+  x_org_slug as BillingAccountId,
+  'USD' as BillingCurrency,
+  'CloudAct' as HostProviderName,
+  CASE provider
+    WHEN 'openai' THEN 'OpenAI'
+    WHEN 'anthropic' THEN 'Anthropic'
+    WHEN 'gemini' THEN 'Google'
+    ELSE provider
+  END as InvoiceIssuerName,
+  CASE provider
+    WHEN 'openai' THEN 'OpenAI'
+    WHEN 'anthropic' THEN 'Anthropic'
+    WHEN 'gemini' THEN 'Google AI'
+    ELSE provider
+  END as ServiceProviderName,
+  'genai' as ServiceCategory,
+  CONCAT(UPPER(SUBSTR(provider, 1, 1)), LOWER(SUBSTR(provider, 2)), ' API') as ServiceName,
+  COALESCE(model, 'default') as ResourceId,
+  COALESCE(model, provider) as ResourceName,
+  cost_type as ResourceType,
+  COALESCE(region, 'global') as RegionId,
+  COALESCE(region, 'global') as RegionName,
+  CAST(usage_quantity AS NUMERIC) as ConsumedQuantity,
+  usage_unit as ConsumedUnit,
+  'On-Demand' as PricingCategory,
+  usage_unit as PricingUnit,
+  CAST(total_cost_usd AS NUMERIC) as EffectiveCost,
+  CAST(total_cost_usd AS NUMERIC) as BilledCost,
+  CAST(total_cost_usd AS NUMERIC) as ListCost,
+  CAST(NULL AS NUMERIC) as ListUnitPrice,
+  CAST(0 AS NUMERIC) as ContractedCost,
+  CAST(0 AS NUMERIC) as ContractedUnitPrice,
+  'Usage' as ChargeCategory,
+  'Usage' as ChargeType,
+  'Usage-Based' as ChargeFrequency,
+  x_org_slug as SubAccountId,
+  x_org_slug as SubAccountName,
+  cost_type as x_genai_cost_type,
+  provider as x_genai_provider,
+  model as x_genai_model,
+  x_hierarchy_entity_id, x_hierarchy_entity_name, x_hierarchy_level_code,
+  x_hierarchy_path, x_hierarchy_path_names,
+  cost_date as x_ingestion_date,
+  x_pipeline_id, x_credential_id,
+  cost_date as x_pipeline_run_date,
+  '${runId}' as x_run_id,
+  CURRENT_TIMESTAMP() as x_ingested_at,
+  100.0 as x_data_quality_score,
+  CURRENT_TIMESTAMP() as x_created_at
+FROM \`${fullDataset}.genai_costs_daily_unified\`
+WHERE total_cost_usd > 0
+`
+
+    result = spawnSync('bq', [
+        'query', '--use_legacy_sql=false', '--nouse_cache', focusSQL
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+    if (result.status !== 0) {
+        console.error(`    FOCUS conversion failed: ${result.stderr}`)
+        return false
+    }
+
+    // Verify
+    const verifyResult = spawnSync('bq', [
+        'query', '--use_legacy_sql=false', '--format=json',
+        `SELECT COUNT(*) as cnt, ROUND(SUM(BilledCost), 2) as total FROM \`${fullDataset}.cost_data_standard_1_3\` WHERE ServiceCategory = 'genai'`
+    ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+    if (verifyResult.status === 0) {
+        try {
+            const rows = JSON.parse(verifyResult.stdout || '[]')
+            console.log(`    GenAI FOCUS: ${rows[0]?.cnt || 0} records, total: $${rows[0]?.total || 0}`)
+        } catch {
+            console.log('    GenAI FOCUS conversion completed')
+        }
+    }
+
+    return true
+}
+
 async function runGenAIPipeline(
     orgSlug: string,
-    apiKey: string
+    apiKey: string,
+    startDate: string,
+    endDate: string
 ): Promise<PipelineResponse> {
-    console.log('\n[Step 7] Running GenAI consolidation pipeline...')
+    console.log('\n[Step 7b] Running GenAI consolidation pipeline...')
 
     const result = await runPipeline(
         orgSlug,
         apiKey,
         'genai/unified/consolidate',
-        { start_date: START_DATE, end_date: END_DATE }
+        { start_date: startDate, end_date: endDate }
     )
 
     if (result.status === 'PENDING' || result.status === 'RUNNING') {
@@ -762,41 +1138,89 @@ async function runGenAIPipeline(
 
 async function runCloudFocusPipeline(
     orgSlug: string,
-    apiKey: string
-): Promise<PipelineResponse> {
-    console.log('\n[Step 8] Running cloud FOCUS convert pipeline...')
+    apiKey: string,
+    startDate: string,
+    endDate: string
+): Promise<{ providerPipelines: { provider: string; pipelineId: string | null }[]; pipelineIds: string[]; allTriggered: boolean; failedProviders: string[] }> {
+    console.log('\n[Step 8] Running cloud FOCUS convert pipelines (per-provider)...')
 
-    // Run unified cloud focus conversion (covers all providers)
-    const result = await runPipeline(
-        orgSlug,
-        apiKey,
-        'cloud/unified/cost/focus_convert',
-        {}
-    )
+    // Run per-provider focus_convert directly (unified endpoint doesn't exist)
+    const providers = ['gcp', 'aws', 'azure', 'oci']
+    const providerPipelines: { provider: string; pipelineId: string | null }[] = []
+    const pipelineIds: string[] = []
+    const failedProviders: string[] = []
+    let allTriggered = true
 
-    if (result.status === 'PENDING' || result.status === 'RUNNING') {
-        console.log(`    Pipeline triggered: ${result.pipeline_logging_id}`)
-        console.log(`    Status: ${result.status}`)
-    } else if (result.message?.includes('not found') || result.message?.includes('404')) {
-        // Try individual provider pipelines if unified doesn't exist
-        console.log('    Unified pipeline not found, trying individual providers...')
-        for (const provider of ['gcp', 'aws', 'azure', 'oci']) {
-            const providerResult = await runPipeline(
-                orgSlug,
-                apiKey,
-                `cloud/${provider}/cost/focus_convert`,
-                {}
-            )
-            if (providerResult.status === 'PENDING' || providerResult.status === 'RUNNING') {
-                console.log(`    ${provider}: ${providerResult.pipeline_logging_id}`)
-            }
+    for (const provider of providers) {
+        const result = await runPipeline(
+            orgSlug,
+            apiKey,
+            `cloud/${provider}/cost/focus_convert`,
+            { start_date: startDate, end_date: endDate }
+        )
+
+        if (result.status === 'PENDING' || result.status === 'RUNNING') {
+            console.log(`    ${provider}: ${result.pipeline_logging_id} (${result.status})`)
+            providerPipelines.push({ provider, pipelineId: result.pipeline_logging_id || null })
+            if (result.pipeline_logging_id) pipelineIds.push(result.pipeline_logging_id)
+        } else {
+            console.log(`    ${provider}: FAILED - ${result.message || result.error_details || 'unknown error'}`)
+            providerPipelines.push({ provider, pipelineId: null })
+            failedProviders.push(provider)
+            allTriggered = false
         }
-        return { status: 'PENDING', message: 'Individual provider pipelines triggered' }
-    } else {
-        console.error(`    ERROR: ${result.message}`)
     }
 
-    return result
+    return { providerPipelines, pipelineIds, allTriggered, failedProviders }
+}
+
+/**
+ * Fallback: Call sp_cloud_1_convert_to_focus directly via bq query
+ * for any cloud providers whose pipelines failed.
+ */
+function convertCloudToFocusViaSQL(
+    orgSlug: string,
+    dataset: string,
+    providers: string[],
+    startDate: string,
+    endDate: string
+): string[] {
+    if (providers.length === 0) return []
+
+    console.log(`\n[Step 8b] Cloud FOCUS fallback via SQL for: ${providers.join(', ')}...`)
+    const succeeded: string[] = []
+
+    for (const provider of providers) {
+        const callSQL = `CALL \`${GCP_PROJECT_ID}.organizations.sp_cloud_1_convert_to_focus\`('${GCP_PROJECT_ID}', '${dataset}', DATE('${startDate}'), DATE('${endDate}'), '${provider}', 'demo_focus_convert_${provider}', 'demo_direct', 'demo_fallback_${Date.now().toString(36)}')`
+
+        const result = spawnSync('bq', [
+            'query', '--use_legacy_sql=false', '--nouse_cache', callSQL
+        ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+        if (result.status === 0) {
+            console.log(`    ${provider}: OK (via stored procedure)`)
+            succeeded.push(provider)
+        } else {
+            console.log(`    ${provider}: FAILED - ${(result.stderr || '').substring(0, 200)}`)
+        }
+    }
+
+    if (succeeded.length > 0) {
+        // Verify cloud FOCUS totals
+        const verifyResult = spawnSync('bq', [
+            'query', '--use_legacy_sql=false', '--format=json', '--nouse_cache',
+            `SELECT COUNT(*) as cnt, ROUND(SUM(BilledCost), 2) as total FROM \`${GCP_PROJECT_ID}.${dataset}.cost_data_standard_1_3\` WHERE ServiceCategory NOT IN ('genai', 'subscription')`
+        ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+        if (verifyResult.status === 0) {
+            try {
+                const rows = JSON.parse(verifyResult.stdout || '[]')
+                console.log(`    Cloud FOCUS total: ${rows[0]?.cnt || 0} records, $${rows[0]?.total || 0}`)
+            } catch { /* ignore */ }
+        }
+    }
+
+    return succeeded
 }
 
 async function waitForPipelines(
@@ -992,29 +1416,198 @@ async function setupDemoAlerts(orgSlug: string, apiKey: string): Promise<{ chann
     return { channelCreated: !!channelId, rulesCreated, errors }
 }
 
-function verifyCosts(dataset: string): void {
-    console.log('\n[Verification] Checking cost_data_standard_1_3...')
+// Expected cost totals for demo data (Dec 2025 - Jan 2026)
+// GenAI: 330 records, SQL JOIN of usage_raw + pricing → ~$171K
+// Cloud: 540 records across GCP/AWS/Azure/OCI → ~$370
+// Subscription: 15 SaaS plans × daily cost over Dec 25 - Jan 31 → ~$7,700
+const EXPECTED_TOTALS: CategoryTotals = {
+    genai: 171000,
+    cloud: 370,
+    subscription: 7700,
+    total: 179070,
+}
 
-    const query = `
-        SELECT
-            x_source_system,
-            COUNT(*) as records,
-            ROUND(SUM(BilledCost), 2) as total_billed_cost,
-            MIN(ChargePeriodStart) as first_date,
-            MAX(ChargePeriodEnd) as last_date
-        FROM \`${GCP_PROJECT_ID}.${dataset}.cost_data_standard_1_3\`
-        GROUP BY x_source_system
-        ORDER BY x_source_system
-    `
+/**
+ * Layer 1: Query BigQuery cost_data_standard_1_3 directly
+ */
+function queryBigQueryCosts(dataset: string, startDate: string, endDate: string): CategoryTotals | null {
+    const table = `${GCP_PROJECT_ID}.${dataset}.cost_data_standard_1_3`
+    // Map FOCUS ServiceCategory values to our 3 categories:
+    // - 'genai' → genai
+    // - 'subscription' → subscription
+    // - Everything else (Compute, Storage, Database, Network, Other, etc.) → cloud
+    const query = `SELECT CASE WHEN ServiceCategory = 'genai' THEN 'genai' WHEN ServiceCategory = 'subscription' THEN 'subscription' ELSE 'cloud' END as category, ROUND(SUM(BilledCost), 2) as total FROM \`${table}\` WHERE ChargePeriodStart >= '${startDate}' AND ChargePeriodStart <= '${endDate}' GROUP BY category`
 
     try {
-        const result = execSync(`bq query --use_legacy_sql=false --format=prettyjson '${query}'`, {
-            encoding: 'utf-8'
-        })
-        console.log(result)
+        const result = spawnSync('bq', [
+            'query', '--use_legacy_sql=false', '--format=json', '--nouse_cache', query
+        ], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+
+        if (result.status !== 0) {
+            console.log(`    BQ query failed: ${result.stderr}`)
+            return null
+        }
+
+        const rows = JSON.parse(result.stdout || '[]') as { category: string; total: string }[]
+        const totals: CategoryTotals = { genai: 0, cloud: 0, subscription: 0, total: 0 }
+
+        for (const row of rows) {
+            const cost = parseFloat(row.total)
+            const cat = row.category?.toLowerCase()
+            if (cat === 'genai') totals.genai = cost
+            else if (cat === 'cloud') totals.cloud = cost
+            else if (cat === 'subscription') totals.subscription = cost
+        }
+        totals.total = totals.genai + totals.cloud + totals.subscription
+
+        return totals
     } catch (error) {
-        console.log('  (No data yet or table does not exist)')
+        console.log(`    BQ query error: ${error}`)
+        return null
     }
+}
+
+/**
+ * Layer 2: Query API Service costs endpoint
+ */
+async function queryAPICosts(orgSlug: string, apiKey: string, startDate: string, endDate: string): Promise<CategoryTotals | null> {
+    const apiServiceUrl = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const url = `${apiServiceUrl}/api/v1/costs/${orgSlug}/total?start_date=${startDate}&end_date=${endDate}`
+
+    try {
+        const response = await fetch(url, {
+            headers: { 'X-API-Key': apiKey },
+        })
+
+        if (!response.ok) {
+            console.log(`    API query failed: ${response.status}`)
+            return null
+        }
+
+        const data = await response.json()
+        const totals: CategoryTotals = { genai: 0, cloud: 0, subscription: 0, total: 0 }
+
+        // API response format: { genai: { total_billed_cost }, cloud: { total_billed_cost }, subscription: { total_billed_cost }, total: { total_billed_cost } }
+        if (data.genai?.total_billed_cost !== undefined) totals.genai = data.genai.total_billed_cost
+        if (data.cloud?.total_billed_cost !== undefined) totals.cloud = data.cloud.total_billed_cost
+        if (data.subscription?.total_billed_cost !== undefined) totals.subscription = data.subscription.total_billed_cost
+        totals.total = data.total?.total_billed_cost ?? (totals.genai + totals.cloud + totals.subscription)
+
+        return totals
+    } catch (error) {
+        console.log(`    API query error: ${error}`)
+        return null
+    }
+}
+
+/**
+ * Layer 3: Cross-validate BQ vs API vs Expected
+ */
+async function validateCostsThreeLayer(
+    orgSlug: string,
+    apiKey: string,
+    dataset: string,
+    startDate: string,
+    endDate: string
+): Promise<ValidationResult> {
+    console.log('\n[3-Layer Cost Validation]')
+
+    const result: ValidationResult = {
+        passed: true,
+        bqTotals: null,
+        apiTotals: null,
+        expectedTotals: EXPECTED_TOTALS,
+        errors: [],
+        warnings: [],
+        comparisons: [],
+    }
+
+    // Layer 1: BigQuery
+    console.log('  Layer 1: Querying BigQuery...')
+    result.bqTotals = queryBigQueryCosts(dataset, startDate, endDate)
+    if (!result.bqTotals) {
+        result.errors.push('BigQuery query failed - cost_data_standard_1_3 may not exist or be empty')
+        result.passed = false
+        return result
+    }
+    console.log(`    BQ: GenAI=$${result.bqTotals.genai.toLocaleString()}, Cloud=$${result.bqTotals.cloud.toLocaleString()}, Sub=$${result.bqTotals.subscription.toLocaleString()}, Total=$${result.bqTotals.total.toLocaleString()}`)
+
+    // Layer 2: API
+    console.log('  Layer 2: Querying API...')
+    result.apiTotals = await queryAPICosts(orgSlug, apiKey, startDate, endDate)
+    if (!result.apiTotals) {
+        result.errors.push('API query failed - API Service may be unhealthy')
+        result.passed = false
+        return result
+    }
+    console.log(`    API: GenAI=$${result.apiTotals.genai.toLocaleString()}, Cloud=$${result.apiTotals.cloud.toLocaleString()}, Sub=$${result.apiTotals.subscription.toLocaleString()}, Total=$${result.apiTotals.total.toLocaleString()}`)
+
+    // Layer 3: Cross-validate
+    console.log('  Layer 3: Cross-validating...')
+    const categories: { name: string; key: keyof CategoryTotals }[] = [
+        { name: 'GenAI', key: 'genai' },
+        { name: 'Cloud', key: 'cloud' },
+        { name: 'Subscription', key: 'subscription' },
+        { name: 'TOTAL', key: 'total' },
+    ]
+
+    for (const { name, key } of categories) {
+        const bq = result.bqTotals[key]
+        const api = result.apiTotals[key]
+        const expected = EXPECTED_TOTALS[key]
+
+        // Calculate differences
+        const bqApiDiffPct = api > 0 ? Math.abs(bq - api) / api * 100 : (bq > 0 ? 100 : 0)
+        const bqExpectedDiffPct = expected > 0 ? Math.abs(bq - expected) / expected * 100 : (bq > 0 ? 100 : 0)
+
+        result.comparisons.push({
+            category: name,
+            bq,
+            api,
+            expected,
+            bqApiDiffPct: Math.round(bqApiDiffPct * 10) / 10,
+            bqExpectedDiffPct: Math.round(bqExpectedDiffPct * 10) / 10,
+        })
+
+        // Rule: Any category = $0 → ERROR (pipeline failed)
+        if (bq === 0 && key !== 'total') {
+            result.errors.push(`${name}: BQ total is $0 - pipeline likely failed`)
+            result.passed = false
+        }
+
+        // Rule: BQ-API mismatch > 1% → ERROR (unless BQ matches expected, indicating API cache)
+        if (bqApiDiffPct > 1 && key !== 'total') {
+            if (bqExpectedDiffPct <= 10) {
+                // BQ matches expected but API doesn't → API is serving stale cache
+                result.warnings.push(`${name}: API cache stale (BQ=$${bq.toLocaleString()}, API=$${api.toLocaleString()}). BQ is authoritative.`)
+            } else {
+                result.errors.push(`${name}: BQ-API mismatch ${bqApiDiffPct.toFixed(1)}% (BQ=$${bq.toLocaleString()}, API=$${api.toLocaleString()})`)
+                result.passed = false
+            }
+        }
+
+        // Rule: BQ-Expected variance > 10% → WARNING
+        if (bqExpectedDiffPct > 10 && key !== 'total') {
+            result.warnings.push(`${name}: BQ-Expected variance ${bqExpectedDiffPct.toFixed(1)}% (BQ=$${bq.toLocaleString()}, Expected=$${expected.toLocaleString()})`)
+        }
+    }
+
+    // Print comparison table
+    console.log('\n  Validation Results:')
+    console.log('  ' + '-'.repeat(85))
+    console.log('  Category       BQ              API             Expected        Variance')
+    console.log('  ' + '-'.repeat(85))
+    for (const c of result.comparisons) {
+        const bqStr = `$${c.bq.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.padEnd(16)
+        const apiStr = `$${c.api.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.padEnd(16)
+        const expStr = `$${c.expected.toLocaleString()}`.padEnd(16)
+        const varStr = `${c.bqExpectedDiffPct}%`
+        console.log(`  ${c.category.padEnd(13)} ${bqStr}${apiStr}${expStr}${varStr}`)
+    }
+    console.log('  ' + '-'.repeat(85))
+    console.log(`  3-Layer Validation: ${result.passed ? 'PASSED' : 'FAILED'}`)
+
+    return result
 }
 
 async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
@@ -1057,6 +1650,14 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
 
     const dataset = getDatasetName(config.orgSlug)
 
+    // Pre-flight: verify demo data path exists
+    const fs = require('fs')
+    if (!fs.existsSync(DEMO_DATA_PATH)) {
+        result.message = `Demo data path not found: ${DEMO_DATA_PATH}`
+        result.errors.push(result.message)
+        return result
+    }
+
     console.log('='.repeat(60))
     console.log('Load Demo Data (Pipeline Service API)')
     console.log('='.repeat(60))
@@ -1067,8 +1668,17 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
     console.log(`Pipeline Service: ${PIPELINE_SERVICE_URL}`)
 
     try {
-        // Step 0: Pre-flight health check
-        console.log('\n[Step 0] Pre-flight service health check...')
+        // Step 0a: Pre-flight dataset check
+        console.log('\n[Step 0a] Pre-flight dataset check...')
+        const datasetExists = await ensureDatasetExists(config.orgSlug, dataset)
+        if (!datasetExists) {
+            result.errors.push(`Dataset ${dataset} does not exist and could not be created. Run onboarding first.`)
+            result.message = `Dataset ${dataset} missing - onboard the org first`
+            return result
+        }
+
+        // Step 0b: Pre-flight health check
+        console.log('\n[Step 0b] Pre-flight service health check...')
         const healthCheck = await checkServiceHealth()
         result.serviceHealth = { api: healthCheck.api, pipeline: healthCheck.pipeline }
 
@@ -1130,9 +1740,11 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
             console.log('\n[Skipping raw data loading]')
         }
 
-        // Steps 6-8: Run pipelines via API with diagnosis (unless raw-only)
+        // Steps 6-8: Run pipelines via API (unless raw-only)
         if (!config.rawOnly) {
-            // Run subscription pipeline with diagnosis
+            const allPipelineIds: string[] = []
+
+            // Step 6: Subscription pipeline
             console.log('\n[Step 6] Running subscription costs pipeline...')
             result.pipelinesExecuted.subscription = await runPipelineWithDiagnosis(
                 config.orgSlug,
@@ -1143,78 +1755,86 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
                 { start_date: config.startDate, end_date: config.endDate },
                 result.fixes
             )
-
-            if (result.pipelinesExecuted.subscription.status === 'FAILED' || result.pipelinesExecuted.subscription.status === 'ERROR') {
-                const diagnosis = result.pipelinesExecuted.subscription.diagnosis || 'Unknown error'
-                const suggestedFix = result.pipelinesExecuted.subscription.suggestedFix || 'Check Pipeline Service logs'
-                result.errors.push(`Subscription pipeline failed: ${diagnosis}`)
-                console.log(`    MANUAL FIX REQUIRED: ${suggestedFix}`)
+            if (result.pipelinesExecuted.subscription.pipelineLoggingId) {
+                allPipelineIds.push(result.pipelinesExecuted.subscription.pipelineLoggingId)
             }
 
-            // Run GenAI pipeline with diagnosis
-            console.log('\n[Step 7] Running GenAI consolidation pipeline...')
-            result.pipelinesExecuted.genai = await runPipelineWithDiagnosis(
-                config.orgSlug,
-                config.apiKey,
-                dataset,
-                'genai/unified/consolidate',
-                'genai',
-                {},
-                result.fixes
-            )
+            // Step 7a: Calculate GenAI costs directly via SQL (JOIN usage + pricing)
+            // Note: Per-provider PAYG pipelines require API credentials which demo doesn't have.
+            // Instead, we calculate costs directly in BigQuery.
+            const costsCalculated = calculateGenAICostsViaSQL(config.orgSlug, dataset)
 
-            if (result.pipelinesExecuted.genai.status === 'FAILED' || result.pipelinesExecuted.genai.status === 'ERROR') {
-                const diagnosis = result.pipelinesExecuted.genai.diagnosis || 'Unknown error'
-                const suggestedFix = result.pipelinesExecuted.genai.suggestedFix || 'Check Pipeline Service logs'
-                result.errors.push(`GenAI pipeline failed: ${diagnosis}`)
-                console.log(`    MANUAL FIX REQUIRED: ${suggestedFix}`)
-            }
-
-            // Run Cloud FOCUS pipeline with diagnosis
-            console.log('\n[Step 8] Running cloud FOCUS convert pipeline...')
-            result.pipelinesExecuted.cloud = await runPipelineWithDiagnosis(
-                config.orgSlug,
-                config.apiKey,
-                dataset,
-                'cloud/unified/cost/focus_convert',
-                'cloud',
-                {},
-                result.fixes
-            )
-
-            // If unified pipeline fails, try individual providers
-            if (result.pipelinesExecuted.cloud.status === 'FAILED' || result.pipelinesExecuted.cloud.status === 'ERROR') {
-                if (result.pipelinesExecuted.cloud.diagnosis?.includes('not found')) {
-                    console.log('    Unified pipeline not found, trying individual providers...')
-                    for (const provider of ['gcp', 'aws', 'azure', 'oci']) {
-                        const providerResult = await runPipeline(
-                            config.orgSlug,
-                            config.apiKey,
-                            `cloud/${provider}/cost/focus_convert`,
-                            {}
-                        )
-                        if (providerResult.status === 'PENDING' || providerResult.status === 'RUNNING') {
-                            console.log(`    ${provider}: ${providerResult.pipeline_logging_id}`)
-                        }
-                    }
-                    result.pipelinesExecuted.cloud = { status: 'PENDING', diagnosis: 'Individual provider pipelines triggered' }
-                } else {
-                    const diagnosis = result.pipelinesExecuted.cloud.diagnosis || 'Unknown error'
-                    const suggestedFix = result.pipelinesExecuted.cloud.suggestedFix || 'Check Pipeline Service logs'
-                    result.errors.push(`Cloud pipeline failed: ${diagnosis}`)
-                    console.log(`    MANUAL FIX REQUIRED: ${suggestedFix}`)
+            // Step 7b: Consolidate GenAI + convert to FOCUS directly via SQL
+            // Note: The consolidation pipeline processes one day at a time (start_date only).
+            // Demo data spans multiple dates, so we consolidate all dates at once via SQL.
+            if (costsCalculated) {
+                const consolidated = consolidateGenAIToFocusViaSQL(config.orgSlug, dataset)
+                result.pipelinesExecuted.genai = {
+                    status: consolidated ? 'COMPLETED' : 'FAILED',
+                    diagnosis: consolidated ? 'Direct SQL consolidation + FOCUS conversion' : 'SQL consolidation failed'
+                }
+            } else {
+                result.pipelinesExecuted.genai = {
+                    status: 'FAILED',
+                    diagnosis: 'GenAI cost calculation failed - check usage and pricing data'
                 }
             }
 
-            // Step 9: Wait for pipelines to complete
-            const pipelineIds = [
+            // Step 8: Cloud FOCUS convert per-provider (with date params)
+            const cloudResult = await runCloudFocusPipeline(
+                config.orgSlug, config.apiKey, config.startDate, config.endDate
+            )
+            allPipelineIds.push(...cloudResult.pipelineIds)
+
+            // Step 9: Wait for remaining pipelines (subscription + cloud)
+            const remainingIds = [
                 result.pipelinesExecuted.subscription.pipelineLoggingId,
-                result.pipelinesExecuted.genai.pipelineLoggingId,
-                result.pipelinesExecuted.cloud.pipelineLoggingId
+                ...cloudResult.pipelineIds
             ].filter(Boolean) as string[]
 
-            if (pipelineIds.length > 0) {
-                await waitForPipelines(config.orgSlug, config.apiKey, pipelineIds)
+            let cloudPipelineFailures: string[] = [...cloudResult.failedProviders]
+
+            if (remainingIds.length > 0) {
+                await waitForPipelines(config.orgSlug, config.apiKey, remainingIds)
+
+                // Check which cloud pipelines completed vs failed after execution
+                for (const { provider, pipelineId } of cloudResult.providerPipelines) {
+                    if (!pipelineId) continue // Already in failedProviders
+                    const details = await getPipelineRunDetails(pipelineId, config.apiKey)
+                    if (details?.status === 'FAILED') {
+                        console.log(`    ${provider} pipeline ${pipelineId}: FAILED after execution`)
+                        if (!cloudPipelineFailures.includes(provider)) {
+                            cloudPipelineFailures.push(provider)
+                        }
+                    }
+                }
+            }
+
+            // Step 8b: SQL fallback for any cloud providers that failed
+            const pipelineSuccessCount = 4 - cloudPipelineFailures.length
+            if (cloudPipelineFailures.length > 0) {
+                console.log(`    ${cloudPipelineFailures.length} provider(s) failed, attempting SQL fallback...`)
+                const sqlSucceeded = convertCloudToFocusViaSQL(
+                    config.orgSlug, dataset, cloudPipelineFailures,
+                    config.startDate, config.endDate
+                )
+                const totalSuccess = pipelineSuccessCount + sqlSucceeded.length
+                if (totalSuccess === 4) {
+                    result.pipelinesExecuted.cloud = {
+                        status: 'COMPLETED',
+                        diagnosis: `Pipeline: ${pipelineSuccessCount} providers, SQL fallback: ${sqlSucceeded.length} providers`
+                    }
+                } else {
+                    result.pipelinesExecuted.cloud = {
+                        status: 'PARTIAL',
+                        diagnosis: `${totalSuccess}/4 providers converted to FOCUS`
+                    }
+                }
+            } else {
+                result.pipelinesExecuted.cloud = {
+                    status: 'COMPLETED',
+                    diagnosis: 'All 4 cloud providers converted via pipeline'
+                }
             }
         } else {
             console.log('\n[Skipping pipeline execution - raw-only mode]')
@@ -1228,18 +1848,39 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
             }
         }
 
-        // Verify results
-        verifyCosts(dataset)
+        // 3-Layer Cost Validation (runs after pipelines complete)
+        if (!config.rawOnly) {
+            result.validation = await validateCostsThreeLayer(
+                config.orgSlug,
+                config.apiKey,
+                dataset,
+                config.startDate,
+                config.endDate
+            )
+
+            if (!result.validation.passed) {
+                result.errors.push(...result.validation.errors)
+                result.warnings.push(...result.validation.warnings)
+            } else {
+                result.warnings.push(...result.validation.warnings)
+            }
+        }
 
         // Determine success based on critical failures
         const hasCriticalErrors = result.errors.some(e =>
             e.includes('Subscription plans') ||
-            e.includes('Pipeline Service not available')
+            e.includes('Pipeline Service not available') ||
+            e.includes('Dataset') && e.includes('missing')
         )
+
+        const hasValidationErrors = result.validation && !result.validation.passed
 
         if (hasCriticalErrors) {
             result.success = false
             result.message = `Demo data loading failed with ${result.errors.length} error(s)`
+        } else if (hasValidationErrors) {
+            result.success = false
+            result.message = `Demo data loaded but validation failed: ${result.validation!.errors.join('; ')}`
         } else if (result.errors.length > 0) {
             result.success = true
             result.message = `Demo data loaded with ${result.errors.length} non-critical error(s), ${result.warnings.length} warning(s), ${result.fixes.length} auto-fix(es)`
@@ -1306,6 +1947,26 @@ function printFinalStatus(result: LoadResult, config: LoadConfig): void {
     formatPipelineStatus(result.pipelinesExecuted.genai, 'GenAI      ')
     formatPipelineStatus(result.pipelinesExecuted.cloud, 'Cloud      ')
 
+    // 3-Layer Validation
+    if (result.validation) {
+        const v = result.validation
+        console.log(`\n📊 3-Layer Cost Validation: ${v.passed ? '✅ PASSED' : '❌ FAILED'}`)
+        if (v.comparisons.length > 0) {
+            console.log('   Category       BQ              API             Expected        BQ-API   BQ-Exp')
+            console.log('   ' + '-'.repeat(80))
+            for (const c of v.comparisons) {
+                const bqStr = `$${c.bq.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`.padEnd(16)
+                const apiStr = `$${c.api.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`.padEnd(16)
+                const expStr = `$${c.expected.toLocaleString()}`.padEnd(16)
+                console.log(`   ${c.category.padEnd(13)} ${bqStr}${apiStr}${expStr}${c.bqApiDiffPct}%`.padEnd(7) + `     ${c.bqExpectedDiffPct}%`)
+            }
+        }
+        if (v.errors.length > 0) {
+            console.log('   Validation Errors:')
+            v.errors.forEach(e => console.log(`     ❌ ${e}`))
+        }
+    }
+
     // Alerts
     console.log('\n🔔 Cost Alerts:')
     console.log('   Email Channel:     ✅ Configured (demo@cloudact.ai)')
@@ -1335,7 +1996,7 @@ function printFinalStatus(result: LoadResult, config: LoadConfig): void {
     if (result.success) {
         console.log(`   1. Verify costs: curl -s "http://localhost:8000/api/v1/costs/${config.orgSlug}/total" -H "X-API-Key: $ORG_API_KEY" | jq`)
         console.log(`   2. View dashboard: http://localhost:3000/${config.orgSlug}/dashboard`)
-        console.log(`   3. Login: demo@cloudact.ai / demo1234`)
+        console.log(`   3. Login: demo@cloudact.ai / Demo1234`)
     } else {
         if (!result.serviceHealth.pipeline) {
             console.log('   1. Start Pipeline Service: cd 03-data-pipeline-service && uvicorn src.app.main:app --port 8001 --reload')
@@ -1372,8 +2033,8 @@ async function main() {
         console.log('  --raw-only          Only load raw data, skip pipelines (Stage 1 only)')
         console.log('  --pipelines-only    Only run pipelines, skip raw data (Stage 2 only)')
         console.log('  --skip-raw          Same as --pipelines-only')
-        console.log('  --start-date=DATE   Start date (default: 2025-01-01)')
-        console.log('  --end-date=DATE     End date (default: 2026-01-02)')
+        console.log('  --start-date=DATE   Start date (default: 2025-12-01)')
+        console.log('  --end-date=DATE     End date (default: 2026-01-31)')
         console.log('')
         console.log('Modes:')
         console.log('  Full (default)      Load raw data + run pipelines')

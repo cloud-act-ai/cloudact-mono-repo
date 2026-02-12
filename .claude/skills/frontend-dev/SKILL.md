@@ -11,6 +11,33 @@ description: |
 ## Overview
 CloudAct frontend uses Next.js 16 with React 19, TypeScript, Supabase auth, and Stripe billing.
 
+## Environments
+
+| Env | Frontend URL | API URL | Supabase Project | Stripe Mode | Env File |
+|-----|-------------|---------|-----------------|-------------|----------|
+| local | `http://localhost:3000` | `http://localhost:8000` | `kwroaccbrxppfiysqlzs` | TEST | `.env.local` |
+| test/stage | Cloud Run URL | Cloud Run URL | `kwroaccbrxppfiysqlzs` | TEST | `.env.stage` |
+| prod | `https://cloudact.ai` | `https://api.cloudact.ai` | `ovfxswhkkshouhsryzaf` | LIVE | `.env.prod` |
+
+> **Note:** local/test/stage all use the same Supabase project. No separate `cloudact-stage`.
+
+### Local Dev
+
+```bash
+REPO_ROOT=/Users/openclaw/.openclaw/workspace/cloudact-mono-repo
+
+cd $REPO_ROOT/01-fronted-system && npx next dev --webpack --port 3000
+```
+
+### Environment Variables (Key Ones)
+
+| Variable | Local | Prod |
+|----------|-------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://kwroaccbrxppfiysqlzs.supabase.co` | `https://ovfxswhkkshouhsryzaf.supabase.co` |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | `https://api.cloudact.ai` |
+| `NEXT_PUBLIC_PIPELINE_URL` | `http://localhost:8001` | `https://pipeline.cloudact.ai` |
+| `STRIPE_SECRET_KEY` | `sk_test_*` | `sk_live_*` |
+
 ## Key Locations
 - **App Routes:** `01-fronted-system/app/`
 - **Components:** `01-fronted-system/components/`

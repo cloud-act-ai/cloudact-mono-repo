@@ -1,6 +1,6 @@
-# /cleanup-supabase - Supabase Data Cleanup
+# /cleanup-supabase - Supabase Full Cleanup + Migrations
 
-Delete all users and data from Supabase for fresh bootstrap.
+**Nuke ALL Supabase data and rebuild via Cloud Run Jobs.**
 
 ## Usage
 
@@ -10,151 +10,230 @@ Delete all users and data from Supabase for fresh bootstrap.
 
 ## Environments
 
-| Environment | Project ID | Project Name |
-|-------------|------------|--------------|
-| `stage` | kwroaccbrxppfiysqlzs | cloudactai_stage_local |
-| `prod` | ovfxswhkkshouhsryzaf | cloudactai_prod |
+| Input | Supabase Project ID | Access Token Source | `run-job.sh` Arg |
+|-------|---------------------|---------------------|------------------|
+| `local` / `test` / `stage` | kwroaccbrxppfiysqlzs | `01-fronted-system/.env.local` | `stage` |
+| `prod` | ovfxswhkkshouhsryzaf | `01-fronted-system/.env.prod` | `prod` |
 
-## Examples
+> **Note:** `local`, `test`, `stage` = same Supabase project.
+> **Note:** `run-job.sh` only accepts `test`, `stage`, or `prod` (NOT `local`). Map `local` → `stage`.
+
+## What Gets Deleted
+
+| Schema | Tables Truncated |
+|--------|-----------------|
+| `public` | organizations, organization_members, profiles, org_api_keys_secure, org_quotas, invites, activity_logs, usage_tracking, account_deletion_tokens, subscription_meta, subscription_providers_meta |
+| `auth` | users (cascades to identities, sessions, refresh_tokens, etc.) |
+
+> **Preserved:** Table structure (DDL), migration tracking (`schema_migrations`), RLS policies, triggers, functions.
+
+## Full Workflow
 
 ```
-/cleanup-supabase stage   # Clean all data in stage Supabase
-/cleanup-supabase prod    # Clean all data in prod Supabase (requires confirmation)
+Step 1: Read Supabase credentials from env file
+Step 2: Count current users (for reporting)
+Step 3: TRUNCATE all public tables (bypasses triggers!)
+Step 4: DELETE all auth.users
+Step 5: Verify Supabase is clean (all counts = 0)
+Step 6: Activate GCP credentials for Cloud Run
+Step 7: Run Supabase migrations via Cloud Run Job (smart - skips already applied)
 ```
 
 ---
 
 ## Instructions
 
-When user runs `/cleanup-supabase <env>`, execute the following:
-
-### Step 1: Parse and Validate Environment
+### Step 1: Parse Environment + Get Credentials
 
 ```
-ENV=$1  # First argument: stage or prod
-
 case $ENV in
-  stage|test|local)
-    PROJECT_ID=kwroaccbrxppfiysqlzs
-    PROJECT_NAME=cloudactai_stage_local
+  local|test|stage)
+    PROJECT_ID="kwroaccbrxppfiysqlzs"
+    ENV_FILE="01-fronted-system/.env.local"
+    JOB_ENV="stage"
     ;;
   prod)
-    PROJECT_ID=ovfxswhkkshouhsryzaf
-    PROJECT_NAME=cloudactai_prod
-    # REQUIRE EXPLICIT CONFIRMATION FOR PROD
-    ;;
-  *)
-    echo "ERROR: Invalid environment. Use: stage or prod"
-    exit 1
+    PROJECT_ID="ovfxswhkkshouhsryzaf"
+    ENV_FILE="01-fronted-system/.env.prod"
+    JOB_ENV="prod"
     ;;
 esac
 ```
 
+Read `SUPABASE_ACCESS_TOKEN` (starts with `sbp_`) from the env file.
+
 ### Step 2: If prod, ask for explicit confirmation
 
-**CRITICAL:** For prod environment, use AskUserQuestion to confirm:
-- "Are you sure you want to delete ALL users and data from PRODUCTION Supabase? This is irreversible!"
-- Options: "Yes, delete prod data" / "No, cancel"
+Use AskUserQuestion:
+- "Delete ALL users and data from PRODUCTION Supabase and re-run migrations? This is irreversible!"
+- Options: "Yes, nuke + rebuild prod" / "No, cancel"
 
-If user cancels, abort immediately.
+### Step 3: Count Users Before Cleanup
 
-### Step 3: List current users (for count)
-
-Use Supabase MCP tool:
-```
-mcp__plugin_supabase_supabase__execute_sql
-  project_id: $PROJECT_ID
-  query: SELECT COUNT(*) as user_count FROM auth.users;
+```bash
+curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_ID}/database/query" \
+  -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT COUNT(*) as user_count FROM auth.users;"}'
 ```
 
 Display: "Found X users to delete"
 
-### Step 4: Truncate all public tables (in correct order)
+### Step 4: TRUNCATE All Public Tables
 
-**IMPORTANT:** Must truncate dependent tables before auth.users due to foreign keys.
+**CRITICAL:** Must use `TRUNCATE ... CASCADE` via the **Supabase Management API**.
 
-Use Supabase MCP tool:
-```
-mcp__plugin_supabase_supabase__execute_sql
-  project_id: $PROJECT_ID
-  query: |
-    TRUNCATE TABLE public.activity_logs CASCADE;
-    TRUNCATE TABLE public.stripe_webhook_events CASCADE;
-    TRUNCATE TABLE public.usage_tracking CASCADE;
-    TRUNCATE TABLE public.account_deletion_tokens CASCADE;
-    TRUNCATE TABLE public.invites CASCADE;
-    TRUNCATE TABLE public.rate_limits CASCADE;
-    TRUNCATE TABLE public.org_api_keys_secure CASCADE;
-    TRUNCATE TABLE public.subscription_meta CASCADE;
-    TRUNCATE TABLE public.subscription_providers_meta CASCADE;
-    TRUNCATE TABLE public.organization_members CASCADE;
-    TRUNCATE TABLE public.profiles CASCADE;
-    TRUNCATE TABLE public.organizations CASCADE;
+Why TRUNCATE (not DELETE):
+- Bypasses the `organization_members` owner-protection trigger ("Cannot delete organization owner")
+- Bypasses the "Cannot remove the last owner" update trigger
+- The REST API (`rest/v1`) CANNOT do bulk deletes due to these triggers
+
+```bash
+curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_ID}/database/query" \
+  -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "TRUNCATE TABLE public.organization_members, public.organizations, public.profiles, public.org_quotas, public.org_api_keys_secure, public.activity_logs, public.usage_tracking, public.account_deletion_tokens, public.invites, public.subscription_meta, public.subscription_providers_meta CASCADE;"
+  }'
 ```
 
-Note: Some tables may not exist in all environments. Ignore "table does not exist" errors.
+Empty result `[]` = success. Ignore "table does not exist" errors.
 
-### Step 5: Delete all users
+### Step 5: Delete All Auth Users
 
-Use Supabase MCP tool:
-```
-mcp__plugin_supabase_supabase__execute_sql
-  project_id: $PROJECT_ID
-  query: DELETE FROM auth.users;
-```
-
-### Step 6: Verify and Report
-
-Use Supabase MCP tool:
-```
-mcp__plugin_supabase_supabase__execute_sql
-  project_id: $PROJECT_ID
-  query: |
-    SELECT
-      (SELECT COUNT(*) FROM auth.users) as remaining_users,
-      (SELECT COUNT(*) FROM public.organizations) as remaining_orgs;
+```bash
+curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_ID}/database/query" \
+  -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "DELETE FROM auth.users;"}'
 ```
 
-Report summary:
-- Users deleted: X
-- Environment: $ENV ($PROJECT_NAME)
-- Status: Clean / Has remaining data
+### Step 6: Verify Supabase is Clean
+
+```bash
+curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_ID}/database/query" \
+  -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "SELECT (SELECT COUNT(*) FROM auth.users) as users, (SELECT COUNT(*) FROM public.organizations) as orgs, (SELECT COUNT(*) FROM public.organization_members) as members, (SELECT COUNT(*) FROM public.profiles) as profiles;"
+  }'
+```
+
+All counts must be 0: `[{"users":0,"orgs":0,"members":0,"profiles":0}]`
+
+### Step 7: Activate GCP Credentials + Run Migrations
+
+**IMPORTANT:** Migrations run as Cloud Run Jobs, so GCP credentials must be activated first.
+
+```bash
+# Activate GCP credentials
+case $JOB_ENV in
+  stage)
+    gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json
+    ;;
+  prod)
+    gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json
+    ;;
+esac
+
+cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs/scripts
+
+# Stage/test
+./run-job.sh stage migrate
+
+# Prod
+echo "yes" | ./run-job.sh prod migrate
+```
+
+### Step 8: Verify Migrations via Cloud Run Logs
+
+**Always check actual job logs** to confirm what happened:
+
+```bash
+gcloud logging read \
+  "resource.type=cloud_run_job AND resource.labels.job_name=cloudact-manual-supabase-migrate AND timestamp>=\"$(date -u +%Y-%m-%dT00:00:00Z)\"" \
+  --project=$GCP_PROJECT \
+  --limit=30 \
+  --format="table(timestamp,textPayload)" \
+  --order=asc
+```
+
+Where `$GCP_PROJECT` is:
+- `cloudact-testing-1` for stage/test
+- `cloudact-prod` for prod
+
+**Expected output patterns:**
+- All current: `Already applied: 48 migrations, No pending migrations`
+- Pending: `Pending migrations: N` → lists and applies each one
+- Failed: `✗ Failed:` → check error, may need manual fix via SQL Editor
+
+### Step 9: Report Summary
+
+```
+=== Supabase Cleanup + Migrations Complete ===
+Environment: $ENV ($PROJECT_ID)
+Users deleted: X
+Tables truncated: 11 public tables + auth.users
+Migrations: OK (48 applied, 0 pending)
+```
 
 ---
 
-## Tables Cleaned
+## Smart Migration Behavior (Verified 2026-02-12)
 
-| Schema | Tables |
-|--------|--------|
-| `public` | organizations, organization_members, profiles, org_api_keys_secure, invites, activity_logs, usage_tracking, rate_limits, account_deletion_tokens, stripe_webhook_events, subscription_meta, subscription_providers_meta |
-| `auth` | users (and cascades to identities, sessions, etc.) |
+| Scenario | Result |
+|----------|--------|
+| **All applied** | "Already applied: 48 migrations, No pending" → skips all |
+| **New migrations** | Applies only pending ones |
+| **After TRUNCATE** | `schema_migrations` table survives, tracking preserved |
+| **Applied > Files** | Normal - 48 applied vs 41 files (some consolidated) |
+
+> TRUNCATE only deletes data from the listed tables. The `schema_migrations` tracking table
+> is NOT in the TRUNCATE list, so migration history is preserved. Smart migrations detect
+> this and correctly report "No pending migrations."
+
+## API Reference
+
+| Operation | Endpoint | Method |
+|-----------|----------|--------|
+| Execute SQL | `https://api.supabase.com/v1/projects/{id}/database/query` | POST |
+| Auth header | `Authorization: Bearer $SUPABASE_ACCESS_TOKEN` | - |
+| Body format | `{"query": "SQL HERE"}` | JSON |
+| Success | Empty `[]` | - |
+
+> **DO NOT use:** `mcp__plugin_supabase_supabase__execute_sql` (not available in this env)
+> **DO NOT use:** REST API `rest/v1` for bulk deletes (triggers block it)
+> **DO NOT use:** `DISABLE TRIGGER ALL` (permission denied on system triggers)
+
+## Cloud Run Job Reference
+
+| Step | Command (stage) | Command (prod) |
+|------|-----------------|----------------|
+| Migrate | `./run-job.sh stage migrate` | `echo "yes" \| ./run-job.sh prod migrate` |
+
+**Scripts location:** `05-scheduler-jobs/scripts/`
+
+**`run-job.sh` valid envs:** `test`, `stage`, `prod` (NOT `local` — map local → stage)
+
+## Known Issues & Solutions (Verified 2026-02-12)
+
+| Issue | Root Cause | Solution |
+|-------|-----------|----------|
+| "Cannot delete organization owner" | BEFORE DELETE trigger on `organization_members` | Use TRUNCATE CASCADE via Management API |
+| "Cannot remove the last owner" | BEFORE UPDATE trigger prevents role change | Use TRUNCATE CASCADE |
+| REST API 400 on bulk delete | Row-level triggers fire on each DELETE | Use Management API SQL endpoint |
+| "permission denied: system trigger" | Can't DISABLE TRIGGER on FK constraints | Use TRUNCATE (bypasses row triggers) |
+| `head -n -1` errors on macOS | GNU vs BSD syntax difference | Use `python3 -c` for parsing or avoid `head -n -1` |
+| Prod `SUPABASE_ACCESS_TOKEN` placeholder | Env file has `INJECTED_FROM_SECRET_MANAGER` | Get real token from GCP Secret Manager or Supabase dashboard |
+| `~/.gcp/` path not found | Tilde doesn't expand in gcloud | Use absolute path `/Users/openclaw/.gcp/` |
 
 ## Safety Notes
 
-1. **Prod requires confirmation** - Never auto-delete prod without explicit user approval
-2. **All data deleted** - This includes all organizations, users, and related data
-3. **Table structure preserved** - Only data is deleted, not the schema
-4. **Stripe data not affected** - Stripe customers/subscriptions remain in Stripe (not Supabase)
-
-## Variables
-
-- `$REPO_ROOT` = `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo`
-
-## Debug Account (for testing cleanup)
-
-| Field | Value |
-|-------|-------|
-| Email | `demo@cloudact.ai` |
-| Password | `demo1234` |
-| Org Slug | **Query from DB** (see `.claude/debug-config.md`) |
-
-**To cleanup and recreate the debug account:**
-```bash
-# 1. Cleanup via this command
-/cleanup-supabase stage
-
-# 2. Recreate via demo-setup
-npx tsx tests/demo-setup/setup-demo-account.ts
-```
-
-See `.claude/debug-config.md` for full debug configuration.
+1. **Prod requires confirmation** - Never auto-delete prod without user approval
+2. **All data deleted** - All organizations, users, and related data
+3. **Schema preserved** - Table structure, triggers, functions, RLS policies survive
+4. **Migration tracking preserved** - `schema_migrations` not truncated
+5. **Stripe unaffected** - Stripe customers/subscriptions remain in Stripe
+6. **Cloud Run Jobs only** - Migrations via Cloud Run Jobs, NOT local `./migrate.sh`
+7. **Use absolute paths** - `~/.gcp/` does NOT expand; use `/Users/openclaw/.gcp/`
+8. **Map local → stage** - `run-job.sh` doesn't accept `local`, use `stage` instead

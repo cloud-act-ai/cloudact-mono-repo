@@ -15,6 +15,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { execSync } from 'child_process'
+import { ENV_CONFIG, requireProdConfirmation } from './config'
 
 interface CleanupConfig {
     email?: string
@@ -61,7 +62,7 @@ function parseArgs(): CleanupConfig {
 }
 
 function getSupabaseClient(): SupabaseClient {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ENV_CONFIG.supabaseUrl
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -124,9 +125,9 @@ async function findOrgsByUserId(supabase: SupabaseClient, userId: string): Promi
     return orgs?.map((o) => o.org_slug) || []
 }
 
-function deleteBigQueryDataset(orgSlug: string, environment: string = 'local'): boolean {
+function deleteBigQueryDataset(orgSlug: string, environment: string = ENV_CONFIG.environment): boolean {
     const datasetName = `${orgSlug}_${environment}`
-    const gcpProjectId = process.env.GCP_PROJECT_ID
+    const gcpProjectId = process.env.GCP_PROJECT_ID || ENV_CONFIG.gcpProjectId
 
     if (!gcpProjectId) {
         console.error('Missing GCP_PROJECT_ID environment variable')
@@ -276,10 +277,10 @@ async function cleanupDemoAccount(config: CleanupConfig): Promise<CleanupResult>
         // Delete BigQuery datasets
         console.log('\n[Step 3] Cleaning up BigQuery...')
         for (const slug of orgSlugs) {
-            const deleted = deleteBigQueryDataset(slug)
+            const deleted = deleteBigQueryDataset(slug, ENV_CONFIG.environment)
             if (deleted) {
                 result.bigqueryDeleted.dataset = true
-                result.bigqueryDeleted.datasetName = `${slug}_local`
+                result.bigqueryDeleted.datasetName = `${slug}_${ENV_CONFIG.environment}`
             }
         }
 
@@ -302,19 +303,26 @@ async function main() {
     const config = parseArgs()
 
     console.log('='.repeat(60))
-    console.log('Demo Account Cleanup')
+    console.log(`Demo Account Cleanup [${ENV_CONFIG.environment}]`)
     console.log('='.repeat(60))
+    console.log(`Environment: ${ENV_CONFIG.environment}`)
+    console.log(`GCP Project: ${ENV_CONFIG.gcpProjectId}`)
+    console.log(`Supabase: ${ENV_CONFIG.supabaseUrl}`)
 
     if (!config.email && !config.orgSlug) {
         console.log('\nUsage:')
-        console.log('  npx ts-node tests/demo-setup/cleanup-demo-account.ts --email=demo@cloudact.ai')
-        console.log('  npx ts-node tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc')
+        console.log('  npx tsx tests/demo-setup/cleanup-demo-account.ts --email=demo@cloudact.ai')
+        console.log('  npx tsx tests/demo-setup/cleanup-demo-account.ts --org-slug=acme_inc')
+        console.log('  npx tsx tests/demo-setup/cleanup-demo-account.ts --email=demo@cloudact.ai --env=stage')
         console.log('\nEnvironment variables required:')
-        console.log('  NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL')
         console.log('  SUPABASE_SERVICE_ROLE_KEY')
-        console.log('  GCP_PROJECT_ID')
+        console.log('\nOptional (defaults from --env preset):')
+        console.log('  NEXT_PUBLIC_SUPABASE_URL, GCP_PROJECT_ID')
         process.exit(1)
     }
+
+    // Production safety check
+    requireProdConfirmation(`Cleanup demo account: ${config.email || config.orgSlug}`)
 
     const result = await cleanupDemoAccount(config)
 

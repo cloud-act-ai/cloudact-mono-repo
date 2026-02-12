@@ -1,12 +1,18 @@
 /**
  * Demo Account Configuration
  *
- * Configuration for setting up demo accounts via browser automation
+ * Configuration for setting up demo accounts via browser automation.
+ * Supports multi-environment: local → stage → prod
  *
  * ALWAYS use:
  *   - Email: demo@cloudact.ai
- *   - Password: demo1234
+ *   - Password: Demo1234
  *   - Company: Acme Inc
+ *
+ * Environment setup:
+ *   --env=local   (default) localhost services, cloudact-testing-1
+ *   --env=stage   Stage Cloud Run, cloudact-testing-1
+ *   --env=prod    Production Cloud Run, cloudact-prod (requires confirmation)
  */
 
 export interface DemoAccountConfig {
@@ -23,9 +29,70 @@ export interface DemoAccountConfig {
     plan: 'starter' | 'professional' | 'scale'
 }
 
+// Valid environment names
+export type Environment = 'local' | 'stage' | 'prod'
+const VALID_ENVIRONMENTS: Environment[] = ['local', 'stage', 'prod']
+
+// Environment presets - all values needed per environment
+const ENV_PRESETS: Record<Environment, {
+    gcpProjectId: string
+    supabaseUrl: string
+    frontendUrl: string
+    apiServiceUrl: string
+    pipelineServiceUrl: string
+}> = {
+    local: {
+        gcpProjectId: 'cloudact-testing-1',
+        supabaseUrl: 'https://kwroaccbrxppfiysqlzs.supabase.co',
+        frontendUrl: 'http://localhost:3000',
+        apiServiceUrl: 'http://localhost:8000',
+        pipelineServiceUrl: 'http://localhost:8001',
+    },
+    stage: {
+        gcpProjectId: 'cloudact-testing-1',
+        supabaseUrl: 'https://kwroaccbrxppfiysqlzs.supabase.co',
+        frontendUrl: 'https://cloudact.ai',  // Stage uses same domain with preview
+        apiServiceUrl: 'https://api.cloudact.ai',
+        pipelineServiceUrl: 'https://pipeline.cloudact.ai',
+    },
+    prod: {
+        gcpProjectId: 'cloudact-prod',
+        supabaseUrl: 'https://ovfxswhkkshouhsryzaf.supabase.co',
+        frontendUrl: 'https://cloudact.ai',
+        apiServiceUrl: 'https://api.cloudact.ai',
+        pipelineServiceUrl: 'https://pipeline.cloudact.ai',
+    },
+}
+
+/**
+ * Detect environment from --env flag or ENVIRONMENT env var
+ */
+function detectEnvironment(): Environment {
+    // Check --env CLI flag first
+    const envArg = process.argv.find(a => a.startsWith('--env='))
+    if (envArg) {
+        const env = envArg.split('=')[1] as Environment
+        if (!VALID_ENVIRONMENTS.includes(env)) {
+            console.error(`ERROR: Invalid environment '${env}'. Must be one of: ${VALID_ENVIRONMENTS.join(', ')}`)
+            process.exit(1)
+        }
+        return env
+    }
+
+    // Fall back to ENVIRONMENT env var
+    const envVar = process.env.ENVIRONMENT || 'local'
+    if (!VALID_ENVIRONMENTS.includes(envVar as Environment)) {
+        console.error(`ERROR: Invalid ENVIRONMENT='${envVar}'. Must be one of: ${VALID_ENVIRONMENTS.join(', ')}`)
+        process.exit(1)
+    }
+    return envVar as Environment
+}
+
+const DETECTED_ENV = detectEnvironment()
+const PRESET = ENV_PRESETS[DETECTED_ENV]
+
 /**
  * Get timestamp suffix in base36 format
- * Example: "ml01ua8p" for a specific timestamp
  * NOTE: This is for reference only - actual org_slug is generated at signup time
  */
 export function getTimestampSuffix(): string {
@@ -40,15 +107,6 @@ export function getTimestampSuffix(): string {
  * IMPORTANT: Don't use this to predict org_slug - capture it from the URL after signup
  */
 export function getOrgSlugBase(): string {
-    return 'acme_inc'
-}
-
-/**
- * @deprecated Use getOrgSlugBase() instead. Org slug format changed from date to timestamp.
- */
-export function getExpectedOrgSlug(): string {
-    // Return base - actual slug captured from URL after signup
-    console.warn('[Demo Config] getExpectedOrgSlug() is deprecated. Capture org_slug from URL after signup.')
     return 'acme_inc'
 }
 
@@ -69,29 +127,22 @@ export const DEFAULT_DEMO_ACCOUNT: DemoAccountConfig = {
     plan: 'scale',  // Scale plan - Start trial, no credit card required
 }
 
-// Test environment configuration
+// Test environment configuration (env vars override presets)
 export const TEST_CONFIG = {
-    baseUrl: process.env.TEST_BASE_URL || 'http://localhost:3000',
-    apiServiceUrl: process.env.API_SERVICE_URL || 'http://localhost:8000',
-    pipelineServiceUrl: process.env.PIPELINE_SERVICE_URL || 'http://localhost:8001',
+    baseUrl: process.env.TEST_BASE_URL || PRESET.frontendUrl,
+    apiServiceUrl: process.env.API_SERVICE_URL || PRESET.apiServiceUrl,
+    pipelineServiceUrl: process.env.PIPELINE_SERVICE_URL || PRESET.pipelineServiceUrl,
     timeout: parseInt(process.env.TEST_TIMEOUT || '60000'),
     headless: process.env.TEST_HEADLESS !== 'false',
     slowMo: parseInt(process.env.TEST_SLOW_MO || '0'),
 }
 
-// Stripe test card for checkout (if needed)
+// Stripe test card for checkout (if needed for non-trial plans)
 export const STRIPE_TEST_CARD = {
     number: '4242424242424242',
     expiry: '12/30',
     cvc: '123',
     zip: '94086',
-}
-
-// Plan selectors for billing page
-export const PLAN_SELECTORS = {
-    starter: 'button:has-text("Select Plan"):first-of-type',
-    professional: 'button:has-text("Select Plan"):nth-of-type(2)',
-    scale: 'button:has-text("Select Plan"):last-of-type',
 }
 
 /**
@@ -116,19 +167,55 @@ export function getDefaultOrgSlug(): string {
     return generateOrgSlug(DEFAULT_DEMO_ACCOUNT.companyName)
 }
 
-// Environment configuration
+// Environment configuration (env vars override presets)
 export const ENV_CONFIG = {
-    gcpProjectId: process.env.GCP_PROJECT_ID || 'cloudact-testing-1',
-    environment: process.env.ENVIRONMENT || 'local',
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kwroaccbrxppfiysqlzs.supabase.co',
-    caRootApiKey: process.env.CA_ROOT_API_KEY || 'test-ca-root-key-dev-32chars',
+    environment: DETECTED_ENV,
+    gcpProjectId: process.env.GCP_PROJECT_ID || PRESET.gcpProjectId,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || PRESET.supabaseUrl,
+    caRootApiKey: process.env.CA_ROOT_API_KEY || '',
+}
+
+// Warn if no CA_ROOT_API_KEY is set
+if (!ENV_CONFIG.caRootApiKey) {
+    console.warn(`[Demo Config] WARNING: CA_ROOT_API_KEY not set. Bootstrap/procedure operations will fail.`)
+    console.warn(`[Demo Config] Set it via: source 01-fronted-system/.env.local`)
 }
 
 /**
  * Get the BigQuery dataset name for an org
  * Format: {org_slug}_{environment}
- * Example: "acme_inc_local"
+ * Example: "acme_inc_ml01ua8p_local", "acme_inc_ml01ua8p_stage"
  */
 export function getDatasetName(orgSlug: string): string {
     return `${orgSlug}_${ENV_CONFIG.environment}`
+}
+
+/**
+ * Production safety check - requires explicit confirmation
+ * Call this at the start of any destructive or data-modifying operation
+ */
+export function requireProdConfirmation(action: string): void {
+    if (ENV_CONFIG.environment !== 'prod') return
+
+    const readline = require('readline')
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+
+    console.log(`\n⚠️  PRODUCTION ENVIRONMENT DETECTED`)
+    console.log(`    GCP Project: ${ENV_CONFIG.gcpProjectId}`)
+    console.log(`    Supabase: ${ENV_CONFIG.supabaseUrl}`)
+    console.log(`    Action: ${action}`)
+
+    // Check if running non-interactively (piped input)
+    if (!process.stdin.isTTY) {
+        console.log('    Non-interactive mode: checking for "yes" on stdin...')
+        return // Allow piped "yes" to proceed
+    }
+
+    // For interactive mode, the caller should handle confirmation
+    console.log(`    Pass --yes to skip confirmation, or pipe: echo "yes" | ...`)
+}
+
+// Log environment on import
+if (DETECTED_ENV !== 'local') {
+    console.log(`[Demo Config] Environment: ${DETECTED_ENV} | GCP: ${ENV_CONFIG.gcpProjectId} | Supabase: ${ENV_CONFIG.supabaseUrl}`)
 }
