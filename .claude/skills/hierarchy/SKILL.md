@@ -196,6 +196,12 @@ curl -X PUT "http://localhost:8000/api/v1/subscriptions/{org}/plans/{id}" \
 }
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `01_HIERARCHY.md` - Organization hierarchy model and cost allocation
+- `CLOUD_RESOURCE_TAGGING_GUIDE.md` - Cloud resource tagging for hierarchy resolution
+
 ## Related Skills
 
 - `pipeline-ops` - Pipeline execution that uses hierarchy

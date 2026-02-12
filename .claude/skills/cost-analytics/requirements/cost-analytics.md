@@ -6,7 +6,60 @@ Dashboard and analytics layer for cost visualization across all cost types (Clou
 
 ## Source Specification
 
-`00-requirements-specs/03_DASHBOARD_ANALYTICS.md` (v1.7, 2026-02-08)
+`03_DASHBOARD_ANALYTICS.md` (v1.7, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│  Frontend (3000) - Next.js 16                                        │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │  Dashboard Pages (5)                                            │  │
+│  │  /{org}/dashboard                                               │  │
+│  │  /{org}/cost-dashboards/overview                                │  │
+│  │  /{org}/cost-dashboards/cloud-costs                             │  │
+│  │  /{org}/cost-dashboards/genai-costs                             │  │
+│  │  /{org}/cost-dashboards/subscription-costs                      │  │
+│  └─────────────────┬───────────────────────────────────────────────┘  │
+│                     │                                                  │
+│  ┌─────────────────▼───────────────────────────────────────────────┐  │
+│  │  L1 Cache: React Context (session-based, per filter combo)      │  │
+│  │  OrgProviders context (org-level shared data)                   │  │
+│  │  ErrorBoundary wrapping on all dashboard components             │  │
+│  │  PipelineAutoTrigger (fires pipelines on dashboard load)        │  │
+│  └─────────────────┬───────────────────────────────────────────────┘  │
+│                     │ Server Actions                                   │
+└─────────────────────┼──────────────────────────────────────────────────┘
+                      │
+┌─────────────────────▼──────────────────────────────────────────────────┐
+│  API Service (8000) - FastAPI                                          │
+│                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │  L2 Cache: Polars LRU (100 entries, TTL until midnight org TZ)  │  │
+│  │  Cache control: /cache/stats, /cache/invalidate, ?clear_cache   │  │
+│  └─────────────────┬────────────────────────────────────────────────┘  │
+│                     │ Polars DataFrames                                 │
+│  Cost Endpoints:    │                                                  │
+│  /costs/{org}/summary, /by-provider, /trend, /trend-granular, etc.   │
+└─────────────────────┼──────────────────────────────────────────────────┘
+                      │
+┌─────────────────────▼──────────────────────────────────────────────────┐
+│  BigQuery: {org_slug}_prod                                             │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ cost_data_standard_1_3 (FOCUS 1.3 unified - all cost types)     │  │
+│  │ cloud_{provider}_billing_raw_daily (provider detail)             │  │
+│  │ genai_*_costs_daily (GenAI detail)                               │  │
+│  │ subscription_plan_costs_daily (subscription detail)              │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**Two-Layer Caching Strategy:**
+- **L1 (Frontend):** React Context caches per filter combination (period, provider, hierarchy). Cleared on session end. Prevents redundant API calls during navigation.
+- **L2 (API):** Polars in-memory LRU cache with 100 entries. TTL expires at midnight in the org's timezone. Manually invalidatable via `/cache/invalidate` or bypassed with `?clear_cache=true`.
 
 ---
 
@@ -82,6 +135,40 @@ Dashboard and analytics layer for cost visualization across all cost types (Clou
 
 - All dashboard components wrapped in ErrorBoundary
 - PipelineAutoTrigger ensures data freshness on page load
+
+---
+
+## SDLC
+
+### Development Workflow
+
+1. **Frontend development** -- `cd 01-fronted-system && npm run dev` (port 3000)
+2. **API development** -- `cd 02-api-service && python -m uvicorn src.app.main:app --port 8000 --reload`
+3. **Iterate on dashboard components** -- Edit pages in `app/[orgSlug]/cost-dashboards/`, helpers in `lib/costs/`
+4. **Verify cache behavior** -- Use `/cache/stats` to confirm hit rates, `?clear_cache=true` to test fresh fetches
+5. **Run tests** -- Vitest for frontend, pytest for API, Playwright for E2E
+6. **Deploy** -- Push to `main` (stage) or tag `v*` (prod)
+
+### Testing Approach
+
+| Layer | Tool | Scope |
+|-------|------|-------|
+| Frontend components | Vitest | Cost helpers (formatters, date-ranges, filters, types) |
+| API cost reads | pytest | Polars read service, cache hit/miss, endpoint responses |
+| Dashboard E2E | Playwright | Page loads, filter interactions, data rendering, error boundaries |
+| Cache validation | Manual / pytest | LRU eviction, midnight TTL reset, manual invalidation |
+| Demo verification | Demo scripts | Load demo data (Dec 2025 - Jan 2026), verify dashboard displays |
+
+### Deployment / CI/CD Integration
+
+- **Stage:** Automatic on `git push origin main` via `cloudbuild-stage.yaml`
+- **Production:** Triggered by `git tag v*` via `cloudbuild-prod.yaml`
+- **Cache invalidation on deploy:** L2 Polars cache resets on API service restart. L1 React Context clears on new session.
+- **Post-deploy verification:** Navigate to `/{org}/cost-dashboards/overview`, confirm data loads and filters work
+
+### Release Cycle Position
+
+Cost analytics is a downstream consumer of cost data. Pipeline and API changes must deploy first. Frontend dashboard changes can deploy independently as long as API contracts are stable.
 
 ---
 

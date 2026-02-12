@@ -6,7 +6,53 @@ UI design standards and component patterns for the CloudAct console. Follows App
 
 ## Source Specification
 
-`00-requirements-specs/00_CONSOLE_UI_DESIGN_STANDARDS.md` (v4.0 | 2026-02-08)
+`00_CONSOLE_UI_DESIGN_STANDARDS.md` (v4.0 | 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Frontend Architecture (Next.js 16)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Browser ──▶ Next.js App Router ──▶ Server Components (default)             │
+│                   │                       │                                  │
+│                   │                       ├─ Data fetching (server-side)     │
+│                   │                       ├─ Supabase Auth (JWT validation)  │
+│                   │                       └─ API Service calls (port 8000)   │
+│                   │                                                          │
+│                   └──▶ Client Components (interactive UI)                    │
+│                              │                                               │
+│                              └─ React state, charts, forms                   │
+│                                                                             │
+│  Multi-Tenant Routing:                                                      │
+│  app/[orgSlug]/                                                             │
+│  ├─ dashboard/          # Main dashboard (cost overview)                    │
+│  ├─ costs/              # Cloud, GenAI, Subscription cost pages             │
+│  ├─ settings/           # Org, personal, billing, hierarchy, invite         │
+│  ├─ integrations/       # Provider setup (cloud, genai, saas)               │
+│  ├─ analytics/          # Usage analytics                                   │
+│  ├─ notifications/      # Alert management                                  │
+│  └─ chat/               # AI chat assistant                                 │
+│                                                                             │
+│  Key Directories:                                                           │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌────────────┐  │
+│  │  components/  │  │   actions/    │  │     lib/      │  │ contexts/  │  │
+│  │  Design system│  │ Server actions│  │  Utilities    │  │ React ctx  │  │
+│  │  ui/, charts/ │  │ stripe.ts    │  │  i18n/, costs/│  │ OrgProvide │  │
+│  │  dashboard/   │  │ login.ts     │  │  supabase/    │  │ rs, theme  │  │
+│  │  settings/    │  │ members.ts   │  │  chat/        │  │            │  │
+│  └───────────────┘  └───────────────┘  └───────────────┘  └────────────┘  │
+│                                                                             │
+│  Data Flow:                                                                 │
+│  Server Action ──▶ Supabase (auth/org data) ──▶ API Service (8000)         │
+│       │                                              │                      │
+│       └──▶ Response ◀── Polars (BigQuery reads) ◀────┘                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -142,7 +188,7 @@ Font: DM Sans (loaded via `next/font`)
 
 ### Source Specification
 
-`00-requirements-specs/00_INTERNATIONALIZATION.md` (v13.0 | 2026-02-08)
+`00_INTERNATIONALIZATION.md` (v13.0 | 2026-02-08)
 
 ### Overview
 
@@ -215,3 +261,44 @@ Configured via `fiscal_year_start_month` in `org_profiles`:
 ### NFR-I18N-002: Workflow
 
 Signup -> Select Currency + Timezone -> Stored on org record -> FX rates fetched (USD base) -> Templates converted to org currency -> All cost data displayed in org currency -> Fiscal year configured in org_profiles
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+Create/edit page or component ──▶ npm run dev (localhost:3000)
+         │                              │
+         ▼                              ▼
+  Write Vitest unit tests         Verify in browser
+  (components, utilities)         (multi-tenant routing with orgSlug)
+         │                              │
+         ▼                              ▼
+  Write Playwright E2E            tsc --noEmit (type check)
+  (full user flows)               npm run build (SSR validation)
+         │                              │
+         └──────────┬───────────────────┘
+                    ▼
+              PR ──▶ Cloud Build ──▶ Deploy
+```
+
+### Testing Approach
+
+| Type | Tool | Coverage |
+|------|------|----------|
+| Unit tests | Vitest | Components, utilities, design tokens, hooks |
+| E2E tests | Playwright | Full user flows (login, costs, settings, billing) |
+| Type checking | `tsc --noEmit` | All TypeScript files, strict mode |
+| Build validation | `npm run build` | SSR rendering, server component boundaries |
+| Linting | ESLint + Prettier | Code style, import order, unused variables |
+| Accessibility | Playwright + axe-core | WCAG 2.1 AA (skip-to-content, labels, keyboard nav) |
+
+### Deployment / CI/CD
+
+- **Local dev**: `cd 01-fronted-system && npm run dev` (port 3000)
+- **Stage**: `git push origin main` auto-deploys via `cloudbuild-stage.yaml`
+- **Production**: `git tag v*` triggers `cloudbuild-prod.yaml`
+- **Build**: Next.js static + SSR build, output deployed to Cloud Run (2 CPU, 8Gi)
+- **Environment**: Secrets injected from GCP Secret Manager (Supabase keys, Stripe keys)

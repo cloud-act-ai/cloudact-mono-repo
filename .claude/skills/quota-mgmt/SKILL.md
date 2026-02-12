@@ -260,6 +260,12 @@ export default function QuotaUsagePage({ params }: PageProps) {
 "Get notified at 80% usage"
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `04_NOTIFICATIONS_ALERTS.md` - Notifications and alert thresholds
+- `06_QUOTAS.md` - Quota enforcement and plan limits
+
 ## Related Skills
 - `bootstrap-onboard` - Initial quota setup
 - `cost-analysis` - Cost-based quotas

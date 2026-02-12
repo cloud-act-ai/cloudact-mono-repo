@@ -6,7 +6,46 @@ Public marketing and landing pages for CloudAct (32 pages total). Includes the h
 
 ## Source Specification
 
-- `00-requirements-specs/04_LANDING_PAGES.md` (v1.2, 2026-02-08)
+- `04_LANDING_PAGES.md` (v1.2, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Home Page Architecture                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Route Group: app/(landingPages)/                                       │
+│  ├─ layout.tsx (PublicLayout: header + footer wrapper)                   │
+│  ├─ landing.css (custom styles, 22KB)                                   │
+│  └─ _components/ (shared landing components)                            │
+│                                                                         │
+│  32 Pages Across 6 Categories:                                          │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────┐ ┌─────┐ │
+│  │   Core   │ │   Docs   │ │  Legal   │ │ Company  │ │ Res. │ │Auth │ │
+│  │ home     │ │ /docs    │ │ privacy  │ │ about    │ │ help │ │login│ │
+│  │ pricing  │ │ /docs/*  │ │ terms    │ │ careers  │ │learn │ │sign │ │
+│  │ features │ │          │ │ comply   │ │ invest   │ │integ │ │ up  │ │
+│  │ contact  │ │          │ │ cookies  │ │ commun.  │ │      │ │     │ │
+│  │ demo     │ │          │ │          │ │          │ │      │ │     │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────┘ └─────┘ │
+│                                                                         │
+│  Conversion Funnel (no API calls — static/SSR pages):                   │
+│                                                                         │
+│  Visitor ──▶ Landing Page ──▶ /pricing ──▶ /signup ──▶ Stripe Checkout  │
+│     │              │                                                    │
+│     │         SEO + social proof                                        │
+│     └──▶ /features, /docs, /about (education loop)                     │
+│                                                                         │
+│  Data Flow: NONE (no backend API calls)                                 │
+│  ├─ All content is static or server-side rendered                       │
+│  ├─ Pricing tiers hardcoded ($19/$69/$199)                              │
+│  └─ CTA buttons link to /signup (Supabase Auth)                        │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -115,6 +154,42 @@ Three tiers displayed on `/pricing`:
 | Starter | $19/mo |
 | Professional | $69/mo |
 | Scale | $199/mo |
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+Edit in app/(landingPages)/ ──▶ npm run dev (localhost:3000)
+     │                               │
+     ▼                               ▼
+Verify responsive layout      Check all 32 pages render
+(375px mobile → 1440px desktop)      │
+     │                               ▼
+     └──────────────▶ PR review (brand protection: colors, copy, layout)
+                           │
+                           ▼
+                     Merge to main ──▶ Auto-deploy stage ──▶ git tag ──▶ Prod
+```
+
+### Testing Approach
+
+| Type | Tool | Coverage |
+|------|------|----------|
+| Visual regression | Playwright screenshots | All 32 pages at 375px, 768px, 1440px |
+| Accessibility | Playwright + axe-core | WCAG 2.1 AA compliance (contrast, labels, focus) |
+| Performance | Lighthouse CI | LCP < 2.5s, CLS < 0.1, FID < 100ms |
+| Link validation | Playwright crawl | No broken internal links or 404s |
+| SEO | Build-time checks | Meta tags, og:image, canonical URLs |
+
+### Deployment / CI/CD
+
+- **Stage**: `git push origin main` auto-deploys via `cloudbuild-stage.yaml`
+- **Production**: `git tag v*` triggers `cloudbuild-prod.yaml`
+- **Rollback**: Redeploy previous tag if brand/layout issues detected
+- **CDN**: Static assets cached at Cloud Run edge; landing.css and images benefit from long cache TTLs
 
 ---
 

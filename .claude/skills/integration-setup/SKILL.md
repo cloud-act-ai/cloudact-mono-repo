@@ -197,6 +197,12 @@ encrypted = kms.encrypt(
 "Update the OpenAI API key"
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `03_INTEGRATIONS.md` - Integration setup and provider management
+- `05_GCP_INTEGRATION.md` - GCP-specific integration details
+
 ## Related Skills
 - `pipeline-ops` - Run provider pipelines
 - `security-audit` - Audit credential security

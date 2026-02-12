@@ -6,7 +6,52 @@ Architecture and infrastructure requirements for the CloudAct multi-tenant GenAI
 
 ## Source Specification
 
-`00-requirements-specs/00_ARCHITECTURE.md` (v4.3 | 2026-02-08)
+`00_ARCHITECTURE.md` (v4.3 | 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    CloudAct Infrastructure & Deployment                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  STAGE (cloudact-testing-1)              PROD (cloudact-prod)               │
+│  ─────────────────────────               ──────────────────────             │
+│                                                                             │
+│  git push main ──▶ Cloud Build           git tag v* ──▶ Cloud Build        │
+│                    cloudbuild-stage.yaml                cloudbuild-prod.yaml │
+│                         │                                   │               │
+│                         ▼                                   ▼               │
+│              ┌──────────────────┐                ┌──────────────────┐       │
+│              │   Build & Deploy │                │   Build & Deploy │       │
+│              │   3 Services     │                │   3 Services     │       │
+│              └────────┬─────────┘                └────────┬─────────┘       │
+│                       │                                   │                 │
+│           ┌───────────┼───────────┐          ┌───────────┼───────────┐     │
+│           ▼           ▼           ▼          ▼           ▼           ▼     │
+│      Frontend    API Service  Pipeline  Frontend    API Service  Pipeline  │
+│      :3000       :8000        :8001     :3000       :8000        :8001    │
+│                                                                             │
+│  Shared Infrastructure:                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  GCP Secret Manager    Cloud Scheduler    BigQuery    Supabase     │   │
+│  │  (API keys, Stripe,    (quota resets,     (cost data, (auth, orgs, │   │
+│  │   webhook secrets)      alerts, cleanup)   schemas)    billing)    │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  Cloud Run Jobs (05-scheduler-jobs/):                                       │
+│  ┌──────────────┬──────────────┬──────────────┬───────────────────────┐   │
+│  │ bootstrap    │ org-sync-all │ quota-reset  │ alerts-daily          │   │
+│  │ (manual)     │ (manual)     │ (00:00 UTC)  │ (08:00 UTC)          │   │
+│  └──────────────┴──────────────┴──────────────┴───────────────────────┘   │
+│                                                                             │
+│  Health Check Flow:                                                         │
+│  Deploy ──▶ /health on each service ──▶ Pass = live ──▶ Fail = rollback    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -163,3 +208,44 @@ Hierarchy (nullable): `x_hierarchy_entity_id`, `x_hierarchy_entity_name`, `x_hie
 | Frontend | cloudact.ai |
 | API | api.cloudact.ai |
 | Pipeline | pipeline.cloudact.ai |
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+Feature branch ──▶ PR ──▶ Code review ──▶ Merge to main
+                                               │
+                                               ▼
+                                    Auto-deploy STAGE
+                                    (cloudbuild-stage.yaml)
+                                               │
+                                               ▼
+                                    Manual verification
+                                    (health checks, smoke tests)
+                                               │
+                                               ▼
+                                    git tag v* ──▶ Auto-deploy PROD
+                                                   (cloudbuild-prod.yaml)
+```
+
+### Testing Approach
+
+| Type | Tool | Coverage |
+|------|------|----------|
+| Health checks | `./quick/status.sh {env}` | All 3 services respond on /health |
+| Secrets validation | `./secrets/validate-env.sh {env} {service}` | All required secrets present in GCP Secret Manager |
+| Rollback readiness | Cloud Run revisions | Previous revision available for instant traffic switch |
+| Log monitoring | `./monitor/watch-all.sh {env} 50` | Real-time log tailing for all services |
+| Pre-deploy | `./secrets/verify-secrets.sh {env}` | Cross-check secrets exist before deploy |
+
+### Deployment / CI/CD
+
+- **Stage**: Automatic on `git push origin main`. Cloud Build runs `cloudbuild-stage.yaml`.
+- **Production**: Triggered by `git tag v*` push. Cloud Build runs `cloudbuild-prod.yaml`.
+- **Pre-deploy order**: Supabase migrate -> deploy services -> bootstrap -> org-sync-all
+- **Rollback**: Cloud Run maintains previous revisions; traffic can be switched instantly.
+- **Secrets**: All secrets stored in GCP Secret Manager, injected at deploy time. Never in code.
+- **Manual deploy scripts**: Available in `04-inra-cicd-automation/CICD/quick/` for test/dev only. Never for prod.

@@ -7,7 +7,57 @@ Multi-tenant AI chat system for CloudAct allowing organizations to interact with
 ## Source Specification
 
 Full chat system specification defined in:
-- `00-requirements-specs/07_MULTI_TENANT_AI_CHAT.md` (v1.0.0)
+- `07_MULTI_TENANT_AI_CHAT.md` (v1.0.0)
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Multi-Tenant AI Chat System                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Frontend (3000) - Next.js + CopilotKit                                     │
+│  /{orgSlug}/chat                                                            │
+│  ├─ CopilotKit Runtime (client-side)                                        │
+│  ├─ BYOK credential picker (org's own API keys)                             │
+│  ├─ Conversation list (Sheet drawer, right side)                            │
+│  └─ Streaming responses (SSE)                                               │
+│       │                                                                     │
+│       ▼ POST /api/chat/stream                                               │
+│                                                                             │
+│  Chat Backend (8002) - FastAPI + Google ADK                                  │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ Orchestrator Agent                                                     │ │
+│  │ ├─ Routes to specialist agents based on intent                        │ │
+│  │ ├─ cost_analyst (BigQuery cost queries)                               │ │
+│  │ ├─ usage_analyst (GenAI usage patterns)                               │ │
+│  │ ├─ alert_manager (notification rules)                                 │ │
+│  │ └─ explorer (schema discovery, table exploration)                     │ │
+│  │                                                                        │ │
+│  │ Security Layer:                                                        │ │
+│  │ ├─ org_slug validation on every query (multi-tenant isolation)         │ │
+│  │ ├─ BigQuery dataset scoping ({org_slug}_prod only)                    │ │
+│  │ └─ BYOK: user's own LLM API key (never stored server-side)           │ │
+│  │                                                                        │ │
+│  │ Session Store: BigQuery (chat_sessions, chat_messages tables)         │ │
+│  │ ├─ Conversation history persisted per org                              │ │
+│  │ ├─ Auto-title generation after first exchange                         │ │
+│  │ └─ Search across conversation history                                 │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  Data Flow:                                                                 │
+│  User query ──▶ Orchestrator ──▶ Specialist Agent ──▶ BigQuery query        │
+│       │              │                                     │                │
+│       │              ▼                                     ▼                │
+│       │         LLM Provider                      {org_slug}_prod          │
+│       │         (via BYOK key)                    (cost/usage data)        │
+│       │              │                                     │                │
+│       ◀──────────────┴─────── Streaming response ──────────┘                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Key Decisions
 
@@ -285,6 +335,57 @@ POST   /api/chat/conversations/{id}/title → Update conversation title
 - Data: BigQuery (organizations dataset + per-org datasets)
 - Security: GCP KMS (existing keyring)
 - Auth: Supabase JWT (existing)
+
+## SDLC
+
+### Development Workflow
+
+#### Frontend Chat Changes
+1. **Start dev server** — `cd 01-fronted-system && npm run dev` (port 3000)
+2. **Edit chat components** — Modify files in `01-fronted-system/components/chat/` or `01-fronted-system/app/[orgSlug]/chat/`
+3. **Test in browser** — Navigate to `http://localhost:3000/{orgSlug}/chat`, verify UI rendering
+4. **PR** — Open pull request with frontend changes
+
+#### Backend Agent Changes
+1. **Start backend** — `cd 07-org-chat-backend && source venv/bin/activate && uvicorn src.app.main:app --port 8002 --reload`
+2. **Edit agents/tools** — Modify files in `07-org-chat-backend/src/core/agents/` or `07-org-chat-backend/src/core/tools/`
+3. **Test with curl** — `curl -X POST http://localhost:8002/copilotkit -H "Content-Type: application/json" -d '{"messages":[...]}'`
+4. **Run tests** — `cd 07-org-chat-backend && pytest tests/` (132 tests)
+5. **PR** — Open pull request with backend changes
+
+#### Full Flow Testing
+1. **Configure BYOK key** — Go to Settings > AI Chat, select provider, enter API key
+2. **Send chat message** — Navigate to Chat page, type a cost query
+3. **Verify streaming** — Confirm AG-UI streaming response renders progressively
+4. **Check persistence** — Reload page, verify conversation appears in history
+5. **Test multi-agent** — Try cost query (CostAnalyst), alert query (AlertManager), usage query (UsageAnalyst)
+
+### Testing Approach
+
+| Test Type | Tool | Command |
+|-----------|------|---------|
+| Backend unit/integration | pytest | `cd 07-org-chat-backend && pytest tests/` — 132 tests covering agents, tools, security |
+| Multi-tenancy isolation | pytest | `cd 07-org-chat-backend && pytest tests/ -k "security or org_validator"` — 6-layer isolation |
+| Agent routing | pytest | `cd 07-org-chat-backend && pytest tests/ -k "orchestrator"` — query routing to sub-agents |
+| MCP tools | pytest | `cd 07-org-chat-backend && pytest tests/ -k "tools"` — cost, alert, usage tool validation |
+| Frontend UI | Playwright | `cd 01-fronted-system && npx playwright test tests/e2e/ -g "chat"` — 20 UI checks |
+| BYOK settings | Playwright | `cd 01-fronted-system && npx playwright test tests/e2e/settings.spec.ts` — settings flow |
+| API settings endpoint | curl | `curl /api/v1/organizations/{org}/chat-settings` — verify settings CRUD |
+| Health check | curl | `curl http://localhost:8002/health` — backend service health |
+
+### Deployment / CI/CD Integration
+
+- **Frontend** — Deployed via Cloud Build on push to `main` (stage) or `v*` tag (prod). Chat UI is part of `01-fronted-system`
+- **Chat backend** — Deployed as a separate Cloud Run service (`cloudact-chat-backend`), **INTERNAL ONLY** with VPC connector. Not publicly accessible
+- **API Service** — Chat settings endpoints (`/chat-settings`) deployed with the API service
+- **No public URL** — Chat backend communicates only via VPC from the frontend Cloud Run service
+- **Same service account** — Reuses existing GCP SA with KMS permissions for credential decryption
+
+### Release Cycle
+
+Chat spans three services with independent deploy cycles. **Frontend chat UI** deploys with the main frontend (push to `main`). **Chat backend** deploys as a separate Cloud Run service (requires its own Dockerfile and Cloud Build trigger). **API chat-settings endpoints** deploy with the API service. Changes to agents or tools (backend) do not require frontend redeployment. BYOK key changes are runtime configuration and require no deployment.
+
+---
 
 ## Related Skills
 

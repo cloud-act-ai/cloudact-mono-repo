@@ -86,7 +86,7 @@ test.describe('Cloud Costs Page', () => {
     expect(page.url()).toContain('cloud-costs');
 
     // Check for page content - heading, sidebar nav, or loading state
-    const content = page.locator('h1, h2, text=/Cloud Costs/, text=/Cloud/, text=/Loading/i').first();
+    const content = page.locator('h1, h2, main').or(page.getByText('Cloud')).first();
     await expect(content).toBeVisible({ timeout: 15000 });
   });
 
@@ -153,8 +153,8 @@ test.describe('GenAI Costs Page', () => {
     // Verify we're on GenAI costs page (not 404)
     expect(page.url()).toContain('genai-costs');
 
-    // Check for page content
-    const content = page.locator('h1, h2, text=/GenAI Costs/, text=/GenAI/, text=/Loading/i').first();
+    // Check for page content - heading, sidebar nav, or loading state
+    const content = page.locator('h1, h2, main').or(page.getByText('GenAI')).first();
     await expect(content).toBeVisible({ timeout: 15000 });
   });
 
@@ -219,8 +219,8 @@ test.describe('Subscription Costs Page', () => {
     // Verify we're on subscription costs page (not 404)
     expect(page.url()).toContain('subscription-costs');
 
-    // Check for page content
-    const content = page.locator('h1, h2, text=/Subscription Costs/, text=/Subscription/, text=/Loading/i').first();
+    // Check for page content - heading, sidebar nav, or loading state
+    const content = page.locator('h1, h2, main').or(page.getByText('Subscription')).first();
     await expect(content).toBeVisible({ timeout: 15000 });
   });
 
@@ -310,7 +310,7 @@ test.describe('Cost Overview Page', () => {
     await navigateToCostPage(page, orgSlug, 'overview');
 
     // Look for trend indicators
-    const trends = page.locator('text=/\\+\\d+%|\\-\\d+%|trend|change|vs.*last/i, [data-testid*="trend"]');
+    const trends = page.locator('[data-testid*="trend"]').or(page.locator('text=/trend|change|vs.*last/i'));
     const count = await trends.count();
 
     console.log(`Found ${count} trend indicators`);

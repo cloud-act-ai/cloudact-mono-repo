@@ -6,7 +6,89 @@ Defense-in-depth security across CloudAct frontend, API, and pipeline services. 
 
 ## Source Specification
 
-`00-requirements-specs/05_SECURITY.md` (v3.0, 2026-02-08)
+`05_SECURITY.md` (v3.0, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     6-Layer Security Model                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Layer 1: Input Validation                                                  │
+│  ─────────────────────────                                                  │
+│  Request ──▶ isValidOrgSlug (^[a-z0-9_]{3,50}$)                            │
+│          ──▶ sanitizeOrgName (strip HTML/dangerous chars)                    │
+│          ──▶ isValidEmail (RFC-compliant, max 254)                          │
+│          ──▶ isValidUUID (standard format)                                  │
+│          ──▶ Null byte detection (reject \0)                                │
+│          ──▶ Size limits (per field)                                        │
+│                    │                                                        │
+│                    ▼                                                        │
+│  Layer 2: Transport (HTTPS/TLS)                                             │
+│  ──────────────────────────────                                             │
+│  All Cloud Run services enforce TLS -- no plaintext HTTP                    │
+│                    │                                                        │
+│                    ▼                                                        │
+│  Layer 3: Authentication (Supabase JWT)                                     │
+│  ──────────────────────────────────────                                     │
+│                                                                             │
+│  ┌─────────────┐    ┌───────────────┐    ┌──────────────────────┐           │
+│  │ Frontend     │    │ API Service   │    │ Pipeline Service     │           │
+│  │ (3000)       │    │ (8000)        │    │ (8001)               │           │
+│  │              │    │               │    │                      │           │
+│  │ Supabase     │    │ X-API-Key     │    │ X-CA-Root-Key        │           │
+│  │ Auth (JWT)   │    │ header        │    │ (system-to-system)   │           │
+│  │ httpOnly     │    │ SHA256 hash   │    │ min 32 chars         │           │
+│  │ secure cookie│    │ comparison    │    │ constant-time check  │           │
+│  └──────┬───────┘    └──────┬────────┘    └──────┬───────────────┘           │
+│         │                   │                    │                          │
+│         ▼                   ▼                    ▼                          │
+│  Layer 4: Authorization (RBAC + RLS)                                        │
+│  ───────────────────────────────────                                        │
+│  Roles: owner | collaborator | read_only                                    │
+│  Supabase RLS enforces row-level access per org                             │
+│  Org membership validated on every request                                  │
+│                    │                                                        │
+│                    ▼                                                        │
+│  Layer 5: Data Isolation (BigQuery Datasets)                                │
+│  ───────────────────────────────────────────                                │
+│  organizations (shared meta)    {org_slug}_prod (per-org data)              │
+│  x_org_slug on every row        Dataset-level isolation                     │
+│  API filters by org_slug         Pipeline writes scoped to org              │
+│                    │                                                        │
+│                    ▼                                                        │
+│  Layer 6: Credential Encryption (GCP KMS)                                   │
+│  ────────────────────────────────────────                                   │
+│  All credentials: AES-256 at rest via GCP KMS                               │
+│  API keys: SHA256 hashed in BigQuery + KMS encrypted for recovery           │
+│  Runtime: decrypt on demand (5-min TTL cache)                               │
+│  Logging: SHA256 fingerprint only (first 8 chars) -- never raw values       │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Cross-Cutting Security Controls                                            │
+│  ───────────────────────────────                                            │
+│                                                                             │
+│  Rate Limiting          Audit Logging           Webhook Verification        │
+│  ─────────────          ─────────────           ────────────────────        │
+│  Login: per-user        org_audit_logs (BQ)     Stripe whsec_*             │
+│  Checkout: 1/30s        All mutations logged    signature verified          │
+│  Invites: 10/hr/org     actor + timestamp       on every event             │
+│  API: 100 req/min/org   metadata captured                                  │
+│  Global: 10K req/min                                                        │
+│                                                                             │
+│  Open Redirect Prevention    Session Management    Billing Enforcement      │
+│  ────────────────────────    ──────────────────    ───────────────────      │
+│  Must start with /           httpOnly JWT          Inactive status =        │
+│  No //, \, @, ctrl chars     Secure cookies        redirect to billing      │
+│  Relative paths only         Reason codes on       DISABLE_AUTH=false       │
+│                              session expiry         in production            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -124,6 +206,45 @@ RBAC with three roles: `owner`, `collaborator`, `read_only`. Enforced via Supaba
 | Webhooks | Stripe signature verification (`whsec_*`) |
 | API Keys | SHA256 hashed in BigQuery, KMS encrypted for recovery |
 | Auth Comparison | Constant-time hash comparison (timing-attack safe) |
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+1. Security Review in PR  ── Every PR reviewed for security implications
+2. Automated Checks       ── Lint + static analysis catches common patterns
+3. Pre-Deploy Audit       ── Secrets validation, auth config verification
+4. Post-Deploy Verify     ── Health checks, TLS verification, auth smoke tests
+5. Ongoing Monitoring     ── Audit log review, rate limit monitoring
+```
+
+### Testing Approach
+
+| Layer | Tool | Tests | Focus |
+|-------|------|-------|-------|
+| Input Validation | pytest + Vitest | `02-api-service/tests/`, `01-fronted-system/tests/` | Regex patterns, null bytes, size limits, sanitization |
+| Auth Middleware | pytest | `02-api-service/tests/` | JWT validation, API key hash comparison, root key check |
+| RBAC | pytest | `02-api-service/tests/` | Role enforcement (owner/collaborator/read_only) |
+| KMS Encryption | pytest | `02-api-service/tests/02_test_integrations.py` | Encrypt/decrypt roundtrip, fingerprint generation |
+| API Key Security | pytest | `02-api-service/tests/` | Constant-time comparison, hash storage, recovery |
+| Rate Limiting | pytest | `02-api-service/tests/` | Per-user, per-org, global limits enforced |
+| Open Redirect | Vitest | `01-fronted-system/tests/` | URL validation rules (no //, \, @, ctrl chars) |
+| Webhook Verify | pytest | `01-fronted-system/` | Stripe signature validation |
+| OWASP Compliance | Manual + automated | Security checklist | Injection, XSS, CSRF, auth bypass patterns |
+| Penetration Patterns | pytest | Security-focused tests | SQL injection, path traversal, header injection |
+
+### Deployment / CI-CD Integration
+
+- **PR Gate:** Security-focused test suite must pass; no hardcoded secrets in diff
+- **Pre-Deploy:** `validate-env.sh {env} frontend` verifies secrets are set correctly
+- **Stage:** Auto-deploy on `main`; security smoke tests (auth, TLS, rate limits)
+- **Prod:** Git tag deploy; `verify-secrets.sh prod` confirms all secrets in GCP Secret Manager
+- **Post-Deploy:** Health checks verify TLS, auth middleware active, DISABLE_AUTH=false
+- **Secret Rotation:** GCP Secret Manager handles rotation; no code changes needed
+- **Incident Response:** Audit logs in `org_audit_logs` for forensic review
 
 ---
 

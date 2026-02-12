@@ -52,7 +52,7 @@ gcloud --version          # Google Cloud SDK
 ## Project Structure
 ```
 cloudact-mono-repo/
-├── 00-requirements-specs/    # Documentation
+├──     # Documentation
 ├── 01-fronted-system/        # Next.js (Port 3000)
 ├── 02-api-service/           # FastAPI (Port 8000)
 ├── 03-data-pipeline-service/ # FastAPI (Port 8001)

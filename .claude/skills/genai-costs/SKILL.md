@@ -220,6 +220,11 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/acme_corp/genai/unified
 2. Check for overrides: `SELECT * FROM {org}_prod.genai_payg_pricing WHERE is_override = true`
 3. Compare with provider invoice
 
+## Source Specifications
+
+Requirements consolidated from:
+- `02_GENAI_COSTS.md` - GenAI cost pipelines
+
 ## Implementation Status
 
 | Phase | Status |

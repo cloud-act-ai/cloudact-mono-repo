@@ -247,6 +247,11 @@ bq show --format=prettyjson {org_slug}_prod | jq '.access'
 "KMS decryption error"
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `05_SECURITY.md` - Security architecture
+
 ## Related Skills
 - `bootstrap-onboard` - Secure setup
 - `integration-setup` - Credential management

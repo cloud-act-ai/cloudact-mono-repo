@@ -6,7 +6,110 @@ Multi-environment testing strategy for CloudAct covering unit tests (Vitest/pyte
 
 ## Source Specification
 
-`00-requirements-specs/05_TESTING.md` (v3.0, 2026-02-08)
+`05_TESTING.md` (v3.0, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     3-Tier Testing Architecture                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Tier 1: Frontend (Vitest + Playwright)                                     │
+│  ──────────────────────────────────────                                     │
+│                                                                             │
+│  Vitest (Unit)                    Playwright (E2E)                           │
+│  ─────────────                    ────────────────                           │
+│  01-fronted-system/tests/         01-fronted-system/tests/e2e/              │
+│  ├─ Component tests               ├─ auth.setup.ts (shared auth)           │
+│  ├─ Server action tests           ├─ dashboard.spec.ts                     │
+│  ├─ Hook tests                    ├─ costs.spec.ts                         │
+│  └─ Utility tests                 ├─ settings.spec.ts                      │
+│                                   ├─ billing.spec.ts                       │
+│  Run: npm test                    ├─ pipelines.spec.ts                     │
+│                                   └─ notifications.spec.ts                 │
+│                                   Run: npx playwright test                  │
+│                                                                             │
+│  Tier 2: API Service (pytest + AsyncMock)                                   │
+│  ────────────────────────────────────────                                   │
+│                                                                             │
+│  02-api-service/tests/                                                      │
+│  ├─ 00_test_bootstrap.py          (system init)                             │
+│  ├─ 01_test_onboarding.py         (org creation)                            │
+│  ├─ 02_test_integrations.py       (credential CRUD + KMS)                   │
+│  ├─ 03_test_subscriptions.py      (plan management)                         │
+│  ├─ 04_test_hierarchy.py          (org structure)                           │
+│  ├─ 05_test_pipelines.py          (pipeline operations)                     │
+│  ├─ 06_test_quotas.py             (usage limits)                            │
+│  ├─ 07_test_notifications.py      (alerts + delivery)                       │
+│  └─ 08_test_costs.py              (cost reads + aggregation)                │
+│                                                                             │
+│  Run: python -m pytest tests/ -v                                            │
+│  Integration: python -m pytest tests/ -v --run-integration                  │
+│                                                                             │
+│  Tier 3: Pipeline Service (pytest + BigQuery Mock)                          │
+│  ─────────────────────────────────────────────────                          │
+│                                                                             │
+│  03-data-pipeline-service/tests/                                            │
+│  ├─ 00_test_bootstrap.py          (dataset init)                            │
+│  ├─ 01_test_onboarding.py         (org dataset setup)                       │
+│  ├─ 02_test_integrations.py       (credential decrypt)                      │
+│  ├─ 03_test_subscriptions.py      (subscription pipelines)                  │
+│  ├─ 04_test_hierarchy.py          (view refresh)                            │
+│  ├─ 05_test_pipelines.py          (execution engine)                        │
+│  ├─ 06_test_quotas.py             (quota enforcement)                       │
+│  ├─ 07_test_notifications.py      (pipeline notifications)                  │
+│  └─ 08_test_costs.py              (FOCUS 1.3 output)                        │
+│                                                                             │
+│  Run: python -m pytest tests/ -v                                            │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Multi-Org Test Fixtures                                                    │
+│  ───────────────────────                                                    │
+│                                                                             │
+│  6 Test Orgs (unique slugs per run):                                        │
+│  ├─ acme_inc_{ts}        (primary, USD)                                     │
+│  ├─ globex_{ts}          (secondary, EUR)                                   │
+│  ├─ initech_{ts}         (tertiary, GBP)                                    │
+│  ├─ umbrella_{ts}        (quaternary, JPY)                                  │
+│  ├─ wayne_ent_{ts}       (quinary, AUD)                                     │
+│  └─ stark_ind_{ts}       (senary, CAD)                                      │
+│                                                                             │
+│  6 Currencies: USD, EUR, GBP, JPY, AUD, CAD                                │
+│  Each org gets isolated BigQuery dataset + Supabase records                 │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Demo Data Flow                                                             │
+│  ──────────────                                                             │
+│                                                                             │
+│  generate-demo-data.py ──▶ load-demo-data-direct.ts ──▶ Pipeline runs      │
+│  (synthetic CSV data)      (load to BQ + trigger)       (transform + FOCUS) │
+│       │                          │                            │             │
+│       ▼                          ▼                            ▼             │
+│  Dec 2025 - Jan 2026      Raw tables populated       cost_data_standard_1_3│
+│  GenAI ~$232K                                        (unified FOCUS 1.3)    │
+│  Cloud ~$382                                                                │
+│  SaaS ~$1.4K                                                                │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CI/CD Test Gates                                                           │
+│  ────────────────                                                           │
+│                                                                             │
+│  PR Push ──▶ Cloud Build ──▶ pytest (API) ──▶ pytest (Pipeline) ──▶ Vitest  │
+│                                                                    │        │
+│              ┌─────────────────────────────────────────────────────┘        │
+│              ▼                                                              │
+│  main merge ──▶ Stage Deploy ──▶ Playwright E2E ──▶ Smoke Tests            │
+│                                                                             │
+│  git tag v* ──▶ Prod Deploy ──▶ Health Checks ──▶ Post-Deploy Verify       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -146,6 +249,43 @@ Mock external APIs (Stripe, BigQuery) in unit tests. Integration tests may use r
 | Signup 400 error | Disable Supabase email confirmation |
 | No API key created | Bootstrap not done -- run bootstrap first |
 | GenAI costs $0 | Load pricing data to `genai_payg_pricing` |
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+1. Write Tests Alongside Code  ── Every feature gets unit + integration tests
+2. Run Locally                 ── pytest / vitest / playwright against cloudact-testing-1
+3. PR Gates                    ── Cloud Build runs all test suites on push
+4. Stage Deploy                ── Auto on main merge; Playwright E2E runs
+5. Prod Deploy                 ── Git tag triggers build; health checks + smoke tests
+6. Monitor                     ── Test coverage tracked; flaky tests flagged
+```
+
+### Testing Approach (Meta-Testing)
+
+| Layer | Tool | Tests | Focus |
+|-------|------|-------|-------|
+| Test the Tests | pytest + Vitest | Fixture validation | Verify fixtures create/cleanup correctly |
+| Coverage Tracking | pytest-cov + c8 | All suites | Coverage metrics per service |
+| Fixture Management | conftest.py | Shared fixtures | Multi-org setup, teardown, isolation |
+| Demo Data Integrity | pytest | Demo scripts | Verify expected totals (GenAI ~$232K, etc.) |
+| E2E Auth State | Playwright | `auth.setup.ts` | Shared authentication state across specs |
+| Flaky Detection | CI logs | Cloud Build history | Identify and quarantine non-deterministic tests |
+| Environment Parity | Manual | Env comparison | Test/stage/prod config consistency |
+
+### Deployment / CI-CD Integration
+
+- **PR Gate:** All three test suites (API pytest, Pipeline pytest, Frontend Vitest) must pass
+- **Cloud Build:** `cloudbuild-stage.yaml` runs tests before deploying to stage
+- **Stage:** Playwright E2E runs against deployed stage environment
+- **Prod:** Health checks + smoke tests post-deploy; no full test suite against prod
+- **Test Data:** Demo data uses Dec 2025 - Jan 2026 range -- NEVER production dates
+- **Fixture Cleanup:** Every test run cleans up its own org datasets and Supabase records
+- **Coverage:** Tracked per service; regressions flagged in PR reviews
 
 ---
 

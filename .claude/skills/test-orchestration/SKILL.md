@@ -299,6 +299,11 @@ python -m pytest tests/ -v -k "cost and not integration"
 | Timeout in async tests | Slow or hanging operation | Check missing `AsyncMock` or increase timeout |
 | `KeyError: 'org_slug'` | Missing context in mocks | Add required fields to mock config |
 
+## Source Specifications
+
+Requirements consolidated from:
+- `05_TESTING.md` - Testing strategy
+
 ## Related Skills
 - `config-validator` - Validate test configs
 - `security-audit` - Security test coverage

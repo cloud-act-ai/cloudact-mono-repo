@@ -327,6 +327,11 @@ All schemas must include x_* lineage fields.
 | Procedure not updated | Run force sync: `{"force": true}` |
 | Column not found | Compare procedure INSERT columns with table schema |
 
+## Source Specifications
+
+Requirements consolidated from:
+- `03_PIPELINES.md` - Pipeline execution
+
 ## Related Skills
 
 - `subscription-costs` - SaaS subscription cost pipeline

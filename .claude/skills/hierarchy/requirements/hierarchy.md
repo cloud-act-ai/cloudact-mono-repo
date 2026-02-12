@@ -6,7 +6,73 @@ N-level configurable organizational hierarchy with custom levels, full CRUD, anc
 
 ## Source Specification
 
-`00-requirements-specs/01_HIERARCHY.md` (v2.2 | 2026-02-08)
+`01_HIERARCHY.md` (v2.2 | 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Hierarchy Data Flow                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Frontend (3000)              API Service (8000)           BigQuery          │
+│  ──────────────               ──────────────────           ────────          │
+│                                                                             │
+│  Settings UI ──────────────▶ Levels API ──────────────▶ organizations       │
+│  /settings/hierarchy         POST /hierarchy/{org}/       .hierarchy_levels │
+│                              levels/seed                                    │
+│                                                                             │
+│  Entity CRUD ──────────────▶ Entities API ────────────▶ organizations       │
+│  Create/Edit/Move/Delete     POST/PUT/DELETE              .org_hierarchy    │
+│                              /hierarchy/{org}/entities                      │
+│                                                                             │
+│  Tree View ◀───────────────── Tree API ◀──────────────── {org}_prod        │
+│  /settings/hierarchy         GET /hierarchy/{org}/tree    .x_org_hierarchy  │
+│                                                           (materialized     │
+│  CSV Import/Export ────────▶ Import API ──────────────▶    view, 15min      │
+│                              POST /hierarchy/{org}/        refresh)         │
+│                              import                                         │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  N-Level Hierarchy Structure                                                │
+│  ───────────────────────────                                                │
+│                                                                             │
+│  Org (root)                                                                 │
+│   ├── DEPT-001 (Department)     ── level_code: department, order: 1         │
+│   │    ├── PROJ-001 (Project)   ── level_code: project, order: 2            │
+│   │    │    ├── TEAM-001        ── level_code: team, order: 3               │
+│   │    │    └── TEAM-002                                                    │
+│   │    └── PROJ-002                                                         │
+│   └── DEPT-002                                                              │
+│        └── PROJ-003                                                         │
+│             └── TEAM-003                                                    │
+│                                                                             │
+│  Materialized Path: /DEPT-001/PROJ-001/TEAM-001                             │
+│  Path Names:        /Engineering/Platform/Backend                           │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Cost Allocation (5 x_hierarchy_* fields in cost tables)                    │
+│  ───────────────────────────────────────────────────────                     │
+│                                                                             │
+│  cost_data_standard_1_3                                                     │
+│   ├── x_hierarchy_entity_id    = "TEAM-003"                                 │
+│   ├── x_hierarchy_entity_name  = "Backend"                                  │
+│   ├── x_hierarchy_level_code   = "team"                                     │
+│   ├── x_hierarchy_path         = "/DEPT-001/PROJ-001/TEAM-003"              │
+│   └── x_hierarchy_path_names   = "/Engineering/Platform/Backend"            │
+│                                                                             │
+│  Rollup: WHERE x_hierarchy_path LIKE '/DEPT-001/%'  -- all under Dept      │
+│                                                                             │
+│  Pipeline Service (8001)                                                    │
+│   └── Refresh: x_org_hierarchy materialized view on pipeline runs           │
+│       (central org_hierarchy -> per-org x_org_hierarchy copy)               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -146,11 +212,45 @@ These fields appear in `cost_data_standard_1_3` and subscription cost tables, en
 
 ---
 
+## SDLC
+
+### Development Workflow
+
+```
+1. Configure Levels   ── Admin defines hierarchy levels in UI (or use defaults)
+2. Create Entities    ── Add departments, projects, teams via CRUD API or CSV import
+3. Assign to Costs    ── Tag cloud resources with entity_id labels
+4. Pipeline Runs      ── Billing pipelines extract labels, map to x_hierarchy_* fields
+5. Verify Rollup      ── Check cost rollup via tree view and cost dashboards
+6. Iterate            ── Move entities, add levels, re-run pipelines
+```
+
+### Testing Approach
+
+| Layer | Tool | Tests | Focus |
+|-------|------|-------|-------|
+| API Unit | pytest | `02-api-service/tests/04_test_hierarchy.py` | CRUD operations, validation, error cases |
+| Traversal | pytest | Same file | Ancestor/descendant queries, path materialization |
+| N-Level | pytest | Same file | Custom level creation, ordering, deep nesting |
+| CSV Import/Export | pytest | Same file | Bulk operations, preview validation, roundtrip |
+| View Refresh | pytest | Same file | Materialized view consistency after mutations |
+| Frontend E2E | Playwright | `01-fronted-system/tests/e2e/` | Hierarchy settings page, tree rendering |
+
+### Deployment / CI-CD Integration
+
+- **PR Gate:** `pytest tests/04_test_hierarchy.py -v` must pass before merge
+- **Stage:** Auto-deployed on push to `main`; hierarchy API smoke-tested
+- **Prod:** Deployed via git tag; materialized view refresh verified post-deploy
+- **Schema Changes:** Bootstrap sync job updates `org_hierarchy` / `hierarchy_levels` schemas
+- **Migration:** `run-job.sh {env} bootstrap-sync` to add new columns to existing tables
+
+---
+
 ## Cloud Resource Tagging
 
 ### Source Specification
 
-`00-requirements-specs/CLOUD_RESOURCE_TAGGING_GUIDE.md` (v1.1 | 2026-02-05)
+`CLOUD_RESOURCE_TAGGING_GUIDE.md` (v1.1 | 2026-02-05)
 
 ### Overview
 

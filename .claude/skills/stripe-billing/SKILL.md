@@ -94,10 +94,11 @@ Signup → Plan Selection → Stripe Checkout → Payment
 | local/test/stage | TEST (`pk_test_*`, `sk_test_*`) | kwroaccbrxppfiysqlzs |
 | prod | LIVE (`pk_live_*`, `sk_live_*`) | ovfxswhkkshouhsryzaf |
 
-## Related Requirements
+## Source Specifications
 
-- `00-requirements-specs/01_BILLING_STRIPE.md` - Full billing specification
-- `00-requirements-specs/01_ORGANIZATION_ONBOARDING.md` - Onboarding + plan limits
+Requirements consolidated from:
+- `01_BILLING_STRIPE.md` (v2.3, 2026-02-08)
+- `01_ORGANIZATION_ONBOARDING.md` (v1.8) - Plan limits section
 
 ## Related Skills
 

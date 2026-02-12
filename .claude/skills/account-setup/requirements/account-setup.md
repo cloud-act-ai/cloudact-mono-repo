@@ -7,9 +7,9 @@ End-to-end account lifecycle testing for CloudAct using Playwright. Covers the c
 ## Source Specifications
 
 This skill consolidates account-related requirements from:
-- `00-requirements-specs/01_ORGANIZATION_ONBOARDING.md` (v1.8) - Signup, org creation, API key
-- `00-requirements-specs/01_USER_MANAGEMENT.md` (v2.4) - Login, roles, invite, settings
-- `00-requirements-specs/01_BILLING_STRIPE.md` (v2.3) - Plans, checkout (see `/stripe-billing` skill for full billing)
+- `01_ORGANIZATION_ONBOARDING.md` (v1.8) - Signup, org creation, API key
+- `01_USER_MANAGEMENT.md` (v2.4) - Login, roles, invite, settings
+- `01_BILLING_STRIPE.md` (v2.3) - Plans, checkout (see `/stripe-billing` skill for full billing)
 
 ## Architecture
 
@@ -209,11 +209,51 @@ This skill consolidates account-related requirements from:
 | `/user-mgmt` | User/role management operations. Account-setup tests the invite + profile UI. |
 | `/security-audit` | Security audit across all services. Account-setup validates rate limiting + auth UI. |
 
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+Modify auth page/action ──▶ npm run dev (localhost:3000)
+         │                         │
+         ▼                         ▼
+  Test locally in browser    Run targeted Playwright test
+  (login, signup, reset)     npx playwright test tests/e2e/auth.setup.ts
+         │                         │
+         └────────┬────────────────┘
+                  ▼
+            PR ──▶ Review ──▶ Merge to main ──▶ Auto-deploy stage
+```
+
+### Testing Approach
+
+| Type | Tool | Coverage |
+|------|------|----------|
+| Login flow | Playwright | Valid/invalid credentials, session redirect, rate limiting |
+| Forgot password | Playwright | Email submission, success state, rate limiting |
+| Reset password | Playwright | Token verification, expired link, password mismatch |
+| Signup flow | Playwright | Multi-step form, validation, org slug generation |
+| Billing UI | Playwright | Plan display, billing settings, price elements |
+| Team invite | Playwright | Invite dialog, pending state, invalid token handling |
+| Profile settings | Playwright | Profile page load, email display, password change |
+| Account deletion | Playwright | Danger zone, confirmation dialog, cancel button |
+| Settings navigation | Playwright | All 6 settings sub-pages load without 404 |
+
+### Deployment / CI/CD
+
+- **Local testing**: `cd 01-fronted-system && npx playwright test tests/e2e/auth.setup.ts`
+- **Pre-requisites**: Frontend (3000), API Service (8000), and Supabase must be running
+- **Stage**: Merged to main auto-deploys; account flows verified against stage Supabase
+- **Production**: `git tag v*` triggers prod deploy; account flows use prod Supabase + Stripe LIVE keys
+- **Test credentials**: `demo@cloudact.ai` / `Demo1234` (must exist in target Supabase)
+
 ## Dependencies
 
 - Frontend: Next.js 16 + Supabase Auth
 - Auth: Supabase (email/password)
-- Billing: Stripe (checkout, portal, plans) → see `/stripe-billing`
+- Billing: Stripe (checkout, portal, plans) -> see `/stripe-billing`
 - Email: Custom SMTP + Supabase fallback
 - Rate Limiting: Supabase-backed (database, not in-memory)
 - Tests: Playwright v1.57+

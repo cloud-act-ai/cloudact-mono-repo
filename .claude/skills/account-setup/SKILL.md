@@ -268,9 +268,9 @@ account-flows.spec.ts
 ## Source Specifications
 
 Requirements consolidated from:
-- `00-requirements-specs/01_ORGANIZATION_ONBOARDING.md` - Signup, org creation, API key
-- `00-requirements-specs/01_USER_MANAGEMENT.md` - Login, roles, invite, settings
-- `00-requirements-specs/01_BILLING_STRIPE.md` - Plans, checkout (see `/stripe-billing` for full billing)
+- `01_ORGANIZATION_ONBOARDING.md` - Signup, org creation, API key
+- `01_USER_MANAGEMENT.md` - Login, roles, invite, settings
+- `01_BILLING_STRIPE.md` - Plans, checkout (see `/stripe-billing` for full billing)
 
 ## Output
 

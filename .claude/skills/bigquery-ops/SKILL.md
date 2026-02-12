@@ -199,6 +199,11 @@ client.load_table_from_dataframe(
 "Table not found error in BigQuery"
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `COST_DATA_ARCHITECTURE.md` - Unified FOCUS 1.3 table and data flow
+
 ## Related Skills
 - `pipeline-ops` - Pipeline management
 - `bootstrap-onboard` - System initialization

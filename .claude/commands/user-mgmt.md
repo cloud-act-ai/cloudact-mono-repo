@@ -278,8 +278,8 @@ HAVING COUNT(*) > 1;
 
 ## Related Docs
 
-- [User Management](00-requirements-specs/01_USER_MANAGEMENT.md)
-- [Security](00-requirements-specs/05_SECURITY.md)
+- [User Management](.claude/skills/api-dev/requirements/user-management.md)
+- [Security](.claude/skills/security-audit/requirements/security.md)
 
 ## Variables
 

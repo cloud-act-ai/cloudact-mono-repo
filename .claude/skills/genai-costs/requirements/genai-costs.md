@@ -6,7 +6,70 @@ GenAI cost management across 6 providers (OpenAI, Anthropic, Gemini, Azure OpenA
 
 ## Source Specification
 
-`00-requirements-specs/02_GENAI_COSTS.md` (v1.4, 2026-02-08)
+`02_GENAI_COSTS.md` (v1.4, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+              GenAI Providers (Usage APIs)
+  ┌──────────┬──────────┬──────────┬────────────┬────────────┬───────────┐
+  │ OpenAI   │Anthropic │ Gemini   │Azure OpenAI│AWS Bedrock │GCP Vertex │
+  └────┬─────┴────┬─────┴────┬─────┴─────┬──────┴─────┬──────┴─────┬─────┘
+       │          │          │           │            │            │
+       ▼          ▼          ▼           ▼            ▼            ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  Pipeline Service (8001)                                            │
+  │  Credentials decrypted via GCP KMS at runtime                      │
+  │  x_* lineage fields on every row                                   │
+  └─────┬─────────────────┬───────────────────────┬─────────────────────┘
+        │                 │                       │
+        ▼                 ▼                       ▼
+  ┌───────────┐    ┌──────────────┐    ┌────────────────────┐
+  │   PAYG    │    │  Commitment  │    │  Infrastructure    │
+  │ (Tokens)  │    │  (PTU/GSU)   │    │  (GPU/TPU hours)   │
+  └─────┬─────┘    └──────┬───────┘    └─────────┬──────────┘
+        │                 │                       │
+        ▼                 ▼                       ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  BigQuery: {org_slug}_prod  --  9 Tables (3 per flow)       │
+  │                                                              │
+  │  PAYG:           genai_payg_pricing                          │
+  │                  genai_payg_usage_raw                         │
+  │                  genai_payg_costs_daily                       │
+  │                                                              │
+  │  Commitment:     genai_commitment_pricing                    │
+  │                  genai_commitment_usage_raw                   │
+  │                  genai_commitment_costs_daily                 │
+  │                                                              │
+  │  Infrastructure: genai_infrastructure_pricing                │
+  │                  genai_infrastructure_usage_raw               │
+  │                  genai_infrastructure_costs_daily             │
+  └──────────┬───────────────────┬───────────────────────────────┘
+             │                   │
+             ▼                   ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  3-Step Consolidation Pipeline (Stored Procedures)           │
+  │                                                              │
+  │  Step 1: sp_genai_1_consolidate_usage_daily                  │
+  │          *_usage_raw (x3) ──▶ genai_usage_daily_unified      │
+  │                                                              │
+  │  Step 2: sp_genai_2_consolidate_costs_daily                  │
+  │          *_costs_daily (x3) ──▶ genai_costs_daily_unified    │
+  │                                                              │
+  │  Step 3: sp_genai_3_convert_to_focus                         │
+  │          genai_costs_daily_unified ──▶ cost_data_standard_1_3│
+  └──────────────────────────────────────────────────────────────┘
+             │
+             ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  cost_data_standard_1_3 (FOCUS 1.3 unified)                 │
+  │  Shared with Cloud + Subscription costs                      │
+  └──────────────────────────────────────────────────────────────┘
+```
+
+**Data Volume:** GenAI costs typically dominate total spend (demo data shows ~$232K GenAI vs ~$382 Cloud). The 3-step consolidation ensures all 6 providers and 3 billing flows merge cleanly before FOCUS 1.3 conversion.
 
 ---
 
@@ -122,6 +185,41 @@ All stored procedures live in the `organizations` dataset, operate on per-org da
 ### NFR-03: Data Reads
 
 - Dashboard reads unified FOCUS 1.3 data via Polars engine with LRU cache
+
+---
+
+## SDLC
+
+### Development Workflow
+
+1. **Add new GenAI provider** -- Create pipeline config in `03-data-pipeline-service/configs/genai/payg/{provider}.yml`, add processor in `src/core/processors/genai/`
+2. **Seed pricing data** -- Populate `genai_payg_pricing` (or commitment/infrastructure pricing) for the provider's models
+3. **Run extraction pipeline** -- `POST /pipelines/run/{org}/genai/payg/{provider}` to ingest usage data
+4. **Run consolidation** -- `POST /pipelines/run/{org}/genai/unified/consolidate` to execute the 3-step pipeline
+5. **Verify in BigQuery** -- Check `genai_costs_daily_unified` and `cost_data_standard_1_3` for correct output
+6. **Deploy** -- Push to `main` (stage) or tag `v*` (prod) via Cloud Build
+
+### Testing Approach
+
+| Layer | Tool | Scope |
+|-------|------|-------|
+| Pipeline extraction | pytest | Per-provider token extraction, API mocking, error handling |
+| Cost calculation | pytest | PAYG: usage x pricing, commitment unit costs, infra hourly rates |
+| Consolidation pipeline | pytest + BigQuery | 3-step stored procedure execution, data integrity across flows |
+| FOCUS conversion | pytest | `sp_genai_3_convert_to_focus` output matches FOCUS 1.3 schema |
+| Idempotency | pytest | Re-run pipeline, verify no duplicate rows (MERGE on composite key) |
+| Demo validation | Demo scripts | Load demo data (Dec 2025 - Jan 2026), verify GenAI totals (~$232K) |
+
+### Deployment / CI/CD Integration
+
+- **Stage:** Automatic on `git push origin main` via `cloudbuild-stage.yaml`
+- **Production:** Triggered by `git tag v*` via `cloudbuild-prod.yaml`
+- **New provider rollout:** Deploy Pipeline Service first (new config + processor), then seed pricing data, then run pipelines
+- **Post-deploy:** Verify `/costs/{org}/genai` endpoint returns data for all expected providers
+
+### Release Cycle Position
+
+GenAI cost pipelines are independent of cloud cost pipelines but share the same `cost_data_standard_1_3` output table. The 3-step consolidation must run after all per-provider extractions complete. Schema changes require `bootstrap-sync` + `org-sync-all` before pipeline runs.
 
 ---
 

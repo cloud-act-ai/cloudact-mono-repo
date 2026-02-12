@@ -766,7 +766,7 @@ python3 -c "import hashlib; print(hashlib.sha256('your-api-key'.encode()).hexdig
 
 | Doc | Path |
 |-----|------|
-| Requirements Spec | `00-requirements-specs/07_MULTI_TENANT_AI_CHAT.md` |
+| Requirements Spec | `.claude/skills/chat/requirements/chat.md` |
 | API Service | `02-api-service/CLAUDE.md` |
 | Frontend | `01-fronted-system/CLAUDE.md` |
 | Root CLAUDE.md | `CLAUDE.md` |

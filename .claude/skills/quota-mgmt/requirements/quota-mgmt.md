@@ -2,11 +2,12 @@
 
 ## Overview
 
-Multi-tenant, config-driven notification and alert system with scheduled digests, delivery history, cost-based triggers, and quota warning alerts. Covers notification channels, alert rules, cost alerts, summaries, and the scheduler-driven evaluation engine.
+Multi-tenant quota management and notification system. Covers plan-based quotas (daily/monthly/concurrent limits, atomic enforcement, self-healing), notification channels (Email, Slack, Webhook), alert rules, cost alerts, scheduled digests, and the scheduler-driven evaluation engine.
 
-## Source Specification
+## Source Specifications
 
-- `00-requirements-specs/04_NOTIFICATIONS_ALERTS.md` (v4.0, 2026-02-08)
+- `04_NOTIFICATIONS_ALERTS.md` (v4.0, 2026-02-08)
+- `06_QUOTAS.md` (v2.0, 2026-02-08)
 
 ---
 
@@ -193,6 +194,54 @@ History               Cost Alerts
 
 ---
 
+## SDLC
+
+### Development Workflow
+
+#### Quota Changes
+1. **Modify plan limits** — Edit `SUBSCRIPTION_LIMITS` in `02-api-service/src/app/models/org_models.py`
+2. **Update Supabase** — If limits change, update `organizations` table defaults via migration (`01-fronted-system/scripts/supabase_db/migrate.sh`)
+3. **Test enforcement locally** — Start API service, run pipeline requests, verify 429 responses at limit
+4. **PR** — Open pull request with quota changes
+5. **Deploy** — Merge to main (stage) or tag for prod
+
+#### Alert Changes
+1. **Modify YAML configs** — Edit alert definitions in `03-data-pipeline-service/configs/alerts/`
+2. **Test manually** — `curl -X POST http://localhost:8001/api/v1/alerts/configs/{id}/test -H "X-API-Key: $ORG_API_KEY"` to trigger a test evaluation
+3. **Verify delivery** — Check Email/Slack/Webhook received test notification
+4. **PR** — Open pull request with alert config changes
+5. **Deploy Pipeline Service** — Merge to main (stage) or tag for prod
+6. **Verify Cloud Scheduler** — Confirm `cloudact-daily-alerts` job runs at 08:00 UTC
+
+### Testing Approach
+
+| Test Type | Tool | Command |
+|-----------|------|---------|
+| Quota enforcement | pytest | `cd 02-api-service && pytest tests/ -k "quota"` — verify 429 responses |
+| Concurrent limits | pytest | `cd 02-api-service && pytest tests/ -k "concurrent"` — atomic reservation |
+| Self-healing | pytest | `cd 02-api-service && pytest tests/ -k "stale"` — stale counter cleanup |
+| Alert engine | pytest | `cd 03-data-pipeline-service && pytest tests/ -k "alert"` — condition evaluation |
+| Notification delivery | pytest | `cd 03-data-pipeline-service && pytest tests/ -k "notification"` — channel adapters |
+| Warning banners | Vitest | `cd 01-fronted-system && npx vitest run --grep "quota"` — frontend warning UI |
+| Quota usage page | Playwright | `cd 01-fronted-system && npx playwright test tests/e2e/settings.spec.ts` — settings E2E |
+| Alert test endpoint | curl | `POST /alerts/configs/{id}/test` — manual alert evaluation |
+
+### Deployment / CI/CD Integration
+
+- **API Service** — Quota enforcement logic (plan limits, 429 responses, atomic reservation)
+- **Pipeline Service** — Alert engine (condition evaluation, notification delivery, scheduler trigger)
+- **Frontend** — Warning banners, quota usage page, alert settings UI
+- **Cloud Scheduler** — `cloudact-daily-alerts` job triggers `POST /alerts/scheduler/evaluate` at 08:00 UTC
+- **Cloud Run Jobs** — `quota-reset-daily` (00:00 UTC), `quota-reset-monthly` (1st of month), `stale-cleanup` (02:00 UTC), `quota-cleanup` (01:00 UTC)
+- **Stage auto-deploy:** Push to `main` triggers `cloudbuild-stage.yaml` for all three services
+- **Prod deploy:** Tag `v*` triggers `cloudbuild-prod.yaml`
+
+### Release Cycle
+
+Quota and alert changes span multiple services. **Plan limit changes** (API) can be deployed independently. **Alert engine changes** (Pipeline) require coordinated deploy if alert YAML schema changes. **Frontend warning thresholds** (80%/90%/100%) can be deployed independently. Cloud Scheduler jobs are managed via `05-scheduler-jobs/scripts/` and only need updating if schedule or job logic changes.
+
+---
+
 ## Key Files
 
 | File | Purpose |
@@ -213,3 +262,106 @@ History               Cost Alerts
 - SMS via Twilio
 - Budget-based alerts + anomaly detection
 - Alert aggregation (digest mode beyond summaries)
+
+---
+
+# Quotas & Rate Limiting
+
+## Quota Enforcement Workflow
+
+```
+1. Pipeline request → API Service (8000)
+2. Read subscription limits from Supabase (source of truth for plans)
+3. Self-healing: cleanup_stale_concurrent_for_org(org_slug) (~50ms, zero if no stale)
+4. Atomic quota check-and-reserve → Single SQL UPDATE with WHERE clauses
+5. Return success OR 429 error with specific reason code
+6. Pipeline executes → Pipeline Service (8001)
+7. On complete → Decrement concurrent count, increment success/fail
+8. Daily reset → 00:00 UTC (Cloud Run Job, API-first)
+9. Monthly reset → 00:05 UTC 1st of month (Cloud Run Job)
+10. Stale cleanup → 02:00 UTC daily (safety net, most handled by self-healing)
+```
+
+**Self-healing:** Before every quota reservation, stale concurrent counters are cleaned for the requesting org. Adds ~50ms overhead only when stale counters exist, zero overhead otherwise.
+
+**Atomic reservation:** A single SQL UPDATE with WHERE clauses prevents race conditions. No separate read-then-write.
+
+### FR-QM-020: Plan Limits
+
+| Plan | Daily | Monthly | Concurrent | Seats | Providers | Price |
+|------|-------|---------|------------|-------|-----------|-------|
+| **Starter** | 6 | 180 | 20 | 2 | 3 | $19 |
+| **Professional** | 25 | 750 | 20 | 6 | 6 | $69 |
+| **Scale** | 100 | 3000 | 20 | 11 | 10 | $199 |
+| **Enterprise** | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited | Custom |
+
+### FR-QM-021: Quota Types
+
+| Quota | Description | Reset |
+|-------|-------------|-------|
+| `pipelines_run_today` | Daily pipeline executions | 00:00 UTC |
+| `pipelines_run_month` | Monthly pipeline executions | 1st of month |
+| `concurrent_pipelines_running` | Simultaneous executions | On completion |
+| `seat_limit` | Team members per org | N/A (static) |
+| `providers_limit` | Integrations per org | N/A (static) |
+
+### FR-QM-022: Data Storage
+
+| Table | Location | Purpose |
+|-------|----------|---------|
+| `organizations` | Supabase | Plan limits, billing status (source of truth) |
+| `org_quotas` | Supabase | Current usage tracking (daily/monthly/concurrent) |
+| `org_subscriptions` | BigQuery | Plan metadata (synced from Supabase at onboarding) |
+| `org_usage_quotas` | BigQuery | Historical usage tracking |
+
+### FR-QM-023: Quota Reset Schedule (Cloud Run Jobs)
+
+| Job | Schedule | Action |
+|-----|----------|--------|
+| `quota-reset-daily` | 00:00 UTC | Reset `pipelines_run_today` + concurrent |
+| `quota-reset-monthly` | 00:05 UTC 1st | Reset `pipelines_run_month` |
+| `stale-cleanup` | 02:00 UTC daily | Fix stuck concurrent counts (safety net) |
+| `quota-cleanup` | 01:00 UTC daily | Delete quota records >90 days |
+
+### FR-QM-024: API Endpoints - Quotas (Port 8000)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/organizations/{org}/quota` | Get current quota status |
+| POST | `/validator/validate/{org}` | Validate before pipeline run |
+
+### FR-QM-025: Rate Limiting
+
+| Scope | Limit |
+|-------|-------|
+| Per-org | 100 req/min, 1000 req/hour |
+| Global | 10,000 req/min |
+
+### FR-QM-026: Frontend Warning Thresholds
+
+| Usage | Level | Color |
+|-------|-------|-------|
+| 80% | Warning | Yellow |
+| 90% | Critical | Orange |
+| 100% | Exceeded | Red (blocked) |
+
+### FR-QM-027: Error Responses
+
+| Code | Reason |
+|------|--------|
+| 429 | `DAILY_QUOTA_EXCEEDED` |
+| 429 | `MONTHLY_QUOTA_EXCEEDED` |
+| 429 | `CONCURRENT_LIMIT_EXCEEDED` |
+| 429 | `PROVIDER_LIMIT_EXCEEDED` |
+| 429 | `SEAT_LIMIT_EXCEEDED` |
+
+### Quota Key Files
+
+| File | Purpose |
+|------|---------|
+| `02-api-service/src/app/routers/quota.py` | Quota endpoint |
+| `02-api-service/src/app/dependencies/auth.py` | Atomic reservation |
+| `02-api-service/src/app/models/org_models.py` | `SUBSCRIPTION_LIMITS` |
+| `03-data-pipeline-service/src/core/utils/quota_reset.py` | Reset functions |
+| `01-fronted-system/components/quota-warning-banner.tsx` | Warning UI |
+| `01-fronted-system/app/[orgSlug]/settings/quota-usage/page.tsx` | Quota usage page |

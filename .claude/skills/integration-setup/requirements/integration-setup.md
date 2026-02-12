@@ -6,8 +6,83 @@ Provider credential management system supporting 11+ providers across Cloud, Gen
 
 ## Source Specification
 
-- `00-requirements-specs/03_INTEGRATIONS.md` (v1.9, 2026-02-08)
-- `00-requirements-specs/05_GCP_INTEGRATION.md` (v2.0, 2026-02-08)
+- `03_INTEGRATIONS.md` (v1.9, 2026-02-08)
+- `05_GCP_INTEGRATION.md` (v2.0, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Integration Credential Flow                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Frontend (3000)              API Service (8000)           GCP KMS           │
+│  ──────────────               ──────────────────           ───────           │
+│                                                                             │
+│  Setup Page ──────────────▶ POST /integrations/   ──────▶ AES-256           │
+│  /integrations/{provider}    {org}/{provider}/setup        encrypt           │
+│  (upload creds)              1. Validate format                │            │
+│                              2. Test connection                │            │
+│                              3. Send to KMS                    │            │
+│                                                                ▼            │
+│                                                         Encrypted blob      │
+│                                                                │            │
+│                                                                ▼            │
+│                              BigQuery                                       │
+│                              ────────                                       │
+│                              org_integration_credentials                    │
+│                              ├─ org_slug                                    │
+│                              ├─ provider_key                                │
+│                              ├─ encrypted_credentials (KMS blob)            │
+│                              ├─ validation_status                           │
+│                              ├─ metadata (non-sensitive)                    │
+│                              └─ fingerprint (SHA256, first 8 chars)         │
+│                                                                             │
+│  Pipeline Service (8001)                                                    │
+│  ───────────────────────                                                    │
+│                                                                             │
+│  Pipeline step needs creds ──▶ Read encrypted blob ──▶ KMS decrypt          │
+│  (genai.payg_usage, etc.)     from BQ table              (5-min TTL cache)  │
+│       │                                                       │             │
+│       ▼                                                       ▼             │
+│  Call Provider API ◀──────────────────────────── Decrypted credentials      │
+│  (OpenAI, GCP, AWS...)                                                      │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Supported Providers (11+)                                                  │
+│  ─────────────────────────                                                  │
+│                                                                             │
+│  Cloud (Service Account / IAM)       GenAI (API Keys)     SaaS (Manual)     │
+│  ─────────────────────────────       ────────────────     ─────────────     │
+│  GCP    ── SA JSON                   OpenAI   ── sk-*    Canva             │
+│  AWS    ── IAM Role ARN             Anthropic ── sk-ant- ChatGPT Plus      │
+│  AWS    ── Access Key + Secret      Gemini    ── API Key Slack             │
+│  Azure  ── Service Principal        DeepSeek  ── API Key                   │
+│  OCI    ── API Key                                                          │
+│                                                                             │
+│  Provider Registry: configs/system/providers.yml (single source of truth)   │
+│  Defines: types, required fields, rate limits, validation rules             │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Credential Lifecycle                                                       │
+│  ────────────────────                                                       │
+│                                                                             │
+│  Upload ──▶ Format Validate ──▶ Connection Test ──▶ KMS Encrypt ──▶ Store   │
+│                                      │                                      │
+│                                      ▼                                      │
+│                              validation_status:                             │
+│                              VALID | INVALID | PENDING | EXPIRED            │
+│                                                                             │
+│  Runtime: Read blob ──▶ KMS Decrypt ──▶ 5-min TTL Cache ──▶ Provider Call   │
+│                                                                             │
+│  Logging: SHA256 fingerprint only (first 8 chars) -- NEVER raw credentials  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -97,6 +172,43 @@ Provider credential management system supporting 11+ providers across Cloud, Gen
 |-------|---------|
 | `org_integration_credentials` | KMS-encrypted credentials + validation_status + metadata |
 | `configs/system/providers.yml` | Provider registry (types, required fields, rate limits) |
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+1. Configure in UI     ── User navigates to /integrations/{provider} setup page
+2. Upload Credentials  ── Frontend sends credentials to API setup endpoint
+3. API Validates       ── Format check against provider schema + connection test
+4. KMS Encrypts        ── GCP KMS AES-256 encrypts credential blob
+5. Store in BigQuery   ── Encrypted blob saved to org_integration_credentials
+6. Pipeline Uses       ── Pipeline decrypts at runtime via KMS (5-min TTL cache)
+7. Monitor Status      ── validation_status tracks credential health over time
+```
+
+### Testing Approach
+
+| Layer | Tool | Tests | Focus |
+|-------|------|-------|-------|
+| API CRUD | pytest | `02-api-service/tests/02_test_integrations.py` | Setup, validate, list, update, delete endpoints |
+| KMS Roundtrip | pytest | Same file | Encrypt -> store -> decrypt -> verify plaintext match |
+| Provider Validation | pytest | Same file | Format checks per provider (SA JSON, API keys, IAM) |
+| Connection Test | pytest + mock | Same file | Mock provider API responses for validation |
+| Metadata Schema | pytest | Same file | Required fields per provider, metadata_schemas.py |
+| Frontend E2E | Playwright | `01-fronted-system/tests/e2e/settings.spec.ts` | Integration setup pages, credential upload flow |
+| Security | pytest | Same file | Never log raw creds, fingerprint-only logging |
+
+### Deployment / CI-CD Integration
+
+- **PR Gate:** `pytest tests/02_test_integrations.py -v` must pass before merge
+- **Provider Registry:** Changes to `providers.yml` require review -- single source of truth
+- **Stage:** Auto-deploy on `main` push; test credential setup against staging project
+- **Prod:** Git tag triggers deployment; KMS key access verified post-deploy
+- **KMS Key Rotation:** Managed via GCP -- no code changes required for rotation
+- **New Provider:** Add to `providers.yml` + `metadata_schemas.py` + frontend setup page
 
 ---
 

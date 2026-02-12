@@ -358,6 +358,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 "Add badge with mint color"
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `00_CONSOLE_UI_DESIGN_STANDARDS.md` - Console UI design standards and component patterns
+- `00_INTERNATIONALIZATION.md` - Internationalization and localization requirements
+
 ## Related Skills
 - `api-dev` - Backend endpoints
 - `test-orchestration` - Frontend testing

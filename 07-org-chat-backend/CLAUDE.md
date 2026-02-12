@@ -218,4 +218,4 @@ python3 -m uvicorn src.app.main:app --port 8002 --reload
 
 ## Spec
 
-See `00-requirements-specs/07_MULTI_TENANT_AI_CHAT.md`
+See `.claude/skills/chat/requirements/chat.md`

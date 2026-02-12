@@ -368,6 +368,12 @@ Pattern: ^[a-zA-Z0-9_]{3,50}$
 "What are extra_columns in status?"
 ```
 
+## Source Specifications
+
+Requirements consolidated from:
+- `01_ORGANIZATION_ONBOARDING.md` (v1.8, 2026-02-08)
+- `cloudactinc_customer_onboarding.md` (2026-02-05)
+
 ## Related Skills
 
 - `bigquery-ops` - BigQuery operations

@@ -804,5 +804,10 @@ gcloud scheduler jobs resume cloudact-quota-reset-daily-trigger \
 | test, stage | cloudact-testing-1 |
 | prod | cloudact-prod |
 
+## Source Specifications
+
+Requirements consolidated from:
+- `00_ARCHITECTURE.md` - System architecture and service boundaries
+
 ---
 **Last Updated:** 2026-01-31

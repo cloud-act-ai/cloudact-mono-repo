@@ -6,7 +6,62 @@ Fixed-cost SaaS subscription tracking (Canva, ChatGPT Plus, Slack, etc.) with ve
 
 ## Source Specification
 
-`00-requirements-specs/02_SAAS_SUBSCRIPTION_COSTS.md` (v12.9, 2026-02-08)
+`02_SAAS_SUBSCRIPTION_COSTS.md` (v12.9, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│  Frontend (3000) - Next.js 16                                        │
+│  /{org}/cost-dashboards/subscription-costs                           │
+│  Subscription plan CRUD UI (create, edit-version, delete)            │
+└─────────────────────────┬─────────────────────────────────────────────┘
+                          │ Server Actions
+                          ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│  API Service (8000) - FastAPI                                         │
+│                                                                       │
+│  CRUD Endpoints:                                                      │
+│  GET/POST  /subscriptions/{org}/providers/{p}/plans                  │
+│  POST      /subscriptions/{org}/providers/{p}/plans/{id}/edit-version│
+│  DELETE    /subscriptions/{org}/providers/{p}/plans/{id}             │
+│                                                                       │
+│  Version History: Edits create NEW row, old row gets end_date        │
+│  Multi-Currency: Templates in USD, converted at plan creation        │
+└─────────────────────────┬─────────────────────────────────────────────┘
+                          │ Writes to BigQuery
+                          ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│  BigQuery: {org_slug}_prod                                            │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │ subscription_plans (version-controlled, end_date=NULL=current)  │  │
+│  └─────────────────────────┬───────────────────────────────────────┘  │
+│                             │                                         │
+│  Pipeline Service (8001)    │ POST /pipelines/run/{org}/subscription  │
+│  triggers 2-step pipeline   │      /costs/subscription_cost           │
+│                             ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │ Step 1: sp_subscription_2_calculate_daily_costs                 │  │
+│  │         Billing-cycle-aware amortization                        │  │
+│  │         (monthly/annual/quarterly/semi-annual/weekly/custom)    │  │
+│  │         Fiscal year alignment via org_profiles                  │  │
+│  │                          │                                      │  │
+│  │                          ▼                                      │  │
+│  │ subscription_plan_costs_daily (amortized daily costs)           │  │
+│  │                          │                                      │  │
+│  │ Step 2: sp_subscription_3_convert_to_focus                      │  │
+│  │         Map to FOCUS 1.3 schema                                 │  │
+│  │                          │                                      │  │
+│  │                          ▼                                      │  │
+│  │ cost_data_standard_1_3  (FOCUS 1.3 unified)                    │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Distinction:** Unlike Cloud and GenAI costs (which pull from external APIs), subscription costs are manually managed via CRUD. The API Service writes plan definitions directly to BigQuery, and the Pipeline Service calculates daily amortized costs from those plans.
 
 ---
 
@@ -121,6 +176,42 @@ Pipeline endpoint: `POST /pipelines/run/{org}/subscription/costs/subscription_co
 | FX tracking | Stored with `source_currency`, `exchange_rate_used` |
 | Daily amortization | Billing-cycle-aware division via stored procedure |
 | Fiscal year alignment | Reads `fiscal_year_start_month` from `org_profiles` |
+
+---
+
+## SDLC
+
+### Development Workflow
+
+1. **Create subscription plan via UI** -- Frontend CRUD form submits to API Service
+2. **API stores plan to BigQuery** -- `subscription_plans` table with version history
+3. **Run cost calculation pipeline** -- `POST /pipelines/run/{org}/subscription/costs/subscription_cost` triggers 2-step pipeline
+4. **Pipeline calculates daily costs** -- `sp_subscription_2_calculate_daily_costs` amortizes by billing cycle
+5. **Pipeline converts to FOCUS 1.3** -- `sp_subscription_3_convert_to_focus` writes to `cost_data_standard_1_3`
+6. **Verify in dashboard** -- Check `/{org}/cost-dashboards/subscription-costs` for correct display
+
+### Testing Approach
+
+| Layer | Tool | Scope |
+|-------|------|-------|
+| API CRUD | pytest | Plan create, edit-version, soft delete, version history |
+| Daily amortization | pytest | Billing cycle calculations (monthly, annual, quarterly, leap year) |
+| Fiscal year logic | pytest | FY alignment per org (calendar, India/UK April, Australia July) |
+| FOCUS conversion | pytest + BigQuery | `sp_subscription_3_convert_to_focus` output validation |
+| Frontend CRUD | Vitest | Form validation, version display, currency formatting |
+| End-to-end | Playwright | Create plan, verify in dashboard, edit version, check history |
+| Demo validation | Demo scripts | Load demo data (Dec 2025 - Jan 2026), verify subscription totals (~$1.4K) |
+
+### Deployment / CI/CD Integration
+
+- **Stage:** Automatic on `git push origin main` via `cloudbuild-stage.yaml`
+- **Production:** Triggered by `git tag v*` via `cloudbuild-prod.yaml`
+- **Deploy order:** API Service first (CRUD endpoints), then Pipeline Service (stored procedures), then Frontend
+- **Post-deploy:** Create a test plan, run pipeline, verify daily costs appear in `cost_data_standard_1_3`
+
+### Release Cycle Position
+
+Subscription costs have a unique flow: API writes data (plans), Pipeline reads and transforms it (daily costs + FOCUS 1.3). Both services must be deployed for the full lifecycle to work. Frontend changes to the subscription dashboard can deploy independently.
 
 ---
 

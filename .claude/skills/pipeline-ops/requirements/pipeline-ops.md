@@ -6,7 +6,77 @@ ETL execution engine with step-based async processing that extracts data from pr
 
 ## Source Specification
 
-- `00-requirements-specs/03_PIPELINES.md` (v2.2, 2026-02-08)
+- `03_PIPELINES.md` (v2.2, 2026-02-08)
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Pipeline Execution Engine                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  YAML Config Source                   Pipeline Service (8001)                │
+│  ─────────────────                    ──────────────────────                 │
+│                                                                             │
+│  configs/                             POST /pipelines/run/{org}/{prov}/      │
+│  ├─ genai/payg/openai.yml                  {domain}/{pipeline}              │
+│  ├─ cloud/gcp/cost/billing.yml                    │                         │
+│  ├─ subscription/costs/*.yml                      ▼                         │
+│  └─ system/providers.yml            ┌──────────────────────┐                │
+│                                     │  10-Step Execution   │                │
+│                                     │  Flow                │                │
+│  API Service (8000)                 │                      │                │
+│  ──────────────────                 │  1. Request received │                │
+│  Validates org + quota before       │  2. Quota check      │                │
+│  forwarding to pipeline service     │  3. Atomic reserve   │                │
+│                                     │  4. Config loaded    │                │
+│                                     │  5. Steps ordered    │                │
+│  Supabase                           │  6. Per-step retry   │                │
+│  ────────                           │  7. Processor exec   │                │
+│  Subscription limits (source of     │  8. BQ write + x_*   │                │
+│  truth for plan quotas)             │  9. Decrement conc.  │                │
+│                                     │ 10. Notify + status  │                │
+│                                     └──────────┬───────────┘                │
+│                                                │                            │
+├────────────────────────────────────────────────┼────────────────────────────┤
+│                                                ▼                            │
+│  Step Execution Detail                                                      │
+│  ─────────────────────                                                      │
+│                                                                             │
+│  YAML Step Config          Processor                     BigQuery           │
+│  ────────────────          ─────────                     ────────           │
+│  step_id: extract    ───▶  genai.payg_usage        ───▶  Raw table         │
+│  ps_type: processor        (decrypt creds, call API)     + x_* lineage     │
+│  depends_on: []                                                             │
+│       │                                                                     │
+│       ▼                                                                     │
+│  step_id: calculate  ───▶  genai.payg_cost         ───▶  Cost table        │
+│  depends_on: [extract]     (usage x pricing)             + x_* lineage     │
+│       │                                                                     │
+│       ▼                                                                     │
+│  step_id: unify      ───▶  generic.procedure_exec  ───▶  cost_data_        │
+│  depends_on: [calc]        (sp_convert_to_focus)         standard_1_3      │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Status Tracking: org_meta_pipeline_runs                                    │
+│  ───────────────────────────────────────                                    │
+│                                                                             │
+│  pending ──▶ validating ──▶ running ──▶ completed                           │
+│                                    └──▶ failed (+ error_message)            │
+│                                                                             │
+│  x_* Lineage (all output rows):                                             │
+│  x_org_slug | x_pipeline_id | x_credential_id | x_pipeline_run_date        │
+│  x_run_id   | x_ingested_at | x_ingestion_date                             │
+│                                                                             │
+│  Idempotency Key:                                                           │
+│  (x_org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)         │
+│  DELETE existing + INSERT  or  MERGE upsert                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -154,6 +224,44 @@ configs/
 └─ system/
    └─ providers.yml
 ```
+
+---
+
+## SDLC
+
+### Development Workflow
+
+```
+1. Create YAML Config  ── Define steps, processors, template vars in configs/{provider}/{domain}/
+2. Validate Config     ── Schema validation + template variable resolution check
+3. Test Locally        ── Run against cloudact-testing-1 with test credentials
+4. Code Review (PR)    ── Review YAML config + any new processor code
+5. Deploy to Stage     ── Auto on push to main; smoke-test pipeline execution
+6. Deploy to Prod      ── Git tag triggers Cloud Build; health check post-deploy
+7. Run via API         ── POST /pipelines/run/{org}/{provider}/{domain}/{pipeline}
+8. Monitor             ── Check status, logs, step transitions via pipeline endpoints
+```
+
+### Testing Approach
+
+| Layer | Tool | Tests | Focus |
+|-------|------|-------|-------|
+| Processor Unit | pytest | `03-data-pipeline-service/tests/05_test_pipelines.py` | Individual processor logic, data transforms |
+| Config Validation | pytest | Same directory | YAML schema validation, template resolution |
+| Step Execution | pytest + AsyncMock | Same directory | Step ordering, depends_on, retry, timeout |
+| Quota Enforcement | pytest | `tests/06_test_quotas.py` | Daily/monthly/concurrent limits, 429 errors |
+| x_* Lineage | pytest | Same directory | All 7 x_* fields present and correct in output |
+| E2E Pipeline Run | pytest --run-integration | Integration tests | Full pipeline: config -> extract -> transform -> BQ write |
+| Idempotency | pytest | Same directory | Re-run produces same result, no duplicates |
+
+### Deployment / CI-CD Integration
+
+- **PR Gate:** `pytest tests/05_test_pipelines.py -v` must pass before merge
+- **Config Changes:** YAML configs deployed with the pipeline-service container
+- **Stage:** Auto-deploy on `main` push; test pipeline run against staging org
+- **Prod:** Git tag (`v*`) triggers `cloudbuild-prod.yaml`; health endpoint verified
+- **Schema Updates:** `run-job.sh {env} bootstrap-sync` adds new columns to pipeline tracking tables
+- **Rollback:** Re-tag previous version to trigger redeployment
 
 ---
 

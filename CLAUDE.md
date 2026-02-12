@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Multi-org cloud cost analytics. BigQuery-powered. **api-service** (8000) + **pipeline-service** (8001) + **Frontend** (3000).
+Multi-org cloud cost analytics. BigQuery-powered. **Frontend** (3000) + **API Service** (8000) + **Pipeline Service** (8001) + **Chat Backend** (8002).
 
 **Core:** Everything is a pipeline. No raw SQL, no Alembic.
 
@@ -11,21 +11,21 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 ├─ Next.js 16 + Supabase     ├─ Bootstrap (21 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
 ├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
-└─ Dashboard UI              ├─ Hierarchy CRUD            └─ BigQuery writes
-        │                    ├─ Quota enforcement
+├─ AI Chat (CopilotKit)      ├─ Hierarchy CRUD            └─ BigQuery writes
+└─ Dashboard UI              ├─ Quota enforcement
         │                    └─ Cost reads (Polars)
         ↓                               ↓
 Supabase (Auth + Quotas)     BigQuery (organizations + {org_slug}_prod)
 ├─ organizations             └─ org_subscriptions, cost_data, etc.
 └─ org_quotas (usage)
 
-Scheduler Jobs (Cloud Run Jobs)
-├─ bootstrap.py              # Initial system setup
-├─ org_sync_all.py           # Sync ALL org datasets
-├─ quota_reset_daily.py      # 00:00 UTC daily
-├─ quota_reset_monthly.py    # 00:05 UTC 1st of month
-├─ stale_cleanup.py          # 02:00 UTC daily (safety net, self-healing handles most)
-└─ quota_cleanup.py          # 01:00 UTC daily
+Chat Backend (8002)          Scheduler Jobs (Cloud Run Jobs)
+├─ FastAPI + Google ADK       ├─ bootstrap.py              # Initial system setup
+├─ Multi-agent orchestrator   ├─ org_sync_all.py           # Sync ALL org datasets
+├─ BYOK credentials           ├─ quota_reset_daily.py      # 00:00 UTC daily
+└─ BigQuery sessions          ├─ quota_reset_monthly.py    # 00:05 UTC 1st of month
+                              ├─ stale_cleanup.py          # 02:00 UTC daily
+                              └─ quota_cleanup.py          # 01:00 UTC daily
 ```
 
 ## Three Cost Types → FOCUS 1.3
@@ -84,6 +84,10 @@ GET  /api/v1/organizations/{org}/quota
 # Pipeline Service (8001)
 POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}
 POST /api/v1/procedures/sync
+
+# Chat Backend (8002)
+POST /api/v1/chat/{org}/message          # Send message (streaming)
+GET  /api/v1/chat/{org}/conversations    # List conversations
 ```
 
 ## Hierarchy
@@ -98,6 +102,7 @@ WRITES → organizations.org_hierarchy | READS → {org}_prod.x_org_hierarchy
 ```bash
 cd 02-api-service && python3 -m uvicorn src.app.main:app --port 8000 --reload
 cd 03-data-pipeline-service && python3 -m uvicorn src.app.main:app --port 8001 --reload
+cd 07-org-chat-backend && python3 -m uvicorn src.app.main:app --port 8002 --reload
 cd 01-fronted-system && npm run dev
 ```
 
@@ -115,6 +120,7 @@ cd 01-fronted-system && npm run dev
 | Frontend | cloudact.ai |
 | API | api.cloudact.ai |
 | Pipeline | pipeline.cloudact.ai |
+| Chat Backend | chat.cloudact.ai |
 
 ## Production Stripe
 
@@ -144,7 +150,7 @@ cd 01-fronted-system && npm run dev
 git push origin main
 
 # Production (via git tag)
-git tag v4.1.9 && git push origin v4.1.9
+git tag v4.4.0 && git push origin v4.4.0
 ```
 
 ### Deployment Architecture
@@ -158,10 +164,10 @@ git tag v4.1.9 && git push origin v4.1.9
 │   ─────────                    ───────────                    ─────────     │
 │                                                                             │
 │   git push main ──────────────▶ cloudbuild-stage.yaml ──────▶ Stage Env    │
-│                                  (Auto-trigger)               (3 services)  │
+│                                  (Auto-trigger)               (4 services)  │
 │                                                                             │
 │   git tag v* ─────────────────▶ cloudbuild-prod.yaml ───────▶ Prod Env     │
-│   git push origin v*            (Auto-trigger)               (3 services)  │
+│   git push origin v*            (Auto-trigger)               (4 services)  │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -201,6 +207,7 @@ cd 04-inra-cicd-automation/CICD
 | frontend | 3000 | 2 | 8Gi | cloudact.ai |
 | api-service | 8000 | 2 | 8Gi | api.cloudact.ai |
 | pipeline-service | 8001 | 2 | 8Gi | pipeline.cloudact.ai |
+| chat-backend | 8002 | 2 | 8Gi | chat.cloudact.ai |
 
 ### Secrets (GCP Secret Manager)
 
@@ -239,13 +246,13 @@ cd 01-fronted-system/scripts/supabase_db
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 22 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 28 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 16 | `.claude/commands/{name}.md` |
 | Hooks | 10 | `.claude/hookify.*.local.md` |
 | Summary | - | `.claude/SUMMARY.md` |
 
 ### Key Skills
-`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev`
+`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev` `/chat` `/bootstrap-onboard` `/quota-mgmt` `/stripe-billing` `/account-setup`
 
 ### Key Hooks (Enforced)
 - **org-slug-isolation** - Multi-tenant isolation via org_slug
@@ -292,9 +299,10 @@ cd 05-scheduler-jobs
 | API Service | `02-api-service/CLAUDE.md` |
 | Pipeline Service | `03-data-pipeline-service/CLAUDE.md` |
 | Frontend | `01-fronted-system/CLAUDE.md` |
+| Chat Backend | `07-org-chat-backend/CLAUDE.md` |
 | Scheduler Jobs | `05-scheduler-jobs/CLAUDE.md` |
 | Claude Config | `.claude/SUMMARY.md` |
-| Specs | `00-requirements-specs/*.md` |
+| Skill Requirements | `.claude/skills/{name}/requirements/` |
 
 ---
 
@@ -327,4 +335,4 @@ When running scheduler jobs, the execution context should include:
 - `/Users/gurukallam/` - Off-limits (user privacy boundary)
 
 ---
-**v4.3.0** | 2026-02-04
+**v4.4.0** | 2026-02-11

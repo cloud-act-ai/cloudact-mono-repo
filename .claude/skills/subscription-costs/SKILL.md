@@ -87,3 +87,8 @@ curl -X DELETE "http://localhost:8000/api/v1/subscriptions/{org}/providers/{prov
 | Wrong currency | Match plan currency to org `default_currency` |
 | Missing FOCUS data | Check `sp_subscription_3_convert_to_focus` logs |
 | Procedure not found | Run `POST /api/v1/procedures/sync` (port 8001) |
+
+## Source Specifications
+
+Requirements consolidated from:
+- `02_SAAS_SUBSCRIPTION_COSTS.md` - SaaS subscription costs

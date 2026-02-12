@@ -174,7 +174,7 @@ LEFT JOIN hierarchy_lookup h ON h.entity_id = COALESCE(
 
 ## Reference Documentation
 
-See `/00-requirements-specs/05_GCP_INTEGRATION.md` for complete documentation including:
+See `.claude/skills/integration-setup/requirements/gcp-integration.md` for complete documentation including:
 - Architecture and data flow
 - Metadata schema (with multi-billing account support)
 - Pipeline configurations

@@ -1,16 +1,16 @@
 # CloudAct Claude Configuration Summary
 
-**Last Updated:** 2026-02-05 | **Version:** v4.3.0
+**Last Updated:** 2026-02-11 | **Version:** v4.4.0
 
 ## Quick Reference
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 23 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 28 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 16 | `.claude/commands/{name}.md` |
 | Hooks (Root) | 6 | `.claude/hookify.*.local.md` + `hooks/` |
 | Hooks (Frontend) | 4 | `01-fronted-system/.claude/hookify.*.local.md` |
-| CLAUDE.md Files | 4 | Root + 3 services |
+| CLAUDE.md Files | 5 | Root + 4 services |
 
 ---
 
@@ -23,11 +23,13 @@
 ├── debug-config.md                  # Test credentials & URLs
 ├── SUMMARY.md                       # This file
 │
-├── skills/                          # 23 specialized agents
+├── skills/                          # 28 specialized agents
+│   ├── account-setup/SKILL.md       # Account lifecycle testing
 │   ├── api-dev/SKILL.md
 │   ├── bigquery-ops/SKILL.md
 │   ├── bootstrap-onboard/SKILL.md
 │   ├── bug-hunt/SKILL.md
+│   ├── chat/SKILL.md                # AI Chat (BYOK + ADK agents)
 │   ├── config-validator/SKILL.md
 │   ├── cost-analysis/SKILL.md
 │   ├── cost-analytics/SKILL.md
@@ -36,16 +38,19 @@
 │   ├── frontend-dev/SKILL.md
 │   ├── genai-costs/SKILL.md
 │   ├── hierarchy/SKILL.md
+│   ├── home-page/SKILL.md           # Marketing landing page
 │   ├── infra-cicd/SKILL.md
 │   ├── integration-setup/SKILL.md
 │   ├── pipeline-ops/SKILL.md
-│   ├── pr-review/SKILL.md           # NEW: PR review & merge
+│   ├── pr-review/SKILL.md
 │   ├── provider-mgmt/SKILL.md
 │   ├── quota-mgmt/SKILL.md
 │   ├── security-audit/SKILL.md
+│   ├── stripe-billing/SKILL.md      # Stripe billing management
 │   ├── subscription-costs/SKILL.md
 │   ├── supabase-migrate/SKILL.md
 │   ├── test-orchestration/SKILL.md
+│   ├── ui-ux-pro-max/SKILL.md       # UI/UX design intelligence
 │   ├── web-research/SKILL.md
 │   └── PROMPT_EXAMPLES.md           # Quick reference
 │
@@ -88,7 +93,7 @@
 
 ---
 
-## Skills Reference (23 Total)
+## Skills Reference (28 Total)
 
 ### Infrastructure & Deployment
 | Skill | Purpose |
@@ -115,6 +120,11 @@
 | `/bootstrap-onboard` | System bootstrap, org onboarding |
 | `/test-orchestration` | Multi-org, multi-currency testing |
 
+### AI & Chat
+| Skill | Purpose |
+|-------|---------|
+| `/chat` | BYOK AI chat, ADK agents, MCP tools, CopilotKit |
+
 ### Configuration & Integration
 | Skill | Purpose |
 |-------|---------|
@@ -129,6 +139,14 @@
 | `/frontend-dev` | Next.js patterns, components, server actions |
 | `/api-dev` | FastAPI routers, schemas, middleware |
 | `/quota-mgmt` | Usage limits, enforcement, alerts |
+
+### Frontend & Design
+| Skill | Purpose |
+|-------|---------|
+| `/home-page` | Marketing landing page, hero components |
+| `/account-setup` | Account lifecycle testing (signup, login, invite) |
+| `/stripe-billing` | Stripe products, prices, webhooks, checkout |
+| `/ui-ux-pro-max` | UI/UX design intelligence, 67 styles, 96 palettes |
 
 ### Research & Debugging
 | Skill | Purpose |
@@ -194,12 +212,14 @@
 Frontend (3000)              API Service (8000)           Pipeline Service (8001)
 ├─ Next.js 16 + Supabase     ├─ Bootstrap (21 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
-├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
-└─ Dashboard UI              ├─ Hierarchy CRUD            └─ Quota reset jobs
-                             ├─ Quota enforcement
+├─ AI Chat (CopilotKit)      ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
+├─ Quota warnings            ├─ Hierarchy CRUD            └─ BigQuery writes
+└─ Dashboard UI              ├─ Quota enforcement
                              └─ Cost reads (Polars)
-                                        ↓
-                             BigQuery (organizations + {org_slug}_prod)
+Chat Backend (8002)                     ↓
+├─ FastAPI + Google ADK      BigQuery (organizations + {org_slug}_prod)
+├─ Multi-agent orchestrator
+└─ BYOK + BigQuery sessions
 ```
 
 ---
@@ -254,6 +274,7 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 | Frontend | http://localhost:3000 | https://cloudact.ai | `$REPO_ROOT/01-fronted-system` |
 | API | http://localhost:8000 | https://api.cloudact.ai | `$REPO_ROOT/02-api-service` |
 | Pipeline | http://localhost:8001 | https://pipeline.cloudact.ai | `$REPO_ROOT/03-data-pipeline-service` |
+| Chat Backend | http://localhost:8002 | https://chat.cloudact.ai | `$REPO_ROOT/07-org-chat-backend` |
 
 **ALWAYS use `$REPO_ROOT` for commands. NEVER run npm/uvicorn from wrong directory.**
 
@@ -266,7 +287,7 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 | Action | Command | Target |
 |--------|---------|--------|
 | Deploy to Stage | `git push origin main` | cloudact-stage |
-| Deploy to Prod | `git tag v4.2.0 && git push origin v4.2.0` | cloudact-prod |
+| Deploy to Prod | `git tag v4.4.0 && git push origin v4.4.0` | cloudact-prod |
 
 **Manual deploy scripts are for test/dev environments ONLY.**
 
@@ -280,7 +301,8 @@ Frontend (3000)              API Service (8000)           Pipeline Service (8001
 | `/01-fronted-system/CLAUDE.md` | Next.js, Supabase auth, Stripe |
 | `/02-api-service/CLAUDE.md` | FastAPI, bootstrap, subscriptions |
 | `/03-data-pipeline-service/CLAUDE.md` | Pipelines, FOCUS 1.3, costs |
+| `/07-org-chat-backend/CLAUDE.md` | AI Chat, Google ADK agents, BYOK |
 
 ---
 
-*Updated: 2026-02-05 | Added pr-review skill | Structure verified*
+*Updated: 2026-02-11 | 28 skills with full requirements + tests, chat backend (8002), consolidated specs into `.claude/skills/{name}/requirements/`*

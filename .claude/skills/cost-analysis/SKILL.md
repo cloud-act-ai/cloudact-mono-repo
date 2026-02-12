@@ -49,7 +49,7 @@ All cost types flow into a single unified table: `cost_data_standard_1_3`.
 | **Cost Service** | `02-api-service/src/core/services/cost_service.py` |
 | **Pipeline Configs** | `03-data-pipeline-service/configs/{provider}/cost/` |
 | **Stored Procedures** | `03-data-pipeline-service/configs/system/procedures/` |
-| **Architecture Doc** | `00-requirements-specs/COST_DATA_ARCHITECTURE.md` |
+| **Architecture Doc** | `COST_DATA_ARCHITECTURE.md` |
 
 ## Frontend Cost Helpers (`lib/costs/`)
 
@@ -413,6 +413,8 @@ ORDER BY month DESC;
 - `hierarchy-ops` - Cost allocation setup
 - `quota-mgmt` - Cost-based quotas
 
-## Related Documentation
-- `00-requirements-specs/COST_DATA_ARCHITECTURE.md` - Full architecture doc
-- `01-fronted-system/lib/costs/` - Frontend helper source
+## Source Specifications
+
+Requirements consolidated from:
+- `02_CLOUD_COSTS.md` - Cloud cost pipelines and provider mappings
+- `COST_DATA_ARCHITECTURE.md` - Unified FOCUS 1.3 table and data flow

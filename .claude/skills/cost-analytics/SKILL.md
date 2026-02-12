@@ -592,6 +592,11 @@ cd 01-fronted-system && npm run test
 | Hierarchy filter change | 2-5s | Backend L1 (new query) |
 | Refresh button | 2-5s | Backend cache invalidation |
 
+## Source Specifications
+
+Requirements consolidated from:
+- `03_DASHBOARD_ANALYTICS.md` - Dashboard analytics
+
 ## Related Skills
 
 - `cost-analysis` - FOCUS 1.3 standard, calculation formulas

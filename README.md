@@ -17,6 +17,13 @@ Multi-org cloud cost analytics platform. BigQuery-powered with FOCUS 1.3 complia
 │  + Stripe       │     │  + Quota        │     │  + FOCUS 1.3    │
 └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
          │                       │                       │
+         │              ┌─────────────────┐              │
+         │              │  Chat Backend   │              │
+         │              │  (Port 8002)    │              │
+         │              │  FastAPI + ADK  │              │
+         │              │  Multi-agent AI │              │
+         │              └────────┬────────┘              │
+         │                       │                       │
          │                       ▼                       ▼
          │              ┌─────────────────────────────────────────┐
          │              │              BigQuery                   │
@@ -50,6 +57,10 @@ python3 -m uvicorn src.app.main:app --port 8000 --reload
 # Pipeline Service (Port 8001)
 cd 03-data-pipeline-service && source venv/bin/activate
 python3 -m uvicorn src.app.main:app --port 8001 --reload
+
+# Chat Backend (Port 8002)
+cd 07-org-chat-backend && source venv/bin/activate
+python3 -m uvicorn src.app.main:app --port 8002 --reload
 ```
 
 ## Cost Types → FOCUS 1.3
@@ -78,7 +89,7 @@ All cost data converts to `cost_data_standard_1_3` (FOCUS 1.3 unified format).
 git push origin main
 
 # Production
-git tag v4.3.0 && git push origin v4.3.0
+git tag v4.4.0 && git push origin v4.4.0
 
 # Manual deploy scripts
 cd 04-inra-cicd-automation/CICD
@@ -124,6 +135,7 @@ echo "yes" | ./run-job.sh prod org-sync-all
 | Frontend | https://cloudact.ai |
 | API Service | https://api.cloudact.ai |
 | Pipeline Service | https://pipeline.cloudact.ai |
+| Chat Backend | https://chat.cloudact.ai |
 
 ## Infrastructure
 
@@ -134,6 +146,7 @@ echo "yes" | ./run-job.sh prod org-sync-all
 | frontend | 3000 | 2 | 8Gi | 2/20 |
 | api-service | 8000 | 2 | 8Gi | 2/10 |
 | pipeline-service | 8001 | 2 | 8Gi | 2/10 |
+| chat-backend | 8002 | 2 | 8Gi | 2/10 |
 
 ### Scheduler Jobs (Cloud Run Jobs)
 
@@ -174,35 +187,16 @@ echo "yes" | ./run-job.sh prod org-sync-all
 | [Frontend Guide](01-fronted-system/CLAUDE.md) | Next.js frontend, design system, auth |
 | [API Service Guide](02-api-service/CLAUDE.md) | FastAPI backend, bootstrap, quota |
 | [Pipeline Guide](03-data-pipeline-service/CLAUDE.md) | Pipeline engine, processors, FOCUS 1.3 |
+| [Chat Backend Guide](07-org-chat-backend/CLAUDE.md) | AI Chat, Google ADK agents, BYOK |
 | [Scheduler Jobs](05-scheduler-jobs/CLAUDE.md) | Cloud Run Jobs, release workflow |
 | [CI/CD Guide](04-inra-cicd-automation/CICD/README.md) | Deployment, triggers, environments |
-| [Architecture Spec](00-requirements-specs/00_ARCHITECTURE.md) | System architecture and data flow |
-
-## Feature Specs
-
-| Feature | Document |
-|---------|----------|
-| Billing & Stripe | [01_BILLING_STRIPE.md](00-requirements-specs/01_BILLING_STRIPE.md) |
-| Organization Onboarding | [01_ORGANIZATION_ONBOARDING.md](00-requirements-specs/01_ORGANIZATION_ONBOARDING.md) |
-| User Management | [01_USER_MANAGEMENT.md](00-requirements-specs/01_USER_MANAGEMENT.md) |
-| Organization Hierarchy | [01_HIERARCHY.md](00-requirements-specs/01_HIERARCHY.md) |
-| Cloud Costs | [02_CLOUD_COSTS.md](00-requirements-specs/02_CLOUD_COSTS.md) |
-| GenAI Costs | [02_GENAI_COSTS.md](00-requirements-specs/02_GENAI_COSTS.md) |
-| SaaS Subscriptions | [02_SAAS_SUBSCRIPTION_COSTS.md](00-requirements-specs/02_SAAS_SUBSCRIPTION_COSTS.md) |
-| Cost Data Architecture | [COST_DATA_ARCHITECTURE.md](00-requirements-specs/COST_DATA_ARCHITECTURE.md) |
-| Integrations | [03_INTEGRATIONS.md](00-requirements-specs/03_INTEGRATIONS.md) |
-| Dashboard Analytics | [03_DASHBOARD_ANALYTICS.md](00-requirements-specs/03_DASHBOARD_ANALYTICS.md) |
-| Pipelines | [03_PIPELINES.md](00-requirements-specs/03_PIPELINES.md) |
-| Notifications & Alerts | [04_NOTIFICATIONS_ALERTS.md](00-requirements-specs/04_NOTIFICATIONS_ALERTS.md) |
-| Landing Pages | [04_LANDING_PAGES.md](00-requirements-specs/04_LANDING_PAGES.md) |
-| Security | [05_SECURITY.md](00-requirements-specs/05_SECURITY.md) |
-| Quotas | [06_QUOTAS.md](00-requirements-specs/06_QUOTAS.md) |
+| Skill Requirements | Feature specs organized by skill in `.claude/skills/{name}/requirements/` |
 
 ## Project Structure
 
 ```
 cloudact-mono-repo/
-├── 00-requirements-specs/        # Feature specifications (22 docs)
+├── .claude/skills/               # Skills with requirements docs
 ├── 01-fronted-system/            # Next.js frontend (Port 3000)
 │   ├── app/                      # Next.js app router
 │   ├── actions/                  # Server actions
@@ -220,9 +214,13 @@ cloudact-mono-repo/
 ├── 04-inra-cicd-automation/      # Infrastructure & CI/CD
 │   ├── CICD/                     # Deploy scripts, triggers
 │   └── gcp-setup/                # GCP provisioning
-└── 05-scheduler-jobs/            # Cloud Run Jobs
-    ├── scripts/                  # Job management (run, create, list)
-    └── jobs/                     # Job scripts (manual, daily, monthly)
+├── 05-scheduler-jobs/            # Cloud Run Jobs
+│   ├── scripts/                  # Job management (run, create, list)
+│   └── jobs/                     # Job scripts (manual, daily, monthly)
+└── 07-org-chat-backend/          # AI Chat Backend (Port 8002)
+    ├── src/core/agents/          # ADK agents (orchestrator, cost, usage, alert)
+    ├── src/core/tools/           # BigQuery MCP tools
+    └── src/core/sessions/        # BigQuery session store
 ```
 
 ## Plan Quotas
@@ -244,4 +242,4 @@ cloudact-mono-repo/
 | Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
 
 ---
-**v4.3.0** | 2026-02-08
+**v4.4.0** | 2026-02-11

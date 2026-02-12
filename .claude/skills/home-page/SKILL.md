@@ -819,6 +819,11 @@ const screenshots = [
 - Gradient div needs: `className="absolute inset-0 pointer-events-none"`
 - Content container needs: `className="relative z-10"`
 
+## Source Specifications
+
+Requirements consolidated from:
+- `04_LANDING_PAGES.md` - Landing pages
+
 ## Related Skills
 
 - `frontend-dev` - Console pages and components

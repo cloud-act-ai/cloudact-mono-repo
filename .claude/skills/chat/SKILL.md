@@ -189,4 +189,4 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 ## Source Specifications
 
 Requirements consolidated from:
-- `00-requirements-specs/07_MULTI_TENANT_AI_CHAT.md` (v1.0.0) - Full chat system specification
+- `07_MULTI_TENANT_AI_CHAT.md` (v1.0.0) - Full chat system specification
