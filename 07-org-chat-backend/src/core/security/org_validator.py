@@ -22,7 +22,7 @@ _org_cache: Dict[str, Tuple[bool, float]] = {}
 _ORG_SLUG_PATTERN = re.compile(r"^[a-z0-9_]{3,50}$")
 
 # Cache configuration
-_CACHE_TTL_SECONDS = 300  # 5 minutes
+_CACHE_TTL_SECONDS = 3600  # 1 hour (orgs are stable; reduces BQ lookups per conversation)
 _CACHE_MAX_SIZE = 1000
 
 

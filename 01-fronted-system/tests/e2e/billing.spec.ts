@@ -16,18 +16,13 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { loginAndGetOrgSlug } from './fixtures/auth';
 
 // ===========================================
 // Configuration
 // ===========================================
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
-
-// Test credentials
-const TEST_CREDENTIALS = {
-  email: 'demo@cloudact.ai',
-  password: 'demo1234',
-};
 
 // Stripe test cards
 const STRIPE_TEST_CARDS = {
@@ -66,34 +61,6 @@ const PLANS = {
 async function waitForPageLoad(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   await page.waitForTimeout(1000);
-}
-
-/**
- * Login and get org slug
- */
-async function loginAndGetOrgSlug(page: Page): Promise<string> {
-  await page.goto(`${BASE_URL}/login`);
-  await waitForPageLoad(page);
-
-  const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
-
-  await emailInput.fill(TEST_CREDENTIALS.email);
-  await passwordInput.fill(TEST_CREDENTIALS.password);
-
-  const submitButton = page.locator('button[type="submit"], button:has-text("Sign in")').first();
-  await submitButton.click();
-
-  await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 30000 });
-
-  if (page.url().includes('/org-select')) {
-    const orgCard = page.locator('[data-testid="org-card"], a[href*="/dashboard"]').first();
-    await orgCard.click();
-    await page.waitForURL(/\/(.*?)\/dashboard/, { timeout: 30000 });
-  }
-
-  const match = page.url().match(/\/([^/]+)\/dashboard/);
-  return match ? match[1] : 'test-org';
 }
 
 /**

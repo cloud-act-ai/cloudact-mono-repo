@@ -4,9 +4,11 @@ These are the ONLY functions that call BigQuery for cost data.
 Agents never call BigQuery directly — they call these tools.
 """
 
+import time
+import hashlib
 import logging
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from google.cloud import bigquery
 
@@ -14,9 +16,37 @@ from src.core.tools.shared import safe_query, get_dataset, default_date_range, v
 
 logger = logging.getLogger(__name__)
 
+# Simple TTL cache for cost query results
+_query_result_cache = {}  # type: Dict[str, Tuple[Dict[str, Any], float]]
+_RESULT_CACHE_TTL = 180  # 3 minutes — cost data doesn't change that fast
+
+
+def _cache_key(org_slug: str, query: str, params: Optional[str] = None) -> str:
+    raw = "%s:%s:%s" % (org_slug, query, params)
+    return hashlib.sha256(raw.encode()).hexdigest()[:24]
+
+
+def cached_safe_query(
+    org_slug: str,
+    query: str,
+    params: Optional[List[bigquery.ScalarQueryParameter]] = None,
+) -> Dict[str, Any]:
+    """safe_query with a TTL cache layer."""
+    key = _cache_key(org_slug, query, str(params))
+    now = time.time()
+    cached = _query_result_cache.get(key)
+    if cached and (now - cached[1]) < _RESULT_CACHE_TTL:
+        result = cached[0].copy()
+        result["cached"] = True
+        return result
+    result = safe_query(org_slug, query, params)
+    if "error" not in result:
+        _query_result_cache[key] = (result, now)
+    return result
+
 # Allowed values for enum-style parameters
-_VALID_GROUP_BY = {"provider", "service", "team", "day", "month"}
-_VALID_DIMENSIONS = {"provider", "service", "service_category", "team", "region", "model"}
+_VALID_GROUP_BY = {"provider", "service", "team", "day", "month", "model"}
+_VALID_DIMENSIONS = {"provider", "service", "service_category", "team", "region", "model", "cost_type"}
 _VALID_PERIOD_TYPES = {"MTD", "MoM", "QoQ", "YoY"}
 
 
@@ -24,6 +54,7 @@ def query_costs(
     org_slug: str,
     provider: Optional[str] = None,
     service_category: Optional[str] = None,
+    cost_type: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     group_by: Optional[str] = None,
@@ -35,11 +66,12 @@ def query_costs(
 
     Args:
         org_slug: Organization slug (required for multi-tenant isolation).
-        provider: Filter by provider name (e.g., AWS, GCP, Azure, OpenAI).
-        service_category: Filter by category (e.g., cloud, genai, subscription).
+        provider: Filter by provider name (e.g., AWS, GCP, Azure, OpenAI, Anthropic, Slack, Canva).
+        service_category: Filter by FOCUS ServiceCategory (e.g., Compute, AI Platform, Collaboration, Design, AI Tools, Database, Analytics, Storage).
+        cost_type: Filter by cost type: 'cloud', 'genai', or 'subscription'. Cloud = GCP/AWS/Azure infrastructure. GenAI = OpenAI/Anthropic/Gemini API usage. Subscription = SaaS tools (Slack, Canva, ChatGPT Plus).
         start_date: Start date YYYY-MM-DD (defaults to first of current month).
         end_date: End date YYYY-MM-DD (defaults to today).
-        group_by: Group results by: provider, service, team, day, month.
+        group_by: Group results by: provider, service, team, day, month, model.
         limit: Maximum rows to return (1-500, default 100).
     """
     dataset = get_dataset(org_slug)
@@ -54,6 +86,7 @@ def query_costs(
         "team": "x_hierarchy_entity_name",
         "day": "DATE(ChargePeriodStart)",
         "month": "FORMAT_TIMESTAMP('%Y-%m', ChargePeriodStart)",
+        "model": "x_genai_model",
     }
     effective_group = group_by or "provider"
     if effective_group not in group_map:
@@ -82,10 +115,13 @@ def query_costs(
     if service_category:
         query += " AND ServiceCategory = @category"
         params.append(bigquery.ScalarQueryParameter("category", "STRING", service_category))
+    if cost_type:
+        query += " AND x_source_system = @cost_type"
+        params.append(bigquery.ScalarQueryParameter("cost_type", "STRING", cost_type.lower()))
 
     query += f" GROUP BY dimension, currency ORDER BY total_billed DESC LIMIT {limit}"
 
-    return safe_query(org_slug, query, params)
+    return cached_safe_query(org_slug, query, params)
 
 
 def compare_periods(
@@ -194,6 +230,7 @@ def compare_periods(
 def cost_breakdown(
     org_slug: str,
     dimension: str = "provider",
+    cost_type: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -202,7 +239,8 @@ def cost_breakdown(
 
     Args:
         org_slug: Organization slug.
-        dimension: Breakdown by: provider, service, team, region, model.
+        dimension: Breakdown by: provider, service, service_category, cost_type, team, region, model. Use cost_type to see cloud vs genai vs subscription totals.
+        cost_type: Filter by cost type: 'cloud', 'genai', or 'subscription'.
         start_date: Start date YYYY-MM-DD.
         end_date: End date YYYY-MM-DD.
     """
@@ -215,6 +253,7 @@ def cost_breakdown(
         "provider": "ServiceProviderName",
         "service": "ServiceName",
         "service_category": "ServiceCategory",
+        "cost_type": "x_source_system",
         "team": "x_hierarchy_entity_name",
         "region": "RegionName",
         "model": "x_genai_model",
@@ -231,16 +270,23 @@ def cost_breakdown(
             BillingCurrency AS currency
         FROM `{dataset}.cost_data_standard_1_3`
         WHERE ChargePeriodStart >= @start_date AND ChargePeriodEnd <= @end_date
-        GROUP BY dimension, currency
-        ORDER BY total_billed DESC
-        LIMIT 50
     """
     params = [
         bigquery.ScalarQueryParameter("start_date", "STRING", start_date),
         bigquery.ScalarQueryParameter("end_date", "STRING", end_date),
     ]
 
-    return safe_query(org_slug, query, params)
+    if cost_type:
+        query += " AND x_source_system = @cost_type"
+        params.append(bigquery.ScalarQueryParameter("cost_type", "STRING", cost_type.lower()))
+
+    query += """
+        GROUP BY dimension, currency
+        ORDER BY total_billed DESC
+        LIMIT 50
+    """
+
+    return cached_safe_query(org_slug, query, params)
 
 
 def cost_forecast(
@@ -264,7 +310,7 @@ def cost_forecast(
                 DATE(ChargePeriodStart) AS cost_date,
                 ROUND(SUM(BilledCost), 2) AS daily_total
             FROM `{dataset}.cost_data_standard_1_3`
-            WHERE ChargePeriodStart >= DATE_SUB(CURRENT_DATE(), INTERVAL {lookback} DAY)
+            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback} DAY)
             GROUP BY cost_date
         )
         SELECT
@@ -275,7 +321,7 @@ def cost_forecast(
         FROM daily_costs
     """
 
-    result = safe_query(org_slug, query)
+    result = cached_safe_query(org_slug, query)
     if result["rows"]:
         stats = result["rows"][0]
         avg = stats.get("avg_daily", 0) or 0
@@ -312,15 +358,15 @@ def top_cost_drivers(
             SELECT ServiceName, ServiceProviderName,
                    ROUND(SUM(BilledCost), 2) AS current_cost
             FROM `{dataset}.cost_data_standard_1_3`
-            WHERE ChargePeriodStart >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
             GROUP BY ServiceName, ServiceProviderName
         ),
         previous_period AS (
             SELECT ServiceName, ServiceProviderName,
                    ROUND(SUM(BilledCost), 2) AS previous_cost
             FROM `{dataset}.cost_data_standard_1_3`
-            WHERE ChargePeriodStart >= DATE_SUB(CURRENT_DATE(), INTERVAL {days * 2} DAY)
-              AND ChargePeriodStart < DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
+            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days * 2} DAY)
+              AND ChargePeriodStart < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
             GROUP BY ServiceName, ServiceProviderName
         )
         SELECT
@@ -339,4 +385,4 @@ def top_cost_drivers(
         LIMIT {limit}
     """
 
-    return safe_query(org_slug, query)
+    return cached_safe_query(org_slug, query)

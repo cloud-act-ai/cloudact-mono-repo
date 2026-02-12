@@ -4,6 +4,7 @@ Has ZERO tools. Only routes to the correct sub-agent.
 This is the entry point for all chat interactions.
 """
 
+from datetime import date
 from typing import Union
 
 from google.adk.agents import LlmAgent
@@ -29,10 +30,12 @@ def create_orchestrator(
     All agents use the same model + key (customer's BYOK).
     """
 
-    cost_analyst = create_cost_analyst(org_slug, model, generate_config)
-    alert_manager = create_alert_manager(org_slug, model, generate_config)
-    usage_analyst = create_usage_analyst(org_slug, model, generate_config)
-    explorer = create_explorer(org_slug, model, generate_config, bigquery_toolset)
+    today = date.today().isoformat()
+
+    cost_analyst = create_cost_analyst(org_slug, model, generate_config, today)
+    alert_manager = create_alert_manager(org_slug, model, generate_config, today)
+    usage_analyst = create_usage_analyst(org_slug, model, generate_config, today)
+    explorer = create_explorer(org_slug, model, generate_config, bigquery_toolset, today)
 
     return LlmAgent(
         name="CloudActAI",
@@ -40,6 +43,7 @@ def create_orchestrator(
         generate_content_config=generate_config,
         description="CloudAct AI assistant for cloud cost analytics",
         instruction=f"""You are CloudAct AI, the intelligent assistant for organization '{org_slug}'.
+Today's date is {today}.
 
 You do NOT answer questions directly. You route to the right specialist agent.
 

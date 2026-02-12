@@ -352,7 +352,7 @@ class PAYGPricingResponse(BaseModel):
     override_output_per_1m: Optional[float] = Field(None, ge=0, le=MAX_PRICE_VALUE)
     override_effective_from: Optional[date] = None
     override_notes: Optional[str] = None
-    last_updated: Optional[str] = None
+    last_updated: Optional[datetime] = None
 
     @field_validator('cached_discount_pct', 'batch_discount_pct', 'sla_uptime_pct', mode='before')
     @classmethod
@@ -714,7 +714,7 @@ async def get_all_pricing(
         # Query all three pricing tables with explicit field selection to prevent leaking internal fields
         # SECURITY: Issue #29 - Never use SELECT * to prevent exposing internal metadata
         payg_query = f"""
-            SELECT org_slug, provider, model, model_family, model_version, region,
+            SELECT x_org_slug AS org_slug, provider, model, model_family, model_version, region,
                    input_per_1m, output_per_1m, cached_input_per_1m, cached_write_per_1m,
                    batch_input_per_1m, batch_output_per_1m, cached_discount_pct, batch_discount_pct,
                    context_window, max_output_tokens, supports_vision, supports_streaming, supports_tools,
@@ -722,28 +722,37 @@ async def get_all_pricing(
                    is_override, override_input_per_1m, override_output_per_1m, override_effective_from,
                    override_notes, last_updated
             FROM `{settings.gcp_project_id}.{dataset}.genai_payg_pricing`
-            WHERE org_slug = @org_slug {status_filter} {provider_filter}
+            WHERE x_org_slug = @org_slug {status_filter} {provider_filter}
         """
         commitment_query = f"""
-            SELECT org_slug, provider, commitment_type, model, unit_name, region,
+            SELECT x_org_slug AS org_slug, provider, commitment_type, model, unit_name, region,
                    ptu_hourly_rate, ptu_monthly_rate, min_units, max_units,
                    commitment_term_months, tokens_per_unit_minute, effective_from, effective_to, status,
                    is_override, override_hourly_rate, override_monthly_rate, override_effective_from
             FROM `{settings.gcp_project_id}.{dataset}.genai_commitment_pricing`
-            WHERE org_slug = @org_slug {status_filter} {provider_filter}
+            WHERE x_org_slug = @org_slug {status_filter} {provider_filter}
         """
         infra_query = f"""
-            SELECT org_slug, provider, pricing_id, resource_type, instance_type, gpu_type,
+            SELECT x_org_slug AS org_slug, provider, pricing_id, resource_type, instance_type, gpu_type,
                    gpu_count, gpu_memory_gb, hourly_rate, spot_discount_pct,
                    reserved_1yr_discount_pct, reserved_3yr_discount_pct, region, cloud_provider, status,
                    is_override, override_hourly_rate, override_effective_from
             FROM `{settings.gcp_project_id}.{dataset}.genai_infrastructure_pricing`
-            WHERE org_slug = @org_slug {status_filter} {provider_filter}
+            WHERE x_org_slug = @org_slug {status_filter} {provider_filter}
         """
 
-        payg_results = list(bq_client.query(payg_query, parameters=params))
-        commitment_results = list(bq_client.query(commitment_query, parameters=params))
-        infra_results = list(bq_client.query(infra_query, parameters=params))
+        # Gracefully handle missing tables (tables created on first pipeline run)
+        def safe_query(query, params):
+            try:
+                return list(bq_client.query(query, parameters=params))
+            except Exception as e:
+                if "Not found" in str(e) or "RESOURCE_NOT_FOUND" in str(e) or "NotFound" in type(e).__name__:
+                    return []
+                raise
+
+        payg_results = safe_query(payg_query, params)
+        commitment_results = safe_query(commitment_query, params)
+        infra_results = safe_query(infra_query, params)
 
         payg_list = [PAYGPricingResponse(**dict(row)) for row in payg_results]
         commitment_list = [CommitmentPricingResponse(**dict(row)) for row in commitment_results]
@@ -803,7 +812,7 @@ async def get_pricing_by_flow(
         # SECURITY: Issue #29 - Use explicit field selection based on flow type
         # to prevent leaking internal fields
         if flow == GenAIFlow.PAYG:
-            fields = """org_slug, provider, model, model_family, model_version, region,
+            fields = """x_org_slug AS org_slug, provider, model, model_family, model_version, region,
                        input_per_1m, output_per_1m, cached_input_per_1m, cached_write_per_1m,
                        batch_input_per_1m, batch_output_per_1m, cached_discount_pct, batch_discount_pct,
                        context_window, max_output_tokens, supports_vision, supports_streaming, supports_tools,
@@ -811,23 +820,28 @@ async def get_pricing_by_flow(
                        is_override, override_input_per_1m, override_output_per_1m, override_effective_from,
                        override_notes, last_updated"""
         elif flow == GenAIFlow.COMMITMENT:
-            fields = """org_slug, provider, commitment_type, model, unit_name, region,
+            fields = """x_org_slug AS org_slug, provider, commitment_type, model, unit_name, region,
                        ptu_hourly_rate, ptu_monthly_rate, min_units, max_units,
                        commitment_term_months, tokens_per_unit_minute, effective_from, effective_to, status,
                        is_override, override_hourly_rate, override_monthly_rate, override_effective_from"""
         else:  # INFRASTRUCTURE
-            fields = """org_slug, provider, pricing_id, resource_type, instance_type, gpu_type,
+            fields = """x_org_slug AS org_slug, provider, pricing_id, resource_type, instance_type, gpu_type,
                        gpu_count, gpu_memory_gb, hourly_rate, spot_discount_pct,
                        reserved_1yr_discount_pct, reserved_3yr_discount_pct, region, cloud_provider, status,
                        is_override, override_hourly_rate, override_effective_from"""
 
         query = f"""
             SELECT {fields} FROM `{settings.gcp_project_id}.{dataset}.{table_name}`
-            WHERE org_slug = @org_slug AND (status IS NULL OR status = @active_status)
+            WHERE x_org_slug = @org_slug AND (status IS NULL OR status = @active_status)
             {provider_filter}
         """
 
-        results = list(bq_client.query(query, parameters=params))
+        try:
+            results = list(bq_client.query(query, parameters=params))
+        except Exception as e:
+            if "Not found" in str(e) or "RESOURCE_NOT_FOUND" in str(e) or "NotFound" in type(e).__name__:
+                return {"flow": flow.value, "count": 0, "data": []}
+            raise
         return {"flow": flow.value, "count": len(results), "data": [dict(row) for row in results]}
 
     except Exception as e:
@@ -912,7 +926,7 @@ async def set_pricing_override(
                 override_notes = @notes,
                 override_effective_from = @effective_from,
                 last_updated = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug AND {id_column} = @identifier
+            WHERE x_org_slug = @org_slug AND {id_column} = @identifier
             {optimistic_lock_condition}
         """
 
@@ -941,7 +955,7 @@ async def set_pricing_override(
                 check_query = f"""
                     SELECT last_updated
                     FROM `{settings.gcp_project_id}.{dataset}.{table_name}`
-                    WHERE org_slug = @org_slug AND {id_column} = @identifier
+                    WHERE x_org_slug = @org_slug AND {id_column} = @identifier
                     LIMIT 1
                 """
                 check_results = list(bq_client.query(check_query, parameters=[
@@ -1379,7 +1393,7 @@ async def delete_custom_pricing(
         query = f"""
             UPDATE `{settings.gcp_project_id}.{dataset}.{table_name}`
             SET status = @deleted_status, last_updated = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug
+            WHERE x_org_slug = @org_slug
               AND {id_column} = @identifier
               AND (is_override IS NULL OR is_override = FALSE)
               AND (status IS NULL OR status != @deleted_status)
@@ -1399,7 +1413,7 @@ async def delete_custom_pricing(
             check_query = f"""
                 SELECT status, is_override
                 FROM `{settings.gcp_project_id}.{dataset}.{table_name}`
-                WHERE org_slug = @org_slug AND {id_column} = @identifier
+                WHERE x_org_slug = @org_slug AND {id_column} = @identifier
                 LIMIT 1
             """
             check_results = list(bq_client.query(check_query, parameters=[
@@ -1525,7 +1539,7 @@ async def reset_pricing_override(
                 override_notes = NULL,
                 override_effective_from = NULL,
                 last_updated = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug AND {id_column} = @identifier
+            WHERE x_org_slug = @org_slug AND {id_column} = @identifier
         """
 
         params = [
@@ -2030,7 +2044,7 @@ async def seed_default_pricing(
                     # Clear existing non-override entries for this org before inserting
                     clear_query = f"""
                         DELETE FROM `{table_ref}`
-                        WHERE org_slug = @org_slug AND (is_override IS NULL OR is_override = FALSE)
+                        WHERE x_org_slug = @org_slug AND (is_override IS NULL OR is_override = FALSE)
                     """
                     clear_params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                     clear_job = bq_client.client.query(clear_query, job_config=bigquery.QueryJobConfig(query_parameters=clear_params))

@@ -11,6 +11,7 @@ Kill services, clear caches, and restart locally or trigger Cloud Run restarts.
 | Frontend | `$REPO_ROOT/01-fronted-system` | `npx next dev --port 3000` |
 | API | `$REPO_ROOT/02-api-service` | `uvicorn src.app.main:app --port 8000` |
 | Pipeline | `$REPO_ROOT/03-data-pipeline-service` | `uvicorn src.app.main:app --port 8001` |
+| Chat Backend | `$REPO_ROOT/07-org-chat-backend` | `uvicorn src.app.main:app --port 8002` |
 
 **NEVER run `npm run dev`, `npx next dev`, or `uvicorn` without first changing to the correct directory using `$REPO_ROOT`.**
 
@@ -22,7 +23,8 @@ Kill services, clear caches, and restart locally or trigger Cloud Run restarts.
 |---------|--------------|-----------|
 | Frontend | **3000** | 3001, 3002, etc. |
 | API | **8000** | 8080, 8888, etc. |
-| Pipeline | **8001** | 8002, 8080, etc. |
+| Pipeline | **8001** | 8080, etc. |
+| Chat Backend | **8002** | 8003, 8080, etc. |
 
 **Rules:**
 1. If port is in use → KILL the process and retry on same port
@@ -51,6 +53,7 @@ Kill services, clear caches, and restart locally or trigger Cloud Run restarts.
 /restart local api                       # API service only
 /restart local pipeline                  # Pipeline service only
 /restart local frontend                  # Frontend only
+/restart local chat                      # Chat backend only
 ```
 
 ### Cloud Run Restart
@@ -73,7 +76,7 @@ Kill services, clear caches, and restart locally or trigger Cloud Run restarts.
 docker-compose -f $REPO_ROOT/docker-compose.local.yml down 2>/dev/null || true
 
 # Stop any containers on our ports
-for port in 3000 8000 8001; do
+for port in 3000 8000 8001 8002; do
     CONTAINER_ID=$(docker ps -q --filter "publish=$port" 2>/dev/null)
     if [ -n "$CONTAINER_ID" ]; then
         docker stop "$CONTAINER_ID" 2>/dev/null || true
@@ -91,6 +94,7 @@ docker ps -aq --filter "name=cloudact-" 2>/dev/null | xargs -r docker rm 2>/dev/
 # Kill by process name
 pkill -9 -f "uvicorn.*8000" 2>/dev/null || true
 pkill -9 -f "uvicorn.*8001" 2>/dev/null || true
+pkill -9 -f "uvicorn.*8002" 2>/dev/null || true
 pkill -9 -f "next-server" 2>/dev/null || true
 pkill -9 -f "node.*next" 2>/dev/null || true
 pkill -9 -f "turbopack" 2>/dev/null || true
@@ -100,6 +104,7 @@ pkill -9 -f "run-frontend.sh" 2>/dev/null || true
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 lsof -ti:8001 | xargs kill -9 2>/dev/null || true
+lsof -ti:8002 | xargs kill -9 2>/dev/null || true
 
 # Also kill any WRONG port usage (cleanup from past mistakes)
 lsof -ti:3001 | xargs kill -9 2>/dev/null || true
@@ -137,6 +142,11 @@ cd $REPO_ROOT/02-api-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.ma
 cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload > $REPO_ROOT/logs/pipeline.log 2>&1 &
 ```
 
+**Chat Backend (8002):**
+```bash
+cd $REPO_ROOT/07-org-chat-backend && source venv/bin/activate && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8002 --reload > $REPO_ROOT/logs/chat.log 2>&1 &
+```
+
 **Frontend (3000):** ⚠️ MUST be port 3000 - NEVER 3001
 ```bash
 # ALWAYS use absolute path - prevents .next being created in wrong folder
@@ -159,6 +169,7 @@ sleep 8
 echo "=== Health Check ==="
 curl -s http://localhost:8000/health | python3 -m json.tool || echo "API: Not ready"
 curl -s http://localhost:8001/health | python3 -m json.tool || echo "Pipeline: Not ready"
+curl -s http://localhost:8002/health | python3 -m json.tool || echo "Chat Backend: Not ready"
 curl -s http://localhost:3000 -o /dev/null -w "Frontend: HTTP %{http_code}\n" || echo "Frontend: Not ready"
 ```
 
@@ -169,6 +180,7 @@ echo "=== Port Verification ==="
 lsof -i:3000 -sTCP:LISTEN | grep -q LISTEN && echo "✓ Frontend on 3000" || echo "✗ Frontend NOT on 3000"
 lsof -i:8000 -sTCP:LISTEN | grep -q LISTEN && echo "✓ API on 8000" || echo "✗ API NOT on 8000"
 lsof -i:8001 -sTCP:LISTEN | grep -q LISTEN && echo "✓ Pipeline on 8001" || echo "✗ Pipeline NOT on 8001"
+lsof -i:8002 -sTCP:LISTEN | grep -q LISTEN && echo "✓ Chat Backend on 8002" || echo "✗ Chat Backend NOT on 8002"
 
 # FAIL if services are on wrong ports
 if lsof -i:3001 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
@@ -206,7 +218,7 @@ gcloud config set project $PROJECT
 REGION=us-central1
 
 # All services
-for SERVICE in cloudact-api-service-${ENV} cloudact-pipeline-service-${ENV}; do
+for SERVICE in cloudact-api-service-${ENV} cloudact-pipeline-service-${ENV} cloudact-chat-backend-${ENV}; do
   echo "Restarting $SERVICE..."
   gcloud run services update $SERVICE \
     --project=$PROJECT \
@@ -254,6 +266,14 @@ pkill -9 -f "uvicorn.*8001" 2>/dev/null || true
 lsof -ti:8001 | xargs kill -9 2>/dev/null || true
 sleep 1
 cd $REPO_ROOT/03-data-pipeline-service && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8001 --reload > $REPO_ROOT/logs/pipeline.log 2>&1 &
+```
+
+### Local Chat Backend Only
+```bash
+pkill -9 -f "uvicorn.*8002" 2>/dev/null || true
+lsof -ti:8002 | xargs kill -9 2>/dev/null || true
+sleep 1
+cd $REPO_ROOT/07-org-chat-backend && source venv/bin/activate && PYTHONUNBUFFERED=1 python3 -m uvicorn src.app.main:app --port 8002 --reload > $REPO_ROOT/logs/chat.log 2>&1 &
 ```
 
 ### Local Frontend Only
@@ -337,16 +357,18 @@ Report:
 |---------|-------|------------|
 | API | http://localhost:8000 | https://api.cloudact.ai |
 | Pipeline | http://localhost:8001 | https://pipeline.cloudact.ai |
+| Chat Backend | http://localhost:8002 | https://chat.cloudact.ai |
 | Frontend | http://localhost:3000 | https://cloudact.ai |
 | API Docs | http://localhost:8000/docs | https://api.cloudact.ai/docs |
 | Pipeline Docs | http://localhost:8001/docs | https://pipeline.cloudact.ai/docs |
+| Chat Docs | http://localhost:8002/docs | https://chat.cloudact.ai/docs |
 
 ## Troubleshooting: Port Issues
 
 ### "Port XXXX is already in use"
 ```bash
 # Find what's using the port
-lsof -i:3000   # or 8000, 8001
+lsof -i:3000   # or 8000, 8001, 8002
 
 # Kill it
 lsof -ti:3000 | xargs kill -9
@@ -389,11 +411,11 @@ pkill -9 -f "next-server" 2>/dev/null || true
 pkill -9 -f "node.*next" 2>/dev/null || true
 pkill -9 -f "turbopack" 2>/dev/null || true
 pkill -9 -f "uvicorn" 2>/dev/null || true
-lsof -ti:3000,3001,3002,8000,8001 | xargs kill -9 2>/dev/null || true
+lsof -ti:3000,3001,3002,8000,8001,8002 | xargs kill -9 2>/dev/null || true
 
 # Wait and verify
 sleep 3
-lsof -i:3000,3001,8000,8001  # Should show nothing
+lsof -i:3000,3001,8000,8001,8002  # Should show nothing
 ```
 
 ## Variables

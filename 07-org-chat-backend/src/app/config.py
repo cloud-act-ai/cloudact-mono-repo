@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # GCP
     gcp_project_id: str = Field(default="local-dev-project")
+    google_application_credentials: Optional[str] = Field(default=None)
     bigquery_location: str = Field(default="US")
 
     # Application
@@ -70,4 +71,13 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    settings_instance = Settings()
+
+    # Set GOOGLE_APPLICATION_CREDENTIALS for Google Cloud client libraries
+    # In Cloud Run, credentials come from the service account, not a file
+    if settings_instance.google_application_credentials:
+        creds_path = settings_instance.google_application_credentials
+        if os.path.exists(creds_path):
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+
+    return settings_instance

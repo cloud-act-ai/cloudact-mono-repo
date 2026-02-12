@@ -323,8 +323,8 @@ export function MobileNav({
                           )} />
                           <span className="text-[13px]">{item.title}</span>
                           {item.placeholder && (
-                            <span className="ml-auto text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                              Soon
+                            <span className="ml-auto text-[10px] font-medium text-[var(--cloudact-indigo)] bg-[var(--cloudact-indigo)]/10 px-1.5 py-0.5 rounded-full">
+                              Beta
                             </span>
                           )}
                         </button>

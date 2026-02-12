@@ -7,7 +7,7 @@
 
 import type { ChatSettings, ChatSettingsInput, ProviderInfo } from "@/lib/chat/constants"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL || "http://localhost:8000"
 
 function isValidOrgSlug(orgSlug: string): boolean {
   return /^[a-z0-9_]{3,50}$/.test(orgSlug)
@@ -20,6 +20,7 @@ async function apiRequest(
 ): Promise<Response> {
   return fetch(`${API_URL}${path}`, {
     ...options,
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": apiKey,
@@ -40,11 +41,16 @@ export async function getChatSettings(
   }
 
   try {
+    const url = `${API_URL}/api/v1/chat-settings/${orgSlug}`
+    console.log(`[getChatSettings] GET ${url} (key: ${apiKey ? apiKey.slice(0, 12) + "..." : "MISSING"})`)
+
     const response = await apiRequest(
       `/api/v1/chat-settings/${orgSlug}`,
       { method: "GET" },
       apiKey
     )
+
+    console.log(`[getChatSettings] Response: ${response.status} ${response.statusText}`)
 
     if (response.status === 204 || response.status === 404) {
       return { success: true, data: undefined }
@@ -52,12 +58,14 @@ export async function getChatSettings(
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
+      console.warn(`[getChatSettings] Error: ${err.detail || response.status}`)
       return { success: false, error: err.detail || "Failed to load settings" }
     }
 
     const data = await response.json()
     return { success: true, data: data || undefined }
-  } catch {
+  } catch (e) {
+    console.error(`[getChatSettings] Exception:`, e)
     return { success: false, error: "Failed to connect to API" }
   }
 }

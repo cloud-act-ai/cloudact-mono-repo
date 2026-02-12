@@ -2,13 +2,13 @@
  * Chat system constants and type definitions.
  */
 
-// Chat backend service URL
-export const CHAT_BACKEND_URL =
-  process.env.NEXT_PUBLIC_CHAT_BACKEND_URL || "http://localhost:8002"
-
-// API service URL (for chat settings CRUD)
+// API service URL (for chat settings CRUD via server actions)
 export const API_SERVICE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+  process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL || "http://localhost:8000"
+
+// Limits
+export const MAX_CONVERSATIONS = 10
+export const MAX_MESSAGE_LENGTH = 10000
 
 // Supported LLM providers
 export const LLM_PROVIDERS = [
@@ -63,6 +63,8 @@ export interface ChatMessage {
   model_id?: string
   latency_ms?: number
   created_at: string
+  isError?: boolean
+  isStreaming?: boolean
 }
 
 export interface Conversation {

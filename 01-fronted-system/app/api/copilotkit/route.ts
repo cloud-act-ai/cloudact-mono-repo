@@ -4,12 +4,14 @@
  * Proxies requests from the CopilotKit frontend SDK to 07-org-chat-backend.
  * SECURITY: Authenticates via Supabase session server-side.
  * Never trusts client-provided X-Org-Slug or X-API-Key headers.
+ *
+ * Supports streaming responses (SSE) which CopilotKit AG-UI protocol requires.
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthContext } from "@/lib/auth-cache"
 
-const CHAT_BACKEND_URL = process.env.NEXT_PUBLIC_CHAT_BACKEND_URL || "http://localhost:8002"
+const CHAT_BACKEND_URL = process.env.CHAT_BACKEND_URL || process.env.NEXT_PUBLIC_CHAT_BACKEND_URL || "http://localhost:8002"
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,6 +54,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Support streaming: if response is SSE/streaming, forward the stream directly
+    const contentType = response.headers.get("content-type") || ""
+    if (contentType.includes("text/event-stream") || contentType.includes("stream")) {
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      })
+    }
+
+    // Non-streaming: return JSON normally
     const data = await response.json()
     return NextResponse.json(data)
   } catch {

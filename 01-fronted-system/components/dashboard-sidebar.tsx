@@ -264,11 +264,13 @@ export function DashboardSidebar({
   const SectionHeader = ({
     title,
     section,
-    isExpanded
+    isExpanded,
+    badge,
   }: {
     title: string
     section: NonNullSectionId
     isExpanded: boolean
+    badge?: string
   }) => (
     <div
       className={cn(
@@ -291,6 +293,11 @@ export function DashboardSidebar({
         )}>
           {title}
         </span>
+        {badge && (
+          <span className="rounded-full bg-[var(--cloudact-indigo)]/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--cloudact-indigo)]">
+            {badge}
+          </span>
+        )}
       </div>
       <div className={cn(
         "h-5 w-5 rounded-md flex items-center justify-center transition-all",
@@ -694,6 +701,7 @@ export function DashboardSidebar({
               title="AI Chat"
               section="chat"
               isExpanded={activeSection === "chat"}
+              badge="Beta"
             />
           )}
           {isCollapsed && (
@@ -717,6 +725,7 @@ export function DashboardSidebar({
                   <Link href={`/${orgSlug}/chat`}>
                     <MessageSquare className="h-4 w-4 flex-shrink-0" />
                     <span>Chat</span>
+                    <span className="ml-auto rounded-full bg-[var(--cloudact-indigo)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--cloudact-indigo)]">Beta</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

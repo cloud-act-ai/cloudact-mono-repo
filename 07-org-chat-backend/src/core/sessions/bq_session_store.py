@@ -102,7 +102,7 @@ def get_conversation(
 def list_conversations(
     org_slug: str,
     user_id: str,
-    limit: int = 20,
+    limit: int = 10,
 ) -> List[Dict[str, Any]]:
     """List conversations for a user in an org."""
     _validate_org_slug_format(org_slug)
@@ -110,12 +110,22 @@ def list_conversations(
     dataset = settings.organizations_dataset
 
     return execute_query(
-        f"""SELECT conversation_id, title, status, message_count,
-                   provider, model_id, created_at, last_message_at
-            FROM `{dataset}.org_chat_conversations`
-            WHERE org_slug = @org_slug AND user_id = @user_id AND status = 'active'
-            ORDER BY COALESCE(last_message_at, created_at) DESC
-            LIMIT {max(1, min(limit, 50))}""",
+        f"""SELECT c.conversation_id, c.title, c.status,
+                   COALESCE(m.msg_count, 0) AS message_count,
+                   c.provider, c.model_id, c.created_at,
+                   m.last_msg_at AS last_message_at
+            FROM `{dataset}.org_chat_conversations` c
+            LEFT JOIN (
+                SELECT conversation_id,
+                       COUNT(*) AS msg_count,
+                       MAX(created_at) AS last_msg_at
+                FROM `{dataset}.org_chat_messages`
+                WHERE org_slug = @org_slug
+                GROUP BY conversation_id
+            ) m ON c.conversation_id = m.conversation_id
+            WHERE c.org_slug = @org_slug AND c.user_id = @user_id AND c.status = 'active'
+            ORDER BY COALESCE(m.last_msg_at, c.created_at) DESC
+            LIMIT {max(1, min(limit, 10))}""",
         params=[
             bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
@@ -191,25 +201,9 @@ def persist_message(
 
     streaming_insert(_org_table("org_chat_messages"), [row])
 
-    # Update conversation metadata (message_count + last_message_at)
-    try:
-        now = _now()
-        settings = get_settings()
-        dataset = settings.organizations_dataset
-        execute_query(
-            f"""UPDATE `{dataset}.org_chat_conversations`
-                SET message_count = message_count + 1,
-                    last_message_at = @now,
-                    updated_at = @now
-                WHERE conversation_id = @conv_id AND org_slug = @org_slug""",
-            params=[
-                bigquery.ScalarQueryParameter("now", "STRING", now),
-                bigquery.ScalarQueryParameter("conv_id", "STRING", conversation_id),
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-            ],
-        )
-    except Exception as e:
-        logger.warning(f"Failed to update conversation metadata: {e}")
+    # Note: We skip updating conversation metadata (message_count, last_message_at)
+    # because BigQuery streaming buffer rows cannot be UPDATEd immediately.
+    # The message_count is derived from actual messages when listing conversations.
 
     return message_id
 
@@ -265,6 +259,40 @@ def persist_tool_call(
 # ============================================
 
 
+def delete_conversation(
+    org_slug: str,
+    conversation_id: str,
+) -> bool:
+    """Soft-delete a conversation by setting status='deleted'.
+
+    Returns True if the conversation was deleted, False if not found.
+    Note: rows still in the streaming buffer (~90 min) cannot be updated;
+    old conversations (the typical delete target) are always safe.
+    """
+    _validate_org_slug_format(org_slug)
+    settings = get_settings()
+    dataset = settings.organizations_dataset
+
+    # Soft-delete: set status to 'deleted' (list queries already filter status='active')
+    try:
+        execute_query(
+            f"""UPDATE `{dataset}.org_chat_conversations`
+                SET status = 'deleted', updated_at = @now
+                WHERE conversation_id = @conv_id AND org_slug = @org_slug AND status = 'active'""",
+            params=[
+                bigquery.ScalarQueryParameter("conv_id", "STRING", conversation_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("now", "STRING", _now()),
+            ],
+        )
+        logger.info(f"Soft-deleted conversation {conversation_id} for {org_slug}")
+        return True
+    except Exception as e:
+        # Rows in BQ streaming buffer (~90 min) cannot be UPDATEd
+        logger.warning(f"Could not delete conversation {conversation_id}: {e}")
+        return False
+
+
 def load_chat_settings(org_slug: str) -> Optional[Dict[str, Any]]:
     """Load active chat settings for an org."""
     _validate_org_slug_format(org_slug)
@@ -306,3 +334,120 @@ def load_encrypted_credential(
         ],
     )
     return rows[0]["encrypted_credential"] if rows else None
+
+
+# ============================================
+# Rename / Search / Auto-Title
+# ============================================
+
+
+def rename_conversation(
+    org_slug: str,
+    conversation_id: str,
+    title: str,
+) -> bool:
+    """Rename a conversation."""
+    _validate_org_slug_format(org_slug)
+    settings = get_settings()
+    dataset = settings.organizations_dataset
+
+    # Sanitize title
+    title = title.strip()[:100]  # Max 100 chars
+    if not title:
+        return False
+
+    try:
+        execute_query(
+            f"""UPDATE `{dataset}.org_chat_conversations`
+                SET title = @title, updated_at = @now
+                WHERE conversation_id = @conv_id AND org_slug = @org_slug AND status = 'active'""",
+            params=[
+                bigquery.ScalarQueryParameter("title", "STRING", title),
+                bigquery.ScalarQueryParameter("conv_id", "STRING", conversation_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("now", "STRING", _now()),
+            ],
+        )
+        return True
+    except Exception as e:
+        logger.warning(f"Could not rename conversation {conversation_id}: {e}")
+        return False
+
+
+def search_messages(
+    org_slug: str,
+    user_id: str,
+    query: str,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    """Search messages across all conversations for a user."""
+    _validate_org_slug_format(org_slug)
+    settings = get_settings()
+    dataset = settings.organizations_dataset
+    limit = max(1, min(limit, 50))
+
+    # Sanitize query
+    search_term = query.strip()[:200]
+    if not search_term:
+        return []
+
+    return execute_query(
+        f"""SELECT m.message_id, m.conversation_id, m.content, m.role, m.created_at
+            FROM `{dataset}.org_chat_messages` m
+            JOIN `{dataset}.org_chat_conversations` c
+              ON m.conversation_id = c.conversation_id AND m.org_slug = c.org_slug
+            WHERE m.org_slug = @org_slug
+              AND c.user_id = @user_id
+              AND c.status = 'active'
+              AND LOWER(m.content) LIKE CONCAT('%', LOWER(@query), '%')
+            ORDER BY m.created_at DESC
+            LIMIT {limit}""",
+        params=[
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
+            bigquery.ScalarQueryParameter("query", "STRING", search_term),
+        ],
+    )
+
+
+def generate_title_from_message(first_message: str) -> str:
+    """Generate a conversation title from the first user message."""
+    title = first_message.strip()[:60]
+    if len(first_message.strip()) > 60:
+        last_space = title.rfind(" ")
+        if last_space > 20:
+            title = title[:last_space] + "..."
+        else:
+            title = title + "..."
+    return title or "New conversation"
+
+
+def auto_title_conversation(
+    org_slug: str,
+    conversation_id: str,
+    first_message: str,
+) -> None:
+    """Auto-generate conversation title from the first message.
+    Note: This uses DML UPDATE which won't work on streaming-buffer rows.
+    Prefer passing title to create_conversation() instead.
+    """
+    _validate_org_slug_format(org_slug)
+    title = generate_title_from_message(first_message)
+
+    settings = get_settings()
+    dataset = settings.organizations_dataset
+
+    try:
+        execute_query(
+            f"""UPDATE `{dataset}.org_chat_conversations`
+                SET title = @title, updated_at = @now
+                WHERE conversation_id = @conv_id AND org_slug = @org_slug""",
+            params=[
+                bigquery.ScalarQueryParameter("title", "STRING", title),
+                bigquery.ScalarQueryParameter("conv_id", "STRING", conversation_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("now", "STRING", _now()),
+            ],
+        )
+    except Exception as e:
+        logger.warning(f"Could not auto-title conversation {conversation_id}: {e}")

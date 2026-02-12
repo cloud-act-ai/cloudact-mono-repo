@@ -62,6 +62,8 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
         setIncludeOrgContext(s.include_org_context)
         setEnableMemory(s.enable_memory)
         setSystemPromptExtra(s.system_prompt_extra || "")
+      } else if (!settingsResult.success) {
+        setError(settingsResult.error || "Failed to load settings")
       }
 
       if (providersResult.success && providersResult.providers) {
@@ -150,8 +152,8 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
   return (
     <div className="mx-auto max-w-2xl px-6 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-white">AI Chat Settings</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">AI Chat Settings</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
           Configure your LLM provider and model for CloudAct AI assistant.
         </p>
       </div>
@@ -207,7 +209,7 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-300">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
             {error}
           </div>

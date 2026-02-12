@@ -1,46 +1,69 @@
 /**
  * Authentication Fixture for E2E Tests
  *
- * Provides authenticated browser context for tests
+ * With the setup project (auth.setup.ts), tests start pre-authenticated.
+ * loginAndGetOrgSlug reads the cached org slug and verifies the session,
+ * only falling back to a full login if the session is invalid.
  */
 
 import { test as base, expect, Page } from '@playwright/test'
 import { TEST_USER } from './test-credentials'
+import * as fs from 'fs'
+import * as path from 'path'
+
+/**
+ * Read cached org slug from auth setup
+ */
+function getCachedOrgSlug(): string | null {
+  try {
+    const filePath = path.join(__dirname, '..', '.auth', 'org-slug.json')
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    return data.orgSlug || null
+  } catch {
+    return null
+  }
+}
 
 // Extend the base test with authenticated page
 export const test = base.extend<{ authenticatedPage: Page; orgSlug: string }>({
-  // Provide authenticated page context
+  // Provide authenticated page context (session already loaded via storageState)
   authenticatedPage: async ({ page }, use) => {
-    // Login
+    const cachedSlug = getCachedOrgSlug()
+    if (cachedSlug) {
+      // Session pre-loaded via storageState - just navigate to dashboard
+      await page.goto(`/${cachedSlug}/dashboard`)
+      await page.waitForLoadState('domcontentloaded')
+
+      // Verify we're on the dashboard (not redirected to login)
+      if (!page.url().includes('/login')) {
+        await use(page)
+        return
+      }
+    }
+
+    // Fallback: full login (session expired or no cached slug)
     await page.goto('/login')
-
-    // Wait for page to load
     await page.waitForSelector('input[type="email"]', { timeout: 10000 })
-
-    // Fill in credentials
     await page.fill('input[type="email"]', TEST_USER.email)
     await page.fill('input[type="password"]', TEST_USER.password)
-
-    // Click sign in button
     await page.click('button[type="submit"]')
-
-    // Wait for redirect to dashboard or org selector
     await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 30000 })
 
-    // Handle org selector if present
-    const currentUrl = page.url()
-    if (currentUrl.includes('/org-select')) {
-      // Select the first organization
+    if (page.url().includes('/org-select')) {
       await page.click('[data-testid="org-card"]:first-child')
       await page.waitForURL(/\/(.*?)\/dashboard/, { timeout: 30000 })
     }
 
-    // Provide the authenticated page to tests
     await use(page)
   },
 
-  // Extract org slug from URL
+  // Extract org slug from cached value or URL
   orgSlug: async ({ authenticatedPage }, use) => {
+    const cached = getCachedOrgSlug()
+    if (cached) {
+      await use(cached)
+      return
+    }
     const url = authenticatedPage.url()
     const match = url.match(/\/([^/]+)\/dashboard/)
     const slug = match ? match[1] : 'test_org'
@@ -51,20 +74,30 @@ export const test = base.extend<{ authenticatedPage: Page; orgSlug: string }>({
 export { expect }
 
 /**
- * Helper to login and get the org slug
+ * Helper to get org slug (pre-authenticated via storageState).
+ * Navigates to dashboard to verify session, falls back to login if needed.
  */
 export async function loginAndGetOrgSlug(page: Page): Promise<string> {
-  // Login
+  // Try cached org slug first
+  const cachedSlug = getCachedOrgSlug()
+  if (cachedSlug) {
+    // Navigate to dashboard - storageState should keep us authenticated
+    await page.goto(`/${cachedSlug}/dashboard`)
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(500)
+
+    // If we're NOT on the login page, session is valid
+    if (!page.url().includes('/login')) {
+      return cachedSlug
+    }
+  }
+
+  // Fallback: full login (only if session expired)
   await page.goto('/login')
   await page.waitForLoadState('domcontentloaded')
-
-  // Wait for page to load - email input should be visible
   await page.waitForSelector('input[type="email"], input[placeholder*="email"]', { timeout: 15000 })
-
-  // Small wait for page to stabilize
   await page.waitForTimeout(500)
 
-  // Fill in credentials - use type instead of fill for more reliable input
   const emailInput = page.locator('input[type="email"], input[placeholder*="email"]').first()
   const passwordInput = page.locator('input[type="password"]').first()
 
@@ -73,21 +106,16 @@ export async function loginAndGetOrgSlug(page: Page): Promise<string> {
   await passwordInput.clear()
   await passwordInput.type(TEST_USER.password)
 
-  // Wait a moment for any validation
   await page.waitForTimeout(300)
 
-  // Click sign in button
   const submitButton = page.locator('button[type="submit"], button:has-text("Sign in")').first()
   await submitButton.click()
 
-  // Wait for redirect to dashboard or org selector
   try {
     await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 45000 })
   } catch {
-    // If redirect didn't happen, check if there's an error or we're still on login
     const currentUrl = page.url()
     if (currentUrl.includes('/login')) {
-      // Try clicking submit again
       await page.waitForTimeout(1000)
       const errorText = await page.locator('[role="alert"]').or(page.locator('.error')).or(page.locator('text=Invalid')).isVisible()
       if (errorText) {
@@ -98,18 +126,13 @@ export async function loginAndGetOrgSlug(page: Page): Promise<string> {
     }
   }
 
-  // Handle org selector if present
-  const currentUrl = page.url()
-  if (currentUrl.includes('/org-select')) {
-    // Wait for org cards to load
+  if (page.url().includes('/org-select')) {
     await page.waitForTimeout(1000)
-    // Select the first organization
     const orgCard = page.locator('[data-testid="org-card"], a[href*="/dashboard"]').first()
     await orgCard.click()
     await page.waitForURL(/\/(.*?)\/dashboard/, { timeout: 30000 })
   }
 
-  // Extract org slug from URL
   const url = page.url()
   const match = url.match(/\/([^/]+)\/dashboard/)
   return match ? match[1] : 'test_org'
@@ -138,11 +161,8 @@ export async function waitForErrorMessage(page: Page, timeout = 10000) {
  */
 export async function navigateToIntegrations(page: Page, orgSlug: string, type: 'genai' | 'cloud-providers' | 'subscriptions') {
   await page.goto(`/${orgSlug}/integrations/${type}`)
-  // Use domcontentloaded instead of networkidle for Next.js apps with WebSocket connections
   await page.waitForLoadState('domcontentloaded')
-  // Give the page a moment to hydrate
   await page.waitForTimeout(2000)
-  // Wait for any loading spinners to disappear
   await waitForLoadingToComplete(page)
 }
 
@@ -152,26 +172,20 @@ export async function navigateToIntegrations(page: Page, orgSlug: string, type: 
 export async function waitForLoadingToComplete(page: Page, timeout = 30000) {
   const startTime = Date.now()
 
-  // Wait for any loading text to disappear
   while (Date.now() - startTime < timeout) {
     try {
-      // Check for common loading indicators
       const loadingVisible = await page.locator('text=/Loading|Rendering|Please wait/i').first().isVisible({ timeout: 500 })
 
       if (!loadingVisible) {
-        // No loading indicator found, we're good
         break
       }
 
-      // Wait a bit before checking again
       await page.waitForTimeout(1000)
     } catch {
-      // Selector not found or timeout, continue
       break
     }
   }
 
-  // Give the content a moment to render
   await page.waitForTimeout(1500)
 }
 
@@ -180,16 +194,13 @@ export async function waitForLoadingToComplete(page: Page, timeout = 30000) {
  */
 export async function waitForProviderCards(page: Page, timeout = 60000) {
   try {
-    // First wait for loading to complete
     await waitForLoadingToComplete(page, timeout)
 
-    // Then wait for provider cards or links to appear
     await page.waitForSelector('a[href*="/genai/"], a[href*="/cloud-providers/"], a[href*="/subscriptions/"]', {
       timeout,
       state: 'visible'
     })
   } catch {
-    // Cards may not exist if no providers configured
     console.log('Provider cards not found, may be empty state')
   }
 }

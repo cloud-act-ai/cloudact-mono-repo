@@ -1,6 +1,5 @@
 # Core - Google ADK
-google-adk[a2a]>=1.22
-fastmcp>=2.0
+google-adk>=1.18
 litellm>=1.40
 
 # GCP

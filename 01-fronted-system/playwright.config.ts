@@ -11,6 +11,8 @@ dotenv.config({ path: '.env.local' })
  * - GenAI providers (OpenAI, Anthropic, Gemini)
  * - Cloud providers (GCP)
  * - Subscription providers (multiple SaaS tools)
+ *
+ * Auth: Single login via auth.setup.ts, session reused by all tests.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -57,11 +59,37 @@ export default defineConfig({
   // Timeout for each test
   timeout: 120000,
 
-  // Configure projects for major browsers
+  // Configure projects: setup runs first, then chromium uses saved auth
   projects: [
     {
-      name: 'chromium',
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    // Auth tests run WITHOUT pre-loaded session (they test login flows)
+    {
+      name: 'auth-tests',
+      testMatch: /auth\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    // Account flow tests: no global storageState (login/signup tests need fresh browser)
+    // Auth-required tests use test.use({ storageState }) per describe block in the spec file
+    {
+      name: 'account-noauth',
+      testMatch: /account-flows\.spec\.ts/,
+      testIgnore: [],
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'], // Needs .auth/user.json + .auth/org-slug.json
+    },
+    // All other tests use pre-authenticated session
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Reuse authenticated session from setup
+        storageState: 'tests/e2e/.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testIgnore: [/auth\.spec\.ts/, /account-flows\.spec\.ts/, /.*\.setup\.ts/],
     },
   ],
 

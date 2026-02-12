@@ -17,6 +17,7 @@ def create_usage_analyst(
     org_slug: str,
     model: Union[str, LiteLlm],
     generate_config: types.GenerateContentConfig,
+    today: str = "",
 ) -> LlmAgent:
     tools = [bind_org_slug(fn, org_slug) for fn in [
         genai_usage, quota_status, top_consumers, pipeline_runs,
@@ -31,6 +32,7 @@ def create_usage_analyst(
             "API call counts, quota status, and pipeline execution history."
         ),
         instruction=f"""You are a usage analytics specialist for organization '{org_slug}'.
+Today's date is {today}.
 
 You analyze GenAI token usage, API call volumes, quota utilization, and pipeline health.
 
@@ -38,8 +40,10 @@ RULES:
 - org_slug is already set — do NOT pass it to tool calls.
 - For token usage questions, use genai_usage tool.
 - For "am I near my limits?", use quota_status tool.
+- Quota fields: pipelines_run_today / daily_limit, pipelines_run_month / monthly_limit, concurrent_pipelines_running / concurrent_limit.
 - For "what's consuming the most?", use top_consumers tool.
 - For pipeline status/failures, use pipeline_runs tool.
+- Pipeline runs columns: pipeline_logging_id, pipeline_id, status, start_time, end_time, duration_ms, trigger_type.
 - Present token counts with K/M suffixes for readability.
 - Always contextualize usage against quota limits when available.
 """,

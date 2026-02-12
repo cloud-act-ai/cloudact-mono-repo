@@ -16,18 +16,9 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-
-// ===========================================
-// Configuration
-// ===========================================
+import { loginAndGetOrgSlug } from './fixtures/auth';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
-
-// Test credentials
-const TEST_CREDENTIALS = {
-  email: 'demo@cloudact.ai',
-  password: 'demo1234',
-};
 
 // ===========================================
 // Helper Functions
@@ -42,36 +33,16 @@ async function waitForPageLoad(page: Page): Promise<void> {
 }
 
 /**
- * Login and navigate to dashboard
+ * Login and navigate to dashboard (uses shared auth with storageState)
  */
 async function loginAndGoToDashboard(page: Page): Promise<string> {
-  await page.goto(`${BASE_URL}/login`);
-  await waitForPageLoad(page);
-
-  // Fill credentials
-  const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
-
-  await emailInput.fill(TEST_CREDENTIALS.email);
-  await passwordInput.fill(TEST_CREDENTIALS.password);
-
-  // Submit
-  const submitButton = page.locator('button[type="submit"], button:has-text("Sign in")').first();
-  await submitButton.click();
-
-  // Wait for redirect to dashboard or org selector
-  await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 30000 });
-
-  // Handle org selector if present
-  if (page.url().includes('/org-select')) {
-    const orgCard = page.locator('[data-testid="org-card"], a[href*="/dashboard"]').first();
-    await orgCard.click();
-    await page.waitForURL(/\/(.*?)\/dashboard/, { timeout: 30000 });
+  const orgSlug = await loginAndGetOrgSlug(page);
+  // Ensure we're on the dashboard
+  if (!page.url().includes('/dashboard')) {
+    await page.goto(`/${orgSlug}/dashboard`);
+    await waitForPageLoad(page);
   }
-
-  // Extract org slug
-  const match = page.url().match(/\/([^/]+)\/dashboard/);
-  return match ? match[1] : 'test-org';
+  return orgSlug;
 }
 
 /**
@@ -108,18 +79,19 @@ test.describe('Dashboard - Page Load', () => {
     await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Check for dashboard heading (may be "Good morning", "Dashboard", or org name)
-    const heading = page.locator('h1, h2').filter({ hasText: /dashboard|good morning|overview|welcome/i }).first();
-    await expect(heading).toBeVisible({ timeout: 10000 });
+    // Dashboard shows time-based greeting or loading state - check for any content
+    // Sidebar shows "Dashboard" as the active nav item
+    const dashboardNav = page.locator('text=/Dashboard/').first();
+    await expect(dashboardNav).toBeVisible({ timeout: 10000 });
   });
 
   test('should display sidebar navigation', async ({ page }) => {
     await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Check for sidebar elements
-    const sidebar = page.locator('nav, aside, [data-testid="sidebar"]').first();
-    await expect(sidebar).toBeVisible();
+    // Sidebar uses accordion sections: ACCOUNT SUMMARY, COST ANALYTICS, PIPELINES, etc.
+    const sidebar = page.getByText('ACCOUNT SUMMARY').or(page.getByText('COST ANALYTICS')).first();
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
   });
 
   test('should display user menu or avatar', async ({ page }) => {
@@ -409,59 +381,67 @@ test.describe('Dashboard - Navigation', () => {
     const orgSlug = await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Click on cost/analytics link
-    const costLink = page.locator('a:has-text("Cost"), a:has-text("Analytics"), a[href*="cost"], a[href*="analytics"]').first();
-
-    if (await costLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await costLink.click();
-      await waitForPageLoad(page);
-
-      // Should be on cost analytics page
-      expect(page.url()).toMatch(/cost|analytics/);
-    } else {
-      // Direct navigation
-      await page.goto(`${BASE_URL}/${orgSlug}/cost-dashboards/overview`);
-      await waitForPageLoad(page);
-      expect(page.url()).toContain('cost');
+    // Sidebar has "COST ANALYTICS" accordion - click to expand then click "Overview" link
+    const costAccordion = page.locator('text=/COST ANALYTICS/').first();
+    if (await costAccordion.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await costAccordion.click();
+      await page.waitForTimeout(500);
+      const overviewLink = page.locator('a[href*="cost-dashboards/overview"]').first();
+      if (await overviewLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await overviewLink.click();
+        await waitForPageLoad(page);
+        expect(page.url()).toContain('cost-dashboards');
+        return;
+      }
     }
+    // Fallback: direct navigation
+    await page.goto(`/${orgSlug}/cost-dashboards/overview`);
+    await waitForPageLoad(page);
+    expect(page.url()).toContain('cost-dashboards');
   });
 
   test('should navigate to integrations page', async ({ page }) => {
     const orgSlug = await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Click on integrations link
-    const integrationsLink = page.locator('a:has-text("Integration"), a[href*="integration"]').first();
-
-    if (await integrationsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await integrationsLink.click();
-      await waitForPageLoad(page);
-
-      expect(page.url()).toContain('integration');
-    } else {
-      await page.goto(`${BASE_URL}/${orgSlug}/integrations`);
-      await waitForPageLoad(page);
-      expect(page.url()).toContain('integration');
+    // Sidebar has "INTEGRATIONS" accordion
+    const intAccordion = page.locator('text=/INTEGRATIONS/').first();
+    if (await intAccordion.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await intAccordion.click();
+      await page.waitForTimeout(500);
+      const genaiLink = page.locator('a[href*="integrations/genai"]').first();
+      if (await genaiLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await genaiLink.click();
+        await waitForPageLoad(page);
+        expect(page.url()).toContain('integrations');
+        return;
+      }
     }
+    await page.goto(`/${orgSlug}/integrations/genai`);
+    await waitForPageLoad(page);
+    expect(page.url()).toContain('integrations');
   });
 
   test('should navigate to settings page', async ({ page }) => {
     const orgSlug = await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Click on settings link
-    const settingsLink = page.locator('a:has-text("Setting"), a[href*="setting"]').first();
-
-    if (await settingsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await settingsLink.click();
-      await waitForPageLoad(page);
-
-      expect(page.url()).toContain('setting');
-    } else {
-      await page.goto(`${BASE_URL}/${orgSlug}/settings/organization`);
-      await waitForPageLoad(page);
-      expect(page.url()).toContain('setting');
+    // Sidebar has "ORG SETTINGS" accordion
+    const settingsAccordion = page.locator('text=/ORG SETTINGS/').first();
+    if (await settingsAccordion.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await settingsAccordion.click();
+      await page.waitForTimeout(500);
+      const orgLink = page.locator('a[href*="settings/organization"]').first();
+      if (await orgLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await orgLink.click();
+        await waitForPageLoad(page);
+        expect(page.url()).toContain('settings');
+        return;
+      }
     }
+    await page.goto(`/${orgSlug}/settings/organization`);
+    await waitForPageLoad(page);
+    expect(page.url()).toContain('settings');
   });
 });
 
@@ -474,13 +454,12 @@ test.describe('Dashboard - Quota Warnings', () => {
     await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Look for quota indicator
-    const quotaIndicator = page.locator('text=/quota|usage|limit|\\d+%/i, [data-testid*="quota"]');
+    // Quota indicator may be in sidebar (Usage & Quotas) or as a banner
+    const quotaIndicator = page.locator('text=/quota|usage|limit|\\d+%/i, [data-testid*="quota"], text=/Usage & Quotas/');
     const count = await quotaIndicator.count();
 
-    if (count > 0) {
-      console.log('Quota usage indicator found');
-    }
+    // Quota widget is optional - may not show if usage is low
+    console.log(`Found ${count} quota indicators`);
   });
 
   test('should show warning banner when quota is high', async ({ page }) => {

@@ -24,6 +24,7 @@ def create_cost_analyst(
     org_slug: str,
     model: Union[str, LiteLlm],
     generate_config: types.GenerateContentConfig,
+    today: str = "",
 ) -> LlmAgent:
     # Pre-bind org_slug to prevent prompt injection from overriding tenant context
     tools = [bind_org_slug(fn, org_slug) for fn in [
@@ -39,19 +40,28 @@ def create_cost_analyst(
             "trends, period comparisons (MTD/MoM/YoY), forecasts, and top cost drivers."
         ),
         instruction=f"""You are a cost analysis specialist for organization '{org_slug}'.
+Today's date is {today}. Use this to calculate relative dates like "last month", "last year", "this quarter", etc.
 
-You analyze ALL cost types stored in the FOCUS 1.3 unified cost table:
-- Cloud costs: GCP, AWS, Azure, OCI
-- GenAI costs: OpenAI, Anthropic, Gemini, DeepSeek
-- SaaS costs: Slack, Canva, ChatGPT Plus
+You analyze ALL cost types stored in the FOCUS 1.3 unified cost table (cost_data_standard_1_3).
+
+## Cost Types (use cost_type parameter)
+- cost_type="cloud": GCP, AWS, Azure, OCI — infrastructure costs
+- cost_type="genai": OpenAI, Anthropic, Gemini, DeepSeek — LLM API usage
+- cost_type="subscription": Slack, Canva, ChatGPT Plus — SaaS subscriptions
 
 RULES:
 - org_slug is already set — do NOT pass it to tool calls.
 - Present costs in the org's default currency.
-- When the user says "AWS costs" or "GCP costs", these are cloud provider costs.
-  Use provider="AWS" or provider="GCP" in the tool call.
-- For "OpenAI costs" or "Anthropic costs", these are also in the same table.
-  Use provider="OpenAI" or provider="Anthropic".
+- When user asks about "subscription costs" or "SaaS costs" → use cost_type="subscription"
+- When user asks about "cloud costs" or "infrastructure" → use cost_type="cloud"
+- When user asks about "AI costs", "LLM costs", "GenAI costs" → use cost_type="genai"
+- When user asks about "total costs" or "all costs" → do NOT set cost_type
+- Use a wide date range if user doesn't specify dates (e.g., start_date="2024-01-01", end_date="{today}") to avoid missing data.
+- When the user says "last 1 year", calculate: start_date = 1 year before {today}, end_date = {today}.
+- When the user says "last month", use the previous calendar month relative to {today}.
+- When the user says "this month" or "MTD", use the current month from day 1 to {today}.
+- When the user says "AWS costs" or "GCP costs", use provider="AWS" or provider="GCP".
+- For "OpenAI costs" or "Anthropic costs", use provider="OpenAI" or provider="Anthropic".
 - Use compare_periods for trend questions (MTD, MoM, YoY).
 - Use cost_breakdown for "break it down by X" questions.
 - Use top_cost_drivers to find what's causing cost increases.

@@ -22,6 +22,7 @@ def create_explorer(
     model: Union[str, LiteLlm],
     generate_config: types.GenerateContentConfig,
     bigquery_toolset=None,
+    today: str = "",
 ) -> LlmAgent:
     tools = [bind_org_slug(fn, org_slug) for fn in [
         list_org_tables, describe_table, run_read_query,
@@ -40,6 +41,7 @@ def create_explorer(
             "custom analysis, or questions the other specialists can't answer."
         ),
         instruction=f"""You are a data exploration agent for organization '{org_slug}'.
+Today's date is {today}.
 
 You can list datasets, tables, describe schemas, and run read-only SQL queries against BigQuery.
 

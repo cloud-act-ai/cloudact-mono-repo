@@ -1,5 +1,19 @@
 """
 Usage MCP tools — 4 tools for analyzing GenAI and pipeline usage.
+
+BQ table: organizations.org_usage_quotas
+Columns: usage_id, org_slug, usage_date (DATE), pipelines_run_today,
+         pipelines_succeeded_today, pipelines_failed_today, pipelines_run_month,
+         concurrent_pipelines_running, daily_limit, monthly_limit, concurrent_limit,
+         seat_limit, providers_limit, max_concurrent_reached,
+         last_pipeline_completed_at, last_updated, created_at, updated_at.
+
+BQ table: organizations.org_meta_pipeline_runs
+Columns: pipeline_logging_id, org_slug, pipeline_id, status, trigger_type,
+         trigger_by, user_id, org_api_key_id, start_time (TIMESTAMP),
+         end_time (TIMESTAMP), duration_ms, run_date (DATE),
+         parameters (JSON), run_metadata (JSON), error_message, error_context (JSON),
+         created_at (TIMESTAMP).
 """
 
 import logging
@@ -46,9 +60,9 @@ def genai_usage(
             ROUND(SUM(BilledCost), 2) AS total_cost,
             BillingCurrency AS currency
         FROM `{dataset}.cost_data_standard_1_3`
-        WHERE ServiceCategory = 'AI and Machine Learning'
-          AND ChargePeriodStart >= @start_date
-          AND ChargePeriodEnd <= @end_date
+        WHERE x_source_system = 'genai'
+          AND ChargePeriodStart >= TIMESTAMP(@start_date)
+          AND ChargePeriodEnd <= TIMESTAMP(@end_date)
     """
     params = [
         bigquery.ScalarQueryParameter("start_date", "STRING", start_date),
@@ -81,9 +95,11 @@ def quota_status(
     query = f"""
         SELECT
             org_slug, usage_date,
-            daily_pipeline_runs, daily_pipeline_limit,
-            monthly_pipeline_runs, monthly_pipeline_limit,
-            concurrent_pipeline_runs, concurrent_pipeline_limit
+            pipelines_run_today, daily_limit,
+            pipelines_run_month, monthly_limit,
+            concurrent_pipelines_running, concurrent_limit,
+            pipelines_succeeded_today, pipelines_failed_today,
+            seat_limit, providers_limit
         FROM `{dataset}.org_usage_quotas`
         WHERE org_slug = @org_slug
         ORDER BY usage_date DESC
@@ -96,11 +112,15 @@ def quota_status(
     if result["rows"]:
         row = result["rows"][0]
         result["summary"] = {
-            "daily_used": row.get("daily_pipeline_runs", 0),
-            "daily_limit": row.get("daily_pipeline_limit", 0),
-            "daily_remaining": max(0, (row.get("daily_pipeline_limit", 0) or 0) - (row.get("daily_pipeline_runs", 0) or 0)),
-            "monthly_used": row.get("monthly_pipeline_runs", 0),
-            "monthly_limit": row.get("monthly_pipeline_limit", 0),
+            "daily_used": row.get("pipelines_run_today", 0),
+            "daily_limit": row.get("daily_limit", 0),
+            "daily_remaining": max(0, (row.get("daily_limit", 0) or 0) - (row.get("pipelines_run_today", 0) or 0)),
+            "monthly_used": row.get("pipelines_run_month", 0),
+            "monthly_limit": row.get("monthly_limit", 0),
+            "concurrent_running": row.get("concurrent_pipelines_running", 0),
+            "concurrent_limit": row.get("concurrent_limit", 0),
+            "succeeded_today": row.get("pipelines_succeeded_today", 0),
+            "failed_today": row.get("pipelines_failed_today", 0),
         }
     return result
 
@@ -111,7 +131,7 @@ def top_consumers(
     limit: int = 10,
 ) -> Dict[str, Any]:
     """
-    Find top consumers of resources — by model, service, or user.
+    Find top consumers of resources — by model, service, or provider.
 
     Args:
         org_slug: Organization slug.
@@ -129,6 +149,7 @@ def top_consumers(
     validate_enum(dimension, _VALID_CONSUMER_DIMENSIONS, "dimension")
     dim_col = dim_map[dimension]
 
+    # Use TIMESTAMP_SUB for TIMESTAMP column comparison
     query = f"""
         SELECT
             {dim_col} AS dimension,
@@ -137,7 +158,7 @@ def top_consumers(
             ROUND(SUM(ConsumedQuantity), 0) AS total_usage,
             BillingCurrency AS currency
         FROM `{dataset}.cost_data_standard_1_3`
-        WHERE ChargePeriodStart >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+        WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
           AND {dim_col} IS NOT NULL
         GROUP BY dimension, currency
         ORDER BY total_cost DESC
@@ -149,7 +170,6 @@ def top_consumers(
 
 def pipeline_runs(
     org_slug: str,
-    provider: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 20,
 ) -> Dict[str, Any]:
@@ -158,7 +178,6 @@ def pipeline_runs(
 
     Args:
         org_slug: Organization slug.
-        provider: Filter by provider.
         status: Filter by status (COMPLETED, FAILED, RUNNING).
         limit: Maximum results (1-50, default 20).
     """
@@ -167,21 +186,20 @@ def pipeline_runs(
 
     query = f"""
         SELECT
-            run_id, pipeline_id, provider, domain, status,
-            started_at, completed_at, duration_ms, error_message
+            pipeline_logging_id, pipeline_id, status,
+            trigger_type, trigger_by,
+            start_time, end_time, duration_ms,
+            run_date, error_message
         FROM `{dataset}.org_meta_pipeline_runs`
         WHERE org_slug = @org_slug
     """
     params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
 
-    if provider:
-        query += " AND provider = @provider"
-        params.append(bigquery.ScalarQueryParameter("provider", "STRING", provider))
     if status:
         validate_enum(status, _VALID_PIPELINE_STATUSES, "status")
         query += " AND status = @status"
         params.append(bigquery.ScalarQueryParameter("status", "STRING", status))
 
-    query += f" ORDER BY started_at DESC LIMIT {limit}"
+    query += f" ORDER BY start_time DESC LIMIT {limit}"
 
     return safe_query(org_slug, query, params)

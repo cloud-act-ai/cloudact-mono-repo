@@ -12,7 +12,7 @@ interface ProviderSelectorProps {
 export function ProviderSelector({ value, onChange, credentialStatus }: ProviderSelectorProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-slate-300">LLM Provider</label>
+      <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-slate-300">LLM Provider</label>
       <div className="grid grid-cols-2 gap-3">
         {LLM_PROVIDERS.map((provider) => {
           const hasCred = credentialStatus?.[provider.id]
@@ -24,23 +24,23 @@ export function ProviderSelector({ value, onChange, credentialStatus }: Provider
                 "rounded-xl border p-4 text-left transition-all",
                 value === provider.id
                   ? "border-[#90FCA6]/40 bg-[#90FCA6]/5"
-                  : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                  : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 hover:border-gray-300 dark:hover:border-slate-600"
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-white">{provider.name}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{provider.name}</span>
                 {hasCred !== undefined && (
                   <span
                     className={cn(
                       "text-xs",
-                      hasCred ? "text-[#90FCA6]" : "text-slate-500"
+                      hasCred ? "text-[#16a34a] dark:text-[#90FCA6]" : "text-gray-400 dark:text-slate-500"
                     )}
                   >
                     {hasCred ? "Key configured" : "No key"}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-500">
                 {provider.models.length} models available
               </p>
             </button>

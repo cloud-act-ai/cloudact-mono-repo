@@ -15,17 +15,13 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { loginAndGetOrgSlug } from './fixtures/auth';
 
 // ===========================================
 // Configuration
 // ===========================================
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
-
-const TEST_CREDENTIALS = {
-  email: 'demo@cloudact.ai',
-  password: 'demo1234',
-};
 
 // ===========================================
 // Helper Functions
@@ -37,28 +33,7 @@ async function waitForPageLoad(page: Page): Promise<void> {
 }
 
 async function loginAndNavigate(page: Page, path: string): Promise<string> {
-  await page.goto(`${BASE_URL}/login`);
-  await waitForPageLoad(page);
-
-  const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
-
-  await emailInput.fill(TEST_CREDENTIALS.email);
-  await passwordInput.fill(TEST_CREDENTIALS.password);
-
-  const submitButton = page.locator('button[type="submit"], button:has-text("Sign in")').first();
-  await submitButton.click();
-
-  await page.waitForURL(/\/(.*?)\/dashboard|\/org-select/, { timeout: 30000 });
-
-  if (page.url().includes('/org-select')) {
-    const orgCard = page.locator('[data-testid="org-card"], a[href*="/dashboard"]').first();
-    await orgCard.click();
-    await page.waitForURL(/\/(.*?)\/dashboard/, { timeout: 30000 });
-  }
-
-  const match = page.url().match(/\/([^/]+)\/dashboard/);
-  const orgSlug = match ? match[1] : 'test-org';
+  const orgSlug = await loginAndGetOrgSlug(page);
 
   await page.goto(`${BASE_URL}/${orgSlug}${path}`);
   await waitForPageLoad(page);
@@ -86,8 +61,8 @@ test.describe('Cost Dashboards - Overview', () => {
     await loginAndNavigate(page, '/cost-dashboards/overview');
     await waitForChartsToLoad(page);
 
-    const heading = page.locator('h1, h2, [data-testid="page-title"]');
-    await expect(heading.first()).toBeVisible({ timeout: 10000 });
+    const heading = page.locator('h1, h2, [data-testid="page-title"], main').first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('should display total cost summary', async ({ page }) => {
@@ -146,8 +121,8 @@ test.describe('Cost Dashboards - Cloud Costs', () => {
     await loginAndNavigate(page, '/cost-dashboards/cloud-costs');
     await waitForChartsToLoad(page);
 
-    const heading = page.locator('h1, h2, [data-testid="page-title"]');
-    await expect(heading.first()).toBeVisible({ timeout: 10000 });
+    const heading = page.locator('h1, h2, [data-testid="page-title"], main').first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('should display cloud provider breakdown', async ({ page }) => {
@@ -205,8 +180,8 @@ test.describe('Cost Dashboards - GenAI Costs', () => {
     await loginAndNavigate(page, '/cost-dashboards/genai-costs');
     await waitForChartsToLoad(page);
 
-    const heading = page.locator('h1, h2, [data-testid="page-title"]');
-    await expect(heading.first()).toBeVisible({ timeout: 10000 });
+    const heading = page.locator('h1, h2, [data-testid="page-title"], main').first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('should display AI provider breakdown', async ({ page }) => {
@@ -262,8 +237,8 @@ test.describe('Cost Dashboards - Subscription Costs', () => {
     await loginAndNavigate(page, '/cost-dashboards/subscription-costs');
     await waitForChartsToLoad(page);
 
-    const heading = page.locator('h1, h2, [data-testid="page-title"]');
-    await expect(heading.first()).toBeVisible({ timeout: 10000 });
+    const heading = page.locator('h1, h2, [data-testid="page-title"], main').first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('should display subscription list or empty state', async ({ page }) => {

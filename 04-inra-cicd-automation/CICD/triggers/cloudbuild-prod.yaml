@@ -1,6 +1,6 @@
 # Cloud Build Trigger: Deploy to Production
 # Triggered on: Tag matching v* (e.g., v3.0.5, v1.0.0)
-# Deploys: All services (api-service, pipeline-service, frontend) to prod
+# Deploys: All services (api-service, pipeline-service, chat-backend, frontend) to prod
 
 substitutions:
   _ENV: prod
@@ -66,6 +66,28 @@ steps:
     id: 'push-pipeline-service'
     args: ['push', '--all-tags', 'gcr.io/${_PROJECT_ID}/cloudact-pipeline-service-${_ENV}']
     waitFor: ['build-pipeline-service']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-chat-backend'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg=TARGET_ENV=${_ENV}'
+      - '--build-arg=VERSION=${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:${TAG_NAME}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:latest'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:${_ENV}-latest'
+      - '-f'
+      - '07-org-chat-backend/Dockerfile'
+      - '07-org-chat-backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-chat-backend'
+    args: ['push', '--all-tags', 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}']
+    waitFor: ['build-chat-backend']
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-frontend'
@@ -183,6 +205,32 @@ steps:
     waitFor: ['push-pipeline-service']
 
   # ============================================
+  # Deploy Chat Backend (internal service)
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-chat-backend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud run deploy cloudact-chat-backend-${_ENV} \
+          --project=${_PROJECT_ID} \
+          --image=gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:${TAG_NAME} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=4Gi \
+          --cpu=2 \
+          --timeout=120 \
+          --min-instances=1 \
+          --max-instances=10 \
+          --port=8002 \
+          --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=production,ORGANIZATIONS_DATASET=organizations,KMS_PROJECT_ID=${_PROJECT_ID},KMS_LOCATION=us-central1,KMS_KEYRING=cloudact-keyring,KMS_KEY=api-key-encryption,CORS_ORIGINS=https://cloudact.ai,SUPABASE_URL=${_SUPABASE_URL}" \
+          --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
+    waitFor: ['push-chat-backend']
+
+  # ============================================
   # Deploy Frontend
   # ============================================
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -195,7 +243,8 @@ steps:
         API_URL="https://api.cloudact.ai"
         PIPELINE_URL="https://pipeline.cloudact.ai"
         APP_URL="https://cloudact.ai"
-        
+        CHAT_URL=$$(gcloud run services describe cloudact-chat-backend-${_ENV} --project=${_PROJECT_ID} --region=${_REGION} --format="value(status.url)" 2>/dev/null || echo "https://cloudact-chat-backend-${_ENV}.${_REGION}.run.app")
+
         # Clear secret-bound env vars before setting as plain env vars
         # These were previously set as secrets but should be plain env vars (baked into image at build time)
         gcloud run services update cloudact-frontend-${_ENV} \
@@ -217,9 +266,9 @@ steps:
           --max-instances=10 \
           --port=3000 \
           --service-account=cloudact-sa-${_ENV}@${_PROJECT_ID}.iam.gserviceaccount.com \
-          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},ENVIRONMENT=production,NODE_ENV=production,NEXT_PUBLIC_API_SERVICE_URL=$$API_URL,API_SERVICE_URL=$$API_URL,NEXT_PUBLIC_PIPELINE_SERVICE_URL=$$PIPELINE_URL,PIPELINE_SERVICE_URL=$$PIPELINE_URL,NEXT_PUBLIC_APP_URL=$$APP_URL,NEXT_PUBLIC_SUPABASE_URL=${_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY},NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${_STRIPE_PUBLISHABLE_KEY},NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${_STRIPE_STARTER_PRICE_ID},NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${_STRIPE_PROFESSIONAL_PRICE_ID},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${_STRIPE_SCALE_PRICE_ID},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14" \
+          --set-env-vars="GCP_PROJECT_ID=${_PROJECT_ID},ENVIRONMENT=production,NODE_ENV=production,NEXT_PUBLIC_API_SERVICE_URL=$$API_URL,API_SERVICE_URL=$$API_URL,NEXT_PUBLIC_PIPELINE_SERVICE_URL=$$PIPELINE_URL,PIPELINE_SERVICE_URL=$$PIPELINE_URL,NEXT_PUBLIC_APP_URL=$$APP_URL,CHAT_BACKEND_URL=$$CHAT_URL,NEXT_PUBLIC_SUPABASE_URL=${_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY},NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${_STRIPE_PUBLISHABLE_KEY},NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${_STRIPE_STARTER_PRICE_ID},NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${_STRIPE_PROFESSIONAL_PRICE_ID},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${_STRIPE_SCALE_PRICE_ID},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14" \
           --set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${_ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${_ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${_ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${_ENV}:latest
-    waitFor: ['push-frontend', 'deploy-api-service', 'deploy-pipeline-service']
+    waitFor: ['push-frontend', 'deploy-api-service', 'deploy-pipeline-service', 'deploy-chat-backend']
 
   # ============================================
   # Update Cloud Run Jobs with New Image
@@ -260,6 +309,9 @@ images:
   - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${TAG_NAME}'
   - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:latest'
   - 'gcr.io/${_PROJECT_ID}/cloudact-frontend-${_ENV}:${_ENV}-latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:${TAG_NAME}'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:latest'
+  - 'gcr.io/${_PROJECT_ID}/cloudact-chat-backend-${_ENV}:${_ENV}-latest'
   - 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:${TAG_NAME}'
   - 'gcr.io/${_PROJECT_ID}/cloudact-jobs-${_ENV}:latest'
 

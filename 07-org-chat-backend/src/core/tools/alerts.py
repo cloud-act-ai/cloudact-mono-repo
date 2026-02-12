@@ -1,7 +1,20 @@
 """
 Alert MCP tools — 4 tools for managing cost alerts.
+
+BQ table: organizations.org_notification_rules
+Columns: rule_id, org_slug, name, description, is_active (BOOL), priority,
+         rule_category, rule_type, conditions (JSON str), provider_filter (REPEATED),
+         service_filter (REPEATED), notify_channel_ids (REPEATED),
+         last_triggered_at, trigger_count_today, acknowledged_at, acknowledged_by,
+         created_at, updated_at, created_by.
+
+BQ table: organizations.org_alert_history
+Columns: alert_history_id, alert_id, org_slug, status, severity,
+         trigger_data, condition_results, recipients (REPEATED),
+         recipient_count, sent_at, error_message, created_at.
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -15,9 +28,8 @@ from src.core.security.org_validator import validate_org
 
 logger = logging.getLogger(__name__)
 
-_VALID_SEVERITIES = {"info", "warning", "critical"}
-_VALID_ALERT_STATUSES = {"active", "paused", "disabled"}
-_MAX_ALERT_NAME_LENGTH = 200
+_VALID_PRIORITIES = {"info", "warning", "critical"}
+_MAX_NAME_LENGTH = 200
 
 
 def list_alerts(
@@ -25,27 +37,29 @@ def list_alerts(
     status: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    List configured cost alerts for an organization.
+    List configured cost alert rules for an organization.
 
     Args:
         org_slug: Organization slug.
-        status: Optional filter by status (active, paused, disabled).
+        status: Optional filter — 'active' or 'inactive'. Active shows enabled rules only.
     """
     dataset = get_org_dataset()
 
     query = f"""
-        SELECT alert_id, alert_name, alert_type, severity, status,
-               threshold_value, threshold_currency, provider_filter,
+        SELECT rule_id, name, description, is_active, priority,
+               rule_category, rule_type, conditions,
+               provider_filter, service_filter,
+               last_triggered_at, trigger_count_today,
                created_at
         FROM `{dataset}.org_notification_rules`
         WHERE org_slug = @org_slug
     """
     params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
 
-    if status:
-        validate_enum(status, _VALID_ALERT_STATUSES, "status")
-        query += " AND status = @status"
-        params.append(bigquery.ScalarQueryParameter("status", "STRING", status))
+    if status == "active":
+        query += " AND is_active = TRUE"
+    elif status == "inactive":
+        query += " AND is_active = FALSE"
 
     query += " ORDER BY created_at DESC LIMIT 50"
 
@@ -57,7 +71,7 @@ def create_alert(
     alert_name: str,
     threshold_value: float,
     provider: Optional[str] = None,
-    severity: str = "warning",
+    priority: str = "warning",
     threshold_currency: str = "USD",
 ) -> Dict[str, Any]:
     """
@@ -67,15 +81,14 @@ def create_alert(
         org_slug: Organization slug.
         alert_name: Human-readable alert name.
         threshold_value: Cost threshold that triggers the alert.
-        provider: Optional provider filter (e.g., AWS, GCP).
-        severity: Alert severity — info, warning, critical.
+        provider: Optional provider filter (e.g., AWS, GCP, OpenAI).
+        priority: Alert priority — info, warning, critical.
         threshold_currency: Currency for threshold (default USD).
     """
     validate_org(org_slug)
-    validate_enum(severity, _VALID_SEVERITIES, "severity")
+    validate_enum(priority, _VALID_PRIORITIES, "priority")
 
-    # Sanitize alert_name
-    alert_name = alert_name.strip()[:_MAX_ALERT_NAME_LENGTH]
+    alert_name = alert_name.strip()[:_MAX_NAME_LENGTH]
     if not alert_name:
         raise ValueError("alert_name cannot be empty")
 
@@ -84,19 +97,29 @@ def create_alert(
 
     dataset = get_org_dataset()
 
-    alert_id = f"chat_{uuid.uuid4().hex[:12]}"
+    rule_id = f"chat_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc).isoformat()
 
-    row = {
-        "alert_id": alert_id,
-        "org_slug": org_slug,
-        "alert_name": alert_name,
-        "alert_type": "cost_threshold",
-        "severity": severity,
-        "status": "active",
+    conditions = json.dumps({
+        "type": "cost_threshold",
         "threshold_value": threshold_value,
         "threshold_currency": threshold_currency,
-        "provider_filter": provider,
+        "comparison": "greater_than",
+    })
+
+    row = {
+        "rule_id": rule_id,
+        "org_slug": org_slug,
+        "name": alert_name,
+        "description": f"Cost alert: notify when costs exceed {threshold_currency} {threshold_value}",
+        "is_active": True,
+        "priority": priority,
+        "rule_category": "cost_threshold",
+        "rule_type": "cost_threshold",
+        "conditions": conditions,
+        "provider_filter": [provider] if provider else [],
+        "service_filter": [],
+        "notify_channel_ids": [],
         "created_at": now,
     }
 
@@ -105,9 +128,16 @@ def create_alert(
 
     return {
         "org_slug": org_slug,
-        "alert_id": alert_id,
+        "rule_id": rule_id,
         "status": "created",
-        "alert": row,
+        "alert": {
+            "rule_id": rule_id,
+            "name": alert_name,
+            "priority": priority,
+            "threshold_value": threshold_value,
+            "threshold_currency": threshold_currency,
+            "provider": provider,
+        },
     }
 
 
@@ -138,10 +168,10 @@ def alert_history(
     params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
 
     if start_date:
-        query += " AND created_at >= @start_date"
+        query += " AND created_at >= TIMESTAMP(@start_date)"
         params.append(bigquery.ScalarQueryParameter("start_date", "STRING", start_date))
     if end_date:
-        query += " AND created_at <= @end_date"
+        query += " AND created_at <= TIMESTAMP(@end_date)"
         params.append(bigquery.ScalarQueryParameter("end_date", "STRING", end_date))
 
     query += f" ORDER BY created_at DESC LIMIT {limit}"
@@ -164,20 +194,37 @@ def acknowledge_alert(
     dataset = get_org_dataset()
     now = datetime.now(timezone.utc).isoformat()
 
-    # Update alert history status in BigQuery
-    update_query = f"""
-        UPDATE `{dataset}.org_alert_history`
-        SET status = 'acknowledged', acknowledged_at = @ack_at
-        WHERE alert_history_id = @alert_history_id AND org_slug = @org_slug
-    """
-    params = [
-        bigquery.ScalarQueryParameter("ack_at", "STRING", now),
-        bigquery.ScalarQueryParameter("alert_history_id", "STRING", alert_history_id),
-        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-    ]
+    # Find the alert_id (rule_id) from the history entry
+    history_rows = execute_query(
+        f"""SELECT alert_id FROM `{dataset}.org_alert_history`
+            WHERE alert_history_id = @ahid AND org_slug = @org_slug LIMIT 1""",
+        params=[
+            bigquery.ScalarQueryParameter("ahid", "STRING", alert_history_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+        ],
+    )
 
+    if not history_rows:
+        return {
+            "org_slug": org_slug,
+            "alert_history_id": alert_history_id,
+            "status": "not_found",
+        }
+
+    rule_id = history_rows[0]["alert_id"]
+
+    # Update the rule's acknowledged_at on org_notification_rules
     try:
-        execute_query(update_query, params)
+        execute_query(
+            f"""UPDATE `{dataset}.org_notification_rules`
+                SET acknowledged_at = TIMESTAMP(@ack_at), acknowledged_by = 'chat_agent'
+                WHERE rule_id = @rule_id AND org_slug = @org_slug""",
+            params=[
+                bigquery.ScalarQueryParameter("ack_at", "STRING", now),
+                bigquery.ScalarQueryParameter("rule_id", "STRING", rule_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            ],
+        )
     except Exception as e:
         logger.error(f"Failed to acknowledge alert {alert_history_id}: {e}")
         return {
@@ -190,6 +237,7 @@ def acknowledge_alert(
     return {
         "org_slug": org_slug,
         "alert_history_id": alert_history_id,
+        "rule_id": rule_id,
         "status": "acknowledged",
         "acknowledged_at": now,
     }

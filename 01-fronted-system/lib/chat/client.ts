@@ -1,16 +1,23 @@
 /**
  * Chat API client for communicating with 07-org-chat-backend.
+ *
+ * All calls go through the Next.js /api/chat proxy route (server-side)
+ * which handles authentication and forwards to the internal chat backend.
+ * This ensures the internal-only chat backend (port 8002) is never
+ * called directly from the browser.
  */
 
-import { CHAT_BACKEND_URL } from "./constants"
 import type { ChatMessage, Conversation } from "./constants"
 
-const DEFAULT_TIMEOUT = 60000 // 60s for LLM responses
+const DEFAULT_TIMEOUT = 120000 // 120s for LLM responses
+
+// Proxy base: browser calls /api/chat/{org_slug}/... which Next.js proxies to chat backend
+const CHAT_PROXY_BASE = "/api/chat"
 
 async function chatFetch(
   path: string,
   options: RequestInit & { timeout?: number } = {},
-  context?: { apiKey?: string; orgSlug?: string; userId?: string }
+  _context?: { apiKey?: string; orgSlug?: string; userId?: string }
 ): Promise<Response> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options
 
@@ -22,18 +29,11 @@ async function chatFetch(
     ...(fetchOptions.headers as Record<string, string>),
   }
 
-  if (context?.apiKey) {
-    headers["X-API-Key"] = context.apiKey
-  }
-  if (context?.orgSlug) {
-    headers["X-Org-Slug"] = context.orgSlug
-  }
-  if (context?.userId) {
-    headers["X-User-Id"] = context.userId
-  }
+  // Auth is handled server-side by the /api/chat proxy route
+  // No need to send API keys from the browser
 
   try {
-    const response = await fetch(`${CHAT_BACKEND_URL}${path}`, {
+    const response = await fetch(`${CHAT_PROXY_BASE}${path}`, {
       ...fetchOptions,
       headers,
       signal: controller.signal,
@@ -67,7 +67,7 @@ export async function sendMessage(
   latency_ms: number
 }> {
   const response = await chatFetch(
-    `/api/v1/chat/${orgSlug}/send`,
+    `/${orgSlug}/send`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -96,7 +96,7 @@ export async function getMessages(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ messages: any[] }> {
   const response = await chatFetch(
-    `/api/v1/chat/${orgSlug}/conversations/${conversationId}/messages`,
+    `/${orgSlug}/conversations/${conversationId}/messages`,
     { method: "GET", timeout: 15000 },
     ctx
   )
@@ -116,7 +116,7 @@ export async function listConversations(
   ctx?: ChatClientContext
 ): Promise<{ conversations: Conversation[] }> {
   const response = await chatFetch(
-    `/api/v1/chat/${orgSlug}/conversations`,
+    `/${orgSlug}/conversations`,
     { method: "GET", timeout: 15000 },
     ctx
   )
@@ -129,6 +129,25 @@ export async function listConversations(
 }
 
 /**
+ * Delete a conversation (soft-delete).
+ */
+export async function deleteConversation(
+  orgSlug: string,
+  conversationId: string,
+  ctx?: ChatClientContext
+): Promise<void> {
+  const response = await chatFetch(
+    `/${orgSlug}/conversations/${conversationId}`,
+    { method: "DELETE", timeout: 15000 },
+    ctx
+  )
+
+  if (!response.ok) {
+    throw new Error("Failed to delete conversation")
+  }
+}
+
+/**
  * Check if chat is configured for the org.
  */
 export async function getChatStatus(
@@ -136,7 +155,7 @@ export async function getChatStatus(
   ctx?: ChatClientContext
 ): Promise<{ configured: boolean; provider?: string; model_id?: string; status?: string }> {
   const response = await chatFetch(
-    `/api/v1/chat/${orgSlug}/settings/status`,
+    `/${orgSlug}/settings/status`,
     { method: "GET", timeout: 10000 },
     ctx
   )
@@ -145,5 +164,139 @@ export async function getChatStatus(
     return { configured: false, status: "error" }
   }
 
+  return response.json()
+}
+
+/**
+ * Send a message and stream the response via SSE.
+ */
+export async function streamMessage(
+  orgSlug: string,
+  message: string,
+  conversationId?: string,
+  ctx?: ChatClientContext,
+  onToken: (text: string) => void = () => {},
+  onDone: (data: { conversation_id: string; agent_name?: string; model_id?: string; latency_ms: number }) => void = () => {},
+  onError: (error: string) => void = () => {},
+): Promise<void> {
+  // For streaming, use a longer timeout (connection only — cleared once stream starts)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 120000)
+
+  const response = await fetch(`${CHAT_PROXY_BASE}/${orgSlug}/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, conversation_id: conversationId }),
+    signal: controller.signal,
+  })
+
+  // Connection established — clear timeout so streaming can continue indefinitely
+  clearTimeout(timeoutId)
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Failed to send message" }))
+    onError(errorData.message || errorData.detail || "Chat request failed")
+    return
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) {
+    onError("Streaming not supported")
+    return
+  }
+
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || ""
+
+      let eventType = ""
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim()
+        } else if (line.startsWith("data: ")) {
+          const data = line.slice(6)
+          try {
+            const parsed = JSON.parse(data)
+            if (eventType === "token") {
+              onToken(parsed.text || "")
+            } else if (eventType === "done") {
+              onDone(parsed)
+            } else if (eventType === "error") {
+              onError(parsed.message || "Unknown error")
+            }
+          } catch {
+            // Non-JSON data line, skip
+          }
+          eventType = ""
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+/**
+ * Delete a message from a conversation.
+ * Client-side only -- remove from local state.
+ * Backend doesn't support individual message deletion (BQ streaming buffer limitation).
+ */
+export async function deleteMessage(
+  _orgSlug: string,
+  _conversationId: string,
+  _messageId: string,
+  _ctx?: ChatClientContext
+): Promise<void> {
+  // Client-side only — remove from local state
+  // Backend doesn't support individual message deletion (BQ streaming buffer limitation)
+}
+
+/**
+ * Rename a conversation.
+ */
+export async function renameConversation(
+  orgSlug: string,
+  conversationId: string,
+  title: string,
+  ctx?: ChatClientContext
+): Promise<void> {
+  const response = await chatFetch(
+    `/${orgSlug}/conversations/${conversationId}/rename`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+      timeout: 10000,
+    },
+    ctx
+  )
+  if (!response.ok) {
+    throw new Error("Failed to rename conversation")
+  }
+}
+
+/**
+ * Search messages across conversations.
+ */
+export async function searchMessages(
+  orgSlug: string,
+  query: string,
+  ctx?: ChatClientContext
+): Promise<{ results: Array<{ conversation_id: string; message_id: string; content: string; role: string; created_at: string }> }> {
+  const response = await chatFetch(
+    `/${orgSlug}/messages/search?q=${encodeURIComponent(query)}`,
+    { method: "GET", timeout: 15000 },
+    ctx
+  )
+  if (!response.ok) {
+    return { results: [] }
+  }
   return response.json()
 }

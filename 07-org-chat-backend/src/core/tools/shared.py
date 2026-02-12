@@ -4,10 +4,13 @@ Common BigQuery query patterns, validation, and result formatting.
 """
 
 import re
+import time
+import hashlib
 import logging
+import concurrent.futures
 from datetime import date, timedelta
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from google.cloud import bigquery
 
@@ -34,6 +37,26 @@ def validate_enum(value: str, allowed: Set[str], field_name: str) -> str:
     return value
 
 
+# Dry-run result cache: hash -> (estimated_bytes, timestamp)
+_dry_run_cache = {}  # type: Dict[str, Tuple[int, float]]
+_DRY_RUN_CACHE_TTL = 300  # 5 minutes
+
+
+def _cached_guard_query(
+    query: str,
+    params: Optional[List[bigquery.ScalarQueryParameter]] = None,
+) -> int:
+    """Guard query with a simple hash-based cache for dry-run results."""
+    cache_key = hashlib.sha256(query.encode()).hexdigest()[:16]
+    now = time.time()
+    cached = _dry_run_cache.get(cache_key)
+    if cached and (now - cached[1]) < _DRY_RUN_CACHE_TTL:
+        return cached[0]
+    result = guard_query(query, params)
+    _dry_run_cache[cache_key] = (result, now)
+    return result
+
+
 def safe_query(
     org_slug: str,
     query: str,
@@ -43,15 +66,16 @@ def safe_query(
     Execute a validated, guarded BigQuery query for an org.
 
     1. Validates org_slug (format + existence)
-    2. Dry-run gate (10 GB limit)
-    3. Executes parameterized query
+    2. Dry-run gate (10 GB limit) — cached
+    3. Executes parameterized query (with enforce_guard=False since we already guarded)
     4. Returns results with metadata
     """
     try:
         validate_org(org_slug)
-        estimated_bytes = guard_query(query, params)
-        rows = execute_query(query, params)
+        estimated_bytes = _cached_guard_query(query, params)
+        rows = execute_query(query, params, enforce_guard=False)
 
+        logger.info(f"safe_query OK for {org_slug}: {len(rows)} rows, {estimated_bytes} bytes")
         return {
             "org_slug": org_slug,
             "rows": rows,
@@ -59,13 +83,37 @@ def safe_query(
             "bytes_processed": estimated_bytes,
         }
     except Exception as e:
-        logger.error(f"Query failed for {org_slug}: {e}")
+        logger.error(f"Query failed for {org_slug}: {e}\nQuery: {query[:200]}")
         return {
             "org_slug": org_slug,
             "rows": [],
             "count": 0,
             "error": str(e),
         }
+
+
+# Tool execution timeout
+_TOOL_TIMEOUT_SECONDS = 30
+
+
+def safe_query_with_timeout(
+    org_slug: str,
+    query: str,
+    params: Optional[List[bigquery.ScalarQueryParameter]] = None,
+    timeout_seconds: int = _TOOL_TIMEOUT_SECONDS,
+) -> Dict[str, Any]:
+    """safe_query with a timeout guard."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(safe_query, org_slug, query, params)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            return {
+                "org_slug": org_slug,
+                "error": f"Query timed out after {timeout_seconds}s",
+                "rows": [],
+                "count": 0,
+            }
 
 
 def get_dataset(org_slug: str) -> str:
@@ -79,7 +127,7 @@ def get_org_dataset() -> str:
     return get_settings().organizations_dataset
 
 
-def default_date_range() -> tuple[str, str]:
+def default_date_range() -> Tuple[str, str]:
     """Return default date range: first of current month to today."""
     today = date.today()
     first_of_month = today.replace(day=1)
