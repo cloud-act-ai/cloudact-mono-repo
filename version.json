@@ -1,6 +1,6 @@
 {
-  "version": "v4.4.1",
-  "release": "v4.4.1",
+  "version": "v4.4.2",
+  "release": "v4.4.2",
   "release_timestamp": "2026-02-13T00:00:00Z",
-  "changelog": "Fix chat backend CORS_ORIGINS parsing for Cloud Run (v4.4.0 hotfix)"
+  "changelog": "Fix chat backend CORS_ORIGINS parsing — use str type to bypass pydantic-settings JSON decode"
 }
