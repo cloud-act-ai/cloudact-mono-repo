@@ -246,13 +246,13 @@ cd 01-fronted-system/scripts/supabase_db
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 28 | `.claude/skills/{name}/SKILL.md` |
-| Commands | 16 | `.claude/commands/{name}.md` |
+| Skills | 31 | `.claude/skills/{name}/SKILL.md` |
+| Commands | 13 | `.claude/commands/{name}.md` |
 | Hooks | 10 | `.claude/hookify.*.local.md` |
 | Summary | - | `.claude/SUMMARY.md` |
 
 ### Key Skills
-`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev` `/chat` `/bootstrap-onboard` `/quota-mgmt` `/stripe-billing` `/account-setup`
+`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev` `/chat` `/bootstrap-onboard` `/quota-mgmt` `/stripe-billing` `/account-setup` `/design` `/console-ui` `/charts`
 
 ### Key Hooks (Enforced)
 - **org-slug-isolation** - Multi-tenant isolation via org_slug
@@ -339,7 +339,7 @@ description: |
 6. **Requirements are specs** — Use FR/NFR numbering. These survive context compression better than prose.
 7. **Tests validate the spec** — Test plans reference the FR numbers from requirements.
 
-#### Skill Categories (28 Total)
+#### Skill Categories (31 Total)
 
 | Category | Skills | Count |
 |----------|--------|-------|
@@ -349,8 +349,10 @@ description: |
 | AI & Chat | `chat` | 1 |
 | Config & Integration | `integration-setup`, `provider-mgmt`, `config-validator`, `security-audit` | 4 |
 | Development | `frontend-dev`, `api-dev`, `quota-mgmt` | 3 |
-| Frontend & Billing | `home-page`, `account-setup`, `stripe-billing`, `ui-ux-pro-max` | 4 |
+| Design & UI | `design`, `console-ui`, `charts`, `home-page` | 4 |
+| Frontend & Billing | `account-setup`, `stripe-billing` | 2 |
 | Research & Debug | `subscription-costs`, `web-research`, `bug-hunt` | 3 |
+| Identity | `openclaw` | 1 |
 
 #### Quick Reference
 

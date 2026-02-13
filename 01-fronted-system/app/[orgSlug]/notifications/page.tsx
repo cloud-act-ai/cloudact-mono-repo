@@ -342,7 +342,7 @@ function ChannelCard({
                 {channel.name}
               </span>
               {channel.is_default && (
-                <span className="px-2 py-0.5 text-[10px] font-semibold bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] rounded-full">
+                <span className="px-2 py-0.5 text-xs font-semibold bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] rounded-full">
                   DEFAULT
                 </span>
               )}
@@ -429,7 +429,7 @@ function RuleCard({
               <span className="text-[14px] font-semibold text-slate-900">
                 {rule.name}
               </span>
-              <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border ${getPriorityColor(rule.priority)}`}>
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getPriorityColor(rule.priority)}`}>
                 {rule.priority.toUpperCase()}
               </span>
             </div>
@@ -511,7 +511,7 @@ function SummaryCard({
               <span className="text-[14px] font-semibold text-slate-900">
                 {summary.name}
               </span>
-              <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full">
+              <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
                 {summary.summary_type.toUpperCase()}
               </span>
             </div>

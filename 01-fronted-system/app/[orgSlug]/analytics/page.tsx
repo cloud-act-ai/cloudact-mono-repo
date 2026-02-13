@@ -159,12 +159,12 @@ export default function AnalyticsPage() {
   }, [totalCost, trendData.length])
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <main className="console-page-shell"><div className="console-page-inner">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-indigo-500" />
+            <BarChart3 className="w-7 h-7 text-slate-700" />
             Analytics Dashboard
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -201,8 +201,8 @@ export default function AnalyticsPage() {
                 <p className="text-sm text-gray-500">Period Total</p>
                 <p className="text-xl font-bold">${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-indigo-600" />
+              <div className="w-10 h-10 rounded-lg bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-[var(--cloudact-mint-dark)]" />
               </div>
             </div>
           </CardContent>
@@ -215,8 +215,8 @@ export default function AnalyticsPage() {
                 <p className="text-sm text-gray-500">Daily Average</p>
                 <p className="text-xl font-bold">${avgDailyCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-slate-600" />
               </div>
             </div>
           </CardContent>
@@ -392,7 +392,7 @@ export default function AnalyticsPage() {
                         </p>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
                           <div
-                            className="bg-indigo-500 h-2 rounded-full"
+                            className="bg-[var(--cloudact-mint)] h-2 rounded-full"
                             style={{
                               width: `${(provider.total_cost / (providerData[0]?.total_cost || 1)) * 100}%`
                             }}
@@ -460,6 +460,6 @@ export default function AnalyticsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </div></main>
   )
 }

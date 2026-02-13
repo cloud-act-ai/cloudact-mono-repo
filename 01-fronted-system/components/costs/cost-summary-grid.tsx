@@ -144,7 +144,7 @@ export function CostSummaryGrid({
         value={ytd}
         currency={currency}
         subtitle="Year to date"
-        iconColor="text-purple-600"
+        iconColor="text-slate-600"
         onClick={onCardClick ? () => onCardClick("ytd") : undefined}
       />
     </CostMetricGrid>

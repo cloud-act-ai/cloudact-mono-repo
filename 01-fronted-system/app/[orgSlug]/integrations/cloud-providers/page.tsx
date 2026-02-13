@@ -202,7 +202,7 @@ export default function CloudProvidersPage() {
           </div>
           <div>
             <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5">Connected</p>
+            <p className="text-xs sm:text-[11px] text-slate-500 font-medium mt-0.5">Connected</p>
           </div>
         </div>
         <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
@@ -212,7 +212,7 @@ export default function CloudProvidersPage() {
           </div>
           <div>
             <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5">Available</p>
+            <p className="text-xs sm:text-[11px] text-slate-500 font-medium mt-0.5">Available</p>
           </div>
         </div>
         {comingSoonProviders.length > 0 && (
@@ -224,7 +224,7 @@ export default function CloudProvidersPage() {
               </div>
               <div>
                 <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{comingSoonProviders.length}</p>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5">Soon</p>
+                <p className="text-xs sm:text-[11px] text-slate-500 font-medium mt-0.5">Soon</p>
               </div>
             </div>
           </>
@@ -312,7 +312,7 @@ export default function CloudProvidersPage() {
                           <div className="flex items-center gap-2">
                             <h3 className="text-[14px] font-semibold text-slate-900">{provider.name}</h3>
                             {isEnabled && (
-                              <span className="px-2.5 py-1 rounded-full bg-[#90FCA6]/15 text-[#1a7a3a] text-[10px] font-semibold uppercase">
+                              <span className="px-2.5 py-1 rounded-full bg-[#90FCA6]/15 text-[#1a7a3a] text-xs font-semibold uppercase">
                                 Connected
                               </span>
                             )}

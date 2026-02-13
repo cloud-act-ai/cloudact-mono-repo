@@ -1,0 +1,9 @@
+entity_id,entity_name,level,level_code,parent_id,path,path_names,depth,owner_name,owner_email,description,is_active
+DEPT-ENG,Engineering,1,c_suite,,/DEPT-ENG,Engineering,0,Alex Rivera,alex.rivera@acmeinc.com,Engineering and technology,true
+DEPT-DS,Data Science,1,c_suite,,/DEPT-DS,Data Science,0,Jordan Park,jordan.park@acmeinc.com,Data science and analytics,true
+PROJ-PLATFORM,Platform,2,business_unit,DEPT-ENG,/DEPT-ENG/PROJ-PLATFORM,Engineering > Platform,1,Sam Chen,sam.chen@acmeinc.com,Platform engineering,true
+PROJ-MLPIPE,ML Pipeline,2,business_unit,DEPT-DS,/DEPT-DS/PROJ-MLPIPE,Data Science > ML Pipeline,1,Taylor Kim,taylor.kim@acmeinc.com,ML pipeline development,true
+TEAM-BACKEND,Backend,3,function,PROJ-PLATFORM,/DEPT-ENG/PROJ-PLATFORM/TEAM-BACKEND,Engineering > Platform > Backend,2,Casey Morgan,casey.morgan@acmeinc.com,Backend engineering team,true
+TEAM-FRONTEND,Frontend,3,function,PROJ-PLATFORM,/DEPT-ENG/PROJ-PLATFORM/TEAM-FRONTEND,Engineering > Platform > Frontend,2,Riley Quinn,riley.quinn@acmeinc.com,Frontend engineering team,true
+TEAM-MLOPS,ML Ops,3,function,PROJ-MLPIPE,/DEPT-DS/PROJ-MLPIPE/TEAM-MLOPS,Data Science > ML Pipeline > ML Ops,2,Morgan Lee,morgan.lee@acmeinc.com,ML operations team,true
+TEAM-DATAENG,Data Engineering,3,function,PROJ-MLPIPE,/DEPT-DS/PROJ-MLPIPE/TEAM-DATAENG,Data Science > ML Pipeline > Data Engineering,2,Drew Patel,drew.patel@acmeinc.com,Data engineering team,true

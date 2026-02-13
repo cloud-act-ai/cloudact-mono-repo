@@ -993,7 +993,8 @@ class HierarchyService:
         path_names = build_path_names(request.entity_name, parent_path_names)
         depth = calculate_depth(path)
 
-        now = datetime.now(timezone.utc).isoformat()
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat()
         record_id = str(uuid.uuid4())
 
         row = {
@@ -1015,7 +1016,7 @@ class HierarchyService:
             "metadata": request.metadata,
             "sort_order": request.sort_order,
             "is_active": True,
-            "created_at": now,
+            "created_at": now_dt,
             "created_by": created_by,
             "updated_at": None,
             "updated_by": None,
@@ -1449,9 +1450,9 @@ class HierarchyService:
                 bigquery.ScalarQueryParameter("metadata", "STRING", metadata_str),
                 bigquery.ScalarQueryParameter("sort_order", "INT64", entity.sort_order),
                 bigquery.ScalarQueryParameter("is_active", "BOOL", entity.is_active),
-                bigquery.ScalarQueryParameter("created_at", "STRING", entity.created_at.isoformat() if hasattr(entity.created_at, 'isoformat') else entity.created_at),
+                bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", entity.created_at),
                 bigquery.ScalarQueryParameter("created_by", "STRING", entity.created_by),
-                bigquery.ScalarQueryParameter("updated_at", "STRING", now_iso),
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
                 bigquery.ScalarQueryParameter("new_version", "INT64", entity.version + 1),
             ]
         )

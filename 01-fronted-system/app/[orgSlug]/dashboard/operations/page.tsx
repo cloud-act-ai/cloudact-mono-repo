@@ -91,7 +91,7 @@ export default function OperationsPage() {
   const getPipelineIcon = (pipelineId: string) => {
     const id = pipelineId.toLowerCase()
     if (id.includes("openai") || id.includes("anthropic") || id.includes("gemini")) {
-      return <Brain className="h-5 w-5 text-purple-500" />
+      return <Brain className="h-5 w-5 text-[#10A37F]" />
     }
     if (id.includes("gcp")) {
       return <Cloud className="h-5 w-5 text-blue-500" />
@@ -113,7 +113,7 @@ export default function OperationsPage() {
     if (id.includes("gcp")) return "bg-blue-500/10"
     if (id.includes("aws")) return "bg-orange-500/10"
     if (id.includes("azure")) return "bg-[#0078D4]/10"
-    if (id.includes("openai") || id.includes("anthropic") || id.includes("gemini")) return "bg-purple-500/10"
+    if (id.includes("openai") || id.includes("anthropic") || id.includes("gemini")) return "bg-[#10A37F]/10"
     if (id.includes("saas") || id.includes("subscription")) return "bg-[#FF6C5E]/10"
     return "bg-slate-100"
   }

@@ -364,15 +364,21 @@ export async function onboardToBackend(input: {
 
       const bootstrapStatus = await bootstrapStatusResponse.json()
 
-      // Check if any tables are missing (critical - blocks onboarding)
-      if (bootstrapStatus.tables_missing && bootstrapStatus.tables_missing.length > 0) {
+      // Check if critical tables are missing (blocks onboarding)
+      // Non-critical tables (chat, alerts) should not block org creation
+      const NON_CRITICAL_TABLE_PREFIXES = ["org_chat_"]
+      const criticalMissing = (bootstrapStatus.tables_missing || []).filter(
+        (t: string) => !NON_CRITICAL_TABLE_PREFIXES.some((prefix) => t.startsWith(prefix))
+      )
+
+      if (criticalMissing.length > 0) {
         return {
           success: false,
-          error: `System setup incomplete (${bootstrapStatus.tables_missing.length} tables missing). Please contact support.`,
+          error: `System setup incomplete (${criticalMissing.length} critical tables missing: ${criticalMissing.join(", ")}). Please contact support.`,
         }
       }
 
-      // Allow both SYNCED and OUT_OF_SYNC (schema differences are non-critical)
+      // Allow SYNCED, OUT_OF_SYNC (schema diffs or non-critical missing tables are OK)
       // Only block if status indicates NOT_BOOTSTRAPPED or ERROR
       if (bootstrapStatus.status !== "SYNCED" && bootstrapStatus.status !== "OUT_OF_SYNC") {
         return {

@@ -415,7 +415,7 @@ export default function InviteMembersPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none tracking-tight">{currentSeats}</p>
-              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">
+              <p className="text-xs sm:text-[12px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">
                 of {seatLimit ?? "∞"} seats
               </p>
             </div>
@@ -429,7 +429,7 @@ export default function InviteMembersPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none tracking-tight">{invites.length}</p>
-              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">pending</p>
+              <p className="text-xs sm:text-[12px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">pending</p>
             </div>
           </div>
         </div>
@@ -441,7 +441,7 @@ export default function InviteMembersPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none tracking-tight">{seatsAvailable}</p>
-              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">available</p>
+              <p className="text-xs sm:text-[12px] text-slate-500 font-medium mt-0.5 sm:mt-1 truncate">available</p>
             </div>
           </div>
         </div>

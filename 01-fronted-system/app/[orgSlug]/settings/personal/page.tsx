@@ -300,7 +300,7 @@ export default function PersonalSettingsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+    <main className="console-page-shell"><div className="console-page-inner">
       {/* Header - Same pattern as dashboard */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="flex items-start gap-3 sm:gap-4">
@@ -389,7 +389,7 @@ export default function PersonalSettingsPage() {
                       <Mail className="h-4 w-4 text-[#1a7a3a]" />
                     </div>
                     <label className="text-[12px] font-bold text-slate-900/80 tracking-tight">Email Address</label>
-                    <span className="px-2 py-0.5 rounded-md bg-black/[0.04] text-[10px] font-semibold text-slate-900/40">READ ONLY</span>
+                    <span className="px-2 py-0.5 rounded-md bg-black/[0.04] text-xs font-semibold text-slate-900/40">READ ONLY</span>
                   </div>
                   <input
                     type="email"
@@ -721,6 +721,6 @@ export default function PersonalSettingsPage() {
           </PremiumCard>
         </div>
       )}
-    </div>
+    </div></main>
   )
 }

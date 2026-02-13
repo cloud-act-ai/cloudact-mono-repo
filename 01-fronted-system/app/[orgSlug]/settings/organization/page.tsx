@@ -717,7 +717,7 @@ export default function OrganizationSettingsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+    <main className="console-page-shell"><div className="console-page-inner">
       {/* Premium Header */}
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
@@ -1511,7 +1511,7 @@ export default function OrganizationSettingsPage() {
                       <div className="flex items-center gap-2 text-[11px] text-slate-900/50">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                        <Badge className="ml-1 bg-[#FF6C5E]/10 text-[#FF6C5E] border-0 text-[10px] font-semibold px-2 py-0.5">Owner</Badge>
+                        <Badge className="ml-1 bg-[#FF6C5E]/10 text-[#FF6C5E] border-0 text-xs font-semibold px-2 py-0.5">Owner</Badge>
                       </div>
                     </div>
                   </div>
@@ -1775,6 +1775,6 @@ export default function OrganizationSettingsPage() {
       </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </div></main>
   )
 }

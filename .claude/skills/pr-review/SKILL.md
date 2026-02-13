@@ -336,6 +336,7 @@ git push origin v4.3.1
 - `/deploy-check` - Post-merge deployment
 - `/security-audit` - Security review
 - `/config-validator` - Config validation
+- `/design` - Brand compliance checks (font consistency, color usage)
 
 ## Quick Reference
 

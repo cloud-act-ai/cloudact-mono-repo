@@ -28,7 +28,7 @@ All scripts support `--env=local|stage|prod` flag. Presets auto-configure GCP pr
 
 | Environment | GCP Project | Supabase | Dataset Suffix | Services |
 |-------------|-------------|----------|----------------|----------|
-| `local` (default) | cloudact-testing-1 | kwroaccbrxppfiysqlzs | `_local` | localhost:3000/8000/8001 |
+| `local` (default) | cloudact-testing-1 | kwroaccbrxppfiysqlzs | `_local` | localhost:3000/8000/8001/8002 |
 | `stage` | cloudact-testing-1 | kwroaccbrxppfiysqlzs | `_stage` | cloudact.ai / api.cloudact.ai |
 | `prod` | cloudact-prod | ovfxswhkkshouhsryzaf | `_prod` | cloudact.ai / api.cloudact.ai |
 
@@ -52,6 +52,7 @@ Env vars override presets: `GCP_PROJECT_ID`, `API_SERVICE_URL`, `PIPELINE_SERVIC
 | Frontend (3000) | `curl -s http://localhost:3000 -o /dev/null -w "%{http_code}"` | `200` |
 | API Service (8000) | `curl -s http://localhost:8000/health` | `{"status":"ok"}` |
 | Pipeline Service (8001) | `curl -s http://localhost:8001/health` | `{"status":"ok"}` |
+| Chat Backend (8002) | `curl -s http://localhost:8002/health` | `{"status":"healthy"}` |
 | Bootstrap done | System tables exist in BigQuery | Bootstrapped |
 | Supabase email confirm | Supabase Dashboard → Auth → Settings | **DISABLED** |
 | Environment loaded | `source 01-fronted-system/.env.local` | `CA_ROOT_API_KEY` set |
@@ -73,31 +74,36 @@ Env vars override presets: `GCP_PROJECT_ID`, `API_SERVICE_URL`, `PIPELINE_SERVIC
 | Setup script | `01-fronted-system/tests/demo-setup/setup-demo-account.ts` |
 | Cleanup script | `01-fronted-system/tests/demo-setup/cleanup-demo-account.ts` |
 | Data loader | `01-fronted-system/tests/demo-setup/load-demo-data-direct.ts` |
+| Dashboard verify | `01-fronted-system/tests/demo-setup/verify-dashboard.ts` |
 | Config | `01-fronted-system/tests/demo-setup/config.ts` |
+| Data generator | `01-fronted-system/tests/demo-setup/generate-demo-data.py` |
 | Hierarchy template | `01-fronted-system/lib/seed/hierarchy_template.csv` |
+| Hierarchy CSV | `04-inra-cicd-automation/load-demo-data/data/hierarchy/org_hierarchy.csv` |
 | Pricing data | `04-inra-cicd-automation/load-demo-data/data/pricing/genai_payg_pricing.csv` |
 | GenAI usage | `04-inra-cicd-automation/load-demo-data/data/genai/{provider}_usage_raw.json` |
 | Cloud billing | `04-inra-cicd-automation/load-demo-data/data/cloud/{provider}_billing_raw.json` |
 | Subscriptions | `04-inra-cicd-automation/load-demo-data/data/subscriptions/subscription_plans.csv` |
+| Hierarchy populator | `04-inra-cicd-automation/load-demo-data/scripts/populate_hierarchy_in_data.py` |
 | BigQuery schemas | `02-api-service/configs/setup/organizations/onboarding/schemas/*.json` |
 
 ## Demo Data
 
 All demo data files have proper values with all required fields matching BigQuery schemas. Every file uses placeholder org slug `acme_inc_01022026` which gets replaced with the actual org slug at load time via `sed 's/acme_inc_[a-z0-9]*/${orgSlug}/g'`.
 
-### Data Files (Complete - No Fixes Needed)
+### Data Files (Complete - Hierarchy Pre-Populated)
 
-| File | Table | Format | Records | Schema Match |
-|------|-------|--------|---------|-------------|
-| `genai_payg_pricing.csv` | `genai_payg_pricing` | CSV | 31 | 38/38 columns, exact order |
-| `openai_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | ~160 | All REQUIRED fields present |
-| `anthropic_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | ~160 | All REQUIRED fields present |
-| `gemini_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | ~160 | All REQUIRED fields present |
-| `gcp_billing_raw.json` | `cloud_gcp_billing_raw_daily` | NDJSON | ~150 | All REQUIRED + x_cloud_provider |
-| `aws_billing_raw.json` | `cloud_aws_billing_raw_daily` | NDJSON | ~150 | All REQUIRED + x_cloud_provider |
-| `azure_billing_raw.json` | `cloud_azure_billing_raw_daily` | NDJSON | ~120 | All REQUIRED + x_cloud_provider |
-| `oci_billing_raw.json` | `cloud_oci_billing_raw_daily` | NDJSON | ~120 | All REQUIRED + x_cloud_provider |
-| `subscription_plans.csv` | `subscription_plans` | CSV | 15 | 35/35 columns, exact order |
+| File | Table | Format | Records | Hierarchy Team |
+|------|-------|--------|---------|----------------|
+| `genai_payg_pricing.csv` | `genai_payg_pricing` | CSV | 31 | N/A (pricing) |
+| `openai_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 150 | TEAM-BACKEND |
+| `anthropic_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 90 | TEAM-MLOPS |
+| `gemini_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 90 | TEAM-DATAENG |
+| `gcp_billing_raw.json` | `cloud_gcp_billing_raw_daily` | NDJSON | 150 | TEAM-BACKEND |
+| `aws_billing_raw.json` | `cloud_aws_billing_raw_daily` | NDJSON | 150 | TEAM-FRONTEND |
+| `azure_billing_raw.json` | `cloud_azure_billing_raw_daily` | NDJSON | 120 | TEAM-MLOPS |
+| `oci_billing_raw.json` | `cloud_oci_billing_raw_daily` | NDJSON | 120 | TEAM-DATAENG |
+| `subscription_plans.csv` | `subscription_plans` | CSV | 15 | Mixed (4 teams) |
+| `org_hierarchy.csv` | Reference only | CSV | 8 | All entities |
 
 ### Data Loading Flags
 
@@ -122,6 +128,25 @@ Data Science (DEPT-DS)
 
 3 levels: `c_suite` → `business_unit` → `function` | 8 entities total
 
+### Hierarchy → Cost Distribution (Pre-Populated in Data Files)
+
+All raw data files have `x_hierarchy_*` fields pre-populated. Hierarchy flows through all pipelines to `cost_data_standard_1_3`.
+
+| Data Source | Team | Path | Department |
+|-------------|------|------|------------|
+| OpenAI (GenAI) | TEAM-BACKEND | Engineering > Platform > Backend | Engineering |
+| Anthropic (GenAI) | TEAM-MLOPS | Data Science > ML Pipeline > ML Ops | Data Science |
+| Gemini (GenAI) | TEAM-DATAENG | Data Science > ML Pipeline > Data Engineering | Data Science |
+| GCP (Cloud) | TEAM-BACKEND | Engineering > Platform > Backend | Engineering |
+| AWS (Cloud) | TEAM-FRONTEND | Engineering > Platform > Frontend | Engineering |
+| Azure (Cloud) | TEAM-MLOPS | Data Science > ML Pipeline > ML Ops | Data Science |
+| OCI (Cloud) | TEAM-DATAENG | Data Science > ML Pipeline > Data Engineering | Data Science |
+| Subscriptions | Mixed | 4 teams across 15 SaaS apps | Both |
+
+Cloud data also has `entity_id` in `labels_json` for FOCUS convert procedure matching.
+
+To re-generate hierarchy assignments: `python3 04-inra-cicd-automation/load-demo-data/scripts/populate_hierarchy_in_data.py`
+
 ### CSV Column Order = Schema Order
 
 All CSV files have columns in the exact same order as the BigQuery schema JSON files in `02-api-service/configs/setup/organizations/onboarding/schemas/`.
@@ -135,8 +160,11 @@ PHASE 1: PRE-FLIGHT
   Check services → Check bootstrap → Verify demo data path → Load env
                               ↓
 PHASE 2: ACCOUNT CREATION (Playwright)
-  /signup → Fill form → Select plan → Stripe checkout → Extract org_slug
-  → Poll for API key (60s) → Manual onboard fallback → Verify API key
+  /signup → Fill form → Select plan → Stripe checkout
+  → /onboarding/success (runs completeOnboarding server action)
+  → Redirects to /{orgSlug}/integrations?welcome=true (NOT /dashboard)
+  → Poll Supabase org_api_keys_secure for API key (up to 90s)
+  → Extract org_slug from URL (fallback: query Supabase)
                               ↓
 PHASE 3: DATA LOADING (bq CLI)
   Pre-flight: Check dataset exists → Auto-onboard if missing → Wait for readiness
@@ -151,6 +179,13 @@ PHASE 5: ALERTS + 3-LAYER VALIDATION
   Create email channel → Create alert rules
   → BQ query (Layer 1) → API query (Layer 2) → Cross-validate (Layer 3)
   → Exit non-zero on validation failure
+                              ↓
+PHASE 6: DASHBOARD VERIFICATION (Playwright, --verify-dashboard)
+  Login → Navigate to /{orgSlug}/dashboard (default time range: "365" days)
+  → Wait up to 45s for cost data (networkidle + polling every 3s)
+  → Screenshot → Extract dollar amounts ≥ $1,000 (filters CSS/JS noise)
+  → Verify ≥3 distinct amounts → Check no "No cost data" warnings
+  → Exit non-zero on failure
 ```
 
 ### Step-by-Step (Local)
@@ -173,6 +208,11 @@ npx tsx tests/demo-setup/load-demo-data-direct.ts --org-slug=$ORG_SLUG --api-key
 # 3. Validate (date range: Dec 2025 - Jan 2026)
 curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
   -H "X-API-Key: $ORG_API_KEY" | jq
+
+# 4. Dashboard verification (Playwright screenshot + dollar check)
+npx tsx tests/demo-setup/verify-dashboard.ts --org-slug=$ORG_SLUG
+# Or include in data loader:
+npx tsx tests/demo-setup/load-demo-data-direct.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY --verify-dashboard
 ```
 
 ### Step-by-Step (Stage)
@@ -183,6 +223,240 @@ cd 01-fronted-system && source .env.stage
 npx tsx tests/demo-setup/cleanup-demo-account.ts --email=demo@cloudact.ai --env=stage
 npx tsx tests/demo-setup/setup-demo-account.ts --env=stage
 npx tsx tests/demo-setup/load-demo-data-direct.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY --env=stage
+```
+
+## Quick Verification Tests
+
+After demo setup, run these to verify everything works. Replace `$ORG_SLUG` and `$ORG_API_KEY` with actual values.
+
+### 1. Service Health (all 4 must be healthy)
+
+```bash
+# API Service (8000)
+curl -s http://localhost:8000/health | jq
+# Expected: {"status":"healthy","service":"api-service","version":"v4.3.0",...}
+
+# Pipeline Service (8001)
+curl -s http://localhost:8001/health | jq
+# Expected: {"status":"healthy","service":"data-pipeline-service","version":"v4.3.0",...}
+
+# Chat Backend (8002)
+curl -s http://localhost:8002/health | jq
+# Expected: {"status":"healthy","service":"org-chat-backend","version":"1.0.0","bigquery":"connected"}
+
+# Frontend (3000)
+curl -s http://localhost:3000 -o /dev/null -w "HTTP %{http_code}\n"
+# Expected: HTTP 200
+```
+
+### 2. Total Costs (date range: Dec 2025 - Jan 2026)
+
+```bash
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
+  -H "X-API-Key: $ORG_API_KEY" | jq
+```
+
+**Expected response:**
+```json
+{
+  "genai":         { "total_billed_cost": 5308633.19, "record_count": 330, "providers": ["Google AI","OpenAI","Anthropic"] },
+  "cloud":         { "total_billed_cost": 2905849.36, "record_count": 523, "providers": ["Microsoft Azure","OCI","AWS","Google Cloud"] },
+  "subscription":  { "total_billed_cost": 880276.13,  "record_count": 570, "providers": ["Slack","Zoom","Figma",...15 total] },
+  "total":         { "total_billed_cost": 9094758.68 },
+  "date_range":    { "start": "2025-12-01", "end": "2026-01-31" },
+  "currency": "USD"
+}
+```
+
+**Quick check:** Total should be ~$9.1M. If $0, wrong date range.
+
+### 3. Cost by Provider (22 providers)
+
+```bash
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/by-provider?start_date=2025-12-01&end_date=2026-01-31" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '.data[:5]'
+```
+
+**Expected (top 5):**
+```json
+[
+  { "provider": "Anthropic",    "total_cost": 2777843.03, "percentage": 30.54 },
+  { "provider": "OpenAI",       "total_cost": 2217047.65, "percentage": 24.38 },
+  { "provider": "Google Cloud", "total_cost": 980128.68,  "percentage": 10.78 },
+  { "provider": "AWS",          "total_cost": 881287.64,  "percentage": 9.69 },
+  { "provider": "Microsoft Azure", "total_cost": 557557.28, "percentage": 6.13 }
+]
+```
+
+### 4. Notification Channels
+
+```bash
+curl -s "http://localhost:8000/api/v1/notifications/${ORG_SLUG}/channels" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '.[0] | {name, channel_type, email_recipients, is_active}'
+```
+
+**Expected:**
+```json
+{
+  "name": "Cost Alerts (Email)",
+  "channel_type": "email",
+  "email_recipients": ["demo@cloudact.ai"],
+  "is_active": true
+}
+```
+
+### 5. Alert Rules (2 rules)
+
+```bash
+curl -s "http://localhost:8000/api/v1/notifications/${ORG_SLUG}/rules" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '.[] | {name, rule_type, is_active, priority}'
+```
+
+**Expected:**
+```json
+{ "name": "Daily Cost Spike Alert",    "rule_type": "absolute_threshold", "is_active": true, "priority": "high" }
+{ "name": "Monthly Budget Threshold",  "rule_type": "budget_percent",     "is_active": true, "priority": "medium" }
+```
+
+**Alert configs:**
+- Daily spike: triggers when daily spend > $5,000, 60min cooldown
+- Monthly budget: alerts at 80% of $50K budget, 240min cooldown
+
+### 6. Quota Status
+
+```bash
+curl -s "http://localhost:8000/api/v1/organizations/${ORG_SLUG}/quota" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '{dailyLimit, monthlyLimit, concurrentLimit, seatLimit, providersLimit, pipelinesRunToday, dailyUsagePercent}'
+```
+
+**Expected (Scale plan):**
+```json
+{
+  "dailyLimit": 100,
+  "monthlyLimit": 3000,
+  "concurrentLimit": 20,
+  "seatLimit": 11,
+  "providersLimit": 10,
+  "pipelinesRunToday": 5,
+  "dailyUsagePercent": 5.0
+}
+```
+
+### 7. Hierarchy Tree (8 entities, 3 levels)
+
+```bash
+curl -s "http://localhost:8000/api/v1/hierarchy/${ORG_SLUG}/tree" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '{levels: [.levels[] | .level_code], entity_count: (.entities | length)}'
+```
+
+**Expected:**
+```json
+{
+  "levels": ["c_suite", "business_unit", "function"],
+  "entity_count": 8
+}
+```
+
+### 8. Pipeline Runs (5 completed)
+
+```bash
+curl -s "http://localhost:8001/api/v1/pipelines/runs?org_slug=${ORG_SLUG}&limit=10" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '.[] | {pipeline_id, status}' 2>/dev/null || \
+  curl -s "http://localhost:8001/api/v1/pipelines/runs?org_slug=${ORG_SLUG}&limit=10" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '.runs[] | {pipeline_id, status}'
+```
+
+**Expected (5 runs, all COMPLETED):**
+```
+subscription-costs-subscription_cost:     COMPLETED
+genai-unified-consolidate:                COMPLETED (or individual per-provider)
+cloud-gcp-cost-focus_convert:             COMPLETED
+cloud-aws-cost-focus_convert:             COMPLETED
+cloud-azure-cost-focus_convert:           COMPLETED
+cloud-oci-cost-focus_convert:             COMPLETED
+```
+
+### 9. Subscription Providers (15 SaaS apps)
+
+```bash
+curl -s "http://localhost:8000/api/v1/subscriptions/${ORG_SLUG}/providers" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '[.providers[] | select(.is_enabled) | .display_name]'
+```
+
+**Expected (15 enabled):**
+```json
+["Adobe Creative Cloud","Canva","ChatGPT Plus","Claude Pro","Confluence","Copilot","Cursor",
+ "Figma","Github","Jira","Linear","Notion","Slack","Vercel","Zoom"]
+```
+
+### 10. Bootstrap Status (27 tables synced)
+
+```bash
+curl -s "http://localhost:8000/api/v1/admin/bootstrap/status" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" | jq '{status, tables_expected, tables_missing}'
+```
+
+**Expected:**
+```json
+{
+  "status": "SYNCED",
+  "tables_expected": 27,
+  "tables_missing": []
+}
+```
+
+### 11. Dashboard Visual Check (Playwright)
+
+```bash
+cd 01-fronted-system
+npx tsx tests/demo-setup/verify-dashboard.ts --org-slug=$ORG_SLUG
+```
+
+**Expected:**
+```
+Dashboard Verification:
+  URL: http://localhost:3000/acme_inc_xxx/dashboard
+  Screenshot: tests/demo-setup/screenshots/dashboard-verified-XXX.png
+  Dollar amounts found: $5,308,633, $2,905,849, $880,276, ...
+  Result: PASSED
+```
+
+### Quick All-in-One Check
+
+```bash
+cd 01-fronted-system && source .env.local
+ORG_SLUG="acme_inc_xxx"
+ORG_API_KEY="..."
+
+echo "=== Health ===" && \
+curl -sf http://localhost:8000/health | jq -r '.status' && \
+curl -sf http://localhost:8001/health | jq -r '.status' && \
+curl -sf http://localhost:8002/health | jq -r '.status' && \
+echo "=== Costs ===" && \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '{genai: .genai.total_billed_cost, cloud: .cloud.total_billed_cost, subscription: .subscription.total_billed_cost, total: .total.total_billed_cost}' && \
+echo "=== Alerts ===" && \
+curl -s "http://localhost:8000/api/v1/notifications/${ORG_SLUG}/rules" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '[.[] | .name]' && \
+echo "=== Quota ===" && \
+curl -s "http://localhost:8000/api/v1/organizations/${ORG_SLUG}/quota" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '{plan_daily: .dailyLimit, plan_monthly: .monthlyLimit, used_today: .pipelinesRunToday}' && \
+echo "=== DONE ==="
+```
+
+**Expected output:**
+```
+=== Health ===
+healthy
+healthy
+healthy
+=== Costs ===
+{ "genai": 5308633.19, "cloud": 2905849.36, "subscription": 880276.13, "total": 9094758.68 }
+=== Alerts ===
+["Monthly Budget Threshold", "Daily Cost Spike Alert"]
+=== Quota ===
+{ "plan_daily": 100, "plan_monthly": 3000, "used_today": 5 }
+=== DONE ===
 ```
 
 ## Pipeline Execution
@@ -221,10 +495,10 @@ The loader automatically creates:
 
 | Category | Records | Cost | Providers |
 |----------|---------|------|-----------|
-| GenAI | ~330 | ~$171K | OpenAI, Anthropic, Gemini |
-| Cloud | ~540 | ~$382 | GCP, AWS, Azure, OCI |
-| Subscription | ~15 plans | ~$7.7K | 15 SaaS providers |
-| **TOTAL** | ~885 | **~$179K** | |
+| GenAI | ~330 | ~$5.3M | OpenAI, Anthropic, Gemini |
+| Cloud | ~540 | ~$2.9M | GCP, AWS, Azure, OCI |
+| Subscription | ~15 plans | ~$900K | 15 SaaS providers |
+| **TOTAL** | ~885 | **~$9.1M** | |
 
 ## 3-Layer Cost Validation
 
@@ -248,20 +522,20 @@ The data loader runs automated 3-layer validation after pipelines complete:
 
 | Category | Expected | Tolerance |
 |----------|----------|-----------|
-| GenAI | ~$171K | 10% |
-| Cloud | ~$382 | 10% |
-| Subscription | ~$7.7K | 10% |
-| **TOTAL** | **~$179K** | 10% |
+| GenAI | ~$5.3M | 10% |
+| Cloud | ~$2.9M | 10% |
+| Subscription | ~$900K | 10% |
+| **TOTAL** | **~$9.1M** | 10% |
 
 ### Validation Output
 
 ```
 3-Layer Validation: PASSED
   Category       BQ              API             Expected        Variance
-  GenAI          $171,2xx        $171,2xx        $171,000        0.1%
-  Cloud          $382.xx         $382.xx         $370             3.3%
-  Subscription   $7,7xx          $7,7xx          $7,700           0.3%
-  TOTAL          $179,3xx        $179,3xx        $179,070         0.2%
+  GenAI          $5,3xx,xxx      $5,3xx,xxx      $5,300,000      x.x%
+  Cloud          $2,9xx,xxx      $2,9xx,xxx      $2,900,000      x.x%
+  Subscription   $9xx,xxx        $9xx,xxx        $900,000        x.x%
+  TOTAL          $9,1xx,xxx      $9,1xx,xxx      $9,100,000      x.x%
 ```
 
 ### If Validation Fails
@@ -271,6 +545,7 @@ The data loader runs automated 3-layer validation after pipelines complete:
 | BQ total = $0 | Pipeline didn't run or failed | Re-run with `--pipelines-only` |
 | BQ-API > 1% | Caching or data inconsistency | Wait 30s, re-validate; check API cache TTL |
 | BQ-Expected > 10% | Demo data changed or pipeline logic updated | Update EXPECTED_TOTALS in script |
+| API query WARNING | Transient fetch timeout after heavy pipelines | Auto-handled: 3 retries + 5s settle delay. BQ totals used as fallback. Not a failure. |
 
 ### Manual Validation
 
@@ -291,6 +566,56 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12
 # Dashboard: http://localhost:3000/${ORG_SLUG}/dashboard
 ```
 
+## Critical: Do's and Don'ts
+
+### Onboarding Redirect Flow
+
+**DO:** Expect this flow after Stripe checkout:
+```
+Stripe → /onboarding/success?session_id=... → completeOnboarding() server action
+  → onboardToBackend() → stores API key in BigQuery AND Supabase org_api_keys_secure
+  → Redirect to /{orgSlug}/integrations?welcome=true
+```
+
+**DON'T:** Expect redirect to `/dashboard` after signup. It goes to `/integrations`.
+
+### API Key Storage
+
+**DO:** Poll Supabase `org_api_keys_secure` table for the API key (that's where the frontend reads it from).
+
+**DON'T:** Use `GET /admin/dev/api-key/{org}` or manual onboard fallback — the Playwright script now uses `pollForApiKeyFromSupabase()`.
+
+### Cleanup
+
+**DO:** Set `SUPABASE_ACCESS_TOKEN` env var — cleanup uses Management API SQL with `DISABLE TRIGGER USER` to bypass owner protection triggers.
+
+**DON'T:** Try to delete org owners via REST API — Supabase has circular triggers (`protect_owner_role` + `prevent_last_owner_demotion`) that block it.
+
+### Bootstrap
+
+**DO:** Run `POST /admin/bootstrap/sync` if missing tables are reported. Bootstrap creates 27 tables (23 core + 4 chat).
+
+**DON'T:** Block onboarding on missing `org_chat_*` tables — they're non-critical. Code filters them out automatically.
+
+### Dashboard Verification
+
+**DO:** Trust the default time range ("365" = Last 365 Days). Demo data from Dec 2025 - Jan 2026 is within range.
+
+**DON'T:** Try to change the time range filter via Playwright — it's unnecessary. Wait for `networkidle` + 45s polling instead.
+
+**DO:** Filter dollar amounts ≥ $1,000 to avoid CSS/JS false positives ($19, $69, $199 from pricing cards).
+
+**DON'T:** Use a threshold < $1,000 — you'll get noise from Tailwind classes and pricing page values.
+
+### Environment Variables
+
+**DO:** Use inline env vars when running `npx tsx` scripts:
+```bash
+SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-account.ts
+```
+
+**DON'T:** Use `source .env.local` — it doesn't pass vars to child processes.
+
 ## Troubleshooting
 
 | Issue | Cause | Fix |
@@ -298,14 +623,21 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12
 | API shows $0 | Wrong date range | Use `?start_date=2025-12-01&end_date=2026-01-31` |
 | Signup 400 | Email confirmation enabled | Disable in Supabase Auth settings |
 | Pipeline not found | Procedures not synced | `POST /api/v1/procedures/sync` (port 8001) |
-| No API key | Bootstrap not done | Run bootstrap first |
-| Frontend shows $0 | Wrong date filter in UI | Set to Dec 2025 - Jan 2026 |
+| No API key in Supabase | Onboarding failed silently | Check bootstrap sync (missing tables?), check API service health |
+| Backend Not Connected | `onboardToBackend()` failed | Run `POST /admin/bootstrap/sync`, then re-onboard |
+| Missing chat tables block onboard | Old code checked all tables | Already fixed — `org_chat_*` tables are non-critical |
+| Cleanup fails (owner trigger) | Supabase circular triggers | Set `SUPABASE_ACCESS_TOKEN` env var for Management API SQL |
+| Frontend shows $0 | Wrong date filter in UI | Default "365" covers demo data — wait for load |
 | Cleanup deletes wrong dataset | Wrong env | Use `--env=stage` or `--env=prod` |
 | Duplicate data on re-run | Expected | `--replace` flag overwrites existing data |
 | CA_ROOT_API_KEY not set | Missing env | `source 01-fronted-system/.env.local` |
 | Env vars not passed to scripts | `source` doesn't export to child | Use inline: `VAR=$(grep ...) npx tsx ...` |
 | Org slug missing timestamp | URL didn't contain slug | Script auto-queries Supabase as fallback |
 | Org slug format | base36 timestamp, NOT base64 | `acme_inc_{base36(Date.now())}` e.g. `acme_inc_mlj3ql4q` |
+| Dashboard shows loading spinner | API calls still in flight | Wait for `networkidle`, verify API key in `org_api_keys_secure` |
+| Validation "API query failed" | Transient timeout after heavy pipeline execution | Fixed: 5s settle delay + 3 retries. BQ is authoritative, API failure is WARNING not ERROR |
+| Playwright can't find costs | Frontend not running | Verify port 3000 is up: `curl -s http://localhost:3000 -o /dev/null -w "%{http_code}"` |
+| Screenshot blank/loading | Render timeout | Increase wait time or check frontend logs |
 
 ## Related Skills
 

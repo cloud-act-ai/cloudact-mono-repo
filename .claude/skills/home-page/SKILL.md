@@ -826,5 +826,9 @@ Requirements consolidated from:
 
 ## Related Skills
 
-- `frontend-dev` - Console pages and components
-- `frontend-ui` - Premium console UI guidelines
+| Skill | Relationship |
+|-------|-------------|
+| `design` | Brand foundation (colors, typography, buttons) - source of truth for all brand rules |
+| `console-ui` | Console dashboard UI (different from landing pages) |
+| `charts` | Recharts chart library for data visualizations |
+| `frontend-dev` | Next.js code patterns, server actions, Supabase auth |

@@ -50,7 +50,7 @@ interface QuickAction {
   description: string
   href: string
   icon: React.ReactNode
-  color: "teal" | "coral" | "purple"
+  color: "teal" | "coral" | "slate"
 }
 
 interface IntegrationItem {
@@ -64,13 +64,13 @@ interface IntegrationItem {
 const QUICK_ACTION_COLOR_CLASSES = {
   teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[#90FCA6]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
   coral: "from-[#FF6C5E]/10 to-[#FF6C5E]/5 border-[#FF6C5E]/20 hover:shadow-[0_8px_24px_rgba(255,108,94,0.15)]",
-  purple: "from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]",
+  slate: "from-slate-500/10 to-slate-500/5 border-slate-500/20 hover:shadow-[0_8px_24px_rgba(100,116,139,0.15)]",
 } as const
 
 const QUICK_ACTION_ICON_CLASSES = {
   teal: "bg-[#90FCA6] text-[#1a7a3a]",
   coral: "bg-[#FF6C5E] text-white",
-  purple: "bg-purple-500 text-white",
+  slate: "bg-slate-500 text-white",
 } as const
 
 // ═══════════════════════════════════════════════════════════════
@@ -97,7 +97,7 @@ const getStatusColor = (status: string) => {
       return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
     case "running":
     case "in_progress":
-      return "bg-blue-500/10 text-blue-600 border-blue-500/20"
+      return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
     case "failed":
     case "error":
       return "bg-red-500/10 text-red-600 border-red-500/20"
@@ -157,12 +157,12 @@ const IntegrationCard = React.memo(function IntegrationCard({ integration }: Int
           <span className="text-sm font-medium text-slate-900 truncate block">
             {integration.name}
           </span>
-          <span className="text-[10px] text-slate-400 capitalize">
+          <span className="text-xs text-slate-400 capitalize">
             {integration.type === "subscription" ? "SaaS" : "API"}
           </span>
         </div>
       </div>
-      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
         integration.status === "connected"
           ? "bg-emerald-50 text-emerald-700"
           : integration.status === "pending"
@@ -214,7 +214,7 @@ const PipelineRunItem = React.memo(function PipelineRunItem({ pipeline }: Pipeli
               : pipeline.status === "FAILED" ? "destructive"
               : "outline"
             }
-            className="text-[10px] flex-shrink-0"
+            className="text-xs flex-shrink-0"
           >
             {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
             {pipeline.status === "FAILED" && <AlertCircle className="h-3 w-3 mr-1" />}
@@ -222,7 +222,7 @@ const PipelineRunItem = React.memo(function PipelineRunItem({ pipeline }: Pipeli
             {pipeline.status}
           </Badge>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+        <div className="flex items-center gap-1.5 text-xs text-slate-400">
           <Clock className="h-3 w-3" />
           {formatTimeAgo(pipeline.start_time)}
         </div>
@@ -590,7 +590,7 @@ export default function DashboardPage() {
       description: "Deep dive into cost trends",
       href: `/${orgSlug}/cost-dashboards/overview`,
       icon: <BarChart3 className="h-5 w-5" />,
-      color: "purple",
+      color: "slate",
     },
     {
       title: "Manage Settings",
@@ -666,7 +666,7 @@ export default function DashboardPage() {
               </h2>
             </div>
             {/* Data freshness indicator */}
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+            <div className="flex items-center gap-1.5 text-xs sm:text-xs text-slate-400">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>Live data</span>
             </div>
@@ -854,7 +854,7 @@ export default function DashboardPage() {
       <section className="animate-fade-up animation-delay-500">
         {/* Section Header */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-1 w-1 rounded-full bg-blue-500" />
+          <div className="h-1 w-1 rounded-full bg-slate-400" />
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Quick Actions
           </h2>
@@ -874,13 +874,13 @@ export default function DashboardPage() {
         {/* Section Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="h-1 w-1 rounded-full bg-purple-500" />
+            <div className="h-1 w-1 rounded-full bg-slate-400" />
             <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Recent Pipeline Runs
             </h2>
           </div>
           {recentPipelines.length > 0 && (
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs text-slate-400">
               {completedPipelinesCount}/{recentPipelines.length} completed
             </span>
           )}

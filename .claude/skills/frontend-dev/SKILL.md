@@ -71,16 +71,13 @@ cd $REPO_ROOT/01-fronted-system && npx next dev --webpack --port 3000
 └── supabase/                # Supabase migrations
 ```
 
-## Brand Colors (from hookify rules)
-```css
-/* Primary Colors */
---mint: #90FCA6;     /* Primary accent */
---coral: #FF6C5E;    /* Secondary accent */
+## Brand & Design
 
-/* Usage */
-.badge-success { background: #90FCA6; }
-.badge-error { background: #FF6C5E; }
-```
+See `/design` skill for full brand color system, typography, and button patterns.
+See `/console-ui` skill for console component library, sidebar, and dashboard layouts.
+See `/charts` skill for Recharts chart library and data visualizations.
+
+**Quick ref:** Mint `#90FCA6` (primary), Coral `#FF6C5E` (secondary), DM Sans 14px base, light-only theme. Use `.console-*` CSS classes for typography.
 
 ## Instructions
 
@@ -329,18 +326,9 @@ const columns = [
 <DataTable columns={columns} data={features} />
 ```
 
-### Charts (Recharts)
-```tsx
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
+### Charts
 
-<BarChart data={costData}>
-  <CartesianGrid strokeDasharray="3 3" />
-  <XAxis dataKey="month" />
-  <YAxis />
-  <Tooltip />
-  <Bar dataKey="cost" fill="#90FCA6" />
-</BarChart>
-```
+See `/charts` skill for full Recharts component library (CostTrendChart, CostRingChart, MetricGrid, etc.).
 
 ## Port Routing
 | URL Pattern | Service | Port |
@@ -392,6 +380,13 @@ Requirements consolidated from:
 - `00_INTERNATIONALIZATION.md` - Internationalization and localization requirements
 
 ## Related Skills
-- `api-dev` - Backend endpoints
-- `test-orchestration` - Frontend testing
-- `integration-setup` - Provider pages
+
+| Skill | Relationship |
+|-------|-------------|
+| `design` | Brand colors, typography, button system |
+| `console-ui` | Console component library, sidebar, dashboard layouts |
+| `charts` | Recharts chart library for data visualizations |
+| `home-page` | Landing page patterns (different from console) |
+| `api-dev` | Backend endpoints |
+| `test-orchestration` | Frontend testing |
+| `integration-setup` | Provider pages |

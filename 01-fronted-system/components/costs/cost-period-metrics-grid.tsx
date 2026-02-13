@@ -208,7 +208,7 @@ export function CostPeriodMetricsGrid({
           currency={currency}
           subtitle={periodLabels.ytd}
           variant="compact"
-          iconColor="text-purple-600"
+          iconColor="text-slate-600"
           compact={compact}
         />
         <CostMetricCard
@@ -301,7 +301,7 @@ export function CostPeriodMetricsGrid({
           currency={currency}
           subtitle="Year to date"
           variant="compact"
-          iconColor="text-purple-600"
+          iconColor="text-slate-600"
           compact={compact}
         />
         <CostMetricCard
@@ -360,7 +360,7 @@ export function CostPeriodMetricsBar({
     { label: "Yesterday", value: data.yesterday ?? 0, color: "text-slate-600" },
     { label: "WTD", value: data.wtd ?? 0, color: "text-blue-600" },
     { label: "MTD", value: data.mtd ?? 0, color: "text-emerald-600" },
-    { label: "YTD", value: data.ytd ?? 0, color: "text-purple-600" },
+    { label: "YTD", value: data.ytd ?? 0, color: "text-slate-600" },
   ]
 
   return (

@@ -625,8 +625,8 @@ export default function BillingPage() {
           </div>
           <div className="h-8 w-px bg-slate-200"></div>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-purple-100 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-purple-600" />
+            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-slate-600" />
             </div>
             <div>
               <p className="text-[20px] font-bold text-slate-900 leading-none capitalize">

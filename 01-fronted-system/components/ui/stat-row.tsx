@@ -28,8 +28,8 @@ const colorClasses = {
     icon: "text-[var(--cloudact-mint-dark)]",
   },
   coral: {
-    bg: "bg-rose-100",
-    icon: "text-rose-500",
+    bg: "bg-[var(--cloudact-coral)]/10",
+    icon: "text-[var(--cloudact-coral)]",
   },
   amber: {
     bg: "bg-amber-100",
@@ -51,7 +51,7 @@ const sizeClasses = {
     iconBox: "h-7 w-7 sm:h-8 sm:w-8 rounded-lg",
     icon: "h-3.5 w-3.5 sm:h-4 sm:w-4",
     value: "text-[16px] sm:text-[20px]",
-    label: "text-[9px] sm:text-[11px]",
+    label: "text-[11px] sm:text-xs",
     divider: "h-5 sm:h-6",
   },
   md: {
@@ -59,7 +59,7 @@ const sizeClasses = {
     iconBox: "h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl",
     icon: "h-4 w-4 sm:h-5 sm:w-5",
     value: "text-[18px] sm:text-[24px]",
-    label: "text-[10px] sm:text-[12px]",
+    label: "text-xs sm:text-xs",
     divider: "h-6 sm:h-8",
   },
   lg: {
@@ -67,7 +67,7 @@ const sizeClasses = {
     iconBox: "h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl",
     icon: "h-5 w-5 sm:h-6 sm:w-6",
     value: "text-[22px] sm:text-[28px]",
-    label: "text-[11px] sm:text-[13px]",
+    label: "text-xs sm:text-[13px]",
     divider: "h-8 sm:h-10",
   },
 }

@@ -301,7 +301,7 @@ export function YTDMetricCard({ value, currency, trend, loading, className }: Pr
       subtitle="Year to date"
       trend={trend}
       loading={loading}
-      iconColor="text-purple-600"
+      iconColor="text-slate-600"
       className={className}
     />
   )

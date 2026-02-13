@@ -45,8 +45,8 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
       {/* Centered content */}
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="max-w-lg text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--cloudact-bg-indigo)] border border-[var(--border-indigo)]">
-            <Sparkles className="h-8 w-8 text-[var(--cloudact-indigo)]" />
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/30">
+            <Sparkles className="h-8 w-8 text-[var(--cloudact-mint-dark)]" />
           </div>
           <h2 className="mb-2 text-2xl font-semibold text-gray-900 dark:text-white">CloudAct AI</h2>
           <p className="mb-8 text-sm text-gray-500 dark:text-slate-400">
@@ -60,10 +60,10 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
                 key={suggestion.text}
                 onClick={() => onSendMessage(suggestion.text)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSendMessage(suggestion.text) } }}
-                className="group flex items-start gap-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 p-4 text-left transition-colors hover:border-[var(--cloudact-indigo)]/30 hover:bg-gray-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-indigo)]/40"
+                className="group flex items-start gap-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 p-4 text-left transition-colors hover:border-[var(--cloudact-mint)]/30 hover:bg-gray-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40"
                 aria-label={`Ask: ${suggestion.text}`}
               >
-                <suggestion.icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-slate-500 transition-colors group-hover:text-[var(--cloudact-indigo)]" />
+                <suggestion.icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-slate-500 transition-colors group-hover:text-[var(--cloudact-mint-dark)]" />
                 <div>
                   <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mb-1">{suggestion.category}</p>
                   <p className="text-sm text-gray-700 dark:text-slate-300">{suggestion.text}</p>
@@ -77,7 +77,7 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
       {/* Input field at bottom */}
       <div className="border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-4">
         <div className="mx-auto max-w-3xl">
-          <div className="flex items-end gap-3 rounded-xl border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 px-4 py-3 transition-colors focus-within:border-[var(--cloudact-indigo)]/40">
+          <div className="flex items-end gap-3 rounded-xl border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 px-4 py-3 transition-colors focus-within:border-[var(--cloudact-mint)]/40">
             <textarea
               ref={inputRef}
               value={input}
@@ -91,7 +91,7 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cloudact-indigo)] text-white transition-colors hover:bg-[var(--cloudact-indigo-light)] disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cloudact-mint-dark)] text-white transition-colors hover:bg-[var(--cloudact-mint-text)] disabled:opacity-30 disabled:cursor-not-allowed"
               aria-label="Send message"
             >
               <Send className="h-4 w-4" />

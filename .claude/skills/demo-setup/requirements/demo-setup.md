@@ -7,15 +7,15 @@ End-to-end demo account automation. Creates accounts via Playwright, loads clean
 ## Architecture
 
 ```
-Playwright (Browser)           API Service (8000)        Pipeline (8001)
-───────────────────            ─────────────────         ───────────────
-setup-demo-account.ts          /admin/bootstrap          /procedures/sync
-├─ /signup form                /admin/dev/api-key        /pipelines/run/*
-├─ Stripe checkout             /hierarchy/*/levels/seed  /pipelines/runs/*
-└─ Extract org_slug + key      /hierarchy/*/entities
-                               /notifications/*/channels
-cleanup-demo-account.ts        /notifications/*/rules
-├─ Delete Supabase user/org    /costs/*/total
+Playwright (Browser)           API Service (8000)        Pipeline (8001)      Chat Backend (8002)
+───────────────────            ─────────────────         ───────────────      ───────────────────
+setup-demo-account.ts          /admin/bootstrap          /procedures/sync     /chat/*/message
+├─ /signup form                /hierarchy/*/levels/seed  /pipelines/run/*     /chat/*/conversations
+├─ Stripe checkout             /hierarchy/*/entities     /pipelines/runs/*
+└─ Extract org_slug + key      /notifications/*/channels
+                               /notifications/*/rules
+cleanup-demo-account.ts        /costs/*/total
+├─ Delete Supabase user/org
 └─ Delete BQ dataset
 
 load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
@@ -32,21 +32,24 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 
 | ID | Requirement |
 |----|-------------|
-| FR-DS-001.1 | Delete Supabase auth user, profile, org_members, organizations, invites by email |
+| FR-DS-001.1 | Delete Supabase auth user, profile, org_members, organizations, invites, org_api_keys_secure, org_quotas by email |
 | FR-DS-001.2 | Delete BigQuery dataset `{org_slug}_{environment}` |
 | FR-DS-001.3 | Support `--email` or `--org-slug` argument |
 | FR-DS-001.4 | Idempotent - re-running on cleaned account succeeds silently |
+| FR-DS-001.5 | Use Supabase Management API SQL with `DISABLE TRIGGER USER` to bypass owner protection triggers |
+| FR-DS-001.6 | Require `SUPABASE_ACCESS_TOKEN` env var for Management API access |
 
 ### FR-DS-002: Account Creation (Playwright)
 
 | ID | Requirement |
 |----|-------------|
 | FR-DS-002.1 | Navigate to `/signup`, fill account + org details, select scale plan |
-| FR-DS-002.2 | Complete Stripe checkout ("Start trial"), wait for dashboard redirect |
-| FR-DS-002.3 | Extract org_slug from URL (fallback: query Supabase) |
-| FR-DS-002.4 | Verify backend onboarding: poll for API key → manual onboard fallback (FR-DS-007) |
-| FR-DS-002.5 | Return JSON: `{ success, orgSlug, apiKey, dashboardUrl }` - apiKey always present on success |
-| FR-DS-002.6 | Timeout after 120 seconds |
+| FR-DS-002.2 | Complete Stripe checkout ("Start trial"), wait for `/onboarding/success` page |
+| FR-DS-002.3 | Wait for `completeOnboarding()` to finish — page redirects to `/{orgSlug}/integrations?welcome=true` (NOT `/dashboard`) |
+| FR-DS-002.4 | Extract org_slug from URL matching `/(dashboard|integrations)` (fallback: query Supabase) |
+| FR-DS-002.5 | Poll Supabase `org_api_keys_secure` table for API key (up to 90s) — FR-DS-007 |
+| FR-DS-002.6 | Return JSON: `{ success, orgSlug, apiKey, dashboardUrl }` - apiKey always present on success |
+| FR-DS-002.7 | Timeout after 120 seconds |
 
 ### FR-DS-003: Data Loading
 
@@ -86,18 +89,19 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 | ID | Requirement |
 |----|-------------|
 | FR-DS-006.1 | Query `GET /api/v1/costs/{org}/total?start_date=2025-12-01&end_date=2026-01-31` |
-| FR-DS-006.2 | GenAI ~$171K, Cloud ~$382, Subscription ~$7.7K, Total ~$179K |
+| FR-DS-006.2 | GenAI ~$5.3M, Cloud ~$2.9M, Subscription ~$900K, Total ~$9.1M |
 | FR-DS-006.3 | Cross-validate API vs BigQuery vs Frontend |
 
-### FR-DS-007: Onboarding Verification
+### FR-DS-007: Onboarding Verification (Supabase Polling)
 
 | ID | Requirement |
 |----|-------------|
-| FR-DS-007.1 | After signup, poll `GET /admin/dev/api-key/{org}` every 5s for 60s |
-| FR-DS-007.2 | If API key not found, attempt manual onboard via `POST /organizations/onboard` |
-| FR-DS-007.3 | After manual onboard, retry API key poll for 30s |
-| FR-DS-007.4 | Throw error (exit non-zero) if API key still not found after both attempts |
-| FR-DS-007.5 | No silent fallback - always return verified API key or fail |
+| FR-DS-007.1 | After Stripe checkout, wait for redirect: `/onboarding/success` → `/{orgSlug}/integrations` |
+| FR-DS-007.2 | `completeOnboarding()` stores API key in both BigQuery AND Supabase `org_api_keys_secure` |
+| FR-DS-007.3 | Poll Supabase `org_api_keys_secure` for API key every 5s, up to 90s |
+| FR-DS-007.4 | Non-critical `org_chat_*` tables don't block onboarding (filtered in `backend-onboarding.ts`) |
+| FR-DS-007.5 | Throw error (exit non-zero) if API key not found after 90s polling |
+| FR-DS-007.6 | No manual onboard fallback — rely on the frontend's `completeOnboarding()` server action |
 
 ### FR-DS-008: Dataset Pre-flight Check
 
@@ -120,6 +124,22 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 | FR-DS-009.6 | Any category = $0 = ERROR (pipeline failure) |
 | FR-DS-009.7 | Print comparison table with per-category BQ/API/Expected/Variance |
 | FR-DS-009.8 | Exit non-zero on validation errors |
+
+### FR-DS-010: Frontend Dashboard Verification
+
+| ID | Requirement |
+|----|-------------|
+| FR-DS-010.1 | Login as demo@cloudact.ai via Playwright headless browser |
+| FR-DS-010.2 | Navigate to `/{orgSlug}/dashboard` — default time range "365" covers demo data (Dec 2025 - Jan 2026) |
+| FR-DS-010.3 | Wait for `networkidle` then poll up to 45s for cost data |
+| FR-DS-010.4 | Extract dollar amounts ≥ $1,000 from page body text (filters CSS/JS/pricing noise) |
+| FR-DS-010.5 | Verify at least 3 distinct amounts ≥ $1,000 present |
+| FR-DS-010.6 | Check absence of "No cost data", "No GenAI costs", "No cloud costs" text |
+| FR-DS-010.7 | Save screenshot to `tests/demo-setup/screenshots/` |
+| FR-DS-010.8 | Print verification summary with amounts and screenshot path |
+| FR-DS-010.9 | Exit non-zero if verification fails |
+| FR-DS-010.10 | Runnable standalone: `npx tsx tests/demo-setup/verify-dashboard.ts --org-slug=X` |
+| FR-DS-010.11 | Do NOT change time range filter — default "365" days already includes demo data period |
 
 ## Non-Functional Requirements
 
@@ -174,7 +194,7 @@ Template: `01-fronted-system/lib/seed/hierarchy_template.csv`
 
 | Env | Dataset Suffix | GCP Project | Supabase | Services |
 |-----|----------------|-------------|----------|----------|
-| local | `_local` | cloudact-testing-1 | kwroaccbrxppfiysqlzs | localhost |
+| local | `_local` | cloudact-testing-1 | kwroaccbrxppfiysqlzs | localhost (3000/8000/8001/8002) |
 | stage | `_stage` | cloudact-testing-1 | kwroaccbrxppfiysqlzs | Cloud Run |
 | prod | `_prod` | cloudact-prod | ovfxswhkkshouhsryzaf | Cloud Run |
 
@@ -187,6 +207,7 @@ Template: `01-fronted-system/lib/seed/hierarchy_template.csv`
 | `01-fronted-system/tests/demo-setup/setup-demo-account.ts` | Playwright account creation |
 | `01-fronted-system/tests/demo-setup/cleanup-demo-account.ts` | Account + BQ cleanup |
 | `01-fronted-system/tests/demo-setup/load-demo-data-direct.ts` | Data loading + pipeline runner |
+| `01-fronted-system/tests/demo-setup/verify-dashboard.ts` | Playwright dashboard verification |
 | `01-fronted-system/tests/demo-setup/config.ts` | Centralized configuration |
 | `01-fronted-system/lib/seed/hierarchy_template.csv` | 2-tree hierarchy (8 entities) |
 | `04-inra-cicd-automation/load-demo-data/data/pricing/genai_payg_pricing.csv` | GenAI pricing (31 models, all x_* fields) |

@@ -51,7 +51,7 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
           {isError ? (
             <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
           ) : (
-            <Bot className="h-4 w-4 text-[var(--cloudact-indigo)]" />
+            <Bot className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
           )}
         </div>
       )}
@@ -68,7 +68,7 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
           <p className="whitespace-pre-wrap text-sm leading-relaxed">
             {msg.content}
             {msg.isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-[var(--cloudact-indigo)] animate-pulse rounded-sm" />
+              <span className="inline-block w-1.5 h-4 ml-0.5 bg-[var(--cloudact-mint-dark)] animate-pulse rounded-sm" />
             )}
           </p>
           {!isUser && !isError && !msg.isStreaming && msg.agent_name && (
@@ -522,7 +522,7 @@ export function ChatCopilot({
           {sending && !messages.some((m) => m.isStreaming) && (
             <div className="flex gap-3">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-                <Bot className="h-4 w-4 text-[var(--cloudact-indigo)]" />
+                <Bot className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 dark:bg-slate-800/50 dark:border-slate-700/50 px-4 py-3">
                 <Loader2 className="h-4 w-4 animate-spin text-gray-400 dark:text-slate-400" />
@@ -541,7 +541,7 @@ export function ChatCopilot({
           <div className={`flex items-end gap-3 rounded-xl border bg-gray-50 dark:bg-slate-800/50 px-4 py-3 transition-colors ${
             isOverLimit
               ? "border-red-300 dark:border-red-800"
-              : "border-gray-300 dark:border-slate-700 focus-within:border-[var(--cloudact-indigo)]/40"
+              : "border-gray-300 dark:border-slate-700 focus-within:border-[var(--cloudact-mint)]/40"
           }`}>
             <textarea
               ref={inputRef}
@@ -560,7 +560,7 @@ export function ChatCopilot({
             <button
               onClick={() => handleSend()}
               disabled={sending || !input.trim() || isOverLimit}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cloudact-indigo)] text-white transition-colors hover:bg-[var(--cloudact-indigo-light)] disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cloudact-mint-dark)] text-white transition-colors hover:bg-[var(--cloudact-mint-text)] disabled:opacity-30 disabled:cursor-not-allowed"
               aria-label="Send message"
             >
               <Send className="h-4 w-4" />

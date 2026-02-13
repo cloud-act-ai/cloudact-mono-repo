@@ -262,7 +262,7 @@ export function MobileNav({
               <p className="text-[12px] font-black text-slate-900 tracking-wide uppercase leading-tight truncate">
                 {formattedOrgName}
               </p>
-              <p className="text-[9px] font-semibold text-slate-400 tracking-wider uppercase leading-tight">
+              <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase leading-tight">
                 Cost Analytics
               </p>
             </div>
@@ -323,7 +323,7 @@ export function MobileNav({
                           )} />
                           <span className="text-[13px]">{item.title}</span>
                           {item.placeholder && (
-                            <span className="ml-auto text-[10px] font-medium text-[var(--cloudact-indigo)] bg-[var(--cloudact-indigo)]/10 px-1.5 py-0.5 rounded-full">
+                            <span className="ml-auto text-[11px] font-medium text-[var(--cloudact-coral)] bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 rounded-full">
                               Beta
                             </span>
                           )}
@@ -357,7 +357,7 @@ export function MobileNav({
             </div>
             <div className="min-w-0 flex-1 text-left">
               <p className="text-[11px] font-semibold text-slate-900 truncate">{userName}</p>
-              <p className="text-[10px] text-slate-500 truncate">{userEmail}</p>
+              <p className="text-xs text-slate-500 truncate">{userEmail}</p>
             </div>
           </button>
 

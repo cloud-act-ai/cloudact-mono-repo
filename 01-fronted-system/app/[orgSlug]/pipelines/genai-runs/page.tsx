@@ -511,7 +511,7 @@ export default function GenAIRunsPage() {
                 <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
                 <span
                   className={`
-                  inline-flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-4 sm:h-5 px-1 sm:px-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold
+                  inline-flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-4 sm:h-5 px-1 sm:px-1.5 rounded-full text-xs sm:text-[11px] font-semibold
                   ${isActive ? "bg-[var(--cloudact-mint)] text-[#1a7a3a]" : "bg-slate-100 text-slate-500"}
                 `}
                 >

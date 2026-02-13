@@ -294,7 +294,7 @@ export function DashboardSidebar({
           {title}
         </span>
         {badge && (
-          <span className="rounded-full bg-[var(--cloudact-indigo)]/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--cloudact-indigo)]">
+          <span className="rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--cloudact-coral)]">
             {badge}
           </span>
         )}
@@ -725,7 +725,7 @@ export function DashboardSidebar({
                   <Link href={`/${orgSlug}/chat`}>
                     <MessageSquare className="h-4 w-4 flex-shrink-0" />
                     <span>Chat</span>
-                    <span className="ml-auto rounded-full bg-[var(--cloudact-indigo)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--cloudact-indigo)]">Beta</span>
+                    <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">Beta</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

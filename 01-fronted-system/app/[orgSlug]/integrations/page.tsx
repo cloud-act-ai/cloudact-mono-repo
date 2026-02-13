@@ -358,7 +358,7 @@ export default function IntegrationsPage() {
                       <div className="flex items-center gap-2 sm:gap-3">
                         {connected > 0 ? (
                           <span
-                            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold shadow-sm transition-all duration-200"
+                            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-xs sm:text-[11px] font-bold shadow-sm transition-all duration-200"
                             style={{
                               backgroundColor: `${getAccentStyle(category.accent).css}20`,
                               color: category.accent === 'mint' ? '#1a7a3a' : category.accent === 'coral' ? '#FF6C5E' : '#007AFF'
@@ -368,7 +368,7 @@ export default function IntegrationsPage() {
                             {connected} active
                           </span>
                         ) : (
-                          <span className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 text-slate-500 text-[10px] sm:text-[11px] font-semibold border border-slate-200/50">
+                          <span className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 text-slate-500 text-xs sm:text-[11px] font-semibold border border-slate-200/50">
                             Not configured
                           </span>
                         )}

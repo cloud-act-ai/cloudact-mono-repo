@@ -439,7 +439,7 @@ export default function CostOverviewPage() {
               </div>
               <div>
                 <h3 className="text-xs sm:text-sm font-semibold text-slate-900">GenAI Costs</h3>
-                <p className="text-[10px] sm:text-xs text-slate-500">LLM API usage</p>
+                <p className="text-xs sm:text-xs text-slate-500">LLM API usage</p>
               </div>
             </div>
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
@@ -458,7 +458,7 @@ export default function CostOverviewPage() {
               </div>
               <div>
                 <h3 className="text-xs sm:text-sm font-semibold text-slate-900">Cloud Costs</h3>
-                <p className="text-[10px] sm:text-xs text-slate-500">GCP, AWS, Azure</p>
+                <p className="text-xs sm:text-xs text-slate-500">GCP, AWS, Azure</p>
               </div>
             </div>
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
@@ -477,7 +477,7 @@ export default function CostOverviewPage() {
               </div>
               <div>
                 <h3 className="text-xs sm:text-sm font-semibold text-slate-900">Subscription Costs</h3>
-                <p className="text-[10px] sm:text-xs text-slate-500">SaaS & software</p>
+                <p className="text-xs sm:text-xs text-slate-500">SaaS & software</p>
               </div>
             </div>
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-hover:text-slate-600" aria-hidden="true" />

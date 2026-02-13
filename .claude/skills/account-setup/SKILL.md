@@ -290,6 +290,7 @@ account-flows.spec.ts
 | `/bootstrap-onboard` | Backend org onboarding (BigQuery datasets, API keys). Account-setup tests frontend flows. |
 | `/user-mgmt` | User/role management operations. Account-setup tests the invite + profile UI. |
 | `/security-audit` | Security audit across all services. Account-setup validates rate limiting + auth UI. |
+| `/design` | Brand colors, typography, button system. Account flows must follow design system. |
 
 ## Source Specifications
 

@@ -1,0 +1,565 @@
+---
+name: console-ui
+description: |
+  CloudAct console UI components and layouts. Sidebar, cards, tables, feedback, page templates, dashboard layouts.
+  Use when: building console pages, creating components, implementing sidebar navigation, designing dashboard layouts,
+  adding metric cards, tables, empty states, or following CloudAct's premium enterprise UI patterns.
+---
+
+# Console UI - Dashboard Components & Layouts
+
+Premium enterprise console interface. Apple Health / Fitness+ inspired. White surfaces, subtle depth, bounded content. Light-only theme with mobile responsive support.
+
+## Trigger
+
+Use when: building console pages, creating components, implementing sidebar, designing dashboard layouts, adding cards/tables/feedback.
+
+```
+/console-ui                    # Full component guide
+/console-ui sidebar            # Sidebar patterns
+/console-ui page               # Create a new console page
+/console-ui card               # Card component patterns
+/console-ui table              # Table component patterns
+/console-ui form               # Form layout patterns
+/console-ui feedback           # Empty states, loading, toasts
+/console-ui mobile             # Mobile responsive patterns
+```
+
+## Key Locations
+
+| File | Purpose |
+|------|---------|
+| `01-fronted-system/components/dashboard-sidebar.tsx` | Main sidebar component |
+| `01-fronted-system/components/ui/sidebar.tsx` | shadcn sidebar primitives |
+| `01-fronted-system/components/ui/` | Base UI primitives (44 files: button, input, select, dialog, etc.) |
+| `01-fronted-system/components/ui/premium-card.tsx` | PremiumCard, MetricCard components |
+| `01-fronted-system/components/ui/empty-state.tsx` | EmptyState component |
+| `01-fronted-system/components/costs/` | Cost display components (metric cards, filters) |
+| `01-fronted-system/components/premium/` | Premium page components (data-table, page-header, section) |
+| `01-fronted-system/components/charts/` | Chart components (see `/charts` skill) |
+| `01-fronted-system/components/layout/premium-page-shell.tsx` | Page layout shell |
+| `01-fronted-system/components/dashboard/` | Dashboard-specific cards (integrations, quick actions) |
+| `01-fronted-system/app/[orgSlug]/layout.tsx` | Org layout with sidebar |
+| `01-fronted-system/app/[orgSlug]/console.css` | Console styles (1962 lines) |
+| `01-fronted-system/contexts/cost-data-context.tsx` | Unified cost data context |
+
+---
+
+## Design Philosophy
+
+Enterprise-grade B2B SaaS. Every screen must convey trust and precision.
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Visual Hierarchy** | Clear primary/secondary/tertiary distinction |
+| **Data Density** | Meaningful data, not decorative fluff |
+| **Precision** | Aligned grids, consistent spacing |
+| **Restraint** | Minimal color, let data speak |
+| **Clarity** | Every element has purpose |
+| **Light-Only** | No dark mode. White surfaces only. |
+
+---
+
+## Sidebar
+
+### Architecture
+
+Two-zone layout with accordion behavior. Reduced font, compact spacing, openclaw dashboard standard.
+
+```
+┌─────────────────────┐
+│ [Logo] CloudAct      │  ← Brand header
+├─────────────────────┤
+│ ▾ Dashboards         │  ← Accordion sections
+│   Main Dashboard     │     (one expanded at a time)
+│   Cost Overview      │
+│ ▸ Cost Analytics     │  ← Auto-expand based on route
+│ ▸ Pipelines          │
+│ ▸ Integrations       │
+│ ▸ Notifications      │
+│ ▸ AI Chat            │
+│ ▸ Settings           │
+├─────────────────────┤
+│ [Avatar] User Name   │  ← Footer (fixed)
+│ Get Help │ Sign Out  │
+└─────────────────────┘
+```
+
+### Sidebar Dimensions
+
+| Property | Desktop | Mobile |
+|----------|---------|--------|
+| Width (expanded) | `16rem` (256px) | `18rem` (288px) |
+| Width (collapsed) | `3rem` (48px) | Hidden |
+| Behavior | Collapsible rail | Sheet overlay |
+| Toggle shortcut | `b` key | Hamburger button |
+| Cookie | `sidebar_state` (7 day TTL) | N/A |
+
+### Key Sidebar Features
+
+- **Accordion:** Only one section expanded at a time
+- **Auto-expand:** Section auto-expands based on current route
+- **Active indicator:** Mint left accent bar on active item
+- **Collapse rail:** Desktop collapses to icon-only rail (48px)
+- **Mobile sheet:** Full overlay sheet on mobile (`< 768px`)
+- **Footer fixed:** User profile, help, sign out always visible
+
+### Sidebar Component Usage
+
+```tsx
+// app/[orgSlug]/layout.tsx
+import { SidebarProvider } from "@/components/ui/sidebar"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
+
+export default function OrgLayout({ children, params }) {
+  return (
+    <SidebarProvider>
+      <DashboardSidebar orgSlug={params.orgSlug} />
+      <main className="flex-1 min-h-screen">
+        {children}
+      </main>
+    </SidebarProvider>
+  )
+}
+```
+
+### Navigation Sections
+
+| Section | Icon | Sub-items |
+|---------|------|-----------|
+| Dashboards | `LayoutDashboard` | Main Dashboard, Cost Overview |
+| Cost Analytics | `BarChart3` | GenAI Costs, Cloud Costs, Subscription Costs |
+| Pipelines | `Workflow` | Pipeline Runs, Run History |
+| Integrations | `Network` | Cloud, GenAI, SaaS providers |
+| Notifications | `Bell` | Alerts, Cost Alerts |
+| AI Chat | `MessageSquare` | Chat |
+| Settings | `Settings` | Organization, Personal, Billing, Team, Hierarchy, Quota |
+
+---
+
+## Component Organization
+
+Components are organized by **feature domain**, not by type.
+
+```
+components/
+├── ui/                    # 44 shadcn primitives (button, input, select, dialog, etc.)
+│   ├── premium-card.tsx   #   PremiumCard, MetricCard wrapper
+│   ├── empty-state.tsx    #   EmptyState component
+│   ├── card-skeleton.tsx  #   Card loading skeleton
+│   ├── table-skeleton.tsx #   Table loading skeleton
+│   ├── chart-skeleton.tsx #   Chart loading skeleton
+│   └── alert-dialog.tsx   #   Confirmation dialogs
+├── charts/                # Recharts library (see /charts skill)
+├── costs/                 # Cost-specific components
+│   ├── cost-metric-card.tsx  # MTD, DailyRate, Forecast, YTD variants
+│   ├── cost-filters.tsx      # TimeRangeFilter, CostFilters
+│   └── ...                   # 8+ cost display components
+├── premium/               # Premium page components
+│   ├── data-table.tsx     #   TanStack Table with sorting/filtering
+│   ├── page-header.tsx    #   Standard page header
+│   └── section.tsx        #   Page section wrapper
+├── dashboard/             # Dashboard-specific
+│   ├── IntegrationsCard.tsx
+│   └── QuickActionsCard.tsx
+├── hierarchy/             # Org hierarchy
+│   └── cascading-hierarchy-selector.tsx
+├── cloud/                 # Cloud provider templates
+│   └── provider-page-template.tsx
+├── genai/                 # GenAI pricing/templates
+├── layout/                # Page shells
+│   └── premium-page-shell.tsx
+├── auth/                  # Auth components
+├── chat/                  # Chat UI components
+├── pipelines/             # Pipeline components
+├── settings/              # Settings page components
+├── landing/               # Landing page components
+└── export-import/         # Export/import tools
+```
+
+**RULE:** Before creating ANY new component, check if a reusable version exists. NEVER duplicate component code across pages.
+
+---
+
+## Key Components (Actual Paths)
+
+### Cards
+
+| Component | Location | Usage |
+|-----------|----------|-------|
+| `PremiumCard` | `ui/premium-card.tsx` | Base card wrapper with header/footer |
+| `CostMetricCard` | `costs/cost-metric-card.tsx` | KPI cards (MTD, DailyRate, Forecast, YTD) |
+| `IntegrationsCard` | `dashboard/IntegrationsCard.tsx` | Dashboard integrations summary |
+| `QuickActionsCard` | `dashboard/QuickActionsCard.tsx` | Dashboard quick actions |
+
+### Tables
+
+| Component | Location | Usage |
+|-----------|----------|-------|
+| `DataTable` | `premium/data-table.tsx` | Generic TanStack Table with sorting/filtering |
+| `DataTable` | `charts/shared/data-table.tsx` | Chart-context data table |
+| `CostDataTable` | `charts/cost/data-table.tsx` | Cost-specific data table |
+
+### Feedback
+
+| Component | Location | Usage |
+|-----------|----------|-------|
+| `EmptyState` | `ui/empty-state.tsx` | No data placeholder |
+| `CardSkeleton` | `ui/card-skeleton.tsx` | Card loading skeleton |
+| `TableSkeleton` | `ui/table-skeleton.tsx` | Table loading skeleton |
+| `ChartSkeleton` | `ui/chart-skeleton.tsx` | Chart loading skeleton |
+| `AlertDialog` | `ui/alert-dialog.tsx` | Confirmation dialogs |
+
+### Filters
+
+| Component | Location | Usage |
+|-----------|----------|-------|
+| `TimeRangeFilter` | `costs/cost-filters.tsx` | Time range dropdown |
+| `CostFilters` | `costs/cost-filters.tsx` | Category/provider/hierarchy filters |
+
+---
+
+## Page Template
+
+```tsx
+export default function ConsolePage() {
+  return (
+    <div className="min-h-full bg-white">
+      {/* Subtle top gradient glow */}
+      <div className="absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-[#90FCA6]/5 via-[#90FCA6]/2 to-transparent pointer-events-none" />
+
+      {/* Status Banners */}
+      <OnboardingBanner />
+      <BillingAlertBanner />
+
+      {/* Main Content */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+        {/* Page Header */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="console-page-title">Page Title</h1>
+          <p className="mt-1 console-body text-gray-500">Brief description</p>
+        </div>
+
+        {/* Page Content */}
+        <div className="space-y-6 sm:space-y-8">
+          {/* Content sections */}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## Dashboard Layouts
+
+### Main Dashboard (`/[orgSlug]/dashboard`)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Welcome Message + Time Range Selector                            │
+├──────────────────────────────────────────────────────────────────┤
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐                 │
+│ │ Total   │ │ GenAI   │ │ Cloud   │ │ SaaS    │  MetricGrid     │
+│ │ Spend   │ │ Spend   │ │ Spend   │ │ Spend   │                 │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘                 │
+├──────────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────┐ ┌────────────────────────────────┐│
+│ │     CostTrendChart         │ │   CategoryRingChart            ││
+│ │     (30-day with zoom)     │ │   (Donut breakdown)            ││
+│ └────────────────────────────┘ └────────────────────────────────┘│
+├──────────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────┐ ┌────────────────────────────────┐│
+│ │   ProviderBreakdown        │ │   Quick Actions                ││
+│ └────────────────────────────┘ └────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Cost Overview (`/[orgSlug]/cost-dashboards/overview`)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Cost Analytics Header + Time Range + Filters                     │
+├──────────────────────────────────────────────────────────────────┤
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  MetricGrid    │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘                 │
+├──────────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────────────────────────────────────────┐│
+│ │          CostTrendChart (Full width, with zoom)                ││
+│ └────────────────────────────────────────────────────────────────┘│
+├──────────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────┐ ┌────────────────────────────────┐│
+│ │   CategoryBreakdown        │ │   ProviderBreakdown            ││
+│ └────────────────────────────┘ └────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Category Pages (GenAI/Cloud/Subscription)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Category Header + Time Range + Filters                           │
+├──────────────────────────────────────────────────────────────────┤
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  Metrics       │
+│ │ Total   │ │ Daily   │ │ Monthly │ │ YoY     │                 │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘                 │
+├──────────────────────────────────────────────────────────────────┤
+│ │      CostTrendChart (category filtered, with zoom)             │
+├──────────────────────────────────────────────────────────────────┤
+│ │      ProviderBreakdown (category filtered)                     │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Card Styles
+
+### Card Base (from console.css)
+```
+Background: bg-white
+Border radius: 20px (health-card, metric-card, stat-card)
+Shadow: var(--shadow-premium-sm) → var(--shadow-premium-md) on hover
+Border: 1px solid rgba(0, 0, 0, 0.04)
+Padding: 22px (metric-card) / 18px (health-card)
+Hover: translateY(-2px) + shadow increase
+```
+
+### Cost Metric Card
+
+```tsx
+import { CostMetricCard } from '@/components/costs/cost-metric-card';
+
+// MTD variant
+<CostMetricCard variant="mtd" value={12450} currency="USD" />
+
+// DailyRate variant
+<CostMetricCard variant="daily-rate" value={415} currency="USD" />
+
+// Forecast variant
+<CostMetricCard variant="forecast" value={14900} currency="USD" />
+```
+
+### Empty State
+
+```tsx
+import { EmptyState } from '@/components/ui/empty-state';
+
+<EmptyState
+  icon={CloudIcon}
+  title="No integrations yet"
+  description="Connect your first cloud provider to start tracking costs."
+  action={{ label: "Add Integration", onClick: () => {} }}
+/>
+```
+
+---
+
+## Loading Skeletons
+
+```tsx
+import { CardSkeleton } from '@/components/ui/card-skeleton';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { ChartSkeleton } from '@/components/ui/chart-skeleton';
+
+<CardSkeleton count={4} />   // 4 metric card skeletons
+<TableSkeleton count={5} />  // 5 table row skeletons
+<ChartSkeleton />            // Chart placeholder
+```
+
+---
+
+## Mobile Responsive Patterns
+
+### Sidebar (Mobile)
+
+```tsx
+// components/ui/sidebar.tsx handles this automatically
+// Desktop: Collapsible rail (48px collapsed, 256px expanded)
+// Mobile (<768px): Sheet overlay triggered by hamburger
+
+const { isMobile, openMobile, setOpenMobile } = useSidebar()
+// On mobile, sidebar renders inside a Sheet component
+```
+
+### Grid Responsiveness
+
+```tsx
+// Metric cards: 2 cols mobile → 4 cols desktop
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+
+// Two-column: stack on mobile → side-by-side desktop
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+// Full-width chart spans both columns
+<div className="lg:col-span-2">
+```
+
+### Mobile Card Adjustments
+
+```tsx
+// Padding: tighter on mobile
+<div className="p-4 sm:p-5">
+
+// Text: scale down on mobile
+<h1 className="console-page-title">
+
+// Hide secondary info on mobile
+<span className="hidden sm:inline text-gray-500">vs last period</span>
+```
+
+### Mobile Tables
+
+```tsx
+// Wrap table in horizontal scroll container
+<div className="overflow-x-auto -mx-4 sm:mx-0">
+  <table className="min-w-full">...</table>
+</div>
+
+// Or use card view on mobile
+<div className="hidden sm:block"><DataTable /></div>
+<div className="sm:hidden space-y-3">
+  {data.map(item => <MobileCardRow key={item.id} {...item} />)}
+</div>
+```
+
+---
+
+## Data Flow
+
+```
+CostDataContext (org-level cache)
+    │
+    ├── totalCosts          → MetricGrid, summary cards
+    ├── providerBreakdown   → ProviderBreakdown, CostBreakdownChart
+    ├── dailyTrend          → CostTrendChart
+    ├── categoryTrendData   → Category-specific trends
+    │
+    └── ChartProvider (currency, theme, time range)
+            │
+            └── All chart components
+```
+
+---
+
+## Shared UI Elements
+
+### Time Range Filter
+
+```tsx
+import { TimeRangeFilter } from "@/components/costs/cost-filters"
+import { useCostData } from "@/contexts/cost-data-context"
+
+const { selectedTimeRange, setTimeRange } = useCostData()
+<TimeRangeFilter value={selectedTimeRange} onChange={setTimeRange} />
+```
+
+Options: `7`, `14`, `30` (default), `90`, `365`, `mtd`, `qtd`, `ytd`, `custom`
+
+### Filter Controls
+
+```tsx
+import { CostFilters } from "@/components/costs/cost-filters"
+
+<CostFilters
+  showCategories={true}     // GenAI/Cloud/Subscription
+  showProviders={true}      // Provider dropdown
+  showHierarchy={true}      // Dept/Project/Team
+/>
+```
+
+### Trust Signals
+
+```tsx
+// Security badge on sensitive pages
+<div className="flex items-center gap-2 text-xs text-gray-500">
+  <Shield className="w-4 h-4" />
+  <span>256-bit encryption</span>
+</div>
+
+// Data freshness indicator
+<div className="flex items-center gap-1.5 text-xs text-gray-400">
+  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+  <span>Live data</span>
+</div>
+```
+
+---
+
+## Design Spacing
+
+| Context | Value |
+|---------|-------|
+| Page sections | `space-y-6` |
+| Card grids | `gap-4 sm:gap-6` |
+| Card padding | `p-4 sm:p-5` |
+| Container width | `max-w-7xl mx-auto` |
+| Page padding | `px-4 sm:px-6 lg:px-8 py-6 sm:py-8` |
+
+---
+
+## Font Consistency
+
+**CRITICAL:** Always use `.console-*` CSS classes from `console.css` instead of hardcoded Tailwind sizes. See `/design` typography for the full type scale.
+
+```tsx
+// CORRECT - uses design system classes
+<h1 className="console-page-title">Dashboard</h1>
+<h2 className="console-heading">Cost Overview</h2>
+<p className="console-body">Total spend this month</p>
+<span className="console-small">Last updated 5m ago</span>
+<span className="console-metric">$12,450</span>
+
+// WRONG - hardcoded sizes bypass mobile responsive overrides
+<h1 className="text-[20px] font-bold">Dashboard</h1>
+<p className="text-[12px]">Total spend</p>
+```
+
+---
+
+## Component Creation Rules
+
+1. **Single Responsibility** - One component, one purpose
+2. **Props over Hardcoding** - Make configurable
+3. **TypeScript Interfaces** - Always define prop types
+4. **Default Props** - Sensible defaults for optional props
+5. **Composition** - Build complex from simple
+6. **Check Before Creating** - Verify no existing component handles it
+
+### Before Creating New Component
+
+```
+CHECKLIST:
+□ Check components/ui/ for primitives (44 files)
+□ Check components/charts/ for chart variants
+□ Check components/costs/ for cost-specific components
+□ Check components/premium/ for page-level components
+□ Check components/dashboard/ for dashboard cards
+□ If exists → USE IT with props customization
+□ If not exists → CREATE in appropriate feature folder
+□ NEVER inline complex components in pages
+```
+
+---
+
+## Common Issues
+
+| Issue | Fix |
+|-------|-----|
+| Sidebar overlaps content on mobile | Use Sheet overlay (built into sidebar.tsx) |
+| Cards not stacking on mobile | Use `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` |
+| Table overflows on mobile | Wrap in `overflow-x-auto` or use card view |
+| Content hidden behind navbar | Add proper top padding |
+| Inconsistent card heights | Use `h-full flex flex-col` on cards |
+| Font sizes inconsistent | Use `.console-*` CSS classes, not hardcoded Tailwind |
+
+---
+
+## Related Skills
+
+| Skill | Relationship |
+|-------|-------------|
+| `design` | Brand colors, typography, button system (foundation for this skill) |
+| `charts` | Recharts chart library used in dashboards |
+| `frontend-dev` | Next.js code patterns, server actions, Supabase auth |
+| `home-page` | Landing page patterns (different from console) |

@@ -438,7 +438,7 @@ export default function SubscriptionIntegrationsPage() {
             <h2 className="text-[11px] sm:text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
               Available Providers
             </h2>
-            <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs sm:text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
               {availableProviders.length}
             </span>
           </div>

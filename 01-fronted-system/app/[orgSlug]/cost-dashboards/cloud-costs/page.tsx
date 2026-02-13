@@ -429,18 +429,18 @@ export default function CloudCostsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
               {/* BilledCost - Gross cost */}
               <div className="text-center p-3 sm:p-4 rounded-lg bg-slate-50">
-                <p className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                <p className="text-xs sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
                   BilledCost
                 </p>
                 <p className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums">
                   {formatCost(totalCosts.cloud.total_billed_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
                 </p>
-                <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Gross (before credits)</p>
+                <p className="text-xs sm:text-xs text-slate-400 mt-1">Gross (before credits)</p>
               </div>
 
               {/* Savings - Credits applied */}
               <div className="text-center p-3 sm:p-4 rounded-lg bg-emerald-50">
-                <p className="text-[10px] sm:text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">
+                <p className="text-xs sm:text-xs font-medium text-emerald-600 uppercase tracking-wide mb-1">
                   Savings
                 </p>
                 <p className="text-lg sm:text-xl font-bold text-emerald-600 tabular-nums">
@@ -448,18 +448,18 @@ export default function CloudCostsPage() {
                     ? `-${formatCost(totalCosts.cloud.total_savings, orgCurrency)}`
                     : formatCost(totalCosts.cloud.total_savings ?? 0, orgCurrency)}
                 </p>
-                <p className="text-[10px] sm:text-xs text-emerald-500 mt-1">Credits applied</p>
+                <p className="text-xs sm:text-xs text-emerald-500 mt-1">Credits applied</p>
               </div>
 
               {/* EffectiveCost - Net cost */}
               <div className="text-center p-3 sm:p-4 rounded-lg bg-blue-50">
-                <p className="text-[10px] sm:text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">
+                <p className="text-xs sm:text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">
                   EffectiveCost
                 </p>
                 <p className="text-lg sm:text-xl font-bold text-blue-700 tabular-nums">
                   {formatCost(totalCosts.cloud.total_effective_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
                 </p>
-                <p className="text-[10px] sm:text-xs text-blue-500 mt-1">Net (after credits)</p>
+                <p className="text-xs sm:text-xs text-blue-500 mt-1">Net (after credits)</p>
               </div>
             </div>
           </CardContent>

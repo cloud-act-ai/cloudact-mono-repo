@@ -90,7 +90,7 @@ export const ConversationList = memo(function ConversationList({
       <div className="flex items-center justify-end px-4 pb-2">
         <button
           onClick={onNew}
-          className="rounded-lg p-1.5 transition-colors text-gray-400 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800 hover:text-[var(--cloudact-indigo)]"
+          className="rounded-lg p-1.5 transition-colors text-gray-400 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800 hover:text-[var(--cloudact-mint-dark)]"
           title="New conversation"
           aria-label="Start new conversation"
         >
@@ -135,7 +135,7 @@ export const ConversationList = memo(function ConversationList({
                   onBlur={handleFinishRename}
                   onKeyDown={handleEditKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full rounded border border-[var(--cloudact-indigo)]/40 bg-white px-1.5 py-0.5 text-sm text-gray-900 outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  className="w-full rounded border border-[var(--cloudact-mint)]/40 bg-white px-1.5 py-0.5 text-sm text-gray-900 outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
                   aria-label="Rename conversation"
                 />
               ) : (
@@ -160,7 +160,7 @@ export const ConversationList = memo(function ConversationList({
                   e.stopPropagation()
                   onExport(conv.conversation_id)
                 }}
-                className="hidden flex-shrink-0 rounded p-1 text-gray-400 hover:text-[var(--cloudact-indigo)] group-hover:block"
+                className="hidden flex-shrink-0 rounded p-1 text-gray-400 hover:text-[var(--cloudact-mint-dark)] group-hover:block"
                 aria-label="Export conversation"
               >
                 <Download className="h-3.5 w-3.5" />

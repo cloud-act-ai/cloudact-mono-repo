@@ -22,6 +22,7 @@
  */
 
 import { chromium, Browser, Page } from 'playwright'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { DEFAULT_DEMO_ACCOUNT, TEST_CONFIG, ENV_CONFIG } from './config'
 import type { DemoAccountConfig } from './config'
 
@@ -139,151 +140,77 @@ async function fetchOrgSlugFromSupabase(email: string): Promise<string | null> {
 }
 
 /**
- * Fetch org API key from the dev endpoint (single attempt)
+ * Poll Supabase org_api_keys_secure for the API key.
+ * The frontend's completeOnboarding() server action stores the key here
+ * via storeApiKeySecure(). This is the single source of truth.
+ *
+ * Polls every 5s until found or timeout.
  */
-async function fetchOrgApiKey(orgSlug: string): Promise<string | null> {
-    const caRootApiKey = ENV_CONFIG.caRootApiKey
-    if (!caRootApiKey) {
-        console.error('  Missing CA_ROOT_API_KEY environment variable')
+async function pollForApiKeyFromSupabase(orgSlug: string, timeoutMs = 90000): Promise<string | null> {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceRoleKey) {
+        console.error('  SUPABASE_SERVICE_ROLE_KEY not set - cannot poll for API key')
         return null
     }
 
-    const apiUrl = `${TEST_CONFIG.apiServiceUrl}/api/v1/admin/dev/api-key/${orgSlug}`
+    const supabase = createSupabaseClient(ENV_CONFIG.supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+    })
 
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'X-CA-Root-Key': caRootApiKey,
-            },
-        })
-
-        if (!response.ok) {
-            return null
-        }
-
-        const data = await response.json()
-        if (data.api_key) {
-            return data.api_key
-        }
-
-        return null
-    } catch (error) {
-        return null
-    }
-}
-
-/**
- * Poll for API key with timeout - backend onboarding may take time
- * Polls GET /admin/dev/api-key/{org} every 5s until found or timeout
- */
-async function pollForApiKey(orgSlug: string, timeoutMs = 60000): Promise<string | null> {
-    console.log(`  Polling for API key (timeout: ${timeoutMs / 1000}s)...`)
+    console.log(`  Polling Supabase org_api_keys_secure (timeout: ${timeoutMs / 1000}s)...`)
     const startTime = Date.now()
     let attempt = 0
 
     while (Date.now() - startTime < timeoutMs) {
         attempt++
-        const apiKey = await fetchOrgApiKey(orgSlug)
-        if (apiKey) {
-            console.log(`  API key found after ${attempt} attempt(s): ${apiKey.substring(0, 20)}...`)
-            return apiKey
+        try {
+            const { data, error } = await supabase
+                .from('org_api_keys_secure')
+                .select('api_key')
+                .eq('org_slug', orgSlug)
+                .single()
+
+            if (!error && data?.api_key) {
+                console.log(`  API key found in Supabase after ${attempt} attempt(s): ${data.api_key.substring(0, 20)}...`)
+                return data.api_key
+            }
+        } catch {
+            // Ignore and retry
         }
 
         const elapsed = Math.round((Date.now() - startTime) / 1000)
-        console.log(`  Attempt ${attempt}: No API key yet (${elapsed}s elapsed)`)
+        console.log(`  Attempt ${attempt}: API key not in Supabase yet (${elapsed}s elapsed)`)
         await new Promise(resolve => setTimeout(resolve, 5000))
     }
 
-    console.log(`  API key not found after ${Math.round(timeoutMs / 1000)}s`)
+    console.log(`  API key not found in Supabase after ${Math.round(timeoutMs / 1000)}s`)
     return null
 }
 
 /**
- * Attempt manual onboarding via POST /organizations/onboard
- * Fallback when backend onboarding didn't complete automatically
+ * Verify backend onboarding completed and retrieve API key from Supabase.
+ *
+ * The frontend's /onboarding/success page calls completeOnboarding() which:
+ *   1. Creates org in Supabase
+ *   2. Calls onboardToBackend() → creates BigQuery dataset + API key
+ *   3. Calls storeApiKeySecure() → stores key in org_api_keys_secure
+ *
+ * We poll org_api_keys_secure because that's what the frontend uses.
+ * No manual onboarding fallback — the frontend flow must complete on its own.
  */
-async function attemptManualOnboarding(orgSlug: string, companyName: string, email: string): Promise<boolean> {
-    const caRootApiKey = ENV_CONFIG.caRootApiKey
-    if (!caRootApiKey) {
-        console.error('  Cannot attempt manual onboarding: missing CA_ROOT_API_KEY')
-        return false
-    }
+async function verifyOnboardingAndGetApiKey(orgSlug: string, _companyName: string, _email: string): Promise<string> {
+    console.log('\n[Onboarding Verification] Waiting for frontend onboarding to store API key in Supabase...')
 
-    const apiUrl = `${TEST_CONFIG.apiServiceUrl}/api/v1/organizations/onboard`
-    console.log(`  Attempting manual onboarding for ${orgSlug}...`)
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CA-Root-Key': caRootApiKey,
-            },
-            body: JSON.stringify({
-                org_slug: orgSlug,
-                company_name: companyName,
-                admin_email: email,
-            }),
-        })
-
-        if (response.ok) {
-            const data = await response.json()
-            console.log(`  Manual onboarding succeeded: ${JSON.stringify(data).substring(0, 100)}`)
-            return true
-        }
-
-        const errorText = await response.text()
-        // 409 = already onboarded, which is fine
-        if (response.status === 409) {
-            console.log('  Org already onboarded (409) - continuing')
-            return true
-        }
-
-        console.error(`  Manual onboarding failed: ${response.status} ${errorText}`)
-        return false
-    } catch (error) {
-        console.error(`  Manual onboarding error: ${error}`)
-        return false
-    }
-}
-
-/**
- * Verify backend onboarding completed and retrieve API key
- * 1. Poll for API key (60s)
- * 2. If not found, attempt manual onboard → retry API key fetch
- * 3. If still not found, throw error
- */
-async function verifyOnboardingAndGetApiKey(orgSlug: string, companyName: string, email: string): Promise<string> {
-    console.log('\n[Onboarding Verification] Verifying backend onboarding...')
-
-    // Step 1: Poll for API key (may already exist from automatic onboarding)
-    let apiKey = await pollForApiKey(orgSlug, 60000)
+    const apiKey = await pollForApiKeyFromSupabase(orgSlug, 90000)
     if (apiKey) {
-        console.log('  Backend onboarding verified (API key found)')
+        console.log('  Onboarding verified (API key found in Supabase org_api_keys_secure)')
         return apiKey
     }
 
-    // Step 2: API key not found - attempt manual onboarding
-    console.log('  API key not found - attempting manual onboarding fallback...')
-    const onboarded = await attemptManualOnboarding(orgSlug, companyName, email)
-
-    if (onboarded) {
-        // Wait a moment for onboarding to create API key
-        await new Promise(resolve => setTimeout(resolve, 5000))
-
-        // Retry API key fetch
-        apiKey = await pollForApiKey(orgSlug, 30000)
-        if (apiKey) {
-            console.log('  Backend onboarding verified after manual onboard (API key found)')
-            return apiKey
-        }
-    }
-
-    // Step 3: Still no API key - throw error
     throw new Error(
-        `Backend onboarding failed for ${orgSlug}: API key not found after polling + manual onboard attempt. ` +
-        'Check API Service logs and ensure bootstrap has been run.'
+        `Onboarding failed for ${orgSlug}: API key not found in Supabase org_api_keys_secure after 90s. ` +
+        'The frontend completeOnboarding() server action may have failed. ' +
+        'Check: 1) /onboarding/success page loaded, 2) API service is healthy, 3) Bootstrap has been run.'
     )
 }
 
@@ -459,9 +386,10 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
         // Wait for organization setup to complete
         console.log('  Waiting for organization setup to complete...')
 
-        // Wait for redirect to dashboard or success page (up to 60 seconds for backend onboarding)
+        // Wait for redirect to dashboard, integrations, success page, or Stripe
         const setupComplete = await Promise.race([
             waitForUrlChange(page, '/dashboard', 60000),
+            waitForUrlChange(page, '/integrations', 60000),
             waitForUrlChange(page, '/onboarding/success', 60000),
             page.waitForURL('**/checkout.stripe.com/**', { timeout: 60000 }).then(() => 'stripe').catch(() => null),
         ])
@@ -475,34 +403,49 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
             const stripeHandled = await handleStripeCheckout(page)
 
             if (stripeHandled) {
-                // Wait for redirect back to our app (dashboard or success page)
+                // Wait for redirect back to our app
+                // Flow: Stripe → /onboarding/success → completeOnboarding() → /{orgSlug}/integrations
                 console.log('  Waiting for redirect from Stripe...')
-                const redirected = await Promise.race([
-                    waitForUrlChange(page, '/dashboard', 90000),
+                await Promise.race([
                     waitForUrlChange(page, '/onboarding/success', 90000),
+                    waitForUrlChange(page, '/dashboard', 90000),
+                    waitForUrlChange(page, '/integrations', 90000),
                     waitForUrlChange(page, TEST_CONFIG.baseUrl, 90000),
                 ])
 
-                if (redirected) {
-                    await page.waitForTimeout(3000) // Wait for page to fully load
+                const afterStripeUrl = page.url()
+                console.log(`  After Stripe redirect: ${afterStripeUrl}`)
+
+                // If we hit /onboarding/success, wait for it to complete and redirect to /integrations
+                if (afterStripeUrl.includes('/onboarding/success')) {
+                    console.log('  Onboarding success page loaded - waiting for backend onboarding to complete...')
+                    // The page runs completeOnboarding() then redirects to /{orgSlug}/integrations
+                    // Wait up to 90s for the onboarding to finish and redirect
+                    try {
+                        await page.waitForURL('**/integrations**', { timeout: 90000 })
+                        console.log(`  Onboarding complete! Redirected to: ${page.url()}`)
+                    } catch {
+                        console.log(`  Onboarding redirect timed out. Current URL: ${page.url()}`)
+                    }
                 }
             }
 
             // Check where we ended up
             const finalUrl = page.url()
-            const orgSlugMatch = finalUrl.match(/\/([^/]+)\/dashboard/)
+            // Extract org slug from URL patterns: /{orgSlug}/dashboard or /{orgSlug}/integrations
+            const orgSlugMatch = finalUrl.match(/\/([^/]+)\/(dashboard|integrations)/)
             const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
             const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
             if (!orgSlug) {
                 throw new Error('Could not determine org slug from URL or Supabase. Check Supabase connection and SUPABASE_SERVICE_ROLE_KEY.')
             }
 
-            if (finalUrl.includes('/dashboard')) {
+            if (finalUrl.includes('/dashboard') || finalUrl.includes('/integrations')) {
                 console.log('  Organization setup completed!')
                 console.log(`  Org Slug: ${orgSlug}`)
-                console.log(`  Dashboard URL: ${finalUrl}`)
+                console.log(`  Current URL: ${finalUrl}`)
 
-                // Verify onboarding + get API key
+                // Verify onboarding + get API key from Supabase
                 const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
 
                 return {
@@ -510,10 +453,10 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
                     message: 'Demo account created and onboarding completed!',
                     orgSlug,
                     apiKey,
-                    dashboardUrl: finalUrl,
+                    dashboardUrl: `${TEST_CONFIG.baseUrl}/${orgSlug}/dashboard`,
                 }
             } else {
-                // Still on Stripe or somewhere else - still verify onboarding
+                // Still somewhere unexpected - still verify onboarding
                 const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
 
                 return {
@@ -523,11 +466,11 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
                     apiKey,
                 }
             }
-        } else if (currentUrl.includes('/dashboard')) {
+        } else if (currentUrl.includes('/dashboard') || currentUrl.includes('/integrations')) {
             console.log('  Organization setup completed!')
 
-            // Extract org slug from URL (e.g., /acme_inc_mlj3ql4q/dashboard)
-            const orgSlugMatch = currentUrl.match(/\/([^/]+)\/dashboard/)
+            // Extract org slug from URL (e.g., /acme_inc_xxx/dashboard or /acme_inc_xxx/integrations)
+            const orgSlugMatch = currentUrl.match(/\/([^/]+)\/(dashboard|integrations)/)
             const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
             const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
             if (!orgSlug) {
@@ -535,7 +478,7 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
             }
 
             console.log(`  Org Slug: ${orgSlug}`)
-            console.log(`  Dashboard URL: ${currentUrl}`)
+            console.log(`  Current URL: ${currentUrl}`)
 
             // Verify onboarding + get API key
             const apiKey = await verifyOnboardingAndGetApiKey(orgSlug, config.companyName, config.email)
@@ -545,15 +488,21 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
                 message: 'Demo account created and onboarding completed!',
                 orgSlug,
                 apiKey,
-                dashboardUrl: currentUrl,
+                dashboardUrl: `${TEST_CONFIG.baseUrl}/${orgSlug}/dashboard`,
             }
         } else if (currentUrl.includes('/onboarding/success')) {
-            console.log('  Onboarding success page reached!')
+            console.log('  Onboarding success page reached! Waiting for onboarding to complete...')
 
-            // Wait a bit then check for redirect to dashboard
-            await page.waitForTimeout(3000)
+            // Wait for /onboarding/success to finish and redirect to /integrations
+            try {
+                await page.waitForURL('**/integrations**', { timeout: 90000 })
+                console.log(`  Onboarding complete! Redirected to: ${page.url()}`)
+            } catch {
+                console.log(`  Onboarding redirect timed out. Current URL: ${page.url()}`)
+            }
+
             const finalUrl = page.url()
-            const orgSlugMatch = finalUrl.match(/\/([^/]+)\/dashboard/)
+            const orgSlugMatch = finalUrl.match(/\/([^/]+)\/(dashboard|integrations)/)
             const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
             const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
             if (!orgSlug) {
@@ -568,13 +517,13 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
                 message: 'Demo account created and onboarding completed!',
                 orgSlug,
                 apiKey,
-                dashboardUrl: finalUrl,
+                dashboardUrl: `${TEST_CONFIG.baseUrl}/${orgSlug}/dashboard`,
             }
         } else {
             // Still wait and check the current page
             await page.waitForTimeout(5000)
             const finalUrl = page.url()
-            const orgSlugMatch = finalUrl.match(/\/([^/]+)\/dashboard/)
+            const orgSlugMatch = finalUrl.match(/\/([^/]+)\/(dashboard|integrations)/)
             const orgSlugFromSupabase = orgSlugMatch ? null : await fetchOrgSlugFromSupabase(config.email)
             const orgSlug = orgSlugMatch ? orgSlugMatch[1] : orgSlugFromSupabase
             if (!orgSlug) {

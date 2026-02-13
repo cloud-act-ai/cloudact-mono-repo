@@ -186,7 +186,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                   <div className="text-center">
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#90FCA6]/15 mb-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#16a34a]" />
-                      <span className="text-[9px] font-semibold text-[#16a34a] uppercase tracking-wider">GenAI</span>
+                      <span className="text-[11px] font-semibold text-[#16a34a] uppercase tracking-wider">GenAI</span>
                     </div>
                     <div className="flex items-center gap-1.5 justify-center flex-wrap">
                       {providerGroups.genai.slice(0, 4).map((provider) => (
@@ -205,7 +205,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                   <div className="text-center border-x border-gray-100 dark:border-white/10 px-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#3b82f6]/10 mb-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]" />
-                      <span className="text-[9px] font-semibold text-[#3b82f6] uppercase tracking-wider">Cloud</span>
+                      <span className="text-[11px] font-semibold text-[#3b82f6] uppercase tracking-wider">Cloud</span>
                     </div>
                     <div className="flex items-center gap-1.5 justify-center flex-wrap">
                       {providerGroups.cloud.map((provider) => (
@@ -224,7 +224,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                   <div className="text-center">
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#f59e0b]/10 mb-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
-                      <span className="text-[9px] font-semibold text-[#f59e0b] uppercase tracking-wider">SaaS</span>
+                      <span className="text-[11px] font-semibold text-[#f59e0b] uppercase tracking-wider">SaaS</span>
                     </div>
                     <div className="flex items-center gap-1.5 justify-center flex-wrap">
                       {providerGroups.saas.slice(0, 4).map((provider) => (
@@ -263,7 +263,7 @@ export function AuthLayout({ children, variant: _variant = "login" }: AuthLayout
                 ))}
               </div>
               <div>
-                <div className="text-[9px] font-semibold text-[#0a0a0b] dark:text-white">Built for teams</div>
+                <div className="text-[11px] font-semibold text-[#0a0a0b] dark:text-white">Built for teams</div>
                 <div className="text-[7px] text-gray-400 dark:text-white/40">startups to enterprise</div>
               </div>
             </div>

@@ -63,7 +63,7 @@ const PLANS = [
     name: "Scale",
     price: 199,
     priceId: process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID,
-    color: "#8B5CF6",
+    color: "#FF6C5E",
     icon: <Building2 className="h-5 w-5" />,
     features: [
       "11 team members",

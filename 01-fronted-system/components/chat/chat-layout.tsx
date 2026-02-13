@@ -257,7 +257,7 @@ export function ChatLayout({ apiKey, userId }: ChatLayoutProps) {
           </p>
           <Link
             href={`/${orgSlug}/settings/ai-chat`}
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--cloudact-indigo)] px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--cloudact-indigo-light)]"
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--cloudact-mint-dark)] px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--cloudact-mint-text)]"
           >
             <Settings className="h-4 w-4" />
             Configure AI Chat

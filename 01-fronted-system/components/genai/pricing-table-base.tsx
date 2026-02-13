@@ -568,7 +568,7 @@ function PricingTableBaseInner({
                 </Badge>
               )}
               {customCount > 0 && (
-                <Badge className="text-[10px] font-bold px-2 py-0.5 h-5 bg-violet-100 text-violet-700 border-0">
+                <Badge className="text-xs font-bold px-2 py-0.5 h-5 bg-slate-100 text-slate-700 border-0">
                   {customCount} custom
                 </Badge>
               )}
@@ -725,7 +725,7 @@ function PricingTableBaseInner({
                           "group/row transition-colors",
                           rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/30",
                           isEditMode && "hover:bg-[#90FCA6]/5",
-                          row.isCustom && "bg-violet-50/50",
+                          row.isCustom && "bg-slate-50/50",
                           row.isOverridden && "bg-amber-50/50",
                           isRowExpanded && "bg-slate-50"
                         )}
@@ -804,7 +804,7 @@ function PricingTableBaseInner({
                                   column.align === "center" && "justify-center"
                                 )}>
                                   {column.key === mainColumns[0].key && row.isCustom && (
-                                    <Sparkles className="h-3 w-3 text-violet-500 flex-shrink-0" />
+                                    <Sparkles className="h-3 w-3 text-slate-500 flex-shrink-0" />
                                   )}
                                   <span className={cn(
                                     "text-[11px] text-slate-800",
