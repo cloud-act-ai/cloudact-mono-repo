@@ -43,32 +43,32 @@ export default async function OrgRootRedirectPage({
       <div className="console-page-inner">
         {/* Clean Header */}
         <div className="space-y-1">
-          <p className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">Welcome back</p>
-          <h1 className="text-[28px] font-bold text-slate-900 tracking-tight">{org.org_name}</h1>
+          <p className="text-[12px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide">Welcome back</p>
+          <h1 className="text-[28px] font-bold text-[var(--text-primary)] tracking-tight">{org.org_name}</h1>
         </div>
 
         {/* Stats Row */}
-        <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
+        <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-[var(--surface-secondary)] rounded-2xl border border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-2.5 w-2.5 rounded-full bg-[#90FCA6]"></div>
-            <span className="text-[13px] font-semibold text-slate-900">Active</span>
+            <span className="text-[13px] font-semibold text-[var(--text-primary)]">Active</span>
           </div>
-          <div className="h-5 w-px bg-slate-200"></div>
+          <div className="h-5 w-px bg-[var(--surface-hover)]"></div>
           <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-slate-400" />
-            <span className="text-[13px] text-slate-600">
-              <span className="font-semibold text-slate-900 capitalize">{org.plan}</span> Plan
+            <CreditCard className="h-4 w-4 text-[var(--text-muted)]" />
+            <span className="text-[13px] text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text-primary)] capitalize">{org.plan}</span> Plan
             </span>
           </div>
-          <div className="h-5 w-px bg-slate-200"></div>
+          <div className="h-5 w-px bg-[var(--surface-hover)]"></div>
           <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-slate-400" />
-            <span className="text-[13px] text-slate-600">{org.default_currency || 'USD'}</span>
+            <Globe className="h-4 w-4 text-[var(--text-muted)]" />
+            <span className="text-[13px] text-[var(--text-secondary)]">{org.default_currency || 'USD'}</span>
           </div>
-          <div className="h-5 w-px bg-slate-200"></div>
+          <div className="h-5 w-px bg-[var(--surface-hover)]"></div>
           <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-slate-400" />
-            <span className="text-[13px] text-slate-600">
+            <Activity className="h-4 w-4 text-[var(--text-muted)]" />
+            <span className="text-[13px] text-[var(--text-secondary)]">
               <span className="font-semibold text-[#1a7a3a]">{integrationCount}</span> Integration{integrationCount !== 1 ? 's' : ''} active
             </span>
           </div>
@@ -77,7 +77,7 @@ export default async function OrgRootRedirectPage({
         {/* Quick Access Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Quick Access</h2>
+            <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Quick Access</h2>
             <Link
               href={`/${orgSlug}/cost-dashboards/overview`}
               className="text-[12px] font-semibold text-[#1a7a3a] hover:text-[#0f5a25] transition-colors flex items-center gap-1"
@@ -98,10 +98,10 @@ export default async function OrgRootRedirectPage({
                 <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
                   <DollarSign className="h-5 w-5 text-[#1a7a3a]" />
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#1a7a3a] transition-colors" />
+                <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[#1a7a3a] transition-colors" />
               </div>
-              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Cost Dashboards</h3>
-              <p className="text-[12px] text-slate-500 leading-relaxed">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Cost Dashboards</h3>
+              <p className="text-[12px] text-[var(--text-tertiary)] leading-relaxed">
                 Monitor cloud spending across all providers
               </p>
             </Link>
@@ -116,10 +116,10 @@ export default async function OrgRootRedirectPage({
                 <div className="h-11 w-11 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
                   <Zap className="h-5 w-5 text-[var(--cloudact-coral)]" />
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
+                <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--cloudact-coral)] transition-colors" />
               </div>
-              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Operations</h3>
-              <p className="text-[12px] text-slate-500 leading-relaxed">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Operations</h3>
+              <p className="text-[12px] text-[var(--text-tertiary)] leading-relaxed">
                 Monitor pipeline runs and system status
               </p>
             </Link>
@@ -127,17 +127,17 @@ export default async function OrgRootRedirectPage({
             {/* Settings */}
             <Link
               href={`/${orgSlug}/dashboard/settings`}
-              className="group relative p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-slate-300 hover:shadow-sm transition-all"
+              className="group relative p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[var(--border-medium)] hover:shadow-sm transition-all"
             >
               <div className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="flex items-start justify-between mb-3">
-                <div className="h-11 w-11 rounded-xl bg-slate-100 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-slate-600" />
+                <div className="h-11 w-11 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center">
+                  <Settings className="h-5 w-5 text-[var(--text-secondary)]" />
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--text-tertiary)] transition-colors" />
               </div>
-              <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Settings</h3>
-              <p className="text-[12px] text-slate-500 leading-relaxed">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Settings</h3>
+              <p className="text-[12px] text-[var(--text-tertiary)] leading-relaxed">
                 Configure organization and preferences
               </p>
             </Link>
@@ -146,7 +146,7 @@ export default async function OrgRootRedirectPage({
 
         {/* Integrations Section */}
         <div className="space-y-4">
-          <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Integrations</h2>
+          <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Integrations</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Cloud Providers */}
@@ -160,8 +160,8 @@ export default async function OrgRootRedirectPage({
                     <Cloud className="h-6 w-6 text-[#1a7a3a]" />
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-semibold text-slate-900">Cloud Providers</h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">GCP, AWS, Azure</p>
+                    <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">Cloud Providers</h3>
+                    <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">GCP, AWS, Azure</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -170,11 +170,11 @@ export default async function OrgRootRedirectPage({
                       Connected
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-full bg-[var(--surface-secondary)] text-[var(--text-tertiary)] text-[11px] font-semibold">
                       Not configured
                     </span>
                   )}
-                  <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#1a7a3a] transition-colors" />
+                  <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[#1a7a3a] transition-colors" />
                 </div>
               </div>
             </Link>
@@ -190,8 +190,8 @@ export default async function OrgRootRedirectPage({
                     <Brain className="h-6 w-6 text-[var(--cloudact-coral)]" />
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-semibold text-slate-900">GenAI Providers</h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">OpenAI, Claude, Gemini</p>
+                    <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">GenAI Providers</h3>
+                    <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">OpenAI, Claude, Gemini</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -200,11 +200,11 @@ export default async function OrgRootRedirectPage({
                       Connected
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-full bg-[var(--surface-secondary)] text-[var(--text-tertiary)] text-[11px] font-semibold">
                       Not configured
                     </span>
                   )}
-                  <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
+                  <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--cloudact-coral)] transition-colors" />
                 </div>
               </div>
             </Link>
@@ -220,46 +220,46 @@ export default async function OrgRootRedirectPage({
                     <CreditCard className="h-6 w-6 text-[#8B5CF6]" />
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-semibold text-slate-900">SaaS Subscriptions</h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">Track subscription costs</p>
+                    <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">SaaS Subscriptions</h3>
+                    <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">Track subscription costs</p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#8B5CF6] transition-colors" />
+                <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[#8B5CF6] transition-colors" />
               </div>
             </Link>
 
             {/* Billing */}
             <Link
               href={`/${orgSlug}/billing`}
-              className="group p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-slate-300 hover:shadow-sm transition-all"
+              className="group p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[var(--border-medium)] hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center">
-                    <Wallet className="h-6 w-6 text-slate-600" />
+                  <div className="h-12 w-12 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center">
+                    <Wallet className="h-6 w-6 text-[var(--text-secondary)]" />
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-semibold text-slate-900">Billing & Plan</h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">
+                    <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">Billing & Plan</h3>
+                    <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
                       <span className="capitalize">{org.plan}</span> plan
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--text-tertiary)] transition-colors" />
               </div>
             </Link>
           </div>
         </div>
 
         {/* Status Footer */}
-        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <div className="flex items-center justify-between p-4 bg-[var(--surface-secondary)] rounded-xl border border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-[#90FCA6]/10 flex items-center justify-center">
               <LayoutDashboard className="h-4 w-4 text-[#1a7a3a]" />
             </div>
             <div>
-              <p className="text-[13px] font-semibold text-slate-900">All systems operational</p>
-              <p className="text-[11px] text-slate-500">Redirecting to dashboards...</p>
+              <p className="text-[13px] font-semibold text-[var(--text-primary)]">All systems operational</p>
+              <p className="text-[11px] text-[var(--text-tertiary)]">Redirecting to dashboards...</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

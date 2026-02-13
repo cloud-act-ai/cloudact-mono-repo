@@ -111,7 +111,7 @@ export function SparklineChart({
         className={cn("flex items-center justify-center", className)}
         style={{ width, height }}
       >
-        <div className="h-px w-full bg-slate-200" />
+        <div className="h-px w-full bg-[var(--surface-hover)]" />
       </div>
     )
   }

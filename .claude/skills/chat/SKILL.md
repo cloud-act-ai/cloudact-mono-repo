@@ -180,6 +180,21 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 | History not loading | Conversation API 401 | Check JWT token, org membership |
 | CORS error on chat backend | `CORS_ORIGINS` env var parsed incorrectly | pydantic-settings v2 JSON-decodes env vars for complex types (`List[str]`) BEFORE `field_validator` runs. If `CORS_ORIGINS` is set as a plain string (not JSON array) in Cloud Run, parsing fails silently. Fix: declare `CORS_ORIGINS` as `str` type in config and parse manually in CORS middleware. See `07-org-chat-backend/src/app/config.py`. |
 
+## Bug Fixes & Verified Learnings (2026-02-13)
+
+| Bug ID | Issue | Fix |
+|--------|-------|-----|
+| C1 | `budget_variance` never JOINed actual cost data — returned budget amounts only | Added LEFT JOIN to `cost_data_standard_1_3` with actual_spend, variance, utilization_pct, status columns |
+| C2 | `budget_summary` same — no actual cost comparison | Added CTE with actual_costs from FOCUS table, computes total_actual, variance, utilization_pct |
+| C3 | `list_budgets` `is_active=False` skipped filter (showed ALL instead of inactive only) | Changed type to `Optional[bool]`, use `is True`/`is False` checks |
+| C4 | `compare_periods` YoY crashed on Feb 29 (leap year) | Use `calendar.monthrange()` to clamp day to valid range |
+| H1-H2 | SQL f-string injection: LIMIT and INTERVAL values in costs.py/usage.py/budgets.py | Parameterized all via `@limit`, `@days`, `@lookback` query parameters |
+| H3-H4 | `_query_result_cache` and `_dry_run_cache` unbounded memory growth | Added max size (500) with eviction on overflow |
+| H5 | Explorer `run_read_query` blocked CTEs (`WITH ... SELECT`) | Updated regex to allow `WITH` prefix |
+| H6 | `describe_table` bare name only tried `{org}_prod` | Added fallback to try `organizations` dataset |
+| M2 | `compare_periods` silently returned 0% on query errors | Added error propagation check |
+| M4 | Inconsistent TIMESTAMP casting in genai_usage vs query_costs | Normalized to string comparison (matches query_costs pattern) |
+
 ## Environments
 
 | Environment | Chat Backend URL | Frontend URL | BigQuery | LLM Config |

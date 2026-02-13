@@ -23,6 +23,14 @@ import {
 export type BudgetCategory = "cloud" | "genai" | "subscription" | "total"
 export type BudgetType = "monetary" | "token" | "seat"
 export type PeriodType = "monthly" | "quarterly" | "yearly" | "custom"
+export type BudgetStatus = "on_track" | "approaching" | "exceeded"
+
+/** Common period filter params for budget analytics endpoints */
+export interface BudgetPeriodFilter {
+  period_type?: string
+  period_start?: string
+  period_end?: string
+}
 
 export interface Budget {
   budget_id: string
@@ -307,12 +315,15 @@ export async function deleteBudget(
 
 export async function getBudgetSummary(
   orgSlug: string,
-  params?: { category?: string; hierarchy_entity_id?: string },
+  params?: { category?: string; hierarchy_entity_id?: string } & BudgetPeriodFilter,
 ): Promise<{ data?: BudgetSummaryResponse; error?: string }> {
   try {
     const searchParams = new URLSearchParams()
     if (params?.category) searchParams.set("category", params.category)
     if (params?.hierarchy_entity_id) searchParams.set("hierarchy_entity_id", params.hierarchy_entity_id)
+    if (params?.period_type) searchParams.set("period_type", params.period_type)
+    if (params?.period_start) searchParams.set("period_start", params.period_start)
+    if (params?.period_end) searchParams.set("period_end", params.period_end)
 
     const qs = searchParams.toString()
     const response = await budgetFetch(orgSlug, `/summary${qs ? `?${qs}` : ""}`)
@@ -332,11 +343,15 @@ export async function getBudgetSummary(
 
 export async function getAllocationTree(
   orgSlug: string,
-  params?: { category?: string },
+  params?: { category?: string; root_entity_id?: string } & BudgetPeriodFilter,
 ): Promise<{ data?: AllocationTreeResponse; error?: string }> {
   try {
     const searchParams = new URLSearchParams()
     if (params?.category) searchParams.set("category", params.category)
+    if (params?.root_entity_id) searchParams.set("root_entity_id", params.root_entity_id)
+    if (params?.period_type) searchParams.set("period_type", params.period_type)
+    if (params?.period_start) searchParams.set("period_start", params.period_start)
+    if (params?.period_end) searchParams.set("period_end", params.period_end)
 
     const qs = searchParams.toString()
     const response = await budgetFetch(orgSlug, `/allocation-tree${qs ? `?${qs}` : ""}`)
@@ -356,9 +371,16 @@ export async function getAllocationTree(
 
 export async function getCategoryBreakdown(
   orgSlug: string,
+  params?: { hierarchy_entity_id?: string } & BudgetPeriodFilter,
 ): Promise<{ data?: CategoryBreakdownResponse; error?: string }> {
   try {
-    const response = await budgetFetch(orgSlug, "/by-category")
+    const searchParams = new URLSearchParams()
+    if (params?.hierarchy_entity_id) searchParams.set("hierarchy_entity_id", params.hierarchy_entity_id)
+    if (params?.period_type) searchParams.set("period_type", params.period_type)
+    if (params?.period_start) searchParams.set("period_start", params.period_start)
+    if (params?.period_end) searchParams.set("period_end", params.period_end)
+    const qs = searchParams.toString()
+    const response = await budgetFetch(orgSlug, `/by-category${qs ? `?${qs}` : ""}`)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -375,11 +397,15 @@ export async function getCategoryBreakdown(
 
 export async function getProviderBreakdown(
   orgSlug: string,
-  params?: { category?: string },
+  params?: { category?: string; hierarchy_entity_id?: string } & BudgetPeriodFilter,
 ): Promise<{ data?: ProviderBreakdownResponse; error?: string }> {
   try {
     const searchParams = new URLSearchParams()
     if (params?.category) searchParams.set("category", params.category)
+    if (params?.hierarchy_entity_id) searchParams.set("hierarchy_entity_id", params.hierarchy_entity_id)
+    if (params?.period_type) searchParams.set("period_type", params.period_type)
+    if (params?.period_start) searchParams.set("period_start", params.period_start)
+    if (params?.period_end) searchParams.set("period_end", params.period_end)
 
     const qs = searchParams.toString()
     const response = await budgetFetch(orgSlug, `/by-provider${qs ? `?${qs}` : ""}`)

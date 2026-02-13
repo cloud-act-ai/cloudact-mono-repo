@@ -89,11 +89,13 @@ Scheduler Jobs (Cloud Run)
 
 | Category | Types | Example |
 |----------|-------|---------|
-| **cost** | budget_percent, absolute_threshold, anomaly | "Alert when cloud costs > $5,000/day" |
-| **pipeline** | pipeline_failure, pipeline_timeout | "Alert when any pipeline fails" |
-| **integration** | credential_expiry, connection_failure | "Alert 7 days before credential expiry" |
-| **subscription** | plan_usage, quota_warning | "Alert at 80% quota usage" |
+| **cost** | budget_percent, budget_forecast, absolute_threshold, anomaly_percent_change, anomaly_std_deviation, hierarchy_budget | "Alert when cloud costs > $5,000/day" |
+| **pipeline** | pipeline_failure, data_freshness | "Alert when any pipeline fails" |
+| **integration** | integration_health | "Alert 7 days before credential expiry" |
+| **subscription** | subscription_renewal, license_utilization | "Alert at 80% quota usage" |
 | **system** | maintenance, version_update | "Alert on system maintenance" |
+
+**Full `rule_type` enum (11 values):** `budget_percent`, `budget_forecast`, `absolute_threshold`, `anomaly_percent_change`, `anomaly_std_deviation`, `hierarchy_budget`, `pipeline_failure`, `data_freshness`, `integration_health`, `subscription_renewal`, `license_utilization`
 
 ## Alert Priority Levels
 
@@ -339,6 +341,22 @@ curl -s "https://api.cloudact.ai/api/v1/notifications/{org}/channels" \
   -H "X-API-Key: {key}"
 ```
 
+## Budget-Aware Alerts
+
+Alert rules can trigger on budget thresholds using these rule types:
+
+| Rule Type | Description | Conditions JSON |
+|-----------|-------------|-----------------|
+| `budget_percent` | Alert when spend reaches % of budget | `{"threshold_percent": 80, "category": "cloud"}` |
+| `budget_forecast` | Alert when forecast exceeds budget | `{"forecast_days": 30, "confidence": 0.8}` |
+| `hierarchy_budget` | Alert when hierarchy entity exceeds budget | `{"hierarchy_entity_id": "DEPT-ENG", "threshold_percent": 90}` |
+
+**Budget tables referenced by alerts:**
+- `org_budgets` (21 fields) — budget_amount, category, hierarchy_entity_id, period_start, period_end
+- `org_budget_allocations` (8 fields) — parent-child budget relationships
+
+**Shared filter system:** Both budget and alert pages use the same `useAdvancedFilters()` hook and `AdvancedFilterBar` component. See `/advanced-filters` skill.
+
 ## Related Skills
 
 | Skill | Relationship |
@@ -348,14 +366,21 @@ curl -s "https://api.cloudact.ai/api/v1/notifications/{org}/channels" \
 | `/cost-analysis` | Cost data drives alert threshold evaluation |
 | `/quota-mgmt` | Quota warnings can trigger notifications |
 | `/integration-setup` | Credential expiry alerts |
+| `/budget-planning` | Budget threshold alerts use org_budgets data. BudgetManager + AlertManager in chat. |
+| `/advanced-filters` | Shared filter hook and component across budgets and alerts pages |
+| `/demo-setup` | Demo data includes 2 alert rules + 1 email channel for testing |
 
 ## Source Specifications
 
 Requirements consolidated from:
 - `02-api-service/src/app/routers/notifications.py` - 34 endpoints
 - `02-api-service/src/app/routers/cost_alerts.py` - 12 endpoints
-- `02-api-service/configs/setup/bootstrap/schemas/org_notification_*.json` - 4 schemas
+- `02-api-service/configs/setup/bootstrap/schemas/org_notification_rules.json` - 29 fields
+- `02-api-service/configs/setup/bootstrap/schemas/org_notification_channels.json` - 22 fields
+- `02-api-service/configs/setup/bootstrap/schemas/org_notification_history.json` - 21 fields
+- `02-api-service/configs/setup/bootstrap/schemas/org_notification_summaries.json`
 - `02-api-service/configs/setup/bootstrap/schemas/org_scheduled_alerts.json`
 - `02-api-service/configs/setup/bootstrap/schemas/org_alert_history.json`
 - `05-scheduler-jobs/jobs/daily/alerts_daily.py` - Daily processor
-- `07-org-chat-backend/src/core/tools/alerts.py` - Chat tools
+- `07-org-chat-backend/src/core/tools/alerts.py` - Chat AlertManager tools (4)
+- `07-org-chat-backend/src/core/tools/budgets.py` - Chat BudgetManager tools (4)

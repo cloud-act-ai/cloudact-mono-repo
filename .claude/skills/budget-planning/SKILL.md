@@ -144,7 +144,7 @@ Primary budget definitions. One record per hierarchy entity + category + period.
 | `hierarchy_entity_id` | STRING | Yes | Target entity (e.g., `DEPT-ENG`, `TEAM-BE`) |
 | `hierarchy_entity_name` | STRING | Yes | Display name |
 | `hierarchy_path` | STRING | Yes | Materialized path |
-| `hierarchy_level_code` | STRING | Yes | `department`, `project`, `team` |
+| `hierarchy_level_code` | STRING | Yes | `org`, `department`, `project`, `team` |
 | `category` | STRING | Yes | `cloud`, `genai`, `subscription`, `total` |
 | `budget_type` | STRING | Yes | `monetary`, `token`, `seat` |
 | `budget_amount` | FLOAT | Yes | Target amount ($ or tokens or seats) |
@@ -419,6 +419,15 @@ The BudgetManager sub-agent in the chat backend (port 8002) allows users to quer
 | N+1 BQ queries in summary | `_fetch_actual_costs()` called per-budget in loop | Single fetch for full date range, filter with Polars |
 | UI always creates monetary | No `budget_type` selector in create dialog | Add `BudgetType` dropdown to create/edit form |
 
+### Chat Tool Bug Fixes (2026-02-13)
+
+| Bug | Issue | Fix |
+|-----|-------|-----|
+| C1 | `budget_variance` never JOINed actual costs — returned budget amounts only | Added LEFT JOIN to `cost_data_standard_1_3` with actual_spend, variance, utilization_pct, status |
+| C2 | `budget_summary` same — no actual cost comparison | Added CTE with actual_costs, computes total_actual, variance, utilization_pct |
+| C3 | `list_budgets` `is_active=False` skipped filter (showed ALL) | Changed to `Optional[bool]`, use `is True`/`is False` identity checks |
+| H1 | `budget_variance` LIMIT was f-string injection risk | Parameterized via `@limit` query parameter |
+
 ## Testing
 
 ```bash
@@ -442,6 +451,55 @@ curl -s -X DELETE "http://localhost:8000/api/v1/budgets/$ORG/$BUDGET_ID" -H "X-A
 # Expected: 204 No Content
 ```
 
+## Shared Filters Integration
+
+The budget page uses the shared `useAdvancedFilters()` hook and `AdvancedFilterBar` component:
+
+```typescript
+const { filters, updateFilters, clearFilters, activeCount, serverParams, clientParams, serverFilterKey } = useAdvancedFilters({
+  search: true, category: true, periodType: true, status: true, hierarchyEntity: true
+})
+```
+
+| Filter | Type | Maps to | Dispatches to |
+|--------|------|---------|---------------|
+| category | Server | `org_budgets.category` | `?category=cloud` |
+| hierarchyEntityId | Server | `org_budgets.hierarchy_entity_id` | `?hierarchy_entity_id=DEPT-ENG` |
+| periodType | Server | `org_budgets.period_type` | `?period_type=monthly` |
+| provider | Server | `org_budgets.provider` | `?provider=gcp` |
+| search | Client | `org_budgets.hierarchy_entity_name` | `matchesSearch()` |
+| status | Client | Computed: actual > budget_amount | `matchesBudgetStatus()` |
+
+See `/advanced-filters` skill for full filter architecture.
+
+## Demo Data (8 Budgets)
+
+Created by `setupDemoBudgets()` in `load-demo-data-direct.ts` (Step 10.5):
+
+| Entity | Category | Type | Amount | Provider | Period |
+|--------|----------|------|--------|----------|--------|
+| DEPT-ENG | cloud | monetary | $30,000 | - | Q1 2026 |
+| DEPT-DS | genai | monetary | $25,000 | - | Q1 2026 |
+| PROJ-PLATFORM | cloud | monetary | $20,000 | gcp | Q1 2026 |
+| PROJ-MLPIPE | genai | monetary | $20,000 | openai | Q1 2026 |
+| TEAM-BACKEND | cloud | monetary | $12,000 | aws | Q1 2026 |
+| TEAM-FRONTEND | subscription | monetary | $3,000 | - | Q1 2026 |
+| TEAM-MLOPS | genai | token | 50,000,000 | - | Q1 2026 |
+| DEPT-ENG | total | monetary | $50,000 | - | Q1 2026 |
+
+### Verify Demo Budgets
+
+```bash
+curl -s "http://localhost:8000/api/v1/budgets/$ORG" -H "X-API-Key: $KEY" | jq '.total'
+# Expected: 8
+
+curl -s "http://localhost:8000/api/v1/budgets/$ORG?category=cloud" -H "X-API-Key: $KEY" | jq '.total'
+# Expected: 3
+
+curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary" -H "X-API-Key: $KEY" | jq '.totals'
+# Expected: { budget_total, actual_total, variance, budgets_over, budgets_under }
+```
+
 ## Related Skills
 
 | Skill | Relationship |
@@ -450,13 +508,18 @@ curl -s -X DELETE "http://localhost:8000/api/v1/budgets/$ORG/$BUDGET_ID" -H "X-A
 | `/cost-analysis` | Actual spend data from cost_data_standard_1_3 |
 | `/cost-analytics` | Frontend cost data context feeds budget variance calculations |
 | `/i18n-locale` | Multi-currency support for budget amounts |
-| `/notifications` | Future: budget threshold notifications |
+| `/notifications` | Budget threshold alerts (budget_percent, budget_forecast, hierarchy_budget rule types) |
 | `/quota-mgmt` | Similar pattern (limits + tracking) but for pipeline usage, not spend |
 | `/bigquery-ops` | Bootstrap schema for org_budgets + org_budget_allocations |
 | `/console-ui` | UI component patterns for budget pages |
 | `/charts` | Budget vs actual charts (bar, ring, trend) |
+| `/advanced-filters` | Shared filter hook and component used on budget page |
+| `/chat` | BudgetManager sub-agent with 4 read-only tools |
+| `/demo-setup` | Demo data includes 8 budgets for testing |
 
 ## Source Specifications
 
 - `BUDGET_PLANNING.md` (v1.0, 2026-02-12)
+- `02-api-service/configs/setup/bootstrap/schemas/org_budgets.json` (20 fields)
+- `02-api-service/configs/setup/bootstrap/schemas/org_budget_allocations.json` (8 fields)
 - Industry reference: GCP Budget API, AWS Budgets, OpenAI Usage Tiers, Figma Billing Groups

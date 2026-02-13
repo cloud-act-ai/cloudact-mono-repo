@@ -462,7 +462,22 @@ curl -s "http://localhost:8000/api/v1/subscriptions/${ORG_SLUG}/providers" \
  "Figma","Github","Jira","Linear","Notion","Slack","Vercel","Zoom"]
 ```
 
-### 10. Bootstrap Status (27 tables synced)
+### 10. Budget Data (8 budgets)
+
+```bash
+curl -s "http://localhost:8000/api/v1/budgets/${ORG_SLUG}" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '{total: .total, categories: [.budgets[] | .category] | unique}'
+```
+
+**Expected:**
+```json
+{
+  "total": 8,
+  "categories": ["cloud", "genai", "subscription", "total"]
+}
+```
+
+### 11. Bootstrap Status (29 tables synced)
 
 ```bash
 curl -s "http://localhost:8000/api/v1/admin/bootstrap/status" \
@@ -563,6 +578,31 @@ The loader automatically creates:
 | Email channel | `email` | demo@cloudact.ai |
 | Daily Cost Spike | `absolute_threshold` | $5,000/day |
 | Monthly Budget | `budget_percent` | 80% of $50K |
+
+## Budget Setup (Step 10.5)
+
+The loader automatically creates 8 demo budgets via `setupDemoBudgets()`:
+
+| Entity | Category | Type | Amount | Provider |
+|--------|----------|------|--------|----------|
+| DEPT-ENG | cloud | monetary | $30,000 | - |
+| DEPT-DS | genai | monetary | $25,000 | - |
+| PROJ-PLATFORM | cloud | monetary | $20,000 | gcp |
+| PROJ-MLPIPE | genai | monetary | $20,000 | openai |
+| TEAM-BACKEND | cloud | monetary | $12,000 | aws |
+| TEAM-FRONTEND | subscription | monetary | $3,000 | - |
+| TEAM-MLOPS | genai | token | 50,000,000 | - |
+| DEPT-ENG | total | monetary | $50,000 | - |
+
+**Period:** Q1 2026 (2026-01-01 to 2026-03-31), all quarterly.
+
+### Verify Budgets
+
+```bash
+curl -s "http://localhost:8000/api/v1/budgets/$ORG_SLUG" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '{total: .total, categories: [.budgets[] | .category] | unique}'
+# Expected: { "total": 8, "categories": ["cloud", "genai", "subscription", "total"] }
+```
 
 ## Expected Costs (Jan 2025 - Dec 2026, 730 days)
 
@@ -733,3 +773,6 @@ SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-acco
 | `/pipeline-ops` | Pipeline lifecycle. Demo-setup runs pipelines for cost calculation. |
 | `/cost-analysis` | Cost data architecture. Demo-setup validates all cost types. |
 | `/bigquery-ops` | BigQuery operations. Demo-setup loads data and validates tables. |
+| `/budget-planning` | Demo creates 8 budgets across hierarchy levels for budget page testing. |
+| `/notifications` | Demo creates 2 alert rules + 1 email channel for alert testing. |
+| `/advanced-filters` | Demo data supports filter testing: 8 budgets, 2 alerts, 4 categories. |

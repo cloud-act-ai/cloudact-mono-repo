@@ -98,7 +98,7 @@
   {
     "name": "created_by",
     "type": "STRING",
-    "mode": "NULLABLE",
+    "mode": "REQUIRED",
     "description": "User who created the budget"
   },
   {

@@ -171,19 +171,19 @@ export default function GenAIIntegrationsPage() {
     return (
       <div className="max-w-7xl mx-auto">
         <div className="mb-10">
-          <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-none">
+          <h1 className="text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-none">
             GenAI Providers
           </h1>
-          <p className="text-[14px] text-slate-500 mt-2 max-w-lg">
+          <p className="text-[14px] text-[var(--text-tertiary)] mt-2 max-w-lg">
             Connect your AI/ML providers to track usage and costs
           </p>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            <div className="h-12 w-12 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
             </div>
-            <p className="text-[13px] text-slate-500 font-medium">Loading providers...</p>
+            <p className="text-[13px] text-[var(--text-tertiary)] font-medium">Loading providers...</p>
           </div>
         </div>
       </div>
@@ -194,10 +194,10 @@ export default function GenAIIntegrationsPage() {
     <div className="console-page-inner">
       {/* Header */}
       <div className="mb-6 sm:mb-10">
-        <h1 className="text-[20px] sm:text-[28px] font-bold text-slate-900 tracking-tight leading-none">
+        <h1 className="text-[20px] sm:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-none">
           GenAI Providers
         </h1>
-        <p className="text-[12px] sm:text-[14px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+        <p className="text-[12px] sm:text-[14px] text-[var(--text-tertiary)] mt-1.5 sm:mt-2 max-w-lg">
           Connect your AI/ML providers to track usage and costs
         </p>
       </div>
@@ -209,18 +209,18 @@ export default function GenAIIntegrationsPage() {
             <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
-            <p className="text-xs sm:text-[11px] text-slate-500 font-medium mt-0.5">Connected</p>
+            <p className="text-[16px] sm:text-[20px] font-bold text-[var(--text-primary)] leading-none">{connectedProviders.length}</p>
+            <p className="text-xs sm:text-[11px] text-[var(--text-tertiary)] font-medium mt-0.5">Connected</p>
           </div>
         </div>
-        <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+        <div className="h-6 sm:h-8 w-px bg-[var(--surface-hover)] flex-shrink-0"></div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-slate-100 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500" />
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--text-tertiary)]" />
           </div>
           <div>
-            <p className="text-[16px] sm:text-[20px] font-bold text-slate-900 leading-none">{unconnectedProviders.length}</p>
-            <p className="text-xs sm:text-[11px] text-slate-500 font-medium mt-0.5">Available</p>
+            <p className="text-[16px] sm:text-[20px] font-bold text-[var(--text-primary)] leading-none">{unconnectedProviders.length}</p>
+            <p className="text-xs sm:text-[11px] text-[var(--text-tertiary)] font-medium mt-0.5">Available</p>
           </div>
         </div>
       </div>
@@ -231,15 +231,15 @@ export default function GenAIIntegrationsPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="text-[13px] font-semibold text-slate-900">
+              <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[12px] text-slate-600 mt-0.5">
+              <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
                 Complete organization onboarding to configure integrations.
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1 mt-2 text-[12px] font-semibold text-slate-900 hover:text-slate-900 transition-colors"
+                className="inline-flex items-center gap-1 mt-2 text-[12px] font-semibold text-[var(--text-primary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -279,7 +279,7 @@ export default function GenAIIntegrationsPage() {
       {/* Connected Providers */}
       {connectedProviders.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">Connected</h2>
+          <h2 className="text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">Connected</h2>
           <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm divide-y divide-[var(--border-subtle)]">
             {connectedProviders.map((provider) => {
               const integration = integrations[provider.backendKey]
@@ -306,14 +306,14 @@ export default function GenAIIntegrationsPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="text-[14px] font-semibold text-slate-900">{provider.name}</h3>
+                            <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">{provider.name}</h3>
                             {isEnabled && (
                               <span className="px-2 py-0.5 rounded-full bg-[#90FCA6]/15 text-[#1a7a3a] text-xs font-semibold uppercase tracking-wide">
                                 Live
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{provider.description}</p>
+                          <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{provider.description}</p>
                         </div>
                       </div>
 
@@ -323,7 +323,7 @@ export default function GenAIIntegrationsPage() {
                           disabled={isValidating}
                           aria-label={`Validate ${provider.name} integration`}
                           aria-busy={isValidating}
-                          className="h-9 px-3 text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl border border-[var(--border-medium)] transition-all flex items-center gap-1.5"
+                          className="h-9 px-3 text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] rounded-xl border border-[var(--border-medium)] transition-all flex items-center gap-1.5"
                         >
                           {isValidating ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -334,7 +334,7 @@ export default function GenAIIntegrationsPage() {
                         </button>
                         <Link href={`/${orgSlug}/integrations/${provider.href}`}>
                           <button
-                            className="h-9 px-3 text-[12px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-xl transition-all flex items-center gap-1"
+                            className="h-9 px-3 text-[12px] font-semibold text-[var(--text-primary)] bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-xl transition-all flex items-center gap-1"
                             aria-label={`Configure ${provider.name} integration`}
                           >
                             Configure
@@ -361,13 +361,13 @@ export default function GenAIIntegrationsPage() {
       {/* Available Providers */}
       {unconnectedProviders.length > 0 && (
         <div className="space-y-3 sm:space-y-4">
-          <h2 className="text-[11px] sm:text-[12px] font-semibold text-slate-900 uppercase tracking-wide">Available</h2>
+          <h2 className="text-[11px] sm:text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">Available</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3" role="list" aria-label="Available GenAI providers">
             {unconnectedProviders.map((provider) => (
               <Link
                 key={provider.id}
                 href={`/${orgSlug}/integrations/${provider.href}`}
-                className="group p-4 sm:p-5 bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] hover:border-slate-300 hover:shadow-md transition-all touch-manipulation"
+                className="group p-4 sm:p-5 bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] hover:border-[var(--border-medium)] hover:shadow-md transition-all touch-manipulation"
                 aria-label={`Connect ${provider.name} - ${provider.description}`}
                 role="listitem"
               >
@@ -380,12 +380,12 @@ export default function GenAIIntegrationsPage() {
                       <ProviderLogo provider={provider.id} category="genai" size={20} />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-[12px] sm:text-[13px] font-semibold text-slate-900 truncate">{provider.name}</h3>
-                      <p className="text-[11px] sm:text-[11px] text-slate-500 truncate">{provider.description}</p>
+                      <h3 className="text-[12px] sm:text-[13px] font-semibold text-[var(--text-primary)] truncate">{provider.name}</h3>
+                      <p className="text-[11px] sm:text-[11px] text-[var(--text-tertiary)] truncate">{provider.description}</p>
                     </div>
                   </div>
                   <span
-                    className="h-8 px-3 text-[11px] sm:text-[11px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-lg sm:rounded-xl transition-all flex items-center flex-shrink-0"
+                    className="h-8 px-3 text-[11px] sm:text-[11px] font-semibold text-[var(--text-primary)] bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-lg sm:rounded-xl transition-all flex items-center flex-shrink-0"
                     aria-hidden="true"
                   >
                     Connect
@@ -404,8 +404,8 @@ export default function GenAIIntegrationsPage() {
             <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[13px] sm:text-[14px] font-semibold text-slate-900">Secure Storage</h3>
-            <p className="text-[11px] sm:text-[13px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
+            <h3 className="text-[13px] sm:text-[14px] font-semibold text-[var(--text-primary)]">Secure Storage</h3>
+            <p className="text-[11px] sm:text-[13px] text-[var(--text-secondary)] mt-1.5 sm:mt-2 leading-relaxed">
               All API keys are encrypted using Google Cloud KMS with AES-256 encryption before storage.
             </p>
           </div>

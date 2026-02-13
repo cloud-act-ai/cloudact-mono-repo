@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-slate-700" />
+            <BarChart3 className="w-7 h-7 text-[var(--text-secondary)]" />
             Analytics Dashboard
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -215,8 +215,8 @@ export default function AnalyticsPage() {
                 <p className="text-sm text-gray-500">Daily Average</p>
                 <p className="text-xl font-bold">${avgDailyCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-slate-600" />
+              <div className="w-10 h-10 rounded-lg bg-[var(--surface-secondary)] flex items-center justify-center">
+                <Activity className="w-5 h-5 text-[var(--text-secondary)]" />
               </div>
             </div>
           </CardContent>

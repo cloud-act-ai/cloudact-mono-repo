@@ -175,7 +175,7 @@ Top-down allocation distributes a parent budget to child entities.
 | `budget_type` | string | Filter by type (monetary/token/seat) |
 | `period_type` | string | Filter by period (monthly/quarterly/yearly/custom) |
 | `hierarchy_entity_id` | string | Filter by entity |
-| `hierarchy_level_code` | string | Filter by level (department/project/team) |
+| `hierarchy_level_code` | string | Filter by level (org/department/project/team) |
 | `provider` | string | Filter by provider |
 | `is_active` | boolean | Default true |
 
@@ -218,7 +218,7 @@ Read-only endpoint returning all budgets for an org with actual spend calculated
 |--------|----------|---------|
 | `GET` | `/api/v1/budgets/{org}/summary` | All budgets with variance |
 
-**Query params:** `period_type`, `period_start`, `category`, `hierarchy_entity_id`
+**Query params:** `period_type`, `period_start`, `period_end`, `category`, `hierarchy_entity_id`
 
 **Response:**
 ```json
@@ -290,7 +290,7 @@ Read-only endpoint returning the hierarchy tree with budget allocations at each 
 |--------|----------|---------|
 | `GET` | `/api/v1/budgets/{org}/by-category` | Budget vs actual per category |
 
-**Query params:** `hierarchy_entity_id`, `period_type`, `period_start`
+**Query params:** `hierarchy_entity_id`, `period_type`, `period_start`, `period_end`
 
 **Response:**
 ```json
@@ -312,7 +312,7 @@ Read-only endpoint returning the hierarchy tree with budget allocations at each 
 |--------|----------|---------|
 | `GET` | `/api/v1/budgets/{org}/by-provider` | Budget vs actual per provider within category |
 
-**Query params:** `hierarchy_entity_id`, `category`, `period_type`, `period_start`
+**Query params:** `hierarchy_entity_id`, `category`, `period_type`, `period_start`, `period_end`
 
 **Response:**
 ```json

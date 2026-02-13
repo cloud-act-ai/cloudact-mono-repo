@@ -71,17 +71,17 @@ export class ChartErrorBoundary extends React.Component<
             <div className="rounded-full bg-amber-100 p-3 mb-3">
               <AlertCircle className="h-6 w-6 text-amber-600" />
             </div>
-            <h3 className="font-medium text-slate-900 mb-1">
+            <h3 className="font-medium text-[var(--text-primary)] mb-1">
               {chartTitle ? `${chartTitle} unavailable` : "Chart unavailable"}
             </h3>
-            <p className="text-sm text-slate-500 mb-4 max-w-xs">
+            <p className="text-sm text-[var(--text-tertiary)] mb-4 max-w-xs">
               {error?.message?.includes("NaN")
                 ? "Data contains invalid values"
                 : "Unable to display this chart"}
             </p>
             <button
               onClick={this.handleRetry}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-white border border-[var(--border-subtle)] rounded-lg hover:bg-[var(--surface-secondary)] transition-colors"
             >
               <RefreshCw className="h-4 w-4" />
               Retry

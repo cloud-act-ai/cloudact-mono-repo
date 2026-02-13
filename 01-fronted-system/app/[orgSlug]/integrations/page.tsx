@@ -197,10 +197,10 @@ export default function IntegrationsPage() {
                 <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
               </div>
               <div>
-                <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+                <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                   Integrations
                 </h1>
-                <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
                   Connect cloud providers, LLM APIs, and subscription services
                 </p>
               </div>
@@ -222,10 +222,10 @@ export default function IntegrationsPage() {
             <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
               Integrations
             </h1>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               Connect cloud providers, LLM APIs, and subscription services
             </p>
           </div>
@@ -240,15 +240,15 @@ export default function IntegrationsPage() {
               <AlertCircle className="h-5 w-5 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[14px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[12px] text-slate-600 mt-1">
+              <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                 Complete organization onboarding to configure integrations.
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-semibold text-slate-900 hover:text-slate-700 transition-colors"
+                className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-semibold text-[var(--text-primary)] hover:text-[var(--text-secondary)] transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-4 w-4" />
@@ -259,42 +259,42 @@ export default function IntegrationsPage() {
       )}
 
       {/* Stats Row - Ultra-premium styling - Mobile: 2x2 grid, Desktop: flex row */}
-      <div className="relative overflow-hidden py-4 px-4 sm:py-5 sm:px-6 bg-white/[0.98] backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="relative overflow-hidden py-4 px-4 sm:py-5 sm:px-6 bg-white/[0.98] backdrop-blur-sm rounded-2xl border border-[var(--border-subtle)] shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
         {/* Top gradient accent */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[var(--cloudact-mint)] via-[var(--cloudact-mint-light)]/50 to-transparent" />
 
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] shadow-[0_0_8px_rgba(144,252,166,0.5)] animate-pulse"></div>
-            <span className="text-[12px] sm:text-[13px] text-slate-600">
-              <span className="font-bold text-slate-900">{connectedCount}</span> Connected
+            <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
+              <span className="font-bold text-[var(--text-primary)]">{connectedCount}</span> Connected
             </span>
           </div>
-          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent"></div>
           <div className="flex items-center gap-2 sm:gap-2.5">
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
               <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
             </div>
-            <span className="text-[12px] sm:text-[13px] text-slate-600">
-              <span className="font-bold text-slate-900">{cloudCount}</span> Cloud
+            <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
+              <span className="font-bold text-[var(--text-primary)]">{cloudCount}</span> Cloud
             </span>
           </div>
-          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent"></div>
           <div className="flex items-center gap-2 sm:gap-2.5">
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
               <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#FF6C5E]" />
             </div>
-            <span className="text-[12px] sm:text-[13px] text-slate-600">
-              <span className="font-bold text-slate-900">{genaiCount}</span> GenAI
+            <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
+              <span className="font-bold text-[var(--text-primary)]">{genaiCount}</span> GenAI
             </span>
           </div>
-          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent"></div>
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent"></div>
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-slate-100 flex items-center justify-center">
-              <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" />
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--surface-secondary)] flex items-center justify-center">
+              <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--text-tertiary)]" />
             </div>
-            <span className="text-[12px] sm:text-[13px] text-slate-600">
-              <span className="font-bold text-slate-900">{saasCount}</span> SaaS
+            <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
+              <span className="font-bold text-[var(--text-primary)]">{saasCount}</span> SaaS
             </span>
           </div>
         </div>
@@ -302,7 +302,7 @@ export default function IntegrationsPage() {
 
       {/* Integration Categories - Ultra-premium styling */}
       <div className="space-y-5">
-        <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Categories</h2>
+        <h2 className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Categories</h2>
 
         <div className="space-y-3">
           {INTEGRATION_CATEGORIES.map((category) => {
@@ -315,7 +315,7 @@ export default function IntegrationsPage() {
                 href={`/${orgSlug}/integrations/${category.href}`}
                 className="group block"
               >
-                <div className="relative p-4 sm:p-6 bg-white/[0.98] backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 hover:border-slate-300 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300">
+                <div className="relative p-4 sm:p-6 bg-white/[0.98] backdrop-blur-sm rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] hover:border-[var(--border-medium)] shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300">
                   {/* Left accent bar - always visible with opacity animation */}
                   <div
                     className="absolute left-0 top-3 bottom-3 sm:top-4 sm:bottom-4 w-1 rounded-full transition-all duration-300 opacity-30 group-hover:opacity-100"
@@ -331,8 +331,8 @@ export default function IntegrationsPage() {
                         <Icon className="h-5 w-5 sm:h-7 sm:w-7" style={{ color: getAccentStyle(category.accent).css }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors">{category.name}</h3>
-                        <p className="text-[11px] sm:text-[12px] text-slate-500 mt-0.5 sm:mt-1">{category.description}</p>
+                        <h3 className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)] group-hover:text-[#1a7a3a] transition-colors">{category.name}</h3>
+                        <p className="text-[11px] sm:text-[12px] text-[var(--text-tertiary)] mt-0.5 sm:mt-1">{category.description}</p>
                       </div>
                     </div>
 
@@ -342,13 +342,13 @@ export default function IntegrationsPage() {
                         {category.providers.slice(0, 4).map((provider) => (
                           <div
                             key={provider.id}
-                            className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200/80 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:shadow-sm transition-all duration-200"
+                            className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:shadow-sm transition-all duration-200"
                           >
                             {provider.icon}
                           </div>
                         ))}
                         {category.providers.length > 4 && (
-                          <span className="text-[11px] text-slate-500 font-semibold ml-1.5 bg-slate-100 px-2 py-0.5 rounded-full">
+                          <span className="text-[11px] text-[var(--text-tertiary)] font-semibold ml-1.5 bg-[var(--surface-secondary)] px-2 py-0.5 rounded-full">
                             +{category.providers.length - 4}
                           </span>
                         )}
@@ -368,12 +368,12 @@ export default function IntegrationsPage() {
                             {connected} active
                           </span>
                         ) : (
-                          <span className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 text-slate-500 text-xs sm:text-[11px] font-semibold border border-slate-200/50">
+                          <span className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 text-[var(--text-tertiary)] text-xs sm:text-[11px] font-semibold border border-[var(--border-subtle)]">
                             Not configured
                           </span>
                         )}
-                        <div className="h-8 w-8 rounded-lg bg-slate-50 group-hover:bg-[var(--cloudact-mint)]/10 flex items-center justify-center transition-all duration-200">
-                          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1a7a3a] group-hover:translate-x-0.5 transition-all duration-200" />
+                        <div className="h-8 w-8 rounded-lg bg-[var(--surface-secondary)] group-hover:bg-[var(--cloudact-mint)]/10 flex items-center justify-center transition-all duration-200">
+                          <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[#1a7a3a] group-hover:translate-x-0.5 transition-all duration-200" />
                         </div>
                       </div>
                     </div>
@@ -386,7 +386,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Security Notice - Ultra-premium styling */}
-      <div className="relative overflow-hidden p-4 sm:p-6 bg-white/[0.98] backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="relative overflow-hidden p-4 sm:p-6 bg-white/[0.98] backdrop-blur-sm rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
         {/* Subtle gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--cloudact-mint)]/[0.03] to-transparent" />
 
@@ -395,8 +395,8 @@ export default function IntegrationsPage() {
             <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900">Enterprise Security</h3>
-            <p className="text-[12px] sm:text-[13px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
+            <h3 className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)]">Enterprise Security</h3>
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-secondary)] mt-1.5 sm:mt-2 leading-relaxed">
               All credentials are encrypted using Google Cloud KMS. Your integration keys are protected with AES-256 encryption and never stored in plain text.
             </p>
           </div>

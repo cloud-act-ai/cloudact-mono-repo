@@ -29,7 +29,7 @@ def list_budgets(
     org_slug: str,
     category: Optional[str] = None,
     hierarchy_entity_id: Optional[str] = None,
-    is_active: bool = True,
+    is_active: Optional[bool] = True,
 ) -> Dict[str, Any]:
     """
     List budgets for an organization with optional filters.
@@ -38,7 +38,7 @@ def list_budgets(
         org_slug: Organization slug.
         category: Optional filter — cloud, genai, subscription, or total.
         hierarchy_entity_id: Optional hierarchy entity ID (e.g., DEPT-ENG, TEAM-BACKEND).
-        is_active: Show active budgets only (default True).
+        is_active: Filter by active status. True=active only, False=inactive only, None=all.
     """
     dataset = get_org_dataset()
 
@@ -62,8 +62,10 @@ def list_budgets(
         query += " AND hierarchy_entity_id = @entity_id"
         params.append(bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id))
 
-    if is_active:
+    if is_active is True:
         query += " AND is_active = TRUE"
+    elif is_active is False:
+        query += " AND is_active = FALSE"
 
     query += " ORDER BY created_at DESC LIMIT 50"
 
@@ -83,27 +85,51 @@ def budget_summary(
         category: Optional filter — cloud, genai, subscription, or total.
     """
     dataset = get_org_dataset()
+    org_dataset = f"{org_slug}_prod"
 
-    # First get budget totals
     budget_query = f"""
+        WITH budgets AS (
+            SELECT category, budget_amount, period_start, period_end, currency
+            FROM `{dataset}.org_budgets`
+            WHERE org_slug = @org_slug AND is_active = TRUE
+        ),
+        actual_costs AS (
+            SELECT
+                x_source_system AS cost_category,
+                ROUND(SUM(BilledCost), 2) AS actual_spend
+            FROM `{org_dataset}.cost_data_standard_1_3`
+            WHERE ChargePeriodStart >= (SELECT MIN(period_start) FROM budgets)
+              AND ChargePeriodEnd <= (SELECT MAX(period_end) FROM budgets)
+            GROUP BY cost_category
+        )
         SELECT
-            category,
-            COUNT(*) as budget_count,
-            SUM(budget_amount) as total_budget,
-            MIN(currency) as currency,
-            MIN(period_start) as min_start,
-            MAX(period_end) as max_end
-        FROM `{dataset}.org_budgets`
-        WHERE org_slug = @org_slug AND is_active = TRUE
+            b.category,
+            COUNT(*) AS budget_count,
+            ROUND(SUM(b.budget_amount), 2) AS total_budget,
+            COALESCE(a.actual_spend, 0) AS total_actual,
+            ROUND(SUM(b.budget_amount) - COALESCE(a.actual_spend, 0), 2) AS variance,
+            ROUND(SAFE_DIVIDE(COALESCE(a.actual_spend, 0), SUM(b.budget_amount)) * 100, 1) AS utilization_pct,
+            MIN(b.currency) AS currency
+        FROM budgets b
+        LEFT JOIN actual_costs a ON (
+            (b.category = 'cloud' AND a.cost_category = 'cloud')
+            OR (b.category = 'genai' AND a.cost_category = 'genai')
+            OR (b.category = 'subscription' AND a.cost_category = 'subscription')
+            OR (b.category = 'total')
+        )
+        GROUP BY b.category, a.actual_spend
+        ORDER BY b.category
     """
     params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
 
     if category:
         validate_enum(category.lower(), _VALID_CATEGORIES, "category")
-        budget_query += " AND category = @category"
+        # Add category filter as a CTE filter
+        budget_query = budget_query.replace(
+            "WHERE org_slug = @org_slug AND is_active = TRUE",
+            "WHERE org_slug = @org_slug AND is_active = TRUE AND category = @category",
+        )
         params.append(bigquery.ScalarQueryParameter("category", "STRING", category.lower()))
-
-    budget_query += " GROUP BY category ORDER BY category"
 
     return safe_query(org_slug, budget_query, params)
 
@@ -125,28 +151,65 @@ def budget_variance(
         limit: Maximum results (1-50, default 20).
     """
     dataset = get_org_dataset()
+    org_dataset = f"{org_slug}_prod"
     limit = max(1, min(limit, 50))
 
     query = f"""
-        SELECT budget_id, hierarchy_entity_id, hierarchy_entity_name,
-               hierarchy_level_code, category, budget_type,
-               budget_amount, currency, period_type,
-               period_start, period_end, provider
-        FROM `{dataset}.org_budgets`
-        WHERE org_slug = @org_slug AND is_active = TRUE
+        WITH budgets AS (
+            SELECT budget_id, hierarchy_entity_id, hierarchy_entity_name,
+                   hierarchy_level_code, category, budget_type,
+                   budget_amount, currency, period_type,
+                   period_start, period_end, provider
+            FROM `{dataset}.org_budgets`
+            WHERE org_slug = @org_slug AND is_active = TRUE
+        ),
+        actual_by_entity AS (
+            SELECT
+                x_hierarchy_entity_id AS entity_id,
+                x_source_system AS cost_category,
+                ROUND(SUM(BilledCost), 2) AS actual_spend
+            FROM `{org_dataset}.cost_data_standard_1_3`
+            WHERE ChargePeriodStart >= (SELECT MIN(period_start) FROM budgets)
+              AND ChargePeriodEnd <= (SELECT MAX(period_end) FROM budgets)
+            GROUP BY entity_id, cost_category
+        )
+        SELECT
+            b.budget_id, b.hierarchy_entity_id, b.hierarchy_entity_name,
+            b.hierarchy_level_code, b.category, b.budget_type,
+            b.budget_amount, b.currency, b.period_type,
+            b.period_start, b.period_end, b.provider,
+            COALESCE(a.actual_spend, 0) AS actual_spend,
+            ROUND(b.budget_amount - COALESCE(a.actual_spend, 0), 2) AS variance,
+            ROUND(SAFE_DIVIDE(COALESCE(a.actual_spend, 0), b.budget_amount) * 100, 1) AS utilization_pct,
+            CASE
+                WHEN COALESCE(a.actual_spend, 0) > b.budget_amount THEN 'OVER_BUDGET'
+                WHEN COALESCE(a.actual_spend, 0) > b.budget_amount * 0.8 THEN 'AT_RISK'
+                ELSE 'ON_TRACK'
+            END AS status
+        FROM budgets b
+        LEFT JOIN actual_by_entity a ON (
+            b.hierarchy_entity_id = a.entity_id
+            AND (b.category = a.cost_category OR b.category = 'total')
+        )
     """
     params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
 
     if category:
         validate_enum(category.lower(), _VALID_CATEGORIES, "category")
-        query += " AND category = @category"
+        query = query.replace(
+            "WHERE org_slug = @org_slug AND is_active = TRUE",
+            "WHERE org_slug = @org_slug AND is_active = TRUE AND category = @category",
+        )
         params.append(bigquery.ScalarQueryParameter("category", "STRING", category.lower()))
 
     if hierarchy_entity_id:
-        query += " AND hierarchy_entity_id = @entity_id"
+        query = query.replace(
+            "WHERE org_slug = @org_slug AND is_active = TRUE",
+            "WHERE org_slug = @org_slug AND is_active = TRUE AND hierarchy_entity_id = @entity_id",
+        )
         params.append(bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id))
 
-    query += " ORDER BY budget_amount DESC LIMIT @limit"
+    query += " ORDER BY actual_spend DESC LIMIT @limit"
     params.append(bigquery.ScalarQueryParameter("limit", "INT64", limit))
 
     return safe_query(org_slug, query, params)

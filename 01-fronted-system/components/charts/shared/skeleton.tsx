@@ -33,21 +33,21 @@ export function ChartSkeleton({
   return (
     <div
       className={cn(
-        "animate-pulse rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-4 sm:p-6",
+        "animate-pulse rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] bg-white p-4 sm:p-6",
         className
       )}
     >
       {/* Title */}
       {showTitle && (
         <div className="mb-4 space-y-2">
-          <div className="h-5 w-32 rounded bg-slate-200" />
-          <div className="h-3 w-48 rounded bg-slate-100" />
+          <div className="h-5 w-32 rounded bg-[var(--surface-hover)]" />
+          <div className="h-3 w-48 rounded bg-[var(--surface-secondary)]" />
         </div>
       )}
 
       {/* Chart area */}
       <div
-        className="relative overflow-hidden rounded-lg bg-slate-50"
+        className="relative overflow-hidden rounded-lg bg-[var(--surface-secondary)]"
         style={{ height }}
       >
         {variant === "bar" && <BarSkeletonContent />}
@@ -61,8 +61,8 @@ export function ChartSkeleton({
         <div className="mt-4 flex items-center justify-center gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded bg-slate-200" />
-              <div className="h-3 w-16 rounded bg-slate-100" />
+              <div className="h-3 w-3 rounded bg-[var(--surface-hover)]" />
+              <div className="h-3 w-16 rounded bg-[var(--surface-secondary)]" />
             </div>
           ))}
         </div>
@@ -77,7 +77,7 @@ function BarSkeletonContent() {
       {[65, 45, 80, 55, 70, 40, 60].map((h, i) => (
         <div
           key={i}
-          className="w-8 rounded-t bg-slate-200"
+          className="w-8 rounded-t bg-[var(--surface-hover)]"
           style={{ height: `${h}%` }}
         />
       ))}
@@ -138,7 +138,7 @@ function PieSkeletonContent() {
         </svg>
         {/* Center dot */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-8 w-16 rounded bg-slate-200" />
+          <div className="h-8 w-16 rounded bg-[var(--surface-hover)]" />
         </div>
       </div>
     </div>
@@ -182,7 +182,7 @@ export function InlineSkeleton({
 }: InlineSkeletonProps) {
   return (
     <div
-      className={cn("animate-pulse rounded bg-slate-200", className)}
+      className={cn("animate-pulse rounded bg-[var(--surface-hover)]", className)}
       style={{ width, height }}
     />
   )

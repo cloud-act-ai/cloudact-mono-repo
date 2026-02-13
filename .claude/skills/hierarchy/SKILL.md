@@ -250,6 +250,9 @@ bq query --nouse_legacy_sql \
   "SELECT x_hierarchy_entity_id, x_hierarchy_path, COUNT(*) FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` WHERE x_hierarchy_entity_id IS NOT NULL GROUP BY 1,2"
 ```
 
+### API Response Fields
+The `HierarchyEntityResponse` includes all schema fields plus computed fields (`level_name`, `children_count`). The `end_date` field is exposed in responses for visibility — `NULL` means active, a date means soft-deleted.
+
 ### Valid Level Codes
 - `department`, `project`, `team` (NOT `function` — common mistake in CSV imports)
 

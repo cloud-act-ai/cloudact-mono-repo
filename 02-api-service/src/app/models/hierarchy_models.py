@@ -435,6 +435,7 @@ class HierarchyEntityResponse(BaseModel):
     updated_at: Optional[datetime]
     updated_by: Optional[str]
     version: int
+    end_date: Optional[datetime] = None
     # Computed fields (populated by service)
     level_name: Optional[str] = None
     children_count: Optional[int] = None

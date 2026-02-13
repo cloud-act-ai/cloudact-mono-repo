@@ -51,10 +51,10 @@ const defaultMessages: Record<string, { message: string; description: string }> 
 }
 
 const variantIcons: Record<string, React.ReactNode> = {
-  bar: <BarChart3 className="h-10 w-10 text-slate-300" />,
-  line: <TrendingUp className="h-10 w-10 text-slate-300" />,
-  pie: <PieChart className="h-10 w-10 text-slate-300" />,
-  generic: <Database className="h-10 w-10 text-slate-300" />,
+  bar: <BarChart3 className="h-10 w-10 text-[var(--text-muted)]" />,
+  line: <TrendingUp className="h-10 w-10 text-[var(--text-muted)]" />,
+  pie: <PieChart className="h-10 w-10 text-[var(--text-muted)]" />,
+  generic: <Database className="h-10 w-10 text-[var(--text-muted)]" />,
 }
 
 export function ChartEmptyState({
@@ -72,25 +72,25 @@ export function ChartEmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg bg-slate-50/50 text-center",
+        "flex flex-col items-center justify-center rounded-lg bg-[var(--surface-secondary)] text-center",
         className
       )}
       style={{ height }}
     >
       {displayIcon && <div className="mb-3">{displayIcon}</div>}
 
-      <p className="text-sm font-medium text-slate-900">
+      <p className="text-sm font-medium text-[var(--text-primary)]">
         {message || defaults.message}
       </p>
 
-      <p className="mt-1 text-xs text-slate-500 max-w-[200px]">
+      <p className="mt-1 text-xs text-[var(--text-tertiary)] max-w-[200px]">
         {description || defaults.description}
       </p>
 
       {action && (
         <button
           onClick={action.onClick}
-          className="mt-4 inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-[12px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors"
+          className="mt-4 inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-[var(--text-primary)] text-[12px] font-semibold rounded-lg hover:bg-[#B8FDCA] transition-colors"
         >
           {action.label}
         </button>

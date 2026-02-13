@@ -92,13 +92,13 @@ function TableSkeleton({ rows = 5, compact = false }: { rows?: number; compact?:
   return (
     <div className="space-y-1 animate-pulse">
       {/* Header skeleton */}
-      <div className="h-12 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 rounded-t-xl" />
+      <div className="h-12 bg-gradient-to-r from-[var(--surface-secondary)] via-[var(--surface-secondary)] to-[var(--surface-secondary)] rounded-t-xl" />
       {/* Row skeletons with stagger animation */}
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
           className={cn(
-            "bg-gradient-to-r from-slate-50 via-white to-slate-50",
+            "bg-gradient-to-r from-[var(--surface-secondary)] via-white to-[var(--surface-secondary)]",
             compact ? "h-10" : "h-12",
             i === rows - 1 && "rounded-b-xl"
           )}
@@ -181,7 +181,7 @@ export function DataTable<TData, TValue>({
           {/* Premium Search */}
           {searchable && searchColumn && (
             <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
               <Input
                 placeholder={searchPlaceholder}
                 value={(table.getColumn(searchColumn)?.getFilterValue() as string) ?? ""}
@@ -192,7 +192,7 @@ export function DataTable<TData, TValue>({
                   "pl-9 h-9 transition-all duration-200",
                   isPremium && [
                     "bg-white/80 backdrop-blur-sm",
-                    "border-slate-200/60",
+                    "border-[var(--border-subtle)]",
                     "focus:border-[var(--cloudact-mint)]",
                     "focus:ring-2 focus:ring-[var(--cloudact-mint)]/20",
                   ],
@@ -213,7 +213,7 @@ export function DataTable<TData, TValue>({
                   size="sm"
                   className={cn(
                     "ml-auto transition-all duration-200",
-                    isPremium && "hover:border-slate-300 hover:shadow-sm"
+                    isPremium && "hover:border-[var(--border-medium)] hover:shadow-sm"
                   )}
                 >
                   Columns <ChevronDown className="ml-2 h-4 w-4" />
@@ -222,7 +222,7 @@ export function DataTable<TData, TValue>({
               <DropdownMenuContent
                 align="end"
                 className={cn(
-                  isPremium && "bg-white/95 backdrop-blur-xl border-slate-200/60 shadow-lg"
+                  isPremium && "bg-white/95 backdrop-blur-xl border-[var(--border-subtle)] shadow-lg"
                 )}
               >
                 {table
@@ -251,8 +251,8 @@ export function DataTable<TData, TValue>({
           isMinimal
             ? "border-0"
             : isPremium
-            ? "sm:rounded-2xl border-y sm:border border-slate-200/60 shadow-sm"
-            : "sm:rounded-xl border-y sm:border border-slate-200",
+            ? "sm:rounded-2xl border-y sm:border border-[var(--border-subtle)] shadow-sm"
+            : "sm:rounded-xl border-y sm:border border-[var(--border-subtle)]",
         )}
         style={{
           boxShadow: isPremium ? theme.shadows.card : undefined,
@@ -267,8 +267,8 @@ export function DataTable<TData, TValue>({
                 className={cn(
                   "hover:bg-transparent",
                   isPremium
-                    ? "bg-gradient-to-r from-slate-50/80 via-white/60 to-slate-50/80 backdrop-blur-sm"
-                    : "bg-slate-50/50",
+                    ? "bg-gradient-to-r from-[var(--surface-secondary)] via-white/60 to-[var(--surface-secondary)] backdrop-blur-sm"
+                    : "bg-[var(--surface-secondary)]",
                 )}
               >
                 {headerGroup.headers.map((header) => (
@@ -277,8 +277,8 @@ export function DataTable<TData, TValue>({
                     className={cn(
                       "font-semibold",
                       isPremium
-                        ? "text-slate-700 border-b border-slate-100"
-                        : "text-slate-600",
+                        ? "text-[var(--text-secondary)] border-b border-[var(--border-subtle)]"
+                        : "text-[var(--text-secondary)]",
                       compact ? "py-2 px-3" : "py-3 px-4",
                     )}
                   >
@@ -304,7 +304,7 @@ export function DataTable<TData, TValue>({
                     className={cn(
                       "transition-all duration-200",
                       // Striped
-                      striped && index % 2 === 1 && "bg-slate-50/30",
+                      striped && index % 2 === 1 && "bg-[var(--surface-secondary)]",
                       // VIS-006: Enhanced hover effects for all variants
                       hoverable && [
                         "hover:bg-[#90FCA6]/5",  // Light mint background on hover
@@ -353,8 +353,8 @@ export function DataTable<TData, TValue>({
                   className={cn(
                     "h-24 text-center",
                     isPremium
-                      ? "text-slate-400 italic"
-                      : "text-slate-500",
+                      ? "text-[var(--text-muted)] italic"
+                      : "text-[var(--text-tertiary)]",
                   )}
                 >
                   {emptyMessage}
@@ -373,7 +373,7 @@ export function DataTable<TData, TValue>({
         )}>
           <div className={cn(
             "text-sm",
-            isPremium ? "text-slate-500 font-medium" : "text-slate-500",
+            isPremium ? "text-[var(--text-tertiary)] font-medium" : "text-[var(--text-tertiary)]",
           )}>
             Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
           </div>
@@ -387,7 +387,7 @@ export function DataTable<TData, TValue>({
                 "transition-all duration-200",
                 isPremium && [
                   "h-8 w-8 p-0",
-                  "hover:bg-slate-100 hover:border-slate-300",
+                  "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
                   "disabled:opacity-40",
                 ],
               )}
@@ -408,8 +408,8 @@ export function DataTable<TData, TValue>({
                       className={cn(
                         "h-7 min-w-7 px-2 rounded-md text-xs font-medium transition-all duration-200",
                         isActive
-                          ? "bg-slate-900 text-white shadow-sm"
-                          : "text-slate-600 hover:bg-slate-100",
+                          ? "bg-[var(--text-primary)] text-white shadow-sm"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]",
                       )}
                     >
                       {page + 1}
@@ -427,7 +427,7 @@ export function DataTable<TData, TValue>({
                 "transition-all duration-200",
                 isPremium && [
                   "h-8 w-8 p-0",
-                  "hover:bg-slate-100 hover:border-slate-300",
+                  "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
                   "disabled:opacity-40",
                 ],
               )}
@@ -463,7 +463,7 @@ export function SortableHeader({
       className={cn(
         "-ml-3 h-8 group transition-all duration-200",
         "data-[state=open]:bg-accent",
-        "hover:bg-slate-100/80",
+        "hover:bg-[var(--surface-secondary)]",
         className,
       )}
       onClick={() => column.toggleSorting(sortState === "asc")}
@@ -471,8 +471,8 @@ export function SortableHeader({
       {children}
       <span className={cn(
         "ml-2 transition-all duration-200",
-        sortState && "text-slate-900",
-        !sortState && "text-slate-400 group-hover:text-slate-600",
+        sortState && "text-[var(--text-primary)]",
+        !sortState && "text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]",
       )}>
         {sortState === "asc" ? (
           <ArrowUp className="h-3.5 w-3.5" />
@@ -511,7 +511,7 @@ export function ProgressCell({
   return (
     <div className="flex items-center gap-3 min-w-[120px]">
       {/* Progress bar */}
-      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-[var(--surface-secondary)] rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
           style={{
@@ -523,7 +523,7 @@ export function ProgressCell({
       </div>
       {/* Value */}
       {showValue && (
-        <span className="text-sm font-medium text-slate-700 tabular-nums min-w-[60px] text-right">
+        <span className="text-sm font-medium text-[var(--text-secondary)] tabular-nums min-w-[60px] text-right">
           {formattedValue}
         </span>
       )}
@@ -545,7 +545,7 @@ const statusColors = {
   warning: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
   error: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" },
   info: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
-  neutral: { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400" },
+  neutral: { bg: "bg-[var(--surface-secondary)]", text: "text-[var(--text-secondary)]", dot: "bg-[var(--text-muted)]" },
 }
 
 export function StatusBadgeCell({ status, label }: StatusBadgeCellProps) {

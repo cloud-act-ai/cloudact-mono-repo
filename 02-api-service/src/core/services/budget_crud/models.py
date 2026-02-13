@@ -54,10 +54,20 @@ class BudgetCreateRequest(BaseModel):
     @field_validator("hierarchy_level_code")
     @classmethod
     def validate_level_code(cls, v: str) -> str:
-        valid = {"department", "project", "team"}
+        valid = {"org", "department", "project", "team"}
         if v.lower() not in valid:
-            raise ValueError(f"hierarchy_level_code must be one of: {', '.join(valid)}")
+            raise ValueError(f"hierarchy_level_code must be one of: {', '.join(sorted(valid))}")
         return v.lower()
+
+    @field_validator("budget_type")
+    @classmethod
+    def validate_budget_type_category(cls, v: BudgetType, info) -> BudgetType:
+        category = info.data.get("category")
+        if category and v == BudgetType.TOKEN and category != BudgetCategory.GENAI:
+            raise ValueError("Token budgets are only valid for the 'genai' category")
+        if category and v == BudgetType.SEAT and category != BudgetCategory.SUBSCRIPTION:
+            raise ValueError("Seat budgets are only valid for the 'subscription' category")
+        return v
 
     @field_validator("period_end")
     @classmethod

@@ -170,9 +170,9 @@ function MetricSparklineInner({
       )}>
         <CardContent className="p-0">
           <div className="animate-pulse">
-            <div className="h-3 w-20 bg-slate-200 rounded mb-2" />
-            <div className="h-6 w-24 bg-slate-200 rounded mb-2" />
-            <div className="h-8 bg-slate-100 rounded" />
+            <div className="h-3 w-20 bg-[var(--surface-hover)] rounded mb-2" />
+            <div className="h-6 w-24 bg-[var(--surface-hover)] rounded mb-2" />
+            <div className="h-8 bg-[var(--surface-secondary)] rounded" />
           </div>
         </CardContent>
       </Card>
@@ -191,20 +191,20 @@ function MetricSparklineInner({
     >
       <CardContent className="p-0">
         {/* Title */}
-        <p className="text-xs font-medium text-slate-500 mb-1">
+        <p className="text-xs font-medium text-[var(--text-tertiary)] mb-1">
           {title}
         </p>
 
         {/* Value and change */}
         <div className="flex items-end justify-between mb-2">
-          <span className="text-lg font-bold text-slate-900 tabular-nums">
+          <span className="text-lg font-bold text-[var(--text-primary)] tabular-nums">
             {compact ? formatValueCompact(currentValue) : formatValue(currentValue)}
           </span>
 
           {showChange && percentChange !== null && (
             <div className={cn(
               "flex items-center gap-0.5 text-xs font-medium",
-              trendDirection === "neutral" && "text-slate-400",
+              trendDirection === "neutral" && "text-[var(--text-muted)]",
               trendDirection === "up" && (invertTrend ? "text-coral-500" : "text-emerald-500"),
               trendDirection === "down" && (invertTrend ? "text-emerald-500" : "text-coral-500"),
             )}>

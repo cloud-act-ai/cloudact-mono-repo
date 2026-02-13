@@ -108,7 +108,7 @@ export function ChartTooltip({
 
       {/* Label - show date from payload if available */}
       {!hideLabel && (
-        <div className="relative mb-2 pb-2 border-b border-slate-100/80">
+        <div className="relative mb-2 pb-2 border-b border-[var(--border-subtle)]">
           {/* Try to get full date from payload for better formatting */}
           {(() => {
             const firstPayload = uniquePayload[0]?.payload
@@ -122,13 +122,13 @@ export function ChartTooltip({
                 year: "numeric"
               })
               return (
-                <span className="text-[11px] font-semibold text-slate-700">
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
                   {formattedDate}
                 </span>
               )
             }
             return displayLabel ? (
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
                 {displayLabel}
               </span>
             ) : null
@@ -152,7 +152,7 @@ export function ChartTooltip({
 
       {/* Footer */}
       {footer && (
-        <div className="relative mt-2.5 pt-2 border-t border-slate-100/80 text-[11px] text-slate-500">
+        <div className="relative mt-2.5 pt-2 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-tertiary)]">
           {footer}
         </div>
       )}
@@ -189,9 +189,9 @@ function TooltipItem({
         {showIndicator && (
           <TooltipIndicator color={item.color} variant={indicator} />
         )}
-        <span className="text-slate-600">{item.name}</span>
+        <span className="text-[var(--text-secondary)]">{item.name}</span>
       </div>
-      <span className="font-medium text-slate-900 tabular-nums">
+      <span className="font-medium text-[var(--text-primary)] tabular-nums">
         {formattedValue}
       </span>
     </div>
@@ -262,11 +262,11 @@ export function SimpleTooltip({
   return (
     <div
       className={cn(
-        "rounded-md bg-slate-900 px-2 py-1 text-xs text-white shadow-lg",
+        "rounded-md bg-[var(--text-primary)] px-2 py-1 text-xs text-white shadow-lg",
         className
       )}
     >
-      {label && <div className="text-slate-300 text-[10px]">{label}</div>}
+      {label && <div className="text-[var(--text-muted)] text-[10px]">{label}</div>}
       <div className="font-medium tabular-nums">{formatValue(value)}</div>
     </div>
   )

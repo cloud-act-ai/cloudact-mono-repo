@@ -14,8 +14,8 @@ from src.app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Only allow SELECT queries (no DDL/DML)
-_SELECT_ONLY = re.compile(r"^\s*SELECT\b", re.IGNORECASE)
+# Only allow SELECT queries (no DDL/DML) — also allow CTEs (WITH ... SELECT)
+_SELECT_ONLY = re.compile(r"^\s*(SELECT|WITH)\b", re.IGNORECASE)
 _DISALLOWED = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|MERGE|GRANT|REVOKE)\b",
     re.IGNORECASE,
@@ -109,13 +109,12 @@ def describe_table(org_slug: str, table_name: str) -> Dict[str, Any]:
         # Try org dataset first, then shared
         table_ref = f"{settings.gcp_project_id}.{org_slug}_prod.{table_name}"
 
-    try:
-        table = client.get_table(table_ref)
+    def _format_table(tbl):
         return {
-            "table_id": table.table_id,
-            "full_id": str(table.reference),
-            "num_rows": table.num_rows,
-            "num_bytes": table.num_bytes,
+            "table_id": tbl.table_id,
+            "full_id": str(tbl.reference),
+            "num_rows": tbl.num_rows,
+            "num_bytes": tbl.num_bytes,
             "schema": [
                 {
                     "name": field.name,
@@ -123,10 +122,22 @@ def describe_table(org_slug: str, table_name: str) -> Dict[str, Any]:
                     "mode": field.mode,
                     "description": field.description,
                 }
-                for field in table.schema
+                for field in tbl.schema
             ],
         }
+
+    try:
+        table = client.get_table(table_ref)
+        return _format_table(table)
     except Exception as e:
+        # If bare name failed in org dataset, try shared organizations dataset
+        if "." not in table_name:
+            try:
+                shared_ref = f"{settings.gcp_project_id}.{settings.organizations_dataset}.{table_name}"
+                table = client.get_table(shared_ref)
+                return _format_table(table)
+            except Exception:
+                pass  # Return original error
         return {"error": str(e)}
 
 

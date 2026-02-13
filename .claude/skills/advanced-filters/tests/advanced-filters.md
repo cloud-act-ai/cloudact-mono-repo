@@ -390,6 +390,158 @@ View on 1440px viewport.
 
 ---
 
+## 8. Alert Page Integration Tests
+
+### AF-T070: Alert Page Renders Filter Bar
+
+**Covers:** FR-AF-006.1
+
+Navigate to `/{orgSlug}/notifications?tab=alerts`.
+
+**Expected:** Filter bar with search, category (cost/pipeline/system), and status (active/inactive/paused) visible.
+
+### AF-T071: Alert Category Filter
+
+**Covers:** FR-AF-006.5
+
+Select "Cost" in category dropdown on alerts tab.
+
+**Expected:** Only rules with `rule_category=cost` shown. Schema field: `org_notification_rules.rule_category`.
+
+### AF-T072: Alert Status Filter — Active
+
+**Covers:** FR-AF-006.2, FR-AF-006.4
+
+Select "Active" in status dropdown.
+
+**Expected:** Only rules where `is_active=true` AND not paused shown. Uses `matchesAlertStatus(true, false, "active")`.
+
+### AF-T073: Alert Status Filter — Paused
+
+**Covers:** FR-AF-006.4
+
+Select "Paused" in status dropdown.
+
+**Expected:** Only paused rules shown. Uses `matchesAlertStatus(true, true, "paused")`.
+
+### AF-T074: Alert Search Filter
+
+**Covers:** FR-AF-006.3
+
+Type "budget" in search box.
+
+**Expected:** Only rules matching "budget" in `name` or `description` fields. Schema: `org_notification_rules.name`.
+
+### AF-T075: Alert Hierarchy Filter
+
+**Covers:** FR-AF-006.6
+
+Select entity "DEPT-ENG" in hierarchy dropdown.
+
+**Expected:** Only rules scoped to `hierarchy_entity_id=DEPT-ENG`. Schema: `org_notification_rules.hierarchy_entity_id`.
+
+---
+
+## 9. Schema-Filter Mapping Tests
+
+### AF-T080: Budget Category Enum Values
+
+**Covers:** FR-AF-008.1
+
+Test each budget category value against API:
+
+```bash
+curl -s "$API/api/v1/budgets/$ORG?category=cloud" -H "X-API-Key: $KEY"
+curl -s "$API/api/v1/budgets/$ORG?category=genai" -H "X-API-Key: $KEY"
+curl -s "$API/api/v1/budgets/$ORG?category=subscription" -H "X-API-Key: $KEY"
+curl -s "$API/api/v1/budgets/$ORG?category=total" -H "X-API-Key: $KEY"
+```
+
+**Expected:** Each returns only budgets matching that category. Invalid values return empty list.
+
+### AF-T081: Budget Period Type Enum Values
+
+**Covers:** FR-AF-008.2
+
+```bash
+curl -s "$API/api/v1/budgets/$ORG?period_type=monthly" -H "X-API-Key: $KEY"
+curl -s "$API/api/v1/budgets/$ORG?period_type=quarterly" -H "X-API-Key: $KEY"
+```
+
+**Expected:** Filters correctly by `org_budgets.period_type`.
+
+### AF-T082: Alert Rule Category Enum Values
+
+**Covers:** FR-AF-008.4
+
+```bash
+curl -s "$API/api/v1/cost-alerts/$ORG?category=cost" -H "X-API-Key: $KEY"
+```
+
+**Expected:** Only rules with `rule_category=cost`. Valid values: cost, pipeline, integration, subscription, system.
+
+### AF-T083: Combined Category + Hierarchy Filter
+
+**Covers:** FR-AF-005.2, FR-AF-005.3
+
+```bash
+curl -s "$API/api/v1/budgets/$ORG/summary?category=cloud&hierarchy_entity_id=DEPT-ENG" -H "X-API-Key: $KEY"
+```
+
+**Expected:** Only cloud budgets for Engineering department. Should return DEPT-ENG cloud budget ($30K).
+
+### AF-T084: Provider Filter on Budgets
+
+**Covers:** FR-AF-005.8
+
+```bash
+curl -s "$API/api/v1/budgets/$ORG?provider=gcp" -H "X-API-Key: $KEY"
+```
+
+**Expected:** Only budgets with `provider=gcp`. Schema field: `org_budgets.provider` (optional STRING).
+
+---
+
+## 10. End-to-End Demo Data Filter Tests
+
+### AF-T090: Budget Category "cloud" Returns 3 Budgets
+
+With demo data loaded (8 budgets), filter by category "cloud".
+
+**Expected:** 3 budgets returned (DEPT-ENG cloud $30K, PROJ-PLATFORM cloud/gcp $20K, TEAM-BACKEND cloud/aws $12K).
+
+### AF-T091: Budget Entity "DEPT-ENG" Returns 2 Budgets
+
+Filter by hierarchyEntityId "DEPT-ENG".
+
+**Expected:** 2 budgets returned (DEPT-ENG cloud $30K, DEPT-ENG total $50K).
+
+### AF-T092: Budget Category "genai" + Entity "DEPT-DS" Returns 1 Budget
+
+Combined filter: category=genai + hierarchy_entity_id=DEPT-DS.
+
+**Expected:** 1 budget (DEPT-DS genai $25K).
+
+### AF-T093: Budget Search "backend" Returns 1 Budget
+
+Client-side search for "backend" across hierarchy_entity_name.
+
+**Expected:** 1 result (TEAM-BACKEND cloud $12K). No API re-fetch.
+
+### AF-T094: Alert Search "budget" Returns 1 Rule
+
+Client-side search on alert rules for "budget".
+
+**Expected:** 1 result (Monthly Budget Threshold). No API re-fetch.
+
+### AF-T095: All Filters Clear Returns Full Data
+
+After applying category=cloud + entity=DEPT-ENG + search="test", click "Clear".
+
+**Expected:** All 8 budgets visible, all 2 alert rules visible, all filters reset to defaults.
+
+---
+
 ## Test Matrix Summary
 
 | Test ID | Category | Test | Covers |
@@ -429,3 +581,20 @@ View on 1440px viewport.
 | AF-T052 | Cross-Page | CostFilters coexists | NFR-AF-002.2 |
 | AF-T060 | Responsive | Mobile layout | NFR-AF-003.2 |
 | AF-T061 | Responsive | Desktop layout | NFR-AF-003.2 |
+| AF-T070 | Alerts | Filter bar renders | FR-AF-006.1 |
+| AF-T071 | Alerts | Category filter | FR-AF-006.5 |
+| AF-T072 | Alerts | Status active | FR-AF-006.2, FR-AF-006.4 |
+| AF-T073 | Alerts | Status paused | FR-AF-006.4 |
+| AF-T074 | Alerts | Search filter | FR-AF-006.3 |
+| AF-T075 | Alerts | Hierarchy filter | FR-AF-006.6 |
+| AF-T080 | Schema | Budget category enum | FR-AF-008.1 |
+| AF-T081 | Schema | Budget period enum | FR-AF-008.2 |
+| AF-T082 | Schema | Alert category enum | FR-AF-008.4 |
+| AF-T083 | Schema | Combined category+hierarchy | FR-AF-005.2, FR-AF-005.3 |
+| AF-T084 | Schema | Provider filter | FR-AF-005.8 |
+| AF-T090 | E2E Demo | Cloud → 3 budgets | FR-AF-005.2 |
+| AF-T091 | E2E Demo | DEPT-ENG → 2 budgets | FR-AF-005.3 |
+| AF-T092 | E2E Demo | genai+DEPT-DS → 1 budget | FR-AF-005.2, FR-AF-005.3 |
+| AF-T093 | E2E Demo | Search "backend" → 1 | FR-AF-005.5 |
+| AF-T094 | E2E Demo | Alert search "budget" → 1 | FR-AF-006.3 |
+| AF-T095 | E2E Demo | Clear all → full data | FR-AF-001.5 |

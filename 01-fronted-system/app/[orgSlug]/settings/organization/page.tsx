@@ -703,10 +703,10 @@ export default function OrganizationSettingsPage() {
             <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
               Organization Settings
             </h1>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               Manage your organization locale, branding, and backend configuration
             </p>
           </div>
@@ -724,10 +724,10 @@ export default function OrganizationSettingsPage() {
           <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
             Organization Settings
           </h1>
-          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
             Manage your organization locale, branding, and backend configuration
           </p>
         </div>
@@ -758,7 +758,7 @@ export default function OrganizationSettingsPage() {
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="general"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">General</span>
@@ -766,7 +766,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="contact"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Contact</span>
@@ -774,7 +774,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="backend"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Backend</span>
@@ -800,8 +800,8 @@ export default function OrganizationSettingsPage() {
               <Building2 className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[16px] font-semibold text-slate-900">Organization Details</h2>
-              <p className="text-[12px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Organization Details</h2>
+              <p className="text-[12px] text-[var(--text-tertiary)]">
                 Your organization name and unique identifier
               </p>
             </div>
@@ -829,7 +829,7 @@ export default function OrganizationSettingsPage() {
                   onClick={handleSaveOrgName}
                   disabled={isSavingOrgName}
                   size="sm"
-                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 font-medium rounded-lg"
+                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-[var(--text-primary)] font-medium rounded-lg"
                 >
                   {isSavingOrgName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                 </Button>
@@ -851,7 +851,7 @@ export default function OrganizationSettingsPage() {
               value={orgSlug}
               readOnly
               disabled
-              className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
+              className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg bg-[var(--surface-secondary)] text-[var(--text-tertiary)] cursor-not-allowed"
             />
             <p className="text-[12px] text-muted-foreground">
               Unique identifier used in URLs (cannot be changed)
@@ -868,8 +868,8 @@ export default function OrganizationSettingsPage() {
               <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[16px] font-semibold text-slate-900">Organization Logo</h2>
-              <p className="text-[12px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Organization Logo</h2>
+              <p className="text-[12px] text-[var(--text-tertiary)]">
                 Upload or link your organization's logo (displayed in sidebar)
               </p>
             </div>
@@ -901,8 +901,8 @@ export default function OrganizationSettingsPage() {
               <Activity className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[16px] font-semibold text-slate-900">Locale Settings</h2>
-              <p className="text-[12px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Locale Settings</h2>
+              <p className="text-[12px] text-[var(--text-tertiary)]">
                 Configure currency, timezone, date format, and fiscal year
               </p>
             </div>
@@ -977,7 +977,7 @@ export default function OrganizationSettingsPage() {
                   onClick={handleSaveFiscalYear}
                   disabled={isSavingFiscalYear}
                   size="sm"
-                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 font-medium rounded-lg"
+                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-[var(--text-primary)] font-medium rounded-lg"
                 >
                   {isSavingFiscalYear ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                 </Button>
@@ -1027,7 +1027,7 @@ export default function OrganizationSettingsPage() {
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all"
+              className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-[var(--text-primary)] rounded-xl shadow-sm hover:shadow-md transition-all"
             >
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Changes
@@ -1036,7 +1036,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-[var(--surface-secondary)] hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1046,7 +1046,7 @@ export default function OrganizationSettingsPage() {
 
       {/* Information Note - Premium */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/10 to-transparent border border-[#90FCA6]/20">
-        <p className="text-[12px] text-slate-900/70 leading-relaxed">
+        <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
           <strong className="text-[#1a7a3a] font-semibold">Note:</strong> Currency and timezone changes affect how data is displayed.
           Settings sync to BigQuery for cost calculations. All team members share these locale settings.
         </p>
@@ -1062,8 +1062,8 @@ export default function OrganizationSettingsPage() {
               <User className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[16px] font-semibold text-slate-900">Contact Details</h2>
-              <p className="text-[12px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Contact Details</h2>
+              <p className="text-[12px] text-[var(--text-tertiary)]">
                 Business contact person and address
               </p>
             </div>
@@ -1080,7 +1080,7 @@ export default function OrganizationSettingsPage() {
             <>
               {/* Business Person Section */}
               <div className="space-y-4">
-                <h3 className="text-[13px] font-medium text-slate-700">
+                <h3 className="text-[13px] font-medium text-[var(--text-secondary)]">
                   Contact Person
                 </h3>
 
@@ -1161,8 +1161,8 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {/* Address Section */}
-              <div className="space-y-4 pt-4 border-t border-slate-200">
-                <h3 className="text-[13px] font-medium text-slate-700">
+              <div className="space-y-4 pt-4 border-t border-[var(--border-subtle)]">
+                <h3 className="text-[13px] font-medium text-[var(--text-secondary)]">
                   Business Address
                 </h3>
 
@@ -1273,7 +1273,7 @@ export default function OrganizationSettingsPage() {
           <Button
             onClick={handleSaveContactDetails}
             disabled={isSavingContactDetails || !hasContactChanges}
-            className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+            className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-[var(--text-primary)] rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50"
           >
             {isSavingContactDetails ? (
               <>
@@ -1293,7 +1293,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleResetContactDetails}
               disabled={isSavingContactDetails}
               variant="outline"
-              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-[var(--surface-secondary)] hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1311,8 +1311,8 @@ export default function OrganizationSettingsPage() {
               <Activity className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h2 className="text-[16px] font-semibold text-slate-900">Backend Connection</h2>
-              <p className="text-[12px] text-slate-500">
+              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Backend Connection</h2>
+              <p className="text-[12px] text-[var(--text-tertiary)]">
                 BigQuery backend status and API key
               </p>
             </div>
@@ -1352,10 +1352,10 @@ export default function OrganizationSettingsPage() {
                     } animate-ping opacity-75`} />
                   </div>
                   <div>
-                    <p className="text-[16px] font-semibold text-slate-900">
+                    <p className="text-[16px] font-semibold text-[var(--text-primary)]">
                       {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
                     </p>
-                    <p className="text-[12px] text-slate-600">
+                    <p className="text-[12px] text-[var(--text-secondary)]">
                       {apiKeyValid === false
                         ? "API key is invalid or inactive in backend"
                         : backendOnboarded
@@ -1392,8 +1392,8 @@ export default function OrganizationSettingsPage() {
                       <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#1a7a3a]'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-medium text-slate-900">API Key</p>
-                      <p className={`text-[12px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-slate-600'}`}>
+                      <p className="text-[14px] font-medium text-[var(--text-primary)]">API Key</p>
+                      <p className={`text-[12px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[var(--text-secondary)]'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
@@ -1411,8 +1411,8 @@ export default function OrganizationSettingsPage() {
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
                 <div className="p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-medium)]">
-                  <p className="text-[12px] text-slate-600">
-                    <strong className="text-slate-700">How to fix:</strong> Your API key may have been rotated or deactivated.
+                  <p className="text-[12px] text-[var(--text-secondary)]">
+                    <strong className="text-[var(--text-secondary)]">How to fix:</strong> Your API key may have been rotated or deactivated.
                     Try "Resync Connection" below or contact support.
                   </p>
                 </div>
@@ -1428,8 +1428,8 @@ export default function OrganizationSettingsPage() {
               disabled={isResyncing || loadingBackendStatus}
               className={`h-11 px-6 text-[12px] font-semibold rounded-xl transition-all ${
                 (!backendOnboarded || apiKeyValid === false)
-                  ? "bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 shadow-sm hover:shadow-md"
-                  : "border-2 border-[var(--border-medium)] bg-[var(--surface-primary)] text-slate-900 hover:bg-slate-50 hover:shadow-sm"
+                  ? "bg-[#90FCA6] hover:bg-[#B8FDCA] text-[var(--text-primary)] shadow-sm hover:shadow-md"
+                  : "border-2 border-[var(--border-medium)] bg-[var(--surface-primary)] text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] hover:shadow-sm"
               }`}
             >
               {isResyncing ? (
@@ -1444,7 +1444,7 @@ export default function OrganizationSettingsPage() {
                 </>
               )}
             </Button>
-            <p className="text-[11px] text-slate-900/50 mt-2">
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-2">
               {(!backendOnboarded || apiKeyValid === false)
                 ? "Re-onboard your organization to generate a new API key and restore backend connection"
                 : "Re-synchronize your organization's locale and subscription data with the backend"}
@@ -1465,7 +1465,7 @@ export default function OrganizationSettingsPage() {
           </div>
           <div>
             <h2 className="text-[20px] font-bold text-[#FF6C5E] tracking-tight">Danger Zone</h2>
-            <p className="text-[12px] text-slate-900/50 mt-1">
+            <p className="text-[12px] text-[var(--text-tertiary)] mt-1">
               Irreversible actions that require careful consideration
             </p>
           </div>
@@ -1477,7 +1477,7 @@ export default function OrganizationSettingsPage() {
             <div className="p-8">
               <div className="flex items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]" />
-                <span className="ml-2 text-[14px] text-slate-900/50">Loading organizations...</span>
+                <span className="ml-2 text-[14px] text-[var(--text-tertiary)]">Loading organizations...</span>
               </div>
             </div>
           </div>
@@ -1490,7 +1490,7 @@ export default function OrganizationSettingsPage() {
                 </div>
                 <div>
                   <h3 className="text-[16px] font-bold text-[#FF6C5E] tracking-tight">Organizations You Own</h3>
-                  <p className="text-[12px] text-slate-900/50">
+                  <p className="text-[12px] text-[var(--text-tertiary)]">
                     Transfer ownership or delete before deleting your account
                   </p>
                 </div>
@@ -1504,11 +1504,11 @@ export default function OrganizationSettingsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-black/[0.03] flex items-center justify-center">
-                      <Building2 className="h-5 w-5 text-slate-900/40" />
+                      <Building2 className="h-5 w-5 text-[var(--text-muted)]" />
                     </div>
                     <div>
-                      <p className="text-[14px] font-semibold text-slate-900">{org.org_name}</p>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-900/50">
+                      <p className="text-[14px] font-semibold text-[var(--text-primary)]">{org.org_name}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
                         <Badge className="ml-1 bg-[#FF6C5E]/10 text-[#FF6C5E] border-0 text-xs font-semibold px-2 py-0.5">Owner</Badge>
@@ -1521,7 +1521,7 @@ export default function OrganizationSettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => openTransferDialog(org)}
-                        className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-slate-50 hover:shadow-sm transition-all"
+                        className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-[var(--surface-secondary)] hover:shadow-sm transition-all"
                       >
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Transfer
@@ -1680,7 +1680,7 @@ export default function OrganizationSettingsPage() {
               </div>
               <div>
                 <h3 className="text-[16px] font-bold text-[#FF6C5E] tracking-tight">Delete Account</h3>
-                <p className="text-[12px] text-slate-900/50">
+                <p className="text-[12px] text-[var(--text-tertiary)]">
                   Permanently delete your account and all associated data
                 </p>
               </div>
@@ -1693,7 +1693,7 @@ export default function OrganizationSettingsPage() {
                   <Mail className="h-5 w-5 text-[#1a7a3a] mt-0.5" />
                   <div>
                     <p className="font-semibold text-[#1a7a3a]">Verification email sent!</p>
-                    <p className="text-[12px] text-slate-900/60 mt-1">
+                    <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                       Please check your inbox and click the confirmation link to complete account deletion.
                       The link will expire in 30 minutes.
                     </p>

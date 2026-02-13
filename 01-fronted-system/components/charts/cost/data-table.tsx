@@ -126,13 +126,13 @@ export interface CostDataTableProps {
 function TrendBadge({ current, previous }: { current: number; previous?: number }) {
   // DIV-001 FIX: Handle undefined, zero, NaN, and very small values safely
   if (previous === undefined || !Number.isFinite(previous) || Math.abs(previous) < 0.001) {
-    return <span className="text-slate-400">—</span>
+    return <span className="text-[var(--text-muted)]">—</span>
   }
 
   const change = ((current - previous) / previous) * 100
   // DIV-001 FIX: Also guard against NaN/Infinity in result
   if (!Number.isFinite(change)) {
-    return <span className="text-slate-400">—</span>
+    return <span className="text-[var(--text-muted)]">—</span>
   }
   const isUp = change > 0
   const isDown = change < 0
@@ -146,7 +146,7 @@ function TrendBadge({ current, previous }: { current: number; previous?: number 
         "font-medium text-xs gap-1 transition-colors",
         isUp && "text-[#FF6C5E] border-[#FF6C5E]/30 bg-[#FF6C5E]/10",
         isDown && "text-[#10A37F] border-[#10A37F]/30 bg-[#10A37F]/10",
-        !isUp && !isDown && "text-slate-500 border-slate-200 bg-slate-50"
+        !isUp && !isDown && "text-[var(--text-tertiary)] border-[var(--border-subtle)] bg-[var(--surface-secondary)]"
       )}
     >
       {isUp && <TrendingUp className="h-3 w-3" />}
@@ -244,11 +244,11 @@ function CostDataTableInner({
         ),
         cell: ({ row }) => {
           const date = row.original.date
-          if (!date) return <span className="text-slate-400">—</span>
+          if (!date) return <span className="text-[var(--text-muted)]">—</span>
           // Format as short date
           const d = new Date(date)
           return (
-            <span className="text-slate-600 text-sm tabular-nums">
+            <span className="text-[var(--text-secondary)] text-sm tabular-nums">
               {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </span>
           )
@@ -276,7 +276,7 @@ function CostDataTableInner({
               />
             )}
             {icon}
-            <span className="font-medium text-slate-900">{displayName}</span>
+            <span className="font-medium text-[var(--text-primary)]">{displayName}</span>
           </div>
         )
       },
@@ -288,7 +288,7 @@ function CostDataTableInner({
         accessorKey: "type",
         header: typeLabel,
         cell: ({ row }) => (
-          <span className="text-slate-500 text-sm">{row.original.type || "—"}</span>
+          <span className="text-[var(--text-tertiary)] text-sm">{row.original.type || "—"}</span>
         ),
       })
     }
@@ -297,11 +297,11 @@ function CostDataTableInner({
     if (showUsage) {
       cols.push({
         accessorKey: "usage",
-        header: () => <span className="text-slate-500">Usage</span>,
+        header: () => <span className="text-[var(--text-tertiary)]">Usage</span>,
         cell: ({ row }) => {
           const usage = row.original.usage
           return (
-            <span className="text-slate-600 tabular-nums text-sm">
+            <span className="text-[var(--text-secondary)] tabular-nums text-sm">
               {usage || "—"}
             </span>
           )
@@ -321,7 +321,7 @@ function CostDataTableInner({
         cell: ({ row }) => {
           const count = row.original.count
           return (
-            <span className="text-slate-600 tabular-nums">
+            <span className="text-[var(--text-secondary)] tabular-nums">
               {count !== undefined ? count.toLocaleString() : "—"}
             </span>
           )
@@ -342,7 +342,7 @@ function CostDataTableInner({
         cell: ({ row }) => {
           const value = row.original.billedCost
           return (
-            <div className="text-right text-slate-600 tabular-nums">
+            <div className="text-right text-[var(--text-secondary)] tabular-nums">
               {value !== undefined ? formatValue(value) : "—"}
             </div>
           )
@@ -363,7 +363,7 @@ function CostDataTableInner({
           return (
             <div className={cn(
               "text-right tabular-nums",
-              value && value > 0 ? "text-emerald-600 font-medium" : "text-slate-500"
+              value && value > 0 ? "text-emerald-600 font-medium" : "text-[var(--text-tertiary)]"
             )}>
               {value !== undefined && value > 0 ? `-${formatValue(value)}` : formatValue(value ?? 0)}
             </div>
@@ -382,7 +382,7 @@ function CostDataTableInner({
         cell: ({ row }) => {
           const value = row.original.effectiveCost
           return (
-            <div className="text-right font-semibold text-slate-900 tabular-nums">
+            <div className="text-right font-semibold text-[var(--text-primary)] tabular-nums">
               {value !== undefined ? formatValue(value) : "—"}
             </div>
           )
@@ -401,7 +401,7 @@ function CostDataTableInner({
         cell: ({ row }) => {
           const value = row.original.dailyCost
           return (
-            <div className="text-right text-slate-600 tabular-nums text-sm">
+            <div className="text-right text-[var(--text-secondary)] tabular-nums text-sm">
               {value !== undefined ? formatValue(value) : "—"}
             </div>
           )
@@ -419,7 +419,7 @@ function CostDataTableInner({
         cell: ({ row }) => {
           const value = row.original.monthlyCost
           return (
-            <div className="text-right font-semibold text-slate-900 tabular-nums">
+            <div className="text-right font-semibold text-[var(--text-primary)] tabular-nums">
               {value !== undefined ? formatValue(value) : "—"}
             </div>
           )
@@ -437,7 +437,7 @@ function CostDataTableInner({
         cell: ({ row }) => {
           const value = row.original.annualCost
           return (
-            <div className="text-right text-slate-600 tabular-nums text-sm">
+            <div className="text-right text-[var(--text-secondary)] tabular-nums text-sm">
               {value !== undefined ? formatValue(value) : "—"}
             </div>
           )
@@ -456,7 +456,7 @@ function CostDataTableInner({
           // Use value, or fallback to monthlyCost for backward compatibility
           const value = row.original.value ?? row.original.monthlyCost ?? 0
           return (
-            <div className="text-right font-semibold text-slate-900 tabular-nums">
+            <div className="text-right font-semibold text-[var(--text-primary)] tabular-nums">
               {formatValue(value)}
             </div>
           )
@@ -481,9 +481,9 @@ function CostDataTableInner({
   }, [showCount, countLabel, showType, typeLabel, showTrend, showMultiCost, showFocusCost, showUsage, showDate, formatValue])
 
   return (
-    <Card className={cn("border-slate-200", className)}>
+    <Card className={cn("border-[var(--border-subtle)]", className)}>
       <CardHeader className={cn(compact ? "pb-2" : "pb-4")}>
-        <CardTitle className="text-base font-semibold text-slate-900">{title}</CardTitle>
+        <CardTitle className="text-base font-semibold text-[var(--text-primary)]">{title}</CardTitle>
         {subtitle && <CardDescription>{subtitle}</CardDescription>}
       </CardHeader>
       <CardContent className={cn(compact ? "pt-0" : "")}>
@@ -504,15 +504,15 @@ function CostDataTableInner({
 
         {/* Show expand/collapse button if there are more rows */}
         {hasMoreRows && !paginated && (
-          <div className="flex items-center justify-center gap-2 pt-3 border-t border-slate-100 mt-3">
-            <span className="text-sm text-slate-500">
+          <div className="flex items-center justify-center gap-2 pt-3 border-t border-[var(--border-subtle)] mt-3">
+            <span className="text-sm text-[var(--text-tertiary)]">
               Showing {isExpanded ? allRows.length : maxRows} of {allRows.length} items
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="text-sm text-slate-600 hover:text-slate-900 gap-1"
+              className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] gap-1"
             >
               {isExpanded ? (
                 <>

@@ -105,7 +105,7 @@ export default function OperationsPage() {
     if (id.includes("saas") || id.includes("subscription")) {
       return <Wallet className="h-5 w-5 text-[#FF6C5E]" />
     }
-    return <Database className="h-5 w-5 text-slate-500" />
+    return <Database className="h-5 w-5 text-[var(--text-tertiary)]" />
   }
 
   const getProviderColor = (pipelineId: string) => {
@@ -115,7 +115,7 @@ export default function OperationsPage() {
     if (id.includes("azure")) return "bg-[#0078D4]/10"
     if (id.includes("openai") || id.includes("anthropic") || id.includes("gemini")) return "bg-[#10A37F]/10"
     if (id.includes("saas") || id.includes("subscription")) return "bg-[#FF6C5E]/10"
-    return "bg-slate-100"
+    return "bg-[var(--surface-secondary)]"
   }
 
   const formatDuration = (durationMs?: number) => {
@@ -142,10 +142,10 @@ export default function OperationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-none">
+          <h1 className="text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-none">
             Operations
           </h1>
-          <p className="text-[14px] text-slate-500 mt-2 max-w-lg">
+          <p className="text-[14px] text-[var(--text-tertiary)] mt-2 max-w-lg">
             Monitor your system operations and health
           </p>
         </div>
@@ -162,31 +162,31 @@ export default function OperationsPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
+      <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-[var(--surface-secondary)] rounded-2xl border border-[var(--border-subtle)]">
         <div className="flex items-center gap-3">
-          <Activity className="h-4 w-4 text-slate-400" />
-          <span className="text-[13px] text-slate-600">
-            <span className="font-semibold text-slate-900">{pipelineStats.total}</span> Total
+          <Activity className="h-4 w-4 text-[var(--text-muted)]" />
+          <span className="text-[13px] text-[var(--text-secondary)]">
+            <span className="font-semibold text-[var(--text-primary)]">{pipelineStats.total}</span> Total
           </span>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-[var(--surface-hover)]"></div>
         <div className="flex items-center gap-3">
           <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></div>
-          <span className="text-[13px] text-slate-600">
+          <span className="text-[13px] text-[var(--text-secondary)]">
             <span className="font-semibold text-[var(--cloudact-coral)]">{pipelineStats.running}</span> Running
           </span>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-[var(--surface-hover)]"></div>
         <div className="flex items-center gap-3">
           <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
-          <span className="text-[13px] text-slate-600">
+          <span className="text-[13px] text-[var(--text-secondary)]">
             <span className="font-semibold text-[#1a7a3a]">{pipelineStats.successRate}%</span> Success
           </span>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-[var(--surface-hover)]"></div>
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <span className="text-[13px] text-slate-600">
+          <span className="text-[13px] text-[var(--text-secondary)]">
             <span className="font-semibold text-amber-600">{pipelineStats.failed}</span> Failed
           </span>
         </div>
@@ -194,17 +194,17 @@ export default function OperationsPage() {
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 bg-white rounded-2xl border border-slate-200">
+        <div className="p-4 bg-white rounded-2xl border border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
               <Activity className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 uppercase tracking-wide">Total Runs</p>
-          <p className="text-[20px] font-bold text-slate-900 mt-1">{pipelineStats.total}</p>
+          <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide">Total Runs</p>
+          <p className="text-[20px] font-bold text-[var(--text-primary)] mt-1">{pipelineStats.total}</p>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200">
+        <div className="p-4 bg-white rounded-2xl border border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
               <Zap className="h-4 w-4 text-[var(--cloudact-coral)]" />
@@ -213,45 +213,45 @@ export default function OperationsPage() {
               <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></div>
             )}
           </div>
-          <p className="text-[11px] text-slate-500 uppercase tracking-wide">Running Now</p>
-          <p className="text-[20px] font-bold text-slate-900 mt-1">{pipelineStats.running}</p>
+          <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide">Running Now</p>
+          <p className="text-[20px] font-bold text-[var(--text-primary)] mt-1">{pipelineStats.running}</p>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200">
+        <div className="p-4 bg-white rounded-2xl border border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
               <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 uppercase tracking-wide">Success Rate</p>
+          <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide">Success Rate</p>
           <p className="text-[20px] font-bold text-[#1a7a3a] mt-1">{pipelineStats.successRate}%</p>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200">
+        <div className="p-4 bg-white rounded-2xl border border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 uppercase tracking-wide">Failed</p>
-          <p className="text-[20px] font-bold text-slate-900 mt-1">{pipelineStats.failed}</p>
+          <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide">Failed</p>
+          <p className="text-[20px] font-bold text-[var(--text-primary)] mt-1">{pipelineStats.failed}</p>
         </div>
       </div>
 
       {/* Recent Pipeline Runs */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Recent Runs</h2>
+          <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Recent Runs</h2>
           <Link
             href={`/${orgSlug}/pipelines`}
-            className="text-[12px] font-semibold text-slate-900 hover:text-black transition-colors flex items-center gap-1"
+            className="text-[12px] font-semibold text-[var(--text-primary)] hover:text-black transition-colors flex items-center gap-1"
           >
             View all
             <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+        <div className="bg-white rounded-2xl border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)]">
           {recentPipelines.length > 0 ? (
             recentPipelines.map((pipeline) => (
               <div
@@ -275,10 +275,10 @@ export default function OperationsPage() {
                       {getPipelineIcon(pipeline.pipeline_id)}
                     </div>
                     <div>
-                      <p className="text-[14px] font-semibold text-slate-900">{pipeline.pipeline_id}</p>
+                      <p className="text-[14px] font-semibold text-[var(--text-primary)]">{pipeline.pipeline_id}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <Timer className="h-3 w-3 text-slate-400" />
-                        <span className="text-[11px] text-slate-500">{formatDuration(pipeline.duration_ms)}</span>
+                        <Timer className="h-3 w-3 text-[var(--text-muted)]" />
+                        <span className="text-[11px] text-[var(--text-tertiary)]">{formatDuration(pipeline.duration_ms)}</span>
                       </div>
                     </div>
                   </div>
@@ -311,9 +311,9 @@ export default function OperationsPage() {
             ))
           ) : (
             <div className="p-8 text-center">
-              <Database className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-900">No pipeline runs yet</p>
-              <p className="text-xs text-slate-500 mt-1">Run a pipeline to see activity here</p>
+              <Database className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3" />
+              <p className="text-sm font-medium text-[var(--text-primary)]">No pipeline runs yet</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">Run a pipeline to see activity here</p>
             </div>
           )}
         </div>
@@ -321,37 +321,37 @@ export default function OperationsPage() {
 
       {/* Quick Actions */}
       <div className="space-y-4">
-        <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Quick Actions</h2>
+        <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Quick Actions</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Link
             href={`/${orgSlug}/pipelines`}
-            className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[var(--cloudact-mint)]/30 hover:shadow-sm transition-all"
+            className="group p-5 bg-white rounded-2xl border border-[var(--border-subtle)] hover:border-[var(--cloudact-mint)]/30 hover:shadow-sm transition-all"
           >
             <div className="flex items-start justify-between mb-3">
               <div className="h-11 w-11 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
                 <PlayCircle className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
               </div>
-              <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-mint-dark)] transition-colors" />
+              <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--cloudact-mint-dark)] transition-colors" />
             </div>
-            <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Run Pipeline</h3>
-            <p className="text-[12px] text-slate-500">
+            <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Run Pipeline</h3>
+            <p className="text-[12px] text-[var(--text-tertiary)]">
               Execute cost sync, usage tracking, and data pipelines
             </p>
           </Link>
 
           <Link
             href={`/${orgSlug}/cost-dashboards/overview`}
-            className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#FF6C5E]/30 hover:shadow-sm transition-all"
+            className="group p-5 bg-white rounded-2xl border border-[var(--border-subtle)] hover:border-[#FF6C5E]/30 hover:shadow-sm transition-all"
           >
             <div className="flex items-start justify-between mb-3">
               <div className="h-11 w-11 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-[var(--cloudact-coral)]" />
               </div>
-              <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
+              <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--cloudact-coral)] transition-colors" />
             </div>
-            <h3 className="text-[14px] font-semibold text-slate-900 mb-1">Cost Analytics</h3>
-            <p className="text-[12px] text-slate-500">
+            <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Cost Analytics</h3>
+            <p className="text-[12px] text-[var(--text-tertiary)]">
               View detailed cost breakdowns and trends
             </p>
           </Link>
@@ -359,15 +359,15 @@ export default function OperationsPage() {
       </div>
 
       {/* System Health */}
-      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+      <div className="p-5 bg-[var(--surface-secondary)] rounded-2xl border border-[var(--border-subtle)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
               <Database className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
-              <h3 className="text-[14px] font-semibold text-slate-900">System Health</h3>
-              <p className="text-[12px] text-slate-500">All services operational</p>
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">System Health</h3>
+              <p className="text-[12px] text-[var(--text-tertiary)]">All services operational</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

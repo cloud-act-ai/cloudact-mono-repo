@@ -50,7 +50,7 @@ function TrackingCard({
         style={{ backgroundColor: category.accent }}
       />
 
-      <div className="pl-5 py-4 pr-4 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors rounded-r-xl">
+      <div className="pl-5 py-4 pr-4 flex items-center justify-between gap-4 hover:bg-[var(--surface-secondary)] transition-colors rounded-r-xl">
         <div className="flex items-center gap-4 min-w-0 flex-1">
           {/* Icon */}
           <div
@@ -62,12 +62,12 @@ function TrackingCard({
 
           {/* Info */}
           <div className="min-w-0 flex-1">
-            <h3 className="text-[14px] font-semibold text-slate-900 truncate tracking-tight">
+            <h3 className="text-[14px] font-semibold text-[var(--text-primary)] truncate tracking-tight">
               {provider.display_name}
             </h3>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-slate-500 font-medium">{category.label}</span>
-              <span className="text-slate-300">·</span>
+              <span className="text-[11px] text-[var(--text-tertiary)] font-medium">{category.label}</span>
+              <span className="text-[var(--text-muted)]">·</span>
               <span className="text-[11px] font-semibold text-[#1a7a3a]">
                 {provider.plan_count} plan{provider.plan_count !== 1 ? 's' : ''}
               </span>
@@ -79,7 +79,7 @@ function TrackingCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)}
-            className="h-9 px-4 text-[12px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5"
+            className="h-9 px-4 text-[12px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] rounded-lg transition-colors flex items-center gap-1.5"
           >
             Manage
             <ChevronRight className="h-3.5 w-3.5" />
@@ -116,7 +116,7 @@ function SetupCard({
             <ProviderLogo provider={provider.provider} category={provider.category} size={20} fallbackColor={category.accent} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-[13px] font-semibold text-slate-900 truncate">{provider.display_name}</h3>
+            <h3 className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{provider.display_name}</h3>
             <p className="text-[11px] text-amber-600 font-medium mt-0.5">Needs configuration</p>
           </div>
         </div>
@@ -132,7 +132,7 @@ function SetupCard({
           <button
             onClick={onDisable}
             disabled={isToggling}
-            className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            className="h-8 w-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] rounded-lg transition-colors"
           >
             {isToggling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
           </button>
@@ -158,7 +158,7 @@ function AvailableCard({
     <button
       onClick={onEnable}
       disabled={isToggling}
-      className="group w-full p-3.5 rounded-xl border border-[var(--border-medium)] bg-[var(--surface-primary)] hover:border-slate-300 hover:shadow-sm transition-all text-left disabled:opacity-50"
+      className="group w-full p-3.5 rounded-xl border border-[var(--border-medium)] bg-[var(--surface-primary)] hover:border-[var(--border-medium)] hover:shadow-sm transition-all text-left disabled:opacity-50"
     >
       <div className="flex items-center gap-3">
         <div
@@ -166,7 +166,7 @@ function AvailableCard({
           style={{ backgroundColor: `${category.accent}10` }}
         >
           {isToggling ? (
-            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
           ) : (
             <div className="opacity-70 group-hover:opacity-100 transition-opacity">
               <ProviderLogo provider={provider.provider} category={provider.category} size={18} fallbackColor={category.accent} />
@@ -174,12 +174,12 @@ function AvailableCard({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[12px] font-medium text-slate-700 group-hover:text-slate-900 truncate transition-colors">
+          <h3 className="text-[12px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate transition-colors">
             {provider.display_name}
           </h3>
-          <p className="text-[11px] text-slate-400 mt-0.5">{category.label}</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{category.label}</p>
         </div>
-        <Plus className="h-4 w-4 text-slate-300 group-hover:text-[#1a7a3a] transition-colors flex-shrink-0" />
+        <Plus className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[#1a7a3a] transition-colors flex-shrink-0" />
       </div>
     </button>
   )
@@ -297,10 +297,10 @@ export default function SubscriptionIntegrationsPage() {
               <Layers className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                 Subscriptions
               </h1>
-              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
                 Track your SaaS spending across all providers
               </p>
             </div>
@@ -320,16 +320,16 @@ export default function SubscriptionIntegrationsPage() {
             <Layers className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
               Subscriptions
             </h1>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               Track your SaaS spending across all providers
             </p>
           </div>
         </div>
         <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-          <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 text-[12px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+          <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-[var(--text-primary)] text-[12px] font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
             <TrendingUp className="h-4 w-4" />
             View Costs
             <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
@@ -350,10 +350,10 @@ export default function SubscriptionIntegrationsPage() {
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[14px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {!backendConnected ? "Backend not connected" : "API key missing"}
               </h3>
-              <p className="text-[12px] text-slate-600 mt-1">
+              <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                 Complete organization setup to start tracking subscriptions.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
@@ -385,7 +385,7 @@ export default function SubscriptionIntegrationsPage() {
       {trackingProviders.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
               Active Tracking
             </h2>
             <span className="text-[11px] text-[#1a7a3a] font-semibold bg-[#90FCA6]/10 px-2 py-0.5 rounded-full">
@@ -409,7 +409,7 @@ export default function SubscriptionIntegrationsPage() {
       {setupProviders.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
               Needs Configuration
             </h2>
             <span className="text-[11px] text-amber-600 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">
@@ -435,23 +435,23 @@ export default function SubscriptionIntegrationsPage() {
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[11px] sm:text-[12px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[11px] sm:text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
               Available Providers
             </h2>
-            <span className="text-xs sm:text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs sm:text-[11px] text-[var(--text-tertiary)] font-medium bg-[var(--surface-secondary)] px-2 py-0.5 rounded-full">
               {availableProviders.length}
             </span>
           </div>
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
             <input
               type="text"
               placeholder="Search providers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 sm:h-9 w-full sm:w-64 pl-9 pr-4 text-[13px] sm:text-[12px] bg-slate-100 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 placeholder:text-slate-400"
+              className="h-10 sm:h-9 w-full sm:w-64 pl-9 pr-4 text-[13px] sm:text-[12px] bg-[var(--surface-secondary)] border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--border-medium)] placeholder:text-[var(--text-muted)]"
             />
           </div>
         </div>
@@ -471,7 +471,7 @@ export default function SubscriptionIntegrationsPage() {
           <div className="mt-6 text-center">
             <button
               onClick={() => setShowAllAvailable(true)}
-              className="h-10 px-6 text-[12px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors inline-flex items-center gap-2"
+              className="h-10 px-6 text-[12px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] rounded-xl transition-colors inline-flex items-center gap-2"
             >
               Show {filteredAvailable.length - 12} more providers
               <ChevronDown className="h-4 w-4" />
@@ -481,7 +481,7 @@ export default function SubscriptionIntegrationsPage() {
 
         {filteredAvailable.length === 0 && searchQuery && (
           <div className="py-12 text-center">
-            <p className="text-[13px] text-slate-500">No providers match "{searchQuery}"</p>
+            <p className="text-[13px] text-[var(--text-tertiary)]">No providers match "{searchQuery}"</p>
           </div>
         )}
       </section>
@@ -489,12 +489,12 @@ export default function SubscriptionIntegrationsPage() {
       {/* Add Custom */}
       <div className="mt-12 p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-[var(--border-medium)] text-center">
         <div className="h-12 w-12 rounded-xl bg-[var(--surface-primary)] border border-[var(--border-medium)] flex items-center justify-center mx-auto mb-4 shadow-sm">
-          <Plus className="h-5 w-5 text-slate-600" />
+          <Plus className="h-5 w-5 text-[var(--text-secondary)]" />
         </div>
-        <h3 className="text-[14px] font-semibold text-slate-900 mb-1">
+        <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">
           Can't find your provider?
         </h3>
-        <p className="text-[12px] text-slate-500 mb-5 max-w-sm mx-auto">
+        <p className="text-[12px] text-[var(--text-tertiary)] mb-5 max-w-sm mx-auto">
           Add custom subscriptions to track any SaaS tool not in our catalog.
         </p>
         <Link href={`/${orgSlug}/integrations/subscriptions/custom/add`}>
@@ -512,24 +512,24 @@ export default function SubscriptionIntegrationsPage() {
             <BookOpen className="h-5 w-5 text-blue-600" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[14px] font-semibold text-slate-900 mb-3">
+            <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-3">
               How Subscription Tracking Works
             </h3>
-            <div className="space-y-3 text-[12px] text-slate-600">
+            <div className="space-y-3 text-[12px] text-[var(--text-secondary)]">
               <div className="flex items-start gap-2">
-                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">1</span>
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[var(--surface-secondary)] text-[11px] font-semibold text-[var(--text-secondary)] flex-shrink-0 mt-0.5">1</span>
                 <p><strong>Enable a Provider:</strong> Click on any provider from the "Available Providers" section to enable tracking. For example, enable "Slack" to start tracking your Slack subscription.</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">2</span>
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[var(--surface-secondary)] text-[11px] font-semibold text-[var(--text-secondary)] flex-shrink-0 mt-0.5">2</span>
                 <p><strong>Add Subscription Plans:</strong> After enabling, click "Add Plans" to configure your subscription details - plan type (Pro, Team, Enterprise), number of seats, billing cycle (monthly/annual), and pricing.</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">3</span>
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[var(--surface-secondary)] text-[11px] font-semibold text-[var(--text-secondary)] flex-shrink-0 mt-0.5">3</span>
                 <p><strong>Assign to Hierarchy:</strong> Optionally assign subscriptions to departments, projects, or teams for detailed cost allocation and chargeback reporting.</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">4</span>
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[var(--surface-secondary)] text-[11px] font-semibold text-[var(--text-secondary)] flex-shrink-0 mt-0.5">4</span>
                 <p><strong>Track Costs:</strong> View aggregated costs in the <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`} className="text-[#007AFF] font-medium hover:underline">Subscription Costs Dashboard</Link>. Costs are calculated daily based on your plan configurations.</p>
               </div>
               <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">

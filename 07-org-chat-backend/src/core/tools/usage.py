@@ -61,8 +61,8 @@ def genai_usage(
             BillingCurrency AS currency
         FROM `{dataset}.cost_data_standard_1_3`
         WHERE x_source_system = 'genai'
-          AND ChargePeriodStart >= TIMESTAMP(@start_date)
-          AND ChargePeriodEnd <= TIMESTAMP(@end_date)
+          AND ChargePeriodStart >= @start_date
+          AND ChargePeriodEnd <= @end_date
     """
     params = [
         bigquery.ScalarQueryParameter("start_date", "STRING", start_date),
@@ -162,10 +162,11 @@ def top_consumers(
           AND {dim_col} IS NOT NULL
         GROUP BY dimension, currency
         ORDER BY total_cost DESC
-        LIMIT {limit}
+        LIMIT @limit
     """
+    params = [bigquery.ScalarQueryParameter("limit", "INT64", limit)]
 
-    return safe_query(org_slug, query)
+    return safe_query(org_slug, query, params)
 
 
 def pipeline_runs(
@@ -200,6 +201,7 @@ def pipeline_runs(
         query += " AND status = @status"
         params.append(bigquery.ScalarQueryParameter("status", "STRING", status))
 
-    query += f" ORDER BY start_time DESC LIMIT {limit}"
+    query += " ORDER BY start_time DESC LIMIT @limit"
+    params.append(bigquery.ScalarQueryParameter("limit", "INT64", limit))
 
     return safe_query(org_slug, query, params)

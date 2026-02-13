@@ -149,11 +149,34 @@ class BudgetReadService:
                 "category": [],
             })
 
+    def _apply_period_filters(
+        self,
+        query: str,
+        params: list,
+        period_type: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
+    ) -> str:
+        """Apply period filter parameters to a budget query."""
+        if period_type:
+            query += " AND period_type = @filter_period_type"
+            params.append(bigquery.ScalarQueryParameter("filter_period_type", "STRING", period_type))
+        if period_start:
+            query += " AND period_start >= @filter_period_start"
+            params.append(bigquery.ScalarQueryParameter("filter_period_start", "DATE", period_start))
+        if period_end:
+            query += " AND period_end <= @filter_period_end"
+            params.append(bigquery.ScalarQueryParameter("filter_period_end", "DATE", period_end))
+        return query
+
     async def get_budget_summary(
         self,
         org_slug: str,
         category: Optional[str] = None,
         hierarchy_entity_id: Optional[str] = None,
+        period_type: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
     ) -> BudgetSummaryResponse:
         """Get budget vs actual variance summary."""
         # Fetch active budgets
@@ -171,6 +194,8 @@ class BudgetReadService:
         if hierarchy_entity_id:
             query += " AND hierarchy_entity_id = @hierarchy_entity_id"
             params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_entity_id))
+
+        query = self._apply_period_filters(query, params, period_type, period_start, period_end)
 
         query += " ORDER BY created_at DESC"
         job_config = bigquery.QueryJobConfig(query_parameters=params)
@@ -282,6 +307,10 @@ class BudgetReadService:
         self,
         org_slug: str,
         category: Optional[str] = None,
+        root_entity_id: Optional[str] = None,
+        period_type: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
     ) -> AllocationTreeResponse:
         """Get budget allocation tree with actuals."""
         # Fetch budgets
@@ -294,6 +323,10 @@ class BudgetReadService:
         if category:
             query += " AND category = @category"
             params.append(bigquery.ScalarQueryParameter("category", "STRING", category))
+        if root_entity_id:
+            query += " AND (hierarchy_entity_id = @root_entity_id OR hierarchy_path LIKE CONCAT('%/', @root_entity_id, '/%') OR hierarchy_path LIKE CONCAT('%/', @root_entity_id))"
+            params.append(bigquery.ScalarQueryParameter("root_entity_id", "STRING", root_entity_id))
+        query = self._apply_period_filters(query, params, period_type, period_start, period_end)
         query += " ORDER BY hierarchy_level_code, hierarchy_entity_name"
         job_config = bigquery.QueryJobConfig(query_parameters=params)
 
@@ -390,8 +423,22 @@ class BudgetReadService:
     async def get_category_breakdown(
         self,
         org_slug: str,
+        hierarchy_entity_id: Optional[str] = None,
+        period_type: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
     ) -> CategoryBreakdownResponse:
         """Get budget breakdown by cost category."""
+        # Build WHERE clause for shared use
+        where_clause = "WHERE org_slug = @org_slug AND is_active = TRUE"
+        params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
+
+        if hierarchy_entity_id:
+            where_clause += " AND hierarchy_entity_id = @hierarchy_entity_id"
+            params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_entity_id))
+
+        where_clause = self._apply_period_filters(where_clause, params, period_type, period_start, period_end)
+
         # Fetch all active budgets grouped by category
         query = f"""
             SELECT
@@ -400,11 +447,10 @@ class BudgetReadService:
                 COUNT(*) as budget_count,
                 MIN(currency) as currency
             FROM `{self.budgets_table}`
-            WHERE org_slug = @org_slug AND is_active = TRUE
+            {where_clause}
             GROUP BY category
             ORDER BY category
         """
-        params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         results = list(self.client.query(query, job_config=job_config).result())
 
@@ -415,9 +461,10 @@ class BudgetReadService:
         range_query = f"""
             SELECT MIN(period_start) as min_start, MAX(period_end) as max_end
             FROM `{self.budgets_table}`
-            WHERE org_slug = @org_slug AND is_active = TRUE
+            {where_clause}
         """
-        range_result = list(self.client.query(range_query, job_config=job_config).result())
+        range_config = bigquery.QueryJobConfig(query_parameters=params)
+        range_result = list(self.client.query(range_query, job_config=range_config).result())
         min_start = str(range_result[0]["min_start"])
         max_end = str(range_result[0]["max_end"])
 
@@ -458,6 +505,10 @@ class BudgetReadService:
         self,
         org_slug: str,
         category: Optional[str] = None,
+        hierarchy_entity_id: Optional[str] = None,
+        period_type: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
     ) -> ProviderBreakdownResponse:
         """Get budget breakdown by provider."""
         # Fetch budgets with provider filter
@@ -470,6 +521,10 @@ class BudgetReadService:
         if category:
             query += " AND category = @category"
             params.append(bigquery.ScalarQueryParameter("category", "STRING", category))
+        if hierarchy_entity_id:
+            query += " AND hierarchy_entity_id = @hierarchy_entity_id"
+            params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_entity_id))
+        query = self._apply_period_filters(query, params, period_type, period_start, period_end)
         query += " ORDER BY provider"
         job_config = bigquery.QueryJobConfig(query_parameters=params)
         budgets = list(self.client.query(query, job_config=job_config).result())

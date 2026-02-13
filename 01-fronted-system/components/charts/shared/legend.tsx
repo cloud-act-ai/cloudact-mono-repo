@@ -180,12 +180,12 @@ function LegendItemComponent({
           !interactive && "cursor-default",
           // Active/inactive states
           isActive && [
-            "bg-white/80 border-slate-200/80",
-            "hover:bg-white hover:border-slate-300",
+            "bg-white/80 border-[var(--border-subtle)]",
+            "hover:bg-white hover:border-[var(--border-medium)]",
             "hover:shadow-sm",
           ],
           !isActive && [
-            "bg-slate-50 border-slate-100",
+            "bg-[var(--surface-secondary)] border-[var(--border-subtle)]",
             "opacity-50 hover:opacity-70",
           ],
         )}
@@ -215,7 +215,7 @@ function LegendItemComponent({
         {/* Label */}
         <span className={cn(
           "transition-colors duration-150",
-          isActive ? "text-slate-700" : "text-slate-400",
+          isActive ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]",
         )}>
           {item.name}
         </span>
@@ -226,8 +226,8 @@ function LegendItemComponent({
             "font-semibold tabular-nums ml-0.5",
             "px-1.5 py-0.5 rounded-md",
             isActive
-              ? "text-slate-900 bg-slate-100/60"
-              : "text-slate-400 bg-slate-50",
+              ? "text-[var(--text-primary)] bg-[var(--surface-secondary)]"
+              : "text-[var(--text-muted)] bg-[var(--surface-secondary)]",
           )}>
             {formattedValue}
           </span>
@@ -252,13 +252,13 @@ function LegendItemComponent({
           !interactive && "cursor-default",
           // Active/inactive states with premium styling
           isActive && [
-            "bg-white border-slate-200/60",
+            "bg-white border-[var(--border-subtle)]",
             "shadow-sm",
             "hover:shadow-md hover:-translate-y-0.5",
-            "hover:border-slate-300",
+            "hover:border-[var(--border-medium)]",
           ],
           !isActive && [
-            "bg-slate-50/50 border-slate-100",
+            "bg-[var(--surface-secondary)] border-[var(--border-subtle)]",
             "opacity-50 hover:opacity-70",
           ],
         )}
@@ -294,7 +294,7 @@ function LegendItemComponent({
         <div className="flex flex-col items-start gap-0.5">
           <span className={cn(
             "font-medium transition-colors duration-150",
-            isActive ? "text-slate-800" : "text-slate-400",
+            isActive ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]",
           )}>
             {item.name}
           </span>
@@ -303,7 +303,7 @@ function LegendItemComponent({
           {showValue && formattedValue !== undefined && (
             <span className={cn(
               "font-bold tabular-nums text-base",
-              isActive ? "text-slate-900" : "text-slate-400",
+              isActive ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]",
             )}>
               {formattedValue}
             </span>
@@ -323,7 +323,7 @@ function LegendItemComponent({
         "transition-all duration-200",
         // Interactive states
         interactive && "cursor-pointer",
-        interactive && isActive && "hover:bg-slate-50 hover:px-2 hover:-mx-2 hover:rounded-md",
+        interactive && isActive && "hover:bg-[var(--surface-secondary)] hover:px-2 hover:-mx-2 hover:rounded-md",
         // Active/inactive states
         !isActive && "opacity-40 hover:opacity-60",
       )}
@@ -354,7 +354,7 @@ function LegendItemComponent({
       {/* Label */}
       <span className={cn(
         "transition-colors duration-150",
-        isActive ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400",
+        isActive ? "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]" : "text-[var(--text-muted)]",
       )}>
         {item.name}
       </span>
@@ -364,7 +364,7 @@ function LegendItemComponent({
         <span className={cn(
           "font-medium tabular-nums",
           "transition-colors duration-150",
-          isActive ? "text-slate-900" : "text-slate-400",
+          isActive ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]",
         )}>
           {formattedValue}
         </span>
@@ -397,7 +397,7 @@ export function CompactLegend({ items, className }: CompactLegendProps) {
               boxShadow: `0 0 6px ${item.color}30`,
             }}
           />
-          <span className="text-slate-500 group-hover:text-slate-700 transition-colors">
+          <span className="text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] transition-colors">
             {item.name}
           </span>
         </div>

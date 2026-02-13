@@ -176,11 +176,11 @@ export function CostTrendChart({
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-[14px] sm:text-[16px] font-bold text-slate-900">
+        <CardTitle className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)]">
           {title}
         </CardTitle>
         {subtitle && (
-          <p className="text-xs sm:text-sm text-slate-500">{subtitle}</p>
+          <p className="text-xs sm:text-sm text-[var(--text-tertiary)]">{subtitle}</p>
         )}
       </CardHeader>
       <CardContent className="pt-0">

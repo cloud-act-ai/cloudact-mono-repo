@@ -199,12 +199,12 @@ function CostBreakdownChartInner({
         <div className="flex items-center justify-between">
           <CardTitle
             id={`${chartId}-title`}
-            className="text-[14px] sm:text-[16px] font-bold text-slate-900"
+            className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)]"
           >
             {title}
           </CardTitle>
           <span
-            className="text-xs sm:text-sm font-medium text-slate-900 tabular-nums"
+            className="text-xs sm:text-sm font-medium text-[var(--text-primary)] tabular-nums"
             aria-label={`Total: ${formatValue(total)}`}
           >
             {compact ? formatValueCompact(total) : formatValue(total)}
@@ -223,19 +223,19 @@ function CostBreakdownChartInner({
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="animate-pulse">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="h-2.5 sm:h-3 w-20 sm:w-24 bg-slate-200 rounded" />
-                  <div className="h-2.5 sm:h-3 w-12 sm:w-16 bg-slate-200 rounded" />
+                  <div className="h-2.5 sm:h-3 w-20 sm:w-24 bg-[var(--surface-hover)] rounded" />
+                  <div className="h-2.5 sm:h-3 w-12 sm:w-16 bg-[var(--surface-hover)] rounded" />
                 </div>
-                <div className="h-1.5 sm:h-2 bg-slate-100 rounded-full">
+                <div className="h-1.5 sm:h-2 bg-[var(--surface-secondary)] rounded-full">
                   <div
-                    className="h-full bg-slate-200 rounded-full"
+                    className="h-full bg-[var(--surface-hover)] rounded-full"
                     style={{ width: `${60 - i * 20}%` }}
                   />
                 </div>
               </div>
             ))
           ) : itemsWithPercentages.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-500">
+            <div className="py-8 text-center text-sm text-[var(--text-tertiary)]">
               {emptyMessage || "No data available"}
             </div>
           ) : (
@@ -255,11 +255,11 @@ function CostBreakdownChartInner({
                       className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-xs sm:text-sm text-slate-700 group-hover:text-slate-900 truncate">
+                    <span className="text-xs sm:text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate">
                       {item.name}
                     </span>
                     {item.count !== undefined && (
-                      <span className="hidden sm:inline text-xs text-slate-400">
+                      <span className="hidden sm:inline text-xs text-[var(--text-muted)]">
                         {/* SING-001 FIX: Use proper pluralization instead of fragile slice() */}
                         {item.count} {item.count === 1
                           ? (countLabel.endsWith("s") ? countLabel.slice(0, -1) : countLabel)
@@ -268,17 +268,17 @@ function CostBreakdownChartInner({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    <span className="text-xs sm:text-sm font-medium text-slate-900 tabular-nums">
+                    <span className="text-xs sm:text-sm font-medium text-[var(--text-primary)] tabular-nums">
                       {compact ? formatValueCompact(item.value) : formatValue(item.value)}
                     </span>
-                    <span className="text-[10px] sm:text-xs text-slate-400 tabular-nums w-8 sm:w-10 text-right">
+                    <span className="text-[10px] sm:text-xs text-[var(--text-muted)] tabular-nums w-8 sm:w-10 text-right">
                       {item.percentage?.toFixed(0)}%
                     </span>
                   </div>
                 </div>
 
                 {/* Progress bar - slightly smaller on mobile */}
-                <div className="h-1.5 sm:h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 sm:h-2 bg-[var(--surface-secondary)] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out"
                     style={{

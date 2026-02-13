@@ -253,6 +253,18 @@ curl -s -X POST "http://localhost:8000/api/v1/budgets/$ORG" \
 
 **Expected:** Second request returns 409 Conflict. "Budget already exists for this entity/category/period."
 
+### T-BP-026: Org-Level Budget (hierarchy_level_code = "org")
+
+**Covers:** FR-BP-004, FR-BP-013
+
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"hierarchy_entity_id":"ORG","hierarchy_level_code":"org","category":"total","budget_type":"monetary","budget_amount":100000,"currency":"USD","period_type":"quarterly","period_start":"2026-01-01","period_end":"2026-03-31"}'
+```
+
+**Expected:** 201 Created. `hierarchy_level_code` = `org`. Budget serves as the top-level org-wide budget.
+
 ---
 
 ## 4. Variance Calculation Tests
@@ -300,6 +312,29 @@ curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary?category=cloud" -H "X
 
 Create a `total` category budget for DEPT-ENG. Verify summary returns actual_amount = sum of cloud + genai + subscription costs.
 
+### T-BP-034: Period End Filter on Summary
+
+**Covers:** FR-BP-008
+
+```bash
+# Summary with both period_start and period_end
+curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary?period_type=quarterly&period_start=2026-01-01&period_end=2026-03-31" \
+  -H "X-API-Key: $KEY"
+```
+
+**Expected:** 200 OK. Only budgets with `period_start >= 2026-01-01` AND `period_end <= 2026-03-31` returned.
+
+### T-BP-035: Period End Filter on Category Breakdown
+
+**Covers:** FR-BP-010
+
+```bash
+curl -s "http://localhost:8000/api/v1/budgets/$ORG/by-category?hierarchy_entity_id=DEPT-ENG&period_start=2026-01-01&period_end=2026-03-31" \
+  -H "X-API-Key: $KEY"
+```
+
+**Expected:** 200 OK. Category breakdown filtered to Q1 2026 budgets only.
+
 ---
 
 ## 5. Allocation Tree Tests
@@ -336,6 +371,18 @@ Create parent budget $10,000. Create children summing to $12,000.
 Create parent budget $10,000. Create one child at $6,000.
 
 **Expected:** `unallocated` = 4000. `allocated_to_children` = 6000.
+
+### T-BP-043: Root Entity ID Filter on Allocation Tree
+
+**Covers:** FR-BP-009
+
+```bash
+# Get subtree rooted at DEPT-ENG
+curl -s "http://localhost:8000/api/v1/budgets/$ORG/allocation-tree?root_entity_id=DEPT-ENG&category=cloud" \
+  -H "X-API-Key: $KEY"
+```
+
+**Expected:** 200 OK. Tree root is DEPT-ENG (not ORG). Only descendants of DEPT-ENG shown. Other departments excluded.
 
 ---
 

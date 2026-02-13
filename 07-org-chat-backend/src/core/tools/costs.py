@@ -7,6 +7,7 @@ Agents never call BigQuery directly — they call these tools.
 import time
 import hashlib
 import logging
+import calendar
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Simple TTL cache for cost query results
 _query_result_cache = {}  # type: Dict[str, Tuple[Dict[str, Any], float]]
 _RESULT_CACHE_TTL = 180  # 3 minutes — cost data doesn't change that fast
+_RESULT_CACHE_MAX_SIZE = 500  # Prevent unbounded memory growth
 
 
 def _cache_key(org_slug: str, query: str, params: Optional[str] = None) -> str:
@@ -41,6 +43,16 @@ def cached_safe_query(
         return result
     result = safe_query(org_slug, query, params)
     if "error" not in result:
+        # Evict expired entries if cache is too large
+        if len(_query_result_cache) >= _RESULT_CACHE_MAX_SIZE:
+            expired = [k for k, (_, ts) in _query_result_cache.items() if now - ts >= _RESULT_CACHE_TTL]
+            for k in expired:
+                del _query_result_cache[k]
+            # If still too large, drop oldest half
+            if len(_query_result_cache) >= _RESULT_CACHE_MAX_SIZE:
+                sorted_keys = sorted(_query_result_cache, key=lambda k: _query_result_cache[k][1])
+                for k in sorted_keys[:len(sorted_keys) // 2]:
+                    del _query_result_cache[k]
         _query_result_cache[key] = (result, now)
     return result
 
@@ -119,7 +131,8 @@ def query_costs(
         query += " AND x_source_system = @cost_type"
         params.append(bigquery.ScalarQueryParameter("cost_type", "STRING", cost_type.lower()))
 
-    query += f" GROUP BY dimension, currency ORDER BY total_billed DESC LIMIT {limit}"
+    query += " GROUP BY dimension, currency ORDER BY total_billed DESC LIMIT @limit"
+    params.append(bigquery.ScalarQueryParameter("limit", "INT64", limit))
 
     return cached_safe_query(org_slug, query, params)
 
@@ -145,10 +158,11 @@ def compare_periods(
         current_start = today.replace(day=1)
         if today.month == 1:
             prev_start = date(today.year - 1, 12, 1)
-            prev_end = date(today.year - 1, 12, today.day)
+            prev_end = date(today.year - 1, 12, min(today.day, 31))
         else:
             prev_start = date(today.year, today.month - 1, 1)
-            prev_end = date(today.year, today.month - 1, min(today.day, 28))
+            prev_max_day = calendar.monthrange(today.year, today.month - 1)[1]
+            prev_end = date(today.year, today.month - 1, min(today.day, prev_max_day))
         current_end = today
     elif period_type == "MoM":
         current_start = today.replace(day=1)
@@ -163,7 +177,9 @@ def compare_periods(
         current_start = date(today.year, 1, 1)
         current_end = today
         prev_start = date(today.year - 1, 1, 1)
-        prev_end = date(today.year - 1, today.month, today.day)
+        # Handle Feb 29 in leap years — clamp to last day of prev year's month
+        prev_max_day = calendar.monthrange(today.year - 1, today.month)[1]
+        prev_end = date(today.year - 1, today.month, min(today.day, prev_max_day))
     else:  # QoQ
         current_quarter_month = ((today.month - 1) // 3) * 3 + 1
         current_start = date(today.year, current_quarter_month, 1)
@@ -210,6 +226,10 @@ def compare_periods(
     """
 
     result = safe_query(org_slug, query, params)
+
+    # Propagate errors from safe_query
+    if "error" in result:
+        return result
 
     current = next((r for r in result["rows"] if r["period"] == "current"), {})
     previous = next((r for r in result["rows"] if r["period"] == "previous"), {})
@@ -310,7 +330,7 @@ def cost_forecast(
                 DATE(ChargePeriodStart) AS cost_date,
                 ROUND(SUM(BilledCost), 2) AS daily_total
             FROM `{dataset}.cost_data_standard_1_3`
-            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {lookback} DAY)
+            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @lookback DAY)
             GROUP BY cost_date
         )
         SELECT
@@ -320,8 +340,9 @@ def cost_forecast(
             COUNT(*) AS days_with_data
         FROM daily_costs
     """
+    params = [bigquery.ScalarQueryParameter("lookback", "INT64", lookback)]
 
-    result = cached_safe_query(org_slug, query)
+    result = cached_safe_query(org_slug, query, params)
     if result["rows"]:
         stats = result["rows"][0]
         avg = stats.get("avg_daily", 0) or 0
@@ -353,20 +374,22 @@ def top_cost_drivers(
     days = max(1, min(days, 90))
     limit = max(1, min(limit, 20))
 
+    days_double = days * 2
+
     query = f"""
         WITH current_period AS (
             SELECT ServiceName, ServiceProviderName,
                    ROUND(SUM(BilledCost), 2) AS current_cost
             FROM `{dataset}.cost_data_standard_1_3`
-            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
             GROUP BY ServiceName, ServiceProviderName
         ),
         previous_period AS (
             SELECT ServiceName, ServiceProviderName,
                    ROUND(SUM(BilledCost), 2) AS previous_cost
             FROM `{dataset}.cost_data_standard_1_3`
-            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days * 2} DAY)
-              AND ChargePeriodStart < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+            WHERE ChargePeriodStart >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days_double DAY)
+              AND ChargePeriodStart < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
             GROUP BY ServiceName, ServiceProviderName
         )
         SELECT
@@ -382,7 +405,12 @@ def top_cost_drivers(
         LEFT JOIN previous_period p
             ON c.ServiceName = p.ServiceName AND c.ServiceProviderName = p.ServiceProviderName
         ORDER BY c.current_cost DESC
-        LIMIT {limit}
+        LIMIT @limit
     """
+    params = [
+        bigquery.ScalarQueryParameter("days", "INT64", days),
+        bigquery.ScalarQueryParameter("days_double", "INT64", days_double),
+        bigquery.ScalarQueryParameter("limit", "INT64", limit),
+    ]
 
-    return cached_safe_query(org_slug, query)
+    return cached_safe_query(org_slug, query, params)

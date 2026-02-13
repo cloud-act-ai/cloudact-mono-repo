@@ -27,6 +27,7 @@ Validates hierarchy CRUD operations, tree structure, N-level configuration, cost
 | 10 | Move entity to new parent | API | POST `/entities/{id}/move` updates parent and path |
 | 11 | List all active entities | API | GET `/hierarchy/{org}` returns only entities with `end_date IS NULL` |
 | 12 | Duplicate entity_id rejected | API | POST with existing entity_id returns 409 Conflict |
+| 12a | API response includes end_date | API | GET entity returns `end_date: null` for active, date string for soft-deleted |
 
 ### Tree Structure (5 tests)
 

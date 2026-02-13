@@ -128,13 +128,19 @@ async def get_budget_summary(
     org_slug: str = Path(..., description="Organization slug"),
     category: Optional[str] = Query(None, description="Filter by category"),
     hierarchy_entity_id: Optional[str] = Query(None, description="Filter by hierarchy entity"),
+    period_type: Optional[str] = Query(None, description="Filter by period type"),
+    period_start: Optional[str] = Query(None, description="Filter by period start (YYYY-MM-DD)"),
+    period_end: Optional[str] = Query(None, description="Filter by period end (YYYY-MM-DD)"),
     auth: AuthResult = Depends(get_org_or_admin_auth),
 ):
     """Get budget vs actual variance summary."""
     check_auth_result_access(auth, org_slug)
     try:
         service = get_read_service()
-        return await service.get_budget_summary(org_slug, category, hierarchy_entity_id)
+        return await service.get_budget_summary(
+            org_slug, category, hierarchy_entity_id,
+            period_type=period_type, period_start=period_start, period_end=period_end,
+        )
     except Exception as e:
         logger.error(f"Failed to get budget summary for {org_slug}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get budget summary")
@@ -149,13 +155,21 @@ async def get_budget_summary(
 async def get_allocation_tree(
     org_slug: str = Path(..., description="Organization slug"),
     category: Optional[str] = Query(None, description="Filter by category"),
+    root_entity_id: Optional[str] = Query(None, description="Root entity ID for subtree view"),
+    period_type: Optional[str] = Query(None, description="Filter by period type"),
+    period_start: Optional[str] = Query(None, description="Filter by period start (YYYY-MM-DD)"),
+    period_end: Optional[str] = Query(None, description="Filter by period end (YYYY-MM-DD)"),
     auth: AuthResult = Depends(get_org_or_admin_auth),
 ):
     """Get budget allocation tree."""
     check_auth_result_access(auth, org_slug)
     try:
         service = get_read_service()
-        return await service.get_allocation_tree(org_slug, category)
+        return await service.get_allocation_tree(
+            org_slug, category,
+            root_entity_id=root_entity_id, period_type=period_type,
+            period_start=period_start, period_end=period_end,
+        )
     except Exception as e:
         logger.error(f"Failed to get allocation tree for {org_slug}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get allocation tree")
@@ -169,13 +183,21 @@ async def get_allocation_tree(
 )
 async def get_category_breakdown(
     org_slug: str = Path(..., description="Organization slug"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by hierarchy entity"),
+    period_type: Optional[str] = Query(None, description="Filter by period type"),
+    period_start: Optional[str] = Query(None, description="Filter by period start (YYYY-MM-DD)"),
+    period_end: Optional[str] = Query(None, description="Filter by period end (YYYY-MM-DD)"),
     auth: AuthResult = Depends(get_org_or_admin_auth),
 ):
     """Get category breakdown."""
     check_auth_result_access(auth, org_slug)
     try:
         service = get_read_service()
-        return await service.get_category_breakdown(org_slug)
+        return await service.get_category_breakdown(
+            org_slug,
+            hierarchy_entity_id=hierarchy_entity_id, period_type=period_type,
+            period_start=period_start, period_end=period_end,
+        )
     except Exception as e:
         logger.error(f"Failed to get category breakdown for {org_slug}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get category breakdown")
@@ -190,13 +212,21 @@ async def get_category_breakdown(
 async def get_provider_breakdown(
     org_slug: str = Path(..., description="Organization slug"),
     category: Optional[str] = Query(None, description="Filter by category"),
+    hierarchy_entity_id: Optional[str] = Query(None, description="Filter by hierarchy entity"),
+    period_type: Optional[str] = Query(None, description="Filter by period type"),
+    period_start: Optional[str] = Query(None, description="Filter by period start (YYYY-MM-DD)"),
+    period_end: Optional[str] = Query(None, description="Filter by period end (YYYY-MM-DD)"),
     auth: AuthResult = Depends(get_org_or_admin_auth),
 ):
     """Get provider breakdown."""
     check_auth_result_access(auth, org_slug)
     try:
         service = get_read_service()
-        return await service.get_provider_breakdown(org_slug, category)
+        return await service.get_provider_breakdown(
+            org_slug, category,
+            hierarchy_entity_id=hierarchy_entity_id, period_type=period_type,
+            period_start=period_start, period_end=period_end,
+        )
     except Exception as e:
         logger.error(f"Failed to get provider breakdown for {org_slug}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get provider breakdown")
@@ -250,7 +280,10 @@ async def create_budget(
         service = get_crud_service()
         return await service.create_budget(org_slug, request, created_by)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_msg = str(e)
+        if "already exists" in error_msg.lower():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_msg)
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
         logger.error(f"Failed to create budget: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to create budget")

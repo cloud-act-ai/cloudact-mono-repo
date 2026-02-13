@@ -217,7 +217,7 @@ function CostRingChartInner({
             {title}
           </CardTitle>
           {showChevron && (
-            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--text-muted)]" />
           )}
         </div>
       </CardHeader>
@@ -255,11 +255,11 @@ function CostRingChartInner({
 
             {/* Center content - responsive text sizes */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-base sm:text-lg font-bold text-slate-900 truncate max-w-[calc(100%-16px)]">
+              <span className="text-base sm:text-lg font-bold text-[var(--text-primary)] truncate max-w-[calc(100%-16px)]">
                 {displayCenterValue}
               </span>
               {centerLabel && (
-                <span className="text-[10px] sm:text-xs text-slate-500">{centerLabel}</span>
+                <span className="text-[10px] sm:text-xs text-[var(--text-tertiary)]">{centerLabel}</span>
               )}
             </div>
           </div>
@@ -280,7 +280,7 @@ function CostRingChartInner({
                     key={segment.key}
                     className={cn(
                       "flex items-center justify-between text-xs sm:text-sm",
-                      isClickable && "cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#90FCA6]"
+                      isClickable && "cursor-pointer hover:bg-[var(--surface-secondary)] -mx-2 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#90FCA6]"
                     )}
                     onClick={isClickable ? (e) => {
                       e.stopPropagation()
@@ -304,13 +304,13 @@ function CostRingChartInner({
                         style={{ backgroundColor: segment.color }}
                       />
                       {/* SEC-001 FIX: Sanitize segment name for defense-in-depth */}
-                      <span className="text-slate-600 truncate">{sanitizeDisplayText(segment.name)}</span>
+                      <span className="text-[var(--text-secondary)] truncate">{sanitizeDisplayText(segment.name)}</span>
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                      <span className="font-medium text-slate-900 tabular-nums">
+                      <span className="font-medium text-[var(--text-primary)] tabular-nums">
                         {formatValueCompact(segment.value)}
                       </span>
-                      <span className="text-slate-400 text-[10px] sm:text-xs tabular-nums w-10 sm:w-12 text-right">
+                      <span className="text-[var(--text-muted)] text-[10px] sm:text-xs tabular-nums w-10 sm:w-12 text-right">
                         {percent}%
                       </span>
                     </div>
@@ -323,7 +323,7 @@ function CostRingChartInner({
 
         {/* Insight text - responsive */}
         {insight && (
-          <p className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-500 text-center">
+          <p className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-[var(--text-tertiary)] text-center">
             {insight}
           </p>
         )}

@@ -170,10 +170,10 @@ export default function BillingPage() {
               <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                 Billing & Subscription
               </h1>
-              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
                 Manage your subscription plan and payment methods
               </p>
             </div>
@@ -193,10 +193,10 @@ export default function BillingPage() {
             <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
               Billing & Subscription
             </h1>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               Manage your subscription plan and payment methods
             </p>
           </div>
@@ -204,7 +204,7 @@ export default function BillingPage() {
       </div>
 
       {/* Stats Row - Using StatRow component like pipelines */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] p-3 sm:p-5 shadow-sm">
         <StatRow stats={stats} size="md" />
       </div>
 
@@ -232,7 +232,7 @@ export default function BillingPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-[16px] font-bold text-slate-900">{planInfo.name} Plan</h3>
+                    <h3 className="text-[16px] font-bold text-[var(--text-primary)]">{planInfo.name} Plan</h3>
                     <Badge
                       className="text-[11px] font-semibold px-3 py-1 rounded-lg border-0"
                       style={{ backgroundColor: `${planInfo.color}15`, color: currentPlan === "professional" ? "#1a7a3a" : planInfo.color }}
@@ -242,7 +242,7 @@ export default function BillingPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {planInfo.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 text-[12px] text-slate-600">
+                      <div key={idx} className="flex items-center gap-1.5 text-[12px] text-[var(--text-secondary)]">
                         <Check className="h-3.5 w-3.5 text-[#1a7a3a]" />
                         <span>{feature}</span>
                       </div>
@@ -253,7 +253,7 @@ export default function BillingPage() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href={`/${orgSlug}/settings/billing/plans`}>
-                  <button className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 w-full sm:w-auto justify-center">
+                  <button className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[var(--text-primary)] rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 w-full sm:w-auto justify-center">
                     <TrendingUp className="h-4 w-4" />
                     Upgrade Plan
                   </button>
@@ -270,28 +270,28 @@ export default function BillingPage() {
 
         <PremiumCard hover={false}>
           <div className="group relative">
-            <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-slate-300 opacity-60 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[var(--border-medium)] opacity-60 group-hover:opacity-100 transition-opacity" />
             <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0 flex-1">
-                <div className="h-11 w-11 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <CreditCard className="h-5 w-5 text-slate-500" />
+                <div className="h-11 w-11 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center flex-shrink-0">
+                  <CreditCard className="h-5 w-5 text-[var(--text-tertiary)]" />
                 </div>
                 <div className="min-w-0 flex-1">
                   {billingInfo?.paymentMethod ? (
                     <>
-                      <h3 className="text-[14px] font-semibold text-slate-900 tracking-tight">
+                      <h3 className="text-[14px] font-semibold text-[var(--text-primary)] tracking-tight">
                         {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} •••• {billingInfo.paymentMethod.last4}
                       </h3>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
                         Expires {billingInfo.paymentMethod.expMonth.toString().padStart(2, "0")}/{billingInfo.paymentMethod.expYear}
                       </p>
                     </>
                   ) : (
                     <>
-                      <h3 className="text-[14px] font-semibold text-slate-900 tracking-tight">
+                      <h3 className="text-[14px] font-semibold text-[var(--text-primary)] tracking-tight">
                         No payment method on file
                       </h3>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
                         Add a payment method to upgrade your plan
                       </p>
                     </>
@@ -303,7 +303,7 @@ export default function BillingPage() {
               <button
                 onClick={handleOpenBillingPortal}
                 disabled={isRedirectingToPortal || !orgData?.stripe_customer_id}
-                className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-subtle)] hover:bg-[var(--surface-secondary)] hover:shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isRedirectingToPortal ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -323,27 +323,27 @@ export default function BillingPage() {
 
         <PremiumCard hover={false}>
           {billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[var(--border-subtle)]">
               {billingInfo.invoices.map((invoice) => (
                 <div key={invoice.id} className="py-4 px-5 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <Receipt className="h-5 w-5 text-slate-500" />
+                    <div className="h-10 w-10 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center flex-shrink-0">
+                      <Receipt className="h-5 w-5 text-[var(--text-tertiary)]" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-[13px] font-semibold text-slate-900">
+                      <h4 className="text-[13px] font-semibold text-[var(--text-primary)]">
                         Invoice {invoice.number || invoice.id.slice(-8)}
                       </h4>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-[var(--text-tertiary)]">
                         {new Date(invoice.created).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-[13px] font-semibold text-slate-900">
+                    <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                       {invoice.currency} {invoice.amountPaid.toFixed(2)}
                     </span>
-                    <Badge className={`text-[11px] px-2 py-0.5 ${invoice.status === "paid" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"}`}>
+                    <Badge className={`text-[11px] px-2 py-0.5 ${invoice.status === "paid" ? "bg-green-100 text-green-700" : "bg-[var(--surface-secondary)] text-[var(--text-secondary)]"}`}>
                       {invoice.status}
                     </Badge>
                     {invoice.hostedInvoiceUrl && (
@@ -362,11 +362,11 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className="py-8 text-center">
-              <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                <Receipt className="h-7 w-7 text-slate-400" />
+              <div className="h-14 w-14 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center mx-auto mb-4">
+                <Receipt className="h-7 w-7 text-[var(--text-muted)]" />
               </div>
-              <h3 className="text-[16px] font-semibold text-slate-900 mb-1">No invoices yet</h3>
-              <p className="text-[12px] text-slate-500 max-w-xs mx-auto">
+              <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-1">No invoices yet</h3>
+              <p className="text-[12px] text-[var(--text-tertiary)] max-w-xs mx-auto">
                 Your billing history will appear here once you upgrade to a paid plan
               </p>
             </div>
