@@ -1,6 +1,6 @@
 {
-  "version": "v4.4.0",
-  "release": "v4.4.0",
+  "version": "v4.4.1",
+  "release": "v4.4.1",
   "release_timestamp": "2026-02-13T00:00:00Z",
-  "changelog": "Alert bug fixes (multi-tenancy, hierarchy, SQL safety), scheduler cloudact-stage removal, 4 new skills, schema improvements"
+  "changelog": "Fix chat backend CORS_ORIGINS parsing for Cloud Run (v4.4.0 hotfix)"
 }
