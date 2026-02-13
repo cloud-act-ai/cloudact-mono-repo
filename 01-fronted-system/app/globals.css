@@ -107,11 +107,11 @@
   --slate-800: #1e293b;
   --slate-900: #0f172a;
 
-  /* Text Colors - Standardized */
-  --text-primary: #000000;
-  --text-secondary: #3C3C43;
-  --text-tertiary: #8E8E93;
-  --text-muted: #AEAEB2;
+  /* Text Colors - Standardized (Slate palette) */
+  --text-primary: #0f172a;    /* slate-900 */
+  --text-secondary: #334155;  /* slate-700 */
+  --text-tertiary: #64748b;   /* slate-500 */
+  --text-muted: #94a3b8;      /* slate-400 */
 
   /* ========== SPACING SCALE (8px grid) ========== */
   --space-1: 4px;
@@ -294,6 +294,12 @@
   --border: #334155;
   --input: #334155;
   --ring: #90FCA6;
+
+  /* Text Colors - Dark Mode */
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #94a3b8;
+  --text-muted: #64748b;
 
   /* Console Surfaces - Dark Mode */
   --surface-primary: #1c1c1e;
@@ -2558,7 +2564,7 @@ a.disabled {
    ─────────────────────────────────────────────── */
 .console-page-shell {
   min-height: 100vh;
-  background: #ffffff;
+  background: var(--surface-primary);
   padding: 1rem;
 }
 
@@ -2602,7 +2608,7 @@ a.disabled {
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  color: #0f172a;       /* slate-900 */
+  color: var(--text-primary);
 }
 
 @media (max-width: 640px) {
@@ -2617,7 +2623,7 @@ a.disabled {
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 /* Card title: inside cards and panels */
@@ -2625,7 +2631,7 @@ a.disabled {
   font-size: 0.875rem;  /* 14px */
   font-weight: 600;
   line-height: 1.25;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 /* Body text: primary readable content */
@@ -2633,7 +2639,7 @@ a.disabled {
   font-size: 0.875rem;  /* 14px */
   font-weight: 400;
   line-height: 1.5;
-  color: #334155;       /* slate-700 */
+  color: var(--text-secondary);
 }
 
 /* Small text: captions, metadata, timestamps */
@@ -2641,7 +2647,7 @@ a.disabled {
   font-size: 0.75rem;   /* 12px - MINIMUM accessible size */
   font-weight: 400;
   line-height: 1.4;
-  color: #64748b;       /* slate-500 */
+  color: var(--text-tertiary);
 }
 
 /* Metric value: large numbers in cards */
@@ -2649,7 +2655,7 @@ a.disabled {
   font-size: 1.5rem;    /* 24px */
   font-weight: 600;
   line-height: 1;
-  color: #0f172a;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2664,7 +2670,7 @@ a.disabled {
   font-size: 0.75rem;   /* 12px */
   font-weight: 500;
   line-height: 1.4;
-  color: #64748b;
+  color: var(--text-tertiary);
   margin-top: 0.25rem;
 }
 
@@ -2672,7 +2678,7 @@ a.disabled {
 .console-metric-unit {
   font-size: 1rem;      /* 16px */
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 /* Section label: uppercase category labels "QUICK ACTIONS" */
@@ -2681,7 +2687,7 @@ a.disabled {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 /* ── Console Badges ─────────────────────────────

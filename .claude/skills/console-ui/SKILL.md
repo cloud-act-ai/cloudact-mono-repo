@@ -8,7 +8,7 @@ description: |
 
 # Console UI - Dashboard Components & Layouts
 
-Premium enterprise console interface. Apple Health / Fitness+ inspired. White surfaces, subtle depth, bounded content. Light-only theme with mobile responsive support.
+Premium enterprise console interface. Apple Health / Fitness+ inspired. Subtle depth, bounded content. Theme-ready via CSS variables (`--surface-primary`, `--text-primary`, `--border-subtle`). Mobile responsive.
 
 ## Trigger
 
@@ -608,11 +608,46 @@ CHECKLIST:
 
 ---
 
+## Page Layout Compliance
+
+All console pages under `app/[orgSlug]/` must follow the layout standard from `/design`.
+
+| Route | Type | Status | Notes |
+|-------|------|--------|-------|
+| `dashboard` | Standard | Compliant | All theme vars, no bg-white/slate remnants |
+| `cost-dashboards/overview` | Standard | Compliant | Uses console-page-inner |
+| `cost-dashboards/genai-costs` | Standard | Compliant | |
+| `cost-dashboards/cloud-costs` | Standard | Compliant | |
+| `cost-dashboards/subscription-costs` | Standard | Compliant | |
+| `pipelines/*` | Standard | Compliant | Only bg-slate-900 dark button (intentional) |
+| `integrations/*` | Standard | Compliant | All sub-pages (cloud, genai, subscriptions) |
+| `notifications` | Standard | Compliant | All theme vars, zero slate remnants |
+| `chat` | Full-bleed | Compliant | Special: needs viewport height |
+| `settings/ai-chat` | Standard | Compliant | No max-w-2xl, uses console typography |
+| `settings/organization` | Standard | Compliant | All cards/borders use theme vars |
+| `settings/personal` | Standard | Compliant | 26 class replacements applied |
+| `settings/invite` | Standard | Compliant | 35+ class replacements applied |
+| `settings/quota-usage` | Standard | Compliant | 28+ class replacements applied |
+| `settings/hierarchy` | Standard | Compliant | 23+ class replacements applied |
+| `billing` | Standard | Compliant | 60+ replacements applied |
+
+**Sidebar/Nav/Header:** All three (`dashboard-sidebar.tsx`, `mobile-nav.tsx`, `mobile-header.tsx`) fully use CSS variables (dark-mode ready).
+
+**Intentional hardcoded colors (NOT violations):**
+- `bg-slate-900`/`hover:bg-slate-800` — dark/obsidian CTA buttons
+- `from-slate-50`/`from-slate-500` — gradient utilities in dashboard constants
+- `bg-slate-300` — disabled permission dots (invite page)
+- `ring-slate-100` — focus ring on billing plan cards
+- `text-slate-900/XX` — opacity-modified variants (personal page labels)
+- `hover:border-slate-300` — tab hover borders (personal, hierarchy)
+
+---
+
 ## Related Skills
 
 | Skill | Relationship |
 |-------|-------------|
-| `design` | Brand colors, typography, button system (foundation for this skill) |
+| `design` | Brand colors, typography, button system, page layout standard, theme variables |
 | `charts` | Recharts chart library used in dashboards |
 | `frontend-dev` | Next.js code patterns, server actions, Supabase auth |
 | `home-page` | Landing page patterns (different from console) |

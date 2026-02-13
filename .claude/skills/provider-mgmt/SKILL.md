@@ -258,7 +258,52 @@ async def validate_credentials(provider: str, credentials: dict) -> bool:
 "Show provider configuration for OpenAI"
 ```
 
+## Environments
+
+| Environment | Provider Registry | Pipeline Configs | API URL |
+|-------------|------------------|-----------------|---------|
+| local | `configs/system/providers.yml` | `configs/{provider}/` | `http://localhost:8001` |
+| stage | Same files (deployed via Cloud Build) | Same files | Cloud Run URL |
+| prod | Same files (deployed via Cloud Build) | Same files | `https://pipeline.cloudact.ai` |
+
+**Provider configs are environment-agnostic.** The same YAML files are used across all environments. Environment-specific behavior comes from the API service (credentials, dataset suffixes).
+
+## Testing
+
+### Verify Provider Registry
+```bash
+cd 03-data-pipeline-service
+python3 -c "
+import yaml
+with open('configs/system/providers.yml') as f:
+    providers = yaml.safe_load(f)
+    for p in providers.get('providers', []):
+        print(f\"{p['id']}: {p['name']} ({p['type']})\")
+"
+```
+
+### Verify Provider Pipelines Exist
+```bash
+# List all pipeline configs per provider
+ls configs/gcp/cost/
+ls configs/aws/cost/
+ls configs/azure/cost/
+ls configs/oci/cost/
+ls configs/openai/
+ls configs/anthropic/
+ls configs/subscription/costs/
+```
+
+### Provider Sync Test
+```bash
+# Sync procedures (includes all provider-specific procedures)
+curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
+  -H "X-CA-Root-Key: {root_key}" -d '{"force": true}'
+# Expected: All procedures synced to BigQuery
+```
+
 ## Related Skills
 - `integration-setup` - Configure integrations
 - `pipeline-ops` - Run provider pipelines
 - `config-validator` - Validate configs
+- `genai-costs` - GenAI provider cost pipelines

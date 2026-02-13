@@ -311,15 +311,15 @@ export function LogoUpload({
               </p>
               <div className="space-y-1">
                 <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3 w-3 text-[#90FCA6]" />
+                  <CheckCircle2 className="h-3 w-3 text-[var(--cloudact-mint-text)]" />
                   200×200 px square
                 </p>
                 <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3 w-3 text-[#90FCA6]" />
+                  <CheckCircle2 className="h-3 w-3 text-[var(--cloudact-mint-text)]" />
                   PNG with transparency
                 </p>
                 <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3 w-3 text-[#90FCA6]" />
+                  <CheckCircle2 className="h-3 w-3 text-[var(--cloudact-mint-text)]" />
                   Max 1MB file size
                 </p>
               </div>

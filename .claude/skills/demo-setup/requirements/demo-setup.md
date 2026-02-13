@@ -66,6 +66,8 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 | FR-DS-003.9 | **Cloud NDJSON MUST include** `x_cloud_provider` (gcp/aws/azure/oci) |
 | FR-DS-003.10 | Field name is `x_org_slug` (with `x_` prefix), NOT `org_slug` |
 | FR-DS-003.11 | Data generation workflow: `generate-demo-data.py` → `populate_hierarchy_in_data.py` → `load-demo-data-direct.ts` (NEVER skip hierarchy step) |
+| FR-DS-003.12 | **Subscription CSV**: Must use `x_org_slug` header (NOT `org_slug`), exactly 35 columns per row, REQUIRED hierarchy fields populated (`x_hierarchy_entity_id`, `x_hierarchy_entity_name`, `x_hierarchy_path`, `x_hierarchy_path_names`) |
+| FR-DS-003.13 | **Subscription CSV validation**: Use `python3 csv.reader` to verify column count matches header. `x_hierarchy_level_code` must be `department`, `project`, or `team` (NOT `function`) |
 
 ### FR-DS-004: Pipeline Execution
 
@@ -94,7 +96,7 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 | ID | Requirement |
 |----|-------------|
 | FR-DS-006.1 | Query `GET /api/v1/costs/{org}/total?start_date=2025-01-01&end_date=2026-12-31` (full 2-year range) |
-| FR-DS-006.2 | GenAI ~$6.1M (BQ), Cloud ~$13K (BQ), Subscription TBD — exact totals depend on pricing × volume |
+| FR-DS-006.2 | GenAI ~$6.1M (BQ), Cloud ~$13K (BQ), Subscription ~$151K BQ / ~$85K API (15 plans × 730 days = 10,950 records) |
 | FR-DS-006.3 | Cross-validate API vs BigQuery vs Frontend |
 | FR-DS-006.4 | API date range MUST cover full data period (Jan 2025 - Dec 2026) or totals will mismatch BQ |
 

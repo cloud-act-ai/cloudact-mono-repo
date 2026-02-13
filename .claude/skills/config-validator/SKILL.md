@@ -273,6 +273,68 @@ find ../02-api-service/configs -name "*.json" -exec python -c "import json; json
 "Missing required field in config"
 ```
 
+## Environments
+
+| Environment | Config Source | Validation Target |
+|-------------|-------------|-------------------|
+| local | Local filesystem | Local BigQuery (cloudact-testing-1) |
+| stage | Git repo (main branch) | Cloud Run stage services |
+| prod | Git repo (tagged release) | Cloud Run prod services |
+
+**Config locations are the same across all environments.** Validation runs against local files, then configs are deployed via Cloud Build.
+
+## Testing
+
+### Pipeline YAML Validation
+```bash
+# Validate all pipeline configs
+cd 03-data-pipeline-service
+python3 -c "
+import yaml, glob
+for f in glob.glob('configs/**//*.yml', recursive=True):
+    with open(f) as fh:
+        cfg = yaml.safe_load(fh)
+        assert 'steps' in cfg, f'{f}: missing steps'
+        for step in cfg['steps']:
+            assert 'ps_type' in step, f'{f}: step missing ps_type'
+            assert step.get('on_failure', 'stop') in ('stop', 'alert', 'continue'), f'{f}: invalid on_failure'
+    print(f'OK: {f}')
+"
+```
+
+### Schema JSON Validation
+```bash
+cd 02-api-service
+python3 -c "
+import json, glob
+for f in glob.glob('configs/setup/bootstrap/schemas/*.json'):
+    with open(f) as fh:
+        schema = json.load(fh)
+        assert isinstance(schema, list), f'{f}: not an array'
+        for field in schema:
+            assert 'name' in field and 'type' in field, f'{f}: field missing name/type'
+    print(f'OK: {f}')
+"
+```
+
+### Known Config Rules (Verified)
+```yaml
+# CORRECT
+on_failure: stop          # Valid: stop, alert, continue
+ps_type: generic.procedure_executor  # For stored procedures
+procedure:
+  name: sp_convert_to_focus
+  params:
+    org_slug: "${org_slug}"    # ${var} syntax
+
+# WRONG
+on_failure: fail           # INVALID
+ps_type: generic.bq_procedure  # WRONG for procedure executor
+procedure: sp_convert_to_focus  # WRONG - must be nested object
+params:
+  org_slug: "{org_slug}"    # WRONG - must use ${} syntax
+```
+
 ## Related Skills
 - `pipeline-ops` - Pipeline management
 - `bigquery-ops` - Schema operations

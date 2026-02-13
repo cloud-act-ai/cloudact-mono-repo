@@ -150,17 +150,17 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
   })
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">AI Chat Settings</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+    <div className="space-y-8">
+      <div>
+        <h1 className="console-page-title">AI Chat Settings</h1>
+        <p className="mt-1 console-body">
           Configure your LLM provider and model for CloudAct AI assistant.
         </p>
       </div>
 
       {!existing && <SetupPrompt />}
 
-      <div className="mt-8 space-y-8">
+      <div className="space-y-8">
         {/* Provider Selection */}
         <ProviderSelector
           value={provider}
@@ -231,7 +231,7 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
           </button>
 
           {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-[#90FCA6]">
+            <span className="flex items-center gap-1.5 text-sm text-[var(--cloudact-mint-text)]">
               <CheckCircle2 className="h-4 w-4" />
               Settings saved
             </span>

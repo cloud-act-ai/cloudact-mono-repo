@@ -73,6 +73,8 @@ def create_alert(
     provider: Optional[str] = None,
     priority: str = "warning",
     threshold_currency: str = "USD",
+    hierarchy_entity_id: Optional[str] = None,
+    hierarchy_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new cost alert rule.
@@ -84,6 +86,8 @@ def create_alert(
         provider: Optional provider filter (e.g., AWS, GCP, OpenAI).
         priority: Alert priority — info, warning, critical.
         threshold_currency: Currency for threshold (default USD).
+        hierarchy_entity_id: Optional hierarchy entity ID (e.g., DEPT-ENG, TEAM-BACKEND).
+        hierarchy_path: Optional hierarchy path (e.g., /Acme/Engineering/Backend).
     """
     validate_org(org_slug)
     validate_enum(priority, _VALID_PRIORITIES, "priority")
@@ -100,18 +104,28 @@ def create_alert(
     rule_id = f"chat_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc).isoformat()
 
-    conditions = json.dumps({
+    conditions_dict = {
         "type": "cost_threshold",
         "threshold_value": threshold_value,
         "threshold_currency": threshold_currency,
         "comparison": "greater_than",
-    })
+    }
+    if hierarchy_entity_id:
+        conditions_dict["hierarchy_entity_id"] = hierarchy_entity_id
+    if hierarchy_path:
+        conditions_dict["hierarchy_path"] = hierarchy_path
+
+    conditions = json.dumps(conditions_dict)
+
+    description = f"Cost alert: notify when costs exceed {threshold_currency} {threshold_value}"
+    if hierarchy_entity_id:
+        description += f" for {hierarchy_entity_id}"
 
     row = {
         "rule_id": rule_id,
         "org_slug": org_slug,
         "name": alert_name,
-        "description": f"Cost alert: notify when costs exceed {threshold_currency} {threshold_value}",
+        "description": description,
         "is_active": True,
         "priority": priority,
         "rule_category": "cost_threshold",
@@ -126,18 +140,24 @@ def create_alert(
     table_id = f"{dataset}.org_notification_rules"
     streaming_insert(table_id, [row])
 
+    alert_info = {
+        "rule_id": rule_id,
+        "name": alert_name,
+        "priority": priority,
+        "threshold_value": threshold_value,
+        "threshold_currency": threshold_currency,
+        "provider": provider,
+    }
+    if hierarchy_entity_id:
+        alert_info["hierarchy_entity_id"] = hierarchy_entity_id
+    if hierarchy_path:
+        alert_info["hierarchy_path"] = hierarchy_path
+
     return {
         "org_slug": org_slug,
         "rule_id": rule_id,
         "status": "created",
-        "alert": {
-            "rule_id": rule_id,
-            "name": alert_name,
-            "priority": priority,
-            "threshold_value": threshold_value,
-            "threshold_currency": threshold_currency,
-            "provider": provider,
-        },
+        "alert": alert_info,
     }
 
 
@@ -174,7 +194,8 @@ def alert_history(
         query += " AND created_at <= TIMESTAMP(@end_date)"
         params.append(bigquery.ScalarQueryParameter("end_date", "STRING", end_date))
 
-    query += f" ORDER BY created_at DESC LIMIT {limit}"
+    query += " ORDER BY created_at DESC LIMIT @limit"
+    params.append(bigquery.ScalarQueryParameter("limit", "INT64", limit))
 
     return safe_query(org_slug, query, params)
 

@@ -334,14 +334,14 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01
 {
   "genai":         { "total_billed_cost": 6131735.34, "record_count": 8030, "providers": ["Google AI","OpenAI","Anthropic"] },
   "cloud":         { "total_billed_cost": 13350.33, "record_count": 13140, "providers": ["Microsoft Azure","OCI","AWS","Google Cloud"] },
-  "subscription":  { "total_billed_cost": "TBD",  "record_count": "TBD", "providers": ["Slack","Zoom","Figma",...15 total] },
-  "total":         { "total_billed_cost": "~6.1M+" },
+  "subscription":  { "total_billed_cost": 84618.80, "record_count": 6120, "providers": ["Slack","Zoom","Figma",...15 total] },
+  "total":         { "total_billed_cost": "~2.9M (API date-filtered)" },
   "date_range":    { "start": "2025-01-01", "end": "2026-12-31" },
   "currency": "USD"
 }
 ```
 
-**Quick check:** GenAI should be ~$6M+. If $0, wrong date range. Cloud is ~$13K (realistic daily amounts). BQ-API mismatch is expected if API query date range differs from full data range.
+**Quick check:** GenAI should be ~$6M+ (BQ) / ~$2.8M (API date-filtered). Cloud ~$13K (BQ) / ~$6K (API). Subscription ~$151K (BQ) / ~$85K (API). If any category = $0, wrong date range or pipeline failed. BQ-API mismatch is expected because API uses its own date range filter.
 
 ### 3. Cost by Provider (22 providers)
 
@@ -570,8 +570,8 @@ The loader automatically creates:
 |----------|---------|---------|-----------|
 | GenAI | ~8,030 | ~$6.1M | OpenAI, Anthropic, Gemini |
 | Cloud | ~13,140 | ~$13K net | GCP, AWS, Azure, OCI |
-| Subscription | ~15 plans | TBD (pipeline must succeed) | 15 SaaS providers |
-| **TOTAL** | ~21,170+ | **~$6.1M+** | |
+| Subscription | 10,950 (15 plans × 730 days) | ~$151K (BQ) / ~$85K (API filtered) | 15 SaaS providers |
+| **TOTAL** | ~31,850+ | **~$6.3M (BQ)** | |
 
 **Note:** GenAI costs dominate because of high token volumes × pricing. Cloud costs are realistic daily amounts (~$18/day). BQ-API variance is expected because API queries use a date range filter (the default `start_date`/`end_date` window) while BQ validation queries the full table. Always ensure the API query date range covers the full data range: `?start_date=2025-01-01&end_date=2026-12-31`.
 
@@ -599,8 +599,8 @@ The data loader runs automated 3-layer validation after pipelines complete:
 |----------|-------------|-----------|-------|
 | GenAI | ~$6.1M | 20% | Dominant cost — high token volumes × pricing |
 | Cloud | ~$13K | 50% | Realistic daily amounts (~$18/day × 730 days) |
-| Subscription | TBD | 50% | Depends on subscription pipeline success |
-| **TOTAL** | **~$6.1M+** | 20% | |
+| Subscription | ~$151K (BQ) / ~$85K (API) | 20% | 15 plans × 730 days = 10,950 daily cost records |
+| **TOTAL** | **~$6.3M (BQ)** | 20% | |
 
 **Note:** With 2-year data, the old 2-month expected values ($9.1M total) are OBSOLETE. BQ-API mismatch is expected if the API query doesn't cover the full date range.
 
@@ -701,7 +701,9 @@ SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-acco
 | **bq load says "Missing required fields"** | Used `org_slug` instead of `x_org_slug` | All pipeline metadata fields use `x_` prefix. The generator must use `x_org_slug`, NOT `org_slug` |
 | API shows $0 | Wrong date range | Use `?start_date=2025-01-01&end_date=2026-12-31` |
 | BQ-API cost mismatch >100% | API uses date filter, BQ queries full table | Ensure API query covers full range: `start_date=2025-01-01&end_date=2026-12-31` |
-| Subscription pipeline FAILED | Often quota or schema issue | Check pipeline logs: `curl http://localhost:8001/api/v1/pipelines/runs/{id}`. May need `--pipelines-only` re-run |
+| Subscription pipeline FAILED | subscription_plans table empty or has wrong schema | Root cause: CSV had `org_slug` instead of `x_org_slug`, extra comma (36 vs 35 cols), or empty REQUIRED hierarchy fields. Fix CSV, `bq load`, re-run pipeline |
+| **subscription_plans CSV 36 cols** | Extra comma between `contract_id` and `notes` | Use `csv.reader` to verify 35 columns per row. Every row must match header count exactly |
+| **subscription_plans CSV: `x_hierarchy_level_code`** | Set to `function` instead of `team` | Valid values: `department`, `project`, `team` — match actual hierarchy level |
 | Signup 400 | Email confirmation enabled | Disable in Supabase Auth settings |
 | Pipeline not found | Procedures not synced | `POST /api/v1/procedures/sync` (port 8001) |
 | No API key in Supabase | Onboarding failed silently | Check bootstrap sync (missing tables?), check API service health |

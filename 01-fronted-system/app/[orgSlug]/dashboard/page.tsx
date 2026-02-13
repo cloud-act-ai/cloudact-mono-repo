@@ -102,7 +102,7 @@ const getStatusColor = (status: string) => {
     case "error":
       return "bg-red-500/10 text-red-600 border-red-500/20"
     default:
-      return "bg-slate-100 text-slate-600 border-slate-200"
+      return "bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--border-medium)]"
   }
 }
 
@@ -137,27 +137,27 @@ interface IntegrationCardProps {
 const IntegrationCard = React.memo(function IntegrationCard({ integration }: IntegrationCardProps) {
   return (
     <div
-      className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
+      className="group flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-[var(--surface-primary)] dark:bg-white/5 border border-[var(--border-subtle)] dark:border-white/10 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all duration-200"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl transition-colors ${
           integration.status === "connected"
             ? "bg-emerald-50 group-hover:bg-emerald-100"
-            : "bg-slate-50 group-hover:bg-slate-100"
+            : "bg-[var(--surface-secondary)] group-hover:bg-[var(--surface-hover)]"
         }`}>
           {integration.type === "subscription" ? (
-            <Wallet className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+            <Wallet className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-[var(--text-muted)]"}`} />
           ) : integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") || integration.provider.includes("OCI") ? (
-            <Cloud className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+            <Cloud className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-[var(--text-muted)]"}`} />
           ) : (
-            <Zap className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-slate-400"}`} />
+            <Zap className={`h-4 w-4 ${integration.status === "connected" ? "text-emerald-600" : "text-[var(--text-muted)]"}`} />
           )}
         </div>
         <div className="min-w-0">
-          <span className="text-sm font-medium text-slate-900 truncate block">
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate block">
             {integration.name}
           </span>
-          <span className="text-xs text-slate-400 capitalize">
+          <span className="text-xs text-[var(--text-muted)] capitalize">
             {integration.type === "subscription" ? "SaaS" : "API"}
           </span>
         </div>
@@ -189,7 +189,7 @@ interface PipelineRunItemProps {
 const PipelineRunItem = React.memo(function PipelineRunItem({ pipeline }: PipelineRunItemProps) {
   return (
     <div
-      className="group flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 hover:bg-slate-50/50 transition-colors"
+      className="group flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 hover:bg-[var(--surface-hover)]/50 transition-colors"
     >
       <div
         className={`flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors ${getStatusColor(pipeline.status)}`}
@@ -199,8 +199,8 @@ const PipelineRunItem = React.memo(function PipelineRunItem({ pipeline }: Pipeli
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-0.5 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">{pipeline.pipeline_id}</p>
-            <p className="text-xs text-slate-500 truncate">
+            <p className="text-sm font-medium text-[var(--text-primary)] truncate">{pipeline.pipeline_id}</p>
+            <p className="text-xs text-[var(--text-tertiary)] truncate">
               {pipeline.duration_ms
                 ? `Completed in ${(pipeline.duration_ms / 1000).toFixed(1)}s`
                 : pipeline.error_message
@@ -222,7 +222,7 @@ const PipelineRunItem = React.memo(function PipelineRunItem({ pipeline }: Pipeli
             {pipeline.status}
           </Badge>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <Clock className="h-3 w-3" />
           {formatTimeAgo(pipeline.start_time)}
         </div>
@@ -249,8 +249,8 @@ const QuickActionCard = React.memo(function QuickActionCard({ action }: QuickAct
               {action.icon}
             </div>
             <div className="space-y-0.5">
-              <h3 className="text-sm sm:text-[14px] font-semibold text-slate-900">{action.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{action.description}</p>
+              <h3 className="text-sm sm:text-[14px] font-semibold text-[var(--text-primary)]">{action.title}</h3>
+              <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">{action.description}</p>
             </div>
           </div>
         </CardContent>
@@ -262,7 +262,7 @@ const QuickActionCard = React.memo(function QuickActionCard({ action }: QuickAct
 // PERF: Memoized loading state component
 const DashboardLoadingState = React.memo(function DashboardLoadingState() {
   return (
-    <div className="min-h-screen bg-white dark:bg-transparent">
+    <div>
       <div className="max-w-7xl mx-auto py-4 sm:py-5 lg:py-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
@@ -613,15 +613,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-6 sm:space-y-8 lg:space-y-10">
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
             {greeting}
           </h1>
-          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
             Here&#39;s what&#39;s happening with your cloud costs today.
           </p>
         </div>
@@ -636,7 +636,7 @@ export default function DashboardPage() {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+            className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors disabled:opacity-50"
           >
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
@@ -644,7 +644,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Separator line below filters */}
-      <div className="h-px bg-gradient-to-r from-slate-200 via-slate-200/60 to-transparent" />
+      <div className="h-px bg-gradient-to-r from-[var(--border-medium)] via-[var(--border-medium)]/60 to-transparent" />
 
       {/* Summary Metrics */}
       <div className="animate-fade-up">
@@ -661,12 +661,12 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="h-1 w-1 rounded-full bg-[#90FCA6]" />
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                 Cost Trend Analysis
               </h2>
             </div>
             {/* Data freshness indicator */}
-            <div className="flex items-center gap-1.5 text-xs sm:text-xs text-slate-400">
+            <div className="flex items-center gap-1.5 text-xs sm:text-xs text-[var(--text-muted)]">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>Live data</span>
             </div>
@@ -699,7 +699,7 @@ export default function DashboardPage() {
         {/* Section Header */}
         <div className="flex items-center gap-2 mb-4">
           <div className="h-1 w-1 rounded-full bg-[#FF6C5E]" />
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
             Cost Distribution
           </h2>
         </div>
@@ -736,8 +736,8 @@ export default function DashboardPage() {
                 <div className="mx-auto w-12 h-12 rounded-xl bg-[#10A37F]/10 flex items-center justify-center mb-3">
                   <Brain className="h-6 w-6 text-[#10A37F]/60" />
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">No GenAI costs yet</p>
-                <p className="text-xs text-slate-500">Connect OpenAI, Anthropic, or other LLM providers</p>
+                <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No GenAI costs yet</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Connect OpenAI, Anthropic, or other LLM providers</p>
               </div>
             </Card>
           )}
@@ -752,7 +752,7 @@ export default function DashboardPage() {
         {/* Section Header */}
         <div className="flex items-center gap-2 mb-4">
           <div className="h-1 w-1 rounded-full bg-[#4285F4]" />
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
             Top Cost Drivers
           </h2>
         </div>
@@ -772,8 +772,8 @@ export default function DashboardPage() {
                 <div className="mx-auto w-12 h-12 rounded-xl bg-[#4285F4]/10 flex items-center justify-center mb-3">
                   <Cloud className="h-6 w-6 text-[#4285F4]/60" />
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">No cloud costs yet</p>
-                <p className="text-xs text-slate-500">Connect AWS, GCP, or Azure accounts</p>
+                <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No cloud costs yet</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Connect AWS, GCP, or Azure accounts</p>
               </div>
             </Card>
           )}
@@ -793,8 +793,8 @@ export default function DashboardPage() {
                 <div className="mx-auto w-12 h-12 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center mb-3">
                   <Wallet className="h-6 w-6 text-[#FF6C5E]/60" />
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">No subscription costs yet</p>
-                <p className="text-xs text-slate-500">Add your SaaS subscriptions to track</p>
+                <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No subscription costs yet</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Add your SaaS subscriptions to track</p>
               </div>
             </Card>
           )}
@@ -810,12 +810,12 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="h-1 w-1 rounded-full bg-emerald-500" />
-            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
               Connected Integrations
             </h2>
           </div>
           <Link href={`/${orgSlug}/integrations`}>
-            <button className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors group">
+            <button className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors group">
               Manage All
               <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
             </button>
@@ -830,13 +830,13 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <div className="col-span-full text-center py-8">
-                  <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
-                    <Zap className="h-6 w-6 text-slate-400" />
+                  <div className="mx-auto w-12 h-12 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center mb-3">
+                    <Zap className="h-6 w-6 text-[var(--text-muted)]" />
                   </div>
-                  <p className="text-sm font-medium text-slate-900 mb-1">No integrations configured</p>
-                  <p className="text-xs text-slate-500 mb-4">Connect your first provider to start tracking costs</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No integrations configured</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mb-4">Connect your first provider to start tracking costs</p>
                   <Link href={`/${orgSlug}/integrations`}>
-                    <button className="inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-slate-900 text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow transition-all">
+                    <button className="inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow transition-all">
                       Add Integration
                     </button>
                   </Link>
@@ -854,8 +854,8 @@ export default function DashboardPage() {
       <section className="animate-fade-up animation-delay-500">
         {/* Section Header */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-1 w-1 rounded-full bg-slate-400" />
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="h-1 w-1 rounded-full bg-[var(--text-muted)]" />
+          <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
             Quick Actions
           </h2>
         </div>
@@ -874,13 +874,13 @@ export default function DashboardPage() {
         {/* Section Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="h-1 w-1 rounded-full bg-slate-400" />
-            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="h-1 w-1 rounded-full bg-[var(--text-muted)]" />
+            <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
               Recent Pipeline Runs
             </h2>
           </div>
           {recentPipelines.length > 0 && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-[var(--text-muted)]">
               {completedPipelinesCount}/{recentPipelines.length} completed
             </span>
           )}
@@ -888,23 +888,23 @@ export default function DashboardPage() {
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             {recentPipelines.length > 0 ? (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-[var(--border-subtle)]">
                 {recentPipelines.map((pipeline) => (
                   <PipelineRunItem key={pipeline.pipeline_logging_id} pipeline={pipeline} />
                 ))}
               </div>
             ) : (
               <div className="p-8 text-center">
-                <div className="mx-auto w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
-                  <Database className="h-6 w-6 text-slate-400" />
+                <div className="mx-auto w-12 h-12 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center mb-3">
+                  <Database className="h-6 w-6 text-[var(--text-muted)]" />
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">No pipeline runs yet</p>
-                <p className="text-xs text-slate-500">Run a pipeline to see activity here</p>
+                <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No pipeline runs yet</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Run a pipeline to see activity here</p>
               </div>
             )}
-            <div className="border-t border-slate-100 p-3.5 sm:p-4 bg-slate-50/50">
+            <div className="border-t border-[var(--border-subtle)] p-3.5 sm:p-4 bg-[var(--surface-secondary)]/50">
               <Link href={`/${orgSlug}/pipelines`}>
-                <button className="w-full inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors group">
+                <button className="w-full inline-flex items-center justify-center gap-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors group">
                   View All Pipelines
                   <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </button>
@@ -919,7 +919,7 @@ export default function DashboardPage() {
           Encourage team onboarding
           ═══════════════════════════════════════════════════════════════ */}
       <section className="animate-fade-up animation-delay-700">
-        <Card className="relative overflow-hidden border border-slate-100 bg-gradient-to-r from-slate-50 via-white to-[#90FCA6]/5">
+        <Card className="relative overflow-hidden border border-[var(--border-subtle)] bg-gradient-to-r from-[var(--surface-secondary)] via-[var(--surface-primary)] to-[#90FCA6]/5">
           {/* Subtle shine effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
 
@@ -930,16 +930,16 @@ export default function DashboardPage() {
                   <Users className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div className="space-y-0.5">
-                  <h3 className="text-sm sm:text-base font-semibold text-slate-900">
+                  <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
                     Invite Your Team
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-500">
+                  <p className="text-xs sm:text-sm text-[var(--text-tertiary)]">
                     Collaborate on cost optimization with your team members
                   </p>
                 </div>
               </div>
               <Link href={`/${orgSlug}/settings/members`}>
-                <button className="inline-flex items-center gap-2 h-10 px-5 bg-[#90FCA6] text-slate-900 text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <button className="inline-flex items-center gap-2 h-10 px-5 bg-[#90FCA6] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                   <Users className="h-4 w-4" />
                   Manage Team
                 </button>
@@ -949,6 +949,6 @@ export default function DashboardPage() {
         </Card>
       </section>
     </div>
-    </main>
+    </div>
   )
 }

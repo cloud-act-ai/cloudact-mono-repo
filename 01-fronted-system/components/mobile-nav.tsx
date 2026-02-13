@@ -247,11 +247,11 @@ export function MobileNav({
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
 
       {/* Navigation Panel */}
-      <div className="absolute inset-y-0 left-0 w-[280px] bg-white shadow-xl flex flex-col animate-in slide-in-from-left duration-200 z-10">
+      <div className="absolute inset-y-0 left-0 w-[280px] bg-[var(--surface-primary)] shadow-xl flex flex-col animate-in slide-in-from-left duration-200 z-10">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg overflow-hidden bg-white border border-slate-200 shadow-sm flex items-center justify-center flex-shrink-0">
+            <div className="h-9 w-9 rounded-lg overflow-hidden bg-[var(--surface-primary)] border border-[var(--border-medium)] shadow-sm flex items-center justify-center flex-shrink-0">
               {logoUrl ? (
                 <Image src={logoUrl} alt={formattedOrgName} width={36} height={36} className="object-contain" />
               ) : (
@@ -259,19 +259,19 @@ export function MobileNav({
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-[12px] font-black text-slate-900 tracking-wide uppercase leading-tight truncate">
+              <p className="text-[12px] font-black text-[var(--text-primary)] tracking-wide uppercase leading-tight truncate">
                 {formattedOrgName}
               </p>
-              <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase leading-tight">
+              <p className="text-[11px] font-semibold text-[var(--text-muted)] tracking-wider uppercase leading-tight">
                 Cost Analytics
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
           >
-            <X className="h-5 w-5 text-slate-500" />
+            <X className="h-5 w-5 text-[var(--text-tertiary)]" />
           </button>
         </div>
 
@@ -312,8 +312,8 @@ export function MobileNav({
                           className={cn(
                             "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[42px]",
                             active
-                              ? "bg-[#90FCA6]/15 text-slate-900 font-semibold"
-                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                              ? "bg-[var(--cloudact-mint)]/15 text-[var(--text-primary)] font-semibold"
+                              : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]",
                             item.placeholder && "opacity-50 cursor-not-allowed"
                           )}
                         >
@@ -338,7 +338,7 @@ export function MobileNav({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-100 p-4 space-y-3">
+        <div className="border-t border-[var(--border-subtle)] p-4 space-y-3">
           {/* User Info */}
           <button
             type="button"
@@ -356,8 +356,8 @@ export function MobileNav({
               </span>
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-xs font-semibold text-slate-900 truncate">{userName}</p>
-              <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+              <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{userName}</p>
+              <p className="text-xs text-[var(--text-tertiary)] truncate">{userEmail}</p>
             </div>
           </button>
 
@@ -366,7 +366,7 @@ export function MobileNav({
             <Link
               href="/user-docs"
               target="_blank"
-              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] rounded-lg transition-colors"
             >
               <HelpCircle className="h-3.5 w-3.5" />
               Help
@@ -374,7 +374,7 @@ export function MobileNav({
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-[var(--text-tertiary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] rounded-lg transition-colors"
             >
               <LogOut className="h-3.5 w-3.5" />
               {isLoggingOut ? "..." : "Sign Out"}

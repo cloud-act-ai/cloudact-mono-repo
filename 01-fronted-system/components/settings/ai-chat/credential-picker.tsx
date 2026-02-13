@@ -38,7 +38,7 @@ export function CredentialPicker({
               </p>
               <Link
                 href={`/${orgSlug}/integrations/genai/${provider.toLowerCase()}`}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#90FCA6] hover:underline"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--cloudact-mint-text)] hover:underline"
               >
                 Configure Integration
                 <ExternalLink className="h-3 w-3" />
@@ -62,7 +62,7 @@ export function CredentialPicker({
             : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 hover:border-gray-300 dark:hover:border-slate-600"
         )}
       >
-        <Key className="h-4 w-4 text-[#90FCA6]" />
+        <Key className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
         <div>
           <p className="text-sm text-gray-900 dark:text-white">
             {provider} API Key

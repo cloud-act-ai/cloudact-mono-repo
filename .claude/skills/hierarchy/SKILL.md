@@ -212,6 +212,47 @@ FOCUS convert stored procedures use `COALESCE` on provider-specific tag fields t
 }
 ```
 
+## Environments
+
+| Environment | API URL | BigQuery Dataset | Hierarchy Table |
+|-------------|---------|------------------|-----------------|
+| local | `http://localhost:8000` | `{org}_local` | `x_org_hierarchy` |
+| stage | Cloud Run URL | `{org}_stage` | `x_org_hierarchy` |
+| prod | `https://api.cloudact.ai` | `{org}_prod` | `x_org_hierarchy` |
+
+**Write path:** API (8000) → Supabase `organizations.org_hierarchy` + BigQuery `organizations.org_hierarchy`
+**Read path:** Pipelines read from `{org}_{env}.x_org_hierarchy` (synced from organizations dataset)
+
+## Testing
+
+### Hierarchy API
+```bash
+# Seed hierarchy
+curl -X POST "http://localhost:8000/api/v1/hierarchy/{org}/levels/seed" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{"template": "default"}'
+# Expected: 3 levels created (department, project, team)
+
+# Get tree
+curl -s "http://localhost:8000/api/v1/hierarchy/{org}/tree" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+# Expected: Nested hierarchy tree
+
+# Verify BQ
+bq query --nouse_legacy_sql \
+  "SELECT entity_id, entity_name, level_code, path FROM \`cloudact-testing-1.{org}_local.x_org_hierarchy\` ORDER BY path"
+```
+
+### Hierarchy in Costs
+```bash
+# Verify hierarchy fields populated in FOCUS table
+bq query --nouse_legacy_sql \
+  "SELECT x_hierarchy_entity_id, x_hierarchy_path, COUNT(*) FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` WHERE x_hierarchy_entity_id IS NOT NULL GROUP BY 1,2"
+```
+
+### Valid Level Codes
+- `department`, `project`, `team` (NOT `function` — common mistake in CSV imports)
+
 ## Source Specifications
 
 Requirements consolidated from:
@@ -223,3 +264,4 @@ Requirements consolidated from:
 - `pipeline-ops` - Pipeline execution that uses hierarchy
 - `cost-analysis` - Cost queries by hierarchy
 - `subscription-costs` - Subscription cost allocation
+- `i18n-locale` - Locale settings stored alongside hierarchy in org profiles

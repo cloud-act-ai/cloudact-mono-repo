@@ -243,19 +243,21 @@ async def update_cost_alert(
                 AlertCondition(
                     field="total_cost",
                     operator="gt",
-                    value=request.threshold_value or existing_value,
-                    unit=request.threshold_currency or existing_unit
+                    value=request.threshold_value if request.threshold_value is not None else existing_value,
+                    unit=request.threshold_currency if request.threshold_currency is not None else existing_unit,
                 )
             ]
 
         # Handle period/hierarchy_path update
         if request.period is not None or request.hierarchy_path is not None:
-            existing_params = existing.source_params or {}
+            existing_params = existing.source_params if existing.source_params is not None else {}
             source_params = {
-                "period": request.period or existing_params.get("period", "current_month")
+                "period": request.period if request.period is not None else existing_params.get("period", "current_month")
             }
-            if request.hierarchy_path:
+            if request.hierarchy_path is not None:
                 source_params["hierarchy_path"] = request.hierarchy_path
+            elif existing_params.get("hierarchy_path"):
+                source_params["hierarchy_path"] = existing_params["hierarchy_path"]
             update_data["source_params"] = source_params
 
         # Apply update

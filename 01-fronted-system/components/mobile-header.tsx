@@ -102,13 +102,13 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 md:hidden pt-[env(safe-area-inset-top,0px)]">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-4 border-b border-[var(--border-subtle)] bg-[var(--surface-primary)] px-4 md:hidden pt-[env(safe-area-inset-top,0px)]">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsNavOpen(true)}
-            className="h-10 w-10 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
+            className="h-10 w-10 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
@@ -119,7 +119,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
             href={`/${orgSlug}/cost-dashboards/overview`}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden bg-[var(--surface-primary)] border border-[var(--border-medium)] shadow-sm">
               {logoUrl ? (
                 <Image
                   src={logoUrl}
@@ -129,10 +129,10 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
                   className="object-contain"
                 />
               ) : (
-                <Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                <Building2 className="h-4 w-4 text-[var(--text-muted)]" />
               )}
             </div>
-            <span className="text-[12px] font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[120px]">
+            <span className="text-[12px] font-semibold text-[var(--text-primary)] truncate max-w-[120px]">
               {formattedOrgName}
             </span>
           </Link>
@@ -141,7 +141,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
         {/* Chat shortcut */}
         <Link
           href={`/${orgSlug}/chat`}
-          className="h-10 w-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+          className="h-10 w-10 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition-colors"
           aria-label="Open chat"
         >
           <MessageSquare className="h-5 w-5" />

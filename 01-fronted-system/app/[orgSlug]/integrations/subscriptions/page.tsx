@@ -158,7 +158,7 @@ function AvailableCard({
     <button
       onClick={onEnable}
       disabled={isToggling}
-      className="group w-full p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all text-left disabled:opacity-50"
+      className="group w-full p-3.5 rounded-xl border border-[var(--border-medium)] bg-[var(--surface-primary)] hover:border-slate-300 hover:shadow-sm transition-all text-left disabled:opacity-50"
     >
       <div className="flex items-center gap-3">
         <div
@@ -338,7 +338,7 @@ export default function SubscriptionIntegrationsPage() {
       </div>
 
       {/* Stats Row - Using StatRow component like dashboard/pipelines */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+      <div className="bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] p-3 sm:p-5 shadow-sm">
         <StatRow stats={stats} size="md" />
       </div>
 
@@ -346,7 +346,7 @@ export default function SubscriptionIntegrationsPage() {
       {(!backendConnected || !hasApiKey) && (
         <div className="p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-[var(--surface-primary)] shadow-sm flex items-center justify-center flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
@@ -393,7 +393,7 @@ export default function SubscriptionIntegrationsPage() {
             </span>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-sm">
+          <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] divide-y divide-[var(--border-subtle)] overflow-hidden shadow-sm">
             {trackingProviders.map((provider) => (
               <TrackingCard
                 key={provider.provider}
@@ -487,8 +487,8 @@ export default function SubscriptionIntegrationsPage() {
       </section>
 
       {/* Add Custom */}
-      <div className="mt-12 p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200 text-center">
-        <div className="h-12 w-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+      <div className="mt-12 p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-[var(--border-medium)] text-center">
+        <div className="h-12 w-12 rounded-xl bg-[var(--surface-primary)] border border-[var(--border-medium)] flex items-center justify-center mx-auto mb-4 shadow-sm">
           <Plus className="h-5 w-5 text-slate-600" />
         </div>
         <h3 className="text-[14px] font-semibold text-slate-900 mb-1">
@@ -506,7 +506,7 @@ export default function SubscriptionIntegrationsPage() {
       </div>
 
       {/* Help Documentation */}
-      <div className="mt-8 p-6 rounded-2xl bg-white border border-slate-200">
+      <div className="mt-8 p-6 rounded-2xl bg-[var(--surface-primary)] border border-[var(--border-medium)]">
         <div className="flex items-start gap-4">
           <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
             <BookOpen className="h-5 w-5 text-blue-600" />

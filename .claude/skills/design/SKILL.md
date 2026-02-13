@@ -36,7 +36,7 @@ Use when: applying brand colors, choosing typography, creating buttons, reviewin
 
 ## Theme
 
-**LIGHT-ONLY.** No dark mode. No theme toggle. Every surface is white or off-white.
+**Light-first.** Default is white surfaces. Dark mode CSS variables exist in `.dark {}` block of `globals.css` and are used by typography/surface classes. No theme toggle shipped yet, but all new code must use CSS variables for theme readiness.
 
 ---
 
@@ -508,6 +508,55 @@ All console pages: `max-w-7xl` (1280px). Never full-bleed stretch.
 | Double padding | Page adds own `<main>` + padding inside layout | Use `console-page-inner` only (no `<main>`) |
 | Purple/indigo in console | Off-brand color | Replace with slate (neutral) or mint (primary) |
 | Left-aligned page | Missing `mx-auto` | Use `console-page-inner` CSS class |
+
+---
+
+## Page Layout Standard (Mobile-First)
+
+```
+Root Layout [orgSlug]/layout.tsx
+  └─ <main className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+      └─ Page content (NO <main>, NO min-h-screen, NO bg-white)
+```
+
+| Type | CSS Class | Width | Use |
+|------|-----------|-------|-----|
+| **Standard** | `console-page-inner` | `max-w-7xl` (1280px) centered | Dashboard, analytics, pipelines, integrations, notifications, settings |
+| **Full-bleed** | None (fills parent) | 100% of main area | Chat (needs viewport height) |
+| **Standalone** | `console-page-shell` + `console-page-inner` | Full viewport + 1280px inner | Auth pages, landing (no sidebar) |
+
+**Rules:** No `max-w-2xl` or `max-w-3xl` page wrappers. If a form needs narrow layout, use grid columns.
+
+---
+
+## Theme Variable Usage
+
+Typography classes (`console-page-title`, `console-heading`, `console-body`, `console-small`, `console-metric`) all use `--text-*` CSS variables. These auto-switch in `.dark {}`.
+
+| Variable | Light | Dark | Use |
+|----------|-------|------|-----|
+| `--text-primary` | `#0f172a` | `#f8fafc` | Page titles, headings, metric values |
+| `--text-secondary` | `#334155` | `#e2e8f0` | Body text, descriptions |
+| `--text-tertiary` | `#64748b` | `#94a3b8` | Captions, labels, metadata |
+| `--text-muted` | `#94a3b8` | `#64748b` | Placeholders, disabled text |
+| `--surface-primary` | `#ffffff` | `#1c1c1e` | Page backgrounds, cards, sidebar |
+| `--border-subtle` | `rgba(0,0,0,0.04)` | `rgba(255,255,255,0.1)` | Section dividers, sidebar borders |
+| `--border-medium` | `rgba(0,0,0,0.1)` | `rgba(255,255,255,0.15)` | Card borders, input borders |
+
+---
+
+## Forbidden Patterns (Console Pages)
+
+| Pattern | Replace With |
+|---------|-------------|
+| `bg-white` on page wrappers | Remove (parent layout provides background) |
+| `bg-white` on cards/sidebar | `bg-[var(--surface-primary)]` |
+| `color: #0f172a` or `text-slate-900` | `var(--text-primary)` or `console-page-title` class |
+| `border-slate-100` on dividers | `border-[var(--border-subtle)]` |
+| `min-h-screen` on page content | Remove (parent layout handles height) |
+| `<main>` inside console pages | `<div>` (layout already provides `<main>`) |
+| `text-[#90FCA6]` on white bg | `text-[var(--cloudact-mint-text)]` (#0F5132) |
+| `max-w-2xl` on page wrappers | Remove (use `console-page-inner` from parent) |
 
 ---
 

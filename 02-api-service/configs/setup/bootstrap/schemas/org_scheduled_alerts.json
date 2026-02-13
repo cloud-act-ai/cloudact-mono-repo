@@ -114,6 +114,18 @@
     "description": "Cooldown period in hours"
   },
   {
+    "name": "hierarchy_entity_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy entity ID for scoping alerts (e.g., DEPT-ENG, TEAM-BACKEND)"
+  },
+  {
+    "name": "hierarchy_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Hierarchy path for scoping alerts (e.g., /Acme/Engineering/Backend)"
+  },
+  {
     "name": "tags",
     "type": "STRING",
     "mode": "REPEATED",

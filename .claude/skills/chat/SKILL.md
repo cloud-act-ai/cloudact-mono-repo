@@ -175,6 +175,53 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 | Agent not responding | LiteLlm model prefix wrong | Check provider → model mapping in constants |
 | History not loading | Conversation API 401 | Check JWT token, org membership |
 
+## Environments
+
+| Environment | Chat Backend URL | Frontend URL | BigQuery | LLM Config |
+|-------------|-----------------|--------------|----------|------------|
+| local | `http://localhost:8002` | `http://localhost:3000` | cloudact-testing-1 | BYOK (org credentials) |
+| stage | Cloud Run URL | Cloud Run URL | cloudact-testing-1 | BYOK (org credentials) |
+| prod | `https://chat.cloudact.ai` | `https://cloudact.ai` | cloudact-prod | BYOK (org credentials) |
+
+```bash
+# Local dev
+cd 07-org-chat-backend && source venv/bin/activate
+python3 -m uvicorn src.app.main:app --port 8002 --reload
+```
+
+## Testing
+
+### Health Check
+```bash
+curl -s http://localhost:8002/health | python3 -m json.tool
+# Expected: { "status": "healthy" }
+```
+
+### Send Message
+```bash
+curl -X POST "http://localhost:8002/api/v1/chat/{org}/message" \
+  -H "X-API-Key: {org_api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What are my top costs?", "conversation_id": null}'
+# Expected: Streaming response with cost analysis
+```
+
+### Verify Chat Tables (BigQuery)
+```bash
+bq query --nouse_legacy_sql \
+  "SELECT table_id FROM \`cloudact-testing-1.organizations.__TABLES__\` WHERE table_id LIKE 'org_chat_%'"
+# Expected: org_chat_conversations, org_chat_messages, org_chat_sessions, org_chat_feedback
+```
+
+### Multi-Environment
+```bash
+# Stage
+curl -s "https://cloudact-chat-backend-test-*.a.run.app/health"
+
+# Prod
+curl -s "https://chat.cloudact.ai/health"
+```
+
 ## Related Skills
 
 | Skill | Relationship |
@@ -185,6 +232,7 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 | `/frontend-dev` | Next.js patterns. Chat UI follows CloudAct component conventions. |
 | `/api-dev` | FastAPI patterns. Chat backend follows CloudAct API conventions. |
 | `/bootstrap-onboard` | Bootstrap creates the 4 chat BigQuery tables. |
+| `/notifications` | AlertManager agent uses notification alert tools. |
 
 ## Source Specifications
 

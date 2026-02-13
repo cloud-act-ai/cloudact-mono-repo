@@ -246,13 +246,13 @@ cd 01-fronted-system/scripts/supabase_db
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 31 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 34 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 13 | `.claude/commands/{name}.md` |
 | Hooks | 10 | `.claude/hookify.*.local.md` |
 | Summary | - | `.claude/SUMMARY.md` |
 
 ### Key Skills
-`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev` `/chat` `/bootstrap-onboard` `/quota-mgmt` `/stripe-billing` `/account-setup` `/design` `/console-ui` `/charts`
+`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev` `/chat` `/bootstrap-onboard` `/quota-mgmt` `/stripe-billing` `/account-setup` `/scheduler-jobs` `/notifications` `/i18n-locale` `/demo-setup`
 
 ### Key Hooks (Enforced)
 - **org-slug-isolation** - Multi-tenant isolation via org_slug
@@ -291,8 +291,8 @@ Skills are **structured domain knowledge** that guide Claude's behavior. They ar
     └── {name}.md               # OPTIONAL — Test plan (unit, integration, E2E)
 ```
 
-**26 skills** have the full trifecta (SKILL.md + requirements + tests).
-**2 utility skills** (`web-research`, `ui-ux-pro-max`) have SKILL.md only — they're external tools, not CloudAct features.
+**30 skills** have the full trifecta (SKILL.md + requirements + tests).
+**4 utility skills** (`web-research`, `charts`, `console-ui`, `design`) have SKILL.md only — they're reference/design tools, not CloudAct features.
 
 #### SKILL.md Frontmatter Format
 
@@ -339,18 +339,18 @@ description: |
 6. **Requirements are specs** — Use FR/NFR numbering. These survive context compression better than prose.
 7. **Tests validate the spec** — Test plans reference the FR numbers from requirements.
 
-#### Skill Categories (31 Total)
+#### Skill Categories (34 Total)
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| Infrastructure | `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate` | 5 |
-| Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs` | 5 |
+| Infrastructure | `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate`, `scheduler-jobs` | 6 |
+| Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs`, `i18n-locale` | 6 |
 | Pipelines & Ops | `pipeline-ops`, `bootstrap-onboard`, `test-orchestration` | 3 |
 | AI & Chat | `chat` | 1 |
 | Config & Integration | `integration-setup`, `provider-mgmt`, `config-validator`, `security-audit` | 4 |
 | Development | `frontend-dev`, `api-dev`, `quota-mgmt` | 3 |
 | Design & UI | `design`, `console-ui`, `charts`, `home-page` | 4 |
-| Frontend & Billing | `account-setup`, `stripe-billing` | 2 |
+| Frontend & Billing | `account-setup`, `stripe-billing`, `notifications` | 3 |
 | Research & Debug | `subscription-costs`, `web-research`, `bug-hunt` | 3 |
 | Identity | `openclaw` | 1 |
 

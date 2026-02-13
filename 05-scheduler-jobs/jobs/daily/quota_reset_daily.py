@@ -37,9 +37,7 @@ def get_api_service_url(project_id: str) -> str:
     # Determine URL based on project
     if project_id == "cloudact-prod":
         return "https://api.cloudact.ai"
-    elif project_id == "cloudact-stage":
-        return "https://cloudact-api-service-stage-667076943102.us-central1.run.app"
-    else:  # cloudact-testing-1
+    else:  # cloudact-testing-1 (stage + test)
         return "https://cloudact-api-service-test-667076943102.us-central1.run.app"
 
 

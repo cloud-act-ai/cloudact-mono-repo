@@ -281,9 +281,9 @@ const getPriorityColor = (priority: RulePriority) => {
     case "low":
       return "bg-blue-100 text-blue-700 border-blue-200"
     case "info":
-      return "bg-slate-100 text-slate-700 border-slate-200"
+      return "bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--border-medium)]"
     default:
-      return "bg-slate-100 text-slate-700 border-slate-200"
+      return "bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--border-medium)]"
   }
 }
 
@@ -328,17 +328,17 @@ function ChannelCard({
   const Icon = getChannelIcon(channel.channel_type)
 
   return (
-    <div className="p-4 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+    <div className="p-4 border-b border-[var(--border-subtle)] last:border-b-0 hover:bg-[var(--surface-hover)]/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            channel.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-slate-100"
+            channel.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-[var(--surface-secondary)]"
           }`}>
-            <Icon className={`h-5 w-5 ${channel.is_active ? "text-[#1a7a3a]" : "text-slate-400"}`} />
+            <Icon className={`h-5 w-5 ${channel.is_active ? "text-[#1a7a3a]" : "text-[var(--text-muted)]"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-semibold text-slate-900 truncate">
+              <span className="text-[14px] font-semibold text-[var(--text-primary)] truncate">
                 {channel.name}
               </span>
               {channel.is_default && (
@@ -347,7 +347,7 @@ function ChannelCard({
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
               {channel.channel_type === "email" && channel.email_recipients?.join(", ")}
               {channel.channel_type === "slack" && channel.slack_channel}
               {channel.channel_type === "webhook" && "Webhook configured"}
@@ -416,28 +416,28 @@ function RuleCard({
   const CategoryIcon = getRuleCategoryIcon(rule.rule_category)
 
   return (
-    <div className="p-4 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+    <div className="p-4 border-b border-[var(--border-subtle)] last:border-b-0 hover:bg-[var(--surface-hover)]/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            rule.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-slate-100"
+            rule.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-[var(--surface-secondary)]"
           }`}>
-            <CategoryIcon className={`h-5 w-5 ${rule.is_active ? "text-[#1a7a3a]" : "text-slate-400"}`} />
+            <CategoryIcon className={`h-5 w-5 ${rule.is_active ? "text-[#1a7a3a]" : "text-[var(--text-muted)]"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[14px] font-semibold text-slate-900">
+              <span className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {rule.name}
               </span>
               <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${getPriorityColor(rule.priority)}`}>
                 {rule.priority.toUpperCase()}
               </span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
               {getRuleTypeLabel(rule.rule_type)}
               {rule.description && ` • ${rule.description}`}
             </div>
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
+            <div className="flex items-center gap-3 mt-2 text-[11px] text-[var(--text-muted)]">
               {rule.last_triggered_at && (
                 <span>Last triggered: {formatDateTime(rule.last_triggered_at)}</span>
               )}
@@ -498,27 +498,27 @@ function SummaryCard({
   sending: boolean
 }) {
   return (
-    <div className="p-4 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+    <div className="p-4 border-b border-[var(--border-subtle)] last:border-b-0 hover:bg-[var(--surface-hover)]/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            summary.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-slate-100"
+            summary.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-[var(--surface-secondary)]"
           }`}>
-            <Calendar className={`h-5 w-5 ${summary.is_active ? "text-[#1a7a3a]" : "text-slate-400"}`} />
+            <Calendar className={`h-5 w-5 ${summary.is_active ? "text-[#1a7a3a]" : "text-[var(--text-muted)]"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-semibold text-slate-900">
+              <span className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {summary.name}
               </span>
               <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
                 {summary.summary_type.toUpperCase()}
               </span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
               {summary.schedule_cron} ({summary.schedule_timezone})
             </div>
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
+            <div className="flex items-center gap-3 mt-2 text-[11px] text-[var(--text-muted)]">
               {summary.last_sent_at && (
                 <span>Last sent: {formatDateTime(summary.last_sent_at)}</span>
               )}
@@ -588,26 +588,26 @@ function HistoryEntry({
     sent: <Send className="h-4 w-4 text-blue-500" />,
     failed: <XCircle className="h-4 w-4 text-red-500" />,
     queued: <Clock className="h-4 w-4 text-amber-500" />,
-    skipped: <Pause className="h-4 w-4 text-slate-400" />,
+    skipped: <Pause className="h-4 w-4 text-[var(--text-muted)]" />,
   }
 
   return (
-    <div className="p-4 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+    <div className="p-4 border-b border-[var(--border-subtle)] last:border-b-0 hover:bg-[var(--surface-hover)]/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-            {statusIcon[entry.status] || <Bell className="h-4 w-4 text-slate-400" />}
+          <div className="h-8 w-8 rounded-lg bg-[var(--surface-secondary)] flex items-center justify-center flex-shrink-0">
+            {statusIcon[entry.status] || <Bell className="h-4 w-4 text-[var(--text-muted)]" />}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium text-slate-900">
+            <div className="text-[13px] font-medium text-[var(--text-primary)]">
               {entry.subject}
             </div>
             {entry.body_preview && (
-              <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
+              <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-2">
                 {entry.body_preview}
               </div>
             )}
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
+            <div className="flex items-center gap-3 mt-2 text-[11px] text-[var(--text-muted)]">
               <span>{formatDateTime(entry.created_at)}</span>
               <span className="capitalize">{entry.notification_type}</span>
               {entry.escalated && (
@@ -1012,8 +1012,8 @@ function CreateRuleDialog({
           </div>
 
           {/* Threshold Configuration */}
-          <div className="p-4 bg-slate-50 rounded-xl space-y-4">
-            <div className="text-[12px] font-semibold text-slate-700">Threshold Configuration</div>
+          <div className="p-4 bg-[var(--surface-secondary)] rounded-xl space-y-4">
+            <div className="text-[12px] font-semibold text-[var(--text-secondary)]">Threshold Configuration</div>
 
             {(ruleType === "budget_percent" || ruleType === "anomaly_percent_change") && (
               <div className="space-y-2">
@@ -1024,7 +1024,7 @@ function CreateRuleDialog({
                   value={thresholdPercent}
                   onChange={(e) => setThresholdPercent(e.target.value)}
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[var(--text-tertiary)]">
                   {ruleType === "budget_percent"
                     ? "Alert when spending reaches this % of budget"
                     : "Alert when cost changes by this % compared to baseline"
@@ -1054,7 +1054,7 @@ function CreateRuleDialog({
                   value={thresholdAmount}
                   onChange={(e) => setThresholdAmount(e.target.value)}
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[var(--text-tertiary)]">
                   Alert when daily cost exceeds this amount
                 </p>
               </div>
@@ -1066,7 +1066,7 @@ function CreateRuleDialog({
             <Label>Notification Channels</Label>
             <div className="space-y-2">
               {channels.filter((c) => c.is_active).map((channel) => (
-                <label key={channel.channel_id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <label key={channel.channel_id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedChannels.includes(channel.channel_id)}
@@ -1077,14 +1077,14 @@ function CreateRuleDialog({
                         setSelectedChannels(selectedChannels.filter((id) => id !== channel.channel_id))
                       }
                     }}
-                    className="rounded border-slate-300"
+                    className="rounded border-[var(--border-medium)]"
                   />
                   <span className="text-[12px]">{channel.name}</span>
-                  <span className="text-[11px] text-slate-500 capitalize">({channel.channel_type})</span>
+                  <span className="text-[11px] text-[var(--text-tertiary)] capitalize">({channel.channel_type})</span>
                 </label>
               ))}
               {channels.filter((c) => c.is_active).length === 0 && (
-                <p className="text-[11px] text-slate-500 p-2">
+                <p className="text-[11px] text-[var(--text-tertiary)] p-2">
                   No active channels. Create a channel first.
                 </p>
               )}
@@ -1250,7 +1250,7 @@ function CreateSummaryDialog({
             {errors.scheduleCron ? (
               <p className="text-[11px] text-red-500">{errors.scheduleCron}</p>
             ) : (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[var(--text-tertiary)]">
                 Default: 9:00 AM {summaryType}
               </p>
             )}
@@ -1277,7 +1277,7 @@ function CreateSummaryDialog({
                         setIncludeSections(includeSections.filter((s) => s !== section.id))
                       }
                     }}
-                    className="rounded border-slate-300"
+                    className="rounded border-[var(--border-medium)]"
                   />
                   <span className="text-[12px]">{section.label}</span>
                 </label>
@@ -1289,7 +1289,7 @@ function CreateSummaryDialog({
             <Label>Notification Channels</Label>
             <div className={`space-y-2 ${errors.channels ? "border border-red-500 rounded-lg p-2" : ""}`}>
               {channels.filter((c) => c.is_active).map((channel) => (
-                <label key={channel.channel_id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <label key={channel.channel_id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedChannels.includes(channel.channel_id)}
@@ -1301,10 +1301,10 @@ function CreateSummaryDialog({
                         setSelectedChannels(selectedChannels.filter((id) => id !== channel.channel_id))
                       }
                     }}
-                    className="rounded border-slate-300"
+                    className="rounded border-[var(--border-medium)]"
                   />
                   <span className="text-[12px]">{channel.name}</span>
-                  <span className="text-[11px] text-slate-500 capitalize">({channel.channel_type})</span>
+                  <span className="text-[11px] text-[var(--text-tertiary)] capitalize">({channel.channel_type})</span>
                 </label>
               ))}
             </div>
@@ -1679,10 +1679,10 @@ export default function NotificationsPage() {
     <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+        <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
           Notifications
         </h1>
-        <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+        <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
           Configure alerts, summaries, and notification channels
         </p>
       </div>
@@ -1691,14 +1691,14 @@ export default function NotificationsPage() {
       {(!backendConnected || !hasApiKey) && (
         <div className="p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-[var(--surface-primary)] shadow-sm flex items-center justify-center flex-shrink-0">
               <AlertTriangle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[14px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[12px] text-slate-600 mt-1">
+              <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                 {!backendConnected
                   ? "Your organization is not connected to the backend."
                   : "Your organization API key is missing."}
@@ -1787,8 +1787,8 @@ export default function NotificationsPage() {
                     <Plus className="h-5 w-5 text-[#1a7a3a]" />
                   </div>
                   <div>
-                    <div className="text-[13px] font-semibold text-slate-900">Add Channel</div>
-                    <div className="text-[11px] text-slate-500">Email, Slack, or Webhook</div>
+                    <div className="text-[13px] font-semibold text-[var(--text-primary)]">Add Channel</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">Email, Slack, or Webhook</div>
                   </div>
                 </div>
               </PremiumCard>
@@ -1802,8 +1802,8 @@ export default function NotificationsPage() {
                     <AlertTriangle className="h-5 w-5 text-amber-600" />
                   </div>
                   <div>
-                    <div className="text-[13px] font-semibold text-slate-900">Create Alert</div>
-                    <div className="text-[11px] text-slate-500">Cost, pipeline, anomaly alerts</div>
+                    <div className="text-[13px] font-semibold text-[var(--text-primary)]">Create Alert</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">Cost, pipeline, anomaly alerts</div>
                   </div>
                 </div>
               </PremiumCard>
@@ -1817,8 +1817,8 @@ export default function NotificationsPage() {
                     <Calendar className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <div className="text-[13px] font-semibold text-slate-900">Schedule Summary</div>
-                    <div className="text-[11px] text-slate-500">Daily, weekly, monthly reports</div>
+                    <div className="text-[13px] font-semibold text-[var(--text-primary)]">Schedule Summary</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">Daily, weekly, monthly reports</div>
                   </div>
                 </div>
               </PremiumCard>

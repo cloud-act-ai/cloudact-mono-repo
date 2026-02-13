@@ -188,7 +188,7 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-white">
+      <div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Header - Same pattern as dashboard */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -208,12 +208,12 @@ export default function IntegrationsPage() {
           </div>
           <LoadingState message="Loading integrations..." />
         </div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Premium Header with enhanced typography */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
@@ -403,6 +403,6 @@ export default function IntegrationsPage() {
         </div>
       </div>
     </div>
-    </main>
+    </div>
   )
 }

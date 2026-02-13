@@ -253,12 +253,12 @@ export function DashboardSidebar({
   // Font: 14px nav items (industry standard: Notion, GitHub, Stripe)
   const itemClass = cn(
     "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[42px]",
-    "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+    "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]",
     "text-sm"
   )
   const activeItemClass = cn(
     "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[42px]",
-    "bg-[#90FCA6]/15 text-slate-900 font-semibold",
+    "bg-[var(--cloudact-mint)]/15 text-[var(--text-primary)] font-semibold",
     "text-sm [&_svg]:text-[#16a34a]"
   )
 
@@ -296,10 +296,10 @@ export function DashboardSidebar({
   )
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-slate-100 bg-white" {...props}>
+    <Sidebar collapsible="icon" className="border-r border-[var(--border-subtle)] bg-[var(--surface-primary)]" {...props}>
       {/* Header: Logo + Org Name + Toggle */}
       <div className={cn(
-        "border-b border-slate-100 hidden md:block",
+        "border-b border-[var(--border-subtle)] hidden md:block",
         isCollapsed ? "p-2" : "px-4 py-3"
       )}>
         <div className="flex items-center justify-between">
@@ -309,7 +309,7 @@ export function DashboardSidebar({
           >
             <div className={cn(
               "flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center",
-              "h-8 w-8 border border-gray-200 bg-white shadow-sm",
+              "h-8 w-8 border border-[var(--border-medium)] bg-[var(--surface-primary)] shadow-sm",
               "transition-all duration-200 hover:border-[var(--cloudact-mint)] hover:shadow-md"
             )}>
               {logoLoading ? (
@@ -327,7 +327,7 @@ export function DashboardSidebar({
               )}
             </div>
             {!isCollapsed && (
-              <span className="text-sm font-bold text-slate-900 truncate max-w-[140px] tracking-tight">
+              <span className="text-sm font-bold text-[var(--text-primary)] truncate max-w-[140px] tracking-tight">
                 {formattedOrgName}
               </span>
             )}
@@ -337,7 +337,7 @@ export function DashboardSidebar({
             onClick={toggleSidebar}
             className={cn(
               "flex-shrink-0 h-7 w-7 rounded-md flex items-center justify-center",
-              "text-slate-400 hover:text-slate-600 hover:bg-slate-100",
+              "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
               "transition-all duration-200 ease-in-out",
               "focus-visible:outline-2 focus-visible:outline-[var(--cloudact-mint)] focus-visible:outline-offset-2",
               isCollapsed && "mx-auto"
@@ -826,7 +826,7 @@ export function DashboardSidebar({
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter className="px-0 py-2 mt-auto border-t border-slate-100">
+      <SidebarFooter className="px-0 py-2 mt-auto border-t border-[var(--border-subtle)]">
         <SidebarMenu className="gap-0">
 
           {/* User Profile - Clickable to navigate to profile page */}
@@ -834,7 +834,7 @@ export function DashboardSidebar({
             <Link
               href={`/${orgSlug}/settings/personal`}
               className={cn(
-                "px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors cursor-pointer group rounded-md mx-2 mb-1",
+                "px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors cursor-pointer group rounded-md mx-2 mb-1",
                 isActive(`/${orgSlug}/settings/personal`) && "bg-[var(--cloudact-mint)]/10"
               )}
             >
@@ -854,10 +854,10 @@ export function DashboardSidebar({
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
                   {formatUserName(userName)}
                 </p>
-                <p className="text-xs text-slate-400 truncate group-hover:text-slate-500">
+                <p className="text-xs text-[var(--text-muted)] truncate group-hover:text-[var(--text-tertiary)]">
                   {userEmail}
                 </p>
               </div>
@@ -887,8 +887,8 @@ export function DashboardSidebar({
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-[36px] px-3 text-sm font-medium text-slate-600",
-                "hover:bg-slate-100 hover:text-slate-900 rounded-md mx-2 transition-colors",
+                "h-[36px] px-3 text-sm font-medium text-[var(--text-secondary)]",
+                "hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] rounded-md mx-2 transition-colors",
                 "flex items-center gap-3",
                 isCollapsed && "justify-center px-2"
               )}
@@ -906,8 +906,8 @@ export function DashboardSidebar({
               onClick={handleLogout}
               disabled={isLoading}
               className={cn(
-                "h-[36px] px-3 text-sm font-medium text-slate-500",
-                "hover:bg-slate-100 hover:text-slate-800 rounded-md mx-2 transition-colors",
+                "h-[36px] px-3 text-sm font-medium text-[var(--text-tertiary)]",
+                "hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] rounded-md mx-2 transition-colors",
                 "flex items-center gap-3",
                 isCollapsed && "justify-center px-2"
               )}

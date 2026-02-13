@@ -285,10 +285,10 @@ export default function PersonalSettingsPage() {
               <User className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                 Personal Settings
               </h1>
-              <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+              <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
                 Manage your profile, security, and account preferences
               </p>
             </div>
@@ -308,10 +308,10 @@ export default function PersonalSettingsPage() {
             <User className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
               Personal Settings
             </h1>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               Manage your profile, security, and account preferences
             </p>
           </div>
@@ -319,7 +319,7 @@ export default function PersonalSettingsPage() {
       </div>
 
       {/* Stats Row - Using StatRow component like pipelines */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+      <div className="bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] p-3 sm:p-5 shadow-sm">
         <StatRow stats={stats} size="md" />
       </div>
 
@@ -339,7 +339,7 @@ export default function PersonalSettingsPage() {
       )}
 
       {/* Tab Navigation - Border-bottom tabs (same as genai-runs) */}
-      <div className="border-b border-slate-200">
+      <div className="border-b border-[var(--border-medium)]">
         <nav className="flex gap-0.5 sm:gap-1 -mb-px overflow-x-auto scrollbar-hide pb-px">
           {[
             { id: "profile", label: "Profile", icon: User },
@@ -359,7 +359,7 @@ export default function PersonalSettingsPage() {
                       : "border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5"
                     : tab.danger
                       ? "border-transparent text-[#FF6C5E] hover:text-[#FF6C5E]/80 hover:border-[#FF6C5E]/50"
-                      : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                      : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:border-slate-300"
                 }`}
               >
                 <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 ${isActive && !tab.danger ? "text-[var(--cloudact-mint-dark)]" : ""}`} />
@@ -412,7 +412,7 @@ export default function PersonalSettingsPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Enter first name"
-                    className="w-full h-12 px-4 text-[13px] bg-white border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
+                    className="w-full h-12 px-4 text-[13px] bg-[var(--surface-primary)] border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
                   />
                 </div>
                 <div>
@@ -422,7 +422,7 @@ export default function PersonalSettingsPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Enter last name"
-                    className="w-full h-12 px-4 text-[13px] bg-white border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
+                    className="w-full h-12 px-4 text-[13px] bg-[var(--surface-primary)] border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
                   />
                 </div>
               </div>
@@ -458,7 +458,7 @@ export default function PersonalSettingsPage() {
                       if (error) setError(null)
                     }}
                     placeholder="555 123 4567"
-                    className="flex-1 h-12 px-4 text-[13px] bg-white border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
+                    className="flex-1 h-12 px-4 text-[13px] bg-[var(--surface-primary)] border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
                   />
                 </div>
                 <p className="text-[11px] text-slate-900/40 mt-2 font-medium">Used for account recovery and notifications</p>
@@ -488,11 +488,11 @@ export default function PersonalSettingsPage() {
             </div>
 
             {/* Save Footer */}
-            <div className="px-6 py-5 border-t border-slate-100 bg-slate-50/50">
+            <div className="px-6 py-5 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 px-6 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-[var(--text-primary)] rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
                   <>
@@ -525,14 +525,14 @@ export default function PersonalSettingsPage() {
                   <Key className="h-6 w-6 text-[#1a7a3a]" />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-semibold text-slate-900">Password</h3>
-                  <p className="text-[12px] text-slate-500 mt-0.5">Reset your password via email verification</p>
+                  <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">Password</h3>
+                  <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">Reset your password via email verification</p>
                 </div>
               </div>
               <button
                 onClick={handleResetPassword}
                 disabled={isResettingPassword}
-                className="h-11 px-5 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                className="h-11 px-5 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-[var(--text-primary)] rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {isResettingPassword ? (
                   <>
@@ -553,8 +553,8 @@ export default function PersonalSettingsPage() {
                 <Shield className="h-6 w-6 text-[#1a7a3a]" />
               </div>
               <div>
-                <h3 className="text-[16px] font-semibold text-slate-900 mb-3">Security Tips</h3>
-                <ul className="text-[12px] text-slate-600 space-y-2.5">
+                <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-3">Security Tips</h3>
+                <ul className="text-[12px] text-[var(--text-secondary)] space-y-2.5">
                   <li className="flex items-start gap-3">
                     <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
                     <span>Use a strong, unique password for your account</span>
@@ -593,7 +593,7 @@ export default function PersonalSettingsPage() {
           ) : ownedOrgs.length > 0 && (
             <PremiumCard hover={false} className="border-amber-200/60 bg-gradient-to-br from-amber-50 via-white to-amber-50/50">
               <div className="flex items-center gap-4 mb-5">
-                <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-amber-500/10 border border-amber-200">
+                <div className="h-12 w-12 rounded-2xl bg-[var(--surface-primary)] flex items-center justify-center shadow-md shadow-amber-500/10 border border-amber-200">
                   <Building2 className="h-6 w-6 text-amber-600" />
                 </div>
                 <div>
@@ -603,7 +603,7 @@ export default function PersonalSettingsPage() {
               </div>
               <div className="space-y-2.5">
                 {ownedOrgs.map((org) => (
-                  <div key={org.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-amber-200/50 shadow-sm">
+                  <div key={org.id} className="flex items-center justify-between p-4 bg-[var(--surface-primary)] rounded-2xl border border-amber-200/50 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
                         <Building2 className="h-5 w-5 text-amber-600" />
@@ -637,7 +637,7 @@ export default function PersonalSettingsPage() {
 
               {deletionRequested ? (
                 <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/15 via-[#90FCA6]/10 to-[#90FCA6]/5 border border-[#90FCA6]/30 flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-[#90FCA6]/20 flex-shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-[var(--surface-primary)] flex items-center justify-center shadow-sm border border-[#90FCA6]/20 flex-shrink-0">
                     <Mail className="h-5 w-5 text-[#1a7a3a]" />
                   </div>
                   <div>
@@ -649,7 +649,7 @@ export default function PersonalSettingsPage() {
                 </div>
               ) : ownedOrgs.length > 0 ? (
                 <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 via-[#FF6C5E]/5 to-transparent border border-[#FF6C5E]/20 flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-[#FF6C5E]/20 flex-shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-[var(--surface-primary)] flex items-center justify-center shadow-sm border border-[#FF6C5E]/20 flex-shrink-0">
                     <AlertCircle className="h-5 w-5 text-[#FF6C5E]" />
                   </div>
                   <p className="text-[12px] text-[#FF6C5E] font-semibold">
@@ -659,7 +659,7 @@ export default function PersonalSettingsPage() {
                 </div>
               ) : (
                 <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 via-[#FF6C5E]/5 to-transparent border border-[#FF6C5E]/20 flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-[#FF6C5E]/20 flex-shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-[var(--surface-primary)] flex items-center justify-center shadow-sm border border-[#FF6C5E]/20 flex-shrink-0">
                     <AlertCircle className="h-5 w-5 text-[#FF6C5E]" />
                   </div>
                   <p className="text-[12px] text-[#FF6C5E] font-semibold">
@@ -699,7 +699,7 @@ export default function PersonalSettingsPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-[16px] font-bold">Request Account Deletion</AlertDialogTitle>
                     <AlertDialogDescription className="text-[13px] text-slate-900/60">
-                      We will send a verification email to <span className="font-bold text-slate-900">{email}</span>.
+                      We will send a verification email to <span className="font-bold text-[var(--text-primary)]">{email}</span>.
                       Click the link to confirm deletion.
                       <span className="block mt-3 text-[#FF6C5E] font-bold">
                         This action is permanent and cannot be undone.

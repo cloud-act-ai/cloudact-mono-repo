@@ -466,8 +466,8 @@ export default function BillingPage() {
           <div className="h-16 w-16 rounded-2xl bg-rose-100 flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="h-8 w-8 text-rose-500" />
           </div>
-          <h2 className="text-[20px] font-bold text-slate-900 mb-3">Access Denied</h2>
-          <p className="text-[14px] text-slate-500 mb-6 leading-relaxed">
+          <h2 className="text-[20px] font-bold text-[var(--text-primary)] mb-3">Access Denied</h2>
+          <p className="text-[14px] text-[var(--text-tertiary)] mb-6 leading-relaxed">
             Only organization owners can access billing settings.
           </p>
           <Link href={`/${orgSlug}/dashboard`}>
@@ -498,10 +498,10 @@ export default function BillingPage() {
           <CreditCard className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
             Billing & Subscription
           </h1>
-          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
             Manage your subscription plan and billing details
           </p>
         </div>
@@ -509,7 +509,7 @@ export default function BillingPage() {
 
       {/* Current Subscription Banner */}
       {hasStripeSubscription && billingInfo?.subscription && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
           <div className="p-6">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="flex items-start gap-4">
@@ -518,19 +518,19 @@ export default function BillingPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-[18px] font-bold text-slate-900">{billingInfo.subscription.plan.name} Plan</h2>
+                    <h2 className="text-[18px] font-bold text-[var(--text-primary)]">{billingInfo.subscription.plan.name} Plan</h2>
                     <span className={isCanceledButActive
                       ? "flex-shrink-0 bg-rose-50 text-rose-600 text-[11px] font-bold px-2.5 py-1 rounded-md border border-rose-200"
                       : "flex-shrink-0 bg-[#B8FDCA] text-[#1a7a3a] text-[11px] font-bold px-2.5 py-1 rounded-md border border-[var(--cloudact-mint)]/20"}>
                       {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[12px] text-slate-500">
-                    <span className="font-semibold text-slate-900 tabular-nums">
+                  <div className="flex items-center gap-2 text-[12px] text-[var(--text-tertiary)]">
+                    <span className="font-semibold text-[var(--text-primary)] tabular-nums">
                       {formatCurrency(billingInfo.subscription.plan.price, billingInfo.subscription.plan.currency)}
                     </span>
                     <span>/ {billingInfo.subscription.plan.interval}</span>
-                    <span className="text-slate-300">•</span>
+                    <span className="text-[var(--text-muted)]">•</span>
                     <Calendar className="h-3.5 w-3.5" />
                     <span>Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}</span>
                   </div>
@@ -541,7 +541,7 @@ export default function BillingPage() {
                   <button
                     onClick={handleResyncFromStripe}
                     disabled={isResyncing}
-                    className="h-10 px-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-[12px] font-medium transition-colors flex items-center gap-2"
+                    className="h-10 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] rounded-lg text-[12px] font-medium transition-colors flex items-center gap-2"
                     title="Sync billing data from Stripe"
                   >
                     <RefreshCw className={`h-4 w-4 ${isResyncing ? 'animate-spin' : ''}`} />
@@ -601,37 +601,37 @@ export default function BillingPage() {
               <Users className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
-              <p className="text-[20px] font-bold text-slate-900 leading-none tabular-nums">
+              <p className="text-[20px] font-bold text-[var(--text-primary)] leading-none tabular-nums">
                 {currentMemberCount}
-                <span className="text-[14px] text-slate-400 ml-1">
+                <span className="text-[14px] text-[var(--text-muted)] ml-1">
                   / {seatLimit || 'Contact us'}
                 </span>
               </p>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Team Members</p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium mt-0.5">Team Members</p>
             </div>
           </div>
-          <div className="h-8 w-px bg-slate-200"></div>
+          <div className="h-8 w-px bg-[var(--border-medium)]"></div>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
               <Zap className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-[20px] font-bold text-slate-900 leading-none tabular-nums">
+              <p className="text-[20px] font-bold text-[var(--text-primary)] leading-none tabular-nums">
                 {providersLimit || 'Contact us'}
               </p>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Integrations</p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium mt-0.5">Integrations</p>
             </div>
           </div>
-          <div className="h-8 w-px bg-slate-200"></div>
+          <div className="h-8 w-px bg-[var(--border-medium)]"></div>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-slate-600" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-[var(--text-secondary)]" />
             </div>
             <div>
-              <p className="text-[20px] font-bold text-slate-900 leading-none capitalize">
+              <p className="text-[20px] font-bold text-[var(--text-primary)] leading-none capitalize">
                 {billingInfo.subscription.plan.interval}
               </p>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Billing Cycle</p>
+              <p className="text-[11px] text-[var(--text-tertiary)] font-medium mt-0.5">Billing Cycle</p>
             </div>
           </div>
         </div>
@@ -692,7 +692,7 @@ export default function BillingPage() {
               <div className="flex-1">
                 <p className={`text-[12px] font-semibold ${titleColor} mb-1`}>
                   {isTrialExpired ? "Trial Expired" : isUrgent ? "Trial Ending Soon!" : "Free Trial"}
-                  {!isTrialExpired && <span className="ml-2 text-[11px] px-2 py-0.5 rounded-md bg-white/60">{daysRemaining} days left</span>}
+                  {!isTrialExpired && <span className="ml-2 text-[11px] px-2 py-0.5 rounded-md bg-[var(--surface-primary)]/60">{daysRemaining} days left</span>}
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <p className={`text-[12px] ${textColor}`}>
@@ -753,10 +753,10 @@ export default function BillingPage() {
 
       {/* Pricing Cards */}
       <div id="pricing" className="space-y-6">
-        <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+        <h2 className="text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-4">
           {hasStripeSubscription ? "Change Your Plan" : "Choose Your Plan"}
         </h2>
-        <p className="text-[14px] text-slate-500 mb-6 max-w-2xl">
+        <p className="text-[14px] text-[var(--text-tertiary)] mb-6 max-w-2xl">
           {hasStripeSubscription
             ? "Upgrade or downgrade your plan instantly. All charges are prorated automatically."
             : `Select the perfect plan for your needs.${plans[0]?.trialDays ? ` All plans include a ${plans[0].trialDays}-day free trial.` : ''}`
@@ -792,10 +792,10 @@ export default function BillingPage() {
         ) : plans.length === 0 ? (
           <div className="flex items-center justify-center min-h-[500px]">
             <div className="text-center">
-              <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              <div className="h-12 w-12 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center mx-auto mb-4">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
               </div>
-              <p className="text-[13px] text-slate-500 font-medium">Loading plans...</p>
+              <p className="text-[13px] text-[var(--text-tertiary)] font-medium">Loading plans...</p>
             </div>
           </div>
         ) : (
@@ -810,12 +810,12 @@ export default function BillingPage() {
               return (
                 <div
                   key={plan.priceId}
-                  className={`relative flex flex-col rounded-2xl bg-white border shadow-sm transition-all duration-300 group ${
+                  className={`relative flex flex-col rounded-2xl bg-[var(--surface-primary)] border shadow-sm transition-all duration-300 group ${
                     isCurrentPlan
                       ? "border-[#90FCA6]/20 ring-2 ring-[#90FCA6]/10"
                       : isPopular
-                      ? "border-slate-300 ring-2 ring-slate-100"
-                      : "border-slate-200 hover:border-slate-300"
+                      ? "border-[var(--border-medium)] ring-2 ring-slate-100"
+                      : "border-[var(--border-medium)] hover:border-[var(--border-medium)]"
                   }`}
                 >
                   {/* Popular Badge - Only show for users without subscription (pricing page context) */}
@@ -840,17 +840,17 @@ export default function BillingPage() {
                   <div className="p-6 flex-1 flex flex-col">
                     {/* Plan Header */}
                     <div className="space-y-2 mb-6">
-                      <h3 className="text-[18px] font-bold text-slate-900">{plan.name}</h3>
-                      <p className="text-[12px] text-slate-500 leading-relaxed">{plan.description}</p>
+                      <h3 className="text-[18px] font-bold text-[var(--text-primary)]">{plan.name}</h3>
+                      <p className="text-[12px] text-[var(--text-tertiary)] leading-relaxed">{plan.description}</p>
                     </div>
 
                     {/* Pricing */}
                     <div className="mb-6">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-[24px] font-bold text-slate-900 tabular-nums">
+                        <span className="text-[24px] font-bold text-[var(--text-primary)] tabular-nums">
                           {formatCurrency(plan.price, orgCurrency)}
                         </span>
-                        <span className="text-[13px] font-medium text-slate-500">
+                        <span className="text-[13px] font-medium text-[var(--text-tertiary)]">
                           / {plan.interval}
                         </span>
                       </div>
@@ -873,12 +873,12 @@ export default function BillingPage() {
                               <div className="h-4 w-4 rounded-full bg-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                                 <Check className="h-3 w-3 text-[var(--cloudact-mint-text)]" />
                               </div>
-                              <span className="text-slate-600 leading-relaxed">{feature}</span>
+                              <span className="text-[var(--text-secondary)] leading-relaxed">{feature}</span>
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-[12px] text-slate-500 italic">
+                        <p className="text-[12px] text-[var(--text-tertiary)] italic">
                           Contact us for plan details
                         </p>
                       )}
@@ -938,34 +938,34 @@ export default function BillingPage() {
         )}
 
         {/* Trust Badges */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8 pt-8 border-t border-slate-200">
-          <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
-            <CreditCard className="h-4 w-4 text-slate-400" />
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8 pt-8 border-t border-[var(--border-medium)]">
+          <div className="flex items-center gap-2.5 text-[12px] text-[var(--text-tertiary)]">
+            <CreditCard className="h-4 w-4 text-[var(--text-muted)]" />
             <span className="font-medium">Secure payments via Stripe</span>
           </div>
-          <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-          <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
-            <Lock className="h-4 w-4 text-slate-400" />
+          <div className="h-4 w-px bg-[var(--border-medium)] hidden sm:block"></div>
+          <div className="flex items-center gap-2.5 text-[12px] text-[var(--text-tertiary)]">
+            <Lock className="h-4 w-4 text-[var(--text-muted)]" />
             <span className="font-medium">256-bit SSL encryption</span>
           </div>
-          <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-          <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
-            <Shield className="h-4 w-4 text-slate-400" />
+          <div className="h-4 w-px bg-[var(--border-medium)] hidden sm:block"></div>
+          <div className="flex items-center gap-2.5 text-[12px] text-[var(--text-tertiary)]">
+            <Shield className="h-4 w-4 text-[var(--text-muted)]" />
             <span className="font-medium">GDPR compliant</span>
           </div>
         </div>
 
         {/* Enterprise CTA */}
         <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-[#90FCA6]/5 to-white border border-[#90FCA6]/20 text-center">
-          <h3 className="text-[18px] font-bold text-slate-900 mb-2">
+          <h3 className="text-[18px] font-bold text-[var(--text-primary)] mb-2">
             Need enterprise pricing?
           </h3>
-          <p className="text-[14px] text-slate-600 mb-4">
+          <p className="text-[14px] text-[var(--text-secondary)] mb-4">
             Custom limits, dedicated support, and volume discounts
           </p>
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}?subject=Enterprise Pricing Inquiry`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#6EE890] transition-colors shadow-sm hover:shadow-md"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#90FCA6] text-[var(--text-primary)] text-[13px] font-semibold rounded-xl hover:bg-[#6EE890] transition-colors shadow-sm hover:shadow-md"
           >
             Contact Sales
           </a>
@@ -974,14 +974,14 @@ export default function BillingPage() {
         {/* Cancel Link */}
         <div className="text-center space-y-2 pt-4">
           {isOwner && (
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-[var(--text-tertiary)]">
               {hasStripeSubscription && !isCanceledButActive ? (
                 <>
                   Want to cancel?{" "}
                   <button
                     onClick={handleManageSubscription}
                     disabled={isPortalLoading}
-                    className="text-slate-600 hover:text-slate-900 font-medium hover:underline transition-colors"
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium hover:underline transition-colors"
                   >
                     Cancel via Stripe
                   </button>
@@ -991,7 +991,7 @@ export default function BillingPage() {
                   Want to cancel trial?{" "}
                   <a
                     href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}?subject=Cancel Trial Request`}
-                    className="text-slate-600 hover:text-slate-900 font-medium hover:underline transition-colors"
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium hover:underline transition-colors"
                   >
                     Contact support
                   </a>
@@ -1002,7 +1002,7 @@ export default function BillingPage() {
         </div>
 
         {!isOwner && (
-          <p className="text-[12px] text-center text-slate-500 pt-4 italic">
+          <p className="text-[12px] text-center text-[var(--text-tertiary)] pt-4 italic">
             Only organization owners can manage billing.
           </p>
         )}
@@ -1010,27 +1010,27 @@ export default function BillingPage() {
 
       {/* Payment Method Card */}
       {hasStripeSubscription && billingInfo?.paymentMethod && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
                 <CreditCard className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-[14px] font-bold text-slate-900">Payment Method</h3>
-                <p className="text-[12px] text-slate-500">Your default payment method for this subscription</p>
+                <h3 className="text-[14px] font-bold text-[var(--text-primary)]">Payment Method</h3>
+                <p className="text-[12px] text-[var(--text-tertiary)]">Your default payment method for this subscription</p>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-16 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200">
-                  <span className="text-[11px] font-bold uppercase text-slate-700">{billingInfo.paymentMethod.brand}</span>
+                <div className="h-12 w-16 rounded-lg bg-[var(--surface-secondary)] flex items-center justify-center border border-[var(--border-medium)]">
+                  <span className="text-[11px] font-bold uppercase text-[var(--text-secondary)]">{billingInfo.paymentMethod.brand}</span>
                 </div>
                 <div className="space-y-1">
-                  <p className="font-semibold text-[13px] text-slate-900">
+                  <p className="font-semibold text-[13px] text-[var(--text-primary)]">
                     {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} ending in {billingInfo.paymentMethod.last4}
                   </p>
-                  <p className="text-[12px] text-slate-500 flex items-center gap-2">
+                  <p className="text-[12px] text-[var(--text-tertiary)] flex items-center gap-2">
                     Expires {billingInfo.paymentMethod.expMonth}/{billingInfo.paymentMethod.expYear}
                     {(() => {
                       const now = new Date()
@@ -1047,7 +1047,7 @@ export default function BillingPage() {
               </div>
               {isOwner && (
                 <button
-                  className="h-10 px-5 text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg text-[12px] font-semibold transition-colors"
+                  className="h-10 px-5 text-[var(--text-primary)] bg-[var(--surface-primary)] border border-[var(--border-medium)] hover:bg-[var(--surface-hover)] rounded-lg text-[12px] font-semibold transition-colors"
                   onClick={handleManageSubscription}
                   disabled={isPortalLoading}
                 >
@@ -1060,25 +1060,25 @@ export default function BillingPage() {
       )}
 
       {/* Invoice History */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200">
-          <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide mb-1">Invoice History</h2>
-          <p className="text-[12px] text-slate-500">Download your past invoices and receipts</p>
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-medium)]">
+          <h2 className="text-[12px] font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-1">Invoice History</h2>
+          <p className="text-[12px] text-[var(--text-tertiary)]">Download your past invoices and receipts</p>
         </div>
         <div className="p-6">
           {isLoadingBilling ? (
             <div className="flex items-center justify-center min-h-[300px]">
               <div className="text-center">
-                <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                <div className="h-12 w-12 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center mx-auto mb-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
                 </div>
-                <p className="text-[13px] text-slate-500 font-medium">Loading invoices...</p>
+                <p className="text-[13px] text-[var(--text-tertiary)] font-medium">Loading invoices...</p>
               </div>
             </div>
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-6">
               <div className="min-w-[700px] px-6">
-                <div className="grid grid-cols-5 gap-4 pb-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-200">
+                <div className="grid grid-cols-5 gap-4 pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide border-b border-[var(--border-medium)]">
                   <span>Invoice</span>
                   <span>Date</span>
                   <span>Amount</span>
@@ -1089,11 +1089,11 @@ export default function BillingPage() {
                   {billingInfo.invoices.map((invoice) => (
                     <div
                       key={invoice.id}
-                      className="grid grid-cols-5 gap-4 items-center py-4 rounded-lg hover:bg-slate-50 transition-colors group"
+                      className="grid grid-cols-5 gap-4 items-center py-4 rounded-lg hover:bg-[var(--surface-hover)] transition-colors group"
                     >
-                      <span className="font-semibold text-[12px] text-slate-900">{invoice.number || invoice.id.slice(-8)}</span>
-                      <span className="text-[12px] text-slate-500">{formatDate(invoice.created)}</span>
-                      <span className="text-[12px] font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
+                      <span className="font-semibold text-[12px] text-[var(--text-primary)]">{invoice.number || invoice.id.slice(-8)}</span>
+                      <span className="text-[12px] text-[var(--text-tertiary)]">{formatDate(invoice.created)}</span>
+                      <span className="text-[12px] font-semibold text-[var(--text-primary)] tabular-nums">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
                       <span
                         className={
                           invoice.status === "paid"
@@ -1104,7 +1104,7 @@ export default function BillingPage() {
                             ? "bg-rose-50 text-rose-700 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-rose-200 w-fit"
                             : invoice.amountDue > 0 && invoice.status !== "paid"
                             ? "bg-rose-50 text-rose-700 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-rose-200 w-fit"
-                            : "bg-slate-100 text-slate-600 text-[11px] font-semibold px-2.5 py-1 rounded-md inline-flex items-center gap-1 w-fit"
+                            : "bg-[var(--surface-secondary)] text-[var(--text-secondary)] text-[11px] font-semibold px-2.5 py-1 rounded-md inline-flex items-center gap-1 w-fit"
                         }
                       >
                         {invoice.status === "paid" && <Check className="h-3 w-3" />}
@@ -1114,7 +1114,7 @@ export default function BillingPage() {
                       <div className="flex justify-end gap-2">
                         {invoice.hostedInvoiceUrl && (
                           <button
-                            className="h-9 w-9 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 inline-flex items-center justify-center transition-colors"
+                            className="h-9 w-9 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center justify-center transition-colors"
                             onClick={() => window.open(invoice.hostedInvoiceUrl!, "_blank")}
                             aria-label="View invoice"
                           >
@@ -1123,7 +1123,7 @@ export default function BillingPage() {
                         )}
                         {invoice.invoicePdf && (
                           <button
-                            className="h-9 w-9 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 inline-flex items-center justify-center transition-colors"
+                            className="h-9 w-9 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center justify-center transition-colors"
                             onClick={() => window.open(invoice.invoicePdf!, "_blank")}
                             aria-label="Download invoice PDF"
                           >
@@ -1138,11 +1138,11 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                <Receipt className="h-8 w-8 text-slate-400" />
+              <div className="h-16 w-16 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center mx-auto mb-4">
+                <Receipt className="h-8 w-8 text-[var(--text-muted)]" />
               </div>
-              <h3 className="text-[14px] font-bold text-slate-900 mb-2">No invoices yet</h3>
-              <p className="text-[12px] text-slate-500">Invoices will appear here once you subscribe to a plan</p>
+              <h3 className="text-[14px] font-bold text-[var(--text-primary)] mb-2">No invoices yet</h3>
+              <p className="text-[12px] text-[var(--text-tertiary)]">Invoices will appear here once you subscribe to a plan</p>
             </div>
           )}
         </div>
@@ -1152,11 +1152,11 @@ export default function BillingPage() {
       <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-[18px] font-bold text-slate-900">
+            <DialogTitle className="text-[18px] font-bold text-[var(--text-primary)]">
               {confirmDialog.isUpgrade ? "Upgrade" : "Downgrade"} to {confirmDialog.plan?.name}?
             </DialogTitle>
             <DialogDescription asChild>
-              <div className="text-[12px] leading-relaxed space-y-3 pt-2 text-slate-600">
+              <div className="text-[12px] leading-relaxed space-y-3 pt-2 text-[var(--text-secondary)]">
                 {confirmDialog.isUpgrade ? (
                   <>
                     <p>
@@ -1181,10 +1181,10 @@ export default function BillingPage() {
                     </div>
                     {confirmDialog.plan?.limits && (
                       <div className="space-y-2 text-[12px]">
-                        <p className="font-medium text-slate-900">Current usage vs. new plan limits:</p>
+                        <p className="font-medium text-[var(--text-primary)]">Current usage vs. new plan limits:</p>
                         <ul className="space-y-1">
-                          <li className="flex items-center justify-between p-2 rounded bg-slate-50">
-                            <span className="text-slate-600">Team Members:</span>
+                          <li className="flex items-center justify-between p-2 rounded bg-[var(--surface-secondary)]">
+                            <span className="text-[var(--text-secondary)]">Team Members:</span>
                             <span className={`font-semibold ${
                               currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
                                 ? "text-rose-600"

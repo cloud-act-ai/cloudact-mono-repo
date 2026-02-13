@@ -406,12 +406,60 @@ ORDER BY month DESC;
 "Explain EffectiveCost vs ListCost"
 ```
 
+## Environments
+
+| Environment | API URL | BigQuery Project | Dataset Pattern |
+|-------------|---------|------------------|-----------------|
+| local | `http://localhost:8000` | cloudact-testing-1 | `{org}_local` |
+| stage | Cloud Run URL | cloudact-testing-1 | `{org}_stage` |
+| prod | `https://api.cloudact.ai` | cloudact-prod | `{org}_prod` |
+
+```bash
+# Query costs (local)
+curl -s "http://localhost:8000/api/v1/costs/{org}/total?start_date=2025-01-01&end_date=2026-12-31" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+
+# Query costs (prod)
+curl -s "https://api.cloudact.ai/api/v1/costs/{org}/total?start_date=2025-01-01&end_date=2026-12-31" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+```
+
+## Testing
+
+### API Cost Endpoints
+```bash
+# Total costs
+curl -s "http://localhost:8000/api/v1/costs/{org}/total?start_date=2025-01-01&end_date=2026-12-31" \
+  -H "X-API-Key: {key}"
+# Expected: { genai: X, cloud: Y, subscription: Z, total: W }
+
+# Cost breakdown by provider
+curl -s "http://localhost:8000/api/v1/costs/{org}/breakdown?start_date=2025-01-01&end_date=2026-12-31&group_by=ServiceProviderName" \
+  -H "X-API-Key: {key}"
+```
+
+### BigQuery Direct Validation
+```bash
+bq query --nouse_legacy_sql \
+  "SELECT ServiceCategory, SUM(BilledCost) as total FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` GROUP BY 1"
+# Cross-validate against API response
+```
+
+### FOCUS 1.3 Field Validation
+```bash
+bq query --nouse_legacy_sql \
+  "SELECT COUNT(*) as nulls FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` WHERE BilledCost IS NULL OR ServiceCategory IS NULL"
+# Expected: 0 nulls in required fields
+```
+
 ## Related Skills
 - `cost-analytics` - **Unified filter architecture, caching, troubleshooting** (see this for cache/filter flows)
 - `subscription-costs` - SaaS subscription cost pipelines
 - `pipeline-ops` - Run cost pipelines
-- `hierarchy-ops` - Cost allocation setup
+- `hierarchy` - Cost allocation setup
 - `quota-mgmt` - Cost-based quotas
+- `i18n-locale` - Multi-currency formatting and conversion
+- `notifications` - Cost alert rules and thresholds
 
 ## Source Specifications
 

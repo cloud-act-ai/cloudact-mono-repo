@@ -86,11 +86,11 @@ const LEVEL_COLORS: Record<string, { icon: string; bg: string; badge: string }> 
   // Old level codes
   department: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
   project: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
-  team: { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" },
+  team: { icon: "text-[var(--text-secondary)]", bg: "bg-[var(--surface-secondary)]", badge: "bg-[var(--surface-secondary)] text-[var(--text-secondary)]" },
   // New N-level codes
   c_suite: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
   business_unit: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
-  function: { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" },
+  function: { icon: "text-[var(--text-secondary)]", bg: "bg-[var(--surface-secondary)]", badge: "bg-[var(--surface-secondary)] text-[var(--text-secondary)]" },
 }
 
 interface CreateFormData {
@@ -376,7 +376,7 @@ export default function HierarchySettingsPage() {
   const getLevelIcon = (levelCode: string) => {
     const IconComponent = LEVEL_ICONS[levelCode] || Layers
     // MED-004 FIX: Ensure fallback includes all required properties (icon, bg, badge)
-    const colors = LEVEL_COLORS[levelCode] || { icon: "text-slate-600", bg: "bg-slate-100", badge: "bg-slate-100 text-slate-600" }
+    const colors = LEVEL_COLORS[levelCode] || { icon: "text-[var(--text-secondary)]", bg: "bg-[var(--surface-secondary)]", badge: "bg-[var(--surface-secondary)] text-[var(--text-secondary)]" }
     return { IconComponent, colors }
   }
 
@@ -398,12 +398,12 @@ export default function HierarchySettingsPage() {
           {hasChildren ? (
             <button
               onClick={() => toggleNodeExpand(node.entity_id)}
-              className="h-6 w-6 rounded-md flex items-center justify-center hover:bg-slate-100 transition-colors"
+              className="h-6 w-6 rounded-md flex items-center justify-center hover:bg-[var(--surface-secondary)] transition-colors"
             >
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-slate-500" />
+                <ChevronDown className="h-4 w-4 text-[var(--text-tertiary)]" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-400" />
+                <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
               )}
             </button>
           ) : (
@@ -412,15 +412,15 @@ export default function HierarchySettingsPage() {
           <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${colors.bg}`}>
             <IconComponent className={`h-4 w-4 ${colors.icon}`} />
           </div>
-          <span className="font-semibold text-[13px] text-slate-900">{node.entity_name}</span>
-          <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+          <span className="font-semibold text-[13px] text-[var(--text-primary)]">{node.entity_name}</span>
+          <span className="text-[11px] font-mono text-[var(--text-muted)] bg-[var(--surface-secondary)] px-2 py-0.5 rounded">
             {node.entity_id}
           </span>
-          <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded">
+          <span className="text-[11px] text-[var(--text-muted)] bg-[var(--surface-secondary)] px-2 py-0.5 rounded">
             {node.level_name}
           </span>
           {node.owner_name && (
-            <span className="text-[11px] text-slate-500 ml-auto mr-2">
+            <span className="text-[11px] text-[var(--text-tertiary)] ml-auto mr-2">
               {node.owner_name}
             </span>
           )}
@@ -468,7 +468,7 @@ export default function HierarchySettingsPage() {
         {isExpanded && hasChildren && (
           <div className="relative">
             <div
-              className="absolute top-0 bottom-2 w-px bg-slate-200"
+              className="absolute top-0 bottom-2 w-px bg-[var(--border-medium)]"
               style={{ left: `${depth * 28 + 24}px` }}
             />
             {node.children.map(child => renderTreeNode(child, depth + 1))}
@@ -515,10 +515,10 @@ export default function HierarchySettingsPage() {
             <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
           </div>
           <div>
-            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
               Organizational Hierarchy
             </h1>
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               Manage your organizational structure
             </p>
           </div>
@@ -536,10 +536,10 @@ export default function HierarchySettingsPage() {
           <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
             Organizational Hierarchy
           </h1>
-          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
             Manage your organizational structure
           </p>
         </div>
@@ -547,7 +547,7 @@ export default function HierarchySettingsPage() {
 
       {/* Stats Row */}
       {stats.length > 0 && (
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+        <div className="bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] p-3 sm:p-5 shadow-sm">
           <StatRow stats={stats} size="md" />
         </div>
       )}
@@ -591,11 +591,11 @@ export default function HierarchySettingsPage() {
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="border-b border-slate-200">
+        <div className="border-b border-[var(--border-medium)]">
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="tree"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
             >
               <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Org Structure</span>
@@ -607,7 +607,7 @@ export default function HierarchySettingsPage() {
                 <TabsTrigger
                   key={level.level_code}
                   value={level.level_code}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
                 >
                   <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="hidden sm:inline">{level.level_name_plural}</span>
@@ -625,11 +625,11 @@ export default function HierarchySettingsPage() {
                 {deduplicatedTreeData.roots.map(root => renderTreeNode(root))}
               </div>
             ) : (
-              <div className="text-center py-16 text-slate-400">
+              <div className="text-center py-16 text-[var(--text-muted)]">
                 <div className="h-16 w-16 rounded-2xl bg-[#90FCA6]/10 flex items-center justify-center mx-auto mb-4">
                   <Network className="h-8 w-8 text-[#90FCA6]" />
                 </div>
-                <p className="text-[14px] font-semibold text-slate-600">No hierarchy defined yet</p>
+                <p className="text-[14px] font-semibold text-[var(--text-secondary)]">No hierarchy defined yet</p>
                 <p className="text-[12px] mt-1">Start by adding {rootLevel?.level_name.toLowerCase() || "an entity"}</p>
               </div>
             )}
@@ -662,16 +662,16 @@ export default function HierarchySettingsPage() {
                       const childCount = allEntities.filter(e => e.parent_id === entity.entity_id).length
                       return (
                         <TableRow key={entity.entity_id} className="console-table-row">
-                          <TableCell className="console-table-cell font-mono text-[12px] text-slate-600">
+                          <TableCell className="console-table-cell font-mono text-[12px] text-[var(--text-secondary)]">
                             {entity.entity_id}
                           </TableCell>
-                          <TableCell className="console-table-cell font-semibold text-slate-900">
+                          <TableCell className="console-table-cell font-semibold text-[var(--text-primary)]">
                             {entity.entity_name}
                           </TableCell>
-                          <TableCell className="console-table-cell text-[11px] text-slate-500 font-mono">
+                          <TableCell className="console-table-cell text-[11px] text-[var(--text-tertiary)] font-mono">
                             {entity.path_names.join(" → ")}
                           </TableCell>
-                          <TableCell className="console-table-cell text-slate-600">
+                          <TableCell className="console-table-cell text-[var(--text-secondary)]">
                             {entity.owner_name || "—"}
                           </TableCell>
                           {childLevel && (
@@ -717,7 +717,7 @@ export default function HierarchySettingsPage() {
                       )
                     }) : (
                       <TableRow>
-                        <TableCell colSpan={childLevel ? 6 : 5} className="text-center py-12 text-slate-400">
+                        <TableCell colSpan={childLevel ? 6 : 5} className="text-center py-12 text-[var(--text-muted)]">
                           <IconComponent className="h-10 w-10 mx-auto mb-3 opacity-40" />
                           <p className="text-[13px] font-medium">No {level.level_name_plural.toLowerCase()} yet</p>
                           <p className="text-[11px] mt-1">
@@ -760,7 +760,7 @@ export default function HierarchySettingsPage() {
                   {levels.filter(l => l.is_active).sort((a, b) => a.level - b.level).map(level => (
                     <SelectItem key={level.level_code} value={level.level_code}>
                       <span className="flex items-center gap-2">
-                        <span className="text-slate-400">L{level.level}</span>
+                        <span className="text-[var(--text-muted)]">L{level.level}</span>
                         {level.level_name}
                       </span>
                     </SelectItem>
@@ -788,7 +788,7 @@ export default function HierarchySettingsPage() {
                         {parent.entity_name} ({parent.entity_id})
                       </SelectItem>
                     )) : (
-                      <div className="px-3 py-2 text-sm text-slate-500">
+                      <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
                         No {levels.find(l => l.level === selectedLevelConfig?.parent_level)?.level_name_plural || "parents"} available. Create one first.
                       </div>
                     )}
@@ -942,7 +942,7 @@ export default function HierarchySettingsPage() {
                 id="edit_entity_id"
                 value={editTarget?.entity_id || ""}
                 disabled
-                className="bg-slate-50 text-slate-500"
+                className="bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"
               />
             </div>
             <div className="space-y-2">

@@ -388,10 +388,10 @@ export default function PipelinesPage() {
       accessorKey: "pipeline_id",
       cell: (row) => (
         <div className="space-y-0.5">
-          <div className="text-[14px] font-semibold text-slate-900">
+          <div className="text-[14px] font-semibold text-[var(--text-primary)]">
             {row.pipeline_id}
           </div>
-          <div className="text-[11px] text-slate-500 font-mono">
+          <div className="text-[11px] text-[var(--text-tertiary)] font-mono">
             {row.pipeline_logging_id.slice(0, 8)}...
           </div>
         </div>
@@ -415,7 +415,7 @@ export default function PipelinesPage() {
       header: "Started",
       accessorKey: "start_time",
       cell: (row) => (
-        <div className="text-[12px] text-slate-700">
+        <div className="text-[12px] text-[var(--text-secondary)]">
           {formatDateTime(row.start_time)}
         </div>
       ),
@@ -425,8 +425,8 @@ export default function PipelinesPage() {
       header: "Duration",
       accessorKey: "duration_ms",
       cell: (row) => (
-        <div className="flex items-center gap-1 text-[12px] text-slate-900 tabular-nums">
-          <Clock className="h-3 w-3 text-slate-500" />
+        <div className="flex items-center gap-1 text-[12px] text-[var(--text-primary)] tabular-nums">
+          <Clock className="h-3 w-3 text-[var(--text-tertiary)]" />
           {formatDuration(row.duration_ms)}
         </div>
       ),
@@ -442,7 +442,7 @@ export default function PipelinesPage() {
         { label: "API", value: "API" },
       ],
       cell: (row) => (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border-medium)]">
           {row.trigger_type}
         </span>
       ),
@@ -452,16 +452,16 @@ export default function PipelinesPage() {
   // Loading state
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-white">
+      <div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6">
           <LoadingState message="Loading pipelines..." size="lg" />
         </div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Premium Header */}
       <div className="flex items-start gap-3 sm:gap-4">
@@ -469,10 +469,10 @@ export default function PipelinesPage() {
           <Play className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
         </div>
         <div>
-          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
             Pipelines
           </h1>
-          <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
             Run data pipelines to fetch your cloud data
           </p>
         </div>
@@ -489,10 +489,10 @@ export default function PipelinesPage() {
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[14px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[12px] text-slate-600 mt-1">
+              <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                 {!backendConnected
                   ? "Your organization is not connected to the pipeline backend."
                   : "Your organization API key is missing."}
@@ -512,7 +512,7 @@ export default function PipelinesPage() {
       <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-          <p className="text-[12px] text-slate-700 font-medium">
+          <p className="text-[12px] text-[var(--text-secondary)] font-medium">
             Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
           </p>
         </div>
@@ -544,7 +544,7 @@ export default function PipelinesPage() {
 
       {/* Available Pipelines */}
       <div>
-        <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Available Pipelines</h2>
+        <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-4">Available Pipelines</h2>
         <PremiumCard>
           {connectedPipelines.length === 0 ? (
             <EmptyState
@@ -589,7 +589,7 @@ export default function PipelinesPage() {
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Run History</h2>
+            <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Run History</h2>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
@@ -632,7 +632,7 @@ export default function PipelinesPage() {
                 const detail = details as PipelineRunDetailType | undefined
                 if (!detail) {
                   return (
-                    <div className="text-center text-slate-500 text-[12px] py-6">
+                    <div className="text-center text-[var(--text-tertiary)] text-[12px] py-6">
                       Failed to load details
                     </div>
                   )
@@ -690,12 +690,12 @@ export default function PipelinesPage() {
       )}
 
       {/* Coming Soon */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 text-center">
-        <p className="text-[12px] text-slate-500 font-medium">
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm p-6 sm:p-8 text-center">
+        <p className="text-[12px] text-[var(--text-tertiary)] font-medium">
           More pipelines coming soon: AWS Cost Explorer, Azure, LLM Usage Analytics
         </p>
       </div>
     </div>
-    </main>
+    </div>
   )
 }

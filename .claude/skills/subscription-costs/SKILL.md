@@ -83,12 +83,84 @@ curl -X DELETE "http://localhost:8000/api/v1/subscriptions/{org}/providers/{prov
 | Issue | Solution |
 |-------|----------|
 | Pipeline stuck PENDING | Check for duplicate runs in `org_meta_pipeline_runs` |
-| No costs calculated | Verify active subscriptions exist (`status = 'active'`) |
+| No costs calculated | Verify active subscriptions exist (`status = 'active'`) in `subscription_plans` table |
 | Wrong currency | Match plan currency to org `default_currency` |
 | Missing FOCUS data | Check `sp_subscription_3_convert_to_focus` logs |
 | Procedure not found | Run `POST /api/v1/procedures/sync` (port 8001) |
+| **subscription_plans table empty** | CSV had `org_slug` instead of `x_org_slug` or REQUIRED hierarchy fields empty. Fix CSV and re-load with `bq load --skip_leading_rows=1` |
+| **CSV "Too many values"** (36 vs 35) | Extra comma in CSV data rows. Use `python3 csv.reader` to count columns per row. Common: extra comma between `contract_id` and `notes` fields |
+| **x_hierarchy_level_code wrong** | Must be `department`, `project`, or `team` (NOT `function`). Must match actual hierarchy level |
+| **REQUIRED hierarchy fields** | `x_hierarchy_entity_id`, `x_hierarchy_entity_name`, `x_hierarchy_path`, `x_hierarchy_path_names` are all REQUIRED in schema. Pipeline fails silently if empty |
+
+### Verified Subscription Costs (Jan 2025 - Dec 2026, 15 plans)
+
+| Metric | Value |
+|--------|-------|
+| Plans loaded | 15 SaaS subscriptions |
+| Daily cost records | 10,950 (15 × 730 days) |
+| BQ total cost | ~$151K |
+| API total (date-filtered) | ~$85K |
+| FOCUS records | 10,950 per-provider rows |
+| Providers in FOCUS | slack, notion, figma, zoom, chatgpt_plus, adobe_cc, claude_pro, copilot, canva, jira, confluence, cursor, linear, github, vercel |
+
+## Environments
+
+| Environment | Pipeline URL | BigQuery Dataset | API URL |
+|-------------|-------------|------------------|---------|
+| local | `http://localhost:8001` | `{org}_local` | `http://localhost:8000` |
+| stage | Cloud Run URL | `{org}_stage` | Cloud Run URL |
+| prod | `https://pipeline.cloudact.ai` | `{org}_prod` | `https://api.cloudact.ai` |
+
+```bash
+# Run subscription pipeline (local)
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/subscription/costs/subscription_cost" \
+  -H "x-api-key: {org_api_key}"
+
+# Run subscription pipeline (stage)
+curl -X POST "https://cloudact-pipeline-service-test-*.a.run.app/api/v1/pipelines/run/{org}/subscription/costs/subscription_cost" \
+  -H "x-api-key: {org_api_key}"
+```
+
+## Testing
+
+### Verify Plans Loaded
+```bash
+bq query --nouse_legacy_sql \
+  "SELECT COUNT(*) as plans, COUNT(DISTINCT provider_id) as providers FROM \`cloudact-testing-1.{org}_local.subscription_plans\` WHERE x_org_slug='{org}'"
+# Expected: plans > 0
+```
+
+### Verify Pipeline Output
+```bash
+# Daily costs
+bq query --nouse_legacy_sql \
+  "SELECT COUNT(*) as row_count, SUM(daily_cost) as total FROM \`cloudact-testing-1.{org}_local.subscription_plan_costs_daily\`"
+
+# FOCUS output
+bq query --nouse_legacy_sql \
+  "SELECT ServiceCategory, COUNT(*) as rows, SUM(BilledCost) as total FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` WHERE ServiceCategory='subscription' GROUP BY 1"
+```
+
+### CSV Validation (Before Load)
+```python
+import csv
+with open('subscription_plans.csv') as f:
+    reader = csv.reader(f)
+    header = next(reader)
+    print(f"Header columns: {len(header)}")
+    for i, row in enumerate(reader):
+        assert len(row) == len(header), f"Row {i+1}: {len(row)} cols (expected {len(header)})"
+# Must be exactly 35 columns. Extra commas = column count mismatch.
+```
 
 ## Source Specifications
 
 Requirements consolidated from:
 - `02_SAAS_SUBSCRIPTION_COSTS.md` - SaaS subscription costs
+
+## Related Skills
+
+- `pipeline-ops` - Pipeline execution and debugging
+- `hierarchy` - Hierarchy fields in subscription plans
+- `cost-analysis` - FOCUS 1.3 output from subscription pipeline
+- `demo-setup` - Demo subscription data loading

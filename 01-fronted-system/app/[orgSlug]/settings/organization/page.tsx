@@ -734,7 +734,7 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Stats Row - Using StatRow component like pipelines */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
+      <div className="bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] p-3 sm:p-5 shadow-sm">
         <StatRow stats={stats} size="md" />
       </div>
 
@@ -754,7 +754,7 @@ export default function OrganizationSettingsPage() {
 
       <Tabs defaultValue="general" className="w-full">
         {/* Tab Navigation - Premium border-bottom tabs (genai-runs pattern) */}
-        <div className="border-b border-slate-200 mb-6 sm:mb-8">
+        <div className="border-b border-[var(--border-medium)] mb-6 sm:mb-8">
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="general"
@@ -793,8 +793,8 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Organization Details - Premium Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
               <Building2 className="h-5 w-5 text-[#1a7a3a]" />
@@ -861,8 +861,8 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Organization Branding - Premium Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
@@ -894,8 +894,8 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Organization Locale - Premium Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
               <Activity className="h-5 w-5 text-[#1a7a3a]" />
@@ -1036,7 +1036,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-slate-50 hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1055,8 +1055,8 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="contact" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Contact Details - Premium Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
               <User className="h-5 w-5 text-[#1a7a3a]" />
@@ -1073,7 +1073,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 sm:p-8 space-y-6">
           {loadingContactDetails ? (
             <div className="flex items-center gap-3 py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--cloudact-mint-text)]" />
               <span className="text-[13px] text-muted-foreground">Loading...</span>
             </div>
           ) : (
@@ -1293,7 +1293,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleResetContactDetails}
               disabled={isSavingContactDetails}
               variant="outline"
-              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+              className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-slate-50 hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1304,8 +1304,8 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="backend" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Backend Connection - Premium Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
+      <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
               <Activity className="h-5 w-5 text-[#1a7a3a]" />
@@ -1322,7 +1322,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 sm:p-8 space-y-4">
           {loadingBackendStatus ? (
             <div className="flex items-center gap-3 py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--cloudact-mint-text)]" />
               <span className="text-[13px] text-muted-foreground">Checking connection...</span>
             </div>
           ) : (
@@ -1410,7 +1410,7 @@ export default function OrganizationSettingsPage() {
 
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <div className="p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-medium)]">
                   <p className="text-[12px] text-slate-600">
                     <strong className="text-slate-700">How to fix:</strong> Your API key may have been rotated or deactivated.
                     Try "Resync Connection" below or contact support.
@@ -1429,7 +1429,7 @@ export default function OrganizationSettingsPage() {
               className={`h-11 px-6 text-[12px] font-semibold rounded-xl transition-all ${
                 (!backendOnboarded || apiKeyValid === false)
                   ? "bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 shadow-sm hover:shadow-md"
-                  : "border-2 border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:shadow-sm"
+                  : "border-2 border-[var(--border-medium)] bg-[var(--surface-primary)] text-slate-900 hover:bg-slate-50 hover:shadow-sm"
               }`}
             >
               {isResyncing ? (
@@ -1473,7 +1473,7 @@ export default function OrganizationSettingsPage() {
 
         {/* Owned Organizations Management */}
         {loadingOwnedOrgs ? (
-          <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
+          <div className="bg-[var(--surface-primary)] rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
             <div className="p-8">
               <div className="flex items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]" />
@@ -1482,7 +1482,7 @@ export default function OrganizationSettingsPage() {
             </div>
           </div>
         ) : ownedOrgs.length > 0 ? (
-          <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden mb-6">
+          <div className="bg-[var(--surface-primary)] rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden mb-6">
             <div className="p-6 sm:p-8 border-b border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 to-transparent">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">
@@ -1521,7 +1521,7 @@ export default function OrganizationSettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => openTransferDialog(org)}
-                        className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
+                        className="h-11 px-5 text-[12px] font-semibold rounded-xl border-2 border-[var(--border-medium)] hover:bg-slate-50 hover:shadow-sm transition-all"
                       >
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Transfer
@@ -1672,7 +1672,7 @@ export default function OrganizationSettingsPage() {
         </Dialog>
 
         {/* Account Deletion Card - Premium */}
-        <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
+        <div className="bg-[var(--surface-primary)] rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
           <div className="p-6 sm:p-8 border-b border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 to-transparent">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">

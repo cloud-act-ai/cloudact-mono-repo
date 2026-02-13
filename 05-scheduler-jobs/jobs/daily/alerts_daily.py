@@ -37,9 +37,7 @@ def get_api_service_url(project_id: str) -> str:
     # Determine URL based on project
     if project_id == "cloudact-prod":
         return "https://api.cloudact.ai"
-    elif project_id == "cloudact-stage":
-        return "https://cloudact-api-service-stage-667076943102.us-central1.run.app"
-    else:  # cloudact-testing-1
+    else:  # cloudact-testing-1 (stage + test)
         return "https://cloudact-api-service-test-667076943102.us-central1.run.app"
 
 
@@ -102,10 +100,9 @@ async def main():
                         print(f"  - {org_error.get('org_slug')}: {org_error.get('error')}")
 
             elif response.status_code == 404:
-                print("\n⚠️ Alerts endpoint not found - endpoint may not be implemented yet")
-                print("  Creating placeholder success for now...")
-                # Don't fail the job if endpoint doesn't exist yet
-                sys.exit(0)
+                print("\n⚠️ Alerts endpoint not found (404)")
+                print("  The /api/v1/admin/alerts/process-all endpoint is not available.")
+                sys.exit(1)
 
             else:
                 print(f"\n❌ Alerts processing failed!")

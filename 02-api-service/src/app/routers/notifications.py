@@ -1109,6 +1109,8 @@ async def list_scheduled_alerts(
 
             if response.status_code == 200:
                 alerts = response.json().get("alerts", [])
+                # SECURITY: Filter alerts to only this org's alerts
+                alerts = [a for a in alerts if a.get("org_slug") == org_slug]
                 if enabled_only:
                     alerts = [a for a in alerts if a.get("enabled", False)]
                 return {"success": True, "alerts": alerts}
@@ -1149,7 +1151,10 @@ async def get_scheduled_alert(
 
             if response.status_code == 200:
                 alerts = response.json().get("alerts", [])
-                alert = next((a for a in alerts if a.get("id") == alert_id), None)
+                alert = next(
+                    (a for a in alerts if a.get("id") == alert_id and a.get("org_slug") == org_slug),
+                    None,
+                )
                 if alert:
                     return {"success": True, "alert": alert}
                 else:
@@ -1188,12 +1193,16 @@ async def test_scheduled_alert(
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{settings.pipeline_service_url}/api/v1/alerts/configs/{alert_id}/test",
-                params={"dry_run": dry_run},
+                params={"dry_run": dry_run, "org_slug": org_slug},
                 headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                # SECURITY: Verify response belongs to requesting org
+                if result.get("org_slug") and result["org_slug"] != org_slug:
+                    raise HTTPException(status_code=404, detail="Alert not found")
+                return result
             elif response.status_code == 404:
                 raise HTTPException(status_code=404, detail="Alert not found")
             else:
@@ -1427,6 +1436,7 @@ async def update_org_alert(
 
 @router.delete(
     "/{org_slug}/org-alerts/{alert_id}",
+    status_code=204,
     summary="Delete org-specific scheduled alert",
     description="Delete a scheduled alert from this organization",
 )
@@ -1444,7 +1454,6 @@ async def delete_org_alert(
         deleted = await service.delete_scheduled_alert(org_slug, alert_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Alert not found")
-        return {"success": True, "message": "Alert deleted"}
     except HTTPException:
         raise
     except Exception as e:

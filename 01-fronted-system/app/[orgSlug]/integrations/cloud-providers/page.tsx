@@ -195,7 +195,7 @@ export default function CloudProvidersPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="flex items-center gap-4 sm:gap-6 py-4 sm:py-5 px-4 sm:px-6 bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-4 sm:gap-6 py-4 sm:py-5 px-4 sm:px-6 bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] shadow-sm overflow-x-auto scrollbar-hide">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
             <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
@@ -284,7 +284,7 @@ export default function CloudProvidersPage() {
       {connectedProviders.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-[12px] font-semibold text-slate-900 uppercase tracking-wide">Connected</h2>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+          <div className="bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] shadow-sm divide-y divide-[var(--border-subtle)]">
             {connectedProviders.map((provider) => {
               const integration = integrations[provider.backendKey]
               const isEnabled = integration?.is_enabled !== false
@@ -366,7 +366,7 @@ export default function CloudProvidersPage() {
               <Link
                 key={provider.id}
                 href={`/${orgSlug}/integrations/${provider.href}`}
-                className="group p-4 sm:p-5 bg-white rounded-xl sm:rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all touch-manipulation"
+                className="group p-4 sm:p-5 bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] hover:border-slate-300 hover:shadow-md transition-all touch-manipulation"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -399,12 +399,12 @@ export default function CloudProvidersPage() {
             {comingSoonProviders.map((provider) => (
               <div
                 key={provider.id}
-                className="p-5 bg-slate-50 rounded-2xl border border-slate-200 opacity-70"
+                className="p-5 bg-slate-50 rounded-2xl border border-[var(--border-medium)] opacity-70"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className="h-12 w-12 rounded-xl flex items-center justify-center bg-white border border-slate-200"
+                      className="h-12 w-12 rounded-xl flex items-center justify-center bg-[var(--surface-primary)] border border-[var(--border-medium)]"
                     >
                       <ProviderLogo provider={provider.id} category="cloud" size={24} fallbackColor="#94a3b8" />
                     </div>
@@ -424,7 +424,7 @@ export default function CloudProvidersPage() {
       )}
 
       {/* Security Notice */}
-      <div className="p-4 sm:p-6 bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+      <div className="p-4 sm:p-6 bg-[var(--surface-primary)] rounded-xl sm:rounded-2xl border border-[var(--border-medium)] shadow-sm">
         <div className="flex items-start gap-3 sm:gap-4">
           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
             <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />

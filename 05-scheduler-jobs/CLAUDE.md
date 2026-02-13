@@ -154,8 +154,7 @@ Run these jobs in order after each release:
 
 **API URL Auto-Detection:**
 - `cloudact-prod` → `https://api.cloudact.ai`
-- `cloudact-stage` → Stage Cloud Run URL
-- `cloudact-testing-1` → Test Cloud Run URL
+- `cloudact-testing-1` → Test/Stage Cloud Run URL
 
 ## Job Shortcuts (run-job.sh)
 

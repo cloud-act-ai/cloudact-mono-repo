@@ -112,5 +112,11 @@
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "User ID who created the channel"
+  },
+  {
+    "name": "updated_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who last updated the channel"
   }
 ]

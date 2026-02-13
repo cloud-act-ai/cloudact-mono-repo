@@ -336,6 +336,8 @@ All schemas must include x_* lineage fields. Key BQ REQUIRED fields: `x_org_slug
 | `on_failure: "fail"` in YAML | Invalid value — valid values are: `stop`, `alert`, `continue` (NOT `fail`) |
 | Azure/OCI FOCUS convert fails | Config was fixed: must use `ps_type: generic.procedure_executor`, nested `procedure:` object, `${var}` syntax (not `{var}`) |
 | bq load "Missing required fields" | Raw data missing `x_org_slug`, `x_ingestion_id`, `x_ingestion_date`, `x_cloud_provider`/`x_genai_provider` |
+| Subscription pipeline FAILS (0 plans) | `subscription_plans` table empty. CSV had `org_slug` (→ `x_org_slug`), extra commas (validate with `csv.reader`), or empty REQUIRED hierarchy fields |
+| CSV "Too many values" (N+1 cols) | Extra comma in CSV data rows. Validate each row has exactly N columns matching header |
 
 ### Pipeline YAML Config Rules (Verified)
 

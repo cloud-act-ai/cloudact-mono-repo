@@ -15,8 +15,7 @@ CloudAct uses BigQuery as its primary data store with strict schema-first approa
 
 | Environment | GCP Project | BigQuery Location |
 |-------------|-------------|-------------------|
-| Test | `cloudact-testing-1` | `US` |
-| Stage | `cloudact-stage` | `US` |
+| Test/Stage | `cloudact-testing-1` | `US` |
 | Prod | `cloudact-prod` | `US` |
 
 ## Key Locations
@@ -215,6 +214,54 @@ client.load_table_from_dataframe(
 "Table not found error in BigQuery"
 ```
 
+## Environments
+
+| Environment | GCP Project | Dataset Suffix | Credential File |
+|-------------|-------------|----------------|-----------------|
+| local | cloudact-testing-1 | `_local` | Application Default Credentials |
+| stage | cloudact-testing-1 | `_stage` | `/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| prod | cloudact-prod | `_prod` | `/Users/openclaw/.gcp/cloudact-prod.json` |
+
+```bash
+# Switch credentials
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json  # stage
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json                    # prod
+```
+
+**Protected datasets (prod only):** `gcp_billing_cud_dataset`, `gcp_cloud_billing_dataset`
+
+## Testing
+
+### Schema Validation
+```bash
+# Verify bootstrap table count
+bq ls --project_id=cloudact-testing-1 organizations | wc -l
+# Expected: 23+ tables
+
+# Check org dataset exists
+bq show --project_id=cloudact-testing-1 {org_slug}_local
+```
+
+### Query Testing
+```bash
+# Cost data check
+bq query --nouse_legacy_sql \
+  "SELECT ServiceCategory, COUNT(*) as rows, SUM(BilledCost) as total FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` GROUP BY 1"
+
+# Pipeline run history
+bq query --nouse_legacy_sql \
+  "SELECT pipeline_id, status, started_at FROM \`cloudact-testing-1.organizations.org_meta_pipeline_runs\` WHERE org_slug='{org}' ORDER BY started_at DESC LIMIT 5"
+```
+
+### Multi-Environment
+```bash
+# Stage
+bq query --project_id=cloudact-testing-1 --nouse_legacy_sql "SELECT COUNT(*) FROM \`organizations.org_profiles\`"
+
+# Prod
+bq query --project_id=cloudact-prod --nouse_legacy_sql "SELECT COUNT(*) FROM \`organizations.org_profiles\`"
+```
+
 ## Source Specifications
 
 Requirements consolidated from:
@@ -224,3 +271,4 @@ Requirements consolidated from:
 - `pipeline-ops` - Pipeline management
 - `bootstrap-onboard` - System initialization
 - `config-validator` - Schema validation
+- `i18n-locale` - `org_profiles` stores locale settings in BQ

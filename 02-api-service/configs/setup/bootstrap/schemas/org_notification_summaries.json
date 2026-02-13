@@ -106,5 +106,11 @@
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "User ID who created the summary"
+  },
+  {
+    "name": "updated_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who last updated the summary"
   }
 ]

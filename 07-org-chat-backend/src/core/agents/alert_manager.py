@@ -42,6 +42,7 @@ RULES:
 - When creating alerts, confirm the threshold and priority with the user.
 - Suggest appropriate priority levels: info (monitoring), warning (action needed), critical (immediate).
 - Alert rules use: rule_id, name, is_active (boolean), priority, conditions (JSON with threshold).
+- Alerts support hierarchy filtering: use hierarchy_entity_id (e.g. DEPT-ENG, TEAM-BACKEND) and hierarchy_path (e.g. /Acme/Engineering) to scope alerts to specific teams or departments.
 - Show alert history in chronological order with status indicators.
 - For acknowledgment, confirm the specific alert the user wants to acknowledge.
 """,

@@ -1,0 +1,343 @@
+---
+name: notifications
+description: |
+  Notification and cost alert management for CloudAct. Channels, rules, summaries, alert processing.
+  Use when: creating notification channels (email/Slack/webhook), setting up cost alert rules,
+  configuring scheduled summaries, debugging alert delivery, checking notification history,
+  or managing the daily alerts scheduler job.
+---
+
+# /notifications - Notification & Alert Management
+
+Manage notification channels, alert rules, scheduled summaries, cost alert presets, and alert processing.
+
+## Trigger
+
+```
+/notifications                          # Overview of notification system
+/notifications channels <org>           # List channels for org
+/notifications rules <org>              # List alert rules for org
+/notifications history <org>            # View notification history
+/notifications debug <org>              # Debug delivery issues
+```
+
+## Architecture
+
+```
+Frontend (Notifications Page)          API Service (8000)              BigQuery
+─────────────────────────             ─────────────────              ────────
+/{orgSlug}/notifications               /notifications/{org}/          6 Tables:
+├─ Channels (email/Slack/webhook)      ├─ channels (7 endpoints)      ├─ org_notification_channels
+├─ Rules (cost/pipeline/system)        ├─ rules (8 endpoints)         ├─ org_notification_rules
+├─ Summaries (daily/weekly/monthly)    ├─ summaries (7 endpoints)     ├─ org_notification_summaries
+├─ History (delivery log)              ├─ history (3 endpoints)       ├─ org_notification_history
+└─ Stats                               ├─ org-alerts (8 endpoints)    ├─ org_scheduled_alerts
+                                       └─ stats (1 endpoint)          └─ org_alert_history
+/cost-alerts/{org}/
+├─ CRUD (5 endpoints)                  Chat Backend (8002)
+├─ Enable/Disable (2)                  ├─ list_alerts tool
+├─ Bulk ops (2)                        ├─ create_alert tool
+└─ Presets (2)                         ├─ alert_history tool
+                                       └─ acknowledge_alert tool
+Scheduler Jobs (Cloud Run)
+└─ alerts_daily.py (08:00 UTC)         API Total: 46 endpoints
+   POST /admin/alerts/process-all
+```
+
+## Environments
+
+| Environment | API URL | Supabase | BigQuery |
+|-------------|---------|----------|----------|
+| local | `http://localhost:8000` | kwroaccbrxppfiysqlzs | cloudact-testing-1 |
+| stage | Cloud Run URL | kwroaccbrxppfiysqlzs | cloudact-testing-1 |
+| prod | `https://api.cloudact.ai` | ovfxswhkkshouhsryzaf | cloudact-prod |
+
+## Key Locations
+
+| Type | Path |
+|------|------|
+| Notifications Router | `02-api-service/src/app/routers/notifications.py` |
+| Cost Alerts Router | `02-api-service/src/app/routers/cost_alerts.py` |
+| Notification Schemas | `02-api-service/configs/setup/bootstrap/schemas/org_notification_*.json` |
+| Alert Schemas | `02-api-service/configs/setup/bootstrap/schemas/org_scheduled_alerts.json` |
+| Alert History Schema | `02-api-service/configs/setup/bootstrap/schemas/org_alert_history.json` |
+| Frontend Page | `01-fronted-system/app/[orgSlug]/notifications/page.tsx` |
+| Server Actions | `01-fronted-system/actions/notifications.ts` |
+| Chat Alert Tools | `07-org-chat-backend/src/core/tools/alerts.py` |
+| Daily Alert Job | `05-scheduler-jobs/jobs/daily/alerts_daily.py` |
+
+## BigQuery Tables (6)
+
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| `org_notification_channels` | Delivery channels | channel_id, channel_type (email/slack/webhook), recipients |
+| `org_notification_rules` | Alert conditions | rule_id, rule_category, conditions, priority, cooldown |
+| `org_notification_summaries` | Scheduled reports | summary_id, summary_type (daily/weekly/monthly), sections |
+| `org_notification_history` | Delivery log | notification_id, status (queued/sent/delivered/failed), recipients |
+| `org_scheduled_alerts` | Org-specific alerts | alert_id, alert_type, schedule_cron, conditions, severity |
+| `org_alert_history` | Alert trigger log | alert_history_id, status (SENT/FAILED/COOLDOWN), trigger_data |
+
+## Channel Types
+
+| Type | Config Fields | Encryption |
+|------|--------------|------------|
+| **email** | email_recipients[], email_cc_recipients[] | None |
+| **slack** | slack_webhook_url, slack_channel, slack_mention_users[] | webhook URL encrypted (KMS) |
+| **webhook** | webhook_url, webhook_headers | URL + headers encrypted (KMS) |
+
+## Alert Rule Categories
+
+| Category | Types | Example |
+|----------|-------|---------|
+| **cost** | budget_percent, absolute_threshold, anomaly | "Alert when cloud costs > $5,000/day" |
+| **pipeline** | pipeline_failure, pipeline_timeout | "Alert when any pipeline fails" |
+| **integration** | credential_expiry, connection_failure | "Alert 7 days before credential expiry" |
+| **subscription** | plan_usage, quota_warning | "Alert at 80% quota usage" |
+| **system** | maintenance, version_update | "Alert on system maintenance" |
+
+## Alert Priority Levels
+
+| Priority | Use Case |
+|----------|----------|
+| critical | Immediate action required (budget exceeded, service down) |
+| high | Urgent attention needed (approaching limits) |
+| medium | Review when possible (anomaly detected) |
+| low | Informational (weekly summary) |
+| info | Background notification (pipeline completed) |
+
+## Cost Alert Presets
+
+| Preset ID | Name | Threshold | Scope |
+|-----------|------|-----------|-------|
+| `cloud_1000` | Cloud Cost Threshold | $1,000 | cloud |
+| `cloud_5000_critical` | Critical Cloud Spend | $5,000 | cloud |
+| `genai_500` | GenAI Cost Threshold | $500 | genai |
+| `openai_200` | OpenAI Cost Threshold | $200 | openai |
+| `total_2500` | Total Monthly Cost | $2,500 | all |
+
+## Procedures
+
+### Create Notification Channel
+
+```bash
+# Email channel
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/channels" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Team Email",
+    "channel_type": "email",
+    "email_recipients": ["team@company.com"],
+    "is_default": true
+  }'
+
+# Slack channel
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/channels" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Cost Alerts Slack",
+    "channel_type": "slack",
+    "slack_webhook_url": "https://hooks.slack.com/services/...",
+    "slack_channel": "#cost-alerts"
+  }'
+
+# Test channel
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/channels/{channel_id}/test" \
+  -H "X-API-Key: {key}"
+```
+
+### Create Alert Rule
+
+```bash
+# Cost threshold alert
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/rules" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Daily Cloud Spend Alert",
+    "rule_category": "cost",
+    "rule_type": "absolute_threshold",
+    "priority": "high",
+    "conditions": {"threshold": 5000, "period": "daily"},
+    "provider_filter": ["gcp", "aws"],
+    "notify_channel_ids": ["{channel_id}"],
+    "cooldown_minutes": 1440
+  }'
+```
+
+### Create Cost Alert from Preset
+
+```bash
+# List presets
+curl -s "http://localhost:8000/api/v1/cost-alerts/{org}/presets" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+
+# Create from preset
+curl -X POST "http://localhost:8000/api/v1/cost-alerts/{org}/from-preset/cloud_5000_critical" \
+  -H "X-API-Key: {key}"
+```
+
+### Configure Summary Schedule
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/summaries" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Weekly Cost Summary",
+    "summary_type": "weekly",
+    "schedule_cron": "0 9 * * 1",
+    "schedule_timezone": "America/New_York",
+    "notify_channel_ids": ["{channel_id}"],
+    "include_sections": ["total_cost", "top_providers", "budget_status", "anomalies"],
+    "top_n_items": 5
+  }'
+
+# Preview before enabling
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/summaries/{summary_id}/preview" \
+  -H "X-API-Key: {key}"
+
+# Send immediately
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/summaries/{summary_id}/send-now" \
+  -H "X-API-Key: {key}"
+```
+
+### View History & Stats
+
+```bash
+# Notification history
+curl -s "http://localhost:8000/api/v1/notifications/{org}/history" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+
+# Alert history
+curl -s "http://localhost:8000/api/v1/notifications/{org}/alert-history" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+
+# Stats
+curl -s "http://localhost:8000/api/v1/notifications/{org}/stats" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+```
+
+### Acknowledge Alert
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/history/{notification_id}/acknowledge" \
+  -H "X-API-Key: {key}"
+```
+
+### Daily Alert Processing (Scheduler Job)
+
+```bash
+cd 05-scheduler-jobs/scripts
+
+# Stage
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-testing-1-e44da390bf82.json
+./run-job.sh stage alerts
+
+# Prod
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json
+echo "yes" | ./run-job.sh prod alerts
+```
+
+## Alert Processing Flow
+
+```
+Scheduler (08:00 UTC daily)
+        │
+        ▼
+POST /admin/alerts/process-all
+        │
+        ▼
+For each active org:
+├─ Fetch org_notification_rules (is_active=true)
+├─ For each rule:
+│   ├─ Evaluate conditions against current costs
+│   ├─ Check cooldown (skip if within cooldown_minutes)
+│   ├─ Check quiet hours (skip if in quiet_hours range)
+│   └─ If triggered:
+│       ├─ Send to notify_channel_ids (email/Slack/webhook)
+│       ├─ Record in org_notification_history
+│       ├─ Check escalation (escalate_after_mins)
+│       └─ Update trigger_count_today
+└─ Record org_alert_history
+```
+
+## Troubleshooting
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Alert not triggering | Rule is_active=false | Enable rule via PUT or /resume |
+| Alert triggers too often | Cooldown too short | Increase `cooldown_minutes` |
+| Slack notification fails | Webhook URL invalid/expired | Re-create Slack webhook, update channel |
+| Email not delivered | No email recipients configured | Add recipients to channel |
+| "0 orgs processed" in alert job | No active alert rules | Create rules via /notifications API |
+| Alert during quiet hours | quiet_hours blocking | Adjust quiet_hours_start/end or timezone |
+| Duplicate notifications | Batch window too small | Increase `batch_window_minutes` |
+| History shows "failed" | Channel delivery error | Check error_message in history, fix channel config |
+| Cost alert preset missing | Org doesn't exist or no data | Verify org exists and has cost data |
+
+## Testing
+
+### Channel CRUD
+
+```bash
+# Create email channel
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/channels" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{"name": "Test", "channel_type": "email", "email_recipients": ["test@test.com"]}'
+# Expected: 201 Created with channel_id
+
+# Test channel
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/channels/{id}/test" \
+  -H "X-API-Key: {key}"
+# Expected: 200 OK
+
+# Delete channel
+curl -X DELETE "http://localhost:8000/api/v1/notifications/{org}/channels/{id}" \
+  -H "X-API-Key: {key}"
+# Expected: 200 OK
+```
+
+### Rule CRUD
+
+```bash
+# Create rule
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/rules" \
+  -H "X-API-Key: {key}" -H "Content-Type: application/json" \
+  -d '{"name": "Test Rule", "rule_category": "cost", "rule_type": "absolute_threshold", "priority": "medium", "conditions": {"threshold": 100}}'
+# Expected: 201 Created
+
+# Pause/Resume
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/rules/{id}/pause" -H "X-API-Key: {key}"
+curl -X POST "http://localhost:8000/api/v1/notifications/{org}/rules/{id}/resume" -H "X-API-Key: {key}"
+```
+
+### Multi-Environment
+
+```bash
+# Stage
+curl -s "https://cloudact-api-service-test-*.a.run.app/api/v1/notifications/{org}/channels" \
+  -H "X-API-Key: {key}"
+
+# Prod
+curl -s "https://api.cloudact.ai/api/v1/notifications/{org}/channels" \
+  -H "X-API-Key: {key}"
+```
+
+## Related Skills
+
+| Skill | Relationship |
+|-------|-------------|
+| `/scheduler-jobs` | `alerts_daily.py` processes alerts at 08:00 UTC |
+| `/chat` | AlertManager agent uses 4 alert MCP tools |
+| `/cost-analysis` | Cost data drives alert threshold evaluation |
+| `/quota-mgmt` | Quota warnings can trigger notifications |
+| `/integration-setup` | Credential expiry alerts |
+
+## Source Specifications
+
+Requirements consolidated from:
+- `02-api-service/src/app/routers/notifications.py` - 34 endpoints
+- `02-api-service/src/app/routers/cost_alerts.py` - 12 endpoints
+- `02-api-service/configs/setup/bootstrap/schemas/org_notification_*.json` - 4 schemas
+- `02-api-service/configs/setup/bootstrap/schemas/org_scheduled_alerts.json`
+- `02-api-service/configs/setup/bootstrap/schemas/org_alert_history.json`
+- `05-scheduler-jobs/jobs/daily/alerts_daily.py` - Daily processor
+- `07-org-chat-backend/src/core/tools/alerts.py` - Chat tools

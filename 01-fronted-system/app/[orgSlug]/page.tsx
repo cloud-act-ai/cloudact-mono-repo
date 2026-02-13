@@ -91,7 +91,7 @@ export default async function OrgRootRedirectPage({
             {/* Cost Dashboards */}
             <Link
               href={`/${orgSlug}/cost-dashboards/overview`}
-              className="group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all"
+              className="group relative p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[#90FCA6]/30 hover:shadow-sm transition-all"
             >
               <div className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-[#90FCA6] opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="flex items-start justify-between mb-3">
@@ -109,7 +109,7 @@ export default async function OrgRootRedirectPage({
             {/* Operations */}
             <Link
               href={`/${orgSlug}/dashboard/operations`}
-              className="group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-[var(--cloudact-coral)]/30 hover:shadow-sm transition-all"
+              className="group relative p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[var(--cloudact-coral)]/30 hover:shadow-sm transition-all"
             >
               <div className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-[var(--cloudact-coral)] opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="flex items-start justify-between mb-3">
@@ -127,7 +127,7 @@ export default async function OrgRootRedirectPage({
             {/* Settings */}
             <Link
               href={`/${orgSlug}/dashboard/settings`}
-              className="group relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
+              className="group relative p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-slate-300 hover:shadow-sm transition-all"
             >
               <div className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="flex items-start justify-between mb-3">
@@ -152,7 +152,7 @@ export default async function OrgRootRedirectPage({
             {/* Cloud Providers */}
             <Link
               href={`/${orgSlug}/integrations/cloud-providers`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#90FCA6]/30 hover:shadow-sm transition-all"
+              className="group p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[#90FCA6]/30 hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -182,7 +182,7 @@ export default async function OrgRootRedirectPage({
             {/* GenAI Providers */}
             <Link
               href={`/${orgSlug}/integrations/genai`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[var(--cloudact-coral)]/30 hover:shadow-sm transition-all"
+              className="group p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[var(--cloudact-coral)]/30 hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -212,7 +212,7 @@ export default async function OrgRootRedirectPage({
             {/* SaaS Subscriptions */}
             <Link
               href={`/${orgSlug}/integrations/subscriptions`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#8B5CF6]/30 hover:shadow-sm transition-all"
+              className="group p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-[#8B5CF6]/30 hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -231,7 +231,7 @@ export default async function OrgRootRedirectPage({
             {/* Billing */}
             <Link
               href={`/${orgSlug}/billing`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
+              className="group p-5 bg-[var(--surface-primary)] rounded-2xl border border-[var(--border-medium)] hover:border-slate-300 hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">

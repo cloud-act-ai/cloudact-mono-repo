@@ -220,6 +220,55 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/acme_corp/genai/unified
 2. Check for overrides: `SELECT * FROM {org}_prod.genai_payg_pricing WHERE is_override = true`
 3. Compare with provider invoice
 
+## Environments
+
+| Environment | Pipeline URL | BigQuery Project | Dataset Suffix |
+|-------------|-------------|------------------|----------------|
+| local | `http://localhost:8001` | cloudact-testing-1 | `_local` |
+| stage | Cloud Run URL | cloudact-testing-1 | `_stage` |
+| prod | `https://pipeline.cloudact.ai` | cloudact-prod | `_prod` |
+
+```bash
+# Run GenAI pipeline (local)
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/genai/payg/openai" \
+  -H "x-api-key: {org_api_key}"
+
+# Run unified consolidate (local)
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/genai/unified/consolidate" \
+  -H "x-api-key: {org_api_key}"
+```
+
+## Testing
+
+### Verify GenAI Data
+```bash
+# Usage raw data
+bq query --nouse_legacy_sql \
+  "SELECT x_genai_provider, COUNT(*) as rows FROM \`cloudact-testing-1.{org}_local.genai_payg_usage_raw\` GROUP BY 1"
+
+# Costs daily
+bq query --nouse_legacy_sql \
+  "SELECT x_genai_provider, SUM(total_cost) as total FROM \`cloudact-testing-1.{org}_local.genai_payg_costs_daily\` GROUP BY 1"
+
+# FOCUS output
+bq query --nouse_legacy_sql \
+  "SELECT ServiceProviderName, SUM(BilledCost) as total FROM \`cloudact-testing-1.{org}_local.cost_data_standard_1_3\` WHERE ServiceCategory='genai' GROUP BY 1"
+```
+
+### Verify Pricing
+```bash
+bq query --nouse_legacy_sql \
+  "SELECT provider, COUNT(*) as models FROM \`cloudact-testing-1.{org}_local.genai_payg_pricing\` GROUP BY 1"
+# Expected: openai, anthropic, gemini (+ others) with model counts
+```
+
+### Pipeline Run Test
+```bash
+# Check pipeline status
+curl -s "http://localhost:8000/api/v1/pipeline-logs/{org}?limit=5" \
+  -H "X-API-Key: {key}" | python3 -m json.tool
+```
+
 ## Source Specifications
 
 Requirements consolidated from:
