@@ -1,6 +1,6 @@
 {
-  "version": "v4.3.0",
-  "release": "v4.3.0",
-  "release_timestamp": "2026-02-02T12:00:00Z",
-  "changelog": "Category naming standardization - consistent lowercase categories across procedures, API, and frontend"
+  "version": "v4.4.0",
+  "release": "v4.4.0",
+  "release_timestamp": "2026-02-13T00:00:00Z",
+  "changelog": "Alert bug fixes (multi-tenancy, hierarchy, SQL safety), scheduler cloudact-stage removal, 4 new skills, schema improvements"
 }
