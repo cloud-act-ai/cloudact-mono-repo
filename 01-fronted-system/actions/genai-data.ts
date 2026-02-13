@@ -17,7 +17,6 @@
  * 4. API Key: Retrieved from secure server-side storage
  */
 
-import { createClient } from "@/lib/supabase/server"
 import {
   PipelineBackendClient as BackendClient,
 } from "@/lib/api/backend"
@@ -215,54 +214,6 @@ function validatePricingData(pricing: LLMPricingCreate | LLMPricingUpdate): stri
   }
 
   return undefined // Valid
-}
-
-// ============================================
-// Authorization Helper
-// ============================================
-
-/**
- * @deprecated Use requireOrgMembership from @/lib/auth-cache instead.
- * Kept for reference of the direct query pattern.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function _verifyOrgMembership(orgSlug: string): Promise<{
-  authorized: boolean
-  userId?: string
-  orgId?: string
-  role?: string
-  error?: string
-}> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { authorized: false, error: "Not authenticated" }
-  }
-
-  const { data: org, error: orgError } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("org_slug", orgSlug)
-    .single()
-
-  if (orgError || !org) {
-    return { authorized: false, userId: user.id, error: "Organization not found" }
-  }
-
-  const { data: membership, error: memberError } = await supabase
-    .from("organization_members")
-    .select("id, role, status")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (memberError || !membership) {
-    return { authorized: false, userId: user.id, error: "Not a member of this organization" }
-  }
-
-  return { authorized: true, userId: user.id, orgId: org.id, role: membership.role }
 }
 
 async function getOrgApiKey(orgSlug: string): Promise<string | null> {

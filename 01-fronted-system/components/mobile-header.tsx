@@ -16,49 +16,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { getOrgDetails } from "@/actions/organization-locale"
 import { MobileNav } from "@/components/mobile-nav"
-
-function formatOrgName(name: string): string {
-  // Strip trailing date suffix (e.g., "_01022026") for legacy slug-based names
-  const withoutDate = name.replace(/_\d{8}$/, "")
-
-  // If name looks like a proper name (contains spaces or mixed case), return as-is
-  // This preserves intentional brand names like "CloudAct Inc", "OpenAI", etc.
-  if (withoutDate.includes(" ") || /[a-z][A-Z]/.test(withoutDate)) {
-    return withoutDate.trim()
-  }
-
-  // For legacy slug-based names (e.g., "acme_inc"), convert to readable format
-  const acronymPatterns = [
-    { pattern: /\bsaas\b/gi, replacement: "SaaS" },
-    { pattern: /\bapi\b/gi, replacement: "API" },
-    { pattern: /\bai\b/gi, replacement: "AI" },
-    { pattern: /\bgenai\b/gi, replacement: "GenAI" },
-    { pattern: /\bgcp\b/gi, replacement: "GCP" },
-    { pattern: /\baws\b/gi, replacement: "AWS" },
-  ]
-
-  let processed = withoutDate.replace(/[_-]/g, " ")
-
-  // Apply acronym replacements
-  for (const { pattern, replacement } of acronymPatterns) {
-    processed = processed.replace(pattern, replacement)
-  }
-
-  // Capitalize each word (for slug-based names only)
-  const words = processed
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => {
-      const isAcronym = acronymPatterns.some(
-        ({ replacement }) => word === replacement || word.toUpperCase() === word
-      )
-      if (isAcronym) return word
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    })
-    .join(" ")
-
-  return words
-}
+import { formatOrgName, orgRoutes } from "@/lib/nav-data"
 
 interface MobileHeaderProps {
   orgName: string
@@ -75,6 +33,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
   const [isNavOpen, setIsNavOpen] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const formattedOrgName = formatOrgName(orgName)
+  const routes = orgRoutes(orgSlug)
 
   // Fetch org logo
   useEffect(() => {
@@ -116,7 +75,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
 
           {/* Logo + Org Name */}
           <Link
-            href={`/${orgSlug}/cost-dashboards/overview`}
+            href={routes.home}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden bg-[var(--surface-primary)] border border-[var(--border-medium)] shadow-sm">
@@ -140,7 +99,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
 
         {/* Chat shortcut */}
         <Link
-          href={`/${orgSlug}/chat`}
+          href={routes.chat}
           className="h-10 w-10 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition-colors"
           aria-label="Open chat"
         >

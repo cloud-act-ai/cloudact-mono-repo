@@ -498,7 +498,7 @@ export default function PipelinesPage() {
                   : "Your organization API key is missing."}
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="mt-3 h-10 px-5 bg-slate-900 text-white text-[12px] font-semibold rounded-xl hover:bg-slate-800 transition-colors inline-flex items-center gap-2">
+                <button className="mt-3 h-10 px-5 bg-[var(--text-primary)] text-white text-[12px] font-semibold rounded-xl hover:bg-[var(--text-secondary)] transition-colors inline-flex items-center gap-2">
                   <Cloud className="h-4 w-4" />
                   Go to Organization Settings
                 </button>

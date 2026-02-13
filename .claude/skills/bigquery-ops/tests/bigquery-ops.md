@@ -11,7 +11,7 @@ Validates BigQuery table schemas, bootstrap process, org dataset creation, mater
 | # | Test | Type | Expected |
 |---|------|------|----------|
 | 1 | `organizations` dataset exists | Query | Dataset present in GCP project |
-| 2 | All 14 bootstrap tables created | Query | 14 tables in `organizations` dataset |
+| 2 | All 27 bootstrap tables created | Query | 27 tables in `organizations` dataset |
 | 3 | `org_profiles` schema matches JSON spec | Validation | Fields match `configs/setup/bootstrap/schemas/org_profiles.json` |
 | 4 | `org_api_keys` has `key_hash` field | Validation | SHA256 hash field present and STRING type |
 | 5 | `org_integration_credentials` has encryption fields | Validation | `encrypted_value` field present |
@@ -79,7 +79,7 @@ Validates BigQuery table schemas, bootstrap process, org dataset creation, mater
 | 37 | `org_slug` filter on all shared tables | Isolation | Queries include `WHERE org_slug = @org_slug` |
 | 38 | API key scoped to single org | Isolation | API key only returns data for associated org |
 | 39 | Cross-dataset access prevented | Isolation | Org A API key cannot query Org B dataset |
-| 40 | Bootstrap tables filter by org_slug | Isolation | All 14 tables use `org_slug` as tenant identifier |
+| 40 | Bootstrap tables filter by org_slug | Isolation | All 27 tables use `org_slug` as tenant identifier |
 | 41 | No org_id usage (only org_slug) | Audit | All tables use `org_slug` not `org_id` |
 
 ### Data Partitioning & Retention (3 tests)

@@ -112,7 +112,7 @@ export function OptimizedImage({
     return (
       <div
         className={cn(
-          "relative flex items-center justify-center bg-slate-100 dark:bg-slate-800",
+          "relative flex items-center justify-center bg-[var(--surface-secondary)] dark:bg-[var(--text-primary)]",
           radiusClass,
           containerClassName
         )}
@@ -120,7 +120,7 @@ export function OptimizedImage({
       >
         <div className="text-center p-4">
           <svg
-            className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-600"
+            className="mx-auto h-12 w-12 text-[var(--text-muted)] dark:text-[var(--text-secondary)]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -133,7 +133,7 @@ export function OptimizedImage({
               d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Image failed to load</p>
+          <p className="mt-2 text-sm text-[var(--text-secondary)] dark:text-[var(--text-muted)]">Image failed to load</p>
         </div>
       </div>
     )
@@ -145,12 +145,12 @@ export function OptimizedImage({
       {isLoading && showPlaceholder && (
         <div
           className={cn(
-            "absolute inset-0 bg-slate-100 dark:bg-slate-800",
+            "absolute inset-0 bg-[var(--surface-secondary)] dark:bg-[var(--text-primary)]",
             radiusClass
           )}
           aria-hidden="true"
         >
-          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800" />
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-[var(--surface-secondary)] via-[var(--border-subtle)] to-[var(--surface-secondary)] dark:from-[var(--text-primary)] dark:via-[var(--text-secondary)] dark:to-[var(--text-primary)]" />
         </div>
       )}
 
@@ -220,7 +220,7 @@ export interface LogoImageProps {
   showBackground?: boolean
   /**
    * Background color (Tailwind classes)
-   * @default "bg-slate-50 dark:bg-slate-900"
+   * @default "bg-[var(--surface-secondary)] dark:bg-[var(--text-primary)]"
    */
   backgroundColor?: string
   className?: string
@@ -241,7 +241,7 @@ export function LogoImage({
   height,
   borderRadius = "md",
   showBackground = true,
-  backgroundColor = "bg-slate-50 dark:bg-slate-900",
+  backgroundColor = "bg-[var(--surface-secondary)] dark:bg-[var(--text-primary)]",
   className,
 }: LogoImageProps) {
   const dimensions = width && height
@@ -254,7 +254,7 @@ export function LogoImage({
     <div
       className={cn(
         "relative flex items-center justify-center shrink-0",
-        showBackground && cn("p-2 border border-slate-200 dark:border-slate-700", backgroundColor),
+        showBackground && cn("p-2 border border-[var(--border-subtle)] dark:border-[var(--text-secondary)]", backgroundColor),
         radiusClass,
         className
       )}
@@ -336,7 +336,7 @@ export function ProviderLogo({
           borderRadius="md"
           showBackground={true}
         />
-        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+        <span className="text-sm font-medium text-[var(--text-primary)] dark:text-[var(--surface-secondary)]">
           {displayName}
         </span>
       </div>

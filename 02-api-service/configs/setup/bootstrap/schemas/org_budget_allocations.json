@@ -1,0 +1,50 @@
+[
+  {
+    "name": "allocation_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the allocation (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug - ensures multi-tenancy isolation"
+  },
+  {
+    "name": "parent_budget_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Parent budget ID (the budget being allocated from)"
+  },
+  {
+    "name": "child_budget_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Child budget ID (the budget receiving the allocation)"
+  },
+  {
+    "name": "allocated_amount",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Allocated amount from parent to child"
+  },
+  {
+    "name": "allocation_percentage",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Allocation as percentage of parent budget (0-100)"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Last update timestamp"
+  }
+]

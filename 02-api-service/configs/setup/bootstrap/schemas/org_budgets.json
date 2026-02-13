@@ -1,0 +1,122 @@
+[
+  {
+    "name": "budget_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the budget (UUID)"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization slug - ensures multi-tenancy isolation"
+  },
+  {
+    "name": "hierarchy_entity_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Hierarchy entity ID (e.g., DEPT-ENG, PROJ-CORE, TEAM-BACKEND)"
+  },
+  {
+    "name": "hierarchy_entity_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Human-readable hierarchy entity name"
+  },
+  {
+    "name": "hierarchy_path",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Materialized path for hierarchy (e.g., /Acme/Engineering/Backend)"
+  },
+  {
+    "name": "hierarchy_level_code",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Hierarchy level code: department, project, team"
+  },
+  {
+    "name": "category",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cost category: cloud, genai, subscription, total"
+  },
+  {
+    "name": "budget_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Budget type: monetary, token, seat"
+  },
+  {
+    "name": "budget_amount",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Budget amount (in currency units, tokens, or seats)"
+  },
+  {
+    "name": "currency",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Currency code (e.g., USD, EUR) - only for monetary budgets"
+  },
+  {
+    "name": "period_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Budget period: monthly, quarterly, yearly, custom"
+  },
+  {
+    "name": "period_start",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Budget period start date"
+  },
+  {
+    "name": "period_end",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Budget period end date"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Optional provider filter (e.g., gcp, aws, openai)"
+  },
+  {
+    "name": "notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Optional notes or description for the budget"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether the budget is active (soft delete = false)"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who created the budget"
+  },
+  {
+    "name": "updated_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who last updated the budget"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Last update timestamp"
+  }
+]

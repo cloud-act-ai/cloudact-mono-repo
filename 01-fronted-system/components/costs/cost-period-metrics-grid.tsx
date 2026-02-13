@@ -118,14 +118,14 @@ function PeriodMetricsSkeleton({ variant = "full" }: { variant?: "full" | "summa
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4 animate-pulse"
+          className="bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] p-3 sm:p-4 animate-pulse"
         >
           <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
-            <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 bg-slate-200 rounded" />
-            <div className="h-3 w-14 bg-slate-200 rounded" />
+            <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 bg-[var(--surface-secondary)] rounded" />
+            <div className="h-3 w-14 bg-[var(--surface-secondary)] rounded" />
           </div>
-          <div className="h-6 sm:h-7 w-20 bg-slate-200 rounded mb-1" />
-          <div className="h-2.5 w-16 bg-slate-100 rounded" />
+          <div className="h-6 sm:h-7 w-20 bg-[var(--surface-secondary)] rounded mb-1" />
+          <div className="h-2.5 w-16 bg-[var(--surface-secondary)] rounded" />
         </div>
       ))}
     </div>
@@ -188,7 +188,7 @@ export function CostPeriodMetricsGrid({
           currency={currency}
           subtitle="Previous day"
           variant="compact"
-          iconColor="text-slate-600"
+          iconColor="text-[var(--text-secondary)]"
           compact={compact}
         />
         <CostMetricCard
@@ -208,7 +208,7 @@ export function CostPeriodMetricsGrid({
           currency={currency}
           subtitle={periodLabels.ytd}
           variant="compact"
-          iconColor="text-slate-600"
+          iconColor="text-[var(--text-secondary)]"
           compact={compact}
         />
         <CostMetricCard
@@ -301,7 +301,7 @@ export function CostPeriodMetricsGrid({
           currency={currency}
           subtitle="Year to date"
           variant="compact"
-          iconColor="text-slate-600"
+          iconColor="text-[var(--text-secondary)]"
           compact={compact}
         />
         <CostMetricCard
@@ -348,8 +348,8 @@ export function CostPeriodMetricsBar({
       )}>
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex items-center gap-2 animate-pulse">
-            <div className="h-4 w-4 bg-slate-200 rounded" />
-            <div className="h-4 w-16 bg-slate-200 rounded" />
+            <div className="h-4 w-4 bg-[var(--surface-secondary)] rounded" />
+            <div className="h-4 w-16 bg-[var(--surface-secondary)] rounded" />
           </div>
         ))}
       </div>
@@ -357,10 +357,10 @@ export function CostPeriodMetricsBar({
   }
 
   const metrics = [
-    { label: "Yesterday", value: data.yesterday ?? 0, color: "text-slate-600" },
+    { label: "Yesterday", value: data.yesterday ?? 0, color: "text-[var(--text-secondary)]" },
     { label: "WTD", value: data.wtd ?? 0, color: "text-blue-600" },
     { label: "MTD", value: data.mtd ?? 0, color: "text-emerald-600" },
-    { label: "YTD", value: data.ytd ?? 0, color: "text-slate-600" },
+    { label: "YTD", value: data.ytd ?? 0, color: "text-[var(--text-secondary)]" },
   ]
 
   return (
@@ -371,7 +371,7 @@ export function CostPeriodMetricsBar({
       {metrics.map(({ label, value, color }) => (
         <div key={label} className="flex items-center gap-2 whitespace-nowrap">
           <span className={cn("text-xs font-medium", color)}>{label}:</span>
-          <span className="text-sm font-semibold text-slate-900">
+          <span className="text-sm font-semibold text-[var(--text-primary)]">
             {formatCostCompact(value, currency)}
           </span>
         </div>

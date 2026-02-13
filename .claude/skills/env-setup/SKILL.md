@@ -16,7 +16,7 @@ CloudAct development requires Docker, Python 3.11+, Node.js 20+, and GCP credent
 | Environment | GCP Project | Service Account | Credentials File |
 |-------------|-------------|-----------------|------------------|
 | Test | `cloudact-testing-1` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
-| Stage | `cloudact-stage` | `cloudact-sa-stage@cloudact-stage.iam.gserviceaccount.com` | `~/.gcp/cloudact-stage.json` |
+| Stage | `cloudact-testing-1` | `cloudact-sa-stage@cloudact-testing-1.iam.gserviceaccount.com` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
 | Prod | `cloudact-prod` | `cloudact-sa-prod@cloudact-prod.iam.gserviceaccount.com` | `~/.gcp/cloudact-prod.json` |
 
 ### Service URLs
@@ -27,7 +27,7 @@ CloudAct development requires Docker, Python 3.11+, Node.js 20+, and GCP credent
 |-----|-------------|------------------|----------|
 | Local | `http://localhost:8000` | `http://localhost:8001` | `http://localhost:3000` |
 | Test | Cloud Run URL | Cloud Run URL | - |
-| Stage | Cloud Run URL | Cloud Run URL | `https://cloudact-stage.vercel.app` |
+| Stage | Cloud Run URL | Cloud Run URL | Cloud Run URL |
 | Prod | Cloud Run URL + `https://api.cloudact.ai` | Cloud Run URL + `https://pipeline.cloudact.ai` | `https://cloudact.ai` |
 
 > **Note:** All Cloud Run services allow unauthenticated access. App handles auth via `X-CA-Root-Key` and `X-API-Key` headers.
@@ -93,8 +93,8 @@ gcloud auth activate-service-account --key-file=~/.gcp/cloudact-testing-1-e44da3
 gcloud config set project cloudact-testing-1
 
 # Stage
-gcloud auth activate-service-account --key-file=~/.gcp/cloudact-stage.json
-gcloud config set project cloudact-stage
+gcloud auth activate-service-account --key-file=~/.gcp/cloudact-testing-1-e44da390bf82.json
+gcloud config set project cloudact-testing-1
 
 # Prod
 gcloud auth activate-service-account --key-file=~/.gcp/cloudact-prod.json
@@ -172,7 +172,7 @@ open http://localhost:8001/docs
 
 ### 8. Initialize Test Data
 ```bash
-# Bootstrap (creates 14 meta tables)
+# Bootstrap (creates 27 meta tables)
 curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
   -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
 
@@ -200,7 +200,7 @@ Each service uses environment-specific files:
 ```bash
 # GCP - varies by environment
 GOOGLE_CLOUD_PROJECT=cloudact-testing-1  # test
-GOOGLE_CLOUD_PROJECT=cloudact-stage      # stage
+GOOGLE_CLOUD_PROJECT=cloudact-testing-1  # stage
 GOOGLE_CLOUD_PROJECT=cloudact-prod       # prod
 
 # Only set locally - Docker uses service account identity

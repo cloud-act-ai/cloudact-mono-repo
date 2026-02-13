@@ -12,7 +12,7 @@ interface ProviderSelectorProps {
 export function ProviderSelector({ value, onChange, credentialStatus }: ProviderSelectorProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-slate-300">LLM Provider</label>
+      <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-[var(--text-muted)]">LLM Provider</label>
       <div className="grid grid-cols-2 gap-3">
         {LLM_PROVIDERS.map((provider) => {
           const hasCred = credentialStatus?.[provider.id]
@@ -24,7 +24,7 @@ export function ProviderSelector({ value, onChange, credentialStatus }: Provider
                 "rounded-xl border p-4 text-left transition-all",
                 value === provider.id
                   ? "border-[#90FCA6]/40 bg-[#90FCA6]/5"
-                  : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 hover:border-gray-300 dark:hover:border-slate-600"
+                  : "border-gray-200 dark:border-[var(--text-secondary)] bg-gray-50 dark:bg-[var(--text-primary)]/50 hover:border-gray-300 dark:hover:border-[var(--text-secondary)]"
               )}
             >
               <div className="flex items-center justify-between">
@@ -33,14 +33,14 @@ export function ProviderSelector({ value, onChange, credentialStatus }: Provider
                   <span
                     className={cn(
                       "text-xs",
-                      hasCred ? "text-[#16a34a] dark:text-[#90FCA6]" : "text-gray-400 dark:text-slate-500"
+                      hasCred ? "text-[#16a34a] dark:text-[#90FCA6]" : "text-gray-400 dark:text-[var(--text-tertiary)]"
                     )}
                   >
                     {hasCred ? "Key configured" : "No key"}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-slate-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-[var(--text-tertiary)]">
                 {provider.models.length} models available
               </p>
             </button>

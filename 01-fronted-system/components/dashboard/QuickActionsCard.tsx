@@ -22,13 +22,13 @@ interface QuickActionsCardProps {
 const QUICK_ACTION_COLOR_CLASSES = {
   teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[#90FCA6]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
   coral: "from-[#FF6C5E]/10 to-[#FF6C5E]/5 border-[#FF6C5E]/20 hover:shadow-[0_8px_24px_rgba(255,108,94,0.15)]",
-  slate: "from-slate-500/10 to-slate-500/5 border-slate-500/20 hover:shadow-[0_8px_24px_rgba(100,116,139,0.15)]",
+  slate: "from-[var(--text-tertiary)]/10 to-[var(--text-tertiary)]/5 border-[var(--text-tertiary)]/20 hover:shadow-[0_8px_24px_rgba(100,116,139,0.15)]",
 } as const
 
 const QUICK_ACTION_ICON_CLASSES = {
   teal: "bg-[#90FCA6] text-[#1a7a3a]",
   coral: "bg-[#FF6C5E] text-white",
-  slate: "bg-slate-500 text-white",
+  slate: "bg-[var(--text-tertiary)] text-white",
 } as const
 
 /**

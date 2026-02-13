@@ -61,14 +61,14 @@ function SummarySkeleton() {
       {[1, 2, 3, 4].map((i) => (
         <div
           key={i}
-          className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5 animate-pulse"
+          className="bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] p-3 sm:p-5 animate-pulse"
         >
           <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-            <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 bg-slate-200 rounded" />
-            <div className="h-3 w-16 bg-slate-200 rounded" />
+            <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 bg-[var(--surface-secondary)] rounded" />
+            <div className="h-3 w-16 bg-[var(--surface-secondary)] rounded" />
           </div>
-          <div className="h-7 sm:h-8 w-24 bg-slate-200 rounded mb-1" />
-          <div className="h-3 w-20 bg-slate-100 rounded" />
+          <div className="h-7 sm:h-8 w-24 bg-[var(--surface-secondary)] rounded mb-1" />
+          <div className="h-3 w-20 bg-[var(--surface-secondary)] rounded" />
         </div>
       ))}
     </CostMetricGrid>
@@ -144,7 +144,7 @@ export function CostSummaryGrid({
         value={ytd}
         currency={currency}
         subtitle="Year to date"
-        iconColor="text-slate-600"
+        iconColor="text-[var(--text-secondary)]"
         onClick={onCardClick ? () => onCardClick("ytd") : undefined}
       />
     </CostMetricGrid>
@@ -180,7 +180,7 @@ export function CostComparisonBanner({
       ? "bg-[#FF6C5E]/10 border-[#FF6C5E]/30"
       : comparison.trend === "down"
         ? "bg-[#10A37F]/10 border-[#10A37F]/30"
-        : "bg-slate-50 border-slate-200"
+        : "bg-[var(--surface-secondary)] border-[var(--border-subtle)]"
 
   return (
     <div
@@ -195,10 +195,10 @@ export function CostComparisonBanner({
           className={cn("h-5 w-5", getTrendColorClass(comparison.trend))}
         />
         <div>
-          <p className="text-sm font-medium text-slate-700">
+          <p className="text-sm font-medium text-[var(--text-secondary)]">
             {comparison.current.label} vs {comparison.previous.label}
           </p>
-          <p className="text-xs text-slate-500 tabular-nums">
+          <p className="text-xs text-[var(--text-tertiary)] tabular-nums">
             {formatCost(comparison.previous.total, currency)} →{" "}
             {formatCost(comparison.current.total, currency)}
           </p>
@@ -214,7 +214,7 @@ export function CostComparisonBanner({
         >
           {getTrendArrow(comparison.trend)} {formatPercent(Math.abs(comparison.changePercent))}
         </p>
-        <p className="text-xs text-slate-500 tabular-nums">
+        <p className="text-xs text-[var(--text-tertiary)] tabular-nums">
           {comparison.change >= 0 ? "+" : ""}
           {formatCost(comparison.change, currency)}
         </p>

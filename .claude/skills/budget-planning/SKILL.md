@@ -1,0 +1,462 @@
+---
+name: budget-planning
+description: |
+  Budget planning and tracking for CloudAct. Hierarchy-based budget allocation across cloud, GenAI, and SaaS costs.
+  Use when: creating budgets, setting spending targets, viewing budget vs actual, allocating budgets to departments/projects/teams,
+  tracking budget variance, configuring budget periods, managing provider-level budgets, or debugging budget calculations.
+---
+
+# /budget-planning - Budget Planning & Tracking
+
+Hierarchy-based budget allocation and variance tracking across cloud, GenAI, and subscription cost types.
+
+## Trigger
+
+```
+/budget-planning                          # Overview
+/budget-planning create <org>             # Create budget for org
+/budget-planning status <org>             # Budget vs actual summary
+/budget-planning allocate <org>           # Top-down allocation view
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Budget Planning System                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   Frontend (3000)           API Service (8000)        BigQuery          │
+│   ─────────────────         ──────────────────        ────────          │
+│                                                                         │
+│   Budget Page               Budget Router             org_budgets       │
+│   ├─ Overview tab           ├─ CRUD endpoints         ├─ budget_id      │
+│   ├─ Allocation tab         ├─ Allocation view        ├─ hierarchy ref  │
+│   ├─ By Category tab        ├─ Variance calc          ├─ category       │
+│   └─ Provider tab           └─ Rollup logic           └─ period         │
+│                                    │                                    │
+│   Hierarchy Tree ◄─────────────────┤                  org_budget_       │
+│   (read-only ref)                  │                  allocations       │
+│                                    │                  ├─ allocation_id   │
+│   Cost Data ◄──────────────────────┘                  ├─ parent ref     │
+│   (actual spend from                                  └─ child ref      │
+│    cost_data_standard_1_3)                                              │
+│                                                                         │
+│   Dashboard Widget          Reads from:               Reads from:       │
+│   └─ Budget summary         ├─ org_budgets            cost_data_        │
+│      on main dashboard      ├─ org_budget_allocations standard_1_3     │
+│                              └─ cost_data_standard_1_3 (actual spend)  │
+│                                                                         │
+│   Chat Agent (8002)         BudgetManager sub-agent                    │
+│   └─ Budget queries via     ├─ list_budgets                            │
+│      natural language        ├─ budget_summary                          │
+│                              ├─ budget_variance                         │
+│                              └─ budget_allocation_tree                  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## Environments
+
+| Environment | API URL | BigQuery Project | Dataset |
+|-------------|---------|-----------------|---------|
+| local/test | `http://localhost:8000` | cloudact-testing-1 | `{org}_prod` |
+| stage | `https://api-stage.cloudact.ai` | cloudact-testing-1 | `{org}_prod` |
+| prod | `https://api.cloudact.ai` | cloudact-prod | `{org}_prod` |
+
+## Key Locations
+
+| Type | Path |
+|------|------|
+| **BigQuery Schema** | `02-api-service/configs/setup/bootstrap/schemas/org_budgets.json` |
+| **BigQuery Schema** | `02-api-service/configs/setup/bootstrap/schemas/org_budget_allocations.json` |
+| **Bootstrap Config** | `02-api-service/configs/setup/bootstrap/config.yml` |
+| **API Router** | `02-api-service/src/app/routers/budgets.py` |
+| **CRUD Service** | `02-api-service/src/core/services/budget_crud/service.py` |
+| **CRUD Models** | `02-api-service/src/core/services/budget_crud/models.py` |
+| **Read Service** | `02-api-service/src/core/services/budget_read/service.py` |
+| **Read Aggregations** | `02-api-service/src/core/services/budget_read/aggregations.py` |
+| **Read Models** | `02-api-service/src/core/services/budget_read/models.py` |
+| **Frontend Page** | `01-fronted-system/app/[orgSlug]/budgets/page.tsx` |
+| **Server Actions** | `01-fronted-system/actions/budgets.ts` |
+| **Nav Data** | `01-fronted-system/lib/nav-data.ts` |
+| **Chat Tools** | `07-org-chat-backend/src/core/tools/budgets.py` |
+| **Chat Agent** | `07-org-chat-backend/src/core/agents/budget_manager.py` |
+| **Chat Config** | `07-org-chat-backend/src/configs/agents.yml` |
+| **Chat Prompt** | `07-org-chat-backend/src/configs/system_prompts/budget_manager.md` |
+
+## Core Concepts
+
+### Budget Categories (4)
+
+| Category | What It Covers | Providers | Unit |
+|----------|---------------|-----------|------|
+| `cloud` | Infrastructure spend | GCP, AWS, Azure, OCI | $ |
+| `genai` | AI/LLM API usage | OpenAI, Anthropic, Gemini, DeepSeek, Bedrock, Vertex | $ |
+| `subscription` | SaaS licenses | Figma, Slack, ChatGPT Plus, Canva | $ |
+| `total` | All categories combined | All | $ |
+
+### Budget Types (3)
+
+| Type | Unit | Use For | Example |
+|------|------|---------|---------|
+| `monetary` | $ (org currency) | All categories | "$10,000/month for cloud" |
+| `token` | tokens/period | GenAI budgets | "25M tokens/month for OpenAI" |
+| `seat` | seats | SaaS subscriptions | "15 Figma seats for Design team" |
+
+### Budget Periods (4)
+
+| Period | Resets | Use Case |
+|--------|--------|----------|
+| `monthly` | 1st of each month | Team operational budgets |
+| `quarterly` | Jan/Apr/Jul/Oct 1 | Department planning |
+| `yearly` | Jan 1 or fiscal year start | Org-level strategic budget |
+| `custom` | User-defined date range | Project-specific budgets |
+
+### Hierarchy Integration
+
+Budgets attach to hierarchy entities at any level:
+
+```
+Org Budget: $50,000/month (total)
+├─ DEPT-ENG: $30,000           ← Department budget
+│  ├─ PROJ-PLATFORM: $18,000   ← Project budget
+│  │  ├─ TEAM-BE: $10,000      ← Team budget (leaf)
+│  │  └─ TEAM-FE: $8,000       ← Team budget (leaf)
+│  └─ PROJ-ML: $12,000
+│     └─ TEAM-TRAINING: $12,000
+├─ DEPT-PRODUCT: $12,000
+└─ DEPT-OPS: $8,000
+```
+
+**Validation:** Child allocations should sum to <= parent budget. Show warning if exceeded, never block.
+
+## BigQuery Tables (2)
+
+### org_budgets
+
+Primary budget definitions. One record per hierarchy entity + category + period.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `budget_id` | STRING | Yes | UUID primary key |
+| `org_slug` | STRING | Yes | Multi-tenant isolation |
+| `hierarchy_entity_id` | STRING | Yes | Target entity (e.g., `DEPT-ENG`, `TEAM-BE`) |
+| `hierarchy_entity_name` | STRING | Yes | Display name |
+| `hierarchy_path` | STRING | Yes | Materialized path |
+| `hierarchy_level_code` | STRING | Yes | `department`, `project`, `team` |
+| `category` | STRING | Yes | `cloud`, `genai`, `subscription`, `total` |
+| `budget_type` | STRING | Yes | `monetary`, `token`, `seat` |
+| `budget_amount` | FLOAT | Yes | Target amount ($ or tokens or seats) |
+| `currency` | STRING | Yes | ISO 4217 code (USD, EUR, INR) |
+| `period_type` | STRING | Yes | `monthly`, `quarterly`, `yearly`, `custom` |
+| `period_start` | DATE | Yes | Period start date |
+| `period_end` | DATE | Yes | Period end date |
+| `provider` | STRING | No | Optional provider filter (e.g., `openai`, `gcp`) |
+| `notes` | STRING | No | Free-text notes |
+| `is_active` | BOOLEAN | Yes | Soft delete flag |
+| `created_by` | STRING | Yes | Creator user ID |
+| `updated_by` | STRING | No | Last updater |
+| `created_at` | TIMESTAMP | Yes | Creation time |
+| `updated_at` | TIMESTAMP | No | Last update time |
+
+### org_budget_allocations
+
+Parent-to-child allocation tracking. Links a parent budget to its child distributions.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `allocation_id` | STRING | Yes | UUID primary key |
+| `org_slug` | STRING | Yes | Multi-tenant isolation |
+| `parent_budget_id` | STRING | Yes | Parent budget reference |
+| `child_budget_id` | STRING | Yes | Child budget reference |
+| `allocated_amount` | FLOAT | Yes | Amount allocated to child |
+| `allocation_percentage` | FLOAT | No | % of parent (calculated) |
+| `created_at` | TIMESTAMP | Yes | Creation time |
+| `updated_at` | TIMESTAMP | No | Last update time |
+
+## Key Endpoints
+
+### Budget CRUD
+
+```bash
+# List budgets for org
+curl -s "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY"
+
+# List budgets with filters
+curl -s "$API/api/v1/budgets/$ORG?category=genai&period_type=monthly&hierarchy_entity_id=DEPT-ENG" \
+  -H "X-API-Key: $KEY"
+
+# Get single budget
+curl -s "$API/api/v1/budgets/$ORG/$BUDGET_ID" \
+  -H "X-API-Key: $KEY"
+
+# Create budget
+curl -s -X POST "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hierarchy_entity_id": "DEPT-ENG",
+    "category": "cloud",
+    "budget_type": "monetary",
+    "budget_amount": 20000,
+    "currency": "USD",
+    "period_type": "monthly",
+    "period_start": "2026-02-01",
+    "period_end": "2026-02-28"
+  }'
+
+# Update budget
+curl -s -X PUT "$API/api/v1/budgets/$ORG/$BUDGET_ID" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"budget_amount": 25000}'
+
+# Delete budget (soft delete)
+curl -s -X DELETE "$API/api/v1/budgets/$ORG/$BUDGET_ID" \
+  -H "X-API-Key: $KEY"
+```
+
+### Budget Views (Read-Only Computed)
+
+```bash
+# Budget vs Actual summary (variance report)
+curl -s "$API/api/v1/budgets/$ORG/summary?period_type=monthly&period_start=2026-02-01" \
+  -H "X-API-Key: $KEY"
+# Returns: { budgets: [{ budget_id, entity, category, budget_amount, actual_amount, variance, pct_used }] }
+
+# Allocation tree (top-down view)
+curl -s "$API/api/v1/budgets/$ORG/allocation-tree?root_entity_id=DEPT-ENG" \
+  -H "X-API-Key: $KEY"
+# Returns: { entity, budget, allocated_to_children, unallocated, children: [...] }
+
+# Category breakdown for entity
+curl -s "$API/api/v1/budgets/$ORG/by-category?hierarchy_entity_id=DEPT-ENG&period_type=monthly" \
+  -H "X-API-Key: $KEY"
+# Returns: { cloud: {budget, actual}, genai: {budget, actual}, subscription: {budget, actual}, total: {...} }
+
+# Provider breakdown for entity + category
+curl -s "$API/api/v1/budgets/$ORG/by-provider?hierarchy_entity_id=TEAM-TRAINING&category=genai" \
+  -H "X-API-Key: $KEY"
+# Returns: { openai: {budget, actual, tokens_budget, tokens_actual}, anthropic: {...}, ... }
+```
+
+## Variance Calculation
+
+```
+actual = SUM(billed_cost) FROM cost_data_standard_1_3
+         WHERE hierarchy_entity_id = budget.hierarchy_entity_id
+         AND charge_period_start >= budget.period_start
+         AND charge_period_start < budget.period_end
+         AND cost_category matches budget.category
+
+variance = actual - budget_amount
+pct_used = (actual / budget_amount) * 100
+
+Status:
+  pct_used < 80%  → "on_track"      (green)
+  pct_used 80-99% → "approaching"   (amber)
+  pct_used >= 100% → "exceeded"     (red)
+```
+
+## Procedures
+
+### 1. Create Org-Level Budget
+
+```bash
+# Step 1: Set total org budget (monthly)
+curl -s -X POST "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{
+    "hierarchy_entity_id": "ORG",
+    "category": "total",
+    "budget_type": "monetary",
+    "budget_amount": 50000,
+    "currency": "USD",
+    "period_type": "monthly",
+    "period_start": "2026-02-01",
+    "period_end": "2026-02-28"
+  }'
+
+# Step 2: Break down by category
+curl -s -X POST "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"hierarchy_entity_id": "ORG", "category": "cloud", "budget_type": "monetary", "budget_amount": 30000, "currency": "USD", "period_type": "monthly", "period_start": "2026-02-01", "period_end": "2026-02-28"}'
+
+# Repeat for genai ($15,000), subscription ($5,000)
+```
+
+### 2. Top-Down Allocation to Departments
+
+```bash
+# Allocate cloud budget to departments
+curl -s -X POST "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"hierarchy_entity_id": "DEPT-ENG", "category": "cloud", "budget_type": "monetary", "budget_amount": 20000, "currency": "USD", "period_type": "monthly", "period_start": "2026-02-01", "period_end": "2026-02-28"}'
+
+# Check allocation tree
+curl -s "$API/api/v1/budgets/$ORG/allocation-tree" -H "X-API-Key: $KEY"
+```
+
+### 3. Create Token Budget (GenAI)
+
+```bash
+curl -s -X POST "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{
+    "hierarchy_entity_id": "TEAM-TRAINING",
+    "category": "genai",
+    "budget_type": "token",
+    "budget_amount": 25000000,
+    "currency": "USD",
+    "period_type": "monthly",
+    "period_start": "2026-02-01",
+    "period_end": "2026-02-28",
+    "provider": "openai",
+    "notes": "GPT-4o training pipeline budget"
+  }'
+```
+
+### 4. Create Seat Budget (Subscription)
+
+```bash
+curl -s -X POST "$API/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{
+    "hierarchy_entity_id": "PROJ-DESIGN",
+    "category": "subscription",
+    "budget_type": "seat",
+    "budget_amount": 15,
+    "currency": "USD",
+    "period_type": "monthly",
+    "period_start": "2026-02-01",
+    "period_end": "2026-02-28",
+    "provider": "figma",
+    "notes": "Full Figma seats for design team"
+  }'
+```
+
+### 5. View Budget vs Actual
+
+```bash
+# Summary for current month
+curl -s "$API/api/v1/budgets/$ORG/summary?period_type=monthly&period_start=2026-02-01" \
+  -H "X-API-Key: $KEY"
+
+# Expected response:
+# {
+#   "budgets": [
+#     {
+#       "budget_id": "...",
+#       "hierarchy_entity_id": "DEPT-ENG",
+#       "hierarchy_entity_name": "Engineering",
+#       "category": "cloud",
+#       "budget_amount": 20000,
+#       "actual_amount": 17240,
+#       "variance": -2760,
+#       "pct_used": 86.2,
+#       "status": "approaching"
+#     }
+#   ]
+# }
+```
+
+## Frontend Pages
+
+### Budget Overview (`/[orgSlug]/budgets`)
+
+4-tab layout:
+
+| Tab | Content |
+|-----|---------|
+| **Overview** | Stats row (total budget, total actual, variance, entities with budgets) + budget vs actual bar chart + status summary |
+| **Allocation** | Hierarchy tree with budget amounts, allocated vs unallocated at each level |
+| **By Category** | Category cards (cloud/genai/subscription) with budget vs actual per category |
+| **By Provider** | Provider-level breakdown within selected category |
+
+### Navigation
+
+Add to sidebar under **Settings** group (owner-only):
+
+```
+Settings
+├─ Organization
+├─ Hierarchy
+├─ Budgets          ← NEW
+├─ Usage & Quotas
+├─ Team Members
+└─ Billing
+```
+
+## Chat Agent Integration
+
+The BudgetManager sub-agent in the chat backend (port 8002) allows users to query budgets via natural language:
+
+```
+"Am I over budget?" → budget_summary()
+"Show cloud budgets" → list_budgets(category="cloud")
+"Engineering budget vs actual" → budget_variance(hierarchy_entity_id="DEPT-ENG")
+"How are budgets allocated?" → budget_allocation_tree()
+```
+
+**Read-only:** Chat agent can only query budgets. Create/edit/delete must go through the API/frontend.
+
+**Security:** All tools use `bind_org_slug()` to prevent cross-org access via prompt injection.
+
+## Troubleshooting
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Actual shows $0 | No cost data for entity in period | Check hierarchy mapping in cost_data_standard_1_3 |
+| Child sum > parent | Over-allocation | Warning displayed, not blocked. Adjust child amounts. |
+| Budget not appearing | Wrong period filter | Check period_start/period_end match the filter |
+| Token budget no actual | GenAI provider not tracking tokens | Verify provider pipeline writes token columns |
+| Currency mismatch | Budget in USD, costs in EUR | Use org's default currency. Convert via i18n exchange rates. |
+| Delete returns 500 | `_EmptyRowIterator` has no `num_dml_affected_rows` | Use `job` object, not `result` iterator for DML row count |
+| Duplicate rejection for different budget_type | `_check_duplicate` missing `budget_type` | Include `budget_type` in duplicate check query |
+| Update succeeds on deleted budget | Missing `is_active` check in `update_budget` | Guard with `if not existing.is_active: raise ValueError(...)` |
+| N+1 BQ queries in summary | `_fetch_actual_costs()` called per-budget in loop | Single fetch for full date range, filter with Polars |
+| UI always creates monetary | No `budget_type` selector in create dialog | Add `BudgetType` dropdown to create/edit form |
+
+## Testing
+
+```bash
+# Create budget
+curl -s -X POST "http://localhost:8000/api/v1/budgets/$ORG" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"hierarchy_entity_id":"DEPT-ENG","category":"cloud","budget_type":"monetary","budget_amount":20000,"currency":"USD","period_type":"monthly","period_start":"2026-02-01","period_end":"2026-02-28"}'
+# Expected: 201 Created, { "budget_id": "...", ... }
+
+# List budgets
+curl -s "http://localhost:8000/api/v1/budgets/$ORG" -H "X-API-Key: $KEY"
+# Expected: 200, { "budgets": [...], "total": N }
+
+# Get summary
+curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary?period_type=monthly&period_start=2026-02-01" \
+  -H "X-API-Key: $KEY"
+# Expected: 200, budgets with actual_amount calculated from cost_data_standard_1_3
+
+# Delete budget
+curl -s -X DELETE "http://localhost:8000/api/v1/budgets/$ORG/$BUDGET_ID" -H "X-API-Key: $KEY"
+# Expected: 204 No Content
+```
+
+## Related Skills
+
+| Skill | Relationship |
+|-------|-------------|
+| `/hierarchy` | Budget hierarchy entities come from hierarchy system |
+| `/cost-analysis` | Actual spend data from cost_data_standard_1_3 |
+| `/cost-analytics` | Frontend cost data context feeds budget variance calculations |
+| `/i18n-locale` | Multi-currency support for budget amounts |
+| `/notifications` | Future: budget threshold notifications |
+| `/quota-mgmt` | Similar pattern (limits + tracking) but for pipeline usage, not spend |
+| `/bigquery-ops` | Bootstrap schema for org_budgets + org_budget_allocations |
+| `/console-ui` | UI component patterns for budget pages |
+| `/charts` | Budget vs actual charts (bar, ring, trend) |
+
+## Source Specifications
+
+- `BUDGET_PLANNING.md` (v1.0, 2026-02-12)
+- Industry reference: GCP Budget API, AWS Budgets, OpenAI Usage Tiers, Figma Billing Groups

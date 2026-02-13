@@ -236,8 +236,8 @@ export function ChatLayout({ apiKey, userId }: ChatLayoutProps) {
   // Loading state
   if (configured === null) {
     return (
-      <div className="flex h-full items-center justify-center bg-white dark:bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400 dark:text-slate-500" />
+      <div className="flex h-full items-center justify-center bg-white dark:bg-[var(--text-primary)]">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400 dark:text-[var(--text-tertiary)]" />
       </div>
     )
   }
@@ -245,13 +245,13 @@ export function ChatLayout({ apiKey, userId }: ChatLayoutProps) {
   // Not configured — show setup prompt
   if (!configured) {
     return (
-      <div className="flex h-full items-center justify-center bg-white dark:bg-slate-950 px-6">
+      <div className="flex h-full items-center justify-center bg-white dark:bg-[var(--text-primary)] px-6">
         <div className="max-w-md text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-            <Settings className="h-8 w-8 text-gray-400 dark:text-slate-500" />
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-[var(--text-primary)] border border-gray-200 dark:border-[var(--text-secondary)]">
+            <Settings className="h-8 w-8 text-gray-400 dark:text-[var(--text-tertiary)]" />
           </div>
           <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">Set Up AI Chat</h2>
-          <p className="mb-6 text-sm text-gray-500 dark:text-slate-400">
+          <p className="mb-6 text-sm text-gray-500 dark:text-[var(--text-muted)]">
             Configure your LLM provider and API key to start using CloudAct AI.
             Choose from OpenAI, Anthropic, Gemini, or DeepSeek.
           </p>
@@ -268,19 +268,19 @@ export function ChatLayout({ apiKey, userId }: ChatLayoutProps) {
   }
 
   return (
-    <div className="relative flex h-full flex-col bg-white dark:bg-slate-950">
+    <div className="relative flex h-full flex-col bg-white dark:bg-[var(--text-primary)]">
       {/* Toast notification */}
       {toast && (
-        <div className="absolute top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-gray-800 dark:bg-slate-700 px-4 py-2 text-sm text-white shadow-lg animate-in fade-in slide-in-from-top-2">
+        <div className="absolute top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-gray-800 dark:bg-[var(--text-secondary)] px-4 py-2 text-sm text-white shadow-lg animate-in fade-in slide-in-from-top-2">
           {toast}
         </div>
       )}
 
       {/* Header bar */}
-      <div className="flex h-12 items-center justify-between border-b border-gray-200 dark:border-slate-800 px-4">
+      <div className="flex h-12 items-center justify-between border-b border-gray-200 dark:border-[var(--text-primary)] px-4">
         <button
           onClick={handleNewConversation}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-[var(--text-muted)] transition-colors hover:bg-gray-100 dark:hover:bg-[var(--text-primary)] hover:text-gray-900 dark:hover:text-white"
           title="Start new conversation"
         >
           <Plus className="h-4 w-4" />
@@ -288,14 +288,14 @@ export function ChatLayout({ apiKey, userId }: ChatLayoutProps) {
         </button>
 
         {activeTitle && (
-          <p className="absolute left-1/2 -translate-x-1/2 text-sm font-medium text-gray-700 dark:text-slate-300 truncate max-w-[40%]">
+          <p className="absolute left-1/2 -translate-x-1/2 text-sm font-medium text-gray-700 dark:text-[var(--text-muted)] truncate max-w-[40%]">
             {activeTitle}
           </p>
         )}
 
         <button
           onClick={() => setHistoryOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-[var(--text-muted)] transition-colors hover:bg-gray-100 dark:hover:bg-[var(--text-primary)] hover:text-gray-900 dark:hover:text-white"
           title="View conversation history"
         >
           <History className="h-4 w-4" />

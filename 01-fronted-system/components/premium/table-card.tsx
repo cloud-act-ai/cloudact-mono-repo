@@ -136,7 +136,7 @@ export function PipelineRunCard({
               "h-8 w-8 rounded-xl flex items-center justify-center transition-all duration-200 flex-shrink-0 mt-0.5",
               expanded
                 ? "bg-[var(--cloudact-mint)]/20 text-[var(--cloudact-mint-dark)]"
-                : "bg-slate-100 text-slate-400 group-hover:bg-[var(--cloudact-mint)]/10 group-hover:text-[var(--cloudact-mint-dark)]"
+                : "bg-[var(--surface-secondary)] text-[var(--text-muted)] group-hover:bg-[var(--cloudact-mint)]/10 group-hover:text-[var(--cloudact-mint-dark)]"
             )}>
               {expanded ? (
                 <ChevronDown className="h-4 w-4" />
@@ -145,10 +145,10 @@ export function PipelineRunCard({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[14px] sm:text-[14px] font-semibold text-slate-900 truncate">
+              <div className="text-[14px] sm:text-[14px] font-semibold text-[var(--text-primary)] truncate">
                 {pipelineId}
               </div>
-              <div className="text-[11px] text-slate-500 font-mono mt-1 bg-slate-100 px-2 py-0.5 rounded inline-block">
+              <div className="text-[11px] text-[var(--text-tertiary)] font-mono mt-1 bg-[var(--surface-secondary)] px-2 py-0.5 rounded inline-block">
                 {id.slice(0, 8)}...
               </div>
             </div>
@@ -158,8 +158,8 @@ export function PipelineRunCard({
 
         <div className="ml-11 space-y-3">
           {startTime && (
-            <div className="flex items-center gap-2 text-[12px] text-slate-500">
-              <div className="h-1 w-1 rounded-full bg-slate-300" />
+            <div className="flex items-center gap-2 text-[12px] text-[var(--text-tertiary)]">
+              <div className="h-1 w-1 rounded-full bg-[var(--text-muted)]" />
               {formatDateTime(startTime)}
             </div>
           )}
@@ -167,12 +167,12 @@ export function PipelineRunCard({
           {duration !== undefined && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-500 font-medium">Duration</span>
-                <span className="font-semibold text-slate-900 bg-slate-50 px-2 py-0.5 rounded-lg">
+                <span className="text-[var(--text-tertiary)] font-medium">Duration</span>
+                <span className="font-semibold text-[var(--text-primary)] bg-[var(--surface-secondary)] px-2 py-0.5 rounded-lg">
                   {formatDuration(duration)}
                 </span>
               </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+              <div className="h-2 bg-[var(--surface-secondary)] rounded-full overflow-hidden shadow-inner">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all duration-500 ease-out shadow-sm",
@@ -238,17 +238,17 @@ export function AvailablePipelineCard({
     )}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] sm:text-[16px] font-semibold text-slate-900 group-hover/card:text-[#1a7a3a] transition-colors">
+          <div className="text-[14px] sm:text-[16px] font-semibold text-[var(--text-primary)] group-hover/card:text-[#1a7a3a] transition-colors">
             {name}
           </div>
           {description && (
-            <div className="text-[12px] text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{description}</div>
+            <div className="text-[12px] text-[var(--text-tertiary)] mt-1.5 line-clamp-2 leading-relaxed">{description}</div>
           )}
         </div>
         <StatusBadge status={status} size="md" />
       </div>
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <span className="inline-flex items-center justify-center sm:justify-start px-3.5 py-2 rounded-xl text-[11px] font-semibold bg-gradient-to-r from-slate-50 to-slate-100/50 text-slate-600 border border-slate-200/80 shadow-sm">
+        <span className="inline-flex items-center justify-center sm:justify-start px-3.5 py-2 rounded-xl text-[11px] font-semibold bg-gradient-to-r from-[var(--surface-secondary)] to-[var(--surface-secondary)]/50 text-[var(--text-secondary)] border border-[var(--border-subtle)]/80 shadow-sm">
           <div className="h-1.5 w-1.5 rounded-full bg-[var(--cloudact-mint)] mr-2" />
           {provider}
         </span>
@@ -258,16 +258,16 @@ export function AvailablePipelineCard({
             disabled={running || status === "disabled"}
             className={cn(
               "inline-flex items-center justify-center gap-2.5 h-12 sm:h-11 px-6",
-              "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] text-slate-900 text-[14px] font-semibold rounded-xl",
+              "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] text-[var(--text-primary)] text-[14px] font-semibold rounded-xl",
               "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
               "transition-all duration-200 touch-manipulation",
               "shadow-sm active:scale-[0.98]",
-              "disabled:bg-slate-100 disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none disabled:scale-100"
+              "disabled:bg-[var(--surface-secondary)] disabled:from-[var(--surface-secondary)] disabled:to-[var(--surface-secondary)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:shadow-none disabled:scale-100"
             )}
           >
             {running ? (
               <>
-                <span className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                <span className="h-4 w-4 border-2 border-[var(--text-primary)]/30 border-t-[var(--text-primary)] rounded-full animate-spin" />
                 <span>Running...</span>
               </>
             ) : (
@@ -333,8 +333,8 @@ export function StepTimeline({ steps, error, className }: StepTimelineProps) {
               <span className="text-white text-[10px] font-bold">!</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-semibold text-slate-900">Error Details</p>
-              <p className="text-[12px] text-slate-600 mt-1 break-words font-mono">
+              <p className="text-[14px] font-semibold text-[var(--text-primary)]">Error Details</p>
+              <p className="text-[12px] text-[var(--text-secondary)] mt-1 break-words font-mono">
                 {error}
               </p>
             </div>
@@ -344,7 +344,7 @@ export function StepTimeline({ steps, error, className }: StepTimelineProps) {
 
       {/* Steps */}
       <div className="space-y-3">
-        <h4 className="text-[14px] font-semibold text-slate-900 flex items-center gap-2">
+        <h4 className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
           <span className="h-4 w-4 rounded bg-[var(--cloudact-mint)]/20 flex items-center justify-center">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--cloudact-mint-dark)]" />
           </span>
@@ -352,7 +352,7 @@ export function StepTimeline({ steps, error, className }: StepTimelineProps) {
         </h4>
 
         {steps.length === 0 ? (
-          <p className="text-center text-slate-500 text-[12px] py-4">
+          <p className="text-center text-[var(--text-tertiary)] text-[12px] py-4">
             No step logs available
           </p>
         ) : (
@@ -360,14 +360,14 @@ export function StepTimeline({ steps, error, className }: StepTimelineProps) {
             {steps.map((step) => (
               <div
                 key={step.id}
-                className="bg-white rounded-xl border border-slate-200 p-3"
+                className="bg-white rounded-xl border border-[var(--border-subtle)] p-3"
               >
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-dark)] text-[11px] font-bold flex-shrink-0">
                       {step.index}
                     </span>
-                    <span className="text-[12px] font-semibold text-slate-900 truncate">
+                    <span className="text-[12px] font-semibold text-[var(--text-primary)] truncate">
                       {step.name}
                     </span>
                   </div>
@@ -376,8 +376,8 @@ export function StepTimeline({ steps, error, className }: StepTimelineProps) {
                 {step.duration !== undefined && (
                   <div className="ml-8 space-y-1">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500">Duration</span>
-                      <span className="font-medium text-slate-900">
+                      <span className="text-[var(--text-tertiary)]">Duration</span>
+                      <span className="font-medium text-[var(--text-primary)]">
                         {formatDuration(step.duration)}
                       </span>
                     </div>

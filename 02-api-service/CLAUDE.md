@@ -38,7 +38,7 @@ python -m pytest tests/ -v
 | OpenAI Data | `/api/v1/integrations/{org}/openai/*` | Legacy OpenAI pricing (migrated to GenAI Pricing) |
 | Health | `/health` | Liveness, readiness, version |
 
-## Bootstrap Tables (21)
+## Bootstrap Tables (27)
 
 | Category | Tables |
 |----------|--------|
@@ -152,7 +152,7 @@ POST /api/v1/validator/complete/{org}
 
 | File | Purpose |
 |------|---------|
-| `configs/setup/bootstrap/schemas/*.json` | 21 meta table schemas |
+| `configs/setup/bootstrap/schemas/*.json` | 27 meta table schemas |
 | `configs/setup/organizations/onboarding/schemas/*.json` | 30+ per-org table schemas |
 | `src/app/routers/` | 16 router files |
 | `src/app/dependencies/auth.py` | Quota enforcement + self-healing |

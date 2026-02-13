@@ -60,7 +60,7 @@ export function EmptyState({
   const ActionIcon = action?.icon
 
   const buttonClassName = cn(
-    "inline-flex items-center gap-2 bg-[var(--cloudact-mint)] text-slate-900",
+    "inline-flex items-center gap-2 bg-[var(--cloudact-mint)] text-[var(--text-primary)]",
     "font-semibold hover:bg-[var(--cloudact-mint-dark)] transition-colors",
     "shadow-sm hover:shadow-md",
     sizes.button
@@ -87,11 +87,11 @@ export function EmptyState({
             aria-hidden="true"
           />
         </div>
-        <h3 className={cn("font-semibold text-slate-900", sizes.title)}>
+        <h3 className={cn("font-semibold text-[var(--text-primary)]", sizes.title)}>
           {title}
         </h3>
         {description && (
-          <p className={cn("text-slate-500 mx-auto", sizes.description)}>
+          <p className={cn("text-[var(--text-tertiary)] mx-auto", sizes.description)}>
             {description}
           </p>
         )}
@@ -125,7 +125,7 @@ export function EmptyState({
 
   if (variant === "card") {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden">
         {content}
       </div>
     )
@@ -149,7 +149,7 @@ export function InlineEmptyState({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-2 py-6 text-slate-500",
+        "flex items-center justify-center gap-2 py-6 text-[var(--text-tertiary)]",
         className
       )}
       role="status"

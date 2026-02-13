@@ -19,8 +19,8 @@ description: |
 git push origin main
 
 # Production: Automatic on version tag push
-git tag v4.2.0
-git push origin v4.2.0
+git tag v4.4.0
+git push origin v4.4.0
 
 # Monitor Cloud Build progress
 gcloud builds list --project=cloudact-prod --region=global --limit=5
@@ -29,10 +29,10 @@ gcloud builds list --project=cloudact-prod --region=global --limit=5
 ### Cloud Build Triggers
 | Trigger | Event | Target Environment |
 |---------|-------|-------------------|
-| `push-to-main` | Push to `main` branch | Stage (cloudact-stage) |
+| `push-to-main` | Push to `main` branch | Stage (cloudact-testing-1) |
 | `version-tag` | Push `v*` tag | Production (cloudact-prod) |
 
-> **Note:** Cloud Build triggers are hosted in `cloudact-prod` project. Stage trigger deploys to `cloudact-stage`.
+> **Note:** Cloud Build triggers are hosted in `cloudact-prod` project. Stage trigger deploys to `cloudact-testing-1`.
 > See: `04-inra-cicd-automation/CICD/triggers/README.md` for full trigger documentation.
 
 ### Pre-Deployment Checklist
@@ -56,8 +56,8 @@ cd 04-inra-cicd-automation/CICD
 ./releases.sh next
 
 # Create release tag (Cloud Build will auto-deploy to prod)
-git tag v4.2.0
-git push origin v4.2.0
+git tag v4.4.0
+git push origin v4.4.0
 ```
 
 ### Release Commands
@@ -94,7 +94,7 @@ Also tagged as :latest for convenience
 | Environment | GCP Project | Service Account | Auth Mode |
 |-------------|-------------|-----------------|-----------|
 | `test` | `cloudact-testing-1` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | Public (app auth) |
-| `stage` | `cloudact-stage` | `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` | Public (app auth) |
+| `stage` | `cloudact-testing-1` | `cloudact-sa-stage@cloudact-testing-1.iam.gserviceaccount.com` | Public (app auth) |
 | `prod` | `cloudact-prod` | `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` | Public (app auth) |
 
 > **Note:** All environments allow unauthenticated Cloud Run access. App handles auth via `X-CA-Root-Key` and `X-API-Key` headers.
@@ -103,7 +103,7 @@ Also tagged as :latest for convenience
 ### Credentials Location
 ```
 ~/.gcp/cloudact-testing-1-e44da390bf82.json  # Test
-~/.gcp/cloudact-stage.json                    # Stage
+~/.gcp/cloudact-testing-1-e44da390bf82.json                    # Stage
 ~/.gcp/cloudact-prod.json                     # Prod
 ```
 
@@ -147,7 +147,7 @@ cd 04-inra-cicd-automation/CICD
 
 # Examples
 ./cicd.sh api-service test cloudact-testing-1
-./cicd.sh pipeline-service stage cloudact-stage
+./cicd.sh pipeline-service stage cloudact-testing-1
 ./cicd.sh frontend prod cloudact-prod v1.2.3
 ```
 
@@ -166,10 +166,10 @@ cd 04-inra-cicd-automation/CICD
 ./build/build.sh api-service stage
 
 # Push to GCR
-./push/push.sh api-service stage cloudact-stage
+./push/push.sh api-service stage cloudact-testing-1
 
 # Deploy to Cloud Run
-./deploy/deploy.sh api-service stage cloudact-stage latest
+./deploy/deploy.sh api-service stage cloudact-testing-1 latest
 ```
 
 ## Health Checks
@@ -215,7 +215,7 @@ cd 04-inra-cicd-automation/CICD/monitor
 ```bash
 gcloud alpha logging tail \
   "resource.type=cloud_run_revision AND resource.labels.service_name=cloudact-api-service-stage" \
-  --project=cloudact-stage
+  --project=cloudact-testing-1
 ```
 
 ## Backup Operations
@@ -269,8 +269,8 @@ gcloud run services update-traffic cloudact-api-service-prod \
 ### Activate Environment
 ```bash
 # Stage
-gcloud auth activate-service-account --key-file=~/.gcp/cloudact-stage.json
-gcloud config set project cloudact-stage
+gcloud auth activate-service-account --key-file=~/.gcp/cloudact-testing-1-e44da390bf82.json
+gcloud config set project cloudact-testing-1
 
 # Prod
 gcloud auth activate-service-account --key-file=~/.gcp/cloudact-prod.json
@@ -280,7 +280,7 @@ gcloud config set project cloudact-prod
 ### Update Environment Variables
 ```bash
 gcloud run services update cloudact-api-service-stage \
-  --project=cloudact-stage \
+  --project=cloudact-testing-1 \
   --region=us-central1 \
   --set-env-vars="KEY1=value1,KEY2=value2"
 ```
@@ -296,7 +296,7 @@ gcloud run services update cloudact-api-service-prod \
 
 # Scale down (cost saving)
 gcloud run services update cloudact-api-service-stage \
-  --project=cloudact-stage \
+  --project=cloudact-testing-1 \
   --region=us-central1 \
   --max-instances=5 \
   --min-instances=0
@@ -340,7 +340,7 @@ cd 04-inra-cicd-automation/CICD/secrets
 
 ### List Secrets
 ```bash
-gcloud secrets list --project=cloudact-stage
+gcloud secrets list --project=cloudact-testing-1
 gcloud secrets list --project=cloudact-prod
 ```
 
@@ -385,7 +385,7 @@ PROD (cloudact-prod):
 | Environment | GCP Project | Credentials |
 |------------|-------------|-------------|
 | `test` | `cloudact-testing-1` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
-| `stage` | `cloudact-stage` | `~/.gcp/cloudact-stage.json` |
+| `stage` | `cloudact-testing-1` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
 | `prod` | `cloudact-prod` | `~/.gcp/cloudact-prod.json` |
 
 ### Supabase Configuration
@@ -468,7 +468,7 @@ PROD (cloudact-prod):
 
 **Actual Names:**
 - test: `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` (has `-sa-`)
-- stage: `cloudact-stage@cloudact-stage.iam.gserviceaccount.com` (NO `-sa-`)
+- stage: `cloudact-sa-stage@cloudact-testing-1.iam.gserviceaccount.com`
 - prod: `cloudact-prod@cloudact-prod.iam.gserviceaccount.com` (NO `-sa-`)
 
 **Note:** This is configured in `environments.conf`.
@@ -538,6 +538,24 @@ done
 | 403 Forbidden on Cloud Run | IAM not configured | Run `./quick/fix-auth.sh <env>` |
 | Image push fails | Wrong account | Activate correct service account |
 | Tag already exists | Git tag conflict | Use `--force` or new version |
+
+### 8. pydantic-settings v2 Env Var Parsing (CRITICAL for Cloud Run)
+
+**Problem:** `pydantic-settings` v2 `EnvSettingsSource` JSON-decodes environment variables for complex types (`List[str]`, `Dict`, etc.) BEFORE any `field_validator` runs. If a Cloud Run env var like `CORS_ORIGINS` is set as a plain comma-separated string (`https://cloudact.ai,https://api.cloudact.ai`) instead of a JSON array, pydantic will fail to parse it and the field gets its default value silently.
+
+**Impact:** CORS middleware gets wrong origins, causing chat/API requests to fail with CORS errors in production.
+
+**Fix:** For env vars that may be set as plain strings in Cloud Run, declare the config field as `str` type and parse it manually in the middleware or a `@model_validator`. Do NOT rely on `List[str]` type + `field_validator` -- the validator never runs because JSON parsing fails first.
+
+**Affected:** `07-org-chat-backend/src/app/config.py` (`CORS_ORIGINS` field)
+
+### 9. Cloud Build Triggers (Both in cloudact-prod)
+
+Both Cloud Build triggers are hosted in the `cloudact-prod` GCP project:
+- **push-to-main** trigger: Deploys to STAGE environment (`cloudact-testing-1`)
+- **version-tag** trigger: Deploys to PROD environment (`cloudact-prod`)
+
+To monitor either build: `gcloud builds list --project=cloudact-prod --region=global --limit=5`
 
 ### Common Production Issues
 
@@ -745,7 +763,7 @@ cd 05-scheduler-jobs
 
 | Job | Script | Purpose | Timeout |
 |-----|--------|---------|---------|
-| `cloudact-bootstrap` | `jobs/bootstrap.py` | Initialize organizations dataset + 21 meta tables | 30m |
+| `cloudact-bootstrap` | `jobs/bootstrap.py` | Initialize organizations dataset + 27 meta tables | 30m |
 | `cloudact-bootstrap-sync` | `jobs/bootstrap_sync.py` | Add new columns to existing meta tables | 30m |
 | `cloudact-org-sync-all` | `jobs/org_sync_all.py` | Sync ALL org datasets (loops through active orgs) | 60m |
 

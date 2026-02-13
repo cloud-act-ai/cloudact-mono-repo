@@ -46,7 +46,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          'overflow-hidden rounded-lg bg-slate-900 dark:bg-slate-800 px-3 py-2 text-xs font-medium text-white shadow-lg',
+          'overflow-hidden rounded-lg bg-[var(--text-primary)] dark:bg-[var(--text-primary)] px-3 py-2 text-xs font-medium text-white shadow-lg',
           'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
           'max-w-xs text-balance leading-relaxed',
@@ -56,7 +56,7 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="fill-slate-900 dark:fill-slate-800" />
+        <TooltipPrimitive.Arrow className="fill-[var(--text-primary)] dark:fill-[var(--text-primary)]" />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

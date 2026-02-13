@@ -39,12 +39,12 @@ export function PremiumSection({
             )}
             <div>
               {title && (
-                <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
+                <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">
                   {title}
                 </h2>
               )}
               {subtitle && (
-                <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{subtitle}</p>
               )}
             </div>
           </div>
@@ -110,12 +110,12 @@ export function PremiumFormSection({
 }: PremiumFormSectionProps) {
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="pb-2 border-b border-slate-100">
-        <h3 className="text-[14px] sm:text-[14px] font-semibold text-slate-900">
+      <div className="pb-2 border-b border-[var(--border-subtle)]">
+        <h3 className="text-[14px] sm:text-[14px] font-semibold text-[var(--text-primary)]">
           {title}
         </h3>
         {description && (
-          <p className="text-[12px] text-slate-500 mt-1">{description}</p>
+          <p className="text-[12px] text-[var(--text-tertiary)] mt-1">{description}</p>
         )}
       </div>
       <div className="space-y-4">{children}</div>
@@ -137,10 +137,10 @@ export function PremiumDivider({ className, label }: PremiumDividerProps) {
     return (
       <div className={cn("relative py-4", className)}>
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200" />
+          <div className="w-full border-t border-[var(--border-subtle)]" />
         </div>
         <div className="relative flex justify-center">
-          <span className="px-3 bg-white text-[11px] text-slate-400 font-medium uppercase tracking-wide">
+          <span className="px-3 bg-white text-[11px] text-[var(--text-muted)] font-medium uppercase tracking-wide">
             {label}
           </span>
         </div>
@@ -151,7 +151,7 @@ export function PremiumDivider({ className, label }: PremiumDividerProps) {
   return (
     <div
       className={cn(
-        "h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-4 sm:my-6",
+        "h-px bg-gradient-to-r from-transparent via-[var(--border-subtle)] to-transparent my-4 sm:my-6",
         className
       )}
     />
@@ -184,7 +184,7 @@ export function PremiumInfoBanner({
       container: "bg-[var(--cloudact-mint)]/10 border-[var(--cloudact-mint)]/20",
       icon: "text-[var(--cloudact-mint-dark)]",
       title: "text-[#1a7a3a]",
-      text: "text-slate-700",
+      text: "text-[var(--text-secondary)]",
     },
     warning: {
       container: "bg-amber-50 border-amber-200",
@@ -195,14 +195,14 @@ export function PremiumInfoBanner({
     error: {
       container: "bg-gradient-to-r from-rose-50 to-orange-50 border-rose-200",
       icon: "text-rose-500",
-      title: "text-slate-900",
-      text: "text-slate-600",
+      title: "text-[var(--text-primary)]",
+      text: "text-[var(--text-secondary)]",
     },
     success: {
       container: "bg-[var(--cloudact-mint)]/15 border-[var(--cloudact-mint)]/30",
       icon: "text-[var(--cloudact-mint-dark)]",
       title: "text-[#1a7a3a]",
-      text: "text-slate-700",
+      text: "text-[var(--text-secondary)]",
     },
   }
 
@@ -265,15 +265,15 @@ export function PremiumEmptySection({
       )}
     >
       {Icon && (
-        <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-          <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400" />
+        <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-[var(--surface-secondary)] flex items-center justify-center mb-4">
+          <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-[var(--text-muted)]" />
         </div>
       )}
-      <h3 className="text-[14px] sm:text-[16px] font-semibold text-slate-900">
+      <h3 className="text-[14px] sm:text-[16px] font-semibold text-[var(--text-primary)]">
         {title}
       </h3>
       {description && (
-        <p className="text-[12px] text-slate-500 mt-1 max-w-sm">
+        <p className="text-[12px] text-[var(--text-tertiary)] mt-1 max-w-sm">
           {description}
         </p>
       )}

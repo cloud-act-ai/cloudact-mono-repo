@@ -8,7 +8,7 @@ cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/01-fronted-system
 ./scripts/supabase_db/migrate.sh --status --prod
 ./scripts/supabase_db/migrate.sh --yes --prod
 
-# Step 2: Bootstrap (BigQuery 21 tables)
+# Step 2: Bootstrap (BigQuery 27 tables)
 cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs
 ./scripts/run-job.sh prod bootstrap
 

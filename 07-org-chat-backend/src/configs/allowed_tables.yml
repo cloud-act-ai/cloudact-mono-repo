@@ -19,6 +19,8 @@ org_meta_tables:
   - org_subscriptions            # Plan and billing info
   - org_usage_quotas             # Quota usage tracking
   - org_meta_pipeline_runs       # Pipeline execution logs
+  - org_budgets                   # Budget targets and tracking
+  - org_budget_allocations        # Budget allocation hierarchy
   - org_chat_settings            # Chat configuration per org
 
 # Tables that should NEVER be queried by chat tools

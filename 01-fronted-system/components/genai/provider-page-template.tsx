@@ -241,10 +241,10 @@ function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (
-    <div className="border border-slate-200 rounded-2xl bg-white shadow-sm overflow-hidden">
+    <div className="border border-[var(--border-subtle)] rounded-2xl bg-white shadow-sm overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors"
+        className="w-full px-5 py-4 flex items-center justify-between hover:bg-[var(--surface-secondary)]/50 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div
@@ -257,24 +257,24 @@ function CollapsibleSection({
           </div>
           <div className="text-left">
             <div className="flex items-center gap-2">
-              <h3 className="text-[14px] font-semibold text-slate-900">{title}</h3>
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">{title}</h3>
               {badge}
             </div>
             {description && (
-              <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{description}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           {isOpen ? (
-            <ChevronUp className="h-5 w-5 text-slate-400" />
+            <ChevronUp className="h-5 w-5 text-[var(--text-muted)]" />
           ) : (
-            <ChevronDown className="h-5 w-5 text-slate-400" />
+            <ChevronDown className="h-5 w-5 text-[var(--text-muted)]" />
           )}
         </div>
       </button>
       {isOpen && (
-        <div className="px-5 pb-5 pt-2 border-t border-slate-100">
+        <div className="px-5 pb-5 pt-2 border-t border-[var(--border-subtle)]">
           {children}
         </div>
       )}
@@ -831,7 +831,7 @@ export function GenAIProviderPageTemplate({
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin" style={{ color: config.color }} />
-          <p className="text-sm text-slate-500">Loading integration...</p>
+          <p className="text-sm text-[var(--text-tertiary)]">Loading integration...</p>
         </div>
       </div>
     )
@@ -874,7 +874,7 @@ export function GenAIProviderPageTemplate({
           <Button
             variant="ghost"
             size="sm"
-            className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors"
+            className="text-[var(--text-secondary)] hover:text-black hover:bg-[var(--surface-secondary)] h-9 rounded-xl transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             GenAI Providers
@@ -889,14 +889,14 @@ export function GenAIProviderPageTemplate({
       </div>
 
       {/* Provider Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-white shadow-sm">
         <div
           className="absolute top-0 left-0 right-0 h-1"
           style={{ background: `linear-gradient(90deg, ${config.color}, ${config.color}80)` }}
         />
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center flex-shrink-0">
+            <div className="h-14 w-14 rounded-2xl bg-white border-2 border-[var(--border-subtle)] flex items-center justify-center flex-shrink-0">
               <ProviderLogo provider={config.id} size={32} />
             </div>
             <div className="flex-1 min-w-0">
@@ -910,12 +910,12 @@ export function GenAIProviderPageTemplate({
                     Connected
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-0 h-6 px-2.5 font-semibold">
+                  <Badge variant="secondary" className="bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-0 h-6 px-2.5 font-semibold">
                     Not Connected
                   </Badge>
                 )}
               </div>
-              <p className="text-[13px] text-slate-600 leading-relaxed">
+              <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
                 {config.description}
               </p>
             </div>
@@ -959,9 +959,9 @@ export function GenAIProviderPageTemplate({
       {/* Pricing Tables */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-slate-900">Pricing Reference</h2>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">Pricing Reference</h2>
           {!isConnected && (
-            <Badge variant="outline" className="text-[10px] font-medium border-slate-200 text-slate-500">
+            <Badge variant="outline" className="text-[10px] font-medium border-[var(--border-subtle)] text-[var(--text-tertiary)]">
               <Shield className="h-3 w-3 mr-1" />
               Read-only until connected
             </Badge>
@@ -977,7 +977,7 @@ export function GenAIProviderPageTemplate({
             iconColor="#90FCA6"
             defaultOpen={true}
             badge={
-              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 h-5 bg-slate-100 text-slate-600">
+              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 h-5 bg-[var(--surface-secondary)] text-[var(--text-secondary)]">
                 {isConnected && backendPricing ? backendPricing.payg.length : paygPricing.length} models
               </Badge>
             }
@@ -1005,7 +1005,7 @@ export function GenAIProviderPageTemplate({
             iconColor="#007AFF"
             defaultOpen={false}
             badge={
-              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 h-5 bg-slate-100 text-slate-600">
+              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 h-5 bg-[var(--surface-secondary)] text-[var(--text-secondary)]">
                 {isConnected && backendPricing ? backendPricing.commitment.length : commitmentPricing.length} plans
               </Badge>
             }
@@ -1033,7 +1033,7 @@ export function GenAIProviderPageTemplate({
             iconColor="#FF6C5E"
             defaultOpen={false}
             badge={
-              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 h-5 bg-slate-100 text-slate-600">
+              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0 h-5 bg-[var(--surface-secondary)] text-[var(--text-secondary)]">
                 {isConnected && backendPricing ? backendPricing.infrastructure.length : infrastructurePricing.length} instances
               </Badge>
             }
@@ -1059,7 +1059,7 @@ export function GenAIProviderPageTemplate({
               variant="outline"
               onClick={handleLoadMorePricing}
               disabled={isLoadingMore}
-              className="min-w-[200px] h-10 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+              className="min-w-[200px] h-10 rounded-xl border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
             >
               {isLoadingMore ? (
                 <>
@@ -1078,7 +1078,7 @@ export function GenAIProviderPageTemplate({
 
         {/* Pagination info */}
         {isConnected && backendPricing && (
-          <div className="text-center text-xs text-slate-500">
+          <div className="text-center text-xs text-[var(--text-tertiary)]">
             Showing {backendPricing.payg.length + backendPricing.commitment.length + backendPricing.infrastructure.length} records
             {backendPricing.total_count ? ` of ${backendPricing.total_count} total` : ""}
           </div>
@@ -1086,16 +1086,16 @@ export function GenAIProviderPageTemplate({
       </div>
 
       {/* Help Section */}
-      <div className="rounded-2xl border border-slate-200 p-5 bg-gradient-to-br from-slate-50 to-white">
+      <div className="rounded-2xl border border-[var(--border-subtle)] p-5 bg-gradient-to-br from-[var(--surface-secondary)] to-white">
         <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-            <ExternalLink className="h-5 w-5 text-slate-600" />
+          <div className="h-10 w-10 rounded-xl bg-[var(--surface-secondary)] flex items-center justify-center flex-shrink-0">
+            <ExternalLink className="h-5 w-5 text-[var(--text-secondary)]" />
           </div>
           <div>
             <h3 className="text-[14px] font-semibold text-black mb-2">
               How to get your {config.name} API key
             </h3>
-            <ol className="list-decimal list-inside space-y-1.5 text-[12px] text-slate-700">
+            <ol className="list-decimal list-inside space-y-1.5 text-[12px] text-[var(--text-secondary)]">
               {config.docsSteps.map((step, idx) => (
                 <li key={`step-${idx}`}>
                   <SafeStepContent content={step} />

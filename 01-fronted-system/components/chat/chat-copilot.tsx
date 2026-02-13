@@ -46,7 +46,7 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
         <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border ${
           isError
             ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-            : "bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+            : "bg-gray-100 dark:bg-[var(--text-primary)] border-gray-200 dark:border-[var(--text-secondary)]"
         }`}>
           {isError ? (
             <AlertCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
@@ -59,10 +59,10 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
         <div
           className={`rounded-xl px-4 py-3 ${
             isUser
-              ? "bg-gray-900 text-white dark:bg-slate-700"
+              ? "bg-gray-900 text-white dark:bg-[var(--text-secondary)]"
               : isError
                 ? "bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/10 dark:border-red-800/50 dark:text-red-300"
-                : "bg-gray-50 border border-gray-200 text-gray-800 dark:bg-slate-800/50 dark:border-slate-700/50 dark:text-slate-200"
+                : "bg-gray-50 border border-gray-200 text-gray-800 dark:bg-[var(--text-primary)]/50 dark:border-[var(--text-secondary)]/50 dark:text-[var(--border-subtle)]"
           }`}
         >
           <p className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -72,7 +72,7 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
             )}
           </p>
           {!isUser && !isError && !msg.isStreaming && msg.agent_name && (
-            <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+            <p className="mt-2 text-xs text-gray-400 dark:text-[var(--text-tertiary)]">
               {msg.agent_name}
               {msg.latency_ms ? ` · ${(msg.latency_ms / 1000).toFixed(1)}s` : ""}
             </p>
@@ -85,7 +85,7 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
             {!isError && (
               <button
                 onClick={() => onCopy(msg.id, msg.content)}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-[var(--text-tertiary)] dark:hover:bg-[var(--text-primary)] dark:hover:text-[var(--text-muted)]"
                 aria-label="Copy response"
               >
                 {copiedId === msg.id ? (
@@ -113,7 +113,7 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
           <div className="mt-1 flex items-center gap-1 justify-end opacity-0 transition-opacity group-hover:opacity-100">
             <button
               onClick={() => onDelete?.(msg.id)}
-              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-red-400"
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:text-[var(--text-tertiary)] dark:hover:bg-[var(--text-primary)] dark:hover:text-red-400"
               aria-label="Delete message"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -122,8 +122,8 @@ const ChatMessageBubble = memo(function ChatMessageBubble({
         )}
       </div>
       {isUser && (
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-slate-700">
-          <User className="h-4 w-4 text-gray-500 dark:text-slate-300" />
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-[var(--text-secondary)]">
+          <User className="h-4 w-4 text-gray-500 dark:text-[var(--text-muted)]" />
         </div>
       )}
     </div>
@@ -491,9 +491,9 @@ export function ChatCopilot({
             <div className="space-y-4 animate-pulse">
               {[1, 2, 3].map((i) => (
                 <div key={i} className={`flex gap-3 ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
-                  {i % 2 !== 0 && <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-slate-700" />}
-                  <div className={`h-16 rounded-xl ${i % 2 === 0 ? "w-48" : "w-64"} bg-gray-100 dark:bg-slate-800`} />
-                  {i % 2 === 0 && <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-slate-700" />}
+                  {i % 2 !== 0 && <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-[var(--text-secondary)]" />}
+                  <div className={`h-16 rounded-xl ${i % 2 === 0 ? "w-48" : "w-64"} bg-gray-100 dark:bg-[var(--text-primary)]`} />
+                  {i % 2 === 0 && <div className="h-8 w-8 rounded-lg bg-gray-200 dark:bg-[var(--text-secondary)]" />}
                 </div>
               ))}
             </div>
@@ -521,12 +521,12 @@ export function ChatCopilot({
           {/* Typing indicator — only show when sending without streaming */}
           {sending && !messages.some((m) => m.isStreaming) && (
             <div className="flex gap-3">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-[var(--text-primary)] border border-gray-200 dark:border-[var(--text-secondary)]">
                 <Bot className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 dark:bg-slate-800/50 dark:border-slate-700/50 px-4 py-3">
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400 dark:text-slate-400" />
-                <span className="text-sm text-gray-400 dark:text-slate-500">Thinking...</span>
+              <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 dark:bg-[var(--text-primary)]/50 dark:border-[var(--text-secondary)]/50 px-4 py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400 dark:text-[var(--text-muted)]" />
+                <span className="text-sm text-gray-400 dark:text-[var(--text-tertiary)]">Thinking...</span>
               </div>
             </div>
           )}
@@ -536,12 +536,12 @@ export function ChatCopilot({
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-4">
+      <div className="border-t border-gray-200 dark:border-[var(--text-primary)] bg-white dark:bg-[var(--text-primary)] px-4 py-4">
         <div className="mx-auto max-w-3xl">
-          <div className={`flex items-end gap-3 rounded-xl border bg-gray-50 dark:bg-slate-800/50 px-4 py-3 transition-colors ${
+          <div className={`flex items-end gap-3 rounded-xl border bg-gray-50 dark:bg-[var(--text-primary)]/50 px-4 py-3 transition-colors ${
             isOverLimit
               ? "border-red-300 dark:border-red-800"
-              : "border-gray-300 dark:border-slate-700 focus-within:border-[var(--cloudact-mint)]/40"
+              : "border-gray-300 dark:border-[var(--text-secondary)] focus-within:border-[var(--cloudact-mint)]/40"
           }`}>
             <textarea
               ref={inputRef}
@@ -551,7 +551,7 @@ export function ChatCopilot({
               placeholder="Ask about your cloud costs..."
               rows={1}
               maxLength={MAX_MESSAGE_LENGTH + 100} // Allow typing slightly over for UX
-              className={`flex-1 resize-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-opacity ${
+              className={`flex-1 resize-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[var(--text-tertiary)] outline-none transition-opacity ${
                 sending ? "opacity-50 cursor-not-allowed" : ""
               }`}
               disabled={sending}
@@ -567,11 +567,11 @@ export function ChatCopilot({
             </button>
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <p className="text-xs text-gray-400 dark:text-slate-600">
+            <p className="text-xs text-gray-400 dark:text-[var(--text-secondary)]">
               AI responses may not always be accurate. Verify important data.
             </p>
             {charCount > MAX_MESSAGE_LENGTH * 0.8 && (
-              <p className={`text-xs ${isOverLimit ? "text-red-500" : "text-gray-400 dark:text-slate-600"}`}>
+              <p className={`text-xs ${isOverLimit ? "text-red-500" : "text-gray-400 dark:text-[var(--text-secondary)]"}`}>
                 {charCount.toLocaleString()}/{MAX_MESSAGE_LENGTH.toLocaleString()}
               </p>
             )}

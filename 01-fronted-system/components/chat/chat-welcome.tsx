@@ -49,7 +49,7 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
             <Sparkles className="h-8 w-8 text-[var(--cloudact-mint-dark)]" />
           </div>
           <h2 className="mb-2 text-2xl font-semibold text-gray-900 dark:text-white">CloudAct AI</h2>
-          <p className="mb-8 text-sm text-gray-500 dark:text-slate-400">
+          <p className="mb-8 text-sm text-gray-500 dark:text-[var(--text-muted)]">
             Ask about your cloud costs, usage, alerts, and more.
             Powered by your configured LLM provider.
           </p>
@@ -60,13 +60,13 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
                 key={suggestion.text}
                 onClick={() => onSendMessage(suggestion.text)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSendMessage(suggestion.text) } }}
-                className="group flex items-start gap-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 p-4 text-left transition-colors hover:border-[var(--cloudact-mint)]/30 hover:bg-gray-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40"
+                className="group flex items-start gap-3 rounded-xl border border-gray-200 dark:border-[var(--text-secondary)] bg-gray-50 dark:bg-[var(--text-primary)]/50 p-4 text-left transition-colors hover:border-[var(--cloudact-mint)]/30 hover:bg-gray-100 dark:hover:bg-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40"
                 aria-label={`Ask: ${suggestion.text}`}
               >
-                <suggestion.icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-slate-500 transition-colors group-hover:text-[var(--cloudact-mint-dark)]" />
+                <suggestion.icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 dark:text-[var(--text-tertiary)] transition-colors group-hover:text-[var(--cloudact-mint-dark)]" />
                 <div>
-                  <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mb-1">{suggestion.category}</p>
-                  <p className="text-sm text-gray-700 dark:text-slate-300">{suggestion.text}</p>
+                  <p className="text-xs font-medium text-gray-400 dark:text-[var(--text-tertiary)] mb-1">{suggestion.category}</p>
+                  <p className="text-sm text-gray-700 dark:text-[var(--text-muted)]">{suggestion.text}</p>
                 </div>
               </button>
             ))}
@@ -75,9 +75,9 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
       </div>
 
       {/* Input field at bottom */}
-      <div className="border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-4">
+      <div className="border-t border-gray-200 dark:border-[var(--text-primary)] bg-white dark:bg-[var(--text-primary)] px-4 py-4">
         <div className="mx-auto max-w-3xl">
-          <div className="flex items-end gap-3 rounded-xl border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 px-4 py-3 transition-colors focus-within:border-[var(--cloudact-mint)]/40">
+          <div className="flex items-end gap-3 rounded-xl border border-gray-300 dark:border-[var(--text-secondary)] bg-gray-50 dark:bg-[var(--text-primary)]/50 px-4 py-3 transition-colors focus-within:border-[var(--cloudact-mint)]/40">
             <textarea
               ref={inputRef}
               value={input}
@@ -85,7 +85,7 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
               onKeyDown={handleKeyDown}
               placeholder="Ask about your cloud costs..."
               rows={1}
-              className="flex-1 resize-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none"
+              className="flex-1 resize-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[var(--text-tertiary)] outline-none"
               aria-label="Chat message input"
             />
             <button
@@ -97,7 +97,7 @@ export function ChatWelcome({ onSendMessage }: ChatWelcomeProps) {
               <Send className="h-4 w-4" />
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-400 dark:text-slate-600">
+          <p className="mt-2 text-xs text-gray-400 dark:text-[var(--text-secondary)]">
             AI responses may not always be accurate. Verify important data.
           </p>
         </div>

@@ -18,12 +18,12 @@ function Skeleton({
       className={cn(
         'rounded-lg',
         variant === 'shimmer' && [
-          'bg-slate-100/80',
+          'bg-[var(--surface-secondary)]/80',
           'relative overflow-hidden',
           'before:absolute before:inset-0 before:-translate-x-full',
           'before:animate-[shimmer_1.5s_ease-in-out_infinite]',
           'before:bg-gradient-to-r before:from-transparent before:via-white/70 before:to-transparent',
-          'dark:bg-slate-800/50 dark:before:via-white/10',
+          'dark:bg-[var(--text-primary)]/50 dark:before:via-white/10',
         ],
         variant === 'mint' && [
           'bg-[var(--cloudact-mint)]/[0.06]',
@@ -32,7 +32,7 @@ function Skeleton({
           'before:animate-[shimmer_1.5s_ease-in-out_infinite]',
           'before:bg-gradient-to-r before:from-transparent before:via-[var(--cloudact-mint)]/10 before:to-transparent',
         ],
-        variant === 'default' && 'bg-slate-100 animate-pulse dark:bg-slate-800/50',
+        variant === 'default' && 'bg-[var(--surface-secondary)] animate-pulse dark:bg-[var(--text-primary)]/50',
         className
       )}
       {...props}

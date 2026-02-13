@@ -52,7 +52,7 @@ export function PremiumCard({
     <div
       onClick={onClick}
       className={cn(
-        "bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden",
+        "bg-white rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden",
         hover && "transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
         hover && "hover:border-[var(--cloudact-mint)]/30",
         accentBar && "border-l-4",
@@ -69,11 +69,11 @@ export function PremiumCard({
                 <HeaderIcon className="h-[18px] w-[18px] text-[#1a7a3a] flex-shrink-0" />
               )}
               <div className="min-w-0">
-                <span className="text-[15px] font-semibold text-slate-900 truncate block">
+                <span className="text-[15px] font-semibold text-[var(--text-primary)] truncate block">
                   {header.title}
                 </span>
                 {header.subtitle && (
-                  <span className="text-[12px] text-slate-500 truncate block mt-0.5">
+                  <span className="text-[12px] text-[var(--text-tertiary)] truncate block mt-0.5">
                     {header.subtitle}
                   </span>
                 )}
@@ -89,7 +89,7 @@ export function PremiumCard({
       </div>
 
       {footer && (
-        <div className="px-4 sm:px-6 py-3 border-t border-[#E5E5EA] bg-slate-50/50">
+        <div className="px-4 sm:px-6 py-3 border-t border-[#E5E5EA] bg-[var(--surface-secondary)]/50">
           {footer}
         </div>
       )}
@@ -135,8 +135,8 @@ const metricColorClasses = {
     glow: "group-hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]",
   },
   slate: {
-    bg: "bg-slate-100",
-    icon: "text-slate-600",
+    bg: "bg-[var(--surface-secondary)]",
+    icon: "text-[var(--text-secondary)]",
     glow: "",
   },
 }
@@ -157,7 +157,7 @@ export function MetricCard({
     <div
       onClick={onClick}
       className={cn(
-        "group bg-white rounded-xl sm:rounded-2xl border border-slate-200",
+        "group bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)]",
         "p-3 sm:p-5 shadow-sm transition-all duration-200",
         "hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--cloudact-mint)]/30",
         colors.glow,
@@ -184,15 +184,15 @@ export function MetricCard({
         )}
       </div>
 
-      <p className="text-[12px] sm:text-[13px] text-slate-500 font-medium mt-3">{title}</p>
-      <p className="text-[22px] sm:text-[28px] font-bold text-slate-900 leading-none mt-1">
+      <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] font-medium mt-3">{title}</p>
+      <p className="text-[22px] sm:text-[28px] font-bold text-[var(--text-primary)] leading-none mt-1">
         {value}
       </p>
       {subtitle && (
-        <p className="text-[11px] sm:text-[12px] text-slate-400 mt-1">{subtitle}</p>
+        <p className="text-[11px] sm:text-[12px] text-[var(--text-muted)] mt-1">{subtitle}</p>
       )}
       {trend?.label && (
-        <p className="text-[11px] text-slate-500 mt-2">{trend.label}</p>
+        <p className="text-[11px] text-[var(--text-tertiary)] mt-2">{trend.label}</p>
       )}
     </div>
   )
@@ -223,11 +223,11 @@ export function SectionHeader({
           </div>
         )}
         <div>
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+          <h2 className="text-[13px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
             {title}
           </h2>
           {subtitle && (
-            <p className="text-[12px] text-slate-500 mt-0.5">{subtitle}</p>
+            <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">{subtitle}</p>
           )}
         </div>
       </div>

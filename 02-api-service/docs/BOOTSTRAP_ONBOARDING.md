@@ -70,7 +70,7 @@ curl -X POST "http://localhost:8000/api/v1/organizations/{org_slug}/sync" \
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/v1/admin/bootstrap` | POST | Initial bootstrap (creates dataset + 20 tables) |
+| `/api/v1/admin/bootstrap` | POST | Initial bootstrap (creates dataset + 27 tables) |
 | `/api/v1/admin/bootstrap/status` | GET | Check sync status |
 | `/api/v1/admin/bootstrap/sync` | POST | Non-destructive sync (add missing tables/columns) |
 

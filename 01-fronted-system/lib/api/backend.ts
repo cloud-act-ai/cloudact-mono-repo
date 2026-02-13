@@ -273,7 +273,7 @@ export interface LLMPricing {
 
 /**
  * LLM pricing create request.
- * Matches OpenAIPricingCreate Pydantic model.
+ * Matches LLMPricingCreate Pydantic model.
  * NOTE: Provider-specific x_* fields are response-only (not in create model)
  */
 export interface LLMPricingCreate {
@@ -300,7 +300,7 @@ export interface LLMPricingCreate {
 
 /**
  * LLM pricing update request.
- * Matches OpenAIPricingUpdate Pydantic model.
+ * Matches LLMPricingUpdate Pydantic model.
  * NOTE: Provider-specific x_* fields are response-only (not in update model)
  */
 export interface LLMPricingUpdate {
@@ -377,7 +377,7 @@ export interface SaaSSubscription {
 
 /**
  * SaaS subscription create request.
- * Matches OpenAISubscriptionCreate Pydantic model.
+ * Matches SaaSSubscriptionCreate Pydantic model.
  * NOTE: Provider-specific x_* fields are response-only (not in create model)
  */
 export interface SaaSSubscriptionCreate {
@@ -411,7 +411,7 @@ export interface SaaSSubscriptionCreate {
 
 /**
  * SaaS subscription update request.
- * Matches OpenAISubscriptionUpdate Pydantic model.
+ * Matches SaaSSubscriptionUpdate Pydantic model.
  * NOTE: Provider-specific x_* fields are response-only (not in update model)
  */
 export interface SaaSSubscriptionUpdate {
@@ -446,16 +446,7 @@ export interface SaaSSubscriptionListResponse {
   count: number
 }
 
-// Legacy type aliases for backward compatibility
-export type OpenAIPricing = LLMPricing
-export type OpenAIPricingCreate = LLMPricingCreate
-export type OpenAIPricingUpdate = LLMPricingUpdate
-export type OpenAIPricingListResponse = LLMPricingListResponse
-export type OpenAISubscription = SaaSSubscription
-export type OpenAISubscriptionCreate = SaaSSubscriptionCreate
-export type OpenAISubscriptionUpdate = SaaSSubscriptionUpdate
-export type OpenAISubscriptionListResponse = SaaSSubscriptionListResponse
-// New LLM type aliases pointing to SaaS types
+// LLM type aliases pointing to SaaS types
 export type LLMSubscription = SaaSSubscription
 export type LLMSubscriptionCreate = SaaSSubscriptionCreate
 export type LLMSubscriptionUpdate = SaaSSubscriptionUpdate
@@ -1521,139 +1512,6 @@ export class PipelineBackendClient {
   }
 
   // ============================================
-  // Legacy method aliases for backward compatibility
-  // ============================================
-
-  /**
-   * @deprecated Use listSaaSSubscriptions(orgSlug, provider) instead
-   */
-  async listLLMSubscriptions(orgSlug: string, provider: LLMProvider): Promise<SaaSSubscriptionListResponse> {
-    return this.listSaaSSubscriptions(orgSlug, provider)
-  }
-
-  /**
-   * @deprecated Use getSaaSSubscription(orgSlug, provider, planName) instead
-   */
-  async getLLMSubscription(orgSlug: string, provider: LLMProvider, planName: string): Promise<SaaSSubscription> {
-    return this.getSaaSSubscription(orgSlug, provider, planName)
-  }
-
-  /**
-   * @deprecated Use createSaaSSubscription(orgSlug, provider, subscription) instead
-   */
-  async createLLMSubscription(orgSlug: string, provider: LLMProvider, subscription: SaaSSubscriptionCreate): Promise<SaaSSubscription> {
-    return this.createSaaSSubscription(orgSlug, provider, subscription)
-  }
-
-  /**
-   * @deprecated Use updateSaaSSubscription(orgSlug, provider, planName, subscription) instead
-   */
-  async updateLLMSubscription(orgSlug: string, provider: LLMProvider, planName: string, subscription: SaaSSubscriptionUpdate): Promise<SaaSSubscription> {
-    return this.updateSaaSSubscription(orgSlug, provider, planName, subscription)
-  }
-
-  /**
-   * @deprecated Use deleteSaaSSubscription(orgSlug, provider, planName) instead
-   */
-  async deleteLLMSubscription(orgSlug: string, provider: LLMProvider, planName: string): Promise<void> {
-    return this.deleteSaaSSubscription(orgSlug, provider, planName)
-  }
-
-  /**
-   * @deprecated Use resetSaaSSubscriptions(orgSlug, provider) instead
-   */
-  async resetLLMSubscriptions(orgSlug: string, provider: LLMProvider): Promise<SaaSSubscriptionListResponse> {
-    return this.resetSaaSSubscriptions(orgSlug, provider)
-  }
-
-  // ============================================
-  // OpenAI Data CRUD Operations (Legacy - use listLLMPricing("openai") instead)
-  // ============================================
-
-  /**
-   * @deprecated Use listLLMPricing(orgSlug, "openai") instead
-   * List all OpenAI pricing models for an organization.
-   */
-  async listOpenAIPricing(orgSlug: string): Promise<OpenAIPricingListResponse> {
-    return this.listLLMPricing(orgSlug, "openai")
-  }
-
-  /**
-   * @deprecated Use getLLMPricing(orgSlug, "openai", modelId) instead
-   */
-  async getOpenAIPricing(orgSlug: string, modelId: string): Promise<OpenAIPricing> {
-    return this.getLLMPricing(orgSlug, "openai", modelId)
-  }
-
-  /**
-   * @deprecated Use createLLMPricing(orgSlug, "openai", pricing) instead
-   */
-  async createOpenAIPricing(orgSlug: string, pricing: OpenAIPricingCreate): Promise<OpenAIPricing> {
-    return this.createLLMPricing(orgSlug, "openai", pricing)
-  }
-
-  /**
-   * @deprecated Use updateLLMPricing(orgSlug, "openai", modelId, pricing) instead
-   */
-  async updateOpenAIPricing(orgSlug: string, modelId: string, pricing: OpenAIPricingUpdate): Promise<OpenAIPricing> {
-    return this.updateLLMPricing(orgSlug, "openai", modelId, pricing)
-  }
-
-  /**
-   * @deprecated Use deleteLLMPricing(orgSlug, "openai", modelId) instead
-   */
-  async deleteOpenAIPricing(orgSlug: string, modelId: string): Promise<void> {
-    return this.deleteLLMPricing(orgSlug, "openai", modelId)
-  }
-
-  /**
-   * @deprecated Use resetLLMPricing(orgSlug, "openai") instead
-   */
-  async resetOpenAIPricing(orgSlug: string): Promise<LLMPricingListResponse> {
-    return this.resetLLMPricing(orgSlug, "openai")
-  }
-
-  /**
-   * @deprecated Use listSaaSSubscriptions(orgSlug, "openai") instead
-   */
-  async listOpenAISubscriptions(orgSlug: string): Promise<OpenAISubscriptionListResponse> {
-    return this.listSaaSSubscriptions(orgSlug, "openai")
-  }
-
-  /**
-   * @deprecated Use getSaaSSubscription(orgSlug, "openai", planName) instead
-   */
-  async getOpenAISubscription(orgSlug: string, planName: string): Promise<OpenAISubscription> {
-    return this.getSaaSSubscription(orgSlug, "openai", planName)
-  }
-
-  /**
-   * @deprecated Use createSaaSSubscription(orgSlug, "openai", subscription) instead
-   */
-  async createOpenAISubscription(orgSlug: string, subscription: OpenAISubscriptionCreate): Promise<OpenAISubscription> {
-    return this.createSaaSSubscription(orgSlug, "openai", subscription)
-  }
-
-  /**
-   * @deprecated Use updateSaaSSubscription(orgSlug, "openai", planName, subscription) instead
-   */
-  async updateOpenAISubscription(orgSlug: string, planName: string, subscription: OpenAISubscriptionUpdate): Promise<OpenAISubscription> {
-    return this.updateSaaSSubscription(orgSlug, "openai", planName, subscription)
-  }
-
-  /**
-   * @deprecated Use deleteSaaSSubscription(orgSlug, "openai", planName) instead
-   */
-  async deleteOpenAISubscription(orgSlug: string, planName: string): Promise<void> {
-    return this.deleteSaaSSubscription(orgSlug, "openai", planName)
-  }
-
-  /**
-   * @deprecated Use resetSaaSSubscriptions(orgSlug, "openai") instead
-   */
-  async resetOpenAISubscriptions(orgSlug: string): Promise<SaaSSubscriptionListResponse> {
-    return this.resetSaaSSubscriptions(orgSlug, "openai")
-  }
 }
 
 // ============================================

@@ -205,7 +205,7 @@ export function IntegrationConfigCard({
         "hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5",
         status === "INVALID"
           ? "border-2 border-[#FF6C5E] shadow-[0_4px_20px_rgba(255,108,94,0.15)]"
-          : "border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]"
+          : "border border-[var(--border-subtle)]/80 shadow-[0_4px_20px_rgba(0,0,0,0.04)]"
       )}
     >
       {/* Top gradient accent bar */}
@@ -213,7 +213,7 @@ export function IntegrationConfigCard({
         "absolute top-0 left-0 right-0 h-[3px]",
         status === "VALID" && "bg-gradient-to-r from-[var(--cloudact-mint)] via-[var(--cloudact-mint-light)] to-transparent",
         status === "INVALID" && "bg-gradient-to-r from-[var(--cloudact-coral)] to-[var(--cloudact-coral)]/50",
-        status === "NOT_CONFIGURED" && "bg-gradient-to-r from-slate-200 via-slate-300 to-transparent",
+        status === "NOT_CONFIGURED" && "bg-gradient-to-r from-[var(--border-subtle)] via-[var(--border-medium)] to-transparent",
         status === "PENDING" && "bg-gradient-to-r from-amber-400 via-amber-300 to-transparent"
       )} />
 
@@ -224,8 +224,8 @@ export function IntegrationConfigCard({
             {icon ? (
               <div className={cn(
                 "h-14 w-14 rounded-2xl flex items-center justify-center flex-shrink-0",
-                "bg-gradient-to-br from-slate-50 to-slate-100",
-                "border border-slate-200/80 shadow-sm",
+                "bg-gradient-to-br from-[var(--surface-secondary)] to-[var(--surface-secondary)]",
+                "border border-[var(--border-subtle)]/80 shadow-sm",
                 "transition-all duration-200",
                 "group-hover:shadow-md"
               )}>
@@ -239,8 +239,8 @@ export function IntegrationConfigCard({
               />
             )}
             <div className="min-w-0">
-              <CardTitle className="text-[16px] font-bold text-slate-900 tracking-tight">{providerName}</CardTitle>
-              <CardDescription className="text-[12px] text-slate-500 mt-1 line-clamp-2">{providerDescription}</CardDescription>
+              <CardTitle className="text-[16px] font-bold text-[var(--text-primary)] tracking-tight">{providerName}</CardTitle>
+              <CardDescription className="text-[12px] text-[var(--text-tertiary)] mt-1 line-clamp-2">{providerDescription}</CardDescription>
             </div>
           </div>
           <StatusBadge status={status} />
@@ -260,7 +260,7 @@ export function IntegrationConfigCard({
           >
             <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
             <AlertTitle className="text-[#FF6C5E] font-semibold">Validation Error</AlertTitle>
-            <AlertDescription className="text-slate-700 mt-1 text-[12px]">{integration.last_error}</AlertDescription>
+            <AlertDescription className="text-[var(--text-secondary)] mt-1 text-[12px]">{integration.last_error}</AlertDescription>
           </Alert>
         )}
 
@@ -268,14 +268,14 @@ export function IntegrationConfigCard({
         {showSetup ? (
           <div className={cn(
             "space-y-4 p-5 rounded-xl",
-            "bg-gradient-to-br from-slate-50 to-slate-100/50",
-            "border border-slate-200/80",
+            "bg-gradient-to-br from-[var(--surface-secondary)] to-[var(--surface-secondary)]/50",
+            "border border-[var(--border-subtle)]/80",
             "shadow-inner"
           )}>
             <div className="space-y-3">
               <Label
                 htmlFor={`${provider}-credential`}
-                className="text-[13px] font-semibold text-slate-700"
+                className="text-[13px] font-semibold text-[var(--text-secondary)]"
               >
                 {provider === "gcp" ? "Service Account JSON" : "API Key"}
               </Label>
@@ -284,8 +284,8 @@ export function IntegrationConfigCard({
                   id={`${provider}-credential`}
                   className={cn(
                     "flex min-h-[150px] w-full rounded-xl px-4 py-3 text-[13px] font-mono",
-                    "bg-white border border-slate-200",
-                    "placeholder:text-slate-400 text-slate-900",
+                    "bg-white border border-[var(--border-subtle)]",
+                    "placeholder:text-[var(--text-muted)] text-[var(--text-primary)]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint)]/40 focus-visible:border-[var(--cloudact-mint)]",
                     "focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
                     "disabled:cursor-not-allowed disabled:opacity-50",
@@ -309,8 +309,8 @@ export function IntegrationConfigCard({
                   aria-describedby={validationError ? `${provider}-error` : undefined}
                   className={cn(
                     "h-12 rounded-xl font-mono text-[13px]",
-                    "bg-white border border-slate-200",
-                    "placeholder:text-slate-400",
+                    "bg-white border border-[var(--border-subtle)]",
+                    "placeholder:text-[var(--text-muted)]",
                     "focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint)]/40 focus-visible:border-[var(--cloudact-mint)]",
                     "focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
                     "transition-all duration-200",
@@ -318,7 +318,7 @@ export function IntegrationConfigCard({
                   )}
                 />
               )}
-              <p className="text-[11px] text-slate-500">{helperText}</p>
+              <p className="text-[11px] text-[var(--text-tertiary)]">{helperText}</p>
               {validationError && (
                 <p
                   id={`${provider}-error`}
@@ -337,10 +337,10 @@ export function IntegrationConfigCard({
                 className={cn(
                   "h-11 px-5 rounded-xl text-[13px] font-semibold",
                   "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
-                  "text-slate-900 shadow-sm",
+                  "text-[var(--text-primary)] shadow-sm",
                   "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
                   "active:scale-[0.98]",
-                  "disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:scale-100",
+                  "disabled:from-[var(--surface-secondary)] disabled:to-[var(--surface-secondary)] disabled:text-[var(--text-muted)] disabled:shadow-none disabled:scale-100",
                   "transition-all duration-200"
                 )}
               >
@@ -355,8 +355,8 @@ export function IntegrationConfigCard({
                 }}
                 className={cn(
                   "h-11 px-5 rounded-xl text-[13px] font-medium",
-                  "bg-white border border-slate-200",
-                  "hover:bg-slate-50 hover:border-slate-300",
+                  "bg-white border border-[var(--border-subtle)]",
+                  "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
                   "transition-all duration-200"
                 )}
               >
@@ -369,8 +369,8 @@ export function IntegrationConfigCard({
             {/* Credential Info - Ultra-premium card */}
             <div className={cn(
               "flex items-center gap-4 p-4 rounded-xl",
-              "bg-gradient-to-r from-slate-50 to-white",
-              "border border-slate-200/80",
+              "bg-gradient-to-r from-[var(--surface-secondary)] to-white",
+              "border border-[var(--border-subtle)]/80",
               "shadow-[0_2px_8px_rgba(0,0,0,0.03)]"
             )}>
               <div className={cn(
@@ -381,17 +381,17 @@ export function IntegrationConfigCard({
                 <Key className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-semibold text-slate-900">
+                <p className="text-[14px] font-semibold text-[var(--text-primary)]">
                   {integration?.credential_name || `${providerName} Credential`}
                 </p>
-                <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-[var(--text-tertiary)]">
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
                     Last validated: {formatDate(integration?.last_validated_at)}
                   </span>
                   {integration?.created_at && (
                     <span className="flex items-center gap-1.5">
-                      <span className="text-slate-300">•</span>
+                      <span className="text-[var(--text-muted)]">•</span>
                       Added: {formatDate(integration?.created_at)}
                     </span>
                   )}
@@ -406,7 +406,7 @@ export function IntegrationConfigCard({
               "border border-[var(--cloudact-mint)]/10"
             )}>
               <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-              <span className="text-[11px] text-slate-600 leading-relaxed">
+              <span className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                 Credentials are encrypted using Google Cloud KMS with AES-256 encryption.
               </span>
             </div>
@@ -416,12 +416,12 @@ export function IntegrationConfigCard({
             {/* Empty state - Premium styling */}
             <div className={cn(
               "inline-flex items-center justify-center h-16 w-16 rounded-2xl mb-5",
-              "bg-gradient-to-br from-slate-100 to-slate-50",
-              "border border-slate-200/80 shadow-sm"
+              "bg-gradient-to-br from-[var(--surface-secondary)] to-[var(--surface-secondary)]",
+              "border border-[var(--border-subtle)]/80 shadow-sm"
             )}>
-              <Sparkles className="h-7 w-7 text-slate-400" />
+              <Sparkles className="h-7 w-7 text-[var(--text-muted)]" />
             </div>
-            <p className="text-[14px] text-slate-600 mb-6 max-w-md mx-auto leading-relaxed">
+            <p className="text-[14px] text-[var(--text-secondary)] mb-6 max-w-md mx-auto leading-relaxed">
               No {providerName} integration configured. Connect to start tracking usage and costs.
             </p>
             <Button
@@ -430,7 +430,7 @@ export function IntegrationConfigCard({
               className={cn(
                 "h-12 px-6 rounded-xl text-[14px] font-semibold",
                 "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
-                "text-slate-900 shadow-sm",
+                "text-[var(--text-primary)] shadow-sm",
                 "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
                 "active:scale-[0.98]",
                 "transition-all duration-200"
@@ -447,8 +447,8 @@ export function IntegrationConfigCard({
       {isConfigured && !showSetup && (
         <CardFooter className={cn(
           "flex flex-wrap justify-between gap-3 pt-5",
-          "border-t border-slate-100",
-          "bg-gradient-to-r from-slate-50/80 to-white"
+          "border-t border-[var(--border-subtle)]",
+          "bg-gradient-to-r from-[var(--surface-secondary)]/80 to-white"
         )}>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -458,7 +458,7 @@ export function IntegrationConfigCard({
               disabled={isLoading || localLoading}
               className={cn(
                 "h-10 px-4 rounded-xl text-[12px] font-medium",
-                "bg-white border border-slate-200",
+                "bg-white border border-[var(--border-subtle)]",
                 "text-[#1a7a3a] hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30",
                 "shadow-sm hover:shadow",
                 "transition-all duration-200"
@@ -477,8 +477,8 @@ export function IntegrationConfigCard({
               onClick={() => setShowSetup(true)}
               className={cn(
                 "h-10 px-4 rounded-xl text-[12px] font-medium",
-                "bg-white border border-slate-200",
-                "hover:bg-slate-50 hover:border-slate-300",
+                "bg-white border border-[var(--border-subtle)]",
+                "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
                 "shadow-sm hover:shadow",
                 "transition-all duration-200"
               )}
@@ -505,12 +505,12 @@ export function IntegrationConfigCard({
                 Remove
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[480px] rounded-2xl border-slate-200/80 shadow-2xl">
+            <DialogContent className="sm:max-w-[480px] rounded-2xl border-[var(--border-subtle)]/80 shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-[18px] font-bold text-slate-900 tracking-tight">
+                <DialogTitle className="text-[18px] font-bold text-[var(--text-primary)] tracking-tight">
                   Remove {providerName} Integration
                 </DialogTitle>
-                <DialogDescription className="text-[13px] text-slate-500 mt-2 leading-relaxed">
+                <DialogDescription className="text-[13px] text-[var(--text-tertiary)] mt-2 leading-relaxed">
                   Are you sure you want to remove this integration? This will delete the stored credentials and any
                   pipelines using this integration will stop working.
                 </DialogDescription>
@@ -521,8 +521,8 @@ export function IntegrationConfigCard({
                   onClick={() => setShowDeleteDialog(false)}
                   className={cn(
                     "h-11 px-5 rounded-xl text-[13px] font-medium",
-                    "bg-white border border-slate-200",
-                    "hover:bg-slate-50 hover:border-slate-300",
+                    "bg-white border border-[var(--border-subtle)]",
+                    "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
                     "transition-all duration-200"
                   )}
                 >

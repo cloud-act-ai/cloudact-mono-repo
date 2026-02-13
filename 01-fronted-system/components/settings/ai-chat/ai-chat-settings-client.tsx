@@ -139,7 +139,7 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--text-tertiary)]" />
       </div>
     )
   }
@@ -220,7 +220,7 @@ export function AIChatSettingsClient({ apiKey, userId }: AIChatSettingsClientPro
           <button
             onClick={handleSave}
             disabled={saving || !credentialId}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#90FCA6] px-6 py-2.5 text-sm font-medium text-slate-900 transition-colors hover:bg-[#7dec94] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#90FCA6] px-6 py-2.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[#7dec94] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />

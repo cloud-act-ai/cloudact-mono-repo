@@ -21,7 +21,7 @@ export default function CostRunsLoading() {
       </div>
 
       {/* Info Card Skeleton */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+      <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-sm p-4">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 skeleton rounded-full" />
           <div className="h-5 flex-1 skeleton" />
@@ -31,11 +31,11 @@ export default function CostRunsLoading() {
       {/* Pipeline Section Skeleton */}
       <div className="space-y-4">
         <div className="h-4 w-40 skeleton" />
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
+        <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
             <div className="h-5 w-56 skeleton" />
           </div>
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y divide-[var(--border-subtle)]">
             {[1, 2].map((i) => (
               <div key={i} className="p-4 flex items-center gap-4">
                 <div className="flex-1 space-y-2">
@@ -56,8 +56,8 @@ export default function CostRunsLoading() {
           <div className="h-4 w-24 skeleton" />
           <div className="h-9 w-24 skeleton rounded-lg" />
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="divide-y divide-slate-200">
+        <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden">
+          <div className="divide-y divide-[var(--border-subtle)]">
             {[1, 2, 3].map((i) => (
               <div key={i} className="p-4 flex items-center gap-4">
                 <div className="h-4 w-4 skeleton" />

@@ -326,8 +326,8 @@ PRs should pass Cloud Build checks automatically:
 **For production release:**
 ```bash
 # After main is stable
-git tag v4.3.1
-git push origin v4.3.1
+git tag v4.4.0
+git push origin v4.4.0
 ```
 
 ## Related Skills

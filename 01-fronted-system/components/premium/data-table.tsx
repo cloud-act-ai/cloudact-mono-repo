@@ -124,15 +124,15 @@ function SearchInput({ value, onChange, placeholder = "Search...", className }: 
   return (
     <div className={cn("relative group", className)}>
       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--cloudact-mint)]/20 to-[var(--cloudact-mint-light)]/20 blur-sm opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
-      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-[var(--cloudact-mint-dark)] transition-colors z-10" />
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] group-focus-within:text-[var(--cloudact-mint-dark)] transition-colors z-10" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "relative w-full h-11 pl-10 pr-10 text-[13px] rounded-xl border border-slate-200",
-          "bg-white/80 backdrop-blur-sm placeholder:text-slate-400 text-slate-900",
+          "relative w-full h-11 pl-10 pr-10 text-[13px] rounded-xl border border-[var(--border-subtle)]",
+          "bg-white/80 backdrop-blur-sm placeholder:text-[var(--text-muted)] text-[var(--text-primary)]",
           "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40 focus:border-[var(--cloudact-mint)]",
           "focus:bg-white focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
           "transition-all duration-300 ease-out"
@@ -141,7 +141,7 @@ function SearchInput({ value, onChange, placeholder = "Search...", className }: 
       {value && (
         <button
           onClick={() => onChange("")}
-          className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-100 hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)] flex items-center justify-center transition-all duration-200 z-10"
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[var(--surface-secondary)] hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)] flex items-center justify-center transition-all duration-200 z-10"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -180,13 +180,13 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
           "inline-flex items-center gap-2 h-10 px-4 text-[12px] font-semibold rounded-xl border transition-all duration-200",
           hasValue
             ? "bg-gradient-to-r from-[var(--cloudact-mint)]/15 to-[var(--cloudact-mint-light)]/15 border-[var(--cloudact-mint)]/40 text-[#1a7a3a] shadow-sm"
-            : "bg-white/80 backdrop-blur-sm border-slate-200 text-slate-600 hover:border-[var(--cloudact-mint)]/30 hover:bg-[var(--cloudact-mint)]/5"
+            : "bg-white/80 backdrop-blur-sm border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--cloudact-mint)]/30 hover:bg-[var(--cloudact-mint)]/5"
         )}
       >
         <Filter className={cn("h-3.5 w-3.5", hasValue && "text-[var(--cloudact-mint-dark)]")} />
         {column.header}
         {hasValue && (
-          <span className="ml-1 h-5 w-5 rounded-full bg-[var(--cloudact-mint)] text-slate-900 text-[10px] font-bold flex items-center justify-center shadow-sm">
+          <span className="ml-1 h-5 w-5 rounded-full bg-[var(--cloudact-mint)] text-[var(--text-primary)] text-[10px] font-bold flex items-center justify-center shadow-sm">
             {Array.isArray(value) ? value.length : 1}
           </span>
         )}
@@ -194,7 +194,7 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
       </button>
 
       {isOpen && column.filterOptions && (
-        <div className="absolute top-full left-0 mt-2 w-52 bg-white/95 backdrop-blur-lg rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 z-50 py-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-200">
+        <div className="absolute top-full left-0 mt-2 w-52 bg-white/95 backdrop-blur-lg rounded-2xl border border-[var(--border-subtle)] shadow-xl shadow-[var(--border-subtle)] z-50 py-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-200">
           <button
             onClick={() => {
               onChange("")
@@ -204,12 +204,12 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
               "w-full px-4 py-2.5 text-left text-[12px] font-medium transition-all duration-150",
               !hasValue
                 ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
             )}
           >
             All
           </button>
-          <div className="h-px bg-slate-100 mx-3 my-1" />
+          <div className="h-px bg-[var(--surface-secondary)] mx-3 my-1" />
           {column.filterOptions.map((option) => {
             // Handle both string and array values for comparison
             const isSelected = Array.isArray(value)
@@ -226,7 +226,7 @@ function FilterDropdown({ column, value, onChange }: FilterDropdownProps) {
                   "w-full px-4 py-2.5 text-left text-[12px] font-medium transition-all duration-150",
                   isSelected
                     ? "bg-gradient-to-r from-[var(--cloudact-mint)]/10 to-transparent text-[#1a7a3a] border-l-2 border-[var(--cloudact-mint)]"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]"
                 )}
               >
                 {option.label}
@@ -262,13 +262,13 @@ function Pagination({
   const endItem = Math.min(currentPage * pageSize, totalItems)
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-200/80 bg-gradient-to-r from-slate-50/50 to-transparent">
-      <div className="flex items-center gap-2.5 text-[12px] text-slate-500">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-[var(--border-subtle)] bg-gradient-to-r from-[var(--surface-secondary)]/50 to-transparent">
+      <div className="flex items-center gap-2.5 text-[12px] text-[var(--text-tertiary)]">
         <span className="font-medium">Show</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-[12px] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30 focus:border-[var(--cloudact-mint)] transition-all cursor-pointer"
+          className="h-9 px-3 rounded-xl border border-[var(--border-subtle)] bg-white text-[var(--text-secondary)] text-[12px] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/30 focus:border-[var(--cloudact-mint)] transition-all cursor-pointer"
         >
           {pageSizeOptions.map((size) => (
             <option key={size} value={size}>
@@ -277,7 +277,7 @@ function Pagination({
           ))}
         </select>
         <span className="font-medium">
-          of <span className="text-slate-900 font-semibold">{totalItems}</span> {totalItems === 1 ? "item" : "items"}
+          of <span className="text-[var(--text-primary)] font-semibold">{totalItems}</span> {totalItems === 1 ? "item" : "items"}
         </span>
       </div>
 
@@ -285,14 +285,14 @@ function Pagination({
         <button
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
+          className="h-9 w-9 rounded-xl border border-[var(--border-subtle)] bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[var(--border-subtle)] transition-all duration-200"
         >
           <ChevronsLeft className="h-4 w-4" />
         </button>
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
+          className="h-9 w-9 rounded-xl border border-[var(--border-subtle)] bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[var(--border-subtle)] transition-all duration-200"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -306,14 +306,14 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
+          className="h-9 w-9 rounded-xl border border-[var(--border-subtle)] bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[var(--border-subtle)] transition-all duration-200"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
-          className="h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 transition-all duration-200"
+          className="h-9 w-9 rounded-xl border border-[var(--border-subtle)] bg-white flex items-center justify-center hover:bg-[var(--cloudact-mint)]/10 hover:border-[var(--cloudact-mint)]/30 hover:text-[var(--cloudact-mint-dark)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[var(--border-subtle)] transition-all duration-200"
         >
           <ChevronsRight className="h-4 w-4" />
         </button>
@@ -525,7 +525,7 @@ export function PremiumDataTable<T extends object>({
   return (
     <div
       className={cn(
-        "bg-white/95 backdrop-blur-sm rounded-2xl border border-slate-200/80 overflow-hidden",
+        "bg-white/95 backdrop-blur-sm rounded-2xl border border-[var(--border-subtle)] overflow-hidden",
         "shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
         "transition-shadow duration-300",
         className
@@ -541,9 +541,9 @@ export function PremiumDataTable<T extends object>({
                 <div className="flex items-center gap-2">
                   {TitleIcon && <TitleIcon className="h-[18px] w-[18px] text-[#1a7a3a]" />}
                   <div>
-                    <span className="text-[14px] font-semibold text-slate-900">{title}</span>
+                    <span className="text-[14px] font-semibold text-[var(--text-primary)]">{title}</span>
                     {subtitle && (
-                      <span className="text-[11px] text-slate-500 ml-2">{subtitle}</span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] ml-2">{subtitle}</span>
                     )}
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export function PremiumDataTable<T extends object>({
                   {filters.length > 0 && (
                     <button
                       onClick={() => setFilters([])}
-                      className="inline-flex items-center gap-1 h-9 px-3 text-[12px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                      className="inline-flex items-center gap-1 h-9 px-3 text-[12px] font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                       Clear
@@ -626,13 +626,13 @@ export function PremiumDataTable<T extends object>({
         <div className={cn("overflow-x-auto", mobileCard && "hidden md:block")}>
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#E5E5EA] bg-gradient-to-r from-slate-50/80 to-transparent">
+              <tr className="border-b border-[#E5E5EA] bg-gradient-to-r from-[var(--surface-secondary)]/80 to-transparent">
                 {expandable && <th className="w-10 px-4 py-3.5" />}
                 {columns.map((column) => (
                   <th
                     key={column.id}
                     className={cn(
-                      "px-4 py-3.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap",
+                      "px-4 py-3.5 text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider whitespace-nowrap",
                       column.align === "center" && "text-center",
                       column.align === "right" && "text-right",
                       column.hideOnMobile && "hidden lg:table-cell",
@@ -650,7 +650,7 @@ export function PremiumDataTable<T extends object>({
                     >
                       {column.header}
                       {column.sortable !== false && sortable && (
-                        <span className="text-slate-400 group-hover:text-[var(--cloudact-mint-dark)] transition-colors">
+                        <span className="text-[var(--text-muted)] group-hover:text-[var(--cloudact-mint-dark)] transition-colors">
                           {sortColumn === column.id ? (
                             sortDirection === "asc" ? (
                               <ChevronUp className="h-3.5 w-3.5 text-[var(--cloudact-mint-dark)]" />
@@ -701,7 +701,7 @@ export function PremiumDataTable<T extends object>({
                               "h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-200",
                               isExpanded
                                 ? "bg-[var(--cloudact-mint)]/20 text-[var(--cloudact-mint-dark)]"
-                                : "bg-slate-100 text-slate-400 group-hover/row:bg-[var(--cloudact-mint)]/10 group-hover/row:text-[var(--cloudact-mint-dark)]"
+                                : "bg-[var(--surface-secondary)] text-[var(--text-muted)] group-hover/row:bg-[var(--cloudact-mint)]/10 group-hover/row:text-[var(--cloudact-mint-dark)]"
                             )}>
                               {isExpanded ? (
                                 <ChevronDown className="h-4 w-4" />
@@ -716,7 +716,7 @@ export function PremiumDataTable<T extends object>({
                         <td
                           key={column.id}
                           className={cn(
-                            "px-4 py-3 text-[13px] text-slate-700",
+                            "px-4 py-3 text-[13px] text-[var(--text-secondary)]",
                             column.align === "center" && "text-center",
                             column.align === "right" && "text-right",
                             column.hideOnMobile && "hidden lg:table-cell"
@@ -778,8 +778,8 @@ export function PremiumDataTable<T extends object>({
 
       {/* Results count when no pagination */}
       {!paginated && !loading && !isEmpty && (
-        <div className="px-4 sm:px-6 py-3 border-t border-slate-200 bg-slate-50/50">
-          <p className="text-[11px] text-slate-500">
+        <div className="px-4 sm:px-6 py-3 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
+          <p className="text-[11px] text-[var(--text-tertiary)]">
             Showing {sortedData.length} {sortedData.length === 1 ? "result" : "results"}
             {searchQuery && ` for "${searchQuery}"`}
           </p>

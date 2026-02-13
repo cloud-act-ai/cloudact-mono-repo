@@ -41,7 +41,7 @@ export function PremiumTabs({
   className,
 }: PremiumTabsProps) {
   return (
-    <div className={cn("border-b border-slate-200", className)}>
+    <div className={cn("border-b border-[var(--border-subtle)]", className)}>
       <nav className="flex gap-0.5 sm:gap-1 -mb-px overflow-x-auto pb-px scrollbar-hide">
         {tabs.map((tab) => {
           const Icon = tab.icon
@@ -59,7 +59,7 @@ export function PremiumTabs({
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 isActive
                   ? "border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                  : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:border-[var(--border-medium)]"
               )}
             >
               {Icon && (
@@ -81,7 +81,7 @@ export function PremiumTabs({
                     "h-4 sm:h-5 px-1 sm:px-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold",
                     isActive
                       ? "bg-[var(--cloudact-mint)] text-[#1a7a3a]"
-                      : "bg-slate-100 text-slate-500"
+                      : "bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"
                   )}
                 >
                   {tab.count}
@@ -110,7 +110,7 @@ export function PremiumTabContent({
         <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
           <div className="flex items-center gap-3">
             <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-            <p className="text-[12px] text-slate-700 font-medium">{description}</p>
+            <p className="text-[12px] text-[var(--text-secondary)] font-medium">{description}</p>
           </div>
         </div>
       )}
@@ -184,7 +184,7 @@ export function PremiumTabTrigger({
         "disabled:opacity-50 disabled:cursor-not-allowed",
         active
           ? "border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5"
-          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300",
+          : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:border-[var(--border-medium)]",
         className
       )}
     >
@@ -204,7 +204,7 @@ export function PremiumTabTrigger({
             "h-4 sm:h-5 px-1 sm:px-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold",
             active
               ? "bg-[var(--cloudact-mint)] text-[#1a7a3a]"
-              : "bg-slate-100 text-slate-500"
+              : "bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"
           )}
         >
           {count}

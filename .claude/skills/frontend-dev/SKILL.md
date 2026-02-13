@@ -66,6 +66,8 @@ cd $REPO_ROOT/01-fronted-system && npx next dev --webpack --port 3000
 │   └── ...
 ├── lib/
 │   ├── api-client.ts        # API wrapper
+│   ├── nav-data.ts          # Shared nav groups, formatOrgName, getUserInitials
+│   ├── costs/               # Cost helpers, types, design tokens
 │   ├── supabase/            # Supabase client
 │   └── utils.ts             # Helpers
 └── supabase/                # Supabase migrations
@@ -78,6 +80,23 @@ See `/console-ui` skill for console component library, sidebar, and dashboard la
 See `/charts` skill for Recharts chart library and data visualizations.
 
 **Quick ref:** Mint `#90FCA6` (primary), Coral `#FF6C5E` (secondary), DM Sans 14px base, light-only theme. Use `.console-*` CSS classes for typography.
+
+## Theming Standard (CSS Variables)
+
+All console components use CSS variables for colors — NOT hardcoded `slate-*` Tailwind classes. See `/design` skill "CSS Variable Migration Standard" for the complete mapping table.
+
+**Quick mapping:**
+- Text: `--text-primary` / `--text-secondary` / `--text-tertiary` / `--text-muted`
+- Surfaces: `--surface-primary` / `--surface-secondary` / `--surface-hover`
+- Borders: `--border-subtle` / `--border-medium`
+
+**Example:** `text-slate-500` → `text-[var(--text-tertiary)]`, `border-slate-200` → `border-[var(--border-subtle)]`
+
+## Shared Navigation
+
+Navigation links are defined in `lib/nav-data.ts` (single source of truth). Both `dashboard-sidebar.tsx` and `mobile-nav.tsx` import from it. To add/change nav items, edit `getNavGroups()` in `lib/nav-data.ts`.
+
+Shared utilities: `formatOrgName()`, `getUserInitials()`, `formatUserName()`, `NavItem`/`NavGroup` types.
 
 ## Instructions
 
@@ -225,15 +244,9 @@ export function MyFeatureContent({ orgSlug }: Props) {
 
 ### 5. Add to Sidebar Navigation
 ```tsx
-// components/dashboard-sidebar.tsx
-const navItems = [
-  // ... existing items
-  {
-    title: "My Feature",
-    href: `/${orgSlug}/my-feature`,
-    icon: StarIcon,
-  },
-]
+// lib/nav-data.ts — Single source of truth for all navigation
+// Add new items to getNavGroups() — both sidebar and mobile nav pick it up
+import { getNavGroups } from "@/lib/nav-data"
 ```
 
 ### 6. Create API Client Call

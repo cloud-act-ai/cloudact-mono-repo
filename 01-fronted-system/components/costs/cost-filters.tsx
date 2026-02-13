@@ -193,7 +193,7 @@ function FilterButton({
       aria-haspopup="listbox"
       className={cn(
         "gap-2 h-10 sm:h-9 min-w-[100px] sm:min-w-[120px]",
-        "border-slate-200 hover:border-slate-300",
+        "border-[var(--border-subtle)] hover:border-[var(--border-medium)]",
         // FIX-006: Add disabled styling during loading
         disabled && "opacity-60 cursor-not-allowed",
         hasValue ? "bg-[#90FCA6]/10 border-[#90FCA6]/50" : "",
@@ -201,7 +201,7 @@ function FilterButton({
       )}
     >
       {icon}
-      <span className={cn("text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[100px]", hasValue ? "font-medium" : "text-slate-600")}>
+      <span className={cn("text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[100px]", hasValue ? "font-medium" : "text-[var(--text-secondary)]")}>
         {displayValue}
       </span>
       {hasValue && onClear && (
@@ -215,7 +215,7 @@ function FilterButton({
           }}
         />
       )}
-      <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
+      <ChevronDown className="h-4 w-4 text-[var(--text-muted)] flex-shrink-0" />
     </Button>
   )
 }
@@ -223,8 +223,8 @@ function FilterButton({
 /** Empty state message for dropdowns */
 function EmptyDropdownMessage({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-4 text-sm text-slate-500">
-      <AlertCircle className="h-4 w-4 text-slate-400" />
+    <div className="flex items-center gap-2 px-3 py-4 text-sm text-[var(--text-tertiary)]">
+      <AlertCircle className="h-4 w-4 text-[var(--text-muted)]" />
       <span>{message}</span>
     </div>
   )
@@ -488,7 +488,7 @@ export function CostFilters({
               <FilterButton
                 label={cSuiteLabel}
                 value={selectedDeptName}
-                icon={<Building2 className="h-4 w-4 text-slate-500" />}
+                icon={<Building2 className="h-4 w-4 text-[var(--text-tertiary)]" />}
                 onClick={() => setCSuiteOpen(true)}
                 onClear={value.department ? handleClearDepartment : undefined}
                 disabled={disabled || loading}
@@ -509,7 +509,7 @@ export function CostFilters({
                       "w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-sm transition-colors min-h-[44px] sm:min-h-0",
                       value.department === dept.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                        : "text-slate-600 hover:bg-slate-100"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     )}
                   >
                     <span className="truncate block">{sanitizeDisplayText(dept.entity_name)}</span>
@@ -529,7 +529,7 @@ export function CostFilters({
               <FilterButton
                 label={projectLabel}
                 value={selectedProjectName}
-                icon={<FolderKanban className="h-4 w-4 text-slate-500" />}
+                icon={<FolderKanban className="h-4 w-4 text-[var(--text-tertiary)]" />}
                 onClick={() => setProjectOpen(true)}
                 onClear={value.project ? handleClearProject : undefined}
                 disabled={disabled || loading}
@@ -555,7 +555,7 @@ export function CostFilters({
                       "w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-sm transition-colors min-h-[44px] sm:min-h-0",
                       value.project === proj.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                        : "text-slate-600 hover:bg-slate-100"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     )}
                   >
                     <span className="truncate block">{sanitizeDisplayText(proj.entity_name)}</span>
@@ -575,7 +575,7 @@ export function CostFilters({
               <FilterButton
                 label={teamLabel}
                 value={selectedTeamName}
-                icon={<Users className="h-4 w-4 text-slate-500" />}
+                icon={<Users className="h-4 w-4 text-[var(--text-tertiary)]" />}
                 onClick={() => setTeamOpen(true)}
                 onClear={value.team ? handleClearTeam : undefined}
                 disabled={disabled || loading}
@@ -603,7 +603,7 @@ export function CostFilters({
                       "w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-sm transition-colors min-h-[44px] sm:min-h-0",
                       value.team === team.entity_id
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                        : "text-slate-600 hover:bg-slate-100"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     )}
                   >
                     <span className="truncate block">{sanitizeDisplayText(team.entity_name)}</span>
@@ -617,7 +617,7 @@ export function CostFilters({
 
       {/* Separator between hierarchy and other filters - hidden on mobile */}
       {hasHierarchy && (availableProviders.length > 0 || categories.length > 0) && (
-        <div className="hidden sm:block h-6 w-px bg-slate-200 mx-1" />
+        <div className="hidden sm:block h-6 w-px bg-[var(--surface-secondary)] mx-1" />
       )}
 
       {/* Provider Filter */}
@@ -628,7 +628,7 @@ export function CostFilters({
               <FilterButton
                 label="Provider"
                 value={value.providers}
-                icon={<Layers className="h-4 w-4 text-slate-500" />}
+                icon={<Layers className="h-4 w-4 text-[var(--text-tertiary)]" />}
                 onClick={() => setProviderOpen(true)}
                 onClear={
                   value.providers.length > 0
@@ -655,7 +655,7 @@ export function CostFilters({
                       "transition-colors",
                       isSelected
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                        : "text-slate-700 hover:bg-slate-100"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     )}
                   >
                     <span>{provider}</span>
@@ -676,7 +676,7 @@ export function CostFilters({
               <FilterButton
                 label="Category"
                 value={value.categories}
-                icon={<Filter className="h-4 w-4 text-slate-500" />}
+                icon={<Filter className="h-4 w-4 text-[var(--text-tertiary)]" />}
                 onClick={() => setCategoryOpen(true)}
                 onClear={
                   value.categories.length > 0
@@ -701,7 +701,7 @@ export function CostFilters({
                       "transition-colors",
                       isSelected
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                        : "text-slate-700 hover:bg-slate-100"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     )}
                   >
                     <div className="flex items-center gap-2">
@@ -726,7 +726,7 @@ export function CostFilters({
           variant="ghost"
           size="sm"
           onClick={clearAllFilters}
-          className="text-slate-500 hover:text-slate-700 h-10 sm:h-9 ml-1"
+          className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] h-10 sm:h-9 ml-1"
         >
           <X className="h-4 w-4 mr-1" />
           <span className="hidden sm:inline">Clear all</span>
@@ -895,16 +895,16 @@ export function TimeRangeFilter({
           className={cn(
             "gap-2",
             size === "sm" ? "h-9 sm:h-8 px-2.5" : "h-10 sm:h-9 px-3",
-            "border-slate-200 hover:border-slate-300",
-            "bg-white hover:bg-slate-50",
+            "border-[var(--border-subtle)] hover:border-[var(--border-medium)]",
+            "bg-white hover:bg-[var(--surface-secondary)]",
             className
           )}
         >
-          <Calendar className={cn("text-slate-500", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
-          <span className={cn("font-medium text-slate-700", size === "sm" ? "text-xs" : "text-sm")}>
+          <Calendar className={cn("text-[var(--text-tertiary)]", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
+          <span className={cn("font-medium text-[var(--text-secondary)]", size === "sm" ? "text-xs" : "text-sm")}>
             {displayLabel}
           </span>
-          <ChevronDown className={cn("text-slate-400", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
+          <ChevronDown className={cn("text-[var(--text-muted)]", size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </Button>
       </PopoverTrigger>
       <PopoverContent className={cn("p-1.5", showCustomPicker ? "w-72" : "w-48")} align="end">
@@ -923,7 +923,7 @@ export function TimeRangeFilter({
                     "transition-colors",
                     isSelected
                       ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                      : "text-slate-700 hover:bg-slate-100"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                   )}
                 >
                   <span>{option.label}</span>
@@ -935,25 +935,25 @@ export function TimeRangeFilter({
         ) : (
           // Custom date picker
           <div className="space-y-3 p-2">
-            <div className="text-sm font-medium text-slate-700">Custom Date Range</div>
+            <div className="text-sm font-medium text-[var(--text-secondary)]">Custom Date Range</div>
 
             <div className="space-y-2">
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">Start Date</label>
+                <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Start Date</label>
                 <input
                   type="date"
                   value={tempStartDate}
                   onChange={(e) => setTempStartDate(e.target.value)}
                   max={tempEndDate || undefined}
                   className={cn(
-                    "w-full px-3 py-2 rounded-md border border-slate-200",
-                    "text-sm text-slate-700",
+                    "w-full px-3 py-2 rounded-md border border-[var(--border-subtle)]",
+                    "text-sm text-[var(--text-secondary)]",
                     "focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:border-transparent"
                   )}
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">End Date</label>
+                <label className="text-xs text-[var(--text-tertiary)] mb-1 block">End Date</label>
                 <input
                   type="date"
                   value={tempEndDate}
@@ -961,8 +961,8 @@ export function TimeRangeFilter({
                   min={tempStartDate || undefined}
                   max={new Date().toISOString().split("T")[0]}
                   className={cn(
-                    "w-full px-3 py-2 rounded-md border border-slate-200",
-                    "text-sm text-slate-700",
+                    "w-full px-3 py-2 rounded-md border border-[var(--border-subtle)]",
+                    "text-sm text-[var(--text-secondary)]",
                     "focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:border-transparent"
                   )}
                 />
@@ -974,7 +974,7 @@ export function TimeRangeFilter({
                 variant="ghost"
                 size="sm"
                 onClick={handleCancelCustom}
-                className="flex-1 text-slate-600"
+                className="flex-1 text-[var(--text-secondary)]"
               >
                 Cancel
               </Button>
@@ -982,7 +982,7 @@ export function TimeRangeFilter({
                 size="sm"
                 onClick={handleApplyCustom}
                 disabled={!tempStartDate || !tempEndDate}
-                className="flex-1 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900"
+                className="flex-1 bg-[#90FCA6] hover:bg-[#6EE890] text-[var(--text-primary)]"
               >
                 Apply
               </Button>

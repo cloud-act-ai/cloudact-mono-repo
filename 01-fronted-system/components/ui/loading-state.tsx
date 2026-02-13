@@ -52,7 +52,7 @@ export function LoadingState({
         aria-label={message}
       >
         <Loader2 className="h-4 w-4 animate-spin text-[var(--cloudact-mint-dark)]" aria-hidden="true" />
-        <span className="text-[13px] text-slate-500 font-medium">{message}</span>
+        <span className="text-[13px] text-[var(--text-tertiary)] font-medium">{message}</span>
       </div>
     )
   }
@@ -83,7 +83,7 @@ export function LoadingState({
               aria-hidden="true"
             />
           </div>
-          <p className={cn("text-slate-500 font-medium", sizes.text)}>
+          <p className={cn("text-[var(--text-tertiary)] font-medium", sizes.text)}>
             {message}
           </p>
         </div>
@@ -118,7 +118,7 @@ export function LoadingState({
             aria-hidden="true"
           />
         </div>
-        <p className={cn("text-slate-500 font-medium", sizes.text)}>
+        <p className={cn("text-[var(--text-tertiary)] font-medium", sizes.text)}>
           {message}
         </p>
       </div>
@@ -127,7 +127,7 @@ export function LoadingState({
 
   if (variant === "card") {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden">
         {content}
       </div>
     )
@@ -151,11 +151,11 @@ export function TableSkeleton({
   return (
     <div className={cn("space-y-3 p-4", className)}>
       {/* Header skeleton */}
-      <div className="flex gap-4 pb-3 border-b border-slate-100">
+      <div className="flex gap-4 pb-3 border-b border-[var(--border-subtle)]">
         {Array.from({ length: columns }).map((_, i) => (
           <div
             key={`header-${i}`}
-            className="h-4 bg-slate-100 rounded animate-pulse"
+            className="h-4 bg-[var(--surface-secondary)] rounded animate-pulse"
             style={{ width: `${100 / columns}%` }}
           />
         ))}
@@ -166,7 +166,7 @@ export function TableSkeleton({
           {Array.from({ length: columns }).map((_, colIndex) => (
             <div
               key={`row-${rowIndex}-col-${colIndex}`}
-              className="h-4 bg-slate-100 rounded animate-pulse"
+              className="h-4 bg-[var(--surface-secondary)] rounded animate-pulse"
               style={{ width: `${100 / columns}%` }}
             />
           ))}
@@ -186,21 +186,21 @@ export function CardSkeleton({ lines = 3, className }: CardSkeletonProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-3",
+        "bg-white rounded-2xl border border-[var(--border-subtle)] p-4 sm:p-5 space-y-3",
         className
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl bg-slate-100 animate-pulse" />
+        <div className="h-10 w-10 rounded-xl bg-[var(--surface-secondary)] animate-pulse" />
         <div className="flex-1 space-y-2">
-          <div className="h-4 w-3/4 bg-slate-100 rounded animate-pulse" />
-          <div className="h-3 w-1/2 bg-slate-100 rounded animate-pulse" />
+          <div className="h-4 w-3/4 bg-[var(--surface-secondary)] rounded animate-pulse" />
+          <div className="h-3 w-1/2 bg-[var(--surface-secondary)] rounded animate-pulse" />
         </div>
       </div>
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-3 bg-slate-100 rounded animate-pulse"
+          className="h-3 bg-[var(--surface-secondary)] rounded animate-pulse"
           style={{ width: `${80 - i * 10}%` }}
         />
       ))}

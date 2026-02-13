@@ -7,7 +7,7 @@ Comprehensive test suite for the CloudAct API Service, including unit tests, int
 ```
 tests/
 ├── test_00_health.py              # Health check and basic connectivity
-├── test_01_bootstrap.py           # Bootstrap (14 meta tables creation)
+├── test_01_bootstrap.py           # Bootstrap (27 meta tables creation)
 ├── test_02_organizations.py       # Organization onboarding
 ├── test_03_integrations.py        # Integration setup (OpenAI, Anthropic, GCP)
 ├── test_04_genai_pricing.py       # GenAI pricing and subscriptions CRUD
@@ -61,7 +61,7 @@ pytest tests/test_06_user_onboarding_e2e.py -m integration -v
 
 E2E tests validate the **complete user onboarding journey** from bootstrap to pipeline execution:
 
-1. **Bootstrap** - Create 14 meta tables in BigQuery
+1. **Bootstrap** - Create 27 meta tables in BigQuery
 2. **Organization Onboarding** - Create org profile + API key + dataset
 3. **Integration Setup** - Store encrypted OpenAI credentials (KMS)
 4. **Pipeline Execution** - Run OpenAI usage pipeline
@@ -160,7 +160,7 @@ pytest tests/test_06_user_onboarding_e2e.py::test_integration_setup_only -v -s
 **Function:** `test_bootstrap_only`
 
 **What it tests:**
-- System initialization (14 meta tables)
+- System initialization (27 meta tables)
 - Idempotent behavior (running twice should succeed)
 
 **Duration:** ~10-30 seconds

@@ -9,6 +9,7 @@ orchestrator:
   sub_agents:
     - cost_analyst
     - alert_manager
+    - budget_manager
     - usage_analyst
     - explorer
 
@@ -32,6 +33,16 @@ alert_manager:
     - create_alert
     - alert_history
     - acknowledge_alert
+
+budget_manager:
+  name: BudgetManager
+  description: "Analyzes budgets, spending targets, and variance"
+  prompt_file: system_prompts/budget_manager.md
+  tools:
+    - list_budgets
+    - budget_summary
+    - budget_variance
+    - budget_allocation_tree
 
 usage_analyst:
   name: UsageAnalyst

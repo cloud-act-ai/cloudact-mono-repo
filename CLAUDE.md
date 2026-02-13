@@ -8,7 +8,7 @@ Multi-org cloud cost analytics. BigQuery-powered. **Frontend** (3000) + **API Se
 
 ```
 Frontend (3000)              API Service (8000)           Pipeline Service (8001)
-├─ Next.js 16 + Supabase     ├─ Bootstrap (21 tables)     ├─ Run pipelines
+├─ Next.js 16 + Supabase     ├─ Bootstrap (27 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
 ├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
 ├─ AI Chat (CopilotKit)      ├─ Hierarchy CRUD            └─ BigQuery writes
@@ -246,13 +246,16 @@ cd 01-fronted-system/scripts/supabase_db
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 34 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 36 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 13 | `.claude/commands/{name}.md` |
 | Hooks | 10 | `.claude/hookify.*.local.md` |
 | Summary | - | `.claude/SUMMARY.md` |
 
+### Key Commands
+`/restart` `/health-check` `/cleanup-bq` `/cleanup-supabase` `/docker-local` `/env-setup` `/gcp-integration` `/user-mgmt`
+
 ### Key Skills
-`/restart` `/health-check` `/env-setup` `/infra-cicd` `/bigquery-ops` `/integration-setup` `/pipeline-ops` `/cost-analysis` `/frontend-dev` `/api-dev` `/chat` `/bootstrap-onboard` `/quota-mgmt` `/stripe-billing` `/account-setup` `/scheduler-jobs` `/notifications` `/i18n-locale` `/demo-setup`
+`/infra-cicd` `/deploy-check` `/pr-review` `/env-setup` `/supabase-migrate` `/scheduler-jobs` `/bigquery-ops` `/cost-analysis` `/cost-analytics` `/hierarchy` `/i18n-locale` `/pipeline-ops` `/bootstrap-onboard` `/test-orchestration` `/chat` `/integration-setup` `/provider-mgmt` `/config-validator` `/security-audit` `/frontend-dev` `/api-dev` `/quota-mgmt` `/design` `/console-ui` `/charts` `/home-page` `/account-setup` `/stripe-billing` `/notifications` `/subscription-costs` `/demo-setup` `/web-research` `/bug-hunt` `/openclaw` `/monitoring` `/troubleshooting`
 
 ### Key Hooks (Enforced)
 - **org-slug-isolation** - Multi-tenant isolation via org_slug
@@ -339,11 +342,11 @@ description: |
 6. **Requirements are specs** — Use FR/NFR numbering. These survive context compression better than prose.
 7. **Tests validate the spec** — Test plans reference the FR numbers from requirements.
 
-#### Skill Categories (34 Total)
+#### Skill Categories (36 Total)
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| Infrastructure | `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate`, `scheduler-jobs` | 6 |
+| Infrastructure | `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate`, `scheduler-jobs`, `monitoring` | 7 |
 | Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs`, `i18n-locale` | 6 |
 | Pipelines & Ops | `pipeline-ops`, `bootstrap-onboard`, `test-orchestration` | 3 |
 | AI & Chat | `chat` | 1 |
@@ -351,7 +354,7 @@ description: |
 | Development | `frontend-dev`, `api-dev`, `quota-mgmt` | 3 |
 | Design & UI | `design`, `console-ui`, `charts`, `home-page` | 4 |
 | Frontend & Billing | `account-setup`, `stripe-billing`, `notifications` | 3 |
-| Research & Debug | `subscription-costs`, `web-research`, `bug-hunt` | 3 |
+| Research & Debug | `subscription-costs`, `web-research`, `bug-hunt`, `troubleshooting` | 4 |
 | Identity | `openclaw` | 1 |
 
 #### Quick Reference
@@ -381,7 +384,7 @@ cd 05-scheduler-jobs
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `bootstrap` | Manual | Initialize organizations dataset + 21 meta tables |
+| `bootstrap` | Manual | Initialize organizations dataset + 27 meta tables |
 | `bootstrap-sync` | Manual | Add new columns to existing meta tables |
 | `org-sync-all` | Manual | Sync ALL org datasets (loops through active orgs) |
 | `quota-reset-daily` | 00:00 UTC | Reset daily pipeline counters |

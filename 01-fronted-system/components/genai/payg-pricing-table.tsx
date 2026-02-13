@@ -456,9 +456,9 @@ export function PAYGPricingTable({
       {/* Loading overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-xl">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-md border border-slate-200">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-md border border-[var(--border-subtle)]">
             <Loader2 className="h-4 w-4 animate-spin text-[#90FCA6]" />
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-[var(--text-secondary)]">
               {isAddingModel ? "Adding model..." : "Updating..."}
             </span>
           </div>
@@ -471,7 +471,7 @@ export function PAYGPricingTable({
           <AlertCircle className="h-5 w-5 text-[#FF6C5E] flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium text-[#FF6C5E]">Validation Error</p>
-            <p className="text-sm text-slate-700">{validationError}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{validationError}</p>
           </div>
           <button
             onClick={() => setValidationError(null)}

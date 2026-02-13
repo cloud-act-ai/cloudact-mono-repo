@@ -22,7 +22,7 @@
 
 | Pattern | Description |
 |---------|-------------|
-| `organizations` | CloudAct meta dataset (**23 bootstrap tables**) |
+| `organizations` | CloudAct meta dataset (**27 bootstrap tables**) |
 | `*_prod` / `*_local` | ALL customer org datasets |
 | Any other non-protected | Everything else |
 
@@ -42,7 +42,7 @@ Step 1: Activate GCP credentials (absolute paths!)
 Step 2: List datasets → confirm deletion count
 Step 3: Delete ALL datasets (skip protected in prod)
 Step 4: Verify BQ is clean
-Step 5: Bootstrap via Cloud Run Job → creates organizations + 23 tables
+Step 5: Bootstrap via Cloud Run Job → creates organizations + 27 tables
 Step 6: Org-sync via Cloud Run Job → syncs active org datasets (0 after nuke)
 ```
 
@@ -109,8 +109,8 @@ bq ls --project_id=$PROJECT
 ### Step 5: Run Bootstrap via Cloud Run Job
 
 **Smart bootstrap auto-detects** fresh vs existing:
-- **Fresh** (no organizations dataset): Creates dataset + 23 tables → `Tables created: 23, Tables existed: 0`
-- **Existing** (organizations exists): Sync mode, adds new columns → `Tables created: 0, Tables existed: 23`
+- **Fresh** (no organizations dataset): Creates dataset + 27 tables → `Tables created: 27, Tables existed: 0`
+- **Existing** (organizations exists): Sync mode, adds new columns → `Tables created: 0, Tables existed: 27`
 
 ```bash
 cd /Users/openclaw/.openclaw/workspace/cloudact-mono-repo/05-scheduler-jobs/scripts
@@ -136,7 +136,7 @@ gcloud logging read \
 ```
 
 **Expected output patterns:**
-- Fresh: `Tables created: 23, Tables existed: 0`
+- Fresh: `Tables created: 27, Tables existed: 0`
 - Sync: `Tables created: 0, Columns added: 0, Already in sync`
 - Conflict recovery: `Dataset already exists - will run sync instead`
 
@@ -168,7 +168,7 @@ gcloud logging read \
 Environment: $ENV ($PROJECT)
 Datasets deleted: X
 Protected (kept): gcp_billing_cud_dataset, gcp_cloud_billing_dataset (prod only)
-Bootstrap: OK (organizations + 23 tables)
+Bootstrap: OK (organizations + 27 tables)
 Org sync: OK (0 orgs after nuke is expected)
 ```
 
@@ -178,11 +178,11 @@ Org sync: OK (0 orgs after nuke is expected)
 
 | Scenario | Detection | Result |
 |----------|-----------|--------|
-| **Fresh** (no `organizations` dataset) | Auto-detect | Creates dataset + **23 tables** |
+| **Fresh** (no `organizations` dataset) | Auto-detect | Creates dataset + **27 tables** |
 | **Existing** (dataset exists) | Auto-detect | Sync: adds new columns, skips existing |
 | **After nuke** | Fresh path | Full recreation |
 
-> **Correction:** Bootstrap creates **23 tables**, not 21 as previously documented.
+> **Note:** Bootstrap creates **27 tables** (23 core + 4 chat).
 
 ## Smart Migration Behavior (Verified 2026-02-12)
 

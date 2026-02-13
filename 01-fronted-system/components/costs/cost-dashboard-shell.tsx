@@ -206,11 +206,11 @@ export function CostDashboardShell({
                   <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
                 </div>
                 <div>
-                  <h1 className="text-lg sm:text-xl lg:text-[24px] font-bold text-slate-900 tracking-tight leading-tight">
+                  <h1 className="text-lg sm:text-xl lg:text-[24px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                     {title}
                   </h1>
                   {subtitle && (
-                    <p className="text-xs sm:text-[12px] text-slate-500 mt-0.5 sm:mt-1">{subtitle}</p>
+                    <p className="text-xs sm:text-[12px] text-[var(--text-tertiary)] mt-0.5 sm:mt-1">{subtitle}</p>
                   )}
                 </div>
               </div>
@@ -220,7 +220,7 @@ export function CostDashboardShell({
                 <button
                   onClick={onRefresh}
                   disabled={isRefreshing}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+                  className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors disabled:opacity-50"
                 >
                   {isRefreshing ? "Refreshing..." : "Refresh"}
                 </button>
@@ -234,7 +234,7 @@ export function CostDashboardShell({
                   {filterActions || headerActions}
                 </div>
                 {/* Separator line below filters */}
-                <div className="h-px bg-gradient-to-r from-slate-200 via-slate-200/60 to-transparent" />
+                <div className="h-px bg-gradient-to-r from-[var(--surface-secondary)] via-[var(--surface-secondary)]/60 to-transparent" />
               </>
             )}
           </div>
@@ -271,11 +271,11 @@ export function CostDashboardSection({
       {title && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{subtitle}</p>
             )}
           </div>
         </div>

@@ -29,9 +29,10 @@ Use when: building console pages, creating components, implementing sidebar, des
 
 | File | Purpose |
 |------|---------|
-| `01-fronted-system/components/dashboard-sidebar.tsx` | Desktop sidebar (independent collapse, Plus/Minus) |
-| `01-fronted-system/components/mobile-nav.tsx` | Mobile navigation overlay (280px slide-in panel) |
-| `01-fronted-system/components/mobile-header.tsx` | Mobile header bar (hamburger + chat icon) |
+| `01-fronted-system/lib/nav-data.ts` | **Shared nav data** — types, `getNavGroups()`, `formatOrgName()`, `getUserInitials()`, `formatUserName()`. Single source of truth for sidebar + mobile nav. |
+| `01-fronted-system/components/dashboard-sidebar.tsx` | Desktop sidebar (imports nav groups from `lib/nav-data.ts`, data-driven rendering) |
+| `01-fronted-system/components/mobile-nav.tsx` | Mobile navigation overlay (imports nav groups from `lib/nav-data.ts`, 280px slide-in panel) |
+| `01-fronted-system/components/mobile-header.tsx` | Mobile header bar (imports `formatOrgName` from `lib/nav-data.ts`) |
 | `01-fronted-system/components/ui/sidebar.tsx` | shadcn sidebar primitives |
 | `01-fronted-system/components/ui/` | Base UI primitives (44 files: button, input, select, dialog, etc.) |
 | `01-fronted-system/components/ui/premium-card.tsx` | PremiumCard, MetricCard components |
@@ -422,7 +423,9 @@ import { ChartSkeleton } from '@/components/ui/chart-skeleton';
 | `components/mobile-nav.tsx` | Full mobile navigation overlay (slide-in panel, 280px) |
 | `components/mobile-header.tsx` | Mobile header bar with hamburger + chat icon |
 
-Desktop sidebar and mobile nav share identical section order and visual style. Mobile nav uses a data-driven approach (`getNavGroups()`) while desktop sidebar uses JSX sections — both must stay in sync.
+**IMPORTANT:** Desktop sidebar and mobile nav both import from `lib/nav-data.ts` (single source of truth). To add/change/remove a nav link, edit `getNavGroups()` in `lib/nav-data.ts` — both components pick it up automatically. **Never duplicate nav items inline.**
+
+Shared utilities in `lib/nav-data.ts`: `formatOrgName()`, `getUserInitials()`, `formatUserName()`, `SectionId` type, `NavItem`/`NavGroup` types.
 
 ```tsx
 // Mobile nav is triggered from mobile-header.tsx
@@ -614,22 +617,22 @@ All console pages under `app/[orgSlug]/` must follow the layout standard from `/
 
 | Route | Type | Status | Notes |
 |-------|------|--------|-------|
-| `dashboard` | Standard | Compliant | All theme vars, no bg-white/slate remnants |
+| `dashboard` | Standard | Compliant | All theme vars |
 | `cost-dashboards/overview` | Standard | Compliant | Uses console-page-inner |
 | `cost-dashboards/genai-costs` | Standard | Compliant | |
 | `cost-dashboards/cloud-costs` | Standard | Compliant | |
 | `cost-dashboards/subscription-costs` | Standard | Compliant | |
-| `pipelines/*` | Standard | Compliant | Only bg-slate-900 dark button (intentional) |
-| `integrations/*` | Standard | Compliant | All sub-pages (cloud, genai, subscriptions) |
-| `notifications` | Standard | Compliant | All theme vars, zero slate remnants |
-| `chat` | Full-bleed | Compliant | Special: needs viewport height |
-| `settings/ai-chat` | Standard | Compliant | No max-w-2xl, uses console typography |
-| `settings/organization` | Standard | Compliant | All cards/borders use theme vars |
-| `settings/personal` | Standard | Compliant | 26 class replacements applied |
-| `settings/invite` | Standard | Compliant | 35+ class replacements applied |
-| `settings/quota-usage` | Standard | Compliant | 28+ class replacements applied |
-| `settings/hierarchy` | Standard | Compliant | 23+ class replacements applied |
-| `billing` | Standard | Compliant | 60+ replacements applied |
+| `pipelines/*` | Standard | Compliant | Pages + loading skeletons migrated |
+| `integrations/*` | Standard | Compliant | All sub-pages |
+| `notifications` | Standard | Compliant | Zero slate remnants |
+| `chat` | Full-bleed | Compliant | Chat components migrated |
+| `settings/ai-chat` | Standard | Compliant | All 6 settings components migrated |
+| `settings/organization` | Standard | Compliant | |
+| `settings/personal` | Standard | Compliant | |
+| `settings/invite` | Standard | Compliant | |
+| `settings/quota-usage` | Standard | Compliant | |
+| `settings/hierarchy` | Standard | Compliant | |
+| `billing` | Standard | Compliant | |
 
 **Sidebar/Nav/Header:** All three (`dashboard-sidebar.tsx`, `mobile-nav.tsx`, `mobile-header.tsx`) fully use CSS variables (dark-mode ready).
 
@@ -638,8 +641,44 @@ All console pages under `app/[orgSlug]/` must follow the layout standard from `/
 - `from-slate-50`/`from-slate-500` — gradient utilities in dashboard constants
 - `bg-slate-300` — disabled permission dots (invite page)
 - `ring-slate-100` — focus ring on billing plan cards
-- `text-slate-900/XX` — opacity-modified variants (personal page labels)
-- `hover:border-slate-300` — tab hover borders (personal, hierarchy)
+
+**Migrated components (40+ files, 600+ replacements):**
+- `components/ui/` — table, skeleton, accordion, collapsible, card, tooltip, scroll-area, optimized-image
+- `components/premium/` — data-table, drawer, section, tabs, page-header
+- `components/costs/` — cost-filters, date-range-filter, cost-period-metrics-grid, cost-metric-card, cost-summary-grid, cost-dashboard-shell, cost-period-selector
+- `components/genai/` — add-model-dialog, pricing-table-base, provider-page-template, payg-pricing-table
+- `components/cloud/` — provider-page-template
+- `components/chat/` — chat-copilot, chat-layout, chat-welcome, conversation-list
+- `components/settings/ai-chat/` — all 6 files (advanced-settings, setup-prompt, credential-picker, provider-selector, model-selector, ai-chat-settings-client)
+- `components/layout/` — premium-page-shell
+- `components/pipelines/` — pipeline-run-modal
+- `components/export-import/` — export-import-modal
+- `components/dashboard/` — QuickActionsCard
+- `components/hierarchy/` — cascading-hierarchy-selector
+- `components/` — integration-config-card
+- `app/[orgSlug]/pipelines/*/loading.tsx` — all 3 loading skeletons
+- Navigation: dashboard-sidebar, mobile-nav, mobile-header
+
+See `/design` skill "CSS Variable Migration Standard" for the complete mapping table.
+
+---
+
+## Dead Code Cleanup (2026-02-12)
+
+Unused components and deprecated code removed after dependency verification:
+
+| Item | Type | Action |
+|------|------|--------|
+| `components/quota-warning-banner.tsx` | Component | Deleted (unused) |
+| `components/ui/context-menu.tsx` | Component | Deleted (unused shadcn primitive) |
+| `components/ui/menubar.tsx` | Component | Deleted (unused shadcn primitive) |
+| `components/ui/aspect-ratio.tsx` | Component | Deleted (unused shadcn primitive) |
+| `lib/api/backend.ts` — 18 deprecated methods | API client | Removed (~130 lines) |
+| `lib/api/backend.ts` — 8 OpenAI type aliases | Types | Removed |
+| `actions/genai-data.ts` — `_verifyOrgMembership` | Function | Removed (~47 lines) |
+| `actions/subscription-providers.ts` — stale aliases | Aliases | Removed |
+| `lib/costs/types.ts` — `LegacyCostCategory` | Type | Removed |
+| `lib/auth-cache.ts` — `getAuthWithApiKey` alias | Alias | Removed |
 
 ---
 

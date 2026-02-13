@@ -158,7 +158,7 @@ export function CostPeriodSelector({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-xl bg-slate-100 p-1",
+        "inline-flex items-center rounded-xl bg-[var(--surface-secondary)] p-1",
         disabled && "opacity-50 pointer-events-none",
         className
       )}
@@ -183,8 +183,8 @@ export function CostPeriodSelector({
               sizes.button,
               "flex items-center justify-center",
               isSelected
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                ? "bg-white text-[var(--text-primary)] shadow-sm"
+                : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             )}
           >
             {period.label}
@@ -225,7 +225,7 @@ export function CostPeriodSelectorWithDate({
         size={size}
       />
       {showDateRange && (
-        <span className="text-xs text-slate-500">{dateLabel}</span>
+        <span className="text-xs text-[var(--text-tertiary)]">{dateLabel}</span>
       )}
     </div>
   )

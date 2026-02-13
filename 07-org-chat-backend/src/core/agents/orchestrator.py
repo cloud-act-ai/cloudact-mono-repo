@@ -13,6 +13,7 @@ from google.genai import types
 
 from src.core.agents.cost_analyst import create_cost_analyst
 from src.core.agents.alert_manager import create_alert_manager
+from src.core.agents.budget_manager import create_budget_manager
 from src.core.agents.usage_analyst import create_usage_analyst
 from src.core.agents.explorer import create_explorer
 
@@ -26,7 +27,7 @@ def create_orchestrator(
     """
     Create the full agent hierarchy for an organization.
 
-    Orchestrator (Root) → CostAnalyst, AlertManager, UsageAnalyst, Explorer
+    Orchestrator (Root) → CostAnalyst, AlertManager, BudgetManager, UsageAnalyst, Explorer
     All agents use the same model + key (customer's BYOK).
     """
 
@@ -34,6 +35,7 @@ def create_orchestrator(
 
     cost_analyst = create_cost_analyst(org_slug, model, generate_config, today)
     alert_manager = create_alert_manager(org_slug, model, generate_config, today)
+    budget_manager = create_budget_manager(org_slug, model, generate_config, today)
     usage_analyst = create_usage_analyst(org_slug, model, generate_config, today)
     explorer = create_explorer(org_slug, model, generate_config, bigquery_toolset, today)
 
@@ -52,6 +54,8 @@ ROUTING RULES:
   → Transfer to CostAnalyst
 - Alert questions (create alert, list alerts, alert history, acknowledge)
   → Transfer to AlertManager
+- Budget questions (budgets, spending targets, budget vs actual, variance, allocation, over budget)
+  → Transfer to BudgetManager
 - Usage questions (token usage, API calls, quotas, pipeline status)
   → Transfer to UsageAnalyst
 - Exploratory questions (ad-hoc data queries, schema discovery, anything else)
@@ -61,9 +65,10 @@ IMPORTANT:
 - "AWS costs", "GCP costs", "Azure costs" = cloud COST questions → CostAnalyst
 - "OpenAI usage", "tokens consumed" = USAGE questions → UsageAnalyst
 - "OpenAI costs", "how much did Anthropic cost?" = COST questions → CostAnalyst
+- "am I over budget?", "budget status", "spending targets" = BUDGET questions → BudgetManager
 - If unsure, ask the user to clarify before routing.
 - Always be concise and helpful.
 - You are scoped to organization '{org_slug}' only.
 """,
-        sub_agents=[cost_analyst, alert_manager, usage_analyst, explorer],
+        sub_agents=[cost_analyst, alert_manager, budget_manager, usage_analyst, explorer],
     )

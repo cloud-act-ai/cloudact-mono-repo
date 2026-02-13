@@ -261,22 +261,22 @@ export function DateRangeFilter({
           disabled={disabled}
           className={cn(
             "gap-2 min-w-[120px] justify-between",
-            "border-slate-200 hover:border-slate-300",
-            "text-slate-700",
+            "border-[var(--border-subtle)] hover:border-[var(--border-medium)]",
+            "text-[var(--text-secondary)]",
             className
           )}
           aria-label="Select date range"
           aria-expanded={open}
         >
           <div className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4 text-slate-500" aria-hidden="true" />
+            <CalendarIcon className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden="true" />
             <span className="text-sm font-medium">
               {formatDateRangeDisplay(value)}
             </span>
           </div>
           <ChevronDown
             className={cn(
-              "h-4 w-4 text-slate-400 transition-transform",
+              "h-4 w-4 text-[var(--text-muted)] transition-transform",
               open && "rotate-180"
             )}
             aria-hidden="true"
@@ -306,7 +306,7 @@ export function DateRangeFilter({
                       "transition-colors",
                       isSelected
                         ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                        : "text-slate-700 hover:bg-slate-100"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     )}
                   >
                     <span>{preset.label}</span>
@@ -328,7 +328,7 @@ export function DateRangeFilter({
                   "transition-colors",
                   value.preset === "custom"
                     ? "bg-[#90FCA6]/20 text-[#1a7a3a] font-medium"
-                    : "text-slate-700 hover:bg-slate-100"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                 )}
               >
                 <span>Custom Range</span>
@@ -337,11 +337,11 @@ export function DateRangeFilter({
             </div>
 
             {/* Date range info */}
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              <div className="px-3 py-2 text-xs text-slate-500">
+            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+              <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">
                 <div className="flex justify-between">
                   <span>From:</span>
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-[var(--text-secondary)]">
                     {value.start.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
@@ -351,7 +351,7 @@ export function DateRangeFilter({
                 </div>
                 <div className="flex justify-between mt-1">
                   <span>To:</span>
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-[var(--text-secondary)]">
                     {value.end.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
@@ -370,11 +370,11 @@ export function DateRangeFilter({
                 <button
                   type="button"
                   onClick={handleBackToPresets}
-                  className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                  className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] flex items-center gap-1"
                 >
                   ← Presets
                 </button>
-                <span className="text-sm font-medium text-slate-700">Custom Range</span>
+                <span className="text-sm font-medium text-[var(--text-secondary)]">Custom Range</span>
               </div>
 
               <Calendar
@@ -387,9 +387,9 @@ export function DateRangeFilter({
               />
 
               {/* Selected Range Display */}
-              <div className="px-3 py-2 bg-slate-50 rounded-lg">
+              <div className="px-3 py-2 bg-[var(--surface-secondary)] rounded-lg">
                 <div className="flex items-center justify-between text-sm">
-                  <div className="text-slate-600">
+                  <div className="text-[var(--text-secondary)]">
                     {customRange?.from ? (
                       customRange.from.toLocaleDateString("en-US", {
                         month: "short",
@@ -397,11 +397,11 @@ export function DateRangeFilter({
                         year: "numeric"
                       })
                     ) : (
-                      <span className="text-slate-400">Start date</span>
+                      <span className="text-[var(--text-muted)]">Start date</span>
                     )}
                   </div>
-                  <ArrowRight className="h-4 w-4 text-slate-400" />
-                  <div className="text-slate-600">
+                  <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
+                  <div className="text-[var(--text-secondary)]">
                     {customRange?.to ? (
                       customRange.to.toLocaleDateString("en-US", {
                         month: "short",
@@ -409,7 +409,7 @@ export function DateRangeFilter({
                         year: "numeric"
                       })
                     ) : (
-                      <span className="text-slate-400">End date</span>
+                      <span className="text-[var(--text-muted)]">End date</span>
                     )}
                   </div>
                 </div>

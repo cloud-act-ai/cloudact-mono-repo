@@ -89,12 +89,6 @@ export interface TimeSeriesPoint {
 export type CostCategory = "genai" | "cloud" | "subscription" | "other"
 
 /**
- * Legacy category type - for backward compatibility
- * @deprecated Use CostCategory instead
- */
-export type LegacyCostCategory = "Cloud" | "SaaS" | "LLM"
-
-/**
  * Cost filter options
  */
 export interface CostFilterOptions {

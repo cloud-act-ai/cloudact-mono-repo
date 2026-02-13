@@ -10,7 +10,7 @@ description: |
 
 ## Overview
 
-CloudAct uses a two-phase initialization: system bootstrap (**23 meta tables**) and org onboarding (20+ org tables + 4 materialized views).
+CloudAct uses a two-phase initialization: system bootstrap (**27 meta tables**) and org onboarding (20+ org tables + 4 materialized views).
 
 **Key Principle: Only ADD, never DELETE. Incremental schema evolution without data loss.**
 
@@ -58,11 +58,11 @@ gcloud logging read \
 
 | Scenario | Detection | Result |
 |----------|-----------|--------|
-| **Fresh** (no organizations dataset) | Auto-detect | Creates dataset + **23 tables** |
+| **Fresh** (no organizations dataset) | Auto-detect | Creates dataset + **27 tables** |
 | **Existing** (dataset exists, tables present) | Auto-detect | Sync: `Already in sync - no changes needed` |
 | **Conflict** (dataset exists, 0 tables) | Auto-fallback | Tries fresh → falls back to sync |
 
-**Stage verified:** `Tables created: 23, Tables existed: 0` (fresh after nuke)
+**Stage verified:** `Tables created: 27, Tables existed: 0` (fresh after nuke)
 **Prod verified:** `Tables created: 0, Columns added: 0, Already in sync` (sync mode)
 
 ## Quick Commands (Local/API - ONLY when user explicitly asks)
@@ -94,7 +94,7 @@ curl POST /api/v1/organizations/{org}/sync -d '{"sync_missing_tables":true,"sync
 CA_ROOT_API_KEY (system admin)
     │
     ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (20 tables)
+    │   └── One-time system initialization (27 tables)
     │
     ├── Bootstrap Status/Sync: GET/POST /api/v1/admin/bootstrap/status|sync
     │   └── Check sync status, add missing tables/columns
@@ -107,7 +107,7 @@ CA_ROOT_API_KEY (system admin)
 
 ## Phase 1: System Bootstrap
 
-### 20 Meta Tables (organizations dataset)
+### 27 Meta Tables (organizations dataset)
 
 | # | Table | Purpose |
 |---|-------|---------|

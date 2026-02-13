@@ -545,6 +545,45 @@ Typography classes (`console-page-title`, `console-heading`, `console-body`, `co
 
 ---
 
+## CSS Variable Migration Standard (Slate → Theme Variables)
+
+All console components MUST use CSS variables instead of hardcoded `slate-*` Tailwind classes. This migration was completed across 40+ component files.
+
+### Color Mapping Table
+
+| Hardcoded Slate Class | CSS Variable Replacement | Semantic Meaning |
+|----------------------|--------------------------|------------------|
+| `text-slate-900`, `text-slate-800` | `text-[var(--text-primary)]` | Primary text, headings |
+| `text-slate-700`, `text-slate-600` | `text-[var(--text-secondary)]` | Body text, descriptions |
+| `text-slate-500` | `text-[var(--text-tertiary)]` | Captions, labels, metadata |
+| `text-slate-400`, `text-slate-300` | `text-[var(--text-muted)]` | Placeholders, disabled text |
+| `bg-slate-100`, `bg-slate-50` | `bg-[var(--surface-secondary)]` | Secondary surfaces, hover backgrounds |
+| `bg-slate-200` | `bg-[var(--surface-hover)]` | Hover states |
+| `border-slate-200`, `border-slate-100` | `border-[var(--border-subtle)]` | Light borders, dividers |
+| `border-slate-300` | `border-[var(--border-medium)]` | Medium borders, input borders |
+| `divide-slate-200`, `divide-slate-100` | `divide-[var(--border-subtle)]` | Table/list dividers |
+| `ring-slate-200` | `ring-[var(--border-subtle)]` | Focus rings |
+| `placeholder-slate-400` | `placeholder-[var(--text-muted)]` | Input placeholders |
+
+### Rules
+
+1. **Preserve state prefixes** — `hover:`, `focus:`, `disabled:`, `dark:`, `group-hover:` prefixes stay: e.g., `hover:text-slate-700` → `hover:text-[var(--text-secondary)]`
+2. **Never change `bg-white`** — White backgrounds are intentional light-theme design
+3. **Never change non-slate colors** — Emerald, red, blue, amber, mint, coral are semantic and stay as-is
+4. **`translate-*` is NOT a color** — `grep slate-` matches `translate-y-0.5` etc. — these are CSS transforms, not colors
+5. **Intentional dark buttons stay** — `bg-slate-900`/`hover:bg-slate-800` for obsidian CTA buttons are intentional
+
+### Remaining (Intentional or Out of Scope)
+
+| Category | Count | Reason |
+|----------|-------|--------|
+| Landing pages | ~193 | Separate design system (`landing.css`), uses `style={{}}` inline |
+| Charts | ~132 | Chart-specific color logic in `design-tokens.ts` |
+| Dark button variants | ~15 | Intentional `bg-slate-900` for obsidian/dark CTAs |
+| CSS transform `translate-*` | ~49 | False positives — not color classes |
+
+---
+
 ## Forbidden Patterns (Console Pages)
 
 | Pattern | Replace With |
@@ -557,6 +596,7 @@ Typography classes (`console-page-title`, `console-heading`, `console-body`, `co
 | `<main>` inside console pages | `<div>` (layout already provides `<main>`) |
 | `text-[#90FCA6]` on white bg | `text-[var(--cloudact-mint-text)]` (#0F5132) |
 | `max-w-2xl` on page wrappers | Remove (use `console-page-inner` from parent) |
+| `text-slate-*` / `bg-slate-*` / `border-slate-*` | Use CSS variables (see migration table above) |
 
 ---
 

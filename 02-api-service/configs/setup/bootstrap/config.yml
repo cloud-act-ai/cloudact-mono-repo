@@ -170,6 +170,25 @@ tables:
     clustering: ["org_slug", "level", "level_code", "is_active"]
 
   # ============================================
+  # Budget Planning Tables
+  # Hierarchy-based budget targets and allocation tracking
+  # ============================================
+
+  org_budgets:
+    description: "Budget targets per hierarchy entity, category, and period"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "category", "hierarchy_entity_id"]
+
+  org_budget_allocations:
+    description: "Top-down budget allocation from parent to child hierarchy nodes"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "parent_budget_id"]
+
+  # ============================================
   # AI Chat Tables
   # Supports multi-tenant AI chat with BYOK LLM keys
   # ============================================

@@ -291,8 +291,8 @@ export default function CloudRunsPage() {
       accessorKey: "pipeline_id",
       cell: (row) => (
         <div className="space-y-0.5">
-          <div className="text-[14px] font-semibold text-slate-900">{row.pipeline_id}</div>
-          <div className="text-[11px] text-slate-500 font-mono">
+          <div className="text-[14px] font-semibold text-[var(--text-primary)]">{row.pipeline_id}</div>
+          <div className="text-[11px] text-[var(--text-tertiary)] font-mono">
             {row.pipeline_logging_id.slice(0, 8)}...
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function CloudRunsPage() {
       header: "Started",
       accessorKey: "start_time",
       cell: (row) => (
-        <div className="text-[12px] text-slate-700">{formatDateTime(row.start_time)}</div>
+        <div className="text-[12px] text-[var(--text-secondary)]">{formatDateTime(row.start_time)}</div>
       ),
     },
     {
@@ -336,7 +336,7 @@ export default function CloudRunsPage() {
         }
         return (
           <div className="space-y-1.5">
-            <div className="text-[12px] font-medium text-slate-900">
+            <div className="text-[12px] font-medium text-[var(--text-primary)]">
               {formatDuration(row.duration_ms)}
             </div>
             <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
@@ -353,19 +353,28 @@ export default function CloudRunsPage() {
 
   // Loading state
   if (isLoading) {
-    return <LoadingState message="Loading cloud pipelines..." size="lg" />
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6">
+        <LoadingState message="Loading cloud pipelines..." size="lg" />
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
-          Cloud Cost Pipelines
-        </h1>
-        <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
-          Monitor your cloud cost data pipeline executions
-        </p>
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
+          <Cloud className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+        </div>
+        <div>
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
+            Cloud Cost Pipelines
+          </h1>
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
+            Monitor your cloud cost data pipeline executions
+          </p>
+        </div>
       </div>
 
       {/* Backend Warning */}
@@ -376,14 +385,14 @@ export default function CloudRunsPage() {
               <AlertCircle className="h-5 w-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[14px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {!backendConnected ? "Backend not connected" : "API key missing"}
               </h3>
-              <p className="text-[12px] text-slate-600 mt-1">
+              <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[11px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
+                <button className="mt-3 h-9 px-4 bg-[var(--text-primary)] text-white text-[11px] font-semibold rounded-lg hover:bg-[var(--text-secondary)] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -396,7 +405,7 @@ export default function CloudRunsPage() {
       <div className="p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-          <p className="text-[12px] text-slate-700 font-medium">
+          <p className="text-[12px] text-[var(--text-secondary)] font-medium">
             Cloud cost pipelines sync billing data from your cloud provider accounts.
           </p>
         </div>
@@ -428,7 +437,7 @@ export default function CloudRunsPage() {
 
       {/* Available Pipelines Section */}
       <div>
-        <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide mb-4">
+        <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-4">
           Available Pipelines
         </h2>
         <PremiumCard>
@@ -475,7 +484,7 @@ export default function CloudRunsPage() {
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h2 className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
+            <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">
               Run History
             </h2>
             <button
@@ -521,7 +530,7 @@ export default function CloudRunsPage() {
                 const detail = details as PipelineRunDetailType | undefined
                 if (!detail) {
                   return (
-                    <div className="text-center text-slate-500 text-[12px] py-6">
+                    <div className="text-center text-[var(--text-tertiary)] text-[12px] py-6">
                       Failed to load details
                     </div>
                   )

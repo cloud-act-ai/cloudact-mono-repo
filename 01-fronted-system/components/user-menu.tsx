@@ -24,6 +24,7 @@ import {
   Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { orgRoutes } from "@/lib/nav-data"
 
 interface UserMenuProps {
   user: {
@@ -40,6 +41,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const routes = orgRoutes(orgSlug)
 
   const handleLogout = async () => {
     setIsLoading(true)
@@ -88,7 +90,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
         <DropdownMenuItem
           onClick={() => {
             setOpen(false)
-            router.push(`/${orgSlug}/settings/profile`)
+            router.push(routes.profile)
           }}
           className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-mint)]/5 focus:text-[var(--cloudact-mint-dark)]"
         >
@@ -101,7 +103,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
             <DropdownMenuItem
               onClick={() => {
                 setOpen(false)
-                router.push(`/${orgSlug}/settings/onboarding`)
+                router.push(routes.organization)
               }}
               className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-mint)]/5 focus:text-[var(--cloudact-mint-dark)]"
             >
@@ -112,7 +114,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
             <DropdownMenuItem
               onClick={() => {
                 setOpen(false)
-                router.push(`/${orgSlug}/billing`)
+                router.push(routes.billing)
               }}
               className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-coral)]/5 hover:text-[var(--cloudact-coral)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-coral)]/5 focus:text-[var(--cloudact-coral)]"
             >
@@ -125,7 +127,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
         <DropdownMenuItem
           onClick={() => {
             setOpen(false)
-            router.push(`/${orgSlug}/settings/members`)
+            router.push(routes.invite)
           }}
           className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-mint)]/5 focus:text-[var(--cloudact-mint-dark)]"
         >

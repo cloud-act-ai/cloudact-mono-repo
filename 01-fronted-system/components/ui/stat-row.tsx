@@ -40,8 +40,8 @@ const colorClasses = {
     icon: "text-blue-600",
   },
   slate: {
-    bg: "bg-slate-100",
-    icon: "text-slate-600",
+    bg: "bg-[var(--surface-secondary)]",
+    icon: "text-[var(--text-secondary)]",
   },
 }
 
@@ -95,7 +95,7 @@ export function StatRow({
         return (
           <React.Fragment key={index}>
             {showDividers && index > 0 && (
-              <div className={cn("w-px bg-slate-200 flex-shrink-0", sizes.divider)} />
+              <div className={cn("w-px bg-[var(--border-subtle)] flex-shrink-0", sizes.divider)} />
             )}
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <div
@@ -111,7 +111,7 @@ export function StatRow({
                 <div className="flex items-center gap-1.5">
                   <p
                     className={cn(
-                      "font-bold text-slate-900 leading-none",
+                      "font-bold text-[var(--text-primary)] leading-none",
                       sizes.value
                     )}
                   >
@@ -133,7 +133,7 @@ export function StatRow({
                 </div>
                 <p
                   className={cn(
-                    "text-slate-500 font-medium mt-0.5",
+                    "text-[var(--text-tertiary)] font-medium mt-0.5",
                     sizes.label
                   )}
                 >
@@ -174,7 +174,7 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4",
+        "bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] p-3 sm:p-4",
         "shadow-sm hover:shadow-md transition-shadow",
         className
       )}
@@ -202,10 +202,10 @@ export function StatCard({
           </span>
         )}
       </div>
-      <p className="text-[24px] sm:text-[28px] font-bold text-slate-900 mt-3 leading-none">
+      <p className="text-[24px] sm:text-[28px] font-bold text-[var(--text-primary)] mt-3 leading-none">
         {value}
       </p>
-      <p className="text-[12px] sm:text-[13px] text-slate-500 font-medium mt-1">
+      <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] font-medium mt-1">
         {label}
       </p>
     </div>

@@ -18,6 +18,7 @@ import {
   Database,
   Loader2,
   Brain,
+  Target,
   Wallet,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { listEnabledProviders } from "@/actions/subscription-providers"
+import { getBudgetSummary, type BudgetSummaryResponse } from "@/actions/budgets"
 import type { PipelineRunSummary } from "@/lib/api/backend"
 
 // New unified chart library
@@ -299,6 +301,7 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
+  const [budgetSummary, setBudgetSummary] = useState<BudgetSummaryResponse | null>(null)
 
   // Extract time range from unified filters
   const timeRange = contextFilters.timeRange
@@ -325,10 +328,11 @@ export default function DashboardPage() {
   // Load non-cost data (pipelines, integrations, subscription providers)
   const loadNonCostData = useCallback(async () => {
     try {
-      const [pipelinesResult, integrationsResult, subscriptionProvidersResult] = await Promise.all([
+      const [pipelinesResult, integrationsResult, subscriptionProvidersResult, budgetResult] = await Promise.all([
         getPipelineRuns(orgSlug, { limit: 5 }),
         getIntegrations(orgSlug),
         listEnabledProviders(orgSlug),
+        getBudgetSummary(orgSlug),
       ])
 
       if (pipelinesResult.success && pipelinesResult.data?.runs) {
@@ -397,6 +401,11 @@ export default function DashboardPage() {
       })
 
       setIntegrations(integrationList.slice(0, 6)) // Show up to 6 integrations
+
+      // Budget summary (only set if org has budgets)
+      if (budgetResult.data && budgetResult.data.budgets_total > 0) {
+        setBudgetSummary(budgetResult.data)
+      }
     } catch (err) {
       console.error("[Dashboard] Failed to load data:", err instanceof Error ? err.message : "Unknown error")
     } finally {
@@ -846,6 +855,65 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          SECTION: Budget Summary (only shown if org has budgets)
+          ═══════════════════════════════════════════════════════════════ */}
+      {budgetSummary && (
+        <section className="animate-fade-up animation-delay-450">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="h-1 w-1 rounded-full bg-[var(--text-muted)]" />
+              <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                Budget Tracking
+              </h2>
+            </div>
+            <Link
+              href={`/${orgSlug}/budgets`}
+              className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 transition-colors"
+            >
+              View All <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <Card className="overflow-hidden border border-[var(--border-subtle)] shadow-sm rounded-2xl">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                    <Target className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-[var(--text-primary)]">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: budgetSummary.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetSummary.total_budget)}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Total Budget</p>
+                  </div>
+                </div>
+                <div className="w-px h-8 bg-[var(--border-subtle)]" />
+                <div>
+                  <p className="text-lg font-bold text-[var(--text-primary)]">
+                    {new Intl.NumberFormat("en-US", { style: "currency", currency: budgetSummary.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetSummary.total_actual)}
+                  </p>
+                  <p className="text-xs text-[var(--text-tertiary)]">Actual Spend</p>
+                </div>
+                <div className="w-px h-8 bg-[var(--border-subtle)]" />
+                <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${budgetSummary.total_variance >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"}`}>
+                  {budgetSummary.total_variance >= 0 ? "" : "+"}{Math.abs(budgetSummary.total_variance_percent).toFixed(1)}% {budgetSummary.total_variance >= 0 ? "under" : "over"} budget
+                </div>
+                {budgetSummary.budgets_over > 0 && (
+                  <>
+                    <div className="w-px h-8 bg-[var(--border-subtle)]" />
+                    <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {budgetSummary.budgets_over} over budget
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════
           SECTION: Quick Actions

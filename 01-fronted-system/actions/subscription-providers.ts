@@ -31,41 +31,14 @@ import {
   getMonthStartUTC,
   getTodayDateUTC,
   isDateInPastUTC,
-  isValidOrgSlug as isValidOrgSlugHelper,
   isValidSubscriptionId as isValidSubscriptionIdHelper,
   extractErrorMessage,
 } from "@/lib/api/helpers"
 
-// REMOVED: Local helper functions - now imported from lib/api/helpers.ts
-// - getApiServiceUrl
-// - fetchWithTimeout
-// - safeJsonParse
-// - getMonthStart (now getMonthStartUTC)
-// - isDateInPast (now isDateInPastUTC)
 
 // ============================================
 // Auth Helpers
 // ============================================
-
-// Use isValidOrgSlugHelper from shared helpers
-// Currently validation happens at API layer, kept for potential direct use
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _isValidOrgSlug = isValidOrgSlugHelper
-
-/**
- * Validate provider name
- * - Must be 2-50 characters
- * - Only lowercase alphanumeric and underscores
- * - Cannot start or end with underscore
- * Note: Currently unused but available for validation if needed
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const isValidProviderName = (provider: string): boolean => {
-  if (!provider || typeof provider !== "string") return false
-  const normalized = provider.toLowerCase().trim()
-  // Allow 2-50 chars, alphanumeric and underscore, no leading/trailing underscore
-  return /^[a-z0-9][a-z0-9_]{0,48}[a-z0-9]$/.test(normalized) || /^[a-z0-9]{2}$/.test(normalized)
-}
 
 /**
  * Sanitize provider name - convert to safe format

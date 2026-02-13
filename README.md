@@ -27,7 +27,7 @@ Multi-org cloud cost analytics platform. BigQuery-powered with FOCUS 1.3 complia
          │                       ▼                       ▼
          │              ┌─────────────────────────────────────────┐
          │              │              BigQuery                   │
-         └─────────────▶│  organizations (21 meta tables)         │
+         └─────────────▶│  organizations (27 meta tables)         │
                         │  {org_slug}_prod (30+ per-org tables)   │
                         │  cost_data_standard_1_3 (FOCUS)         │
                         └─────────────────────────────────────────┘
@@ -152,7 +152,7 @@ echo "yes" | ./run-job.sh prod org-sync-all
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `bootstrap` | Manual | Initialize BigQuery + 21 meta tables |
+| `bootstrap` | Manual | Initialize BigQuery + 27 meta tables |
 | `org-sync-all` | Manual | Sync all org datasets |
 | `migrate` | Manual | Supabase DB migrations |
 | `quota-reset` | 00:00 UTC daily | Reset daily pipeline quotas |

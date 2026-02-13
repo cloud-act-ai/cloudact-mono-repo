@@ -216,11 +216,6 @@ export async function getAuthContext(orgSlug: string): Promise<CachedAuthContext
 }
 
 /**
- * @deprecated Use getAuthContext instead. This alias exists for backward compatibility.
- */
-export const getAuthWithApiKey = getAuthContext
-
-/**
  * Cached version of requireOrgMembership.
  * Uses 60-second request-level cache to avoid redundant Supabase queries.
  *

@@ -273,6 +273,24 @@ For each active org:
 | History shows "failed" | Channel delivery error | Check error_message in history, fix channel config |
 | Cost alert preset missing | Org doesn't exist or no data | Verify org exists and has cost data |
 
+## Bug Fixes & Verified Learnings (2026-02-12)
+
+| Bug ID | Issue | Fix |
+|--------|-------|-----|
+| BUG-22 | Obsolete `cloudact-stage` GCP project in scheduler jobs | Removed from all 5 scheduler job scripts |
+| BUG-23 | `alerts_daily.py` treated 404 as success (silent failure) | Changed to `exit(1)` on 404 response |
+| BUG-27 | SQL f-string LIMIT in chat `alerts.py` (injection risk) | Parameterized via query parameters |
+| BUG-28 | `create_alert` chat tool missing hierarchy fields | Added `hierarchy_entity_id` and `hierarchy_path` to create_alert |
+| BUG-03 | `delete_org_alert` returned 200 instead of 204 | Changed to 204 No Content |
+| BUG-04/05/06 | Scheduled alert proxy endpoints missing `org_slug` filter | Added org_slug filtering to prevent cross-tenant data leaks |
+| BUG-16/17 | Threshold/period falsy-value bug (`or` vs `is not None`) | Changed `value or default` to `value if value is not None else default` for threshold and period fields |
+
+**Schema changes (2026-02-12):**
+- `org_scheduled_alerts`: Added `hierarchy_entity_id` (STRING) and `hierarchy_path` (STRING) fields
+- `org_notification_channels`: Added `updated_by` (STRING) field
+- `org_notification_summaries`: Added `updated_by` (STRING) field
+- AlertManager agent instruction updated with hierarchy documentation for `create_alert` tool
+
 ## Testing
 
 ### Channel CRUD

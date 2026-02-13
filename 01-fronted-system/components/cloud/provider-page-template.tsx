@@ -151,7 +151,7 @@ function SafeStepContent({ content }: { content: string }) {
           return <strong key={`segment-${i}`} className="font-semibold text-black">{segment.content}</strong>
         }
         if (segment.type === 'code') {
-          return <code key={`segment-${i}`} className="px-1.5 py-0.5 bg-slate-100 rounded text-[12px] font-mono">{segment.content}</code>
+          return <code key={`segment-${i}`} className="px-1.5 py-0.5 bg-[var(--surface-secondary)] rounded text-[12px] font-mono">{segment.content}</code>
         }
         return <span key={`segment-${i}`}>{segment.content}</span>
       })}
@@ -227,12 +227,12 @@ function StatusBadge({ status }: { status: string }) {
       text: "Invalid"
     },
     PENDING: {
-      className: "bg-slate-100 text-slate-600 border border-slate-200",
+      className: "bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--border-subtle)]",
       icon: <Loader2 className="h-3 w-3 animate-spin" />,
       text: "Validating..."
     },
     NOT_CONFIGURED: {
-      className: "bg-slate-100 text-slate-500 border border-slate-200",
+      className: "bg-[var(--surface-secondary)] text-[var(--text-tertiary)] border border-[var(--border-subtle)]",
       icon: null,
       text: "Not Connected"
     },
@@ -539,7 +539,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" style={{ color: config.color }} />
-          <p className="text-[13px] text-slate-500">Loading integration...</p>
+          <p className="text-[13px] text-[var(--text-tertiary)]">Loading integration...</p>
         </div>
       </div>
     )
@@ -550,7 +550,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-          <button className="h-10 px-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-slate-600 hover:text-black font-medium text-[13px]">
+          <button className="h-10 px-4 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors flex items-center gap-2 text-[var(--text-secondary)] hover:text-black font-medium text-[13px]">
             <ArrowLeft className="h-4 w-4" />
             Back to Providers
           </button>
@@ -559,12 +559,12 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
 
       {/* Provider Header */}
       <div className="flex items-center gap-5">
-        <div className="h-16 w-16 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center shadow-lg">
+        <div className="h-16 w-16 rounded-2xl bg-white border-2 border-[var(--border-subtle)] flex items-center justify-center shadow-lg">
           <ProviderLogo provider={config.id} size={40} />
         </div>
         <div>
           <h1 className="text-[28px] font-bold text-black tracking-tight">{config.name}</h1>
-          <p className="text-[14px] text-slate-500 mt-2">{config.description}</p>
+          <p className="text-[14px] text-[var(--text-tertiary)] mt-2">{config.description}</p>
         </div>
       </div>
 
@@ -598,8 +598,8 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
       )}
 
       {/* Integration Card */}
-      <div className={`bg-white rounded-2xl border-2 ${status === "INVALID" ? "border-[#FF6C5E]/40" : "border-slate-200"} shadow-sm transition-all`}>
-        <div className="p-6 border-b border-slate-100">
+      <div className={`bg-white rounded-2xl border-2 ${status === "INVALID" ? "border-[#FF6C5E]/40" : "border-[var(--border-subtle)]"} shadow-sm transition-all`}>
+        <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div
@@ -610,7 +610,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
               </div>
               <div>
                 <h2 className="text-[16px] font-bold text-black">Integration Connection</h2>
-                <p className="text-[13px] text-slate-500 mt-1">
+                <p className="text-[13px] text-[var(--text-tertiary)] mt-1">
                   {config.authMethods.length > 1
                     ? "Choose your preferred authentication method"
                     : config.authMethods[0]?.label || "Configure your credentials"
@@ -638,7 +638,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
 
           {/* Setup Form */}
           {showSetup ? (
-            <div className="space-y-6 p-6 border-2 border-slate-200 rounded-2xl bg-slate-50">
+            <div className="space-y-6 p-6 border-2 border-[var(--border-subtle)] rounded-2xl bg-[var(--surface-secondary)]">
               {/* Step Indicator */}
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-semibold text-black">Connection Wizard</span>
@@ -650,7 +650,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                 <div className="space-y-3">
                   <Label className="text-[13px] font-semibold text-black">Authentication Method</Label>
                   <Select value={selectedAuthMethod} onValueChange={setSelectedAuthMethod}>
-                    <SelectTrigger className="h-12 rounded-xl border-2 border-slate-200">
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-[var(--border-subtle)]">
                       <SelectValue placeholder="Select method" />
                     </SelectTrigger>
                     <SelectContent>
@@ -688,7 +688,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                         relative overflow-hidden border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all bg-white
                         ${isDragging
                           ? "border-[#90FCA6] bg-[#90FCA6]/10 scale-[1.02]"
-                          : "border-slate-300 hover:border-[#90FCA6] hover:bg-slate-50"
+                          : "border-[var(--border-medium)] hover:border-[#90FCA6] hover:bg-[var(--surface-secondary)]"
                         }
                       `}
                     >
@@ -699,8 +699,8 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                         <p className="text-[14px] font-bold text-black mb-2">
                           {isDragging ? 'Drop your file here' : `Upload ${currentAuthMethod.fileLabel || 'Credential File'}`}
                         </p>
-                        <p className="text-[13px] text-slate-500">Drag and drop or click to browse</p>
-                        <p className="text-[12px] text-slate-400 mt-2">Maximum file size: 100KB</p>
+                        <p className="text-[13px] text-[var(--text-tertiary)]">Drag and drop or click to browse</p>
+                        <p className="text-[12px] text-[var(--text-muted)] mt-2">Maximum file size: 100KB</p>
                       </div>
                     </div>
                   )}
@@ -714,26 +714,26 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                           </div>
                           <div className="flex-1">
                             <p className="font-semibold text-[14px] text-black mb-1">{uploadedFile.name}</p>
-                            <p className="text-[12px] text-slate-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                            <p className="text-[12px] text-[var(--text-tertiary)]">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
                           </div>
                         </div>
                         <button
                           onClick={clearFile}
-                          className="h-10 w-10 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center"
+                          className="h-10 w-10 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors flex items-center justify-center"
                         >
-                          <X className="h-4 w-4 text-slate-600" />
+                          <X className="h-4 w-4 text-[var(--text-secondary)]" />
                         </button>
                       </div>
 
                       {parsedFile && (
-                        <div className="space-y-3 pt-4 border-t border-slate-200">
+                        <div className="space-y-3 pt-4 border-t border-[var(--border-subtle)]">
                           {Object.entries(parsedFile).slice(0, 3).map(([key, value]) => (
                             <div key={key} className="flex items-start gap-3">
                               <div className="h-6 w-6 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
                                 <Check className="h-4 w-4 text-[#1a7a3a]" />
                               </div>
                               <div>
-                                <p className="text-[11px] font-semibold text-slate-500 mb-1">{key}</p>
+                                <p className="text-[11px] font-semibold text-[var(--text-tertiary)] mb-1">{key}</p>
                                 <p className="text-[13px] font-mono font-medium text-black truncate max-w-md">
                                   {typeof value === 'string' ? value : JSON.stringify(value)}
                                 </p>
@@ -762,20 +762,20 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                           placeholder={field.placeholder}
                           value={fieldValues[field.name] || ''}
                           onChange={(e) => setFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                          className="h-12 rounded-xl border-2 border-slate-200 pr-12"
+                          className="h-12 rounded-xl border-2 border-[var(--border-subtle)] pr-12"
                         />
                         {field.type === 'password' && (
                           <button
                             type="button"
                             onClick={() => setShowPasswords(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                           >
                             {showPasswords[field.name] ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                           </button>
                         )}
                       </div>
                       {field.helperText && (
-                        <p className="text-[12px] text-slate-500">{field.helperText}</p>
+                        <p className="text-[12px] text-[var(--text-tertiary)]">{field.helperText}</p>
                       )}
                     </div>
                   ))}
@@ -803,7 +803,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
               {/* Security Notice */}
               <div className="flex items-start gap-4 p-5 rounded-xl bg-[#90FCA6]/10 border border-[#90FCA6]/20">
                 <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                <p className="text-[13px] text-slate-600 leading-relaxed">
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
                   Your credentials will be encrypted using Google Cloud KMS before storage. We never store plain text credentials.
                 </p>
               </div>
@@ -821,7 +821,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                   </button>
                   <button
                     onClick={resetForm}
-                    className="h-12 px-6 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
+                    className="h-12 px-6 text-[14px] font-semibold rounded-xl border-2 border-[var(--border-subtle)] hover:bg-[var(--surface-secondary)] transition-colors"
                   >
                     Cancel
                   </button>
@@ -839,16 +839,16 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                   <p className="font-semibold text-[14px] text-black mb-1">
                     {integration?.credential_name || `${config.name} Credentials`}
                   </p>
-                  <div className="flex items-center gap-2 text-[12px] text-slate-500">
+                  <div className="flex items-center gap-2 text-[12px] text-[var(--text-tertiary)]">
                     <Clock className="h-4 w-4" />
                     <span>Last validated: {formatDate(integration?.last_validated_at)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-subtle)]">
                 <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                <span className="text-[13px] text-slate-600 leading-relaxed">
+                <span className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
                   Credentials are encrypted using Google Cloud KMS and never stored in plain text.
                 </span>
               </div>
@@ -863,7 +863,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                 <Upload className="h-10 w-10" style={{ color: config.color }} />
               </div>
               <p className="text-[16px] font-bold text-black mb-3">No Integration Connected</p>
-              <p className="text-[14px] text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
+              <p className="text-[14px] text-[var(--text-tertiary)] mb-8 max-w-md mx-auto leading-relaxed">
                 {config.description}
               </p>
               <button
@@ -882,12 +882,12 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
 
         {/* Actions Footer */}
         {isConfigured && !showSetup && (
-          <div className="flex justify-between border-t border-slate-100 pt-6 px-6 pb-6">
+          <div className="flex justify-between border-t border-[var(--border-subtle)] pt-6 px-6 pb-6">
             <div className="flex gap-3">
               <button
                 onClick={handleValidate}
                 disabled={setupLoading}
-                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-[var(--border-subtle)] hover:bg-[var(--surface-secondary)] transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {setupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 Re-validate
@@ -897,7 +897,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                   setShowSetup(true)
                   setWizardStep(1)
                 }}
-                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-[var(--border-subtle)] hover:bg-[var(--surface-secondary)] transition-colors flex items-center gap-2"
               >
                 <Upload className="h-4 w-4" />
                 Update Credentials
@@ -915,7 +915,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
               <DialogContent className="rounded-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-[18px] font-bold text-black">Remove {config.name} Integration</DialogTitle>
-                  <DialogDescription className="text-[13px] leading-relaxed text-slate-600 mt-2">
+                  <DialogDescription className="text-[13px] leading-relaxed text-[var(--text-secondary)] mt-2">
                     Are you sure you want to remove this integration? This will delete the stored credentials
                     and any pipelines using this integration will stop working.
                   </DialogDescription>
@@ -923,7 +923,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
                 <DialogFooter className="gap-3">
                   <button
                     onClick={() => setShowDeleteDialog(false)}
-                    className="h-11 px-5 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-semibold text-[13px] transition-colors"
+                    className="h-11 px-5 rounded-xl border-2 border-[var(--border-subtle)] hover:bg-[var(--surface-secondary)] font-semibold text-[13px] transition-colors"
                   >
                     Cancel
                   </button>
@@ -975,7 +975,7 @@ export function CloudProviderPageTemplate({ config }: CloudProviderPageTemplateP
             How to set up {config.name}
           </h3>
         </div>
-        <ol className="list-decimal list-inside space-y-3 text-[13px] leading-relaxed ml-1 text-slate-600">
+        <ol className="list-decimal list-inside space-y-3 text-[13px] leading-relaxed ml-1 text-[var(--text-secondary)]">
           {config.docsSteps.map((step, idx) => (
             <li key={`step-${idx}`}>
               <SafeStepContent content={step} />

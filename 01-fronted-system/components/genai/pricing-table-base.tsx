@@ -173,7 +173,7 @@ export class PricingTableErrorBoundary extends React.Component<
               <h3 className="text-[14px] font-semibold text-[#FF6C5E] mb-1">
                 Unable to display pricing data
               </h3>
-              <p className="text-[12px] text-slate-600 mb-3">
+              <p className="text-[12px] text-[var(--text-secondary)] mb-3">
                 There was an error rendering the pricing table. This may be due to malformed data.
               </p>
               <Button
@@ -186,11 +186,11 @@ export class PricingTableErrorBoundary extends React.Component<
                 Try Again
               </Button>
               {process.env.NODE_ENV === "development" && this.state.error && (
-                <details className="mt-3 text-[11px] text-slate-500">
-                  <summary className="cursor-pointer hover:text-slate-700">
+                <details className="mt-3 text-[11px] text-[var(--text-tertiary)]">
+                  <summary className="cursor-pointer hover:text-[var(--text-secondary)]">
                     Error details (dev only)
                   </summary>
-                  <pre className="mt-2 p-2 bg-slate-100 rounded text-[10px] overflow-auto max-h-32">
+                  <pre className="mt-2 p-2 bg-[var(--surface-secondary)] rounded text-[10px] overflow-auto max-h-32">
                     {this.state.error.message}
                     {"\n"}
                     {this.state.error.stack}
@@ -507,19 +507,19 @@ function PricingTableBaseInner({
 
   return (
     <div className="group relative">
-      <div className="relative bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="relative bg-white rounded-xl border border-[var(--border-subtle)] overflow-hidden">
         {/* Toolbar - Search, Expand, Add, Edit toggle */}
-        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+        <div className="px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
           <div className="flex items-center justify-between gap-3">
             {/* Left: Search */}
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
               <Input
                 type="text"
                 placeholder="Search models..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-sm bg-white border-slate-200 focus:border-[#90FCA6] focus:ring-[#90FCA6] rounded-lg"
+                className="pl-9 h-9 text-sm bg-white border-[var(--border-subtle)] focus:border-[#90FCA6] focus:ring-[#90FCA6] rounded-lg"
               />
             </div>
 
@@ -531,7 +531,7 @@ function PricingTableBaseInner({
                   variant="outline"
                   size="sm"
                   onClick={onAddCustom}
-                  className="h-9 px-3 text-xs font-semibold rounded-lg bg-white border-slate-200 hover:bg-[#90FCA6]/10 hover:border-[#90FCA6]/50 hover:text-black transition-colors"
+                  className="h-9 px-3 text-xs font-semibold rounded-lg bg-white border-[var(--border-subtle)] hover:bg-[#90FCA6]/10 hover:border-[#90FCA6]/50 hover:text-black transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
                   {addButtonLabel}
@@ -540,8 +540,8 @@ function PricingTableBaseInner({
 
               {/* Edit Mode Toggle */}
               {isConnected && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200">
-                  <span className="text-[11px] font-medium text-slate-500">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-[var(--border-subtle)]">
+                  <span className="text-[11px] font-medium text-[var(--text-tertiary)]">
                     Override
                   </span>
                   <Switch
@@ -552,7 +552,7 @@ function PricingTableBaseInner({
                   {isEditMode ? (
                     <Unlock className="h-3.5 w-3.5 text-[#1a7a3a]" />
                   ) : (
-                    <Lock className="h-3.5 w-3.5 text-slate-400" />
+                    <Lock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                   )}
                 </div>
               )}
@@ -568,7 +568,7 @@ function PricingTableBaseInner({
                 </Badge>
               )}
               {customCount > 0 && (
-                <Badge className="text-xs font-bold px-2 py-0.5 h-5 bg-slate-100 text-slate-700 border-0">
+                <Badge className="text-xs font-bold px-2 py-0.5 h-5 bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-0">
                   {customCount} custom
                 </Badge>
               )}
@@ -649,20 +649,20 @@ function PricingTableBaseInner({
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-200">
+              <tr className="border-b border-[var(--border-subtle)]">
                 {/* Expand column */}
                 {hasExpandableContent && (
-                  <th className="px-2 py-2.5 w-8 bg-slate-50"></th>
+                  <th className="px-2 py-2.5 w-8 bg-[var(--surface-secondary)]"></th>
                 )}
                 {mainColumns.map((column) => (
                   <th
                     key={column.key}
                     className={cn(
-                      "px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-600",
-                      "bg-slate-50 first:pl-4 last:pr-4",
+                      "px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]",
+                      "bg-[var(--surface-secondary)] first:pl-4 last:pr-4",
                       column.align === "right" && "text-right",
                       column.align === "center" && "text-center",
-                      "cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      "cursor-pointer hover:bg-[var(--surface-secondary)] transition-colors select-none"
                     )}
                     style={{ width: column.width }}
                     onClick={() => handleSort(column.key)}
@@ -683,13 +683,13 @@ function PricingTableBaseInner({
                 ))}
                 {/* Actions column - always show when connected */}
                 {isConnected && (
-                  <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 w-20 text-right">
+                  <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] bg-[var(--surface-secondary)] w-20 text-right">
                     Actions
                   </th>
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--border-subtle)]">
               {filteredAndSortedData.length === 0 ? (
                 <tr>
                   <td
@@ -697,8 +697,8 @@ function PricingTableBaseInner({
                     className="px-4 py-10 text-center"
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <Search className="h-8 w-8 text-slate-300" />
-                      <p className="text-sm text-slate-500">
+                      <Search className="h-8 w-8 text-[var(--text-muted)]" />
+                      <p className="text-sm text-[var(--text-tertiary)]">
                         {searchQuery ? `No models matching "${searchQuery}"` : emptyMessage}
                       </p>
                     </div>
@@ -723,11 +723,11 @@ function PricingTableBaseInner({
                         aria-label={`${rowLabel} pricing data`}
                         className={cn(
                           "group/row transition-colors",
-                          rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/30",
+                          rowIndex % 2 === 0 ? "bg-white" : "bg-[var(--surface-secondary)]/30",
                           isEditMode && "hover:bg-[#90FCA6]/5",
-                          row.isCustom && "bg-slate-50/50",
+                          row.isCustom && "bg-[var(--surface-secondary)]/50",
                           row.isOverridden && "bg-amber-50/50",
-                          isRowExpanded && "bg-slate-50"
+                          isRowExpanded && "bg-[var(--surface-secondary)]"
                         )}
                       >
                         {/* Expand button */}
@@ -737,14 +737,14 @@ function PricingTableBaseInner({
                               size="sm"
                               variant="ghost"
                               onClick={() => toggleRowExpansion(row.id)}
-                              className="h-6 w-6 p-0 hover:bg-slate-100"
+                              className="h-6 w-6 p-0 hover:bg-[var(--surface-secondary)]"
                               aria-expanded={isRowExpanded}
                               aria-label={isRowExpanded ? `Collapse details for ${rowLabel}` : `Expand details for ${rowLabel}`}
                             >
                               {isRowExpanded ? (
-                                <ChevronUp className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                                <ChevronUp className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden="true" />
                               ) : (
-                                <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                                <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
                               )}
                             </Button>
                           </td>
@@ -773,7 +773,7 @@ function PricingTableBaseInner({
                                     step={column.type === "currency" ? "0.0001" : column.type === "percentage" ? "1" : "1"}
                                     value={editValue}
                                     onChange={(e) => setEditValue(e.target.value)}
-                                    className="h-7 text-sm font-mono border-slate-300 focus:border-[#90FCA6] focus:ring-[#90FCA6] rounded"
+                                    className="h-7 text-sm font-mono border-[var(--border-medium)] focus:border-[#90FCA6] focus:ring-[#90FCA6] rounded"
                                     autoFocus
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") saveEdit()
@@ -804,14 +804,14 @@ function PricingTableBaseInner({
                                   column.align === "center" && "justify-center"
                                 )}>
                                   {column.key === mainColumns[0].key && row.isCustom && (
-                                    <Sparkles className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                                    <Sparkles className="h-3 w-3 text-[var(--text-tertiary)] flex-shrink-0" />
                                   )}
                                   <span className={cn(
-                                    "text-[11px] text-slate-800",
+                                    "text-[11px] text-[var(--text-primary)]",
                                     column.type === "currency" || column.type === "number" || column.type === "percentage"
                                       ? "font-mono"
                                       : "",
-                                    column.key === mainColumns[0].key && "font-semibold text-slate-900"
+                                    column.key === mainColumns[0].key && "font-semibold text-[var(--text-primary)]"
                                   )}>
                                     {formatValue(row[column.key], column)}
                                   </span>
@@ -900,7 +900,7 @@ function PricingTableBaseInner({
 
                       {/* Expanded row details */}
                       {hasExpandableContent && isRowExpanded && (
-                        <tr className="bg-slate-50/80 border-b border-slate-200">
+                        <tr className="bg-[var(--surface-secondary)]/80 border-b border-[var(--border-subtle)]">
                           <td
                             colSpan={mainColumns.length + 1 + (isConnected ? 1 : 0)}
                             className="px-4 py-3"
@@ -916,11 +916,11 @@ function PricingTableBaseInner({
                                     key={column.key}
                                     className={cn(
                                       "px-3 py-2 rounded-lg",
-                                      canEdit ? "bg-white border border-slate-200 cursor-pointer hover:border-[#90FCA6]" : "bg-slate-100/50",
+                                      canEdit ? "bg-white border border-[var(--border-subtle)] cursor-pointer hover:border-[#90FCA6]" : "bg-[var(--surface-secondary)]/50",
                                     )}
                                     onClick={() => canEdit && !isEditing && startEdit(row.id, column.key, row[column.key])}
                                   >
-                                    <div className="text-[10px] font-medium text-slate-400 uppercase mb-1">
+                                    <div className="text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">
                                       {column.label}
                                     </div>
                                     {isEditing ? (
@@ -930,7 +930,7 @@ function PricingTableBaseInner({
                                           step={column.type === "currency" ? "0.0001" : "1"}
                                           value={editValue}
                                           onChange={(e) => setEditValue(e.target.value)}
-                                          className="h-6 text-xs font-mono border-slate-300 focus:border-[#90FCA6] focus:ring-[#90FCA6] rounded"
+                                          className="h-6 text-xs font-mono border-[var(--border-medium)] focus:border-[#90FCA6] focus:ring-[#90FCA6] rounded"
                                           autoFocus
                                           onKeyDown={(e) => {
                                             if (e.key === "Enter") saveEdit()
@@ -948,7 +948,7 @@ function PricingTableBaseInner({
                                       <div className="flex items-center gap-1">
                                         <span className={cn(
                                           "text-[11px] font-mono",
-                                          column.editable ? "text-slate-800" : "text-slate-500"
+                                          column.editable ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"
                                         )}>
                                           {formatValue(row[column.key], column)}
                                         </span>
@@ -976,8 +976,8 @@ function PricingTableBaseInner({
 
         {/* Footer - only show when not connected */}
         {!isConnected && (
-          <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200">
-            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="px-4 py-2.5 bg-[var(--surface-secondary)] border-t border-[var(--border-subtle)]">
+            <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
               <Lock className="h-3.5 w-3.5" />
               <span>Connect your API key to override pricing or add custom models</span>
             </div>

@@ -67,7 +67,7 @@ python -m pytest tests/ -v -k "cost and not integration"
 
 | File | Domain | Tests |
 |------|--------|-------|
-| `tests/test_bootstrap.py` | Bootstrap | 14 meta table creation |
+| `tests/test_bootstrap.py` | Bootstrap | 27 meta table creation |
 | `tests/test_organizations.py` | Onboarding | Org creation, slug validation |
 | `tests/test_integrations.py` | Integrations | Provider setup, credentials |
 | `tests/test_subscriptions.py` | Subscriptions | SaaS plan CRUD |

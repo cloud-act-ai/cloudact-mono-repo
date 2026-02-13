@@ -32,11 +32,11 @@ export function PremiumPageHeader({
           </div>
         )}
         <div>
-          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+            <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
               {subtitle}
             </p>
           )}
@@ -81,13 +81,13 @@ export function PremiumPageHeaderAction({
   const variantStyles = {
     primary: cn(
       "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
-      "text-slate-900 shadow-sm",
+      "text-[var(--text-primary)] shadow-sm",
       "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
       "active:scale-[0.98]"
     ),
     secondary: cn(
-      "bg-white border border-slate-200 text-slate-700",
-      "hover:bg-slate-50 hover:border-slate-300",
+      "bg-white border border-[var(--border-subtle)] text-[var(--text-secondary)]",
+      "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
       "active:scale-[0.98]"
     ),
     ghost: cn(

@@ -253,7 +253,7 @@ export function PipelineRunModal({
           </DialogTitle>
           <DialogDescription>
             Select a date range to fetch historical data for{" "}
-            <span className="font-semibold text-slate-900">{pipelineName}</span>
+            <span className="font-semibold text-[var(--text-primary)]">{pipelineName}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -271,7 +271,7 @@ export function PipelineRunModal({
 
           {/* Preset Buttons */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium text-[var(--text-secondary)]">
               Quick Select
             </label>
             <div className="flex flex-wrap gap-2">
@@ -285,7 +285,7 @@ export function PipelineRunModal({
                     "px-3 py-1.5 text-sm rounded-lg border transition-all",
                     selectedPreset === preset.id && !showCustom
                       ? "bg-[var(--cloudact-mint)] border-[var(--cloudact-mint-dark)] text-[#1a7a3a] font-medium"
-                      : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      : "bg-white border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:bg-[var(--surface-secondary)]"
                   )}
                 >
                   {preset.label}
@@ -299,7 +299,7 @@ export function PipelineRunModal({
                   "px-3 py-1.5 text-sm rounded-lg border transition-all",
                   showCustom
                     ? "bg-[var(--cloudact-mint)] border-[var(--cloudact-mint-dark)] text-[#1a7a3a] font-medium"
-                    : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    : "bg-white border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:bg-[var(--surface-secondary)]"
                 )}
               >
                 Custom Range
@@ -309,8 +309,8 @@ export function PipelineRunModal({
 
           {/* Custom Date Picker */}
           {showCustom && (
-            <div className="border rounded-lg p-3 bg-slate-50">
-              <div className="mb-2 text-xs text-slate-500">
+            <div className="border rounded-lg p-3 bg-[var(--surface-secondary)]">
+              <div className="mb-2 text-xs text-[var(--text-tertiary)]">
                 Click to select start date, then click again to select end date
               </div>
               <Calendar
@@ -326,25 +326,25 @@ export function PipelineRunModal({
           )}
 
           {/* Selected Range Display */}
-          <div className="p-3 rounded-lg bg-slate-100 border border-slate-200">
+          <div className="p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)]">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
+                <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wide font-medium">
                   Selected Range
                 </p>
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
                   {formatDateDisplay(selectedRange.start)} →{" "}
                   {formatDateDisplay(selectedRange.end)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
+                <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wide font-medium">
                   Duration
                 </p>
                 <p
                   className={cn(
                     "text-sm font-semibold",
-                    exceedsLimit ? "text-red-600" : "text-slate-900"
+                    exceedsLimit ? "text-red-600" : "text-[var(--text-primary)]"
                   )}
                 >
                   {selectedDays} day{selectedDays !== 1 ? "s" : ""}

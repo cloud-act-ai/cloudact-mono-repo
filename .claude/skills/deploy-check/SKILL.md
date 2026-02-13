@@ -12,7 +12,7 @@ description: |
 | Environment | GCP Project | URLs |
 |-------------|-------------|------|
 | **test** | `cloudact-testing-1` | Cloud Run auto-generated URLs |
-| **stage** | `cloudact-stage` | `cloudact-stage.vercel.app` (frontend) |
+| **stage** | `cloudact-testing-1` | Cloud Run URLs |
 | **prod** | `cloudact-prod` | `api.cloudact.ai`, `pipeline.cloudact.ai`, `cloudact.ai` |
 
 **Credentials:** `~/.gcp/cloudact-{project}.json`
@@ -40,8 +40,8 @@ cd 04-inra-cicd-automation/CICD
 git push origin main
 
 # Production: Create and push version tag
-git tag v4.2.0
-git push origin v4.2.0
+git tag v4.4.0
+git push origin v4.4.0
 
 # Monitor build
 gcloud builds list --project=cloudact-prod --region=global --limit=5
@@ -60,8 +60,8 @@ curl -s https://pipeline.cloudact.ai/health
 ### 4. Rollback (if needed)
 ```bash
 # Create a new tag pointing to previous working version
-git tag v4.2.1  # Patch release with rollback
-git push origin v4.2.1
+git tag v4.4.1  # Patch release with rollback
+git push origin v4.4.1
 ```
 
 ## Manual Deploy (Development/Testing ONLY)
@@ -107,3 +107,5 @@ cd 04-inra-cicd-automation/CICD/quick
 | Secret not found | Run `./secrets/setup-secrets.sh <env>` |
 | Connection refused | Set inter-service URL env vars |
 | Wrong Stripe keys | Verify LIVE keys (pk_live_*, sk_live_*) in prod |
+| CORS errors on chat backend | `CORS_ORIGINS` env var set as plain string but pydantic-settings v2 expects JSON array for `List[str]` types. Fix: use `str` type in config and parse manually. See infra-cicd SKILL.md learning #8. |
+| Cloud Build status unknown | Both triggers are in `cloudact-prod` project. Use `gcloud builds list --project=cloudact-prod --region=global` to check both stage and prod builds. |

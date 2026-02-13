@@ -84,7 +84,7 @@ Defined in SKILL.md (`pr-review/SKILL.md`).
 6. Auto-deploy to stage (Cloud Build trigger on main push)
 
 7. Production release (git tag)
-   git tag v4.3.2 && git push origin v4.3.2
+   git tag v4.4.0 && git push origin v4.4.0
 ```
 
 ### Branch Strategy

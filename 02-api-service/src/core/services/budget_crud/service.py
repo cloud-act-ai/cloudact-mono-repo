@@ -1,0 +1,354 @@
+"""Budget CRUD Service — BigQuery-backed budget management."""
+
+import os
+import uuid
+import logging
+import threading
+from typing import Optional, List
+from datetime import datetime, timezone
+
+from google.cloud import bigquery
+
+from src.core.services.budget_crud.models import (
+    BudgetCategory,
+    BudgetType,
+    PeriodType,
+    BudgetCreateRequest,
+    BudgetUpdateRequest,
+    BudgetResponse,
+    BudgetListResponse,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class BudgetCRUDService:
+    """Service for budget CRUD operations in BigQuery."""
+
+    def __init__(self, project_id: str, dataset_id: str = "organizations"):
+        from src.core.engine.bq_client import get_bigquery_client
+        self.bq = get_bigquery_client()
+        self.client = self.bq.client
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.budgets_table = f"{project_id}.{dataset_id}.org_budgets"
+        self.allocations_table = f"{project_id}.{dataset_id}.org_budget_allocations"
+
+    def _row_to_response(self, row: dict) -> BudgetResponse:
+        """Convert a BigQuery row to a BudgetResponse."""
+        data = dict(row)
+        # Convert date fields from string if needed
+        for field in ("period_start", "period_end"):
+            if isinstance(data.get(field), str):
+                from datetime import date as date_type
+                data[field] = date_type.fromisoformat(data[field])
+        return BudgetResponse(**data)
+
+    async def create_budget(
+        self,
+        org_slug: str,
+        request: BudgetCreateRequest,
+        created_by: Optional[str] = None,
+    ) -> BudgetResponse:
+        """Create a new budget."""
+        # Check for duplicate: same entity + category + period + provider
+        if await self._check_duplicate(
+            org_slug,
+            request.hierarchy_entity_id,
+            request.category.value,
+            request.budget_type.value,
+            request.period_start.isoformat(),
+            request.period_end.isoformat(),
+            request.provider,
+        ):
+            raise ValueError(
+                f"Budget already exists for entity '{request.hierarchy_entity_id}' "
+                f"category '{request.category.value}' in the given period"
+            )
+
+        budget_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+
+        row = {
+            "budget_id": budget_id,
+            "org_slug": org_slug,
+            "hierarchy_entity_id": request.hierarchy_entity_id,
+            "hierarchy_entity_name": request.hierarchy_entity_name,
+            "hierarchy_path": request.hierarchy_path,
+            "hierarchy_level_code": request.hierarchy_level_code,
+            "category": request.category.value,
+            "budget_type": request.budget_type.value,
+            "budget_amount": request.budget_amount,
+            "currency": request.currency,
+            "period_type": request.period_type.value,
+            "period_start": request.period_start.isoformat(),
+            "period_end": request.period_end.isoformat(),
+            "provider": request.provider,
+            "notes": request.notes,
+            "is_active": True,
+            "created_by": created_by,
+            "updated_by": None,
+            "created_at": now.isoformat(),
+            "updated_at": None,
+        }
+
+        try:
+            # Use DML INSERT (not streaming) to avoid streaming buffer conflicts
+            # with subsequent UPDATE/DELETE operations
+            query = f"""
+                INSERT INTO `{self.budgets_table}` (
+                    budget_id, org_slug, hierarchy_entity_id, hierarchy_entity_name,
+                    hierarchy_path, hierarchy_level_code, category, budget_type,
+                    budget_amount, currency, period_type, period_start, period_end,
+                    provider, notes, is_active, created_by, updated_by, created_at, updated_at
+                ) VALUES (
+                    @budget_id, @org_slug, @hierarchy_entity_id, @hierarchy_entity_name,
+                    @hierarchy_path, @hierarchy_level_code, @category, @budget_type,
+                    @budget_amount, @currency, @period_type, @period_start, @period_end,
+                    @provider, @notes, @is_active, @created_by, @updated_by,
+                    CURRENT_TIMESTAMP(), NULL
+                )
+            """
+            params = [
+                bigquery.ScalarQueryParameter("budget_id", "STRING", row["budget_id"]),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", row["org_slug"]),
+                bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", row["hierarchy_entity_id"]),
+                bigquery.ScalarQueryParameter("hierarchy_entity_name", "STRING", row["hierarchy_entity_name"]),
+                bigquery.ScalarQueryParameter("hierarchy_path", "STRING", row.get("hierarchy_path")),
+                bigquery.ScalarQueryParameter("hierarchy_level_code", "STRING", row["hierarchy_level_code"]),
+                bigquery.ScalarQueryParameter("category", "STRING", row["category"]),
+                bigquery.ScalarQueryParameter("budget_type", "STRING", row["budget_type"]),
+                bigquery.ScalarQueryParameter("budget_amount", "FLOAT64", row["budget_amount"]),
+                bigquery.ScalarQueryParameter("currency", "STRING", row["currency"]),
+                bigquery.ScalarQueryParameter("period_type", "STRING", row["period_type"]),
+                bigquery.ScalarQueryParameter("period_start", "DATE", row["period_start"]),
+                bigquery.ScalarQueryParameter("period_end", "DATE", row["period_end"]),
+                bigquery.ScalarQueryParameter("provider", "STRING", row.get("provider")),
+                bigquery.ScalarQueryParameter("notes", "STRING", row.get("notes")),
+                bigquery.ScalarQueryParameter("is_active", "BOOL", row["is_active"]),
+                bigquery.ScalarQueryParameter("created_by", "STRING", row.get("created_by")),
+                bigquery.ScalarQueryParameter("updated_by", "STRING", row.get("updated_by")),
+            ]
+            job_config = bigquery.QueryJobConfig(query_parameters=params)
+            self.client.query(query, job_config=job_config).result()
+            return await self.get_budget(org_slug, budget_id)
+        except Exception as e:
+            logger.error(f"Failed to create budget: {e}")
+            raise
+
+    async def get_budget(self, org_slug: str, budget_id: str) -> Optional[BudgetResponse]:
+        """Get a single budget by ID."""
+        query = f"""
+            SELECT *
+            FROM `{self.budgets_table}`
+            WHERE org_slug = @org_slug AND budget_id = @budget_id
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("budget_id", "STRING", budget_id),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            results = list(self.client.query(query, job_config=job_config).result())
+            if not results:
+                return None
+            return self._row_to_response(results[0])
+        except Exception as e:
+            logger.error(f"Failed to get budget {budget_id}: {e}")
+            raise
+
+    async def list_budgets(
+        self,
+        org_slug: str,
+        category: Optional[BudgetCategory] = None,
+        hierarchy_entity_id: Optional[str] = None,
+        is_active: Optional[bool] = True,
+        period_type: Optional[PeriodType] = None,
+    ) -> BudgetListResponse:
+        """List budgets with optional filters."""
+        query = f"""
+            SELECT *
+            FROM `{self.budgets_table}`
+            WHERE org_slug = @org_slug
+        """
+        params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
+
+        if category:
+            query += " AND category = @category"
+            params.append(bigquery.ScalarQueryParameter("category", "STRING", category.value))
+
+        if hierarchy_entity_id:
+            query += " AND hierarchy_entity_id = @hierarchy_entity_id"
+            params.append(bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_entity_id))
+
+        if is_active is not None:
+            query += " AND is_active = @is_active"
+            params.append(bigquery.ScalarQueryParameter("is_active", "BOOL", is_active))
+
+        if period_type:
+            query += " AND period_type = @period_type"
+            params.append(bigquery.ScalarQueryParameter("period_type", "STRING", period_type.value))
+
+        query += " ORDER BY created_at DESC"
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            results = list(self.client.query(query, job_config=job_config).result())
+            budgets = [self._row_to_response(row) for row in results]
+            return BudgetListResponse(budgets=budgets, total=len(budgets))
+        except Exception as e:
+            logger.error(f"Failed to list budgets for {org_slug}: {e}")
+            raise
+
+    async def update_budget(
+        self,
+        org_slug: str,
+        budget_id: str,
+        request: BudgetUpdateRequest,
+        updated_by: Optional[str] = None,
+    ) -> Optional[BudgetResponse]:
+        """Update an existing budget."""
+        existing = await self.get_budget(org_slug, budget_id)
+        if not existing:
+            return None
+        if not existing.is_active:
+            raise ValueError("Cannot update a deleted budget")
+
+        updates = []
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("budget_id", "STRING", budget_id),
+        ]
+
+        update_data = request.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            if value is not None:
+                if isinstance(value, bool):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "BOOL", value))
+                elif isinstance(value, float):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "FLOAT64", value))
+                elif isinstance(value, PeriodType):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "STRING", value.value))
+                elif hasattr(value, "isoformat"):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "DATE", value.isoformat()))
+                else:
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "STRING", str(value)))
+
+        if not updates:
+            return existing
+
+        updates.append("updated_at = CURRENT_TIMESTAMP()")
+        if updated_by:
+            updates.append("updated_by = @updated_by")
+            params.append(bigquery.ScalarQueryParameter("updated_by", "STRING", updated_by))
+
+        query = f"""
+            UPDATE `{self.budgets_table}`
+            SET {", ".join(updates)}
+            WHERE org_slug = @org_slug AND budget_id = @budget_id
+        """
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            self.client.query(query, job_config=job_config).result()
+            return await self.get_budget(org_slug, budget_id)
+        except Exception as e:
+            logger.error(f"Failed to update budget {budget_id}: {e}")
+            raise
+
+    async def delete_budget(
+        self,
+        org_slug: str,
+        budget_id: str,
+        deleted_by: Optional[str] = None,
+    ) -> bool:
+        """Soft delete a budget (set is_active = false)."""
+        query = f"""
+            UPDATE `{self.budgets_table}`
+            SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP(), updated_by = @deleted_by
+            WHERE org_slug = @org_slug AND budget_id = @budget_id AND is_active = TRUE
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("budget_id", "STRING", budget_id),
+            bigquery.ScalarQueryParameter("deleted_by", "STRING", deleted_by or "system"),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+
+        try:
+            job = self.client.query(query, job_config=job_config)
+            job.result()  # Wait for completion
+            return job.num_dml_affected_rows > 0
+        except Exception as e:
+            logger.error(f"Failed to delete budget {budget_id}: {e}")
+            raise
+
+    async def _check_duplicate(
+        self,
+        org_slug: str,
+        hierarchy_entity_id: str,
+        category: str,
+        budget_type: str,
+        period_start: str,
+        period_end: str,
+        provider: Optional[str],
+    ) -> bool:
+        """Check for duplicate budget (same entity + category + type + period + provider)."""
+        query = f"""
+            SELECT COUNT(*) as cnt
+            FROM `{self.budgets_table}`
+            WHERE org_slug = @org_slug
+            AND hierarchy_entity_id = @hierarchy_entity_id
+            AND category = @category
+            AND budget_type = @budget_type
+            AND period_start = @period_start
+            AND period_end = @period_end
+            AND is_active = TRUE
+        """
+        params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("hierarchy_entity_id", "STRING", hierarchy_entity_id),
+            bigquery.ScalarQueryParameter("category", "STRING", category),
+            bigquery.ScalarQueryParameter("budget_type", "STRING", budget_type),
+            bigquery.ScalarQueryParameter("period_start", "DATE", period_start),
+            bigquery.ScalarQueryParameter("period_end", "DATE", period_end),
+        ]
+
+        if provider:
+            query += " AND provider = @provider"
+            params.append(bigquery.ScalarQueryParameter("provider", "STRING", provider))
+        else:
+            query += " AND provider IS NULL"
+
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        results = list(self.client.query(query, job_config=job_config).result())
+        return results[0].cnt > 0 if results else False
+
+
+# Thread-safe global service instance
+_budget_crud_service: Optional[BudgetCRUDService] = None
+_budget_crud_service_lock = threading.Lock()
+
+
+def get_budget_crud_service(
+    project_id: Optional[str] = None,
+    dataset_id: str = "organizations",
+) -> BudgetCRUDService:
+    """Get or create the global budget CRUD service instance (thread-safe)."""
+    global _budget_crud_service
+
+    if _budget_crud_service is not None:
+        return _budget_crud_service
+
+    with _budget_crud_service_lock:
+        if _budget_crud_service is None:
+            project = project_id or os.environ.get("GCP_PROJECT_ID", "cloudact-testing-1")
+            _budget_crud_service = BudgetCRUDService(project, dataset_id)
+
+        return _budget_crud_service

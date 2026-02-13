@@ -306,8 +306,8 @@ export function ExportImportModal({
 
           {/* Export Tab */}
           <TabsContent value="export" className="space-y-4 mt-4">
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <p className="text-sm text-slate-600">
+            <div className="p-4 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 Download all active {entityType.toLowerCase()} entities as a CSV
                 file. You can edit this file and re-import to make bulk changes.
               </p>
@@ -353,16 +353,16 @@ export function ExportImportModal({
                 className={cn(
                   "p-8 rounded-lg border-2 border-dashed transition-all",
                   isPreviewing
-                    ? "cursor-not-allowed opacity-50 border-slate-200 bg-slate-100"
-                    : "cursor-pointer hover:border-[var(--cloudact-mint-dark)] hover:bg-[var(--cloudact-mint)]/10 border-slate-300 bg-slate-50"
+                    ? "cursor-not-allowed opacity-50 border-[var(--border-subtle)] bg-[var(--surface-secondary)]"
+                    : "cursor-pointer hover:border-[var(--cloudact-mint-dark)] hover:bg-[var(--cloudact-mint)]/10 border-[var(--border-medium)] bg-[var(--surface-secondary)]"
                 )}
               >
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <FileUp className="h-10 w-10 text-slate-400" />
-                  <p className="text-sm font-medium text-slate-700">
+                  <FileUp className="h-10 w-10 text-[var(--text-muted)]" />
+                  <p className="text-sm font-medium text-[var(--text-secondary)]">
                     Click to select a CSV file
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[var(--text-tertiary)]">
                     or drag and drop here
                   </p>
                 </div>
@@ -379,10 +379,10 @@ export function ExportImportModal({
 
             {/* File Selected */}
             {csvContent && (
-              <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">
+                  <FileText className="h-5 w-5 text-[var(--text-tertiary)]" />
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">
                     {fileName}
                   </span>
                 </div>
@@ -400,8 +400,8 @@ export function ExportImportModal({
             {/* Loading Preview */}
             {isPreviewing && (
               <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                <span className="ml-3 text-sm text-slate-600">
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--text-muted)]" />
+                <span className="ml-3 text-sm text-[var(--text-secondary)]">
                   Analyzing changes...
                 </span>
               </div>
@@ -470,12 +470,12 @@ export function ExportImportModal({
                     </p>
                     <p className="text-xs text-red-600">Delete</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
-                    <CheckCircle2 className="h-4 w-4 mx-auto text-slate-500" />
-                    <p className="text-base font-bold text-slate-700">
+                  <div className="p-3 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-center">
+                    <CheckCircle2 className="h-4 w-4 mx-auto text-[var(--text-tertiary)]" />
+                    <p className="text-base font-bold text-[var(--text-secondary)]">
                       {preview.summary.unchanged}
                     </p>
-                    <p className="text-xs text-slate-500">Unchanged</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Unchanged</p>
                   </div>
                 </div>
 
@@ -510,9 +510,9 @@ export function ExportImportModal({
 
                 {/* No Changes */}
                 {!preview.has_changes && preview.is_valid && (
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-center">
-                    <CheckCircle2 className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                    <p className="text-sm text-slate-600">
+                  <div className="p-4 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-subtle)] text-center">
+                    <CheckCircle2 className="h-8 w-8 mx-auto text-[var(--text-muted)] mb-2" />
+                    <p className="text-sm text-[var(--text-secondary)]">
                       No changes detected. The CSV matches the current data.
                     </p>
                   </div>
@@ -614,13 +614,13 @@ function PreviewItemRow({
   }
 
   return (
-    <div className="flex items-center gap-2 p-2 rounded bg-slate-50">
+    <div className="flex items-center gap-2 p-2 rounded bg-[var(--surface-secondary)]">
       <Badge variant="outline" className={cn("gap-1", colorMap[action])}>
         {iconMap[action]}
         {action}
       </Badge>
-      <span className="font-mono text-xs text-slate-600">{item.entity_id}</span>
-      <span className="text-sm text-slate-700 truncate flex-1">
+      <span className="font-mono text-xs text-[var(--text-secondary)]">{item.entity_id}</span>
+      <span className="text-sm text-[var(--text-secondary)] truncate flex-1">
         {item.entity_name || "-"}
       </span>
       {item.level_code && (

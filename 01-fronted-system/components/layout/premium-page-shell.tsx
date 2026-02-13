@@ -131,7 +131,7 @@ function DataFreshnessIndicator({ timestamp, label = "Last updated" }: DataFresh
 
   return (
     <div
-      className="flex items-center gap-1.5 text-[11px] sm:text-[11px] text-slate-400"
+      className="flex items-center gap-1.5 text-[11px] sm:text-[11px] text-[var(--text-muted)]"
       title={date.toLocaleString()}
     >
       <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
@@ -163,7 +163,7 @@ const iconColorClasses = {
     shadow: "shadow-[0_4px_12px_rgba(0,122,255,0.25)]",
   },
   slate: {
-    bg: "bg-gradient-to-br from-slate-500 to-slate-600",
+    bg: "bg-gradient-to-br from-[var(--text-tertiary)] to-[var(--text-secondary)]",
     icon: "text-white",
     shadow: "shadow-[0_4px_12px_rgba(100,116,139,0.25)]",
   },
@@ -255,19 +255,19 @@ function BreadcrumbNav({ items }: BreadcrumbNavProps) {
   if (items.length === 0) return null
 
   return (
-    <nav className="flex items-center gap-1.5 text-[11px] sm:text-[12px] text-slate-500 mb-3 sm:mb-4">
+    <nav className="flex items-center gap-1.5 text-[11px] sm:text-[12px] text-[var(--text-tertiary)] mb-3 sm:mb-4">
       {items.map((item, index) => (
         <React.Fragment key={item.label}>
-          {index > 0 && <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+          {index > 0 && <ChevronRight className="h-3.5 w-3.5 text-[var(--text-muted)]" />}
           {item.href ? (
             <Link
               href={item.href}
-              className="hover:text-slate-900 transition-colors font-medium"
+              className="hover:text-[var(--text-primary)] transition-colors font-medium"
             >
               {item.label}
             </Link>
           ) : (
-            <span className="text-slate-900 font-semibold">{item.label}</span>
+            <span className="text-[var(--text-primary)] font-semibold">{item.label}</span>
           )}
         </React.Fragment>
       ))}
@@ -400,11 +400,11 @@ export function PremiumPageShell({
                 </div>
               )}
               <div>
-                <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
+                <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
                   {title}
                 </h1>
                 {subtitle && (
-                  <p className="text-[12px] sm:text-[13px] text-slate-500 mt-1 sm:mt-2 max-w-lg">
+                  <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
                     {subtitle}
                   </p>
                 )}
@@ -494,11 +494,11 @@ export function PremiumSection({
               </div>
             )}
             <div>
-              <h2 className="text-[11px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <h2 className="text-[11px] sm:text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 {title}
               </h2>
               {subtitle && (
-                <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{subtitle}</p>
               )}
             </div>
           </div>
@@ -562,7 +562,7 @@ const featureIconColors = {
   mint: "bg-[#90FCA6]/10 text-[#1a7a3a] group-hover:bg-[#90FCA6]/20",
   coral: "bg-[#FF6C5E]/10 text-[#FF6C5E] group-hover:bg-[#FF6C5E]/15",
   blue: "bg-[#007AFF]/10 text-[#007AFF] group-hover:bg-[#007AFF]/15",
-  slate: "bg-slate-100 text-slate-600 group-hover:bg-slate-200",
+  slate: "bg-[var(--surface-secondary)] text-[var(--text-secondary)] group-hover:bg-[var(--surface-secondary)]",
 }
 
 export function FeatureCard({
@@ -578,7 +578,7 @@ export function FeatureCard({
   const content = (
     <div className={cn(
       "group relative overflow-hidden",
-      "bg-white rounded-xl sm:rounded-2xl border border-slate-200",
+      "bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)]",
       "p-4 sm:p-5",
       "transition-all duration-300",
       !disabled && [
@@ -603,7 +603,7 @@ export function FeatureCard({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-[14px] sm:text-[16px] font-bold text-slate-900 group-hover:text-[#1a7a3a] transition-colors truncate">
+              <h3 className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)] group-hover:text-[#1a7a3a] transition-colors truncate">
                 {title}
               </h3>
               {badge && (
@@ -612,13 +612,13 @@ export function FeatureCard({
                 </span>
               )}
             </div>
-            <p className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">
+            <p className="text-[11px] sm:text-[12px] text-[var(--text-tertiary)] mt-1 line-clamp-2">
               {description}
             </p>
           </div>
         </div>
 
-        <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#90FCA6] group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+        <ChevronRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[#90FCA6] group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
       </div>
     </div>
   )
@@ -650,7 +650,7 @@ const statColorClasses = {
   mint: "bg-[#90FCA6]/10 text-[#1a7a3a]",
   coral: "bg-[#FF6C5E]/10 text-[#FF6C5E]",
   blue: "bg-[#007AFF]/10 text-[#007AFF]",
-  slate: "bg-slate-100 text-slate-600",
+  slate: "bg-[var(--surface-secondary)] text-[var(--text-secondary)]",
 }
 
 export function StatsBar({ stats, className }: StatsBarProps) {
@@ -660,7 +660,7 @@ export function StatsBar({ stats, className }: StatsBarProps) {
       "flex flex-wrap items-center gap-4 sm:gap-6",
       "py-4 sm:py-5 px-5 sm:px-6",
       "bg-white/[0.98] backdrop-blur-sm rounded-xl sm:rounded-2xl",
-      "border border-slate-200/80",
+      "border border-[var(--border-subtle)]/80",
       "shadow-[0_4px_20px_rgba(0,0,0,0.04)]",
       className
     )}>
@@ -670,7 +670,7 @@ export function StatsBar({ stats, className }: StatsBarProps) {
       {stats.map((stat, index) => (
         <React.Fragment key={stat.label}>
           {index > 0 && (
-            <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent hidden sm:block" />
+            <div className="h-6 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent hidden sm:block" />
           )}
           <div className="flex items-center gap-2.5">
             {stat.icon && (
@@ -681,8 +681,8 @@ export function StatsBar({ stats, className }: StatsBarProps) {
                 <stat.icon className="h-4 w-4" />
               </div>
             )}
-            <span className="text-[12px] sm:text-[13px] text-slate-600">
-              <span className="font-bold text-slate-900">{stat.value}</span>
+            <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
+              <span className="font-bold text-[var(--text-primary)]">{stat.value}</span>
               {" "}{stat.label}
             </span>
           </div>

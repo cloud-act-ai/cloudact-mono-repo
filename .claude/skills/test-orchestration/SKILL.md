@@ -59,7 +59,7 @@ gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-pr
 ### API Service Testing
 ```
 02-api-service/tests/
-├── test_bootstrap.py         # 14 meta table creation
+├── test_bootstrap.py         # 27 meta table creation
 ├── test_organizations.py     # Org onboarding
 ├── test_integrations.py      # Provider integrations
 ├── test_subscriptions.py     # SaaS subscriptions

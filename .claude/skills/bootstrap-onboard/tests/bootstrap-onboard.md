@@ -12,7 +12,7 @@ Bootstrap and organization onboarding validation via API endpoints:
 | # | Test | Type | Expected |
 |---|------|------|----------|
 | 1 | POST /admin/bootstrap creates organizations dataset | API | 200 with dataset created |
-| 2 | POST /admin/bootstrap creates all 20 meta tables | API | 20 tables created in organizations dataset |
+| 2 | POST /admin/bootstrap creates all 27 meta tables | API | 27 tables created in organizations dataset |
 | 3 | Bootstrap without X-CA-Root-Key | Auth | 401 Unauthorized |
 | 4 | Bootstrap with invalid root key | Auth | 401 Invalid root key |
 | 5 | Bootstrap idempotent (re-run safe) | API | 200 with "already exists" for each table |
@@ -62,7 +62,7 @@ python -m pytest tests/test_bootstrap.py tests/test_organizations.py -v
 
 | Domain | File | Tests |
 |--------|------|-------|
-| Bootstrap | `tests/test_bootstrap.py` | 20 meta table creation, idempotency, status, sync |
+| Bootstrap | `tests/test_bootstrap.py` | 27 meta table creation, idempotency, status, sync |
 | Organizations | `tests/test_organizations.py` | Onboard, dryrun, status, sync, slug validation |
 | Security | `tests/test_security.py` | Auth checks on admin and org endpoints |
 | Validation | `tests/test_validation.py` | Org slug, email, plan validation |
@@ -88,7 +88,7 @@ python -c "import json, glob; [json.load(open(f)) for f in glob.glob('02-api-ser
 ```bash
 cd 05-scheduler-jobs/scripts
 
-# Bootstrap (creates organizations dataset + 20 meta tables)
+# Bootstrap (creates organizations dataset + 27 meta tables)
 ./run-job.sh stage bootstrap
 
 # Bootstrap sync (adds new columns to existing tables)
@@ -100,7 +100,7 @@ cd 05-scheduler-jobs/scripts
 
 | Job | Purpose | Verification |
 |-----|---------|-------------|
-| `bootstrap` | Create organizations dataset + 20 tables | `GET /admin/bootstrap/status` returns SYNCED |
+| `bootstrap` | Create organizations dataset + 27 tables | `GET /admin/bootstrap/status` returns SYNCED |
 | `bootstrap-sync` | Add new columns to existing tables | No missing_columns in status |
 | `org-sync-all` | Sync all org datasets | All orgs return SYNCED |
 
@@ -108,14 +108,14 @@ cd 05-scheduler-jobs/scripts
 
 | Test | Command | Expected |
 |------|---------|----------|
-| Bootstrap | `curl -X POST http://localhost:8000/api/v1/admin/bootstrap -H "X-CA-Root-Key: $KEY"` | 200 with 20 tables created |
+| Bootstrap | `curl -X POST http://localhost:8000/api/v1/admin/bootstrap -H "X-CA-Root-Key: $KEY"` | 200 with 27 tables created |
 | Bootstrap status | `curl http://localhost:8000/api/v1/admin/bootstrap/status -H "X-CA-Root-Key: $KEY"` | `status: SYNCED` |
 | Dryrun onboard | `curl -X POST http://localhost:8000/api/v1/organizations/dryrun -H "X-CA-Root-Key: $KEY" -d '{"org_slug":"test_org",...}'` | Validation result (no side effects) |
 | Onboard org | `curl -X POST http://localhost:8000/api/v1/organizations/onboard -H "X-CA-Root-Key: $KEY" -d '{"org_slug":"test_org",...}'` | 200 with API key + dataset created |
 | Org status | `curl http://localhost:8000/api/v1/organizations/test_org/status -H "X-CA-Root-Key: $KEY"` | `status: SYNCED` |
 | Org sync | `curl -X POST http://localhost:8000/api/v1/organizations/test_org/sync -H "X-CA-Root-Key: $KEY" -d '{"sync_missing_tables":true}'` | 200 with sync results |
 
-## 20 Meta Tables Checklist
+## 27 Meta Tables Checklist
 
 | # | Table | Schema File | Verified |
 |---|-------|-------------|----------|
@@ -144,7 +144,7 @@ cd 05-scheduler-jobs/scripts
 
 | Check | How | Expected |
 |-------|-----|----------|
-| Bootstrap creates 20 tables | Run bootstrap, count tables in organizations dataset | 20 tables |
+| Bootstrap creates 27 tables | Run bootstrap, count tables in organizations dataset | 27 tables |
 | Bootstrap is idempotent | Run bootstrap twice | Second run returns "already exists" |
 | Status shows SYNCED | GET /admin/bootstrap/status | `status: SYNCED` |
 | Schema sync adds column | Add column to JSON, run sync | Column added, no data loss |
@@ -166,7 +166,7 @@ cd 05-scheduler-jobs/scripts
 |----------|--------|
 | Bootstrap unit tests | 100% passing |
 | Organization unit tests | 100% passing |
-| 20 meta tables created | 20/20 |
+| 27 meta tables created | 27/27 |
 | Bootstrap idempotency | Re-run produces no errors |
 | Schema sync (no data loss) | 0 columns or rows deleted |
 | Org dataset creation | Dataset + 20+ tables + 4 views |
@@ -183,4 +183,4 @@ cd 05-scheduler-jobs/scripts
 4. **Materialized view refresh**: x_org_hierarchy auto-refreshes every 15 minutes; freshly created hierarchy entries may not appear in the view immediately
 5. **Org slug generation**: Slugs are `{company}_{base36_timestamp}` at signup; in direct API onboarding, the slug is provided explicitly (no auto-generation)
 6. **KMS key availability**: API key generation requires GCP KMS access; tests in CI mock the KMS client
-7. **20 vs 21 meta tables**: SKILL.md mentions 20 tables while CLAUDE.md references 21; the actual count depends on the current `config.yml` (verify with schema file count)
+7. **Meta table count**: The correct count is 27 meta tables (23 core + 4 chat); verify with schema file count in `config.yml`

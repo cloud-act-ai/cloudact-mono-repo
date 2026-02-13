@@ -9,7 +9,7 @@ description: |
 
 # /chat - Multi-Tenant AI Chat System
 
-BYOK AI chat for CloudAct organizations. CopilotKit frontend + Google ADK backend with 4 specialized agents (CostAnalyst, AlertManager, UsageAnalyst, Explorer) and 13 MCP tools.
+BYOK AI chat for CloudAct organizations. CopilotKit frontend + Google ADK backend with 5 specialized agents (CostAnalyst, AlertManager, BudgetManager, UsageAnalyst, Explorer) and 17 MCP tools.
 
 ## Trigger
 
@@ -58,6 +58,7 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 │  │  Orchestrator (Root)                                         │   │
 │  │  ├── CostAnalyst     → 5 MCP tools (costs domain)           │   │
 │  │  ├── AlertManager    → 4 MCP tools (alerts domain)          │   │
+│  │  ├── BudgetManager   → 4 MCP tools (budget domain)          │   │
 │  │  ├── UsageAnalyst    → 4 MCP tools (usage domain)           │   │
 │  │  └── Explorer        → BigQueryToolset (ad-hoc SQL)          │   │
 │  └─────────────────────────────────────────────────────────────┘   │
@@ -89,12 +90,13 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 
 **Flow:** Settings page → select provider → enter/reuse key → KMS encrypt → select model → save to `org_chat_settings`
 
-## MCP Tools (13 Total)
+## MCP Tools (17 Total)
 
 | Domain | Tools | Key Parameters |
 |--------|-------|----------------|
 | **Costs** (5) | query_costs, compare_periods, cost_breakdown, cost_forecast, top_cost_drivers | org_slug, provider, date range, group_by |
 | **Alerts** (4) | list_alerts, create_alert, alert_history, acknowledge_alert | org_slug, threshold, status |
+| **Budgets** (4) | list_budgets, budget_summary, budget_variance, budget_allocation_tree | org_slug, category, hierarchy_entity_id |
 | **Usage** (4) | genai_usage, quota_status, top_consumers, pipeline_runs | org_slug, provider, model, date range |
 
 **Security:** Every tool requires `org_slug` → `validate_org()` → parameterized SQL → dry_run gate (10GB) → filtered results.
@@ -125,10 +127,12 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 | `src/core/agents/orchestrator.py` | Root agent (routes to sub-agents) |
 | `src/core/agents/cost_analyst.py` | Cost analysis sub-agent |
 | `src/core/agents/alert_manager.py` | Alert management sub-agent |
+| `src/core/agents/budget_manager.py` | Budget analysis sub-agent |
 | `src/core/agents/usage_analyst.py` | Usage analysis sub-agent |
 | `src/core/agents/explorer.py` | Ad-hoc BigQuery exploration |
 | `src/core/tools/costs.py` | 5 cost MCP tools |
 | `src/core/tools/alerts.py` | 4 alert MCP tools |
+| `src/core/tools/budgets.py` | 4 budget MCP tools |
 | `src/core/tools/usage.py` | 4 usage MCP tools |
 | `src/core/tools/shared.py` | BQ client, validation, common helpers |
 | `src/core/security/org_validator.py` | Org slug format + existence check |
@@ -174,6 +178,7 @@ Use when: working on chat features, debugging chat issues, configuring BYOK sett
 | Tool timeout | BigQuery query too large | dry_run gate should catch (10GB limit) |
 | Agent not responding | LiteLlm model prefix wrong | Check provider → model mapping in constants |
 | History not loading | Conversation API 401 | Check JWT token, org membership |
+| CORS error on chat backend | `CORS_ORIGINS` env var parsed incorrectly | pydantic-settings v2 JSON-decodes env vars for complex types (`List[str]`) BEFORE `field_validator` runs. If `CORS_ORIGINS` is set as a plain string (not JSON array) in Cloud Run, parsing fails silently. Fix: declare `CORS_ORIGINS` as `str` type in config and parse manually in CORS middleware. See `07-org-chat-backend/src/app/config.py`. |
 
 ## Environments
 
@@ -232,6 +237,7 @@ curl -s "https://chat.cloudact.ai/health"
 | `/frontend-dev` | Next.js patterns. Chat UI follows CloudAct component conventions. |
 | `/api-dev` | FastAPI patterns. Chat backend follows CloudAct API conventions. |
 | `/bootstrap-onboard` | Bootstrap creates the 4 chat BigQuery tables. |
+| `/budget-planning` | BudgetManager agent queries budget data via 4 read-only tools. |
 | `/notifications` | AlertManager agent uses notification alert tools. |
 
 ## Source Specifications

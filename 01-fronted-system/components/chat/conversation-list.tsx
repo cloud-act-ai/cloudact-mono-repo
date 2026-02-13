@@ -90,7 +90,7 @@ export const ConversationList = memo(function ConversationList({
       <div className="flex items-center justify-end px-4 pb-2">
         <button
           onClick={onNew}
-          className="rounded-lg p-1.5 transition-colors text-gray-400 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800 hover:text-[var(--cloudact-mint-dark)]"
+          className="rounded-lg p-1.5 transition-colors text-gray-400 dark:text-[var(--text-muted)] hover:bg-gray-200 dark:hover:bg-[var(--text-primary)] hover:text-[var(--cloudact-mint-dark)]"
           title="New conversation"
           aria-label="Start new conversation"
         >
@@ -102,14 +102,14 @@ export const ConversationList = memo(function ConversationList({
       <div className="flex-1 overflow-y-auto px-2 py-1">
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400 dark:text-slate-500" />
+            <Loader2 className="h-5 w-5 animate-spin text-gray-400 dark:text-[var(--text-tertiary)]" />
           </div>
         )}
 
         {!loading && conversations.length === 0 && (
           <div className="px-3 py-8 text-center">
-            <MessageSquare className="mx-auto mb-2 h-8 w-8 text-gray-300 dark:text-slate-700" />
-            <p className="text-xs text-gray-400 dark:text-slate-500">No conversations yet</p>
+            <MessageSquare className="mx-auto mb-2 h-8 w-8 text-gray-300 dark:text-[var(--text-secondary)]" />
+            <p className="text-xs text-gray-400 dark:text-[var(--text-tertiary)]">No conversations yet</p>
           </div>
         )}
 
@@ -120,8 +120,8 @@ export const ConversationList = memo(function ConversationList({
             className={cn(
               "group mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
               activeId === conv.conversation_id
-                ? "bg-gray-200 dark:bg-slate-800 text-gray-900 dark:text-white"
-                : "text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800/50 hover:text-gray-700 dark:hover:text-slate-200"
+                ? "bg-gray-200 dark:bg-[var(--text-primary)] text-gray-900 dark:text-white"
+                : "text-gray-500 dark:text-[var(--text-muted)] hover:bg-gray-100 dark:hover:bg-[var(--text-primary)]/50 hover:text-gray-700 dark:hover:text-[var(--border-subtle)]"
             )}
           >
             <MessageSquare className="h-4 w-4 flex-shrink-0" />
@@ -135,7 +135,7 @@ export const ConversationList = memo(function ConversationList({
                   onBlur={handleFinishRename}
                   onKeyDown={handleEditKeyDown}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full rounded border border-[var(--cloudact-mint)]/40 bg-white px-1.5 py-0.5 text-sm text-gray-900 outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  className="w-full rounded border border-[var(--cloudact-mint)]/40 bg-white px-1.5 py-0.5 text-sm text-gray-900 outline-none dark:border-[var(--text-secondary)] dark:bg-[var(--text-primary)] dark:text-white"
                   aria-label="Rename conversation"
                 />
               ) : (
@@ -150,7 +150,7 @@ export const ConversationList = memo(function ConversationList({
                   {conv.title || `Chat ${conv.conversation_id.slice(0, 8)}`}
                 </p>
               )}
-              <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-600">
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-[var(--text-secondary)]">
                 {formatRelativeTime(conv.last_message_at || conv.created_at)}
               </p>
             </div>

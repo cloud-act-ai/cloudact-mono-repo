@@ -38,6 +38,8 @@ Orchestrator (Root) ─ customer's model + key ─ routes only, no tools
 │   └── Tools: query_costs, compare_periods, cost_breakdown, cost_forecast, top_cost_drivers
 ├── AlertManager    ─ same model + key
 │   └── Tools: list_alerts, create_alert, alert_history, acknowledge_alert
+├── BudgetManager   ─ same model + key
+│   └── Tools: list_budgets, budget_summary, budget_variance, budget_allocation_tree
 ├── UsageAnalyst    ─ same model + key
 │   └── Tools: genai_usage, quota_status, top_consumers, pipeline_runs
 └── Explorer        ─ same model + key
@@ -80,7 +82,7 @@ GET    /.well-known/agent.json                                    # A2A agent ca
 
 **Flow:** Settings page → credential stored in `org_integration_credentials` (KMS-encrypted) → chat backend loads + decrypts per-request → passes to LiteLlm → key cleared from memory after response.
 
-## MCP Tools (13 Total)
+## MCP Tools (17 Total)
 
 ### Costs (5)
 
@@ -100,6 +102,15 @@ GET    /.well-known/agent.json                                    # A2A agent ca
 | `create_alert` | threshold, provider, severity | alert_id |
 | `alert_history` | date range, limit | trigger history |
 | `acknowledge_alert` | alert_history_id | acknowledged status |
+
+### Budgets (4)
+
+| Tool | Parameters | Returns |
+|------|-----------|---------|
+| `list_budgets` | category, hierarchy_entity_id, is_active | budget configs |
+| `budget_summary` | category | budget totals by category |
+| `budget_variance` | category, hierarchy_entity_id, limit | per-budget variance detail |
+| `budget_allocation_tree` | category | hierarchy tree with allocations |
 
 ### Usage (4)
 
@@ -153,6 +164,7 @@ GET    /.well-known/agent.json                                    # A2A agent ca
 │   │   │   ├── orchestrator.py        # Root agent (routes to sub-agents)
 │   │   │   ├── cost_analyst.py        # 5 cost tools
 │   │   │   ├── alert_manager.py       # 4 alert tools
+│   │   │   ├── budget_manager.py      # 4 budget tools
 │   │   │   ├── usage_analyst.py       # 4 usage tools
 │   │   │   ├── explorer.py            # 3 explorer tools
 │   │   │   └── model_factory.py       # create_model() via LiteLlm
@@ -160,6 +172,7 @@ GET    /.well-known/agent.json                                    # A2A agent ca
 │   │   │   ├── shared.py              # safe_query, bind_org_slug, helpers
 │   │   │   ├── costs.py               # Cost tool implementations
 │   │   │   ├── alerts.py              # Alert tool implementations
+│   │   │   ├── budgets.py             # Budget tool implementations
 │   │   │   ├── usage.py               # Usage tool implementations
 │   │   │   └── explorer.py            # Explorer tool implementations + SQL parsing
 │   │   ├── security/

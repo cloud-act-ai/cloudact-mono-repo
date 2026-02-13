@@ -37,7 +37,7 @@ Defined in SKILL.md. Additional context from:
 |  Pre-Deploy                Post-Deploy                   Rollback         |
 |  ----------                -----------                   --------         |
 |  validate-env.sh           /health on each service       New patch tag    |
-|  verify-secrets.sh         status.sh <env>               (v4.2.1)        |
+|  verify-secrets.sh         status.sh <env>               (v4.4.1)        |
 |                            watch-all.sh <env> <lines>    OR traffic shift |
 |                                                          to prev revision |
 +---------------------------------------------------------------------------+
@@ -57,7 +57,7 @@ Defined in SKILL.md. Additional context from:
 
 ### FR-DC-002: Automated Production Deployment
 
-- **FR-DC-002.1**: Pushing a `v*` tag (e.g., `v4.2.0`) triggers `cloudbuild-prod.yaml` automatically
+- **FR-DC-002.1**: Pushing a `v*` tag (e.g., `v4.4.0`) triggers `cloudbuild-prod.yaml` automatically
 - **FR-DC-002.2**: Cloud Build builds Docker images for all 3 services
 - **FR-DC-002.3**: Cloud Build deploys all 3 services to Cloud Run in `cloudact-prod` project
 - **FR-DC-002.4**: Build logs are queryable via `gcloud builds list --project=cloudact-prod`
@@ -87,7 +87,7 @@ Defined in SKILL.md. Additional context from:
 
 ### FR-DC-006: Rollback Procedure
 
-- **FR-DC-006.1**: Rollback via new patch tag (e.g., `v4.2.1` pointing to previous working commit)
+- **FR-DC-006.1**: Rollback via new patch tag (e.g., `v4.4.1` pointing to previous working commit)
 - **FR-DC-006.2**: Alternative rollback: route traffic to previous Cloud Run revision via `gcloud run services update-traffic`
 - **FR-DC-006.3**: Cloud Run revision history is queryable via `gcloud run revisions list`
 - **FR-DC-006.4**: Rollback must restore all 3 services to a known-good state

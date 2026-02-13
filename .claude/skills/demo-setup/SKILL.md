@@ -307,11 +307,11 @@ After demo setup, run these to verify everything works. Replace `$ORG_SLUG` and 
 ```bash
 # API Service (8000)
 curl -s http://localhost:8000/health | jq
-# Expected: {"status":"healthy","service":"api-service","version":"v4.3.0",...}
+# Expected: {"status":"healthy","service":"api-service","version":"v4.4.0",...}
 
 # Pipeline Service (8001)
 curl -s http://localhost:8001/health | jq
-# Expected: {"status":"healthy","service":"data-pipeline-service","version":"v4.3.0",...}
+# Expected: {"status":"healthy","service":"data-pipeline-service","version":"v4.4.0",...}
 
 # Chat Backend (8002)
 curl -s http://localhost:8002/health | jq

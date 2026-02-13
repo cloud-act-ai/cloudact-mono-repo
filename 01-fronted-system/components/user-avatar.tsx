@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { getUserInitials } from "@/lib/nav-data"
 
 interface UserAvatarProps {
   user: {
@@ -13,25 +14,6 @@ interface UserAvatarProps {
   size?: "sm" | "md" | "lg" | "xl"
   className?: string
   showRing?: boolean
-}
-
-function getUserInitials(name?: string, email?: string): string {
-  if (name && name.trim()) {
-    const parts = name.trim().split(/\s+/)
-    if (parts.length >= 2) {
-      // First and last name initials
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    }
-    // Single name - use first 2 chars
-    return name.slice(0, 2).toUpperCase()
-  }
-
-  if (email) {
-    // Use first 2 chars of email
-    return email.slice(0, 2).toUpperCase()
-  }
-
-  return "U"
 }
 
 const sizeClasses = {

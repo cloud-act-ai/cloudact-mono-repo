@@ -63,15 +63,15 @@ function MetricCardSkeleton({ variant = "default" }: { variant?: "default" | "co
 
   return (
     <div className={cn(
-      "bg-white rounded-xl sm:rounded-2xl border border-slate-200 animate-pulse",
+      "bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] animate-pulse",
       sizeClasses[variant]
     )}>
       <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-        <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 bg-slate-200 rounded" />
-        <div className="h-3 w-16 bg-slate-200 rounded" />
+        <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 bg-[var(--surface-secondary)] rounded" />
+        <div className="h-3 w-16 bg-[var(--surface-secondary)] rounded" />
       </div>
-      <div className="h-7 sm:h-8 w-24 bg-slate-200 rounded mb-1" />
-      <div className="h-3 w-20 bg-slate-100 rounded" />
+      <div className="h-7 sm:h-8 w-24 bg-[var(--surface-secondary)] rounded mb-1" />
+      <div className="h-3 w-20 bg-[var(--surface-secondary)] rounded" />
     </div>
   )
 }
@@ -91,7 +91,7 @@ export function CostMetricCard({
   compact: useCompact = false,
   loading = false,
   className,
-  iconColor = "text-slate-600",
+  iconColor = "text-[var(--text-secondary)]",
   onClick,
 }: CostMetricCardProps) {
   // PERF-002 FIX: Memoize formatted value to prevent recalculation on parent re-renders
@@ -147,9 +147,9 @@ export function CostMetricCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-xl sm:rounded-2xl border border-slate-200",
+        "bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)]",
         "shadow-sm hover:shadow-md transition-all duration-200",
-        onClick && "cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2",
+        onClick && "cursor-pointer hover:border-[var(--border-medium)] focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2",
         sizes.container,
         className
       )}
@@ -163,7 +163,7 @@ export function CostMetricCard({
       <div className={cn("flex items-center", sizes.iconContainer)}>
         <Icon className={cn(sizes.icon, iconColor)} />
         <span className={cn(
-          "font-medium uppercase tracking-wide text-slate-500",
+          "font-medium uppercase tracking-wide text-[var(--text-tertiary)]",
           sizes.label
         )}>
           {label}
@@ -171,7 +171,7 @@ export function CostMetricCard({
       </div>
 
       {/* Value */}
-      <div className={cn("font-bold text-slate-900 tracking-tight tabular-nums", sizes.value)}>
+      <div className={cn("font-bold text-[var(--text-primary)] tracking-tight tabular-nums", sizes.value)}>
         {formattedValue}
       </div>
 
@@ -181,7 +181,7 @@ export function CostMetricCard({
         sizes.subtitle
       )}>
         {subtitle && (
-          <span className="text-slate-500">{subtitle}</span>
+          <span className="text-[var(--text-tertiary)]">{subtitle}</span>
         )}
         {trend && (
           <span className={cn(
@@ -301,7 +301,7 @@ export function YTDMetricCard({ value, currency, trend, loading, className }: Pr
       subtitle="Year to date"
       trend={trend}
       loading={loading}
-      iconColor="text-slate-600"
+      iconColor="text-[var(--text-secondary)]"
       className={className}
     />
   )

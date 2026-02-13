@@ -328,20 +328,20 @@ export function AddModelDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden rounded-2xl border-slate-200">
+      <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden rounded-2xl border-[var(--border-subtle)]">
         {/* Header with gradient */}
-        <div className="relative bg-gradient-to-br from-slate-50 to-white px-6 py-5 border-b border-slate-100">
+        <div className="relative bg-gradient-to-br from-[var(--surface-secondary)] to-white px-6 py-5 border-b border-[var(--border-subtle)]">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#90FCA6] via-blue-400 to-[#FF6C5E]" />
           <DialogHeader className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-white border border-[var(--border-subtle)] shadow-sm flex items-center justify-center">
                 {getIcon()}
               </div>
               <div>
-                <DialogTitle className="text-base font-semibold text-slate-900">
+                <DialogTitle className="text-base font-semibold text-[var(--text-primary)]">
                   {getTitle()}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-slate-500">
+                <DialogDescription className="text-sm text-[var(--text-tertiary)]">
                   Add a custom pricing entry for {providerLabel}
                 </DialogDescription>
               </div>
@@ -354,7 +354,7 @@ export function AddModelDialog({
           {type === "payg" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="model_id" className="text-sm font-medium text-slate-700">
+                <Label htmlFor="model_id" className="text-sm font-medium text-[var(--text-secondary)]">
                   Model ID <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                   <span className="sr-only">(required)</span>
                 </Label>
@@ -367,7 +367,7 @@ export function AddModelDialog({
                   aria-invalid={!!errors.model_id}
                   aria-describedby={errors.model_id ? "model_id-error" : undefined}
                   className={cn(
-                    "h-10 rounded-xl border-slate-200 focus:border-[#90FCA6] focus:ring-[#90FCA6]",
+                    "h-10 rounded-xl border-[var(--border-subtle)] focus:border-[#90FCA6] focus:ring-[#90FCA6]",
                     errors.model_id && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   )}
                 />
@@ -378,7 +378,7 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="model_family" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="model_family" className="text-sm font-medium text-[var(--text-secondary)]">
                     Model Family
                   </Label>
                   <Input
@@ -388,21 +388,21 @@ export function AddModelDialog({
                     onChange={(e) => updateField("model_family", e.target.value)}
                     maxLength={100}
                     aria-describedby="model_family-hint"
-                    className="h-10 rounded-xl border-slate-200 focus:border-[#90FCA6] focus:ring-[#90FCA6]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] focus:border-[#90FCA6] focus:ring-[#90FCA6]"
                   />
-                  <p id="model_family-hint" className="text-[10px] text-slate-400">
+                  <p id="model_family-hint" className="text-[10px] text-[var(--text-muted)]">
                     Auto-derived from model ID if not provided
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="region" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="region" className="text-sm font-medium text-[var(--text-secondary)]">
                     Region
                   </Label>
                   <Select
                     value={formData.region || "global"}
                     onValueChange={(v) => updateField("region", v)}
                   >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200">
+                    <SelectTrigger className="h-10 rounded-xl border-[var(--border-subtle)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -418,12 +418,12 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="input_per_1m" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="input_per_1m" className="text-sm font-medium text-[var(--text-secondary)]">
                     Input Price / 1M Tokens <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                     <span className="sr-only">(required)</span>
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true">$</span>
                     <Input
                       id="input_per_1m"
                       type="number"
@@ -436,7 +436,7 @@ export function AddModelDialog({
                       aria-invalid={!!errors.input_per_1m}
                       aria-describedby={errors.input_per_1m ? "input_per_1m-error" : undefined}
                       className={cn(
-                        "h-10 pl-7 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]",
+                        "h-10 pl-7 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]",
                         errors.input_per_1m && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                       )}
                     />
@@ -446,12 +446,12 @@ export function AddModelDialog({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="output_per_1m" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="output_per_1m" className="text-sm font-medium text-[var(--text-secondary)]">
                     Output Price / 1M Tokens <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                     <span className="sr-only">(required)</span>
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true">$</span>
                     <Input
                       id="output_per_1m"
                       type="number"
@@ -464,7 +464,7 @@ export function AddModelDialog({
                       aria-invalid={!!errors.output_per_1m}
                       aria-describedby={errors.output_per_1m ? "output_per_1m-error" : undefined}
                       className={cn(
-                        "h-10 pl-7 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]",
+                        "h-10 pl-7 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]",
                         errors.output_per_1m && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                       )}
                     />
@@ -477,11 +477,11 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cached_input_per_1m" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="cached_input_per_1m" className="text-sm font-medium text-[var(--text-secondary)]">
                     Cached Input / 1M (Optional)
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true">$</span>
                     <Input
                       id="cached_input_per_1m"
                       type="number"
@@ -493,7 +493,7 @@ export function AddModelDialog({
                       aria-invalid={!!errors.cached_input_per_1m}
                       aria-describedby={errors.cached_input_per_1m ? "cached_input_per_1m-error" : undefined}
                       className={cn(
-                        "h-10 pl-7 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]",
+                        "h-10 pl-7 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]",
                         errors.cached_input_per_1m && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                       )}
                     />
@@ -503,7 +503,7 @@ export function AddModelDialog({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="context_window" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="context_window" className="text-sm font-medium text-[var(--text-secondary)]">
                     Context Window
                   </Label>
                   <Input
@@ -513,14 +513,14 @@ export function AddModelDialog({
                     placeholder="128000"
                     value={formData.context_window ?? ""}
                     onChange={(e) => updateIntField("context_window", e.target.value, 0, 10000000)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="rate_limit_rpm" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="rate_limit_rpm" className="text-sm font-medium text-[var(--text-secondary)]">
                     Rate Limit (RPM)
                   </Label>
                   <Input
@@ -530,11 +530,11 @@ export function AddModelDialog({
                     placeholder="500"
                     value={formData.rate_limit_rpm ?? ""}
                     onChange={(e) => updateIntField("rate_limit_rpm", e.target.value, 0, 1000000)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="rate_limit_tpm" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="rate_limit_tpm" className="text-sm font-medium text-[var(--text-secondary)]">
                     Rate Limit (TPM)
                   </Label>
                   <Input
@@ -544,21 +544,21 @@ export function AddModelDialog({
                     placeholder="30000"
                     value={formData.rate_limit_tpm ?? ""}
                     onChange={(e) => updateIntField("rate_limit_tpm", e.target.value, 0, 1e12)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="volume_tier" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="volume_tier" className="text-sm font-medium text-[var(--text-secondary)]">
                     Volume Tier
                   </Label>
                   <Select
                     value={formData.volume_tier || "standard"}
                     onValueChange={(v) => updateField("volume_tier", v)}
                   >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200">
+                    <SelectTrigger className="h-10 rounded-xl border-[var(--border-subtle)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -572,7 +572,7 @@ export function AddModelDialog({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="volume_discount_pct" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="volume_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     Volume Discount %
                   </Label>
                   <Input
@@ -583,7 +583,7 @@ export function AddModelDialog({
                     placeholder="0"
                     value={formData.volume_discount_pct ?? ""}
                     onChange={(e) => updateField("volume_discount_pct", parseInt(e.target.value) || 0)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#90FCA6] focus:ring-[#90FCA6]"
                   />
                 </div>
               </div>
@@ -593,7 +593,7 @@ export function AddModelDialog({
           {type === "commitment" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="commitment_model_id" className="text-sm font-medium text-slate-700">
+                <Label htmlFor="commitment_model_id" className="text-sm font-medium text-[var(--text-secondary)]">
                   Model ID <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                   <span className="sr-only">(required)</span>
                 </Label>
@@ -606,7 +606,7 @@ export function AddModelDialog({
                   aria-invalid={!!errors.model_id}
                   aria-describedby={errors.model_id ? "commitment_model_id-error" : undefined}
                   className={cn(
-                    "h-10 rounded-xl border-slate-200 focus:border-blue-500 focus:ring-blue-500",
+                    "h-10 rounded-xl border-[var(--border-subtle)] focus:border-blue-500 focus:ring-blue-500",
                     errors.model_id && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   )}
                 />
@@ -618,7 +618,7 @@ export function AddModelDialog({
               {/* Issue #48: Added unit_name field for PTU type identification */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="model_group" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="model_group" className="text-sm font-medium text-[var(--text-secondary)]">
                     Model Group
                   </Label>
                   <Input
@@ -626,11 +626,11 @@ export function AddModelDialog({
                     placeholder="e.g., gpt-4, claude-3"
                     value={formData.model_group || ""}
                     onChange={(e) => updateField("model_group", e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="unit_name" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="unit_name" className="text-sm font-medium text-[var(--text-secondary)]">
                     Unit Name
                   </Label>
                   <Input
@@ -638,21 +638,21 @@ export function AddModelDialog({
                     placeholder="e.g., gpt-4-ptu, claude-3-pt"
                     value={formData.unit_name || ""}
                     onChange={(e) => updateField("unit_name", e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="commitment_type" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="commitment_type" className="text-sm font-medium text-[var(--text-secondary)]">
                     Commitment Type
                   </Label>
                   <Select
                     value={formData.commitment_type || "ptu"}
                     onValueChange={(v) => updateField("commitment_type", v)}
                   >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200">
+                    <SelectTrigger className="h-10 rounded-xl border-[var(--border-subtle)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -662,14 +662,14 @@ export function AddModelDialog({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="region" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="region" className="text-sm font-medium text-[var(--text-secondary)]">
                     Region
                   </Label>
                   <Select
                     value={formData.region || "global"}
                     onValueChange={(v) => updateField("region", v)}
                   >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200">
+                    <SelectTrigger className="h-10 rounded-xl border-[var(--border-subtle)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -685,11 +685,11 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ptu_hourly_rate" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="ptu_hourly_rate" className="text-sm font-medium text-[var(--text-secondary)]">
                     Hourly Rate per Unit
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true">$</span>
                     <Input
                       id="ptu_hourly_rate"
                       type="number"
@@ -701,7 +701,7 @@ export function AddModelDialog({
                       aria-invalid={!!errors.ptu_hourly_rate}
                       aria-describedby={errors.ptu_hourly_rate ? "ptu_hourly_rate-error" : undefined}
                       className={cn(
-                        "h-10 pl-7 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500",
+                        "h-10 pl-7 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500",
                         errors.ptu_hourly_rate && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                       )}
                     />
@@ -711,11 +711,11 @@ export function AddModelDialog({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ptu_monthly_rate" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="ptu_monthly_rate" className="text-sm font-medium text-[var(--text-secondary)]">
                     Monthly Rate per Unit
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true">$</span>
                     <Input
                       id="ptu_monthly_rate"
                       type="number"
@@ -727,7 +727,7 @@ export function AddModelDialog({
                       aria-invalid={!!errors.ptu_monthly_rate}
                       aria-describedby={errors.ptu_monthly_rate ? "ptu_monthly_rate-error" : undefined}
                       className={cn(
-                        "h-10 pl-7 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500",
+                        "h-10 pl-7 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500",
                         errors.ptu_monthly_rate && "border-[#FF6C5E] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                       )}
                     />
@@ -741,7 +741,7 @@ export function AddModelDialog({
               {/* Issue #46: Use standardized field names (min_units, max_units) */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="min_units" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="min_units" className="text-sm font-medium text-[var(--text-secondary)]">
                     Min Units
                   </Label>
                   <Input
@@ -751,11 +751,11 @@ export function AddModelDialog({
                     placeholder="1"
                     value={formData.min_units ?? ""}
                     onChange={(e) => updateIntField("min_units", e.target.value, 1, 100000)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="max_units" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="max_units" className="text-sm font-medium text-[var(--text-secondary)]">
                     Max Units
                   </Label>
                   <Input
@@ -765,11 +765,11 @@ export function AddModelDialog({
                     placeholder="100"
                     value={formData.max_units ?? ""}
                     onChange={(e) => updateIntField("max_units", e.target.value, 1, 100000)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="commitment_term_months" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="commitment_term_months" className="text-sm font-medium text-[var(--text-secondary)]">
                     Term (Months)
                   </Label>
                   <Input
@@ -779,7 +779,7 @@ export function AddModelDialog({
                     placeholder="1"
                     value={formData.commitment_term_months ?? ""}
                     onChange={(e) => updateField("commitment_term_months", parseInt(e.target.value) || 1)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -787,7 +787,7 @@ export function AddModelDialog({
               {/* Issue #46: Added tokens_per_unit_minute field */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tokens_per_unit_minute" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="tokens_per_unit_minute" className="text-sm font-medium text-[var(--text-secondary)]">
                     Tokens per Unit/Minute
                   </Label>
                   <Input
@@ -797,11 +797,11 @@ export function AddModelDialog({
                     placeholder="2500"
                     value={formData.tokens_per_unit_minute ?? ""}
                     onChange={(e) => updateIntField("tokens_per_unit_minute", e.target.value, 0, 1e12)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="min_commitment_months" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="min_commitment_months" className="text-sm font-medium text-[var(--text-secondary)]">
                     Min Commitment (Months)
                   </Label>
                   <Input
@@ -811,7 +811,7 @@ export function AddModelDialog({
                     placeholder="1"
                     value={formData.min_commitment_months ?? ""}
                     onChange={(e) => updateField("min_commitment_months", parseInt(e.target.value) || 1)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -819,7 +819,7 @@ export function AddModelDialog({
               {/* Discount and overage fields */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="term_discount_pct" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="term_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     Term Discount %
                   </Label>
                   <Input
@@ -830,11 +830,11 @@ export function AddModelDialog({
                     placeholder="0"
                     value={formData.term_discount_pct ?? ""}
                     onChange={(e) => updateField("term_discount_pct", parseInt(e.target.value) || 0)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="volume_discount_pct" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="volume_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     Volume Discount %
                   </Label>
                   <Input
@@ -845,18 +845,18 @@ export function AddModelDialog({
                     placeholder="0"
                     value={formData.volume_discount_pct ?? ""}
                     onChange={(e) => updateField("volume_discount_pct", parseInt(e.target.value) || 0)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-blue-500 focus:ring-blue-500"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">
+                  <Label className="text-sm font-medium text-[var(--text-secondary)]">
                     Supports Overage
                   </Label>
                   <Select
                     value={formData.supports_overage ? "yes" : "no"}
                     onValueChange={(v) => updateField("supports_overage", v === "yes")}
                   >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200">
+                    <SelectTrigger className="h-10 rounded-xl border-[var(--border-subtle)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -872,7 +872,7 @@ export function AddModelDialog({
           {type === "infrastructure" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="instance_type" className="text-sm font-medium text-slate-700">
+                <Label htmlFor="instance_type" className="text-sm font-medium text-[var(--text-secondary)]">
                   Instance Type <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                   <span className="sr-only">(required)</span>
                 </Label>
@@ -885,7 +885,7 @@ export function AddModelDialog({
                   aria-invalid={!!errors.instance_type}
                   aria-describedby={errors.instance_type ? "instance_type-error" : undefined}
                   className={cn(
-                    "h-10 rounded-xl border-slate-200 focus:border-[#FF6C5E] focus:ring-[#FF6C5E]",
+                    "h-10 rounded-xl border-[var(--border-subtle)] focus:border-[#FF6C5E] focus:ring-[#FF6C5E]",
                     errors.instance_type && "border-[#FF6C5E]"
                   )}
                 />
@@ -896,7 +896,7 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gpu_type" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="gpu_type" className="text-sm font-medium text-[var(--text-secondary)]">
                     GPU Type <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                     <span className="sr-only">(required)</span>
                   </Label>
@@ -907,7 +907,7 @@ export function AddModelDialog({
                   >
                     <SelectTrigger
                       className={cn(
-                        "h-10 rounded-xl border-slate-200",
+                        "h-10 rounded-xl border-[var(--border-subtle)]",
                         errors.gpu_type && "border-[#FF6C5E]"
                       )}
                       aria-invalid={!!errors.gpu_type}
@@ -928,14 +928,14 @@ export function AddModelDialog({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="region" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="region" className="text-sm font-medium text-[var(--text-secondary)]">
                     Region
                   </Label>
                   <Select
                     value={formData.region || "us-central1"}
                     onValueChange={(v) => updateField("region", v)}
                   >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200">
+                    <SelectTrigger className="h-10 rounded-xl border-[var(--border-subtle)]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -951,7 +951,7 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gpu_count" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="gpu_count" className="text-sm font-medium text-[var(--text-secondary)]">
                     GPU Count
                   </Label>
                   <Input
@@ -961,11 +961,11 @@ export function AddModelDialog({
                     placeholder="1"
                     value={formData.gpu_count ?? ""}
                     onChange={(e) => updateIntField("gpu_count", e.target.value, 1, 1000)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="gpu_memory_gb" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="gpu_memory_gb" className="text-sm font-medium text-[var(--text-secondary)]">
                     Memory (GB)
                   </Label>
                   <Input
@@ -975,16 +975,16 @@ export function AddModelDialog({
                     placeholder="24"
                     value={formData.gpu_memory_gb ?? ""}
                     onChange={(e) => updateIntField("gpu_memory_gb", e.target.value, 1, 10000)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="hourly_rate" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="hourly_rate" className="text-sm font-medium text-[var(--text-secondary)]">
                     $/Hour <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
                     <span className="sr-only">(required)</span>
                   </Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true">$</span>
                     <Input
                       id="hourly_rate"
                       type="number"
@@ -997,7 +997,7 @@ export function AddModelDialog({
                       aria-invalid={!!errors.hourly_rate}
                       aria-describedby={errors.hourly_rate ? "hourly_rate-error" : undefined}
                       className={cn(
-                        "h-10 pl-7 rounded-xl border-slate-200 font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]",
+                        "h-10 pl-7 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]",
                         errors.hourly_rate && "border-[#FF6C5E]"
                       )}
                     />
@@ -1010,7 +1010,7 @@ export function AddModelDialog({
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="spot_discount_pct" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="spot_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     Spot Discount %
                   </Label>
                   <Input
@@ -1021,11 +1021,11 @@ export function AddModelDialog({
                     placeholder="70"
                     value={formData.spot_discount_pct ?? ""}
                     onChange={(e) => updateField("spot_discount_pct", parseInt(e.target.value) || 0)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reserved_1yr_discount_pct" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="reserved_1yr_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     1yr RI %
                   </Label>
                   <Input
@@ -1036,11 +1036,11 @@ export function AddModelDialog({
                     placeholder="30"
                     value={formData.reserved_1yr_discount_pct ?? ""}
                     onChange={(e) => updateField("reserved_1yr_discount_pct", parseInt(e.target.value) || 0)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reserved_3yr_discount_pct" className="text-sm font-medium text-slate-700">
+                  <Label htmlFor="reserved_3yr_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     3yr RI %
                   </Label>
                   <Input
@@ -1051,7 +1051,7 @@ export function AddModelDialog({
                     placeholder="50"
                     value={formData.reserved_3yr_discount_pct ?? ""}
                     onChange={(e) => updateField("reserved_3yr_discount_pct", parseInt(e.target.value) || 0)}
-                    className="h-10 rounded-xl border-slate-200 font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
+                    className="h-10 rounded-xl border-[var(--border-subtle)] font-mono focus:border-[#FF6C5E] focus:ring-[#FF6C5E]"
                   />
                 </div>
               </div>
@@ -1060,11 +1060,11 @@ export function AddModelDialog({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+        <DialogFooter className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
           <Button
             variant="outline"
             onClick={handleClose}
-            className="h-10 px-4 rounded-xl border-slate-200 hover:bg-slate-100"
+            className="h-10 px-4 rounded-xl border-[var(--border-subtle)] hover:bg-[var(--surface-secondary)]"
           >
             Cancel
           </Button>

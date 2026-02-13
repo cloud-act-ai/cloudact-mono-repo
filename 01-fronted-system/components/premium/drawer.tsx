@@ -101,7 +101,7 @@ const PremiumDrawerContent = React.forwardRef<
       <DialogPrimitive.Overlay
         className={cn(
           "fixed inset-0 z-50",
-          "bg-slate-900/20 backdrop-blur-[3px]",
+          "bg-[var(--text-primary)]/20 backdrop-blur-[3px]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "duration-300"
@@ -119,7 +119,7 @@ const PremiumDrawerContent = React.forwardRef<
 
           // Premium background with glassmorphism
           "bg-white/[0.98] backdrop-blur-xl",
-          "border-l border-slate-200/80",
+          "border-l border-[var(--border-subtle)]/80",
 
           // Premium shadow
           "shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.1)]",
@@ -167,8 +167,8 @@ function PremiumDrawerHeader({
     <div
       className={cn(
         "relative flex-shrink-0 px-6 pt-6 pb-4",
-        "border-b border-slate-100",
-        "bg-gradient-to-b from-white to-slate-50/50",
+        "border-b border-[var(--border-subtle)]",
+        "bg-gradient-to-b from-white to-[var(--surface-secondary)]/50",
         className
       )}
       {...props}
@@ -179,9 +179,9 @@ function PremiumDrawerHeader({
           "absolute top-4 right-4 z-10",
           "h-9 w-9 rounded-xl",
           "flex items-center justify-center",
-          "text-slate-400 hover:text-slate-600",
-          "bg-slate-50 hover:bg-slate-100",
-          "border border-slate-200/50",
+          "text-[var(--text-muted)] hover:text-[var(--text-secondary)]",
+          "bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)]",
+          "border border-[var(--border-subtle)]/50",
           "transition-all duration-200",
           "hover:shadow-sm hover:scale-105",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint)] focus-visible:ring-offset-2"
@@ -198,9 +198,9 @@ function PremiumDrawerHeader({
             onClick={onBack}
             className={cn(
               "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0",
-              "text-slate-500 hover:text-slate-700",
-              "bg-white hover:bg-slate-50",
-              "border border-slate-200",
+              "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
+              "bg-white hover:bg-[var(--surface-secondary)]",
+              "border border-[var(--border-subtle)]",
               "transition-all duration-200 hover:shadow-sm"
             )}
           >
@@ -239,7 +239,7 @@ const PremiumDrawerTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-[18px] sm:text-[20px] font-bold text-slate-900 tracking-tight leading-tight",
+      "text-[18px] sm:text-[20px] font-bold text-[var(--text-primary)] tracking-tight leading-tight",
       className
     )}
     {...props}
@@ -258,7 +258,7 @@ const PremiumDrawerDescription = React.forwardRef<
   <DialogPrimitive.Description
     ref={ref}
     className={cn(
-      "text-[12px] sm:text-[13px] text-slate-500 mt-1.5 leading-relaxed",
+      "text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1.5 leading-relaxed",
       className
     )}
     {...props}
@@ -278,7 +278,7 @@ function PremiumDrawerBody({ className, children, ...props }: PremiumDrawerBodyP
       className={cn(
         "flex-1 overflow-y-auto",
         "px-6 py-5",
-        "scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent",
+        "scrollbar-thin scrollbar-thumb-[var(--border-subtle)] scrollbar-track-transparent",
         className
       )}
       {...props}
@@ -299,8 +299,8 @@ function PremiumDrawerFooter({ className, children, ...props }: PremiumDrawerFoo
     <div
       className={cn(
         "flex-shrink-0 px-6 py-4",
-        "border-t border-slate-100",
-        "bg-gradient-to-t from-slate-50/80 to-white",
+        "border-t border-[var(--border-subtle)]",
+        "bg-gradient-to-t from-[var(--surface-secondary)]/80 to-white",
         "flex items-center justify-end gap-3",
         className
       )}
@@ -332,10 +332,10 @@ function PremiumDrawerSection({
       {(title || description) && (
         <div className="space-y-0.5">
           {title && (
-            <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
+            <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</h3>
           )}
           {description && (
-            <p className="text-[11px] text-slate-500">{description}</p>
+            <p className="text-[11px] text-[var(--text-tertiary)]">{description}</p>
           )}
         </div>
       )}
@@ -366,13 +366,13 @@ function PremiumFormField({
 }: PremiumFormFieldProps) {
   return (
     <div className={cn("space-y-2", className)} {...props}>
-      <label className="flex items-center gap-1 text-[12px] font-medium text-slate-700">
+      <label className="flex items-center gap-1 text-[12px] font-medium text-[var(--text-secondary)]">
         {label}
         {required && <span className="text-[var(--cloudact-coral)]">*</span>}
       </label>
       {children}
       {hint && !error && (
-        <p className="text-[11px] text-slate-500">{hint}</p>
+        <p className="text-[11px] text-[var(--text-tertiary)]">{hint}</p>
       )}
       {error && (
         <p className="text-[11px] text-[var(--cloudact-coral)] font-medium">{error}</p>
@@ -395,10 +395,10 @@ const PremiumInput = React.forwardRef<HTMLInputElement, PremiumInputProps>(
       ref={ref}
       className={cn(
         "w-full h-11 sm:h-12 px-4 text-[13px] rounded-xl",
-        "bg-white border border-slate-200",
-        "placeholder:text-slate-400 text-slate-900",
+        "bg-white border border-[var(--border-subtle)]",
+        "placeholder:text-[var(--text-muted)] text-[var(--text-primary)]",
         "transition-all duration-200",
-        "hover:border-slate-300",
+        "hover:border-[var(--border-medium)]",
         "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40 focus:border-[var(--cloudact-mint)]",
         "focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
         hasError && "border-[var(--cloudact-coral)] focus:ring-[var(--cloudact-coral)]/40 focus:border-[var(--cloudact-coral)]",
@@ -424,10 +424,10 @@ const PremiumTextarea = React.forwardRef<HTMLTextAreaElement, PremiumTextareaPro
       ref={ref}
       className={cn(
         "w-full min-h-[100px] px-4 py-3 text-[13px] rounded-xl resize-none",
-        "bg-white border border-slate-200",
-        "placeholder:text-slate-400 text-slate-900",
+        "bg-white border border-[var(--border-subtle)]",
+        "placeholder:text-[var(--text-muted)] text-[var(--text-primary)]",
         "transition-all duration-200",
-        "hover:border-slate-300",
+        "hover:border-[var(--border-medium)]",
         "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40 focus:border-[var(--cloudact-mint)]",
         "focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
         hasError && "border-[var(--cloudact-coral)] focus:ring-[var(--cloudact-coral)]/40 focus:border-[var(--cloudact-coral)]",
@@ -453,10 +453,10 @@ const PremiumSelect = React.forwardRef<HTMLSelectElement, PremiumSelectProps>(
       ref={ref}
       className={cn(
         "w-full h-11 sm:h-12 px-4 text-[13px] rounded-xl appearance-none cursor-pointer",
-        "bg-white border border-slate-200",
-        "text-slate-900",
+        "bg-white border border-[var(--border-subtle)]",
+        "text-[var(--text-primary)]",
         "transition-all duration-200",
-        "hover:border-slate-300",
+        "hover:border-[var(--border-medium)]",
         "focus:outline-none focus:ring-2 focus:ring-[var(--cloudact-mint)]/40 focus:border-[var(--cloudact-mint)]",
         "focus:shadow-[0_0_20px_rgba(144,252,166,0.15)]",
         "bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M6%208l4%204%204-4%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_12px_center]",
@@ -486,22 +486,22 @@ const PremiumButton = React.forwardRef<HTMLButtonElement, PremiumButtonProps>(
     const variants = {
       primary: cn(
         "bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]",
-        "text-slate-900 font-semibold",
+        "text-[var(--text-primary)] font-semibold",
         "hover:shadow-[0_4px_20px_rgba(144,252,166,0.35)] hover:scale-[1.02]",
         "active:scale-[0.98]",
-        "disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:scale-100"
+        "disabled:from-[var(--surface-secondary)] disabled:to-[var(--surface-secondary)] disabled:text-[var(--text-muted)] disabled:shadow-none disabled:scale-100"
       ),
       secondary: cn(
-        "bg-white border border-slate-200",
-        "text-slate-700 font-medium",
-        "hover:bg-slate-50 hover:border-slate-300",
+        "bg-white border border-[var(--border-subtle)]",
+        "text-[var(--text-secondary)] font-medium",
+        "hover:bg-[var(--surface-secondary)] hover:border-[var(--border-medium)]",
         "active:scale-[0.98]",
-        "disabled:bg-slate-50 disabled:text-slate-400"
+        "disabled:bg-[var(--surface-secondary)] disabled:text-[var(--text-muted)]"
       ),
       ghost: cn(
         "bg-transparent",
-        "text-slate-600 font-medium",
-        "hover:bg-slate-100 hover:text-slate-900",
+        "text-[var(--text-secondary)] font-medium",
+        "hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]",
         "active:scale-[0.98]"
       ),
       danger: cn(
@@ -528,7 +528,7 @@ const PremiumButton = React.forwardRef<HTMLButtonElement, PremiumButtonProps>(
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
           variant === "primary" && "focus-visible:ring-[var(--cloudact-mint)]",
           variant === "danger" && "focus-visible:ring-[var(--cloudact-coral)]",
-          (variant === "secondary" || variant === "ghost") && "focus-visible:ring-slate-400",
+          (variant === "secondary" || variant === "ghost") && "focus-visible:ring-[var(--text-muted)]",
           variants[variant],
           sizes[size],
           className

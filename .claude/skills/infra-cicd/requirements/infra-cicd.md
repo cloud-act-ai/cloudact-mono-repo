@@ -101,7 +101,7 @@ All cost data MUST be unified into `cost_data_standard_1_3` (FOCUS 1.3):
 
 ### FR-ARCH-006: BigQuery Schema
 
-- **21 central tables** in `organizations` dataset (Core, Pipeline, Notifications, Other)
+- **27 central tables** in `organizations` dataset (Core, Pipeline, Notifications, Other)
 - **30+ per-org tables** in `{org_slug}_prod` dataset (Cost, Subscription, GenAI PAYG/Commitment/Infrastructure, Cloud, schema_versions)
 - **4 materialized views** per org: `x_pipeline_exec_logs`, `x_all_notifications`, `x_notification_stats`, `x_org_hierarchy`
 
@@ -131,7 +131,7 @@ All cost data MUST be unified into `cost_data_standard_1_3` (FOCUS 1.3):
 | Job | Schedule | Purpose |
 |-----|----------|---------|
 | supabase-migrate | Manual (before deploy) | Supabase DB migrations |
-| bootstrap | Manual (after API deploy) | Smart bootstrap: fresh or sync 21 meta tables |
+| bootstrap | Manual (after API deploy) | Smart bootstrap: fresh or sync 27 meta tables |
 | org-sync-all | Manual (after bootstrap) | Sync ALL org datasets |
 | quota-reset-daily | 00:00 UTC daily | Reset daily pipeline counters |
 | quota-cleanup | 01:00 UTC daily | Delete quota records >90 days |

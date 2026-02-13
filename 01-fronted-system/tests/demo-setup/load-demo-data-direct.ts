@@ -1442,6 +1442,175 @@ async function setupDemoAlerts(orgSlug: string, apiKey: string): Promise<{ chann
     return { channelCreated: !!channelId, rulesCreated, errors }
 }
 
+
+/**
+ * Set up demo budgets across hierarchy entities for all cost categories.
+ * Creates 8 sample budgets covering cloud, genai, subscription, and total
+ * at department, project, and team levels.
+ */
+async function setupDemoBudgets(orgSlug: string, apiKey: string): Promise<{ budgetsCreated: number; errors: string[] }> {
+    const API_SERVICE_URL = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const errors: string[] = []
+    let budgetsCreated = 0
+
+    console.log('\n[Step 10.5] Setting up demo budgets...')
+
+    // Budget period: current quarter (Jan-Mar 2026)
+    const periodStart = '2026-01-01'
+    const periodEnd = '2026-03-31'
+
+    const demoBudgets = [
+        // Department-level budgets
+        {
+            hierarchy_entity_id: 'DEPT-ENG',
+            hierarchy_entity_name: 'Engineering',
+            hierarchy_level_code: 'department',
+            category: 'cloud',
+            budget_type: 'monetary',
+            budget_amount: 30000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            notes: 'Q1 2026 cloud infrastructure budget for Engineering'
+        },
+        {
+            hierarchy_entity_id: 'DEPT-DS',
+            hierarchy_entity_name: 'Data Science',
+            hierarchy_level_code: 'department',
+            category: 'genai',
+            budget_type: 'monetary',
+            budget_amount: 25000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            notes: 'Q1 2026 GenAI API budget for Data Science'
+        },
+        // Project-level budgets
+        {
+            hierarchy_entity_id: 'PROJ-PLATFORM',
+            hierarchy_entity_name: 'Platform',
+            hierarchy_level_code: 'project',
+            category: 'cloud',
+            budget_type: 'monetary',
+            budget_amount: 20000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            provider: 'gcp',
+            notes: 'Q1 2026 GCP budget for Platform project'
+        },
+        {
+            hierarchy_entity_id: 'PROJ-MLPIPE',
+            hierarchy_entity_name: 'ML Pipeline',
+            hierarchy_level_code: 'project',
+            category: 'genai',
+            budget_type: 'monetary',
+            budget_amount: 20000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            provider: 'openai',
+            notes: 'Q1 2026 OpenAI budget for ML Pipeline project'
+        },
+        // Team-level budgets
+        {
+            hierarchy_entity_id: 'TEAM-BACKEND',
+            hierarchy_entity_name: 'Backend',
+            hierarchy_level_code: 'team',
+            category: 'cloud',
+            budget_type: 'monetary',
+            budget_amount: 12000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            provider: 'aws',
+            notes: 'Q1 2026 AWS budget for Backend team'
+        },
+        {
+            hierarchy_entity_id: 'TEAM-FRONTEND',
+            hierarchy_entity_name: 'Frontend',
+            hierarchy_level_code: 'team',
+            category: 'subscription',
+            budget_type: 'monetary',
+            budget_amount: 3000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            notes: 'Q1 2026 SaaS subscription budget for Frontend team'
+        },
+        {
+            hierarchy_entity_id: 'TEAM-MLOPS',
+            hierarchy_entity_name: 'ML Ops',
+            hierarchy_level_code: 'team',
+            category: 'genai',
+            budget_type: 'token',
+            budget_amount: 50000000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            provider: 'openai',
+            notes: 'Q1 2026 OpenAI token budget (50M tokens) for ML Ops team'
+        },
+        {
+            hierarchy_entity_id: 'DEPT-ENG',
+            hierarchy_entity_name: 'Engineering',
+            hierarchy_level_code: 'department',
+            category: 'total',
+            budget_type: 'monetary',
+            budget_amount: 50000,
+            currency: 'USD',
+            period_type: 'quarterly',
+            period_start: periodStart,
+            period_end: periodEnd,
+            notes: 'Q1 2026 total budget for Engineering department'
+        },
+    ]
+
+    for (const budget of demoBudgets) {
+        try {
+            const response = await fetch(
+                `${API_SERVICE_URL}/api/v1/budgets/${orgSlug}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify(budget)
+                }
+            )
+
+            if (response.ok) {
+                const created = await response.json()
+                budgetsCreated++
+                console.log(`    Budget created: ${budget.category} ${budget.budget_type} $${budget.budget_amount.toLocaleString()} for ${budget.hierarchy_entity_id}`)
+            } else {
+                const errorText = await response.text()
+                if (response.status === 400 && errorText.includes('already exists')) {
+                    console.log(`    Budget for ${budget.hierarchy_entity_id}/${budget.category} already exists (skipped)`)
+                } else {
+                    errors.push(`Failed to create budget for ${budget.hierarchy_entity_id}: ${response.status} ${errorText.substring(0, 200)}`)
+                    console.log(`    WARNING: ${errors[errors.length - 1]}`)
+                }
+            }
+        } catch (error) {
+            errors.push(`Budget creation error for ${budget.hierarchy_entity_id}: ${error}`)
+            console.log(`    WARNING: ${errors[errors.length - 1]}`)
+        }
+    }
+
+    console.log(`    Done: ${budgetsCreated} budgets created`)
+    return { budgetsCreated, errors }
+}
+
+
 // Expected cost totals for demo data (Dec 2025 - Jan 2026)
 // GenAI: 330 records, SQL JOIN of usage_raw + pricing → ~$171K
 // Cloud: 540 records across GCP/AWS/Azure/OCI → ~$370
@@ -1925,6 +2094,14 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
             }
         }
 
+        // Step 10.5: Set up demo budgets (hierarchy-based spending targets)
+        if (!config.rawOnly) {
+            const budgetResult = await setupDemoBudgets(config.orgSlug, config.apiKey)
+            if (budgetResult.errors.length > 0) {
+                result.warnings.push(...budgetResult.errors.map(e => `Budget setup: ${e}`))
+            }
+        }
+
         // 3-Layer Cost Validation (runs after pipelines complete)
         // Wait for API service to settle after heavy pipeline processing
         if (!config.rawOnly) {
@@ -2091,6 +2268,17 @@ function printFinalStatus(result: LoadResult, config: LoadConfig): void {
     console.log('   Email Channel:     ✅ Configured (demo@cloudact.ai)')
     console.log('   Daily Spike:       ✅ Alert when daily spend > $5,000')
     console.log('   Budget Threshold:  ✅ Alert at 80% of $50K monthly budget')
+
+    // Budgets
+    console.log('\n💰 Budget Planning:')
+    console.log('   Dept Cloud:        ✅ DEPT-ENG $30K quarterly')
+    console.log('   Dept GenAI:        ✅ DEPT-DS $25K quarterly')
+    console.log('   Dept Total:        ✅ DEPT-ENG $50K quarterly (all categories)')
+    console.log('   Proj Cloud:        ✅ PROJ-PLATFORM $20K (GCP)')
+    console.log('   Proj GenAI:        ✅ PROJ-MLPIPE $20K (OpenAI)')
+    console.log('   Team Cloud:        ✅ TEAM-BACKEND $12K (AWS)')
+    console.log('   Team Subscription: ✅ TEAM-FRONTEND $3K SaaS')
+    console.log('   Team Tokens:       ✅ TEAM-MLOPS 50M tokens (OpenAI)')
 
     // Auto-fixes Applied
     if (result.fixes.length > 0) {
