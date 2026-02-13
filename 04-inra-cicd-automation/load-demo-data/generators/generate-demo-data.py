@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
 Demo Data Generator for CloudAct
-Generates realistic usage, billing, and subscription data for india_inc_01022026 org.
+Generates realistic usage, billing, and subscription data for demo org.
 
 Features:
-- Full year 2025 coverage (Jan 1 - Dec 31)
-- Holiday spikes (Black Friday, Cyber Monday, Christmas, etc.)
-- Anomaly patterns (random spikes, incident weeks, summer dips)
+- 2-year coverage (Jan 1 2025 - Dec 31 2026) for beautiful line charts
+- Holiday spikes (Black Friday, Cyber Monday, Christmas, etc.) for BOTH years
+- Anomaly patterns (random spikes, incident weeks, summer dips) per year
 - Seasonal variations (Q4 higher, summer lower)
 - Weekday/weekend patterns
 - Month-end budget flush patterns
 - All 3 cost types: Cloud, GenAI, Subscription
+- 5% monthly compound growth for visible upward trend
 
 Usage:
-    python generate-demo-data.py [--start-date 2025-01-01] [--end-date 2025-12-31]
+    python generate-demo-data.py                          # Default: Jan 2025 - Dec 2026
+    python generate-demo-data.py --start-date 2025-01-01 --end-date 2026-12-31
 """
 
 import json
@@ -39,27 +41,45 @@ SUBSCRIPTIONS_DIR = DATA_DIR / "subscriptions"
 
 
 # =============================================================================
-# US Holidays 2025 - For realistic cost spikes
+# US Holidays 2025 + 2026 - For realistic cost spikes
 # =============================================================================
 
-HOLIDAYS_2025 = {
-    # Holiday: (multiplier, description)
-    date(2025, 1, 1): (1.8, "New Year's Day"),
-    date(2025, 1, 20): (1.3, "Martin Luther King Jr. Day"),
-    date(2025, 2, 17): (1.2, "Presidents Day"),
-    date(2025, 4, 18): (1.15, "Good Friday"),
-    date(2025, 5, 26): (1.25, "Memorial Day"),
-    date(2025, 7, 4): (1.5, "Independence Day"),
-    date(2025, 9, 1): (1.3, "Labor Day"),
-    date(2025, 10, 13): (1.15, "Columbus Day"),
-    date(2025, 11, 11): (1.2, "Veterans Day"),
-    date(2025, 11, 27): (1.6, "Thanksgiving"),
-    date(2025, 11, 28): (2.5, "Black Friday"),  # HUGE spike
-    date(2025, 12, 1): (2.2, "Cyber Monday"),  # HUGE spike
-    date(2025, 12, 24): (1.8, "Christmas Eve"),
-    date(2025, 12, 25): (2.0, "Christmas Day"),
-    date(2025, 12, 26): (1.7, "Boxing Day"),
-    date(2025, 12, 31): (1.9, "New Year's Eve"),
+HOLIDAYS = {
+    # === 2025 ===
+    date(2025, 1, 1): (1.8, "New Year's Day 2025"),
+    date(2025, 1, 20): (1.3, "MLK Day 2025"),
+    date(2025, 2, 17): (1.2, "Presidents Day 2025"),
+    date(2025, 4, 18): (1.15, "Good Friday 2025"),
+    date(2025, 5, 26): (1.25, "Memorial Day 2025"),
+    date(2025, 7, 4): (1.5, "Independence Day 2025"),
+    date(2025, 9, 1): (1.3, "Labor Day 2025"),
+    date(2025, 10, 13): (1.15, "Columbus Day 2025"),
+    date(2025, 11, 11): (1.2, "Veterans Day 2025"),
+    date(2025, 11, 27): (1.6, "Thanksgiving 2025"),
+    date(2025, 11, 28): (2.5, "Black Friday 2025"),
+    date(2025, 12, 1): (2.2, "Cyber Monday 2025"),
+    date(2025, 12, 24): (1.8, "Christmas Eve 2025"),
+    date(2025, 12, 25): (2.0, "Christmas Day 2025"),
+    date(2025, 12, 26): (1.7, "Boxing Day 2025"),
+    date(2025, 12, 31): (1.9, "New Year's Eve 2025"),
+    # === 2026 ===
+    date(2026, 1, 1): (1.8, "New Year's Day 2026"),
+    date(2026, 1, 19): (1.3, "MLK Day 2026"),
+    date(2026, 2, 16): (1.2, "Presidents Day 2026"),
+    date(2026, 4, 3): (1.15, "Good Friday 2026"),
+    date(2026, 5, 25): (1.25, "Memorial Day 2026"),
+    date(2026, 7, 3): (1.5, "Independence Day (observed) 2026"),
+    date(2026, 7, 4): (1.5, "Independence Day 2026"),
+    date(2026, 9, 7): (1.3, "Labor Day 2026"),
+    date(2026, 10, 12): (1.15, "Columbus Day 2026"),
+    date(2026, 11, 11): (1.2, "Veterans Day 2026"),
+    date(2026, 11, 26): (1.6, "Thanksgiving 2026"),
+    date(2026, 11, 27): (2.5, "Black Friday 2026"),
+    date(2026, 11, 30): (2.2, "Cyber Monday 2026"),
+    date(2026, 12, 24): (1.8, "Christmas Eve 2026"),
+    date(2026, 12, 25): (2.0, "Christmas Day 2026"),
+    date(2026, 12, 26): (1.7, "Boxing Day 2026"),
+    date(2026, 12, 31): (1.9, "New Year's Eve 2026"),
 }
 
 # Days around holidays also get minor bumps
@@ -70,8 +90,9 @@ HOLIDAY_ADJACENT_MULTIPLIER = 1.15
 # Anomaly Patterns - Random spikes, incidents, outages
 # =============================================================================
 
-# Random spike days throughout the year (simulates marketing campaigns, launches, etc.)
+# Random spike days throughout both years (marketing campaigns, launches, etc.)
 RANDOM_SPIKE_DAYS = [
+    # 2025
     date(2025, 1, 15),   # Q1 campaign launch
     date(2025, 2, 14),   # Valentine's Day promo
     date(2025, 3, 1),    # Q1 end push
@@ -84,16 +105,35 @@ RANDOM_SPIKE_DAYS = [
     date(2025, 10, 31),  # Halloween
     date(2025, 11, 1),   # Q4 start
     date(2025, 11, 15),  # Pre-holiday prep
+    # 2026
+    date(2026, 1, 12),   # Q1 kickoff
+    date(2026, 2, 14),   # Valentine's Day promo
+    date(2026, 3, 2),    # Q1 end push
+    date(2026, 3, 20),   # Product launch v2
+    date(2026, 4, 6),    # Q2 start
+    date(2026, 5, 5),    # Cinco de Mayo campaign
+    date(2026, 6, 10),   # Mid-year review
+    date(2026, 7, 20),   # Summer campaign
+    date(2026, 8, 24),   # Back to school
+    date(2026, 9, 15),   # Fall promo
+    date(2026, 10, 31),  # Halloween
+    date(2026, 11, 2),   # Q4 start
+    date(2026, 11, 16),  # Pre-holiday prep
+    date(2026, 12, 15),  # Year-end push
 ]
 
-# Incident week - high costs due to debugging/issues (March 10-16, 2025)
-INCIDENT_WEEK_START = date(2025, 3, 10)
-INCIDENT_WEEK_END = date(2025, 3, 16)
+# Incident weeks - high costs due to debugging/issues (one per year)
+INCIDENT_PERIODS = [
+    (date(2025, 3, 10), date(2025, 3, 16)),   # March 2025 outage
+    (date(2026, 6, 8), date(2026, 6, 14)),     # June 2026 incident
+]
 INCIDENT_MULTIPLIER = 1.8  # Higher resource usage during incidents
 
-# Summer slowdown week (August 11-17, 2025)
-SUMMER_DIP_START = date(2025, 8, 11)
-SUMMER_DIP_END = date(2025, 8, 17)
+# Summer slowdown weeks (one per year)
+SUMMER_DIP_PERIODS = [
+    (date(2025, 8, 11), date(2025, 8, 17)),   # Aug 2025 vacation week
+    (date(2026, 8, 10), date(2026, 8, 16)),   # Aug 2026 vacation week
+]
 SUMMER_DIP_MULTIPLIER = 0.6  # Lower usage during vacation week
 
 
@@ -342,12 +382,12 @@ def get_seasonal_factor(d: date) -> float:
 
 
 def get_holiday_multiplier(d: date) -> float:
-    """Return multiplier for holiday dates."""
-    if d in HOLIDAYS_2025:
-        return HOLIDAYS_2025[d][0]
+    """Return multiplier for holiday dates (works for any year in HOLIDAYS)."""
+    if d in HOLIDAYS:
+        return HOLIDAYS[d][0]
 
     # Check if adjacent to a major holiday (+/- 1 day)
-    for holiday_date, (mult, _) in HOLIDAYS_2025.items():
+    for holiday_date, (mult, _) in HOLIDAYS.items():
         if mult >= 1.5:  # Only major holidays
             if abs((d - holiday_date).days) == 1:
                 return HOLIDAY_ADJACENT_MULTIPLIER
@@ -356,14 +396,16 @@ def get_holiday_multiplier(d: date) -> float:
 
 
 def get_anomaly_multiplier(d: date) -> float:
-    """Return multiplier for anomaly periods."""
-    # Incident week (high costs)
-    if INCIDENT_WEEK_START <= d <= INCIDENT_WEEK_END:
-        return INCIDENT_MULTIPLIER
+    """Return multiplier for anomaly periods (supports multiple years)."""
+    # Incident weeks (high costs)
+    for start, end in INCIDENT_PERIODS:
+        if start <= d <= end:
+            return INCIDENT_MULTIPLIER
 
-    # Summer dip week (low costs)
-    if SUMMER_DIP_START <= d <= SUMMER_DIP_END:
-        return SUMMER_DIP_MULTIPLIER
+    # Summer dip weeks (low costs)
+    for start, end in SUMMER_DIP_PERIODS:
+        if start <= d <= end:
+            return SUMMER_DIP_MULTIPLIER
 
     # Random spike days
     if d in RANDOM_SPIKE_DAYS:
@@ -404,6 +446,11 @@ def get_combined_multiplier(d: date, start_date: date) -> float:
 def generate_run_id(provider: str, d: date) -> str:
     """Generate a deterministic run ID for a date."""
     return f"run_demo_{provider}_{d.strftime('%Y%m%d')}_{uuid.uuid4().hex[:8]}"
+
+
+def generate_ingestion_id() -> str:
+    """Generate a unique ingestion ID."""
+    return f"ing_{uuid.uuid4().hex[:12]}"
 
 
 def get_days_in_billing_cycle(billing_cycle: str) -> int:
@@ -451,7 +498,6 @@ def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict
 
                 record = {
                     "usage_date": current_date.isoformat(),
-                    "org_slug": ORG_SLUG,
                     "provider": provider_name,
                     "model": model_config["model"],
                     "model_family": model_config["model_family"],
@@ -470,6 +516,10 @@ def generate_genai_data(start_date: date, end_date: date) -> Dict[str, List[Dict
                     "x_hierarchy_level_code": None,
                     "x_hierarchy_path": None,
                     "x_hierarchy_path_names": None,
+                    "x_org_slug": ORG_SLUG,
+                    "x_genai_provider": provider_name,
+                    "x_ingestion_id": generate_ingestion_id(),
+                    "x_ingestion_date": current_date.isoformat(),
                     "x_pipeline_id": config["pipeline_id"],
                     "x_credential_id": config["credential_id"],
                     "x_pipeline_run_date": current_date.isoformat(),
@@ -534,7 +584,10 @@ def generate_gcp_billing_data(start_date: date, end_date: date) -> List[Dict]:
                 "usage_end_time": f"{current_date.isoformat()}T23:59:59Z",
                 "cost": cost,
                 "ingestion_date": current_date.isoformat(),
-                "org_slug": ORG_SLUG,
+                "x_org_slug": ORG_SLUG,
+                "x_cloud_provider": "gcp",
+                "x_ingestion_id": generate_ingestion_id(),
+                "x_ingestion_date": current_date.isoformat(),
                 "x_pipeline_id": "cloud_cost_gcp",
                 "x_credential_id": "cred_gcp_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
@@ -648,11 +701,14 @@ def generate_aws_billing_data(start_date: date, end_date: date) -> List[Dict]:
             record = {
                 # Required fields
                 "usage_date": current_date.isoformat(),
-                "org_slug": ORG_SLUG,
                 "provider": "aws",
                 "linked_account_id": "123456789012",
                 "unblended_cost": unblended_cost,
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
+                "x_org_slug": ORG_SLUG,
+                "x_cloud_provider": "aws",
+                "x_ingestion_id": generate_ingestion_id(),
+                "x_ingestion_date": current_date.isoformat(),
                 "x_pipeline_id": "cloud_cost_aws",
                 "x_credential_id": "cred_aws_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
@@ -778,11 +834,14 @@ def generate_azure_billing_data(start_date: date, end_date: date) -> List[Dict]:
             record = {
                 # Required fields
                 "usage_date": current_date.isoformat(),
-                "org_slug": ORG_SLUG,
                 "provider": "azure",
                 "subscription_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
                 "cost_in_billing_currency": cost,
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
+                "x_org_slug": ORG_SLUG,
+                "x_cloud_provider": "azure",
+                "x_ingestion_id": generate_ingestion_id(),
+                "x_ingestion_date": current_date.isoformat(),
                 "x_pipeline_id": "cloud_cost_azure",
                 "x_credential_id": "cred_azure_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
@@ -926,11 +985,14 @@ def generate_oci_billing_data(start_date: date, end_date: date) -> List[Dict]:
             record = {
                 # Required fields
                 "usage_date": current_date.isoformat(),
-                "org_slug": ORG_SLUG,
                 "provider": "oci",
                 "tenancy_id": "ocid1.tenancy.oc1..aaaaaaaademoacmeprod",
                 "cost": cost,
                 "ingestion_timestamp": f"{current_date.isoformat()}T23:59:59Z",
+                "x_org_slug": ORG_SLUG,
+                "x_cloud_provider": "oci",
+                "x_ingestion_id": generate_ingestion_id(),
+                "x_ingestion_date": current_date.isoformat(),
                 "x_pipeline_id": "cloud_cost_oci",
                 "x_credential_id": "cred_oci_demo_001",
                 "x_pipeline_run_date": current_date.isoformat(),
@@ -1160,14 +1222,20 @@ def print_summary(start_date: date, end_date: date):
     print(f"   {start_date} to {end_date} ({(end_date - start_date).days + 1} days)")
     print()
     print("🎄 HOLIDAYS WITH SPIKES:")
-    for d, (mult, name) in sorted(HOLIDAYS_2025.items()):
-        spike = "🔥" if mult >= 2.0 else "📈" if mult >= 1.5 else "↗️"
-        print(f"   {spike} {d.strftime('%b %d')}: {name} ({mult}x)")
+    for d, (mult, name) in sorted(HOLIDAYS.items()):
+        if start_date <= d <= end_date:
+            spike = "🔥" if mult >= 2.0 else "📈" if mult >= 1.5 else "↗️"
+            print(f"   {spike} {d.strftime('%Y %b %d')}: {name} ({mult}x)")
     print()
     print("⚠️ ANOMALY PERIODS:")
-    print(f"   🚨 Incident Week: {INCIDENT_WEEK_START} to {INCIDENT_WEEK_END} ({INCIDENT_MULTIPLIER}x)")
-    print(f"   🌴 Summer Dip: {SUMMER_DIP_START} to {SUMMER_DIP_END} ({SUMMER_DIP_MULTIPLIER}x)")
-    print(f"   📈 Random Spike Days: {len(RANDOM_SPIKE_DAYS)} days throughout the year")
+    for inc_start, inc_end in INCIDENT_PERIODS:
+        if start_date <= inc_start <= end_date:
+            print(f"   🚨 Incident Week: {inc_start} to {inc_end} ({INCIDENT_MULTIPLIER}x)")
+    for dip_start, dip_end in SUMMER_DIP_PERIODS:
+        if start_date <= dip_start <= end_date:
+            print(f"   🌴 Summer Dip: {dip_start} to {dip_end} ({SUMMER_DIP_MULTIPLIER}x)")
+    spike_count = len([d for d in RANDOM_SPIKE_DAYS if start_date <= d <= end_date])
+    print(f"   📈 Random Spike Days: {spike_count} days across the date range")
     print()
     print("📊 SEASONAL PATTERNS:")
     print("   Q1 (Jan-Mar): 0.85-1.05x (post-holiday recovery)")
@@ -1194,27 +1262,26 @@ def main():
     parser.add_argument("--start-date", type=str, default=None, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", type=str, default=None, help="End date (YYYY-MM-DD)")
     parser.add_argument("--seed", type=int, default=RANDOM_SEED, help="Random seed for reproducibility")
-    parser.add_argument("--demo", action="store_true", help="Generate 30 days of demo data (recommended for testing)")
-    parser.add_argument("--full-year", action="store_true", help="Generate full year of data (2025)")
+    parser.add_argument("--demo", action="store_true", help="Generate 30 days of demo data (quick test)")
+    parser.add_argument("--full-year", action="store_true", help="Generate 2 full years (Jan 2025 - Dec 2026)")
     args = parser.parse_args()
 
-    # Determine date range
+    # Determine date range (default = 2 full years for beautiful line charts)
     if args.demo:
         # Demo mode: last 30 days from today
         end_date = date.today()
         start_date = end_date - timedelta(days=29)
-    elif args.full_year:
-        # Full year mode: entire 2025
+    elif args.full_year or (not args.start_date and not args.end_date):
+        # Default: 2 full years (Jan 2025 - Dec 2026) for great line charts
         start_date = date(2025, 1, 1)
-        end_date = date(2026, 1, 2)
+        end_date = date(2026, 12, 31)
     elif args.start_date and args.end_date:
         # Custom date range
         start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
         end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
     else:
-        # Default: last 30 days (demo mode)
-        end_date = date.today()
-        start_date = end_date - timedelta(days=29)
+        start_date = date(2025, 1, 1)
+        end_date = date(2026, 12, 31)
 
     # Set random seed for reproducibility
     random.seed(args.seed)

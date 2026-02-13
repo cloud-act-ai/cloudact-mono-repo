@@ -39,9 +39,9 @@ const PIPELINE_SERVICE_URL = process.env.PIPELINE_SERVICE_URL || 'http://localho
 const CA_ROOT_API_KEY = ENV_CONFIG.caRootApiKey
 const DEMO_DATA_PATH = path.resolve(__dirname, '../../../04-inra-cicd-automation/load-demo-data')
 
-// Default date range for demo data (Dec 2025 - Jan 2026)
-const START_DATE = '2025-12-01'
-const END_DATE = '2026-01-31'
+// Default date range for demo data (Jan 2025 - Dec 2026, 2 full years)
+const START_DATE = '2025-01-01'
+const END_DATE = '2026-12-31'
 
 interface LoadConfig {
     orgSlug: string
@@ -2154,8 +2154,8 @@ async function main() {
         console.log('  --skip-raw          Same as --pipelines-only')
         console.log('  --verify-dashboard  Run Playwright dashboard verification after validation')
         console.log('  --skip-dashboard    Explicitly skip dashboard verification')
-        console.log('  --start-date=DATE   Start date (default: 2025-12-01)')
-        console.log('  --end-date=DATE     End date (default: 2026-01-31)')
+        console.log('  --start-date=DATE   Start date (default: 2025-01-01)')
+        console.log('  --end-date=DATE     End date (default: 2026-12-31)')
         console.log('')
         console.log('Modes:')
         console.log('  Full (default)      Load raw data + run pipelines')

@@ -55,7 +55,6 @@ Use when: applying brand colors, choosing typography, creating buttons, reviewin
 | Coral Light | `--cloudact-coral-light` | `#FF8A7F` | Hover states |
 | Coral Dark | `--cloudact-coral-dark` | `#E5544A` | Active states |
 | **Obsidian** | `--cloudact-obsidian` | `#0a0a0b` | Dark buttons, auth panels |
-| **Indigo** | `--cloudact-indigo` | `#4F46E5` | Premium secondary accent |
 | **Blue** | `--cloudact-blue` | `#007AFF` | Charts ONLY (never links/buttons) |
 
 ### Semantic Usage
@@ -69,6 +68,18 @@ Use when: applying brand colors, choosing typography, creating buttons, reviewin
 | Info | Blue `#3B82F6` | Charts only |
 | Warning text | Amber `#D97706` | Caution indicators |
 | Error text | Red `#DC2626` | Error messages |
+
+### Forbidden Console Colors
+
+**NEVER** use these colors in console UI (outside of charts):
+
+| Color | Why Forbidden |
+|-------|---------------|
+| Purple / Violet (`#8B5CF6`, `#7C3AED`) | Off-brand. Use slate for neutral accents. |
+| Indigo (`#4F46E5`, `#6366F1`) | Removed from brand. Use mint for primary accent. |
+| Blue (`#3B82F6`) | Reserved for chart data only. Not for buttons, links, or badges. |
+
+**Allowed substitutions:** Use `slate-600`/`slate-100` for neutral, `--cloudact-mint` for primary, `--cloudact-coral` for warnings/costs.
 
 ### Where Colors Are Allowed
 
@@ -259,6 +270,69 @@ style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
 
 ---
 
+## CSS-First Rule (CRITICAL)
+
+**Colors, font sizes, and layout constraints MUST be defined in CSS classes — NOT hardcoded in TSX files.**
+
+| DO NOT | DO |
+|--------|----|
+| `text-[14px]` in TSX | `.console-body` CSS class |
+| `text-purple-600` in TSX | `.console-color-ytd` or `text-slate-600` |
+| `bg-[#4F46E5]` in TSX | `bg-[var(--cloudact-mint)]` or CSS class |
+| `max-w-7xl mx-auto` (repeated) | `.console-page-inner` CSS class |
+
+**Why:** Hardcoded values can't be overridden at breakpoints, create inconsistency, and make design changes require touching 50+ files. CSS classes change once, apply everywhere.
+
+**CSS class source:** `globals.css` (bottom section: "Console Design System Classes")
+
+---
+
+## Layout Architecture
+
+### Dashboard Layout (Root)
+
+`app/[orgSlug]/layout.tsx` wraps ALL console pages with:
+- Sidebar (desktop) + Mobile header (mobile)
+- `<main className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">` — provides responsive padding
+
+**Individual pages do NOT need padding.** The root layout handles it.
+
+### Page Content Pattern
+
+```tsx
+// CORRECT: Inside dashboard layout
+<div className="console-page-inner">
+  {/* max-w-7xl mx-auto + vertical spacing between sections */}
+  <h1>Page Title</h1>
+  <div>Section 1</div>
+  <div>Section 2</div>
+</div>
+
+// WRONG: Don't add your own shell/padding inside dashboard
+<main className="min-h-screen bg-white">           {/* ← Nested main = wrong */}
+  <div className="max-w-7xl mx-auto px-4 py-6">    {/* ← Double padding = wrong */}
+```
+
+### Layout Classes
+
+| Class | Use | Provides |
+|-------|-----|----------|
+| `.console-page-inner` | Dashboard pages | `max-w-7xl` + `mx-auto` + vertical section spacing |
+| `.console-page-shell` | Standalone pages (auth, landing) | `min-height: 100vh` + padding (no parent layout) |
+
+### Sub-Layout Pattern
+
+Settings, integrations, and other sub-layouts should use `console-page-inner` or pass through:
+
+```tsx
+// Settings layout — provides centering for all settings pages
+export default function SettingsLayout({ children }) {
+  return <div className="console-page-inner">{children}</div>
+}
+```
+
+---
+
 ## Spacing and Layout
 
 ### Grid System
@@ -405,10 +479,17 @@ All console pages: `max-w-7xl` (1280px). Never full-bleed stretch.
 - [ ] Skip-to-content link present
 
 ### Layout
-- [ ] `max-w-7xl` on console pages
+- [ ] Uses `console-page-inner` (NOT manual `max-w-7xl mx-auto`)
+- [ ] No nested `<main>` tags inside dashboard layout
+- [ ] No redundant padding (root layout provides `p-4 md:p-6 lg:p-8`)
 - [ ] 8px grid spacing
 - [ ] No content behind fixed elements
-- [ ] Consistent padding across breakpoints
+
+### Color Compliance
+- [ ] No purple/violet/indigo in console UI (slate for neutral, mint for primary)
+- [ ] Blue used only in charts
+- [ ] Brand colors via CSS variables, not hex literals
+- [ ] No `text-[9px]` or `text-[10px]` (minimum 12px / `text-xs`)
 
 ---
 
@@ -424,6 +505,9 @@ All console pages: `max-w-7xl` (1280px). Never full-bleed stretch.
 | Sidebar overlaps content | Missing mobile breakpoint | Use Sheet on mobile |
 | Font sizes inconsistent | Hardcoded Tailwind (text-[20px]) | Use `.console-*` CSS classes |
 | Mobile text not scaling | Hardcoded px values | `.console-*` classes have mobile overrides |
+| Double padding | Page adds own `<main>` + padding inside layout | Use `console-page-inner` only (no `<main>`) |
+| Purple/indigo in console | Off-brand color | Replace with slate (neutral) or mint (primary) |
+| Left-aligned page | Missing `mx-auto` | Use `console-page-inner` CSS class |
 
 ---
 

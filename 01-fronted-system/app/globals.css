@@ -2539,32 +2539,38 @@ a.disabled {
    NEVER hardcode font sizes or brand colors in TSX files.
    ============================================ */
 
-/* ── Page Shell ─────────────────────────────────
-   Standard wrapper for ALL console pages.
-   Provides: max-width, centering, responsive padding.
-   Usage: <main className="console-page-shell">
+/* ── Page Inner ──────────────────────────────────
+   Content container for console pages.
+   Provides: max-width centering + vertical section spacing.
+   Works inside the dashboard layout (which already provides padding).
+   Usage: <div className="console-page-inner">
+   ─────────────────────────────────────────────── */
+.console-page-inner {
+  max-width: 80rem; /* 1280px = max-w-7xl */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Page Shell (standalone pages only) ──────────
+   For pages OUTSIDE the dashboard layout (auth, landing, etc).
+   Adds min-height + padding since there's no parent layout.
+   Usage: <main className="console-page-shell"><div className="console-page-inner">
    ─────────────────────────────────────────────── */
 .console-page-shell {
   min-height: 100vh;
   background: #ffffff;
-}
-
-.console-page-shell > .console-page-inner {
-  max-width: 80rem; /* 1280px = max-w-7xl */
-  margin-left: auto;
-  margin-right: auto;
-  padding: 1rem 1rem;
+  padding: 1rem;
 }
 
 @media (min-width: 640px) {
-  .console-page-shell > .console-page-inner {
+  .console-page-shell {
     padding: 1.25rem 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
-  .console-page-shell > .console-page-inner {
-    padding: 1.5rem 1.5rem;
+  .console-page-shell {
+    padding: 1.5rem;
   }
 }
 

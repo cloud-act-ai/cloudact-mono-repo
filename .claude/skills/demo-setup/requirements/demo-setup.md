@@ -61,6 +61,11 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 | FR-DS-003.4 | Load pricing (CSV), GenAI usage (NDJSON), Cloud billing (NDJSON), Subscriptions (CSV) |
 | FR-DS-003.5 | Seed hierarchy: 2 deep trees, 8 entities (Engineering + Data Science) |
 | FR-DS-003.6 | No external fix scripts - data is correct as-is |
+| FR-DS-003.7 | **NDJSON files MUST include BigQuery REQUIRED fields**: `x_org_slug`, `x_ingestion_id` (UUID), `x_ingestion_date` (YYYY-MM-DD) |
+| FR-DS-003.8 | **GenAI NDJSON MUST include** `x_genai_provider` (openai/anthropic/gemini) |
+| FR-DS-003.9 | **Cloud NDJSON MUST include** `x_cloud_provider` (gcp/aws/azure/oci) |
+| FR-DS-003.10 | Field name is `x_org_slug` (with `x_` prefix), NOT `org_slug` |
+| FR-DS-003.11 | Data generation workflow: `generate-demo-data.py` → `populate_hierarchy_in_data.py` → `load-demo-data-direct.ts` (NEVER skip hierarchy step) |
 
 ### FR-DS-004: Pipeline Execution
 
@@ -88,9 +93,10 @@ load-demo-data-direct.ts       Demo Data (Clean - No Fixes)
 
 | ID | Requirement |
 |----|-------------|
-| FR-DS-006.1 | Query `GET /api/v1/costs/{org}/total?start_date=2025-12-01&end_date=2026-01-31` |
-| FR-DS-006.2 | GenAI ~$5.3M, Cloud ~$2.9M, Subscription ~$900K, Total ~$9.1M |
+| FR-DS-006.1 | Query `GET /api/v1/costs/{org}/total?start_date=2025-01-01&end_date=2026-12-31` (full 2-year range) |
+| FR-DS-006.2 | GenAI ~$6.1M (BQ), Cloud ~$13K (BQ), Subscription TBD — exact totals depend on pricing × volume |
 | FR-DS-006.3 | Cross-validate API vs BigQuery vs Frontend |
+| FR-DS-006.4 | API date range MUST cover full data period (Jan 2025 - Dec 2026) or totals will mismatch BQ |
 
 ### FR-DS-007: Onboarding Verification (Supabase Polling)
 

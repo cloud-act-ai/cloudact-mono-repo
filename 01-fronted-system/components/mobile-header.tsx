@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from "react"
-import { Menu, Building2 } from "lucide-react"
+import { Menu, Building2, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
@@ -137,6 +137,15 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
             </span>
           </Link>
         </div>
+
+        {/* Chat shortcut */}
+        <Link
+          href={`/${orgSlug}/chat`}
+          className="h-10 w-10 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+          aria-label="Open chat"
+        >
+          <MessageSquare className="h-5 w-5" />
+        </Link>
       </header>
 
       {/* Mobile Navigation Overlay */}

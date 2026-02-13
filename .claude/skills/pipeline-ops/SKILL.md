@@ -162,13 +162,20 @@ category: "cloud_cost"
 
 All pipeline tables MUST include:
 
-| Field | Purpose | Example |
-|-------|---------|---------|
-| `x_pipeline_id` | Pipeline template name | `genai_payg_openai` |
-| `x_credential_id` | Credential used | `cred_openai_001` |
-| `x_pipeline_run_date` | Data date | `2026-01-23` |
-| `x_run_id` | Execution UUID | `run_abc123` |
-| `x_ingested_at` | Write timestamp | `2026-01-23T10:00:00Z` |
+| Field | Purpose | Example | Required In |
+|-------|---------|---------|-------------|
+| `x_org_slug` | Organization identifier | `acme_inc_mlj3ql4q` | ALL raw tables (BQ REQUIRED) |
+| `x_pipeline_id` | Pipeline template name | `genai_payg_openai` | Pipeline writes |
+| `x_credential_id` | Credential used | `cred_openai_001` | Pipeline writes |
+| `x_pipeline_run_date` | Data date | `2026-01-23` | Pipeline writes |
+| `x_run_id` | Execution UUID | `run_abc123` | Pipeline writes |
+| `x_ingested_at` | Write timestamp | `2026-01-23T10:00:00Z` | Pipeline writes |
+| `x_ingestion_id` | Per-record UUID | `uuid4()` | ALL raw tables (BQ REQUIRED) |
+| `x_ingestion_date` | Record date (YYYY-MM-DD) | `2026-01-23` | ALL raw tables (BQ REQUIRED) |
+| `x_cloud_provider` | Cloud provider name | `gcp`, `aws`, `azure`, `oci` | Cloud raw tables (BQ REQUIRED) |
+| `x_genai_provider` | GenAI provider name | `openai`, `anthropic`, `gemini` | GenAI raw tables (BQ REQUIRED) |
+
+**CRITICAL:** `x_org_slug`, `x_ingestion_id`, `x_ingestion_date` are REQUIRED in BigQuery raw table schemas. Loading data without them fails with "Missing required fields". Always use `x_org_slug` (NOT `org_slug` — the `x_` prefix is mandatory for all pipeline metadata fields).
 
 ## Getting API Keys
 
@@ -314,7 +321,7 @@ Important tables:
 ### Org Tables (Pipeline Service)
 Location: `03-data-pipeline-service/configs/{provider}/{domain}/schemas/`
 
-All schemas must include x_* lineage fields.
+All schemas must include x_* lineage fields. Key BQ REQUIRED fields: `x_org_slug`, `x_ingestion_id`, `x_ingestion_date`, plus `x_cloud_provider` (cloud) or `x_genai_provider` (GenAI). See "x_* Pipeline Lineage Fields" section above.
 
 ## Common Issues & Solutions
 
@@ -326,6 +333,23 @@ All schemas must include x_* lineage fields.
 | Auth failure | Check `X-API-Key` header and org credentials |
 | Procedure not updated | Run force sync: `{"force": true}` |
 | Column not found | Compare procedure INSERT columns with table schema |
+| `on_failure: "fail"` in YAML | Invalid value — valid values are: `stop`, `alert`, `continue` (NOT `fail`) |
+| Azure/OCI FOCUS convert fails | Config was fixed: must use `ps_type: generic.procedure_executor`, nested `procedure:` object, `${var}` syntax (not `{var}`) |
+| bq load "Missing required fields" | Raw data missing `x_org_slug`, `x_ingestion_id`, `x_ingestion_date`, `x_cloud_provider`/`x_genai_provider` |
+
+### Pipeline YAML Config Rules (Verified)
+
+```yaml
+# CORRECT format for procedure executor steps
+steps:
+  - name: focus_convert
+    ps_type: generic.procedure_executor    # NOT generic.bq_procedure
+    procedure:
+      name: sp_convert_to_focus            # Nested under procedure:
+      params:
+        org_slug: "${org_slug}"            # ${var} syntax, NOT {var}
+    on_failure: stop                        # Valid: stop, alert, continue (NOT fail)
+```
 
 ## Source Specifications
 

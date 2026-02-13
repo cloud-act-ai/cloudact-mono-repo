@@ -10,7 +10,7 @@ Manage GenAI cost pipelines, pricing overrides, and usage analysis for CloudAct.
 curl -X GET "http://localhost:8000/api/v1/genai/{org}/pricing" -H "X-API-Key: $KEY"
 
 # Get costs
-curl -X GET "http://localhost:8000/api/v1/genai/{org}/costs?start_date=2025-12-01&end_date=2025-12-25" -H "X-API-Key: $KEY"
+curl -X GET "http://localhost:8000/api/v1/genai/{org}/costs?start_date=2025-01-01&end_date=2026-12-31" -H "X-API-Key: $KEY"
 
 # Run pipeline
 curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/genai/payg/openai" -H "X-API-Key: $KEY"
@@ -62,19 +62,19 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/genai/payg/openai
 ### Usage Analysis
 ```bash
 # Get usage summary
-/genai-costs usage {org_slug} --provider openai --date 2025-12-25
+/genai-costs usage {org_slug} --provider openai --date 2026-01-15
 
 # Get usage by team
-/genai-costs usage {org_slug} --team TEAM-BACKEND --start 2025-12-01 --end 2025-12-25
+/genai-costs usage {org_slug} --team TEAM-BACKEND --start 2025-01-01 --end 2026-12-31
 ```
 
 ### Cost Analysis
 ```bash
 # Get cost summary
-/genai-costs costs {org_slug} --date 2025-12-25
+/genai-costs costs {org_slug} --date 2026-01-15
 
 # Get costs by flow
-/genai-costs costs {org_slug} --flow payg --start 2025-12-01 --end 2025-12-25
+/genai-costs costs {org_slug} --flow payg --start 2025-01-01 --end 2026-12-31
 
 # Get cost breakdown
 /genai-costs costs {org_slug} --breakdown model
@@ -101,7 +101,7 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/genai/payg/openai
 /genai-costs run {org_slug} --consolidate
 
 # Run full daily pipeline
-/genai-costs run {org_slug} --all --date 2025-12-25
+/genai-costs run {org_slug} --all --date 2026-01-15
 ```
 
 ## Data Flow
@@ -178,11 +178,11 @@ curl -X PUT "http://localhost:8000/api/v1/genai/acme_corp/pricing/payg/pricing-1
   -d '{"override_value": 2.50, "notes": "Enterprise discount", "effective_from": "2025-01-01"}'
 
 # Get usage data
-curl -X GET "http://localhost:8000/api/v1/genai/acme_corp/usage?start_date=2025-12-01&end_date=2025-12-25&provider=openai" \
+curl -X GET "http://localhost:8000/api/v1/genai/acme_corp/usage?start_date=2025-01-01&end_date=2026-12-31&provider=openai" \
   -H "X-API-Key: $ORG_API_KEY"
 
 # Get cost summary with model breakdown
-curl -X GET "http://localhost:8000/api/v1/genai/acme_corp/costs/summary?start_date=2025-12-01&end_date=2025-12-25&include_models=true" \
+curl -X GET "http://localhost:8000/api/v1/genai/acme_corp/costs/summary?start_date=2025-01-01&end_date=2026-12-31&include_models=true" \
   -H "X-API-Key: $ORG_API_KEY"
 
 # Run OpenAI PAYG pipeline

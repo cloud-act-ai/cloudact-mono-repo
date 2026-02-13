@@ -183,7 +183,7 @@ export default function CloudProvidersPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
+    <div className="console-page-inner">
       {/* Header */}
       <div className="mb-6 sm:mb-10">
         <h1 className="text-[20px] sm:text-[28px] font-bold text-slate-900 tracking-tight leading-none">

@@ -40,7 +40,7 @@ export default async function OrgRootRedirectPage({
     const integrationCount = (hasCloudIntegration ? 1 : 0) + (hasLLMIntegration ? 1 : 0)
 
     return (
-      <div className="space-y-8 max-w-7xl">
+      <div className="console-page-inner">
         {/* Clean Header */}
         <div className="space-y-1">
           <p className="text-[12px] font-medium text-slate-500 uppercase tracking-wide">Welcome back</p>

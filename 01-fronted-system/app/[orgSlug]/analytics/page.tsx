@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
   }, [totalCost, trendData.length])
 
   return (
-    <main className="console-page-shell"><div className="console-page-inner">
+    <div className="console-page-inner">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -460,6 +460,6 @@ export default function AnalyticsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div></main>
+    </div>
   )
 }

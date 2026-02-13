@@ -173,10 +173,26 @@ curl -X PUT "http://localhost:8000/api/v1/subscriptions/{org}/plans/{id}" \
 |-------|-------|----------|
 | Missing hierarchy view | Org dataset not synced | Run `/api/v1/admin/sync-org-datasets` |
 | Orphaned entity | Parent deleted | Verify parent_id exists, fix parent chain |
-| Costs not showing hierarchy | Tags don't match entity_id | Ensure cloud tags match entity IDs exactly |
+| Costs not showing hierarchy | Tags don't match entity_id | Ensure cloud tags match entity IDs exactly (see tag fields table below) |
 | Path mismatch | Parent chain inconsistent | Rebuild path via hierarchy service |
 | NULL x_hierarchy fields | No tag match found | Add proper tags to resources |
 | path_names error | ARRAY vs STRING mismatch | Use `ARRAY_TO_STRING(h.path_names, ' > ')` |
+| create_entity BQ error "STRING→TIMESTAMP" | `created_at` passed as ISO string not datetime | Fixed in API: use `datetime.now()` object, not `.isoformat()` string |
+| move_entity BQ error | STRING params for timestamps | Fixed: timestamps must be `datetime` objects, not strings |
+| Entity "already exists" 400 | Re-seeding on existing org | Expected — 400 on duplicate entities is safe to ignore |
+
+### Cloud Provider Tag Fields for Hierarchy Matching
+
+FOCUS convert stored procedures use `COALESCE` on provider-specific tag fields to resolve hierarchy. Raw data MUST set `cost_center` = entity_id in these fields:
+
+| Provider | Tag Fields | Example |
+|----------|-----------|---------|
+| GCP | `labels_json` → `$.cost_center`, `$.entity_id` | `{"cost_center":"TEAM-BACKEND","entity_id":"TEAM-BACKEND"}` |
+| AWS | `resource_tags_json` + `cost_category_json` → `$.cost_center`, `$.entity_id` | Same JSON structure |
+| Azure | `cost_center` (direct column) + `resource_tags_json` → `$.cost_center`, `$.entity_id` | Azure has a dedicated `cost_center` column |
+| OCI | `freeform_tags_json` + `defined_tags_json` → `$.cost_center`, `$.entity_id` | Same JSON structure |
+
+**Script:** `04-inra-cicd-automation/load-demo-data/scripts/populate_hierarchy_in_data.py` sets these fields per-provider.
 
 ## Schema Reference
 

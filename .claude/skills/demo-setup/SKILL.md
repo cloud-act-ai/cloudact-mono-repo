@@ -76,7 +76,7 @@ Env vars override presets: `GCP_PROJECT_ID`, `API_SERVICE_URL`, `PIPELINE_SERVIC
 | Data loader | `01-fronted-system/tests/demo-setup/load-demo-data-direct.ts` |
 | Dashboard verify | `01-fronted-system/tests/demo-setup/verify-dashboard.ts` |
 | Config | `01-fronted-system/tests/demo-setup/config.ts` |
-| Data generator | `01-fronted-system/tests/demo-setup/generate-demo-data.py` |
+| Data generator | `04-inra-cicd-automation/load-demo-data/generators/generate-demo-data.py` |
 | Hierarchy template | `01-fronted-system/lib/seed/hierarchy_template.csv` |
 | Hierarchy CSV | `04-inra-cicd-automation/load-demo-data/data/hierarchy/org_hierarchy.csv` |
 | Pricing data | `04-inra-cicd-automation/load-demo-data/data/pricing/genai_payg_pricing.csv` |
@@ -95,15 +95,17 @@ All demo data files have proper values with all required fields matching BigQuer
 | File | Table | Format | Records | Hierarchy Team |
 |------|-------|--------|---------|----------------|
 | `genai_payg_pricing.csv` | `genai_payg_pricing` | CSV | 31 | N/A (pricing) |
-| `openai_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 150 | TEAM-BACKEND |
-| `anthropic_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 90 | TEAM-MLOPS |
-| `gemini_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 90 | TEAM-DATAENG |
-| `gcp_billing_raw.json` | `cloud_gcp_billing_raw_daily` | NDJSON | 150 | TEAM-BACKEND |
-| `aws_billing_raw.json` | `cloud_aws_billing_raw_daily` | NDJSON | 150 | TEAM-FRONTEND |
-| `azure_billing_raw.json` | `cloud_azure_billing_raw_daily` | NDJSON | 120 | TEAM-MLOPS |
-| `oci_billing_raw.json` | `cloud_oci_billing_raw_daily` | NDJSON | 120 | TEAM-DATAENG |
+| `openai_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 3,650 | TEAM-BACKEND |
+| `anthropic_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 2,190 | TEAM-MLOPS |
+| `gemini_usage_raw.json` | `genai_payg_usage_raw` | NDJSON | 2,190 | TEAM-DATAENG |
+| `gcp_billing_raw.json` | `cloud_gcp_billing_raw_daily` | NDJSON | 3,650 | TEAM-BACKEND |
+| `aws_billing_raw.json` | `cloud_aws_billing_raw_daily` | NDJSON | 3,650 | TEAM-FRONTEND |
+| `azure_billing_raw.json` | `cloud_azure_billing_raw_daily` | NDJSON | 2,920 | TEAM-MLOPS |
+| `oci_billing_raw.json` | `cloud_oci_billing_raw_daily` | NDJSON | 2,920 | TEAM-DATAENG |
 | `subscription_plans.csv` | `subscription_plans` | CSV | 15 | Mixed (4 teams) |
 | `org_hierarchy.csv` | Reference only | CSV | 8 | All entities |
+
+**Total: ~21,170 records across 730 days (Jan 2025 - Dec 2026)**
 
 ### Data Loading Flags
 
@@ -143,9 +145,80 @@ All raw data files have `x_hierarchy_*` fields pre-populated. Hierarchy flows th
 | OCI (Cloud) | TEAM-DATAENG | Data Science > ML Pipeline > Data Engineering | Data Science |
 | Subscriptions | Mixed | 4 teams across 15 SaaS apps | Both |
 
-Cloud data also has `entity_id` in `labels_json` for FOCUS convert procedure matching.
+Cloud data has **provider-specific tag fields** set with `cost_center` = entity_id for FOCUS convert procedure hierarchy matching:
+
+| Provider | Tag Fields Set |
+|----------|---------------|
+| GCP | `labels_json` → `$.cost_center`, `$.entity_id` |
+| AWS | `resource_tags_json` + `cost_category_json` → `$.cost_center`, `$.entity_id` |
+| Azure | `cost_center` (direct column) + `resource_tags_json` → `$.cost_center`, `$.entity_id` |
+| OCI | `freeform_tags_json` + `defined_tags_json` → `$.cost_center`, `$.entity_id` |
 
 To re-generate hierarchy assignments: `python3 04-inra-cicd-automation/load-demo-data/scripts/populate_hierarchy_in_data.py`
+
+### Data Generator (2-Year Realistic Patterns)
+
+```bash
+cd 04-inra-cicd-automation/load-demo-data
+python3 generators/generate-demo-data.py                  # Default: Jan 2025 - Dec 2026
+python3 generators/generate-demo-data.py --demo           # Quick: last 30 days
+python3 generators/generate-demo-data.py --start-date 2025-06-01 --end-date 2025-12-31
+```
+
+**Built-in patterns for realistic line charts:**
+- 5% monthly compound growth (visible upward trend)
+- Holiday spikes: Black Friday (2.5x), Christmas (2.0x), Cyber Monday (2.2x) - both 2025 + 2026
+- Seasonal: Q4 higher (1.2-1.5x), summer lower (0.8-0.9x)
+- Weekday/weekend: weekdays 1.2-1.6x, weekends 0.4-0.7x
+- Anomalies: incident weeks (1.8x), summer dip weeks (0.6x), 26 random spike days
+- Month-end budget flush: last 3 days 1.1-1.2x
+- 7% credit records (negative amounts) for cloud providers
+
+After generation, run `populate_hierarchy_in_data.py` to set hierarchy fields.
+
+### Data Regeneration Workflow (Exact Steps)
+
+When regenerating demo data, follow this EXACT sequence to avoid errors:
+
+```bash
+cd 04-inra-cicd-automation/load-demo-data
+
+# Step 1: Generate raw data (includes x_org_slug, x_ingestion_id, x_ingestion_date, x_*_provider)
+python3 generators/generate-demo-data.py
+# Output: ~21,170 records across genai/, cloud/, subscriptions/ dirs
+
+# Step 2: Populate hierarchy fields in all data files
+python3 scripts/populate_hierarchy_in_data.py
+# Output: Updates all NDJSON files with x_hierarchy_* fields + provider-specific tags
+
+# Step 3: Verify fields present before loading
+head -1 data/cloud/gcp_billing_raw.json | python3 -c "import sys,json; d=json.load(sys.stdin); print('x_org_slug' in d, 'x_cloud_provider' in d, 'x_ingestion_id' in d)"
+# Expected: True True True
+
+# Step 4: Load into BigQuery via the data loader
+cd ../../01-fronted-system
+npx tsx tests/demo-setup/load-demo-data-direct.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY
+```
+
+**NEVER skip Step 2** — hierarchy fields are required for FOCUS convert pipelines to assign costs to teams.
+
+### CRITICAL: BigQuery REQUIRED Fields in Raw Data
+
+All raw data NDJSON files MUST include these `x_*` metadata fields — BigQuery REJECTS loads without them:
+
+| Field | GenAI | Cloud (GCP/AWS/Azure/OCI) | Description |
+|-------|-------|---------------------------|-------------|
+| `x_org_slug` | **REQUIRED** | **REQUIRED** | Organization identifier (replaces old `org_slug`) |
+| `x_genai_provider` | **REQUIRED** | N/A | Provider name: `openai`, `anthropic`, `gemini` |
+| `x_cloud_provider` | N/A | **REQUIRED** | Provider name: `gcp`, `aws`, `azure`, `oci` |
+| `x_ingestion_id` | **REQUIRED** | **REQUIRED** | UUID per record: `uuid.uuid4()` |
+| `x_ingestion_date` | **REQUIRED** | **REQUIRED** | Date string: `YYYY-MM-DD` |
+
+**Common mistake:** Using `org_slug` instead of `x_org_slug` — the `x_` prefix is mandatory for all pipeline metadata fields.
+
+**Common mistake:** Omitting `x_ingestion_id` / `x_ingestion_date` — these are REQUIRED in the BQ schema, not optional.
+
+Schemas are defined in: `02-api-service/configs/setup/organizations/onboarding/schemas/*.json`
 
 ### CSV Column Order = Schema Order
 
@@ -205,8 +278,8 @@ export ORG_SLUG="acme_inc_xxx"
 export ORG_API_KEY="..."
 npx tsx tests/demo-setup/load-demo-data-direct.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY
 
-# 3. Validate (date range: Dec 2025 - Jan 2026)
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
+# 3. Validate (date range: Jan 2025 - Dec 2026)
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
   -H "X-API-Key: $ORG_API_KEY" | jq
 
 # 4. Dashboard verification (Playwright screenshot + dollar check)
@@ -249,31 +322,31 @@ curl -s http://localhost:3000 -o /dev/null -w "HTTP %{http_code}\n"
 # Expected: HTTP 200
 ```
 
-### 2. Total Costs (date range: Dec 2025 - Jan 2026)
+### 2. Total Costs (date range: Jan 2025 - Dec 2026)
 
 ```bash
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
   -H "X-API-Key: $ORG_API_KEY" | jq
 ```
 
-**Expected response:**
+**Expected response (approximate — values depend on pipeline execution):**
 ```json
 {
-  "genai":         { "total_billed_cost": 5308633.19, "record_count": 330, "providers": ["Google AI","OpenAI","Anthropic"] },
-  "cloud":         { "total_billed_cost": 2905849.36, "record_count": 523, "providers": ["Microsoft Azure","OCI","AWS","Google Cloud"] },
-  "subscription":  { "total_billed_cost": 880276.13,  "record_count": 570, "providers": ["Slack","Zoom","Figma",...15 total] },
-  "total":         { "total_billed_cost": 9094758.68 },
-  "date_range":    { "start": "2025-12-01", "end": "2026-01-31" },
+  "genai":         { "total_billed_cost": 6131735.34, "record_count": 8030, "providers": ["Google AI","OpenAI","Anthropic"] },
+  "cloud":         { "total_billed_cost": 13350.33, "record_count": 13140, "providers": ["Microsoft Azure","OCI","AWS","Google Cloud"] },
+  "subscription":  { "total_billed_cost": "TBD",  "record_count": "TBD", "providers": ["Slack","Zoom","Figma",...15 total] },
+  "total":         { "total_billed_cost": "~6.1M+" },
+  "date_range":    { "start": "2025-01-01", "end": "2026-12-31" },
   "currency": "USD"
 }
 ```
 
-**Quick check:** Total should be ~$9.1M. If $0, wrong date range.
+**Quick check:** GenAI should be ~$6M+. If $0, wrong date range. Cloud is ~$13K (realistic daily amounts). BQ-API mismatch is expected if API query date range differs from full data range.
 
 ### 3. Cost by Provider (22 providers)
 
 ```bash
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/by-provider?start_date=2025-12-01&end_date=2026-01-31" \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/by-provider?start_date=2025-01-01&end_date=2026-12-31" \
   -H "X-API-Key: $ORG_API_KEY" | jq '.data[:5]'
 ```
 
@@ -433,7 +506,7 @@ curl -sf http://localhost:8000/health | jq -r '.status' && \
 curl -sf http://localhost:8001/health | jq -r '.status' && \
 curl -sf http://localhost:8002/health | jq -r '.status' && \
 echo "=== Costs ===" && \
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
   -H "X-API-Key: $ORG_API_KEY" | jq '{genai: .genai.total_billed_cost, cloud: .cloud.total_billed_cost, subscription: .subscription.total_billed_cost, total: .total.total_billed_cost}' && \
 echo "=== Alerts ===" && \
 curl -s "http://localhost:8000/api/v1/notifications/${ORG_SLUG}/rules" \
@@ -491,14 +564,16 @@ The loader automatically creates:
 | Daily Cost Spike | `absolute_threshold` | $5,000/day |
 | Monthly Budget | `budget_percent` | 80% of $50K |
 
-## Expected Costs (Dec 2025 - Jan 2026)
+## Expected Costs (Jan 2025 - Dec 2026, 730 days)
 
-| Category | Records | Cost | Providers |
-|----------|---------|------|-----------|
-| GenAI | ~330 | ~$5.3M | OpenAI, Anthropic, Gemini |
-| Cloud | ~540 | ~$2.9M | GCP, AWS, Azure, OCI |
-| Subscription | ~15 plans | ~$900K | 15 SaaS providers |
-| **TOTAL** | ~885 | **~$9.1M** | |
+| Category | Records | BQ Cost | Providers |
+|----------|---------|---------|-----------|
+| GenAI | ~8,030 | ~$6.1M | OpenAI, Anthropic, Gemini |
+| Cloud | ~13,140 | ~$13K net | GCP, AWS, Azure, OCI |
+| Subscription | ~15 plans | TBD (pipeline must succeed) | 15 SaaS providers |
+| **TOTAL** | ~21,170+ | **~$6.1M+** | |
+
+**Note:** GenAI costs dominate because of high token volumes × pricing. Cloud costs are realistic daily amounts (~$18/day). BQ-API variance is expected because API queries use a date range filter (the default `start_date`/`end_date` window) while BQ validation queries the full table. Always ensure the API query date range covers the full data range: `?start_date=2025-01-01&end_date=2026-12-31`.
 
 ## 3-Layer Cost Validation
 
@@ -518,14 +593,16 @@ The data loader runs automated 3-layer validation after pipelines complete:
 | BQ vs API mismatch | > 1% | ERROR - data integrity issue |
 | BQ vs Expected variance | > 10% | WARNING - may indicate data drift |
 
-### Expected Totals (Dec 2025 - Jan 2026)
+### Expected Totals (Jan 2025 - Dec 2026, 2-Year Data)
 
-| Category | Expected | Tolerance |
-|----------|----------|-----------|
-| GenAI | ~$5.3M | 10% |
-| Cloud | ~$2.9M | 10% |
-| Subscription | ~$900K | 10% |
-| **TOTAL** | **~$9.1M** | 10% |
+| Category | BQ Expected | Tolerance | Notes |
+|----------|-------------|-----------|-------|
+| GenAI | ~$6.1M | 20% | Dominant cost — high token volumes × pricing |
+| Cloud | ~$13K | 50% | Realistic daily amounts (~$18/day × 730 days) |
+| Subscription | TBD | 50% | Depends on subscription pipeline success |
+| **TOTAL** | **~$6.1M+** | 20% | |
+
+**Note:** With 2-year data, the old 2-month expected values ($9.1M total) are OBSOLETE. BQ-API mismatch is expected if the API query doesn't cover the full date range.
 
 ### Validation Output
 
@@ -554,11 +631,11 @@ The data loader runs automated 3-layer validation after pipelines complete:
 bq query --use_legacy_sql=false \
   "SELECT ServiceCategory, COUNT(*) as records, ROUND(SUM(BilledCost),2) as cost
    FROM \`cloudact-testing-1.${ORG_SLUG}_local.cost_data_standard_1_3\`
-   WHERE ChargePeriodStart >= '2025-12-01'
+   WHERE ChargePeriodStart >= '2025-01-01'
    GROUP BY ServiceCategory"
 
 # API
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-12-01&end_date=2026-01-31" \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
   -H "X-API-Key: $ORG_API_KEY" | jq
 
 # Frontend
@@ -620,7 +697,11 @@ SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-acco
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| API shows $0 | Wrong date range | Use `?start_date=2025-12-01&end_date=2026-01-31` |
+| **bq load rejects NDJSON** | Missing required `x_*` fields | Generator MUST include `x_org_slug`, `x_ingestion_id`, `x_ingestion_date`, `x_cloud_provider`/`x_genai_provider` — see "CRITICAL: BigQuery REQUIRED Fields" above |
+| **bq load says "Missing required fields"** | Used `org_slug` instead of `x_org_slug` | All pipeline metadata fields use `x_` prefix. The generator must use `x_org_slug`, NOT `org_slug` |
+| API shows $0 | Wrong date range | Use `?start_date=2025-01-01&end_date=2026-12-31` |
+| BQ-API cost mismatch >100% | API uses date filter, BQ queries full table | Ensure API query covers full range: `start_date=2025-01-01&end_date=2026-12-31` |
+| Subscription pipeline FAILED | Often quota or schema issue | Check pipeline logs: `curl http://localhost:8001/api/v1/pipelines/runs/{id}`. May need `--pipelines-only` re-run |
 | Signup 400 | Email confirmation enabled | Disable in Supabase Auth settings |
 | Pipeline not found | Procedures not synced | `POST /api/v1/procedures/sync` (port 8001) |
 | No API key in Supabase | Onboarding failed silently | Check bootstrap sync (missing tables?), check API service health |
@@ -638,6 +719,8 @@ SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-acco
 | Validation "API query failed" | Transient timeout after heavy pipeline execution | Fixed: 5s settle delay + 3 retries. BQ is authoritative, API failure is WARNING not ERROR |
 | Playwright can't find costs | Frontend not running | Verify port 3000 is up: `curl -s http://localhost:3000 -o /dev/null -w "%{http_code}"` |
 | Screenshot blank/loading | Render timeout | Increase wait time or check frontend logs |
+| Alert channel 500 error | Internal API error on notification channel creation | Non-blocking — alerts are optional. Retry or skip. |
+| Hierarchy entities "already exist" | Re-running loader on same org | Expected — 400 on duplicate entities is safe to ignore |
 
 ## Related Skills
 

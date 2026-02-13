@@ -118,6 +118,22 @@ WHERE partition_date = CURRENT_DATE()
 -- Check "Bytes processed" in dry run
 ```
 
+## CRITICAL: x_* Fields in Raw Data Tables
+
+All org-specific raw data tables (in `{org_slug}_prod` dataset) have REQUIRED `x_*` fields in their BigQuery schemas. Loading NDJSON data without these fields fails with "Missing required fields":
+
+| Field | Required In | Description |
+|-------|-------------|-------------|
+| `x_org_slug` | ALL raw tables | Org identifier (NOT `org_slug` — must have `x_` prefix) |
+| `x_ingestion_id` | ALL raw tables | UUID per record |
+| `x_ingestion_date` | ALL raw tables | Date string: `YYYY-MM-DD` |
+| `x_cloud_provider` | Cloud raw tables | `gcp`, `aws`, `azure`, `oci` |
+| `x_genai_provider` | GenAI raw tables | `openai`, `anthropic`, `gemini` |
+
+**Note:** Meta tables in `organizations` dataset use `org_slug` (no prefix). Only pipeline/org-specific tables use `x_org_slug`.
+
+Schemas: `02-api-service/configs/setup/organizations/onboarding/schemas/*.json`
+
 ## 14 Bootstrap Tables (organizations dataset)
 
 **Note:** All tables use `org_slug` as the tenant identifier (NOT `org_id`).

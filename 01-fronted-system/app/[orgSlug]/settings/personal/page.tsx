@@ -300,7 +300,7 @@ export default function PersonalSettingsPage() {
   }
 
   return (
-    <main className="console-page-shell"><div className="console-page-inner">
+    <div className="console-page-inner">
       {/* Header - Same pattern as dashboard */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="flex items-start gap-3 sm:gap-4">
@@ -721,6 +721,6 @@ export default function PersonalSettingsPage() {
           </PremiumCard>
         </div>
       )}
-    </div></main>
+    </div>
   )
 }

@@ -1,19 +1,16 @@
 "use client"
 
 /**
- * Editorial Dashboard Sidebar
+ * Dashboard Sidebar - matches mobile nav style
  *
- * Two-zone layout with accordion behavior:
+ * Independent collapse (all sections open by default).
+ * Plus/Minus toggles. Mint active state. Flat grouped navigation.
  *
- * Main Content (scrollable):
- * - Account Summary, Cost Analytics, Pipelines, Integrations, Org Settings
- * - Accordion: only one section expanded at a time
- * - Auto-expand based on current route
- * - Mint left accent for active items
+ * Section order (matches mobile nav):
+ * 1. AI Chat, 2. Account Summary, 3. Cost Analytics,
+ * 4. Pipelines, 5. Integrations, 6. Notifications, 7. Org Settings
  *
- * Footer:
- * - User Profile (clickable → /settings/personal)
- * - Get Help, Sign Out
+ * Footer: User Profile, Get Help, Sign Out
  */
 
 import type * as React from "react"
@@ -34,9 +31,9 @@ import {
   User,
   Building,
   UserPlus,
-  ChevronDown,
-  ChevronRight,
   HelpCircle,
+  Minus,
+  Plus,
   BarChart3,
   LayoutDashboard,
   Receipt,
@@ -67,8 +64,7 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type NonNullSectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "notifications" | "chat" | "settings"
-type SectionId = NonNullSectionId | null
+type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "notifications" | "chat" | "settings"
 
 function formatOrgName(name: string): string {
   // Strip trailing date suffix (e.g., "_01022026") for legacy slug-based names
@@ -157,31 +153,43 @@ export function DashboardSidebar({
   const [isLoading, setIsLoading] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [logoLoading, setLogoLoading] = useState(true)
-  // Accordion: only one section open at a time
-  const [activeSection, setActiveSection] = useState<SectionId>("dashboards")
+  // All sections expanded by default (like mobile nav)
+  const [openSections, setOpenSections] = useState<Set<SectionId>>(
+    new Set(["chat", "dashboards", "cost-analytics", "pipelines", "integrations", "notifications", "settings"])
+  )
 
   const formattedOrgName = formatOrgName(orgName)
   const { state, toggleSidebar } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  // Auto-expand section based on current route
+  // Auto-expand the section matching current route
   useEffect(() => {
     if (!pathname) return
 
+    let section: SectionId | null = null
     if (pathname.endsWith("/dashboard") || pathname.includes("/dashboard/")) {
-      setActiveSection("dashboards")
+      section = "dashboards"
     } else if (pathname.includes("/cost-dashboards")) {
-      setActiveSection("cost-analytics")
+      section = "cost-analytics"
     } else if (pathname.includes("/pipelines")) {
-      setActiveSection("pipelines")
+      section = "pipelines"
     } else if (pathname.includes("/integrations")) {
-      setActiveSection("integrations")
+      section = "integrations"
     } else if (pathname.includes("/notifications")) {
-      setActiveSection("notifications")
+      section = "notifications"
     } else if (pathname.includes("/chat")) {
-      setActiveSection("chat")
+      section = "chat"
     } else if (pathname.includes("/settings") || pathname.includes("/billing")) {
-      setActiveSection("settings")
+      section = "settings"
+    }
+
+    if (section) {
+      setOpenSections(prev => {
+        if (prev.has(section!)) return prev
+        const next = new Set(prev)
+        next.add(section!)
+        return next
+      })
     }
   }, [pathname])
 
@@ -223,8 +231,15 @@ export function DashboardSidebar({
   }
 
   const toggleSection = (section: SectionId) => {
-    // Toggle: collapse if same section clicked, otherwise expand new section
-    setActiveSection((prev) => (prev === section ? null : section))
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (next.has(section)) {
+        next.delete(section)
+      } else {
+        next.add(section)
+      }
+      return next
+    })
   }
 
   // Active state helper
@@ -234,32 +249,19 @@ export function DashboardSidebar({
     return pathname === path || pathname.startsWith(path + "/")
   }
 
-  // Premium editorial styling - refined menu items with subtle interactions
-  // Using text-sm (14px) for better readability, subtle hover states
+  // Match mobile nav style: clean flat buttons with mint active state
+  // Font: 14px nav items (industry standard: Notion, GitHub, Stripe)
   const itemClass = cn(
-    "h-[36px] px-3 text-sm font-medium text-slate-600",
-    "hover:bg-slate-100 hover:text-slate-900",
-    "rounded-md mx-2 transition-all duration-200",
-    "flex items-center gap-3"
+    "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[42px]",
+    "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+    "text-sm"
   )
   const activeItemClass = cn(
-    "h-[36px] px-3 text-sm font-semibold text-[var(--cloudact-mint-text)]",
-    "bg-[var(--cloudact-mint)]/10 rounded-md mx-2",
-    "flex items-center gap-3",
-    "relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2",
-    "before:w-[3px] before:h-4 before:bg-[var(--cloudact-mint)] before:rounded-r-full"
+    "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg min-h-[42px]",
+    "bg-[#90FCA6]/15 text-slate-900 font-semibold",
+    "text-sm [&_svg]:text-[#16a34a]"
   )
 
-  // Section icons for visual hierarchy - slightly larger
-  const sectionIcons: Record<NonNullSectionId, React.ReactNode> = {
-    dashboards: <BarChart3 className="h-4 w-4" />,
-    "cost-analytics": <TrendingUp className="h-4 w-4" />,
-    pipelines: <Workflow className="h-4 w-4" />,
-    integrations: <Server className="h-4 w-4" />,
-    notifications: <Bell className="h-4 w-4" />,
-    chat: <MessageSquare className="h-4 w-4" />,
-    settings: <Settings className="h-4 w-4" />,
-  }
 
   const SectionHeader = ({
     title,
@@ -268,51 +270,29 @@ export function DashboardSidebar({
     badge,
   }: {
     title: string
-    section: NonNullSectionId
+    section: SectionId
     isExpanded: boolean
     badge?: string
   }) => (
-    <div
-      className={cn(
-        "py-3 px-4 flex items-center justify-between cursor-pointer group",
-        "hover:bg-slate-50 transition-colors duration-200",
-        isExpanded && "bg-slate-50/50"
-      )}
+    <button
       onClick={() => toggleSection(section)}
+      className="w-full px-4 pt-4 pb-2 flex items-center justify-between group cursor-pointer"
     >
-      <div className="flex items-center gap-2.5">
-        <span className={cn(
-          "text-slate-400 transition-colors group-hover:text-slate-600",
-          isExpanded && "text-[var(--cloudact-mint-text)]"
-        )}>
-          {sectionIcons[section]}
-        </span>
-        <span className={cn(
-          "text-xs font-semibold uppercase tracking-wider transition-colors",
-          isExpanded ? "text-slate-900" : "text-slate-500 group-hover:text-slate-700"
-        )}>
-          {title}
-        </span>
+      <span className="text-[11px] font-semibold text-slate-400 tracking-wide">
+        {title}
         {badge && (
-          <span className="rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--cloudact-coral)]">
+          <span className="ml-2 rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">
             {badge}
           </span>
         )}
-      </div>
-      <div className={cn(
-        "h-5 w-5 rounded-md flex items-center justify-center transition-all",
-        isExpanded ? "bg-[var(--cloudact-mint)]/10" : "bg-transparent"
-      )}>
-        {isExpanded ? (
-          <ChevronDown className={cn(
-            "h-3.5 w-3.5 transition-colors",
-            isExpanded ? "text-[var(--cloudact-mint-text)]" : "text-slate-400"
-          )} />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-500" />
-        )}
-      </div>
-    </div>
+      </span>
+      <span className="text-slate-300 group-hover:text-slate-500 transition-colors">
+        {isExpanded
+          ? <Minus className="h-3.5 w-3.5" />
+          : <Plus className="h-3.5 w-3.5" />
+        }
+      </span>
+    </button>
   )
 
   return (
@@ -377,12 +357,62 @@ export function DashboardSidebar({
       <SidebarContent className="px-0 py-2 overflow-y-auto">
         <SidebarMenu className="gap-0">
 
+          {/* AI Chat Section */}
+          {!isCollapsed && (
+            <SectionHeader
+              title="AI Chat"
+              section="chat"
+              isExpanded={openSections.has("chat")}
+              badge="Beta"
+            />
+          )}
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
+                <Link href={`/${orgSlug}/chat`}>
+                  <MessageSquare className="h-4 w-4 text-slate-500" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && openSections.has("chat") && (
+            <div className="px-2 pb-0.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/chat`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/chat`}>
+                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                    <span>Chat</span>
+                    <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">Beta</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/settings/ai-chat`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/settings/ai-chat`}>
+                    <Settings className="h-4 w-4 flex-shrink-0" />
+                    <span>Chat Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </div>
+          )}
+
           {/* Account Summary Section */}
           {!isCollapsed && (
             <SectionHeader
               title="Account Summary"
               section="dashboards"
-              isExpanded={activeSection === "dashboards"}
+              isExpanded={openSections.has("dashboards")}
             />
           )}
           {isCollapsed && (
@@ -394,8 +424,8 @@ export function DashboardSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && activeSection === "dashboards" && (
-            <div className="pb-2 space-y-0.5">
+          {!isCollapsed && openSections.has("dashboards") && (
+            <div className="px-2 pb-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -417,7 +447,7 @@ export function DashboardSidebar({
             <SectionHeader
               title="Cost Analytics"
               section="cost-analytics"
-              isExpanded={activeSection === "cost-analytics"}
+              isExpanded={openSections.has("cost-analytics")}
             />
           )}
           {isCollapsed && (
@@ -429,8 +459,8 @@ export function DashboardSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && activeSection === "cost-analytics" && (
-            <div className="pb-2 space-y-0.5">
+          {!isCollapsed && openSections.has("cost-analytics") && (
+            <div className="px-2 pb-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -491,7 +521,7 @@ export function DashboardSidebar({
             <SectionHeader
               title="Pipelines"
               section="pipelines"
-              isExpanded={activeSection === "pipelines"}
+              isExpanded={openSections.has("pipelines")}
             />
           )}
           {isCollapsed && (
@@ -503,8 +533,8 @@ export function DashboardSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && activeSection === "pipelines" && (
-            <div className="pb-2 space-y-0.5">
+          {!isCollapsed && openSections.has("pipelines") && (
+            <div className="px-2 pb-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -552,7 +582,7 @@ export function DashboardSidebar({
             <SectionHeader
               title="Integrations"
               section="integrations"
-              isExpanded={activeSection === "integrations"}
+              isExpanded={openSections.has("integrations")}
             />
           )}
           {isCollapsed && (
@@ -564,8 +594,8 @@ export function DashboardSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && activeSection === "integrations" && (
-            <div className="pb-2 space-y-0.5">
+          {!isCollapsed && openSections.has("integrations") && (
+            <div className="px-2 pb-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -613,7 +643,7 @@ export function DashboardSidebar({
             <SectionHeader
               title="Notifications"
               section="notifications"
-              isExpanded={activeSection === "notifications"}
+              isExpanded={openSections.has("notifications")}
             />
           )}
           {isCollapsed && (
@@ -625,8 +655,8 @@ export function DashboardSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && activeSection === "notifications" && (
-            <div className="pb-2 space-y-0.5">
+          {!isCollapsed && openSections.has("notifications") && (
+            <div className="px-2 pb-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -695,62 +725,12 @@ export function DashboardSidebar({
             </div>
           )}
 
-          {/* AI Chat Section */}
-          {!isCollapsed && (
-            <SectionHeader
-              title="AI Chat"
-              section="chat"
-              isExpanded={activeSection === "chat"}
-              badge="Beta"
-            />
-          )}
-          {isCollapsed && (
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
-                <Link href={`/${orgSlug}/chat`}>
-                  <MessageSquare className="h-4 w-4 text-slate-500" />
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
-          {!isCollapsed && activeSection === "chat" && (
-            <div className="pb-2 space-y-0.5">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className={cn(
-                    isActive(`/${orgSlug}/chat`) ? activeItemClass : itemClass
-                  )}
-                >
-                  <Link href={`/${orgSlug}/chat`}>
-                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                    <span>Chat</span>
-                    <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">Beta</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className={cn(
-                    isActive(`/${orgSlug}/settings/ai-chat`) ? activeItemClass : itemClass
-                  )}
-                >
-                  <Link href={`/${orgSlug}/settings/ai-chat`}>
-                    <Settings className="h-4 w-4 flex-shrink-0" />
-                    <span>Chat Settings</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </div>
-          )}
-
           {/* Org Settings Section */}
           {!isCollapsed && (
             <SectionHeader
               title="Org Settings"
               section="settings"
-              isExpanded={activeSection === "settings"}
+              isExpanded={openSections.has("settings")}
             />
           )}
           {isCollapsed && (
@@ -762,8 +742,8 @@ export function DashboardSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && activeSection === "settings" && (
-            <div className="pb-2 space-y-0.5">
+          {!isCollapsed && openSections.has("settings") && (
+            <div className="px-2 pb-0.5">
               {userRole === "owner" && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -877,7 +857,7 @@ export function DashboardSidebar({
                 <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
                   {formatUserName(userName)}
                 </p>
-                <p className="text-[11px] text-slate-400 truncate group-hover:text-slate-500">
+                <p className="text-xs text-slate-400 truncate group-hover:text-slate-500">
                   {userEmail}
                 </p>
               </div>

@@ -29,7 +29,9 @@ Use when: building console pages, creating components, implementing sidebar, des
 
 | File | Purpose |
 |------|---------|
-| `01-fronted-system/components/dashboard-sidebar.tsx` | Main sidebar component |
+| `01-fronted-system/components/dashboard-sidebar.tsx` | Desktop sidebar (independent collapse, Plus/Minus) |
+| `01-fronted-system/components/mobile-nav.tsx` | Mobile navigation overlay (280px slide-in panel) |
+| `01-fronted-system/components/mobile-header.tsx` | Mobile header bar (hamburger + chat icon) |
 | `01-fronted-system/components/ui/sidebar.tsx` | shadcn sidebar primitives |
 | `01-fronted-system/components/ui/` | Base UI primitives (44 files: button, input, select, dialog, etc.) |
 | `01-fronted-system/components/ui/premium-card.tsx` | PremiumCard, MetricCard components |
@@ -64,21 +66,39 @@ Enterprise-grade B2B SaaS. Every screen must convey trust and precision.
 
 ### Architecture
 
-Two-zone layout with accordion behavior. Reduced font, compact spacing, openclaw dashboard standard.
+Flat grouped navigation matching mobile nav style. Independent collapse (all sections expanded by default). Plus/Minus toggles. Mint `bg-[#90FCA6]/15` active state with green icons.
 
 ```
 ┌─────────────────────┐
-│ [Logo] CloudAct      │  ← Brand header
+│ [Logo] OrgName   [◀] │  ← Brand header + collapse toggle
 ├─────────────────────┤
-│ ▾ Dashboards         │  ← Accordion sections
-│   Main Dashboard     │     (one expanded at a time)
-│   Cost Overview      │
-│ ▸ Cost Analytics     │  ← Auto-expand based on route
-│ ▸ Pipelines          │
-│ ▸ Integrations       │
-│ ▸ Notifications      │
-│ ▸ AI Chat            │
-│ ▸ Settings           │
+│ AI CHAT          [−] │  ← Section 1 (always first)
+│   Chat [Beta]        │
+│   Chat Settings      │
+│ ACCOUNT SUMMARY  [−] │  ← All sections expanded by default
+│   Dashboard          │
+│ COST ANALYTICS   [−] │  ← Independent collapse (Set-based)
+│   Overview           │
+│   GenAI              │
+│   Cloud              │
+│   Subscription       │
+│ PIPELINES        [−] │
+│   Subscription Runs  │
+│   Cloud Runs         │
+│   GenAI Runs         │
+│ INTEGRATIONS     [−] │
+│   Cloud Providers    │
+│   GenAI Providers    │
+│   Subscriptions      │
+│ NOTIFICATIONS    [−] │
+│   Overview           │
+│   Channels, Alerts...│
+│ ORG SETTINGS     [−] │
+│   Organization       │
+│   Hierarchy          │
+│   Usage & Quotas     │
+│   Team Members       │
+│   Billing            │
 ├─────────────────────┤
 │ [Avatar] User Name   │  ← Footer (fixed)
 │ Get Help │ Sign Out  │
@@ -89,20 +109,42 @@ Two-zone layout with accordion behavior. Reduced font, compact spacing, openclaw
 
 | Property | Desktop | Mobile |
 |----------|---------|--------|
-| Width (expanded) | `16rem` (256px) | `18rem` (288px) |
+| Width (expanded) | `16rem` (256px) | `280px` |
 | Width (collapsed) | `3rem` (48px) | Hidden |
 | Behavior | Collapsible rail | Sheet overlay |
-| Toggle shortcut | `b` key | Hamburger button |
+| Toggle shortcut | `⌘B` | Hamburger button |
 | Cookie | `sidebar_state` (7 day TTL) | N/A |
 
 ### Key Sidebar Features
 
-- **Accordion:** Only one section expanded at a time
-- **Auto-expand:** Section auto-expands based on current route
-- **Active indicator:** Mint left accent bar on active item
+- **Independent collapse:** All sections open/close independently (Set-based state)
+- **All expanded by default:** Every section starts expanded (matches mobile nav)
+- **Plus/Minus toggles:** `+` to expand, `−` to collapse (not chevrons)
+- **Section labels:** `text-[11px] font-semibold tracking-wide` uppercase labels
+- **Active state:** `bg-[#90FCA6]/15` mint background + `font-semibold` + green icons `[&_svg]:text-[#16a34a]`
+- **Item style:** `min-h-[42px] rounded-lg text-[13px]` flat buttons
+- **Auto-expand:** Section auto-expands based on current route (adds to Set)
 - **Collapse rail:** Desktop collapses to icon-only rail (48px)
-- **Mobile sheet:** Full overlay sheet on mobile (`< 768px`)
+- **Mobile nav:** Separate `MobileNav` component with identical section order and style
 - **Footer fixed:** User profile, help, sign out always visible
+
+### Desktop ↔ Mobile Consistency
+
+Desktop sidebar and mobile nav **MUST** share:
+
+| Property | Value |
+|----------|-------|
+| Section order | Chat → Account Summary → Cost Analytics → Pipelines → Integrations → Notifications → Settings |
+| Toggle icons | Plus/Minus |
+| Label style | `text-[11px] font-semibold text-slate-400 tracking-wide` (11px for labels only) |
+| Item height | `min-h-[42px]` |
+| Active bg | `bg-[#90FCA6]/15` |
+| Active icon | `text-[#16a34a]` (green-600) |
+| Item text | `text-sm text-slate-600` (14px — industry standard: Notion, GitHub, Stripe) |
+| Footer name | `text-sm font-semibold` (14px) |
+| Footer email | `text-xs text-slate-400` (12px minimum) |
+| Border radius | `rounded-lg` |
+| Collapse state | Independent (Set-based, all expanded by default) |
 
 ### Sidebar Component Usage
 
@@ -115,7 +157,7 @@ export default function OrgLayout({ children, params }) {
   return (
     <SidebarProvider>
       <DashboardSidebar orgSlug={params.orgSlug} />
-      <main className="flex-1 min-h-screen">
+      <main className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
         {children}
       </main>
     </SidebarProvider>
@@ -123,17 +165,19 @@ export default function OrgLayout({ children, params }) {
 }
 ```
 
-### Navigation Sections
+### Navigation Sections (in order)
 
-| Section | Icon | Sub-items |
-|---------|------|-----------|
-| Dashboards | `LayoutDashboard` | Main Dashboard, Cost Overview |
-| Cost Analytics | `BarChart3` | GenAI Costs, Cloud Costs, Subscription Costs |
-| Pipelines | `Workflow` | Pipeline Runs, Run History |
-| Integrations | `Network` | Cloud, GenAI, SaaS providers |
-| Notifications | `Bell` | Alerts, Cost Alerts |
-| AI Chat | `MessageSquare` | Chat |
-| Settings | `Settings` | Organization, Personal, Billing, Team, Hierarchy, Quota |
+| # | Section | Items |
+|---|---------|-------|
+| 1 | **AI Chat** | Chat [Beta], Chat Settings |
+| 2 | Account Summary | Dashboard |
+| 3 | Cost Analytics | Overview, GenAI, Cloud, Subscription |
+| 4 | Pipelines | Subscription Runs, Cloud Runs, GenAI Runs |
+| 5 | Integrations | Cloud Providers, GenAI Providers, Subscriptions |
+| 6 | Notifications | Overview, Channels, Alert Rules, Summaries, History |
+| 7 | Org Settings | Organization*, Hierarchy*, Usage & Quotas, Team Members, Billing* |
+
+\* Owner-only items
 
 ---
 
@@ -371,15 +415,20 @@ import { ChartSkeleton } from '@/components/ui/chart-skeleton';
 
 ## Mobile Responsive Patterns
 
-### Sidebar (Mobile)
+### Mobile Navigation
+
+| Component | Purpose |
+|-----------|---------|
+| `components/mobile-nav.tsx` | Full mobile navigation overlay (slide-in panel, 280px) |
+| `components/mobile-header.tsx` | Mobile header bar with hamburger + chat icon |
+
+Desktop sidebar and mobile nav share identical section order and visual style. Mobile nav uses a data-driven approach (`getNavGroups()`) while desktop sidebar uses JSX sections — both must stay in sync.
 
 ```tsx
-// components/ui/sidebar.tsx handles this automatically
-// Desktop: Collapsible rail (48px collapsed, 256px expanded)
-// Mobile (<768px): Sheet overlay triggered by hamburger
-
-const { isMobile, openMobile, setOpenMobile } = useSidebar()
-// On mobile, sidebar renders inside a Sheet component
+// Mobile nav is triggered from mobile-header.tsx
+<MobileHeader orgSlug={orgSlug} ... />
+// Opens MobileNav overlay on hamburger click
+// Chat icon also available in header right side
 ```
 
 ### Grid Responsiveness
@@ -546,7 +595,11 @@ CHECKLIST:
 
 | Issue | Fix |
 |-------|-----|
-| Sidebar overlaps content on mobile | Use Sheet overlay (built into sidebar.tsx) |
+| Sidebar overlaps content on mobile | Use MobileNav overlay (separate component) |
+| Sidebar sections all collapsed | Initial `openSections` must include ALL section IDs |
+| Chat not first in sidebar | Chat section JSX must be before Account Summary |
+| Desktop/mobile nav out of sync | Keep section order identical in both components |
+| Sidebar uses accordion (one at a time) | **Wrong.** Use Set-based independent collapse |
 | Cards not stacking on mobile | Use `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` |
 | Table overflows on mobile | Wrap in `overflow-x-auto` or use card view |
 | Content hidden behind navbar | Add proper top padding |

@@ -110,7 +110,7 @@ function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
     {
       label: "Chat",
       items: [
-        { title: "Chat", href: `/${orgSlug}/chat`, icon: MessageSquare, placeholder: true },
+        { title: "Chat", href: `/${orgSlug}/chat`, icon: MessageSquare },
       ],
     },
     {
@@ -321,7 +321,7 @@ export function MobileNav({
                             "h-4 w-4 flex-shrink-0",
                             active ? "text-[#16a34a]" : ""
                           )} />
-                          <span className="text-[13px]">{item.title}</span>
+                          <span className="text-sm">{item.title}</span>
                           {item.placeholder && (
                             <span className="ml-auto text-[11px] font-medium text-[var(--cloudact-coral)] bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 rounded-full">
                               Beta
@@ -356,7 +356,7 @@ export function MobileNav({
               </span>
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-[11px] font-semibold text-slate-900 truncate">{userName}</p>
+              <p className="text-xs font-semibold text-slate-900 truncate">{userName}</p>
               <p className="text-xs text-slate-500 truncate">{userEmail}</p>
             </div>
           </button>

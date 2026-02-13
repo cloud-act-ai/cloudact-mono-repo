@@ -717,7 +717,7 @@ export default function OrganizationSettingsPage() {
   }
 
   return (
-    <main className="console-page-shell"><div className="console-page-inner">
+    <div className="console-page-inner">
       {/* Premium Header */}
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
@@ -1775,6 +1775,6 @@ export default function OrganizationSettingsPage() {
       </div>
         </TabsContent>
       </Tabs>
-    </div></main>
+    </div>
   )
 }
