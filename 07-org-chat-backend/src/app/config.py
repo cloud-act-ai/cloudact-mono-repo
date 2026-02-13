@@ -4,9 +4,10 @@ Centralized settings with environment variable support.
 """
 
 import os
+import json
 from typing import List, Optional
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,6 +39,19 @@ class Settings(BaseSettings):
     cors_origins: List[str] = Field(
         default=["http://localhost:3000"]
     )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Handle CORS_ORIGINS as plain string, comma-separated, or JSON array."""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                return json.loads(v)
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # Security
     disable_auth: bool = Field(default=False)
