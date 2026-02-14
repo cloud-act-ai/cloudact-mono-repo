@@ -1,6 +1,6 @@
 {
-  "version": "v4.4.2",
-  "release": "v4.4.2",
-  "release_timestamp": "2026-02-13T00:00:00Z",
-  "changelog": "Fix chat backend CORS_ORIGINS parsing — use str type to bypass pydantic-settings JSON decode"
+  "version": "v4.4.3",
+  "release": "v4.4.3",
+  "release_timestamp": "2026-02-13T12:00:00Z",
+  "changelog": "Fix email notifications: SMTP prod secrets, 12 template bugs, branded alert HTML, process_all_alerts dispatch, Pipeline Service /notifications/send endpoint"
 }
