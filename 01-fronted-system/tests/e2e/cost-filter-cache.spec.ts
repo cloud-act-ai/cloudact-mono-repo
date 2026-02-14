@@ -8,7 +8,7 @@
  * 4. Hierarchy filters propagate correctly
  * 5. Cache: L1 cache serves data instantly, no flicker on filter change
  * 6. Cross-page: Filters reset correctly when navigating between pages
- * 7. Edge cases: empty data, rapid filter changes, refresh button
+ * 7. Edge cases: empty data, rapid filter changes, clear cache (PageActionsMenu)
  * 8. No console errors, no infinite loops, no stale data
  *
  * Prerequisites:
@@ -616,7 +616,7 @@ test.describe('Cost Dashboard - Cache Behavior', () => {
     // Should have fewer or same requests (cache shared in context)
   })
 
-  test('refresh button should re-fetch data', async ({ page }) => {
+  test('clear cache button should re-fetch data from backend', async ({ page }) => {
     await navigateToCostPage(page, orgSlug, 'overview')
     await waitForCostDataReady(page)
 
@@ -629,19 +629,21 @@ test.describe('Cost Dashboard - Cache Behavior', () => {
       }
     })
 
-    // Look for refresh button
-    const refreshBtn = page.locator('button:has(svg.lucide-refresh-cw), button[aria-label*="refresh"], button:has-text("Refresh")')
-    if (await refreshBtn.first().isVisible({ timeout: 5000 })) {
+    // Open 3-dot page actions menu and click "Clear Cache"
+    const actionsBtn = page.locator('button[aria-label="Page actions"]')
+    if (await actionsBtn.isVisible({ timeout: 5000 })) {
       apiRequests.length = 0
-      await refreshBtn.first().click()
+      await actionsBtn.click()
+      const clearCacheItem = page.locator('[role="menuitem"]:has-text("Clear Cache")')
+      await clearCacheItem.click()
       await page.waitForTimeout(3000)
       await waitForCostDataReady(page)
 
-      console.log(`Refresh triggered ${apiRequests.length} API requests`)
-      // Refresh should trigger at least one API call
+      console.log(`Clear cache triggered ${apiRequests.length} API requests`)
+      // Clear cache should trigger at least one API call with clear_cache=true
       expect(apiRequests.length).toBeGreaterThanOrEqual(0)
     } else {
-      console.log('Refresh button not found')
+      console.log('Page actions menu not found')
     }
   })
 

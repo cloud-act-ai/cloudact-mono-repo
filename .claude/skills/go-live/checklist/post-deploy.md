@@ -30,8 +30,17 @@ Run AFTER deployment completes and health checks pass.
 - [ ] All provider cards show
 - [ ] Can click into provider setup (don't modify prod creds)
 
+### Budgets
+- [ ] Budget page loads (`/{orgSlug}/budgets`)
+- [ ] Budget list shows existing budgets
+- [ ] Create single budget works
+- [ ] Top-down allocation wizard renders (3 steps)
+- [ ] Allocation tree tab shows parent→children
+- [ ] Variance view shows budget vs actual
+
 ### Alerts
 - [ ] Alert list renders
+- [ ] Budget alert rules evaluate correctly (alerts-daily job)
 - [ ] Test alert sends email
 - [ ] Email template renders correctly
 

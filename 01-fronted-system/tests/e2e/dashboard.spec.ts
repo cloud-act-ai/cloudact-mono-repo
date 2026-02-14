@@ -5,7 +5,7 @@
  * - Dashboard loads after login
  * - Cost widgets render
  * - Date filter works
- * - Refresh button works
+ * - Clear cache via PageActionsMenu (3-dot menu) works
  * - Navigation elements
  * - Quota warnings
  *
@@ -274,45 +274,49 @@ test.describe('Dashboard - Date Filter', () => {
 });
 
 // ===========================================
-// Test Suite: Refresh Button Works
+// Test Suite: Clear Cache (PageActionsMenu)
 // ===========================================
 
-test.describe('Dashboard - Refresh Functionality', () => {
-  test('should display refresh button', async ({ page }) => {
+test.describe('Dashboard - Clear Cache Functionality', () => {
+  test('should display page actions menu (3-dot icon)', async ({ page }) => {
     await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    // Look for refresh button
-    const refreshButton = page.locator('button:has-text("Refresh"), button[aria-label*="refresh"], [data-testid="refresh-button"], button:has([class*="refresh"])').first();
-    const isVisible = await refreshButton.isVisible({ timeout: 5000 }).catch(() => false);
+    // Look for 3-dot page actions menu button
+    const actionsButton = page.locator('button[aria-label="Page actions"]').first();
+    const isVisible = await actionsButton.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (isVisible) {
-      console.log('Refresh button found');
-      await expect(refreshButton).toBeVisible();
+      console.log('Page actions menu found');
+      await expect(actionsButton).toBeVisible();
     } else {
-      console.log('Refresh button may be in toolbar or hidden');
+      console.log('Page actions menu may not be present on this page');
     }
   });
 
-  test('should refresh data when refresh button clicked', async ({ page }) => {
+  test('should clear cache when Clear Cache clicked', async ({ page }) => {
     await loginAndGoToDashboard(page);
     await waitForWidgetsToLoad(page);
 
-    const refreshButton = page.locator('button:has-text("Refresh"), button[aria-label*="refresh"], [data-testid="refresh-button"]').first();
+    const actionsButton = page.locator('button[aria-label="Page actions"]').first();
 
-    if (await refreshButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await refreshButton.click();
+    if (await actionsButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await actionsButton.click();
 
-      // Wait for loading indicator
+      // Click "Clear Cache" menu item
+      const clearCacheItem = page.locator('[role="menuitem"]:has-text("Clear Cache")');
+      await clearCacheItem.click();
+
+      // Wait for loading indicator (spinner in the menu item)
       const loadingIndicator = page.locator('.animate-spin, [data-loading="true"]').first();
       const showsLoading = await loadingIndicator.isVisible({ timeout: 2000 }).catch(() => false);
 
       if (showsLoading) {
-        console.log('Loading indicator shown during refresh');
+        console.log('Loading indicator shown during cache clear');
       }
 
       await waitForWidgetsToLoad(page);
-      console.log('Refresh completed');
+      console.log('Cache clear completed');
     }
   });
 
@@ -579,7 +583,7 @@ Test Suites: 8
 - Dashboard - Page Load (5 tests)
 - Dashboard - Cost Widgets (6 tests)
 - Dashboard - Date Filter (4 tests)
-- Dashboard - Refresh Functionality (4 tests)
+- Dashboard - Clear Cache Functionality (4 tests)
 - Dashboard - Navigation (4 tests)
 - Dashboard - Quota Warnings (3 tests)
 - Dashboard - Performance (2 tests)

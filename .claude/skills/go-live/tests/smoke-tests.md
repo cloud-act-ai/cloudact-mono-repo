@@ -48,9 +48,10 @@ done
 |---|------|--------|----------|
 | 17 | Cloud costs | Visit /{org}/cloud-costs | Page loads |
 | 18 | GenAI costs | Visit /{org}/genai-costs | Page loads |
-| 19 | Integrations | Visit /{org}/integrations | Provider list |
-| 20 | Settings | Visit /{org}/settings | Org config |
-| 21 | Billing | Visit /{org}/settings/billing | Plan info |
+| 19 | Budgets | Visit /{org}/budgets | Budget list renders |
+| 20 | Integrations | Visit /{org}/integrations | Provider list |
+| 21 | Settings | Visit /{org}/settings | Org config |
+| 22 | Billing | Visit /{org}/settings/billing | Plan info |
 
 ## API Quick Check (1 min)
 

@@ -19,7 +19,8 @@ Comprehensive feature validation for major releases. 300+ tests across 20 catego
 | Console - Unified Costs | 8 | FOCUS 1.3, all filters, MoM/YoY |
 | Console - Hierarchy | 13 | Tree, CRUD, move, cost alloc, sync |
 | Console - Integrations | 18 | All providers, validate, encrypt |
-| Console - Alerts | 20 | CRUD, test, email/Slack, templates |
+| Console - Budgets | 18 | CRUD, allocation wizard, variance, filters |
+| Console - Alerts | 20 | CRUD, test, email/Slack, templates, budget alerts |
 | Console - Notifications | 10 | Channels, rules, history |
 | Console - Settings | 22 | Profile, org, API keys, team |
 | Console - Billing | 25 | Plan, payment, invoices, webhooks |
@@ -28,7 +29,7 @@ Comprehensive feature validation for major releases. 300+ tests across 20 catego
 | API | 10 | Health, bootstrap, CORS, rate limit |
 | Security | 12 | JWT, API keys, multi-tenant, XSS, HTTPS |
 | Delete Flows | 16 | User delete, org delete, cascade |
-| **TOTAL** | **~304** | |
+| **TOTAL** | **~322** | |
 
 ## Landing Pages (26 tests)
 
@@ -154,6 +155,29 @@ Comprehensive feature validation for major releases. 300+ tests across 20 catego
 | Model table | Breakdown | P0 |
 | Cost/token | Rate calc | P1 |
 | Empty state | Message | P1 |
+
+### Budgets (18)
+
+| Component | Expected | Priority |
+|-----------|----------|----------|
+| Budget page loads | Visit /{org}/budgets renders | P0 |
+| Budget list | All budgets show | P0 |
+| Create single budget | Dialog + submit | P0 |
+| Edit budget | Update amount/period | P0 |
+| Delete budget | Soft delete (is_active=false) | P0 |
+| Cascade delete | Children deactivated when parent deleted | P0 |
+| Top-down allocation wizard | 3-step flow renders | P0 |
+| Allocation Step 1 | Parent entity + amount | P0 |
+| Allocation Step 2 | Children auto-populate, % inputs | P0 |
+| Allocation Step 3 | Review summary, submit | P0 |
+| Equal split button | Distributes evenly | P1 |
+| Allocation progress bar | Shows % allocated | P1 |
+| Allocation tree tab | Tree renders parent→children | P0 |
+| Variance view | Budget vs actual, utilization % | P0 |
+| Category filter | Filters by cloud/genai/saas | P0 |
+| Period filter | Filters by monthly/quarterly/yearly | P0 |
+| Hierarchy filter | Filters by entity | P0 |
+| Empty state | No budgets message | P1 |
 
 ### Subscription Costs (9) + Unified Costs (8)
 

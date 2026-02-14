@@ -32,7 +32,7 @@ Cloud Run Jobs (05-scheduler-jobs/)
 │   ├─ quota-reset       POST /admin/quota/reset-daily      00:00 UTC
 │   ├─ quota-cleanup     Direct BigQuery (maintenance)       01:00 UTC
 │   ├─ stale-cleanup     POST /admin/quota/cleanup-stale     02:00 UTC (safety net)
-│   └─ alerts            POST /admin/alerts/process-all      08:00 UTC
+│   └─ alerts            POST /admin/alerts/process-all      08:00 UTC (cost + budget alerts)
 └─ Monthly Jobs (Cloud Scheduler)
     └─ quota-monthly     POST /admin/quota/reset-monthly     00:05 UTC 1st
 

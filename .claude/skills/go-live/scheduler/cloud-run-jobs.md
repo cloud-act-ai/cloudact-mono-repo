@@ -52,7 +52,7 @@ gcloud scheduler jobs list --location=us-central1 --project=cloudact-prod
 | quota-reset-daily | 00:00 | Reset daily pipeline run counters |
 | quota-cleanup | 01:00 | Delete quota records older than 90 days |
 | stale-cleanup | 02:00 | Fix stuck concurrent pipeline counters |
-| alerts-daily | 08:00 | Process cost alerts for all orgs |
+| alerts-daily | 08:00 | Process cost + budget alerts for all orgs |
 
 ### Scheduled Monthly Jobs
 
