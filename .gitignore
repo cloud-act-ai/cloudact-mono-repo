@@ -233,6 +233,7 @@ __marimo__/
 out/
 
 # Screenshots and Test Artifacts
+*screenshot*
 **/__screenshots__/
 *.webp
 .playwright-mcp/

@@ -112,6 +112,16 @@ through deployment, post-deploy verification, scheduler setup, and rollback proc
 
 **Full issue log:** Previously in `go-live-issues.csv` (now consolidated here).
 
+### v4.4.4 Go-Live Issues (2026-02-14) - All Fixed
+
+| ID | Severity | Issue | Resolution |
+|----|----------|-------|------------|
+| ISS-022 | HIGH | Demo script hardcoded localhost URLs | Import `TEST_CONFIG` from `config.ts` for env-aware URLs |
+| ISS-023 | HIGH | BQ concurrent transaction conflicts on `cost_data_standard_1_3` | Run all pipelines sequentially via `waitForSinglePipeline()` |
+| ISS-024 | HIGH | Stripe checkout uses custom domain `pay.cloudact.ai` | Added `pay.cloudact.ai` + `/c/pay/` URL detection patterns |
+| ISS-025 | MEDIUM | `.env.prod` placeholder secrets block local-to-prod scripts | Auto-fetch from GCP Secret Manager when env vars are placeholders |
+| ISS-026 | LOW | Error screenshots committed to git | Added `.gitignore` entry, removed from tracking |
+
 ## Critical Learnings
 
 1. **Cloud Build is automated** - Never manual deploy to prod. Use git tags.
@@ -127,6 +137,11 @@ through deployment, post-deploy verification, scheduler setup, and rollback proc
 11. **Prod confirmation** - `run-job.sh prod` requires typing "yes" (or pipe `echo "yes" |`).
 12. **Job naming** - All jobs use `cloudact-{category}-{name}` (NOT `ca-{env}-*`). Triggers append `-trigger`.
 13. **Cost page routes** - All cost pages under `/{org}/cost-dashboards/` (NOT `/{org}/cloud-costs`).
+14. **Pipelines must run sequentially** - All pipelines writing to `cost_data_standard_1_3` must run one-at-a-time. Concurrent writes cause BQ transaction conflicts.
+15. **Stripe custom domain** - Prod checkout uses `pay.cloudact.ai`, NOT `checkout.stripe.com`. Detect both.
+16. **`.env.prod` = placeholders** - Contains `INJECTED_FROM_SECRET_MANAGER`. Scripts auto-fetch from GCP Secret Manager via `gcloud secrets versions access`.
+17. **Demo scripts are env-aware** - Use `--env=prod` flag. Config auto-resolves URLs and secrets per environment.
+18. **Supabase migrations first** - Run `migrate.sh --yes --prod` BEFORE scheduler jobs (migrate → bootstrap → org-sync-all).
 
 ## Related Skills
 

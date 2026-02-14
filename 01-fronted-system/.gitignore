@@ -12,6 +12,7 @@
 /test-results/
 /playwright/.cache/
 tests/e2e/.auth/
+tests/demo-setup/error-screenshot-*.png
 
 # next.js
 /.next/

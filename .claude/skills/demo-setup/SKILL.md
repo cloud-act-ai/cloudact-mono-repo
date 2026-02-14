@@ -45,6 +45,8 @@ echo "yes" | npx tsx tests/demo-setup/cleanup-demo-account.ts --email=demo@cloud
 
 Env vars override presets: `GCP_PROJECT_ID`, `API_SERVICE_URL`, `PIPELINE_SERVICE_URL`, `NEXT_PUBLIC_SUPABASE_URL`.
 
+**Secrets auto-resolve for stage/prod:** `CA_ROOT_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are auto-fetched from GCP Secret Manager when env vars are empty or contain placeholders (`INJECTED_FROM_SECRET_MANAGER`). Just ensure `gcloud` is authenticated.
+
 ## Prerequisites
 
 | Requirement | Check | Expected |
@@ -234,6 +236,7 @@ PHASE 1: PRE-FLIGHT
                               ↓
 PHASE 2: ACCOUNT CREATION (Playwright)
   /signup → Fill form → Select plan → Stripe checkout
+  NOTE: Prod uses pay.cloudact.ai (custom Stripe domain), not checkout.stripe.com
   → /onboarding/success (runs completeOnboarding server action)
   → Redirects to /{orgSlug}/integrations?welcome=true (NOT /dashboard)
   → Poll Supabase org_api_keys_secure for API key (up to 90s)
@@ -558,13 +561,15 @@ healthy
 
 ## Pipeline Execution
 
-The loader runs these 3 pipelines and polls until completion:
+The loader runs these 3 pipelines **SEQUENTIALLY** and polls until each completes before starting the next. This prevents BigQuery concurrent transaction conflicts on `cost_data_standard_1_3`.
 
 | # | Pipeline | Endpoint | What It Does |
 |---|----------|----------|------------|
 | 1 | Subscription | `POST /api/v1/pipelines/run/{org}/subscription/costs/subscription_cost` | subscription_plans → subscription_plan_costs_daily → cost_data_standard_1_3 |
-| 2 | GenAI | `POST /api/v1/pipelines/run/{org}/genai/unified/consolidate` | genai_payg_usage_raw + pricing → genai_costs_daily_unified → cost_data_standard_1_3 |
-| 3 | Cloud FOCUS | `POST /api/v1/pipelines/run/{org}/cloud/unified/cost/focus_convert` | cloud_*_billing_raw_daily → cost_data_standard_1_3 |
+| 2 | GenAI | Direct SQL (not pipeline) | genai_payg_usage_raw + pricing → genai_costs_daily_unified → cost_data_standard_1_3 |
+| 3 | Cloud FOCUS (×4) | `POST /api/v1/pipelines/run/{org}/cloud/{provider}/cost/focus_convert` | Per-provider, each waits before next starts |
+
+**CRITICAL:** All pipelines writing to `cost_data_standard_1_3` MUST run one-at-a-time. Running them concurrently causes BigQuery "Transaction aborted due to concurrent update" errors. The `waitForSinglePipeline()` function polls each pipeline to completion before the next one starts.
 
 ### If a Pipeline Fails
 
@@ -772,6 +777,10 @@ SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-acco
 | Screenshot blank/loading | Render timeout | Increase wait time or check frontend logs |
 | Alert channel 500 error | Internal API error on notification channel creation | Non-blocking — alerts are optional. Retry or skip. |
 | Hierarchy entities "already exist" | Re-running loader on same org | Expected — 400 on duplicate entities is safe to ignore |
+| **BQ concurrent transaction conflict** | Multiple pipelines write to `cost_data_standard_1_3` at same time | Fixed: all pipelines now run sequentially via `waitForSinglePipeline()` |
+| **Stripe checkout URL not detected** | Prod uses custom domain `pay.cloudact.ai` not `checkout.stripe.com` | Fixed: detect `pay.cloudact.ai` + `/c/pay/` + `checkout.stripe.com` |
+| **`.env.prod` secrets = placeholders** | Values say `INJECTED_FROM_SECRET_MANAGER` | Fixed: `config.ts` auto-fetches from GCP Secret Manager |
+| **Script uses localhost on prod** | Hardcoded `http://localhost:8000` URLs | Fixed: imports `TEST_CONFIG` from `config.ts` for env-aware URLs |
 
 ## Related Skills
 
