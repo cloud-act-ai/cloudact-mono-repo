@@ -10,10 +10,15 @@
  *   npx ts-node tests/demo-setup/load-demo-data-direct.ts --org-slug=acme_inc --api-key=YOUR_API_KEY --pipelines-only
  *
  * Prerequisites:
- *   - Pipeline Service running: http://localhost:8001
- *   - API Service running: http://localhost:8000 (for validation)
+ *   - Pipeline Service running (local: http://localhost:8001, prod: https://pipeline.cloudact.ai)
+ *   - API Service running (local: http://localhost:8000, prod: https://api.cloudact.ai)
  *   - Demo org already created via Playwright
  *   - Valid org API key
+ *
+ * Environment:
+ *   --env=local   (default) localhost services, cloudact-testing-1
+ *   --env=stage   Stage Cloud Run, cloudact-testing-1
+ *   --env=prod    Production Cloud Run, cloudact-prod
  *
  * Flow:
  *   1. Sync stored procedures (once per session)
@@ -29,13 +34,15 @@ import * as path from 'path'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import {
     ENV_CONFIG,
+    TEST_CONFIG,
     getDefaultOrgSlug,
     getDatasetName
 } from './config'
 
-// Configuration
+// Configuration - use TEST_CONFIG which respects --env flag (local/stage/prod)
 const GCP_PROJECT_ID = ENV_CONFIG.gcpProjectId
-const PIPELINE_SERVICE_URL = process.env.PIPELINE_SERVICE_URL || 'http://localhost:8001'
+const PIPELINE_SERVICE_URL = process.env.PIPELINE_SERVICE_URL || TEST_CONFIG.pipelineServiceUrl
+const API_SERVICE_URL_DEFAULT = process.env.API_SERVICE_URL || TEST_CONFIG.apiServiceUrl
 const CA_ROOT_API_KEY = ENV_CONFIG.caRootApiKey
 const DEMO_DATA_PATH = path.resolve(__dirname, '../../../04-inra-cicd-automation/load-demo-data')
 
@@ -232,7 +239,7 @@ async function ensureDatasetExists(orgSlug: string, dataset: string): Promise<bo
     }
 
     console.log(`    Dataset missing: ${dataset} - attempting onboarding...`)
-    const apiServiceUrl = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const apiServiceUrl = API_SERVICE_URL_DEFAULT
 
     try {
         const response = await fetch(`${apiServiceUrl}/api/v1/organizations/onboard`, {
@@ -331,7 +338,7 @@ function loadPricingSeed(orgSlug: string, dataset: string): boolean {
 function loadHierarchy(orgSlug: string, apiKey: string): boolean {
     console.log('\n[Step 2.5] Loading hierarchy levels and entities...')
 
-    const API_SERVICE_URL = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const API_SERVICE_URL = API_SERVICE_URL_DEFAULT
 
     // Step 1: Seed hierarchy levels (DEPT, PROJ, TEAM)
     console.log('    Seeding hierarchy levels...')
@@ -541,7 +548,7 @@ async function checkServiceHealth(): Promise<{ api: boolean; pipeline: boolean; 
 
     // Check API Service
     try {
-        const apiResponse = await fetch(`${process.env.API_SERVICE_URL || 'http://localhost:8000'}/health`)
+        const apiResponse = await fetch(`${API_SERVICE_URL_DEFAULT}/health`)
         apiOk = apiResponse.ok
         if (!apiOk) errors.push(`API Service unhealthy: ${apiResponse.status}`)
     } catch (error) {
@@ -1168,9 +1175,10 @@ async function runCloudFocusPipeline(
     startDate: string,
     endDate: string
 ): Promise<{ providerPipelines: { provider: string; pipelineId: string | null }[]; pipelineIds: string[]; allTriggered: boolean; failedProviders: string[] }> {
-    console.log('\n[Step 8] Running cloud FOCUS convert pipelines (per-provider)...')
+    console.log('\n[Step 8] Running cloud FOCUS convert pipelines (per-provider, sequential)...')
+    console.log('    NOTE: Running sequentially to avoid BigQuery concurrent transaction conflicts')
 
-    // Run per-provider focus_convert directly (unified endpoint doesn't exist)
+    // Run per-provider focus_convert SEQUENTIALLY (concurrent writes to cost_data_standard_1_3 cause BQ conflicts)
     const providers = ['gcp', 'aws', 'azure', 'oci']
     const providerPipelines: { provider: string; pipelineId: string | null }[] = []
     const pipelineIds: string[] = []
@@ -1186,9 +1194,20 @@ async function runCloudFocusPipeline(
         )
 
         if (result.status === 'PENDING' || result.status === 'RUNNING') {
-            console.log(`    ${provider}: ${result.pipeline_logging_id} (${result.status})`)
-            providerPipelines.push({ provider, pipelineId: result.pipeline_logging_id || null })
-            if (result.pipeline_logging_id) pipelineIds.push(result.pipeline_logging_id)
+            const pid = result.pipeline_logging_id || ''
+            console.log(`    ${provider}: ${pid} (${result.status})`)
+            providerPipelines.push({ provider, pipelineId: pid || null })
+            if (pid) pipelineIds.push(pid)
+
+            // Wait for this pipeline to complete before triggering the next
+            // This prevents BigQuery concurrent transaction conflicts on cost_data_standard_1_3
+            if (pid) {
+                const completed = await waitForSinglePipeline(orgSlug, apiKey, pid, provider, 180000)
+                if (!completed) {
+                    failedProviders.push(provider)
+                    allTriggered = false
+                }
+            }
         } else {
             console.log(`    ${provider}: FAILED - ${result.message || result.error_details || 'unknown error'}`)
             providerPipelines.push({ provider, pipelineId: null })
@@ -1247,6 +1266,48 @@ function convertCloudToFocusViaSQL(
     }
 
     return succeeded
+}
+
+/**
+ * Wait for a single pipeline to complete. Used for sequential pipeline execution
+ * to avoid BigQuery concurrent transaction conflicts on cost_data_standard_1_3.
+ */
+async function waitForSinglePipeline(
+    orgSlug: string,
+    apiKey: string,
+    pipelineId: string,
+    label: string,
+    maxWaitMs: number = 180000
+): Promise<boolean> {
+    const startTime = Date.now()
+
+    while ((Date.now() - startTime) < maxWaitMs) {
+        try {
+            const response = await fetch(
+                `${PIPELINE_SERVICE_URL}/api/v1/pipelines/runs/${pipelineId}`,
+                { headers: { 'X-API-Key': apiKey } }
+            )
+
+            if (response.ok) {
+                const result = await response.json()
+                if (result.status === 'COMPLETED' || result.status === 'SUCCESS') {
+                    console.log(`    ${label}: COMPLETED`)
+                    return true
+                } else if (result.status === 'FAILED') {
+                    console.log(`    ${label}: FAILED`)
+                    return false
+                }
+                // Still running, continue polling
+            }
+        } catch {
+            // Ignore errors during polling
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 5000))
+    }
+
+    console.log(`    ${label}: TIMEOUT after ${Math.round(maxWaitMs / 1000)}s`)
+    return false
 }
 
 async function waitForPipelines(
@@ -1309,7 +1370,7 @@ async function waitForPipelines(
  * Set up demo notification channel + 2 cost alert rules
  */
 async function setupDemoAlerts(orgSlug: string, apiKey: string): Promise<{ channelCreated: boolean; rulesCreated: number; errors: string[] }> {
-    const API_SERVICE_URL = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const API_SERVICE_URL = API_SERVICE_URL_DEFAULT
     const errors: string[] = []
     let channelId = ''
     let rulesCreated = 0
@@ -1449,7 +1510,7 @@ async function setupDemoAlerts(orgSlug: string, apiKey: string): Promise<{ chann
  * at department, project, and team levels.
  */
 async function setupDemoBudgets(orgSlug: string, apiKey: string): Promise<{ budgetsCreated: number; errors: string[] }> {
-    const API_SERVICE_URL = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const API_SERVICE_URL = API_SERVICE_URL_DEFAULT
     const errors: string[] = []
     let budgetsCreated = 0
 
@@ -1715,7 +1776,7 @@ function queryBigQueryCosts(dataset: string, startDate: string, endDate: string)
  * Layer 2: Query API Service costs endpoint
  */
 async function queryAPICosts(orgSlug: string, apiKey: string, startDate: string, endDate: string): Promise<CategoryTotals | null> {
-    const apiServiceUrl = process.env.API_SERVICE_URL || 'http://localhost:8000'
+    const apiServiceUrl = API_SERVICE_URL_DEFAULT
     const url = `${apiServiceUrl}/api/v1/costs/${orgSlug}/total?start_date=${startDate}&end_date=${endDate}`
     const maxRetries = 3
 
@@ -2036,10 +2097,11 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
         }
 
         // Steps 6-8: Run pipelines via API (unless raw-only)
+        // ALL pipelines run SEQUENTIALLY to avoid BigQuery concurrent transaction conflicts.
         if (!config.rawOnly) {
-            const allPipelineIds: string[] = []
-
             // Step 6: Subscription pipeline
+            // NOTE: All pipelines run SEQUENTIALLY to avoid BigQuery concurrent transaction
+            // conflicts on cost_data_standard_1_3 (all cost types write to this table).
             console.log('\n[Step 6] Running subscription costs pipeline...')
             result.pipelinesExecuted.subscription = await runPipelineWithDiagnosis(
                 config.orgSlug,
@@ -2050,8 +2112,10 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
                 { start_date: config.startDate, end_date: config.endDate },
                 result.fixes
             )
-            if (result.pipelinesExecuted.subscription.pipelineLoggingId) {
-                allPipelineIds.push(result.pipelinesExecuted.subscription.pipelineLoggingId)
+            // Wait for subscription pipeline to complete before starting other pipelines
+            const subPipelineId = result.pipelinesExecuted.subscription.pipelineLoggingId
+            if (subPipelineId) {
+                await waitForSinglePipeline(config.orgSlug, config.apiKey, subPipelineId, 'subscription', 180000)
             }
 
             // Step 7a: Calculate GenAI costs directly via SQL (JOIN usage + pricing)
@@ -2075,35 +2139,13 @@ async function loadDemoData(config: LoadConfig): Promise<LoadResult> {
                 }
             }
 
-            // Step 8: Cloud FOCUS convert per-provider (with date params)
+            // Step 8: Cloud FOCUS convert per-provider (sequential - each waits before next)
             const cloudResult = await runCloudFocusPipeline(
                 config.orgSlug, config.apiKey, config.startDate, config.endDate
             )
-            allPipelineIds.push(...cloudResult.pipelineIds)
 
-            // Step 9: Wait for remaining pipelines (subscription + cloud)
-            const remainingIds = [
-                result.pipelinesExecuted.subscription.pipelineLoggingId,
-                ...cloudResult.pipelineIds
-            ].filter(Boolean) as string[]
-
+            // Cloud pipelines already waited sequentially inside runCloudFocusPipeline
             let cloudPipelineFailures: string[] = [...cloudResult.failedProviders]
-
-            if (remainingIds.length > 0) {
-                await waitForPipelines(config.orgSlug, config.apiKey, remainingIds)
-
-                // Check which cloud pipelines completed vs failed after execution
-                for (const { provider, pipelineId } of cloudResult.providerPipelines) {
-                    if (!pipelineId) continue // Already in failedProviders
-                    const details = await getPipelineRunDetails(pipelineId, config.apiKey)
-                    if (details?.status === 'FAILED') {
-                        console.log(`    ${provider} pipeline ${pipelineId}: FAILED after execution`)
-                        if (!cloudPipelineFailures.includes(provider)) {
-                            cloudPipelineFailures.push(provider)
-                        }
-                    }
-                }
-            }
 
             // Step 8b: SQL fallback for any cloud providers that failed
             const pipelineSuccessCount = 4 - cloudPipelineFailures.length

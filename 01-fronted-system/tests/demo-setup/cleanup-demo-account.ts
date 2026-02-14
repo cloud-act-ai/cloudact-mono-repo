@@ -17,6 +17,30 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { execSync } from 'child_process'
 import { ENV_CONFIG, requireProdConfirmation } from './config'
 
+/**
+ * Resolve SUPABASE_SERVICE_ROLE_KEY: env var → GCP Secret Manager fallback.
+ */
+function resolveSupabaseServiceRoleKey(): string {
+    const fromEnv = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    if (fromEnv && !fromEnv.includes('INJECTED_FROM') && !fromEnv.includes('_AT_BUILD_TIME')) {
+        return fromEnv
+    }
+    if (ENV_CONFIG.environment !== 'local') {
+        try {
+            const secretName = `supabase-service-role-key-${ENV_CONFIG.environment}`
+            return execSync(
+                `gcloud secrets versions access latest --secret=${secretName} --project=${ENV_CONFIG.gcpProjectId}`,
+                { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+            ).trim()
+        } catch {
+            return ''
+        }
+    }
+    return fromEnv
+}
+
+const SUPABASE_SERVICE_ROLE_KEY = resolveSupabaseServiceRoleKey()
+
 interface CleanupConfig {
     email?: string
     orgSlug?: string
@@ -63,7 +87,7 @@ function parseArgs(): CleanupConfig {
 
 function getSupabaseClient(): SupabaseClient {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ENV_CONFIG.supabaseUrl
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseServiceKey = SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
         throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables')

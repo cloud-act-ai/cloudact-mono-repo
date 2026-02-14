@@ -13,7 +13,13 @@
  *   --env=local   (default) localhost services, cloudact-testing-1
  *   --env=stage   Stage Cloud Run, cloudact-testing-1
  *   --env=prod    Production Cloud Run, cloudact-prod (requires confirmation)
+ *
+ * For prod: secrets are auto-fetched from GCP Secret Manager if not set in env.
+ *   .env.prod has placeholders (INJECTED_FROM_SECRET_MANAGER) - that's expected.
+ *   Ensure gcloud is authenticated: gcloud auth activate-service-account --key-file=...
  */
+
+import { execSync } from 'child_process'
 
 export interface DemoAccountConfig {
     firstName: string
@@ -167,18 +173,54 @@ export function getDefaultOrgSlug(): string {
     return generateOrgSlug(DEFAULT_DEMO_ACCOUNT.companyName)
 }
 
-// Environment configuration (env vars override presets)
+/**
+ * Fetch a secret from GCP Secret Manager. Returns empty string on failure.
+ */
+function fetchGcpSecret(secretName: string, gcpProject: string): string {
+    try {
+        const result = execSync(
+            `gcloud secrets versions access latest --secret=${secretName} --project=${gcpProject}`,
+            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+        ).trim()
+        // Skip placeholders
+        if (result.includes('INJECTED_FROM') || result.includes('_AT_BUILD_TIME')) return ''
+        return result
+    } catch {
+        return ''
+    }
+}
+
+/**
+ * Resolve a config value: env var → GCP Secret Manager (for stage/prod) → fallback
+ */
+function resolveSecret(envVar: string, gcpSecretName: string, gcpProject: string): string {
+    const fromEnv = process.env[envVar] || ''
+    // Skip placeholders from .env.prod
+    if (fromEnv && !fromEnv.includes('INJECTED_FROM') && !fromEnv.includes('_AT_BUILD_TIME')) {
+        return fromEnv
+    }
+    // Auto-fetch from GCP Secret Manager for non-local environments
+    if (DETECTED_ENV !== 'local') {
+        const fromGcp = fetchGcpSecret(gcpSecretName, gcpProject)
+        if (fromGcp) {
+            return fromGcp
+        }
+    }
+    return ''
+}
+
+// Environment configuration (env vars override presets, with GCP Secret Manager fallback)
 export const ENV_CONFIG = {
     environment: DETECTED_ENV,
     gcpProjectId: process.env.GCP_PROJECT_ID || PRESET.gcpProjectId,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || PRESET.supabaseUrl,
-    caRootApiKey: process.env.CA_ROOT_API_KEY || '',
+    caRootApiKey: resolveSecret('CA_ROOT_API_KEY', `ca-root-api-key-${DETECTED_ENV}`, PRESET.gcpProjectId),
 }
 
 // Warn if no CA_ROOT_API_KEY is set
 if (!ENV_CONFIG.caRootApiKey) {
     console.warn(`[Demo Config] WARNING: CA_ROOT_API_KEY not set. Bootstrap/procedure operations will fail.`)
-    console.warn(`[Demo Config] Set it via: source 01-fronted-system/.env.local`)
+    console.warn(`[Demo Config] Set it via env var, or ensure gcloud auth is configured for GCP Secret Manager.`)
 }
 
 /**

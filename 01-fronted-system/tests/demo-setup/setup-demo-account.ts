@@ -21,10 +21,36 @@
  *   Plan: scale (free trial, no credit card required)
  */
 
+import { execSync } from 'child_process'
 import { chromium, Browser, Page } from 'playwright'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { DEFAULT_DEMO_ACCOUNT, TEST_CONFIG, ENV_CONFIG } from './config'
 import type { DemoAccountConfig } from './config'
+
+/**
+ * Resolve SUPABASE_SERVICE_ROLE_KEY: env var → GCP Secret Manager fallback.
+ * .env.prod has placeholder (INJECTED_FROM_SECRET_MANAGER), so auto-fetch from GCP.
+ */
+function resolveSupabaseServiceRoleKey(): string {
+    const fromEnv = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    if (fromEnv && !fromEnv.includes('INJECTED_FROM') && !fromEnv.includes('_AT_BUILD_TIME')) {
+        return fromEnv
+    }
+    if (ENV_CONFIG.environment !== 'local') {
+        try {
+            const secretName = `supabase-service-role-key-${ENV_CONFIG.environment}`
+            return execSync(
+                `gcloud secrets versions access latest --secret=${secretName} --project=${ENV_CONFIG.gcpProjectId}`,
+                { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+            ).trim()
+        } catch {
+            return ''
+        }
+    }
+    return fromEnv
+}
+
+const SUPABASE_SERVICE_ROLE_KEY = resolveSupabaseServiceRoleKey()
 
 interface SetupResult {
     success: boolean
@@ -99,7 +125,7 @@ async function waitForUrlChange(page: Page, expectedPath: string, timeout = 3000
  */
 async function fetchOrgSlugFromSupabase(email: string): Promise<string | null> {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ENV_CONFIG.supabaseUrl
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const serviceRoleKey = SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !serviceRoleKey) {
         console.log('  Cannot query Supabase: missing URL or service role key')
@@ -147,7 +173,7 @@ async function fetchOrgSlugFromSupabase(email: string): Promise<string | null> {
  * Polls every 5s until found or timeout.
  */
 async function pollForApiKeyFromSupabase(orgSlug: string, timeoutMs = 90000): Promise<string | null> {
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const serviceRoleKey = SUPABASE_SERVICE_ROLE_KEY
     if (!serviceRoleKey) {
         console.error('  SUPABASE_SERVICE_ROLE_KEY not set - cannot poll for API key')
         return null
@@ -219,28 +245,64 @@ async function verifyOnboardingAndGetApiKey(orgSlug: string, _companyName: strin
  */
 async function handleStripeCheckout(page: Page): Promise<boolean> {
     console.log('\n[Step 6/6] Handling Stripe checkout...')
+    console.log(`  Current URL: ${page.url()}`)
 
     try {
-        // Wait for Stripe page to fully load
-        await page.waitForTimeout(2000)
+        // Wait for Stripe page to fully load (Stripe can be slow)
+        console.log('  Waiting for Stripe page to fully load...')
+        await page.waitForTimeout(5000)
+
+        // Log page title for debugging
+        const title = await page.title()
+        console.log(`  Page title: ${title}`)
 
         // Look for "Start trial" button on Stripe checkout
-        // Stripe uses various button selectors
+        // Stripe uses various button selectors - try multiple approaches
         const startTrialSelectors = [
             'button:has-text("Start trial")',
             'button:has-text("Start Trial")',
+            'button:has-text("Start free trial")',
+            'button:has-text("Subscribe")',
             '[data-testid="hosted-payment-submit-button"]',
+            '.SubmitButton-IconContainer',
             '.SubmitButton',
             'button[type="submit"]',
+            // Stripe's newer checkout uses spans inside buttons
+            'button >> text=Start trial',
+            'button >> text=Start Trial',
         ]
 
         for (const selector of startTrialSelectors) {
-            const button = page.locator(selector).first()
-            if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-                console.log(`  Found button with selector: ${selector}`)
-                await button.click()
-                console.log('  Clicked "Start trial" on Stripe')
-                return true
+            try {
+                const button = page.locator(selector).first()
+                const isVisible = await button.isVisible({ timeout: 3000 }).catch(() => false)
+                if (isVisible) {
+                    console.log(`  Found button with selector: ${selector}`)
+                    // Scroll into view and click
+                    await button.scrollIntoViewIfNeeded()
+                    await page.waitForTimeout(500)
+                    await button.click({ force: true })
+                    console.log('  Clicked "Start trial" on Stripe')
+                    // Wait a moment for the click to register
+                    await page.waitForTimeout(3000)
+                    return true
+                }
+            } catch {
+                // Continue to next selector
+            }
+        }
+
+        // Last resort: try clicking any visible green/primary button
+        console.log('  Trying to find any submit-like button...')
+        const allButtons = page.locator('button')
+        const buttonCount = await allButtons.count()
+        console.log(`  Found ${buttonCount} buttons on page`)
+        for (let i = 0; i < buttonCount; i++) {
+            const btn = allButtons.nth(i)
+            const text = await btn.textContent().catch(() => '')
+            const isVisible = await btn.isVisible().catch(() => false)
+            if (isVisible) {
+                console.log(`  Button ${i}: "${text?.trim()}"`)
             }
         }
 
@@ -387,16 +449,26 @@ async function setupDemoAccount(config: DemoAccountConfig): Promise<SetupResult>
         console.log('  Waiting for organization setup to complete...')
 
         // Wait for redirect to dashboard, integrations, success page, or Stripe
+        // NOTE: Stripe checkout uses custom domain pay.cloudact.ai (not checkout.stripe.com)
         const setupComplete = await Promise.race([
             waitForUrlChange(page, '/dashboard', 60000),
             waitForUrlChange(page, '/integrations', 60000),
             waitForUrlChange(page, '/onboarding/success', 60000),
-            page.waitForURL('**/checkout.stripe.com/**', { timeout: 60000 }).then(() => 'stripe').catch(() => null),
+            waitForUrlChange(page, '/c/pay/', 60000).then((found) => found ? 'stripe' as const : null),
+            page.waitForURL('**/checkout.stripe.com/**', { timeout: 60000 }).then(() => 'stripe' as const).catch(() => null),
+            page.waitForURL('**/pay.cloudact.ai/**', { timeout: 60000 }).then(() => 'stripe' as const).catch(() => null),
         ])
 
         const currentUrl = page.url()
+        console.log(`  Race result: ${setupComplete}, URL: ${currentUrl}`)
 
-        if (currentUrl.includes('checkout.stripe.com')) {
+        // Stripe checkout may be on custom domain (pay.cloudact.ai) or stripe.com
+        const isStripeCheckout = currentUrl.includes('stripe.com') ||
+            currentUrl.includes('pay.cloudact.ai') ||
+            currentUrl.includes('/c/pay/') ||
+            setupComplete === 'stripe'
+
+        if (isStripeCheckout) {
             console.log('  Redirected to Stripe checkout')
 
             // Handle Stripe checkout - click "Start trial"
