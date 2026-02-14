@@ -2406,6 +2406,7 @@ async def run_all_pipelines(
     4. POST to Pipeline Service to trigger each pipeline
     """
     start_time = time.time()
+    triggered_at_ts = datetime.now(timezone.utc).isoformat()
     orgs_processed = 0
     orgs_skipped = 0
     pipelines_triggered = 0
@@ -2457,6 +2458,7 @@ async def run_all_pipelines(
         logger.info(f"Pipeline run-all: {len(org_slugs)} orgs ({mode}), date={run_date}, dry_run={request.dry_run}")
 
         # 2. Process each org
+        pipeline_client = httpx.AsyncClient(timeout=120.0)
         for org_slug in org_slugs:
             try:
                 # 2a. Get active, validated integration credentials
@@ -2500,7 +2502,7 @@ async def run_all_pipelines(
 
                 # 2c. Get org API key and decrypt
                 key_query = f"""
-                SELECT api_key_encrypted, kms_key_version
+                SELECT encrypted_org_api_key
                 FROM `{settings.gcp_project_id}.organizations.org_api_keys`
                 WHERE org_slug = @org_slug AND is_active = TRUE
                 LIMIT 1
@@ -2513,7 +2515,7 @@ async def run_all_pipelines(
                 key_result = bq_client.client.query(key_query, job_config=key_config).result()
                 key_row = next(key_result, None)
 
-                if not key_row or not key_row.api_key_encrypted:
+                if not key_row or not key_row.encrypted_org_api_key:
                     orgs_skipped += 1
                     errors.append({
                         "org_slug": org_slug,
@@ -2523,8 +2525,7 @@ async def run_all_pipelines(
 
                 try:
                     org_api_key = decrypt_value(
-                        key_row.api_key_encrypted,
-                        key_row.kms_key_version
+                        key_row.encrypted_org_api_key
                     )
                 except Exception as decrypt_err:
                     orgs_skipped += 1
@@ -2556,12 +2557,11 @@ async def run_all_pipelines(
                         f"/run/{org_slug}/{pipeline_path}"
                     )
                     try:
-                        async with httpx.AsyncClient(timeout=120.0) as client:
-                            resp = await client.post(
-                                pipeline_url,
-                                headers={"X-API-Key": org_api_key},
-                                params={"date": run_date},
-                            )
+                        resp = await pipeline_client.post(
+                            pipeline_url,
+                            headers={"X-API-Key": org_api_key},
+                            params={"date": run_date},
+                        )
 
                         if resp.status_code == 200:
                             pipelines_triggered += 1
@@ -2618,6 +2618,7 @@ async def run_all_pipelines(
                     })
                 logger.warning(f"Pipeline run-all error for {org_slug}: {org_error}")
 
+        await pipeline_client.aclose()
         elapsed = time.time() - start_time
         dry_label = " (DRY RUN)" if request.dry_run else ""
         message = (
@@ -2651,7 +2652,7 @@ async def run_all_pipelines(
                 "results": json.dumps(results[:100]),
                 "errors": json.dumps(errors[:20]),
                 "elapsed_seconds": round(elapsed, 2),
-                "triggered_at": now_ts,
+                "triggered_at": triggered_at_ts,
                 "completed_at": now_ts,
                 "created_at": now_ts,
             }

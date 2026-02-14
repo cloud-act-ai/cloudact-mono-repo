@@ -143,6 +143,7 @@ ALL_JOBS=(
     "cloudact-daily-billing-reconcile"
     "cloudact-daily-stale-cleanup"
     "cloudact-daily-pipelines"
+    "cloudact-daily-alerts"
     "cloudact-monthly-quota-reset"
 )
 # Note: billing sync jobs (5min-billing-sync-retry, daily-billing-reconcile) are deprecated
@@ -166,6 +167,7 @@ ALL_SCHEDULERS=(
     "cloudact-daily-billing-reconcile-trigger"
     "cloudact-daily-stale-cleanup-trigger"
     "cloudact-daily-pipelines-trigger"
+    "cloudact-daily-alerts-trigger"
     "cloudact-monthly-quota-reset-trigger"
 )
 # Note: billing sync schedulers are deprecated and will be deleted but not recreated
