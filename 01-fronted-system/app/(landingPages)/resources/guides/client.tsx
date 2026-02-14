@@ -67,7 +67,7 @@ const GUIDES = [
   {
     id: "team-onboarding",
     category: "Teams",
-    title: "Onboarding Your Team to CloudAct",
+    title: "Onboarding Your Team to CloudAct.ai",
     description: "Best practices for rolling out CloudAct across engineering and finance teams.",
     readTime: "11 min read",
     date: "Nov 20, 2024",

@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
+import { siteTitle } from "@/lib/site"
 
 export const metadata: Metadata = {
-  title: "API Reference | CloudAct.ai Documentation",
+  title: siteTitle("API Reference", "Documentation"),
   description: "CloudAct.ai REST API documentation. Authentication, endpoints, rate limits, and code examples.",
   openGraph: {
-    title: "API Reference | CloudAct.ai",
+    title: siteTitle("API Reference"),
     description: "CloudAct.ai REST API documentation.",
     type: "website",
   },

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   Shield,
   FileText,
@@ -13,10 +14,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Compliance | CloudAct.ai",
+  title: siteTitle("Compliance"),
   description: "CloudAct.ai Compliance standards. SOC 2 Type II certified, GDPR and CCPA compliant. Learn about our commitment to data protection.",
   openGraph: {
-    title: "Compliance | CloudAct.ai",
+    title: siteTitle("Compliance"),
     description: "SOC 2 Type II certified, GDPR and CCPA compliant platform.",
     type: "website",
   },
@@ -55,7 +56,7 @@ export default function CompliancePage() {
             Compliance Standards
           </div>
           <h1 className="ca-page-hero-title">
-            Compliance at <span className="ca-hero-highlight-mint">CloudAct</span>
+            Compliance at <span className="ca-hero-highlight-mint">CloudAct.ai</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             We maintain rigorous compliance standards to ensure your data is handled with the

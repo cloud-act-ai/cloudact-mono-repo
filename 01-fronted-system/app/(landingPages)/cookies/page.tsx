@@ -1,13 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import { ArrowRight, Cookie, Shield, Settings, BarChart3 } from "lucide-react"
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Cookie Policy | CloudAct.ai",
+  title: siteTitle("Cookie Policy"),
   description: "Learn how CloudAct.ai uses cookies and similar technologies to improve your experience and analyze site traffic.",
   openGraph: {
-    title: "Cookie Policy | CloudAct.ai",
+    title: siteTitle("Cookie Policy"),
     description: "CloudAct.ai cookie policy and tracking technologies.",
     type: "website",
   },

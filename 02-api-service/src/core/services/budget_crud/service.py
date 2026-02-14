@@ -17,6 +17,9 @@ from src.core.services.budget_crud.models import (
     BudgetUpdateRequest,
     BudgetResponse,
     BudgetListResponse,
+    TopDownAllocationRequest,
+    TopDownAllocationResponse,
+    ChildAllocationResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -268,7 +271,11 @@ class BudgetCRUDService:
         budget_id: str,
         deleted_by: Optional[str] = None,
     ) -> bool:
-        """Soft delete a budget (set is_active = false)."""
+        """Soft delete a budget (set is_active = false).
+
+        If this budget is a parent in allocations, also deactivates all
+        child budgets linked via org_budget_allocations.
+        """
         query = f"""
             UPDATE `{self.budgets_table}`
             SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP(), updated_by = @deleted_by
@@ -283,11 +290,153 @@ class BudgetCRUDService:
 
         try:
             job = self.client.query(query, job_config=job_config)
-            job.result()  # Wait for completion
-            return job.num_dml_affected_rows > 0
+            job.result()
+            deleted = job.num_dml_affected_rows > 0
+
+            if deleted:
+                # Cascade: deactivate child budgets linked via allocations
+                cascade_query = f"""
+                    UPDATE `{self.budgets_table}`
+                    SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP(), updated_by = @deleted_by
+                    WHERE org_slug = @org_slug
+                      AND is_active = TRUE
+                      AND budget_id IN (
+                          SELECT child_budget_id
+                          FROM `{self.allocations_table}`
+                          WHERE org_slug = @org_slug AND parent_budget_id = @budget_id
+                      )
+                """
+                cascade_params = [
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("budget_id", "STRING", budget_id),
+                    bigquery.ScalarQueryParameter("deleted_by", "STRING", deleted_by or "system"),
+                ]
+                cascade_config = bigquery.QueryJobConfig(query_parameters=cascade_params)
+                cascade_job = self.client.query(cascade_query, job_config=cascade_config)
+                cascade_job.result()
+                if cascade_job.num_dml_affected_rows > 0:
+                    logger.info(
+                        f"Cascade deleted {cascade_job.num_dml_affected_rows} child budgets "
+                        f"for parent {budget_id}"
+                    )
+
+            return deleted
         except Exception as e:
             logger.error(f"Failed to delete budget {budget_id}: {e}")
             raise
+
+    async def _create_allocation(
+        self,
+        org_slug: str,
+        parent_budget_id: str,
+        child_budget_id: str,
+        allocated_amount: float,
+        allocation_percentage: float,
+    ) -> str:
+        """Insert a row into org_budget_allocations."""
+        allocation_id = str(uuid.uuid4())
+        query = f"""
+            INSERT INTO `{self.allocations_table}` (
+                allocation_id, org_slug, parent_budget_id, child_budget_id,
+                allocated_amount, allocation_percentage, created_at, updated_at
+            ) VALUES (
+                @allocation_id, @org_slug, @parent_budget_id, @child_budget_id,
+                @allocated_amount, @allocation_percentage, CURRENT_TIMESTAMP(), NULL
+            )
+        """
+        params = [
+            bigquery.ScalarQueryParameter("allocation_id", "STRING", allocation_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("parent_budget_id", "STRING", parent_budget_id),
+            bigquery.ScalarQueryParameter("child_budget_id", "STRING", child_budget_id),
+            bigquery.ScalarQueryParameter("allocated_amount", "FLOAT64", allocated_amount),
+            bigquery.ScalarQueryParameter("allocation_percentage", "FLOAT64", allocation_percentage),
+        ]
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        self.client.query(query, job_config=job_config).result()
+        return allocation_id
+
+    async def create_budget_with_allocations(
+        self,
+        org_slug: str,
+        request: TopDownAllocationRequest,
+        created_by: Optional[str] = None,
+    ) -> TopDownAllocationResponse:
+        """Create a parent budget and allocate to children.
+
+        1. Creates the parent budget
+        2. For each child: calculate amount, create child budget, create allocation record
+        3. Return combined response
+        """
+        # 1. Create parent budget
+        parent_req = BudgetCreateRequest(
+            hierarchy_entity_id=request.hierarchy_entity_id,
+            hierarchy_entity_name=request.hierarchy_entity_name,
+            hierarchy_path=request.hierarchy_path,
+            hierarchy_level_code=request.hierarchy_level_code,
+            category=request.category,
+            budget_type=request.budget_type,
+            budget_amount=request.budget_amount,
+            currency=request.currency,
+            period_type=request.period_type,
+            period_start=request.period_start,
+            period_end=request.period_end,
+            provider=request.provider,
+            notes=request.notes,
+        )
+        parent_budget = await self.create_budget(org_slug, parent_req, created_by)
+
+        # 2. Create child budgets + allocation records
+        children_results: List[ChildAllocationResult] = []
+        total_allocated = 0.0
+
+        for alloc in request.allocations:
+            child_amount = round(request.budget_amount * alloc.percentage / 100, 2)
+            total_allocated += child_amount
+
+            child_req = BudgetCreateRequest(
+                hierarchy_entity_id=alloc.hierarchy_entity_id,
+                hierarchy_entity_name=alloc.hierarchy_entity_name,
+                hierarchy_path=alloc.hierarchy_path,
+                hierarchy_level_code=alloc.hierarchy_level_code,
+                category=request.category,
+                budget_type=request.budget_type,
+                budget_amount=child_amount,
+                currency=request.currency,
+                period_type=request.period_type,
+                period_start=request.period_start,
+                period_end=request.period_end,
+                provider=alloc.provider or request.provider,
+                notes=alloc.notes,
+            )
+            child_budget = await self.create_budget(org_slug, child_req, created_by)
+
+            allocation_id = await self._create_allocation(
+                org_slug,
+                parent_budget.budget_id,
+                child_budget.budget_id,
+                child_amount,
+                alloc.percentage,
+            )
+
+            children_results.append(ChildAllocationResult(
+                budget=child_budget,
+                allocation_id=allocation_id,
+                allocated_amount=child_amount,
+                allocation_percentage=alloc.percentage,
+            ))
+
+        total_pct = sum(a.percentage for a in request.allocations)
+        unallocated = round(request.budget_amount - total_allocated, 2)
+
+        return TopDownAllocationResponse(
+            parent_budget=parent_budget,
+            children=children_results,
+            total_allocated=total_allocated,
+            total_allocated_percentage=total_pct,
+            unallocated_amount=unallocated,
+            unallocated_percentage=round(100 - total_pct, 2),
+        )
 
     async def _check_duplicate(
         self,

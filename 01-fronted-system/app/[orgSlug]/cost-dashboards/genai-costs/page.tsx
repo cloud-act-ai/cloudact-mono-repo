@@ -43,7 +43,7 @@ export default function GenAICostsPage() {
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
-    refresh: refreshCostData,
+    clearBackendCache,
     // Unified filter API (all client-side, instant)
     filters: contextFilters,
     setUnifiedFilters,
@@ -194,10 +194,10 @@ export default function GenAICostsPage() {
     })
   }, [setUnifiedFilters])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
     try {
-      await refreshCostData()
+      await clearBackendCache()
     } finally {
       setIsRefreshing(false)
     }
@@ -260,7 +260,7 @@ export default function GenAICostsPage() {
       errorAction={
         error?.includes("API key")
           ? { label: "Go to Settings", href: `/${orgSlug}/settings/organization` }
-          : { label: "Try again", onClick: handleRefresh }
+          : { label: "Try again", onClick: handleClearCache }
       }
       isEmpty={isEmpty}
       emptyState={{
@@ -269,7 +269,7 @@ export default function GenAICostsPage() {
         description: "Connect your LLM providers (OpenAI, Anthropic, etc.) and run the GenAI cost pipeline to see your usage data.",
         action: { label: "Connect Providers", href: `/${orgSlug}/integrations/genai` },
       }}
-      onRefresh={handleRefresh}
+      onRefresh={handleClearCache}
       isRefreshing={isRefreshing}
       filterActions={
         <>

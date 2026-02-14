@@ -38,6 +38,7 @@ export type SectionId =
   | "chat"
   | "dashboards"
   | "cost-analytics"
+  | "budget-planning"
   | "pipelines"
   | "integrations"
   | "notifications"
@@ -100,6 +101,15 @@ export function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
       ],
     },
     {
+      id: "budget-planning",
+      label: "Budget Planning",
+      collapsedIcon: Target,
+      collapsedHref: `/${orgSlug}/budgets`,
+      items: [
+        { title: "Budgets", href: `/${orgSlug}/budgets`, icon: Target, exactMatch: true },
+      ],
+    },
+    {
       id: "pipelines",
       label: "Pipelines",
       collapsedIcon: Workflow,
@@ -142,7 +152,6 @@ export function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
       items: [
         ...(isOwner ? [{ title: "Organization", href: `/${orgSlug}/settings/organization`, icon: Building, ownerOnly: true }] : []),
         ...(isOwner ? [{ title: "Hierarchy", href: `/${orgSlug}/settings/hierarchy`, icon: Network, ownerOnly: true }] : []),
-        ...(isOwner ? [{ title: "Budgets", href: `/${orgSlug}/budgets`, icon: Target, ownerOnly: true }] : []),
         { title: "Usage & Quotas", href: `/${orgSlug}/settings/quota-usage`, icon: BarChart3 },
         { title: "Team Members", href: `/${orgSlug}/settings/invite`, icon: UserPlus },
         ...(isOwner ? [{ title: "Billing", href: `/${orgSlug}/billing`, icon: CreditCard, ownerOnly: true }] : []),

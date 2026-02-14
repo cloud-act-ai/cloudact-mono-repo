@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { site } from "@/lib/site"
 import {
   ArrowRight,
   FileCode,
@@ -233,7 +234,7 @@ export function DocumentationPageClient() {
             <Terminal className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Start Building
           </div>
-          <h2 className="ca-final-cta-title">Ready to Integrate CloudAct.ai?</h2>
+          <h2 className="ca-final-cta-title">{`Ready to Integrate ${site.name}?`}</h2>
           <p className="ca-final-cta-subtitle">
             Get your API key and start building in minutes.
           </p>

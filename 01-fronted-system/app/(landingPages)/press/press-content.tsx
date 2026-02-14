@@ -2,6 +2,7 @@
 
 import { useState, useRef, type FormEvent } from "react"
 import Link from "next/link"
+import { site } from "@/lib/site"
 import {
   Newspaper,
   ArrowRight,
@@ -45,17 +46,17 @@ interface ValidationErrors {
 const PRESS_RELEASES = [
   {
     date: "December 2024",
-    title: "CloudAct.ai Launches AI-Powered Cost Anomaly Detection",
+    title: `${site.name} Launches AI-Powered Cost Anomaly Detection`,
     description: "New feature helps enterprises catch cloud cost overruns before they impact budgets.",
   },
   {
     date: "October 2024",
-    title: "CloudAct.ai Announces GenAI Cost Tracking for OpenAI and Anthropic",
+    title: `${site.name} Announces GenAI Cost Tracking for OpenAI and Anthropic`,
     description: "First FinOps platform to offer unified tracking for LLM API spending.",
   },
   {
     date: "August 2024",
-    title: "CloudAct.ai Raises Series A to Expand FinOps Platform",
+    title: `${site.name} Raises Series A to Expand FinOps Platform`,
     description: "Funding will accelerate product development and go-to-market expansion.",
   },
 ]
@@ -178,7 +179,7 @@ export default function PressContent() {
             Press & Media
           </div>
           <h1 className="ca-page-hero-title">
-            <span style={heroHighlightStyle}>CloudAct</span> in the News
+            <span style={heroHighlightStyle}>{site.name}</span> in the News
           </h1>
           <p className="ca-page-hero-subtitle">
             Press releases, media resources, and contact information for journalists and analysts.
@@ -300,12 +301,12 @@ export default function PressContent() {
           </div>
 
           <div className="ca-press-boilerplate">
-            <h3>About CloudAct.ai</h3>
+            <h3>About {site.name}</h3>
             <p>
-              CloudAct.ai is the unified platform for cloud, GenAI, and SaaS cost management.
+              {site.name} is the unified platform for cloud, GenAI, and SaaS cost management.
               Our AI-powered solution helps engineering and finance teams gain visibility into
               their spending, optimize costs, and make data-driven decisions. Founded in 2023,
-              CloudAct.ai is trusted by over 340 teams worldwide and has helped customers save
+              {site.name} is trusted by over 340 teams worldwide and has helped customers save
               over $2.4 million in cloud costs. The company is headquartered in Sunnyvale,
               California with a remote-first team across 8 countries.
             </p>

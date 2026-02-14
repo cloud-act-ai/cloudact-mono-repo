@@ -257,7 +257,7 @@ async def test_channel(
             response = await client.post(
                 pipeline_url,
                 json=test_payload,
-                headers={"X-API-Key": api_key}
+                headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
             )
 
             if response.status_code == 200:
@@ -575,17 +575,18 @@ async def test_rule(
                 notification_payload = {
                     "org_slug": org_slug,
                     "event": "rule_triggered",
-                    "severity": rule.priority.value,
+                    "severity": rule.priority.value if hasattr(rule.priority, "value") else str(rule.priority),
                     "title": f"Alert: {rule.name}",
                     "message": trigger_reason or "Rule condition met",
                     "rule_id": rule_id,
+                    "channels": ["email"],
                     "details": evaluation_data,
                 }
                 try:
                     response = await client.post(
                         pipeline_url,
                         json=notification_payload,
-                        headers={"X-API-Key": current_org.get("api_key", "")}
+                        headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
                     )
                     result["notification_sent"] = response.status_code == 200
                 except httpx.RequestError:
@@ -915,7 +916,7 @@ async def send_summary_now(
                 response = await client.post(
                     pipeline_url,
                     json=notification_payload,
-                    headers={"X-API-Key": current_org.get("api_key", "")}
+                    headers={"X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "")}
                 )
 
                 if response.status_code == 200:

@@ -21,8 +21,6 @@ from src.core.services.budget_read.models import (
 )
 from src.core.services.budget_read.aggregations import (
     sum_by_category,
-    sum_by_provider,
-    sum_by_hierarchy,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +31,18 @@ GENAI_PROVIDERS = [
     "openai", "anthropic", "google ai", "cohere", "mistral",
     "gemini", "claude", "azure openai", "aws bedrock", "vertex ai",
 ]
+
+# Map FOCUS ServiceProviderName → budget provider short name
+PROVIDER_NAME_MAP = {
+    "google cloud": "gcp",
+    "google cloud platform": "gcp",
+    "amazon web services": "aws",
+    "microsoft azure": "azure",
+    "microsoft": "azure",
+    "oracle": "oci",
+    "oracle cloud": "oci",
+    "google ai": "gemini",
+}
 
 
 class BudgetReadService:
@@ -49,8 +59,9 @@ class BudgetReadService:
 
     def _get_cost_table(self, org_slug: str) -> str:
         """Get the FOCUS 1.3 cost table for an org."""
-        # All environments use _prod suffix for org datasets
-        return f"{self.project_id}.{org_slug}_prod.cost_data_standard_1_3"
+        from src.app.config import settings
+        dataset_id = settings.get_org_dataset_name(org_slug)
+        return f"{self.project_id}.{dataset_id}.cost_data_standard_1_3"
 
     async def _fetch_actual_costs(
         self,
@@ -61,7 +72,7 @@ class BudgetReadService:
     ) -> pl.DataFrame:
         """Fetch actual costs from cost_data_standard_1_3 for the given period.
 
-        Returns DataFrame with columns: BilledCost, ServiceProviderName,
+        Returns DataFrame with columns: charge_date, BilledCost, ServiceProviderName,
         x_hierarchy_entity_id, x_hierarchy_path, category
         """
         cost_table = self._get_cost_table(org_slug)
@@ -114,40 +125,38 @@ class BudgetReadService:
 
         query = f"""
             SELECT
+                CAST(ChargePeriodStart AS DATE) as charge_date,
                 COALESCE(BilledCost, 0) as BilledCost,
                 COALESCE(ServiceProviderName, 'Unknown') as ServiceProviderName,
                 COALESCE(x_hierarchy_entity_id, 'unassigned') as x_hierarchy_entity_id,
                 COALESCE(x_hierarchy_path, '') as x_hierarchy_path,
                 {category_case}
             FROM `{cost_table}`
-            WHERE ChargePeriodStart >= @period_start
-            AND ChargePeriodStart < @period_end
+            WHERE CAST(ChargePeriodStart AS DATE) >= @period_start
+            AND CAST(ChargePeriodStart AS DATE) < @period_end
             {category_where}
         """
 
         job_config = bigquery.QueryJobConfig(query_parameters=query_params)
 
+        empty_schema = {
+            "charge_date": [],
+            "BilledCost": [],
+            "ServiceProviderName": [],
+            "x_hierarchy_entity_id": [],
+            "x_hierarchy_path": [],
+            "category": [],
+        }
+
         try:
             results = self.client.query(query, job_config=job_config).result()
             rows = [dict(row) for row in results]
             if not rows:
-                return pl.DataFrame({
-                    "BilledCost": [],
-                    "ServiceProviderName": [],
-                    "x_hierarchy_entity_id": [],
-                    "x_hierarchy_path": [],
-                    "category": [],
-                })
+                return pl.DataFrame(empty_schema)
             return pl.DataFrame(rows)
         except Exception as e:
             logger.warning(f"Failed to fetch costs for {org_slug}: {e}")
-            return pl.DataFrame({
-                "BilledCost": [],
-                "ServiceProviderName": [],
-                "x_hierarchy_entity_id": [],
-                "x_hierarchy_path": [],
-                "category": [],
-            })
+            return pl.DataFrame(empty_schema)
 
     def _apply_period_filters(
         self,
@@ -233,15 +242,36 @@ class BudgetReadService:
 
         for row in results:
             budget = dict(row)
-            period_start = str(budget["period_start"])
-            period_end = str(budget["period_end"])
+            budget_period_start = str(budget["period_start"])
+            budget_period_end = str(budget["period_end"])
             budget_cat = budget["category"]
 
-            # Filter the pre-fetched costs for this budget's period and category
+            # Filter the pre-fetched costs for this budget's specific period and category
             if not all_costs_df.is_empty():
                 costs_df = all_costs_df
+                # Filter by this budget's date range
+                from datetime import date as date_type
+                bp_start = date_type.fromisoformat(budget_period_start)
+                bp_end = date_type.fromisoformat(budget_period_end)
+                costs_df = costs_df.filter(
+                    (pl.col("charge_date") >= bp_start) &
+                    (pl.col("charge_date") < bp_end)
+                )
                 if budget_cat and budget_cat != "total":
                     costs_df = costs_df.filter(pl.col("category") == budget_cat)
+
+                # Filter by provider if budget targets a specific provider
+                budget_provider = budget.get("provider")
+                if budget_provider and not costs_df.is_empty():
+                    provider_lower = budget_provider.lower()
+                    # Build list of FOCUS names that map to this budget provider
+                    focus_names = [provider_lower]
+                    for focus_name, short_name in PROVIDER_NAME_MAP.items():
+                        if short_name == provider_lower:
+                            focus_names.append(focus_name)
+                    costs_df = costs_df.filter(
+                        pl.col("ServiceProviderName").str.to_lowercase().is_in(focus_names)
+                    )
             else:
                 costs_df = all_costs_df
 
@@ -252,9 +282,9 @@ class BudgetReadService:
                     (pl.col("x_hierarchy_entity_id") == entity_id) |
                     (pl.col("x_hierarchy_path").str.contains(entity_id))
                 )
-                actual = entity_costs["BilledCost"].sum() if not entity_costs.is_empty() else 0.0
+                actual = float(entity_costs["BilledCost"].sum()) if not entity_costs.is_empty() else 0.0
             else:
-                actual = costs_df["BilledCost"].sum() if not costs_df.is_empty() else 0.0
+                actual = float(costs_df["BilledCost"].sum()) if not costs_df.is_empty() else 0.0
 
             budget_amount = float(budget["budget_amount"])
             variance = budget_amount - actual
@@ -360,17 +390,19 @@ class BudgetReadService:
             budget_map[b["budget_id"]] = dict(b)
 
         # Build tree nodes
-        def build_node(budget_id: str, actual_lookup: dict) -> AllocationNode:
+        def build_node(budget_id: str, actual_lookup: dict, _depth: int = 0) -> AllocationNode:
+            if _depth > 20:
+                raise ValueError("Allocation tree exceeds maximum depth of 20")
             b = budget_map[budget_id]
             children_allocs = parent_to_children.get(budget_id, [])
             allocated = sum(c["allocated_amount"] for c in children_allocs)
             child_nodes = []
             for ca in children_allocs:
                 if ca["child_budget_id"] in budget_map:
-                    child_nodes.append(build_node(ca["child_budget_id"], actual_lookup))
+                    child_nodes.append(build_node(ca["child_budget_id"], actual_lookup, _depth + 1))
 
             entity_id = b["hierarchy_entity_id"]
-            actual = actual_lookup.get(entity_id, 0.0)
+            actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider")), 0.0))
             budget_amount = float(b["budget_amount"])
 
             return AllocationNode(
@@ -388,16 +420,41 @@ class BudgetReadService:
                 children=child_nodes,
             )
 
-        # Fetch actuals for all budgets period range
+        # Fetch actuals for all budgets period range — always get ALL categories
+        # so each budget can be matched to its own category
+        # actual_lookup keyed by (entity_id, category) for per-budget accuracy
         actual_lookup: dict = {}
+        costs_df = pl.DataFrame()
         if budgets:
             min_start = min(str(b["period_start"]) for b in budgets)
             max_end = max(str(b["period_end"]) for b in budgets)
-            costs_df = await self._fetch_actual_costs(org_slug, min_start, max_end, category)
+            costs_df = await self._fetch_actual_costs(org_slug, min_start, max_end)
             if not costs_df.is_empty():
-                agg = sum_by_hierarchy(costs_df)
-                for row in agg.iter_rows(named=True):
-                    actual_lookup[row["hierarchy_entity_id"]] = row["actual_amount"]
+                for b in budgets:
+                    eid = b["hierarchy_entity_id"]
+                    bcat = b["category"]
+                    bprov = b.get("provider")
+                    key = (eid, bcat, bprov)
+                    if key not in actual_lookup:
+                        # Match entity directly OR via hierarchy path (parent rollup)
+                        entity_costs = costs_df.filter(
+                            (pl.col("x_hierarchy_entity_id") == eid) |
+                            (pl.col("x_hierarchy_path").str.contains(eid))
+                        )
+                        # Scope to budget's category (unless "total" = all categories)
+                        if bcat and bcat != "total":
+                            entity_costs = entity_costs.filter(pl.col("category") == bcat)
+                        # Scope to budget's provider if set
+                        if bprov and not entity_costs.is_empty():
+                            provider_lower = bprov.lower()
+                            focus_names = [provider_lower]
+                            for focus_name, short_name in PROVIDER_NAME_MAP.items():
+                                if short_name == provider_lower:
+                                    focus_names.append(focus_name)
+                            entity_costs = entity_costs.filter(
+                                pl.col("ServiceProviderName").str.to_lowercase().is_in(focus_names)
+                            )
+                        actual_lookup[key] = float(entity_costs["BilledCost"].sum()) if not entity_costs.is_empty() else 0.0
 
         # Find root nodes (budgets not allocated from a parent)
         roots = []
@@ -474,13 +531,17 @@ class BudgetReadService:
         if not costs_df.is_empty():
             agg = sum_by_category(costs_df)
             for row in agg.iter_rows(named=True):
-                actual_by_cat[row["category"]] = row["actual_amount"]
+                actual_by_cat[row["category"]] = float(row["actual_amount"])
 
         items = []
         for row in results:
             cat = row["category"]
             budget_amt = float(row["budget_amount"])
-            actual_amt = actual_by_cat.get(cat, 0.0)
+            # "total" category means all cost types combined
+            if cat == "total":
+                actual_amt = sum(float(v) for v in actual_by_cat.values())
+            else:
+                actual_amt = float(actual_by_cat.get(cat, 0.0))
             variance = budget_amt - actual_amt
             variance_pct = (variance / budget_amt * 100) if budget_amt > 0 else 0
 
@@ -534,24 +595,48 @@ class BudgetReadService:
                 org_slug=org_slug, category=category, items=[], currency="USD"
             )
 
-        # Get date range
+        # Get date range — fetch ALL costs (no category filter) for per-budget scoping
         min_start = min(str(b["period_start"]) for b in budgets)
         max_end = max(str(b["period_end"]) for b in budgets)
-
-        # Fetch actuals
-        costs_df = await self._fetch_actual_costs(org_slug, min_start, max_end, category)
-        actual_by_provider: dict = {}
-        if not costs_df.is_empty():
-            agg = sum_by_provider(costs_df, category)
-            for row in agg.iter_rows(named=True):
-                key = row["provider"].lower()
-                actual_by_provider[key] = actual_by_provider.get(key, 0.0) + row["actual_amount"]
+        all_costs_df = await self._fetch_actual_costs(org_slug, min_start, max_end)
 
         items = []
         for b in budgets:
             provider = b["provider"]
             budget_amt = float(b["budget_amount"])
-            actual_amt = actual_by_provider.get(provider.lower(), 0.0) if provider else 0.0
+            entity_id = b["hierarchy_entity_id"]
+            bcat = b["category"]
+
+            # Compute per-budget actual: scoped to entity + category + provider
+            actual_amt = 0.0
+            if not all_costs_df.is_empty() and provider:
+                from datetime import date as date_type
+                bp_start = date_type.fromisoformat(str(b["period_start"]))
+                bp_end = date_type.fromisoformat(str(b["period_end"]))
+                costs_df = all_costs_df.filter(
+                    (pl.col("charge_date") >= bp_start) &
+                    (pl.col("charge_date") < bp_end)
+                )
+                # Filter by entity (direct + hierarchy path rollup)
+                if entity_id:
+                    costs_df = costs_df.filter(
+                        (pl.col("x_hierarchy_entity_id") == entity_id) |
+                        (pl.col("x_hierarchy_path").str.contains(entity_id))
+                    )
+                # Filter by category
+                if bcat and bcat != "total":
+                    costs_df = costs_df.filter(pl.col("category") == bcat)
+                # Filter by provider (normalize FOCUS names)
+                provider_lower = provider.lower()
+                focus_names = [provider_lower]
+                for focus_name, short_name in PROVIDER_NAME_MAP.items():
+                    if short_name == provider_lower:
+                        focus_names.append(focus_name)
+                costs_df = costs_df.filter(
+                    pl.col("ServiceProviderName").str.to_lowercase().is_in(focus_names)
+                )
+                actual_amt = float(costs_df["BilledCost"].sum()) if not costs_df.is_empty() else 0.0
+
             variance = budget_amt - actual_amt
             variance_pct = (variance / budget_amt * 100) if budget_amt > 0 else 0
 

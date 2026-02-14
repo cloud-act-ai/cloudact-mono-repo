@@ -38,3 +38,12 @@ export const site = {
 
 // Type for site config
 export type SiteConfig = typeof site
+
+/**
+ * Generate a page title with the site name suffix.
+ * Usage: siteTitle("Pricing") → "Pricing | CloudAct.ai"
+ *        siteTitle("Pricing", "GenAI & Cloud Cost Intelligence") → "Pricing | CloudAct.ai - GenAI & Cloud Cost Intelligence"
+ */
+export function siteTitle(page: string, subtitle?: string): string {
+  return subtitle ? `${page} | ${site.name} - ${subtitle}` : `${page} | ${site.name}`
+}

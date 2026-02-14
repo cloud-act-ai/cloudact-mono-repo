@@ -18,6 +18,7 @@ import {
 import { StatRow } from "@/components/ui/stat-row"
 import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
 import { LoadingState } from "@/components/ui/loading-state"
+import { site } from "@/lib/site"
 
 export default function SecurityPage() {
   const router = useRouter()
@@ -30,7 +31,7 @@ export default function SecurityPage() {
   const [email, setEmail] = useState("")
 
   useEffect(() => {
-    document.title = "Security | CloudAct.ai"
+    document.title = `Security | ${site.name}`
   }, [])
 
   const fetchUser = useCallback(async () => {

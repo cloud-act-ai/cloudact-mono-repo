@@ -41,6 +41,7 @@ import {
 import { StatRow } from "@/components/ui/stat-row"
 import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
 import { LoadingState } from "@/components/ui/loading-state"
+import { site } from "@/lib/site"
 
 // Parse phone to extract country code and number
 function parsePhone(phone: string | null): { countryCode: string; phoneNumber: string } {
@@ -118,7 +119,7 @@ export default function PersonalSettingsPage() {
   const [deletionRequested, setDeletionRequested] = useState(false)
 
   useEffect(() => {
-    document.title = "Personal Settings | CloudAct.ai"
+    document.title = `Personal Settings | ${site.name}`
   }, [])
 
   const fetchProfile = useCallback(async () => {

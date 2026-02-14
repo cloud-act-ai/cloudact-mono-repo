@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  RefreshCw,
   History,
   Send,
   Pause,
@@ -31,6 +30,7 @@ import {
 
 // Premium components
 import { PremiumCard, MetricCard, SectionHeader } from "@/components/ui/premium-card"
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { StatRow } from "@/components/ui/stat-row"
 import { LoadingState } from "@/components/ui/loading-state"
@@ -1678,13 +1678,16 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
-          Notifications
-        </h1>
-        <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
-          Configure alerts, summaries, and notification channels
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
+            Notifications
+          </h1>
+          <p className="text-[12px] sm:text-[13px] text-[var(--text-tertiary)] mt-1 sm:mt-2 max-w-lg">
+            Configure alerts, summaries, and notification channels
+          </p>
+        </div>
+        <PageActionsMenu onClearCache={loadData} />
       </div>
 
       {/* Backend Warning */}
@@ -1960,14 +1963,6 @@ export default function NotificationsPage() {
         <TabsContent value="history">
           <div className="flex items-center justify-between mb-4">
             <SectionHeader title="Notification History" subtitle="Recent notifications sent" />
-            <Button
-              variant="outline"
-              onClick={loadData}
-              className="gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
           </div>
 
           <PremiumCard padding="none">

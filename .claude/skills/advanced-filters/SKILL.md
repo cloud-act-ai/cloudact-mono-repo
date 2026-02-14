@@ -71,6 +71,8 @@ Unified filter bar component and state management hook used across cost dashboar
 | **Alert Notifications Router** | `02-api-service/src/app/routers/notifications.py` |
 | **Cost Filters** (existing) | `01-fronted-system/components/costs/cost-filters.tsx` |
 | **Cost Context** (existing) | `01-fronted-system/contexts/cost-data-context.tsx` |
+| **PageActionsMenu** (shared) | `01-fronted-system/components/ui/page-actions-menu.tsx` |
+| **CostDashboardShell** (layout) | `01-fronted-system/components/costs/cost-dashboard-shell.tsx` |
 
 ## Core Concepts
 
@@ -352,6 +354,81 @@ The demo account includes 8 budgets and 2 alert rules for end-to-end filter test
 | Alert status filter mismatch | Using `matchesBudgetStatus` instead of `matchesAlertStatus` | Alerts use `matchesAlertStatus(is_active, is_paused, status)` |
 | Provider filter on alerts not working | `provider_filter` is REPEATED STRING | Use array `.includes()`, not direct string compare |
 | Budget period filter returns nothing | `period_type` not set on budget | All budgets must have `period_type` (monthly/quarterly/yearly/custom) |
+| "Clear Cache" not clearing backend cache | Using `refresh()` instead of `clearBackendCache()` | Wire `clearBackendCache` to `PageActionsMenu.onClearCache` on cost pages |
+| Infinite re-render on cost page mount | `setUnifiedFilters` in `useEffect` deps | Use `setUnifiedFiltersRef` pattern (see Audit Findings section) |
+
+## Cache Clearing Pattern (PageActionsMenu)
+
+All data pages use a shared `PageActionsMenu` component (3-dot vertical menu) for cache clearing instead of "Refresh" buttons.
+
+### Component
+
+```typescript
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
+
+// Cost pages — clears backend Polars cache + forces fresh BigQuery query
+<PageActionsMenu onClearCache={handleClearCache} />
+
+// Budget/Notification pages — re-fetches from API
+<PageActionsMenu onClearCache={loadData} />
+```
+
+### Pages with PageActionsMenu
+
+| Page | Handler | What It Clears |
+|------|---------|----------------|
+| Cost Dashboard Shell (4 pages) | `clearBackendCache()` | Polars LRU cache → fresh BigQuery query |
+| Dashboard | `clearBackendCache()` + `loadNonCostData()` | Polars cache + pipeline/quota data |
+| Analytics | `clearBackendCache()` | Polars LRU cache |
+| Budgets | `loadData()` | Re-fetches all budget data from API |
+| Notifications | `loadData()` | Re-fetches channels, rules, history |
+| Operations | `loadData()` | Re-fetches pipeline run data |
+
+### Critical Distinction: `clearBackendCache` vs `refresh`
+
+| Method | Source | What It Does |
+|--------|--------|-------------|
+| `clearBackendCache()` | `useCostData()` context | Passes `clear_cache=true` to API → bypasses Polars LRU (300s TTL) → queries BigQuery directly |
+| `refresh()` | `useCostData()` context | Marks data as stale, re-fetches → **may still use Polars cached data** |
+
+**Rule:** Always wire `clearBackendCache` (not `refresh`) to the PageActionsMenu on cost pages.
+
+## Audit Findings (2026-02-13)
+
+### Verified Working
+
+- `serverFilterKey` correctly used in `useCallback` deps (budgets page)
+- Client-side filter helpers (`matchesSearch`, `matchesBudgetStatus`) correctly applied
+- All cost pages use `setUnifiedFiltersRef` pattern to avoid infinite loops
+- Filter state properly reset on page mount/unmount
+- No pages import both filter systems (clean separation)
+- `clearBackendCache` properly passes `clear_cache=true` through `fetchCostData(true)`
+
+### Known Issues (Non-Critical)
+
+| Issue | Severity | Location | Notes |
+|-------|----------|----------|-------|
+| `FilterTimeRange` vs `TimeRange` type mismatch | WARNING | `use-advanced-filters.ts:23` vs `cost-data-context.tsx:82` | Advanced filters has `"all"` but not `"qtd"`/`"last_month"`. Cost context is inverse. No runtime impact since budgets don't use timeRange filter. |
+| `getFilteredTotalCost()` unused | INFO | `cost-data-context.tsx:1114` | Exported but never called by any consumer page. All pages calculate totals from breakdowns. |
+| Double memoization in dashboard | INFO | `dashboard/page.tsx:461-492` | `useMemo` wraps already-memoized context getters. Harmless — prevents child re-renders. |
+| `setUnifiedFiltersRef` pattern undocumented | INFO | All 4 cost dashboard pages | Ref pattern prevents infinite loops. Should be documented in cost-analytics skill. |
+
+### setUnifiedFiltersRef Pattern (Important for New Cost Pages)
+
+All cost dashboard pages MUST use this pattern to avoid infinite re-render loops:
+
+```typescript
+// INFINITE-LOOP-FIX: Use ref to avoid re-render loop
+const setUnifiedFiltersRef = React.useRef(setUnifiedFilters)
+setUnifiedFiltersRef.current = setUnifiedFilters
+
+useEffect(() => {
+  setUnifiedFiltersRef.current({ categories: ["cloud"] })
+  return () => { setUnifiedFiltersRef.current({ categories: undefined }) }
+}, []) // Empty deps — ref always has latest function
+```
+
+**Why:** `setUnifiedFilters` identity changes on every context state update. If placed directly in `useEffect` deps, it causes infinite re-renders.
 
 ## Related Skills
 

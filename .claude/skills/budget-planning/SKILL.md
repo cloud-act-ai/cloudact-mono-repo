@@ -216,6 +216,29 @@ curl -s -X PUT "$API/api/v1/budgets/$ORG/$BUDGET_ID" \
 # Delete budget (soft delete)
 curl -s -X DELETE "$API/api/v1/budgets/$ORG/$BUDGET_ID" \
   -H "X-API-Key: $KEY"
+
+# Top-down allocation (create parent + children + allocation records)
+curl -s -X POST "$API/api/v1/budgets/$ORG/allocate" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hierarchy_entity_id": "ORG",
+    "hierarchy_entity_name": "Acme Inc",
+    "hierarchy_level_code": "organization",
+    "category": "cloud",
+    "budget_type": "monetary",
+    "budget_amount": 100000,
+    "currency": "USD",
+    "period_type": "yearly",
+    "period_start": "2026-01-01",
+    "period_end": "2026-12-31",
+    "allocations": [
+      {"hierarchy_entity_id": "DEPT-ENG", "hierarchy_entity_name": "Engineering", "hierarchy_level_code": "department", "percentage": 40},
+      {"hierarchy_entity_id": "DEPT-OPS", "hierarchy_entity_name": "Operations", "hierarchy_level_code": "department", "percentage": 30},
+      {"hierarchy_entity_id": "DEPT-DS", "hierarchy_entity_name": "Data Science", "hierarchy_level_code": "department", "percentage": 20}
+    ]
+  }'
+# Returns: { parent_budget, children: [{budget, allocation_id, allocated_amount, allocation_percentage}], unallocated_amount: 10000, unallocated_percentage: 10 }
 ```
 
 ### Budget Views (Read-Only Computed)
@@ -245,20 +268,25 @@ curl -s "$API/api/v1/budgets/$ORG/by-provider?hierarchy_entity_id=TEAM-TRAINING&
 ## Variance Calculation
 
 ```
-actual = SUM(billed_cost) FROM cost_data_standard_1_3
-         WHERE hierarchy_entity_id = budget.hierarchy_entity_id
-         AND charge_period_start >= budget.period_start
-         AND charge_period_start < budget.period_end
-         AND cost_category matches budget.category
+actual = SUM(BilledCost) FROM cost_data_standard_1_3
+         WHERE (x_hierarchy_entity_id = budget.entity_id
+                OR x_hierarchy_path CONTAINS budget.entity_id)  -- parent rollup
+         AND charge_date >= budget.period_start
+         AND charge_date < budget.period_end
+         AND category matches budget.category  -- "total" = all categories
+         AND ServiceProviderName matches budget.provider  -- if provider set (via PROVIDER_NAME_MAP)
 
-variance = actual - budget_amount
-pct_used = (actual / budget_amount) * 100
+variance = budget_amount - actual
+variance_percent = (variance / budget_amount) * 100
 
-Status:
-  pct_used < 80%  → "on_track"      (green)
-  pct_used 80-99% → "approaching"   (amber)
-  pct_used >= 100% → "exceeded"     (red)
+is_over_budget = actual > budget_amount
 ```
+
+**Key rules:**
+- Parent entities (DEPT-*, PROJ-*) include costs from all children via `x_hierarchy_path` containment
+- "total" category sums ALL cost types (cloud + genai + subscription)
+- Provider filter normalizes FOCUS names → budget short names (e.g., "Google Cloud" → "gcp")
+- Each budget's actual is independently scoped — no shared/global pools
 
 ## Procedures
 
@@ -287,17 +315,46 @@ curl -s -X POST "$API/api/v1/budgets/$ORG" \
 # Repeat for genai ($15,000), subscription ($5,000)
 ```
 
-### 2. Top-Down Allocation to Departments
+### 2. Top-Down Allocation to Departments (via `/allocate` API)
 
 ```bash
-# Allocate cloud budget to departments
-curl -s -X POST "$API/api/v1/budgets/$ORG" \
+# Allocate cloud budget to departments in one request
+# Creates: 1 parent budget + 3 child budgets + 3 allocation records
+curl -s -X POST "$API/api/v1/budgets/$ORG/allocate" \
   -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{"hierarchy_entity_id": "DEPT-ENG", "category": "cloud", "budget_type": "monetary", "budget_amount": 20000, "currency": "USD", "period_type": "monthly", "period_start": "2026-02-01", "period_end": "2026-02-28"}'
+  -d '{
+    "hierarchy_entity_id": "ORG",
+    "hierarchy_entity_name": "Acme Inc",
+    "hierarchy_level_code": "organization",
+    "category": "cloud",
+    "budget_type": "monetary",
+    "budget_amount": 100000,
+    "currency": "USD",
+    "period_type": "yearly",
+    "period_start": "2026-01-01",
+    "period_end": "2026-12-31",
+    "allocations": [
+      {"hierarchy_entity_id": "DEPT-ENG", "hierarchy_entity_name": "Engineering", "hierarchy_level_code": "department", "percentage": 40},
+      {"hierarchy_entity_id": "DEPT-OPS", "hierarchy_entity_name": "Operations", "hierarchy_level_code": "department", "percentage": 30},
+      {"hierarchy_entity_id": "DEPT-DS", "hierarchy_entity_name": "Data Science", "hierarchy_level_code": "department", "percentage": 20}
+    ]
+  }'
+# Creates: parent=$100K, ENG=$40K (40%), OPS=$30K (30%), DS=$20K (20%), margin=$10K (10%)
 
 # Check allocation tree
 curl -s "$API/api/v1/budgets/$ORG/allocation-tree" -H "X-API-Key: $KEY"
 ```
+
+**Frontend flow:** "+Create Budget" → "Top-Down Allocation" tab → Step 1 (parent budget) → Step 2 (allocate % to children) → Step 3 (review) → Submit
+
+**What gets created per allocation:**
+
+| Table | Records | Example |
+|-------|---------|---------|
+| `org_budgets` | 1 parent + N children | Parent=$100K, 3 children |
+| `org_budget_allocations` | N allocation links | 3 rows linking parent→child |
+
+**Validation:** Sum of allocation percentages must be <= 100%. No duplicate child entity IDs.
 
 ### 3. Create Token Budget (GenAI)
 
@@ -366,28 +423,47 @@ curl -s "$API/api/v1/budgets/$ORG/summary?period_type=monthly&period_start=2026-
 
 ### Budget Overview (`/[orgSlug]/budgets`)
 
-4-tab layout:
+5-tab layout:
 
 | Tab | Content |
 |-----|---------|
-| **Overview** | Stats row (total budget, total actual, variance, entities with budgets) + budget vs actual bar chart + status summary |
+| **Overview** | Stats row (total budget, total actual, variance, over-budget count) + variance list with progress bars |
+| **Budgets** | Raw budget list with edit/delete actions |
 | **Allocation** | Hierarchy tree with budget amounts, allocated vs unallocated at each level |
 | **By Category** | Category cards (cloud/genai/subscription) with budget vs actual per category |
 | **By Provider** | Provider-level breakdown within selected category |
 
+### Create Budget Dialog (Enhanced)
+
+Two modes via toggle:
+
+| Mode | Flow | Creates |
+|------|------|---------|
+| **Single Budget** | One-step form → submit | 1 budget |
+| **Top-Down Allocation** | Step 1 (parent) → Step 2 (allocate % to children) → Step 3 (review) → submit | 1 parent + N child budgets + N allocation records |
+
+**Allocation mode features:**
+- Children auto-populated from hierarchy tree based on selected parent entity
+- "Equal Split" button distributes equally across children
+- Progress bar shows % allocated
+- Unallocated margin displayed as difference from 100%
+- Category, type, period, currency inherited from parent to all children
+
 ### Navigation
 
-Add to sidebar under **Settings** group (owner-only):
+Budgets has its own **Budget Planning** section in the sidebar, below Cost Analytics:
 
 ```
-Settings
-├─ Organization
-├─ Hierarchy
-├─ Budgets          ← NEW
-├─ Usage & Quotas
-├─ Team Members
-└─ Billing
+Cost Analytics
+├─ Overview
+├─ GenAI Costs
+├─ Cloud Costs
+└─ Subscriptions
+Budget Planning       ← Own section (Target icon)
+└─ Budgets
 ```
+
+**Source:** `lib/nav-data.ts` → `getNavGroups()` → `id: "budget-planning"`
 
 ## Chat Agent Integration
 
@@ -419,6 +495,38 @@ The BudgetManager sub-agent in the chat backend (port 8002) allows users to quer
 | N+1 BQ queries in summary | `_fetch_actual_costs()` called per-budget in loop | Single fetch for full date range, filter with Polars |
 | UI always creates monetary | No `budget_type` selector in create dialog | Add `BudgetType` dropdown to create/edit form |
 
+### Backend Bug Fixes (2026-02-13)
+
+| Bug | Issue | Fix | File |
+|-----|-------|-----|------|
+| #1 | Hardcoded `_prod` dataset suffix | Use `settings.get_org_dataset_name()` | `budget_read/service.py` |
+| #2 | Summary used global date range — no per-budget filtering | Filter costs by each budget's `period_start`/`period_end` | `budget_read/service.py` |
+| #3 | Hardcoded hierarchy levels `["dept","project","team"]` | Use dynamic `hierarchy_level_code` from budget | `budget_crud/models.py` |
+| #4 | TIMESTAMP vs DATE mismatch in `_check_duplicate` | Cast `period_start`/`period_end` to DATE | `budget_crud/service.py` |
+| #5 | Decimal from Polars vs float serialization | Convert via `float()` before JSON response | `budget_read/service.py` |
+| #6 | "total" category actual=$0 in category breakdown | Sum ALL category actuals for "total" (not look up "total" key) | `budget_read/service.py` |
+| #7 | Parent entity actuals=$0 in allocation tree | Use `x_hierarchy_path.str.contains(entity_id)` for parent rollup | `budget_read/service.py` |
+| #8 | GCP provider actual=$0 in provider breakdown | Add `PROVIDER_NAME_MAP` to normalize "Google Cloud"→"gcp" etc. | `budget_read/service.py` |
+| #9 | Allocation tree same actual for cloud+total budgets | Key `actual_lookup` by `(entity_id, category, provider)` not just `entity_id` | `budget_read/service.py` |
+| #10 | Summary ignores budget's `provider` field | Filter costs by provider when budget has one (via `PROVIDER_NAME_MAP` reverse lookup) | `budget_read/service.py` |
+| #11 | Provider breakdown uses global provider totals | Compute per-budget actual scoped to entity + category + provider | `budget_read/service.py` |
+
+### PROVIDER_NAME_MAP (Critical)
+
+FOCUS `ServiceProviderName` values differ from budget `provider` short names:
+
+| FOCUS Name | Budget Provider |
+|-----------|----------------|
+| `Google Cloud` | `gcp` |
+| `Amazon Web Services` / `AWS` | `aws` |
+| `Microsoft Azure` | `azure` |
+| `Oracle` / `OCI` | `oci` |
+| `Google AI` | `gemini` |
+| `OpenAI` | `openai` |
+| `Anthropic` | `anthropic` |
+
+Defined in `budget_read/service.py:PROVIDER_NAME_MAP`. Used for both forward (FOCUS→budget) and reverse (budget→FOCUS) lookups.
+
 ### Chat Tool Bug Fixes (2026-02-13)
 
 | Bug | Issue | Fix |
@@ -431,11 +539,25 @@ The BudgetManager sub-agent in the chat backend (port 8002) allows users to quer
 ## Testing
 
 ```bash
-# Create budget
+# Create single budget
 curl -s -X POST "http://localhost:8000/api/v1/budgets/$ORG" \
   -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
-  -d '{"hierarchy_entity_id":"DEPT-ENG","category":"cloud","budget_type":"monetary","budget_amount":20000,"currency":"USD","period_type":"monthly","period_start":"2026-02-01","period_end":"2026-02-28"}'
+  -d '{"hierarchy_entity_id":"DEPT-ENG","hierarchy_entity_name":"Engineering","hierarchy_level_code":"department","category":"cloud","budget_type":"monetary","budget_amount":20000,"currency":"USD","period_type":"monthly","period_start":"2026-02-01","period_end":"2026-02-28"}'
 # Expected: 201 Created, { "budget_id": "...", ... }
+
+# Top-down allocation
+curl -s -X POST "http://localhost:8000/api/v1/budgets/$ORG/allocate" \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{
+    "hierarchy_entity_id":"ORG","hierarchy_entity_name":"Acme Inc","hierarchy_level_code":"organization",
+    "category":"cloud","budget_type":"monetary","budget_amount":100000,"currency":"USD",
+    "period_type":"yearly","period_start":"2026-01-01","period_end":"2026-12-31",
+    "allocations":[
+      {"hierarchy_entity_id":"DEPT-ENG","hierarchy_entity_name":"Engineering","hierarchy_level_code":"department","percentage":40},
+      {"hierarchy_entity_id":"DEPT-OPS","hierarchy_entity_name":"Operations","hierarchy_level_code":"department","percentage":30}
+    ]
+  }'
+# Expected: 201, { parent_budget: {...}, children: [{budget, allocation_id, allocated_amount: 40000}, ...], unallocated_amount: 30000 }
 
 # List budgets
 curl -s "http://localhost:8000/api/v1/budgets/$ORG" -H "X-API-Key: $KEY"
@@ -472,29 +594,46 @@ const { filters, updateFilters, clearFilters, activeCount, serverParams, clientP
 
 See `/advanced-filters` skill for full filter architecture.
 
-## Demo Data (8 Budgets)
+## Demo Data (12 Budgets = 8 individual + 4 from allocation)
 
 Created by `setupDemoBudgets()` in `load-demo-data-direct.ts` (Step 10.5):
+
+### Individual Budgets (8)
 
 | Entity | Category | Type | Amount | Provider | Period |
 |--------|----------|------|--------|----------|--------|
 | DEPT-ENG | cloud | monetary | $30,000 | - | Q1 2026 |
 | DEPT-DS | genai | monetary | $25,000 | - | Q1 2026 |
 | PROJ-PLATFORM | cloud | monetary | $20,000 | gcp | Q1 2026 |
-| PROJ-MLPIPE | genai | monetary | $20,000 | openai | Q1 2026 |
-| TEAM-BACKEND | cloud | monetary | $12,000 | aws | Q1 2026 |
+| PROJ-MLPIPE | genai | monetary | $20,000 | anthropic | Q1 2026 |
+| TEAM-BACKEND | cloud | monetary | $12,000 | gcp | Q1 2026 |
 | TEAM-FRONTEND | subscription | monetary | $3,000 | - | Q1 2026 |
-| TEAM-MLOPS | genai | token | 50,000,000 | - | Q1 2026 |
+| TEAM-MLOPS | genai | token | 50,000,000 | anthropic | Q1 2026 |
 | DEPT-ENG | total | monetary | $50,000 | - | Q1 2026 |
+
+### Top-Down Allocation (1 parent + 3 children = 4 budgets + 3 allocation records)
+
+| Entity | Category | Type | Amount | Allocation | Period |
+|--------|----------|------|--------|------------|--------|
+| ORG (parent) | cloud | monetary | $100,000 | - | 2026 yearly |
+| DEPT-ENG (child) | cloud | monetary | $45,000 | 45% | 2026 yearly |
+| DEPT-DS (child) | cloud | monetary | $30,000 | 30% | 2026 yearly |
+| DEPT-OPS (child) | cloud | monetary | $15,000 | 15% | 2026 yearly |
+| (unallocated margin) | - | - | $10,000 | 10% | - |
+
+**Provider matching:** Providers must match actual FOCUS `ServiceProviderName` values (normalized via `PROVIDER_NAME_MAP`). Demo data uses `gcp`/`anthropic` because actual costs come from Google Cloud and Anthropic respectively.
 
 ### Verify Demo Budgets
 
 ```bash
 curl -s "http://localhost:8000/api/v1/budgets/$ORG" -H "X-API-Key: $KEY" | jq '.total'
-# Expected: 8
+# Expected: 12
 
 curl -s "http://localhost:8000/api/v1/budgets/$ORG?category=cloud" -H "X-API-Key: $KEY" | jq '.total'
-# Expected: 3
+# Expected: 7 (3 individual + 1 parent + 3 children)
+
+curl -s "http://localhost:8000/api/v1/budgets/$ORG/allocation-tree" -H "X-API-Key: $KEY" | jq '.roots | length'
+# Expected: >= 1 (ORG root with 3 children)
 
 curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary" -H "X-API-Key: $KEY" | jq '.totals'
 # Expected: { budget_total, actual_total, variance, budgets_over, budgets_under }
@@ -515,7 +654,7 @@ curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary" -H "X-API-Key: $KEY"
 | `/charts` | Budget vs actual charts (bar, ring, trend) |
 | `/advanced-filters` | Shared filter hook and component used on budget page |
 | `/chat` | BudgetManager sub-agent with 4 read-only tools |
-| `/demo-setup` | Demo data includes 8 budgets for testing |
+| `/demo-setup` | Demo data includes 8 individual budgets + 1 allocation (12 total) |
 
 ## Source Specifications
 

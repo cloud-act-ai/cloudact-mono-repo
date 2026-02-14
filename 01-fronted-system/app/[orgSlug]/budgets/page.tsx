@@ -21,6 +21,10 @@ import {
   ChevronDown,
   ChevronRight,
   MoreVertical,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Equal,
 } from "lucide-react"
 
 import { StatRow } from "@/components/ui/stat-row"
@@ -53,18 +57,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { PremiumCard, SectionHeader } from "@/components/ui/premium-card"
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
 import { AdvancedFilterBar, FilteredEmptyState } from "@/components/filters/advanced-filter-bar"
 import { useAdvancedFilters, matchesSearch, matchesBudgetStatus, type AdvancedFilterState } from "@/lib/hooks/use-advanced-filters"
 
 import {
-  getBudgets,
   createBudget,
+  createTopDownAllocation,
   updateBudget,
   deleteBudget,
-  getBudgetSummary,
-  getAllocationTree,
-  getCategoryBreakdown,
-  getProviderBreakdown,
+  loadBudgetPageData,
   type Budget,
   type BudgetCreateRequest,
   type BudgetUpdateRequest,
@@ -80,9 +82,11 @@ import {
   type BudgetType,
   type PeriodType,
   type BudgetListResponse,
+  type TopDownAllocationRequest,
+  type ChildAllocationItem,
 } from "@/actions/budgets"
 
-import { getHierarchyTree, type HierarchyTreeNode } from "@/actions/hierarchy"
+import { type HierarchyTreeNode } from "@/actions/hierarchy"
 
 // ============================================
 // Helpers
@@ -133,8 +137,18 @@ function getPeriodLabel(periodType: string) {
 }
 
 // ============================================
-// Create / Edit Budget Dialog
+// Create / Edit Budget Dialog (with Top-Down Allocation)
 // ============================================
+
+type DialogMode = "single" | "allocation"
+
+interface AllocationRow {
+  hierarchy_entity_id: string
+  hierarchy_entity_name: string
+  hierarchy_path: string
+  hierarchy_level_code: string
+  percentage: string
+}
 
 function BudgetFormDialog({
   open,
@@ -142,6 +156,7 @@ function BudgetFormDialog({
   onSaved,
   orgSlug,
   hierarchyNodes,
+  hierarchyTreeRoots,
   editBudget,
 }: {
   open: boolean
@@ -149,12 +164,18 @@ function BudgetFormDialog({
   onSaved: () => void
   orgSlug: string
   hierarchyNodes: { id: string; name: string; level_code: string; path: string }[]
+  hierarchyTreeRoots: HierarchyTreeNode[]
   editBudget?: Budget | null
 }) {
   const isEdit = !!editBudget
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Mode & step
+  const [mode, setMode] = useState<DialogMode>("single")
+  const [step, setStep] = useState(1)
+
+  // Shared budget fields (Step 1)
   const [entityId, setEntityId] = useState("")
   const [category, setCategory] = useState<BudgetCategory>("total")
   const [budgetType, setBudgetType] = useState<BudgetType>("monetary")
@@ -165,9 +186,14 @@ function BudgetFormDialog({
   const [provider, setProvider] = useState("")
   const [notes, setNotes] = useState("")
 
-  // Populate form when editing
+  // Allocation rows (Step 2)
+  const [allocRows, setAllocRows] = useState<AllocationRow[]>([])
+
+  // Reset state when dialog opens/closes or edit budget changes
   useEffect(() => {
     if (editBudget) {
+      setMode("single")
+      setStep(1)
       setEntityId(editBudget.hierarchy_entity_id)
       setCategory(editBudget.category)
       setBudgetType(editBudget.budget_type)
@@ -177,7 +203,10 @@ function BudgetFormDialog({
       setPeriodEnd(editBudget.period_end)
       setProvider(editBudget.provider || "")
       setNotes(editBudget.notes || "")
+      setAllocRows([])
     } else {
+      setMode("single")
+      setStep(1)
       setEntityId("")
       setCategory("total")
       setBudgetType("monetary")
@@ -187,20 +216,83 @@ function BudgetFormDialog({
       setPeriodEnd("")
       setProvider("")
       setNotes("")
+      setAllocRows([])
     }
     setError(null)
   }, [editBudget, open])
 
   const selectedNode = hierarchyNodes.find((n) => n.id === entityId)
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Find children of the selected entity from the tree
+  const childrenOfSelected = useMemo(() => {
+    if (!entityId) return []
+    function findNode(nodes: HierarchyTreeNode[]): HierarchyTreeNode | null {
+      for (const n of nodes) {
+        if (n.entity_id === entityId) return n
+        if (n.children?.length) {
+          const found = findNode(n.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    const parent = findNode(hierarchyTreeRoots)
+    return parent?.children || []
+  }, [entityId, hierarchyTreeRoots])
+
+  // Populate allocation rows when moving to step 2
+  function initAllocRows() {
+    if (childrenOfSelected.length === 0) return
+    setAllocRows(
+      childrenOfSelected.map((c) => ({
+        hierarchy_entity_id: c.entity_id,
+        hierarchy_entity_name: c.entity_name,
+        hierarchy_path: c.path,
+        hierarchy_level_code: c.level_code,
+        percentage: "",
+      }))
+    )
+  }
+
+  function handleEqualSplit() {
+    if (allocRows.length === 0) return
+    const equalPct = Math.floor((100 / allocRows.length) * 100) / 100
+    setAllocRows((rows) => rows.map((r) => ({ ...r, percentage: String(equalPct) })))
+  }
+
+  function updateAllocPercentage(idx: number, value: string) {
+    setAllocRows((rows) => rows.map((r, i) => (i === idx ? { ...r, percentage: value } : r)))
+  }
+
+  const totalAllocPct = allocRows.reduce((sum, r) => sum + (parseFloat(r.percentage) || 0), 0)
+  const totalAllocAmount = parseFloat(amount) ? Math.round(parseFloat(amount) * totalAllocPct) / 100 : 0
+  const unallocPct = Math.round((100 - totalAllocPct) * 100) / 100
+  const unallocAmount = parseFloat(amount) ? Math.round(parseFloat(amount) * unallocPct) / 100 : 0
+  const parsedAmount = parseFloat(amount) || 0
+
+  // Validate step 1 fields
+  function validateStep1(): boolean {
+    if (!entityId || !amount || !periodStart || !periodEnd) {
+      setError("Please fill in all required fields")
+      return false
+    }
+    if (parseFloat(amount) <= 0) {
+      setError("Amount must be greater than 0")
+      return false
+    }
+    if (new Date(periodEnd) <= new Date(periodStart)) {
+      setError("End date must be after start date")
+      return false
+    }
+    return true
+  }
+
+  // Handle single-budget submit (existing flow)
+  async function handleSingleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
-    if (!entityId || !amount || !periodStart || !periodEnd) {
-      setError("Please fill in all required fields")
-      return
-    }
+    if (!validateStep1()) return
 
     setLoading(true)
 
@@ -215,10 +307,7 @@ function BudgetFormDialog({
       }
       const result = await updateBudget(orgSlug, editBudget.budget_id, request)
       setLoading(false)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
+      if (result.error) { setError(result.error); return }
     } else {
       const request: BudgetCreateRequest = {
         hierarchy_entity_id: entityId,
@@ -236,125 +325,375 @@ function BudgetFormDialog({
       }
       const result = await createBudget(orgSlug, request)
       setLoading(false)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
+      if (result.error) { setError(result.error); return }
     }
 
     onOpenChange(false)
     onSaved()
   }
 
+  // Handle allocation submit (step 3 → submit)
+  async function handleAllocationSubmit() {
+    setError(null)
+
+    const validRows = allocRows.filter((r) => parseFloat(r.percentage) > 0)
+    if (validRows.length === 0) {
+      setError("At least one child must have a percentage > 0")
+      return
+    }
+    if (totalAllocPct > 100) {
+      setError("Total allocation exceeds 100%")
+      return
+    }
+
+    setLoading(true)
+
+    const request: TopDownAllocationRequest = {
+      hierarchy_entity_id: entityId,
+      hierarchy_entity_name: selectedNode?.name || entityId,
+      hierarchy_path: selectedNode?.path,
+      hierarchy_level_code: selectedNode?.level_code || "department",
+      category,
+      budget_type: budgetType,
+      budget_amount: parsedAmount,
+      period_type: periodType,
+      period_start: periodStart,
+      period_end: periodEnd,
+      provider: provider || undefined,
+      notes: notes || undefined,
+      allocations: validRows.map((r) => ({
+        hierarchy_entity_id: r.hierarchy_entity_id,
+        hierarchy_entity_name: r.hierarchy_entity_name,
+        hierarchy_path: r.hierarchy_path,
+        hierarchy_level_code: r.hierarchy_level_code,
+        percentage: parseFloat(r.percentage),
+      })),
+    }
+
+    const result = await createTopDownAllocation(orgSlug, request)
+    setLoading(false)
+    if (result.error) { setError(result.error); return }
+
+    onOpenChange(false)
+    onSaved()
+  }
+
+  // Step navigation
+  function goToStep2() {
+    if (!validateStep1()) return
+    if (childrenOfSelected.length === 0) {
+      setError("Selected entity has no children to allocate to")
+      return
+    }
+    setError(null)
+    initAllocRows()
+    setStep(2)
+  }
+
+  // ── Render ──
+
+  const isSingleMode = mode === "single" || isEdit
+  const dialogWidth = isSingleMode ? "sm:max-w-[500px]" : "sm:max-w-[640px]"
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className={dialogWidth}>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Budget" : "Create Budget"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Budget" : step === 1 ? "Create Budget" : step === 2 ? "Allocate to Children" : "Review Allocation"}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update spending target details." : "Set a spending target for a hierarchy entity."}
+            {isEdit
+              ? "Update spending target details."
+              : step === 1
+                ? "Set a spending target for a hierarchy entity."
+                : step === 2
+                  ? "Distribute the budget across child entities."
+                  : "Review and confirm the allocation."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
-              {error}
-            </div>
-          )}
 
-          <div className="space-y-2">
-            <Label>Hierarchy Entity</Label>
-            <Select value={entityId} onValueChange={setEntityId} disabled={isEdit}>
-              <SelectTrigger><SelectValue placeholder="Select entity" /></SelectTrigger>
-              <SelectContent>
-                {hierarchyNodes.map((node) => (
-                  <SelectItem key={node.id} value={node.id}>
-                    {node.name} ({node.level_code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {error && (
+          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+            {error}
           </div>
+        )}
 
-          <div className="grid grid-cols-3 gap-4">
+        {/* Mode selector — only on step 1 in create mode */}
+        {!isEdit && step === 1 && (
+          <div className="flex gap-2 p-1 bg-[var(--surface-secondary)] rounded-lg">
+            <button
+              type="button"
+              onClick={() => setMode("single")}
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                mode === "single"
+                  ? "bg-white text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              }`}
+            >
+              Single Budget
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("allocation")}
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                mode === "allocation"
+                  ? "bg-white text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              }`}
+            >
+              Top-Down Allocation
+            </button>
+          </div>
+        )}
+
+        {/* ─── STEP 1: Budget fields ─── */}
+        {step === 1 && (
+          <form onSubmit={isSingleMode ? handleSingleSubmit : (e) => { e.preventDefault(); goToStep2() }} className="space-y-4">
             <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as BudgetCategory)} disabled={isEdit}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>Hierarchy Entity</Label>
+              <Select value={entityId} onValueChange={setEntityId} disabled={isEdit}>
+                <SelectTrigger><SelectValue placeholder="Select entity" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="total">Total</SelectItem>
-                  <SelectItem value="cloud">Cloud</SelectItem>
-                  <SelectItem value="genai">GenAI</SelectItem>
-                  <SelectItem value="subscription">Subscription</SelectItem>
+                  {hierarchyNodes.map((node) => (
+                    <SelectItem key={node.id} value={node.id}>
+                      {node.name} ({node.level_code})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Budget Type</Label>
-              <Select value={budgetType} onValueChange={(v) => setBudgetType(v as BudgetType)} disabled={isEdit}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monetary">Monetary ($)</SelectItem>
-                  <SelectItem value="token">Tokens</SelectItem>
-                  <SelectItem value="seat">Seats</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Amount{budgetType === "monetary" ? " ($)" : budgetType === "token" ? " (tokens)" : " (seats)"}</Label>
-              <Input
-                type="number"
-                min="1"
-                step={budgetType === "monetary" ? "0.01" : "1"}
-                placeholder={budgetType === "monetary" ? "10000" : budgetType === "token" ? "1000000" : "10"}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Period</Label>
-              <Select value={periodType} onValueChange={(v) => setPeriodType(v as PeriodType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select value={category} onValueChange={(v) => setCategory(v as BudgetCategory)} disabled={isEdit}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Total</SelectItem>
+                    <SelectItem value="cloud">Cloud</SelectItem>
+                    <SelectItem value="genai">GenAI</SelectItem>
+                    <SelectItem value="subscription">Subscription</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Budget Type</Label>
+                <Select value={budgetType} onValueChange={(v) => setBudgetType(v as BudgetType)} disabled={isEdit}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monetary">Monetary ($)</SelectItem>
+                    <SelectItem value="token">Tokens</SelectItem>
+                    <SelectItem value="seat">Seats</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Amount{budgetType === "monetary" ? " ($)" : budgetType === "token" ? " (tokens)" : " (seats)"}</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  step={budgetType === "monetary" ? "0.01" : "1"}
+                  placeholder={budgetType === "monetary" ? "10000" : budgetType === "token" ? "1000000" : "10"}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Start</Label>
-              <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>End</Label>
-              <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Provider (optional)</Label>
-              <Input placeholder="e.g., gcp, openai" value={provider} onChange={(e) => setProvider(e.target.value)} />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Period</Label>
+                <Select value={periodType} onValueChange={(v) => setPeriodType(v as PeriodType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Start</Label>
+                <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>End</Label>
+                <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Input placeholder="Budget notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {isEdit ? "Save Changes" : "Create Budget"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Provider (optional)</Label>
+                <Input placeholder="e.g., gcp, openai" value={provider} onChange={(e) => setProvider(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes (optional)</Label>
+                <Input placeholder="Budget notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              {isSingleMode ? (
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isEdit ? "Save Changes" : "Create Budget"}
+                </Button>
+              ) : (
+                <Button type="submit">
+                  Next: Allocate
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        )}
+
+        {/* ─── STEP 2: Allocate to Children ─── */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Total: <span className="font-semibold text-[var(--text-primary)]">{formatCurrency(parsedAmount)}</span>
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={handleEqualSplit}>
+                <Equal className="h-3.5 w-3.5 mr-1.5" />
+                Equal Split
+              </Button>
+            </div>
+
+            <div className="border border-[var(--border-subtle)] rounded-lg overflow-hidden">
+              <div className="grid grid-cols-[1fr_80px_100px] gap-2 px-3 py-2 bg-[var(--surface-secondary)] text-xs font-medium text-[var(--text-tertiary)]">
+                <span>Child</span>
+                <span className="text-right">%</span>
+                <span className="text-right">Amount</span>
+              </div>
+              {allocRows.map((row, idx) => {
+                const pct = parseFloat(row.percentage) || 0
+                const childAmount = Math.round(parsedAmount * pct) / 100
+                return (
+                  <div key={row.hierarchy_entity_id} className="grid grid-cols-[1fr_80px_100px] gap-2 items-center px-3 py-2 border-t border-[var(--border-subtle)]">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">{row.hierarchy_entity_name}</p>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">{row.hierarchy_level_code}</p>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={row.percentage}
+                      onChange={(e) => updateAllocPercentage(idx, e.target.value)}
+                      className="h-8 text-right text-sm"
+                    />
+                    <p className="text-sm font-medium text-[var(--text-primary)] text-right">
+                      {formatCurrency(childAmount)}
+                    </p>
+                  </div>
+                )
+              })}
+              {/* Margin / Unallocated row */}
+              <div className="grid grid-cols-[1fr_80px_100px] gap-2 items-center px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
+                <p className="text-sm text-[var(--text-tertiary)] italic">Unallocated (margin)</p>
+                <p className={`text-sm text-right font-medium ${unallocPct < 0 ? "text-rose-600" : "text-[var(--text-tertiary)]"}`}>
+                  {unallocPct.toFixed(1)}%
+                </p>
+                <p className={`text-sm text-right font-medium ${unallocAmount < 0 ? "text-rose-600" : "text-[var(--text-tertiary)]"}`}>
+                  {formatCurrency(unallocAmount)}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div>
+              <div className="flex justify-between text-xs text-[var(--text-tertiary)] mb-1">
+                <span>{totalAllocPct.toFixed(1)}% allocated</span>
+                <span>{formatCurrency(totalAllocAmount)} of {formatCurrency(parsedAmount)}</span>
+              </div>
+              <div className="h-2 rounded-full bg-[var(--surface-secondary)] overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${totalAllocPct > 100 ? "bg-rose-500" : "bg-[var(--cloudact-mint)]"}`}
+                  style={{ width: `${Math.min(totalAllocPct, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setStep(1)}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (totalAllocPct > 100) { setError("Total allocation exceeds 100%"); return }
+                  if (allocRows.every((r) => !parseFloat(r.percentage))) { setError("At least one child must have a percentage > 0"); return }
+                  setError(null)
+                  setStep(3)
+                }}
+              >
+                Next: Review
+                <ArrowRight className="h-4 w-4 ml-1.5" />
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {/* ─── STEP 3: Review & Confirm ─── */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-[var(--surface-secondary)] space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  {selectedNode?.name || entityId}
+                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  {formatCurrency(parsedAmount)}
+                </p>
+              </div>
+              <p className="text-xs text-[var(--text-tertiary)]">
+                {getCategoryLabel(category)} &middot; {budgetType} &middot; {getPeriodLabel(periodType)} &middot; {periodStart} to {periodEnd}
+              </p>
+
+              <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
+                {allocRows.filter((r) => parseFloat(r.percentage) > 0).map((row) => {
+                  const pct = parseFloat(row.percentage) || 0
+                  const childAmt = Math.round(parsedAmount * pct) / 100
+                  return (
+                    <div key={row.hierarchy_entity_id} className="flex items-center justify-between text-sm">
+                      <span className="text-[var(--text-secondary)]">{row.hierarchy_entity_name}</span>
+                      <span className="text-[var(--text-primary)] font-medium">
+                        {pct.toFixed(1)}% &rarr; {formatCurrency(childAmt)}
+                      </span>
+                    </div>
+                  )
+                })}
+                {unallocPct > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[var(--text-tertiary)] italic">Unallocated (margin)</span>
+                    <span className="text-[var(--text-tertiary)] font-medium">
+                      {unallocPct.toFixed(1)}% &rarr; {formatCurrency(unallocAmount)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setStep(2)}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Back
+              </Button>
+              <Button type="button" onClick={handleAllocationSubmit} disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-1.5" />}
+                Create Allocation
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -708,6 +1047,7 @@ export default function BudgetsPage() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null)
   const [providerBreakdown, setProviderBreakdown] = useState<ProviderBreakdownResponse | null>(null)
   const [hierarchyNodes, setHierarchyNodes] = useState<{ id: string; name: string; level_code: string; path: string }[]>([])
+  const [hierarchyTreeRoots, setHierarchyTreeRoots] = useState<HierarchyTreeNode[]>([])
 
   // UI state
   const [formDialogOpen, setFormDialogOpen] = useState(false)
@@ -731,37 +1071,32 @@ export default function BudgetsPage() {
     return acc
   }
 
-  // Load data — server-side filters dispatched to budget API endpoints
+  // Load data — single server action for parallel fetching (~6s vs ~30s)
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [summaryRes, budgetListRes, treeRes, catRes, provRes, hierRes] = await Promise.all([
-        getBudgetSummary(orgSlug, {
-          category: serverParams.category,
-          hierarchy_entity_id: serverParams.hierarchyEntityId,
-        }),
-        getBudgets(orgSlug, {
-          category: serverParams.category as BudgetCategory | undefined,
-          hierarchy_entity_id: serverParams.hierarchyEntityId,
-          period_type: serverParams.periodType as PeriodType | undefined,
-        }),
-        getAllocationTree(orgSlug, { category: serverParams.category }),
-        getCategoryBreakdown(orgSlug),
-        getProviderBreakdown(orgSlug, { category: serverParams.category }),
-        getHierarchyTree(orgSlug),
-      ])
+      const result = await loadBudgetPageData(orgSlug, {
+        category: serverParams.category,
+        hierarchyEntityId: serverParams.hierarchyEntityId,
+        periodType: serverParams.periodType,
+      })
 
-      if (summaryRes.data) setSummary(summaryRes.data)
-      if (budgetListRes.data) setBudgetList(budgetListRes.data)
-      if (treeRes.data) setAllocationTree(treeRes.data)
-      if (catRes.data) setCategoryBreakdown(catRes.data)
-      if (provRes.data) setProviderBreakdown(provRes.data)
+      setSummary(result.summary)
+      setBudgetList(result.budgetList)
+      setAllocationTree(result.allocationTree)
+      setCategoryBreakdown(result.categoryBreakdown)
+      setProviderBreakdown(result.providerBreakdown)
 
-      if (hierRes.success && hierRes.data?.roots) {
-        setHierarchyNodes(flattenTree(hierRes.data.roots))
+      if (result.hierarchyTree?.roots) {
+        setHierarchyNodes(flattenTree(result.hierarchyTree.roots))
+        setHierarchyTreeRoots(result.hierarchyTree.roots)
+      }
+
+      if (result.error) {
+        setMessage({ type: "error", text: result.error })
       }
     } catch {
-      // Errors are handled in individual calls
+      setMessage({ type: "error", text: "Failed to load budget data. Please refresh." })
     } finally {
       setLoading(false)
     }
@@ -872,10 +1207,13 @@ export default function BudgetsPage() {
             Set spending targets and track budget vs actual across your hierarchy
           </p>
         </div>
-        <Button onClick={() => { setEditBudget(null); setFormDialogOpen(true) }} size="sm">
-          <Plus className="h-4 w-4 mr-1.5" />
-          Create Budget
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => { setEditBudget(null); setFormDialogOpen(true) }} size="sm">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Create Budget
+          </Button>
+          <PageActionsMenu onClearCache={loadData} />
+        </div>
       </div>
 
       {/* Message Banner */}
@@ -1080,6 +1418,7 @@ export default function BudgetsPage() {
         onSaved={handleSaved}
         orgSlug={orgSlug}
         hierarchyNodes={hierarchyNodes}
+        hierarchyTreeRoots={hierarchyTreeRoots}
         editBudget={editBudget}
       />
 

@@ -1913,8 +1913,12 @@ async def cleanup_stale_concurrent(
 class ProcessAlertsRequest(BaseModel):
     """Request to process alerts for all organizations."""
     alert_types: List[str] = Field(
-        default=["cost_threshold", "budget", "anomaly"],
-        description="Types of alerts to process"
+        default=[
+            "cost_threshold", "absolute_threshold",
+            "budget_percent", "budget_forecast", "hierarchy_budget",
+            "anomaly_percent_change", "anomaly_std_deviation",
+        ],
+        description="Types of alerts to process (matches RuleType enum values)"
     )
     send_notifications: bool = Field(
         default=True,
@@ -1960,7 +1964,8 @@ async def process_all_alerts(
     4. Send notifications via configured channels
     """
     import asyncio
-    
+    import json as _json
+
     start_time = time.time()
     orgs_processed = 0
     alerts_triggered = 0
@@ -1989,18 +1994,17 @@ async def process_all_alerts(
             try:
                 # Fetch notification rules for this org
                 rules_query = f"""
-                SELECT 
-                    id,
-                    rule_name,
+                SELECT
+                    rule_id,
+                    name AS rule_name,
                     rule_type,
-                    threshold_value,
-                    threshold_type,
-                    period,
-                    channels,
-                    recipients,
-                    is_enabled
+                    conditions,
+                    priority,
+                    hierarchy_entity_id,
+                    hierarchy_path,
+                    notify_channel_ids
                 FROM `{settings.gcp_project_id}.{org_slug}_prod.org_notification_rules`
-                WHERE is_enabled = TRUE
+                WHERE is_active = TRUE
                   AND rule_type IN UNNEST(@alert_types)
                 """
                 
@@ -2023,37 +2027,240 @@ async def process_all_alerts(
                 if not rules:
                     orgs_processed += 1
                     continue
-                
-                # Get current month costs for this org
+
+                # Get current month costs for this org (used by cost_threshold / absolute_threshold rules)
                 costs_query = f"""
                 SELECT SUM(BilledCost) as total_cost
                 FROM `{settings.gcp_project_id}.{org_slug}_prod.cost_data_standard_1_3`
                 WHERE BillingPeriodStart >= DATE_TRUNC(CURRENT_DATE(), MONTH)
                   AND BillingPeriodStart < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
                 """
-                
+
                 try:
                     costs_result = bq_client.client.query(costs_query).result()
                     costs_row = next(costs_result, None)
                     current_cost = float(costs_row.total_cost) if costs_row and costs_row.total_cost else 0.0
                 except Exception:
                     current_cost = 0.0
-                
+
+                # Fetch active budgets for budget-aware rules (budget_percent, budget_forecast, hierarchy_budget)
+                budget_rules_present = any(
+                    r.rule_type in ("budget_percent", "budget_forecast", "hierarchy_budget")
+                    for r in rules
+                )
+                budgets_map: Dict[str, Any] = {}  # entity_id → {budget_amount, actual_cost, utilization_pct}
+
+                if budget_rules_present:
+                    try:
+                        budgets_query = f"""
+                        SELECT
+                            b.budget_id,
+                            b.hierarchy_entity_id,
+                            b.hierarchy_path,
+                            b.category,
+                            b.budget_amount,
+                            b.period_type,
+                            b.period_start,
+                            b.period_end,
+                            COALESCE(SUM(c.BilledCost), 0) AS actual_cost
+                        FROM `{settings.gcp_project_id}.organizations.org_budgets` b
+                        LEFT JOIN `{settings.gcp_project_id}.{org_slug}_prod.cost_data_standard_1_3` c
+                            ON c.BillingPeriodStart >= b.period_start
+                            AND c.BillingPeriodStart < b.period_end
+                            AND (
+                                b.hierarchy_entity_id = 'ORG'
+                                OR c.x_hierarchy_entity_id = b.hierarchy_entity_id
+                                OR c.x_hierarchy_path LIKE CONCAT('%/', b.hierarchy_entity_id, '/%')
+                                OR c.x_hierarchy_path LIKE CONCAT('%/', b.hierarchy_entity_id)
+                            )
+                        WHERE b.org_slug = @org_slug
+                          AND b.is_active = TRUE
+                          AND b.period_start <= CURRENT_DATE()
+                          AND b.period_end >= CURRENT_DATE()
+                        GROUP BY b.budget_id, b.hierarchy_entity_id, b.hierarchy_path,
+                                 b.category, b.budget_amount, b.period_type,
+                                 b.period_start, b.period_end
+                        """
+                        budget_params = [
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        ]
+                        budget_config = bigquery.QueryJobConfig(query_parameters=budget_params)
+                        budget_result = bq_client.client.query(budgets_query, job_config=budget_config).result()
+                        for brow in budget_result:
+                            pct = (float(brow.actual_cost) / float(brow.budget_amount) * 100) if brow.budget_amount > 0 else 0.0
+                            key = brow.hierarchy_entity_id
+                            # Keep the highest utilization if multiple budgets for same entity
+                            if key not in budgets_map or pct > budgets_map[key]["utilization_pct"]:
+                                budgets_map[key] = {
+                                    "budget_id": brow.budget_id,
+                                    "budget_amount": float(brow.budget_amount),
+                                    "actual_cost": float(brow.actual_cost),
+                                    "utilization_pct": pct,
+                                    "category": brow.category,
+                                    "hierarchy_path": brow.hierarchy_path,
+                                }
+                    except Exception as budget_err:
+                        logger.debug(f"No budget data for {org_slug}: {budget_err}")
+
                 # Check each rule
                 for rule in rules:
-                    threshold = float(rule.threshold_value) if rule.threshold_value else 0.0
-                    
-                    if current_cost >= threshold and threshold > 0:
+                    triggered = False
+                    rule_type = rule.rule_type
+
+                    # Parse conditions JSON
+                    try:
+                        conditions = _json.loads(rule.conditions) if isinstance(rule.conditions, str) else {}
+                    except (_json.JSONDecodeError, TypeError):
+                        conditions = {}
+
+                    if rule_type in ("cost_threshold", "absolute_threshold"):
+                        # Simple cost vs threshold (threshold_amount stored in conditions)
+                        threshold = float(conditions.get("threshold_amount", 0))
+                        if threshold == 0:
+                            # Fallback: some rules store in budget_amount
+                            threshold = float(conditions.get("budget_amount", 0))
+                        if current_cost >= threshold and threshold > 0:
+                            triggered = True
+
+                    elif rule_type == "budget_percent":
+                        # Check if any budget exceeds the threshold percentage
+                        threshold_pct = float(conditions.get("threshold_percent", 80))
+
+                        # If rule targets a specific hierarchy entity, only check that one
+                        target_entity = getattr(rule, "hierarchy_entity_id", None)
+
+                        for entity_id, bdata in budgets_map.items():
+                            if target_entity and entity_id != target_entity:
+                                continue
+                            if bdata["utilization_pct"] >= threshold_pct:
+                                triggered = True
+                                logger.info(
+                                    f"Budget alert for {org_slug}/{entity_id}: "
+                                    f"{bdata['utilization_pct']:.1f}% of "
+                                    f"${bdata['budget_amount']:,.0f} "
+                                    f"(threshold: {threshold_pct}%)"
+                                )
+                                break
+
+                    elif rule_type == "hierarchy_budget":
+                        # Check budgets filtered by hierarchy level/entity
+                        threshold_pct = float(conditions.get("threshold_percent", 80))
+                        target_level = conditions.get("hierarchy_level")
+                        target_entity = getattr(rule, "hierarchy_entity_id", None)
+
+                        for entity_id, bdata in budgets_map.items():
+                            if target_entity and entity_id != target_entity:
+                                continue
+                            if bdata["utilization_pct"] >= threshold_pct:
+                                triggered = True
+                                logger.info(
+                                    f"Hierarchy budget alert for {org_slug}/{entity_id}: "
+                                    f"{bdata['utilization_pct']:.1f}% of "
+                                    f"${bdata['budget_amount']:,.0f}"
+                                )
+                                break
+
+                    elif rule_type == "budget_forecast":
+                        # Check if projected end-of-period spend exceeds budget
+                        threshold_pct = float(conditions.get("forecast_threshold_percent", 100))
+
+                        for entity_id, bdata in budgets_map.items():
+                            # Simple linear forecast: if current utilization pace
+                            # would exceed threshold by end of period
+                            if bdata["utilization_pct"] >= threshold_pct:
+                                triggered = True
+                                break
+
+                    if triggered:
                         alerts_triggered += 1
-                        
+
                         if request.send_notifications and not request.dry_run:
-                            # Log the alert trigger (actual notification sending via Pipeline service)
+                            # Resolve channel recipients from notify_channel_ids
+                            channel_ids = list(rule.notify_channel_ids) if rule.notify_channel_ids else []
+                            recipients = []
+
+                            if channel_ids:
+                                try:
+                                    ch_query = f"""
+                                    SELECT channel_id, channel_type, email_recipients
+                                    FROM `{settings.gcp_project_id}.{org_slug}_prod.org_notification_channels`
+                                    WHERE channel_id IN UNNEST(@channel_ids)
+                                      AND is_active = TRUE
+                                    """
+                                    ch_config = bigquery.QueryJobConfig(
+                                        query_parameters=[
+                                            bigquery.ArrayQueryParameter("channel_ids", "STRING", channel_ids),
+                                        ]
+                                    )
+                                    ch_result = bq_client.client.query(ch_query, job_config=ch_config).result()
+                                    for ch in ch_result:
+                                        if ch.channel_type == "email" and ch.email_recipients:
+                                            recipients.extend(list(ch.email_recipients))
+                                except Exception as ch_err:
+                                    logger.warning(f"Failed to fetch channels for {org_slug}: {ch_err}")
+
+                            trigger_msg = (
+                                f"Cost alert: {rule.rule_name} - Current spend "
+                                f"${current_cost:,.2f} {currency} triggered rule "
+                                f"(type: {rule_type})"
+                            )
+
                             logger.info(
                                 f"Alert triggered for {org_slug}: {rule.rule_name} "
-                                f"(current: {current_cost:.2f} {currency}, threshold: {threshold:.2f} {currency})"
+                                f"(type: {rule_type}, current_cost: "
+                                f"{current_cost:.2f} {currency})"
                             )
-                            notifications_sent += 1
-                
+
+                            # Dispatch notification via Pipeline Service
+                            try:
+                                pipeline_url = f"{settings.pipeline_service_url}/api/v1/notifications/send"
+                                root_key = os.environ.get("CA_ROOT_API_KEY", "")
+                                async with httpx.AsyncClient(timeout=30.0) as client:
+                                    resp = await client.post(
+                                        pipeline_url,
+                                        json={
+                                            "org_slug": org_slug,
+                                            "event": "alert_triggered",
+                                            "severity": rule.priority if isinstance(rule.priority, str) else "medium",
+                                            "title": f"Cost Alert: {rule.rule_name}",
+                                            "message": trigger_msg,
+                                            "rule_id": rule.rule_id,
+                                            "recipients": recipients,
+                                            "channels": ["email"],
+                                            "total_cost": current_cost,
+                                            "threshold": float(conditions.get("threshold_amount", conditions.get("threshold_percent", 0))),
+                                            "currency": currency,
+                                            "period": "current_month",
+                                        },
+                                        headers={"X-CA-Root-Key": root_key},
+                                    )
+                                    if resp.status_code == 200:
+                                        notifications_sent += 1
+                                    else:
+                                        logger.warning(
+                                            f"Pipeline notification returned {resp.status_code} "
+                                            f"for {org_slug}/{rule.rule_id}"
+                                        )
+                            except httpx.RequestError as send_err:
+                                logger.warning(f"Pipeline service unreachable for alert dispatch: {send_err}")
+
+                            # Update last_triggered_at in BQ
+                            try:
+                                update_query = f"""
+                                UPDATE `{settings.gcp_project_id}.{org_slug}_prod.org_notification_rules`
+                                SET last_triggered_at = CURRENT_TIMESTAMP(),
+                                    trigger_count_today = IFNULL(trigger_count_today, 0) + 1
+                                WHERE rule_id = @rule_id
+                                """
+                                update_config = bigquery.QueryJobConfig(
+                                    query_parameters=[
+                                        bigquery.ScalarQueryParameter("rule_id", "STRING", rule.rule_id),
+                                    ]
+                                )
+                                bq_client.client.query(update_query, job_config=update_config).result()
+                            except Exception as update_err:
+                                logger.warning(f"Failed to update last_triggered_at for {rule.rule_id}: {update_err}")
+
                 orgs_processed += 1
                 
             except Exception as org_error:

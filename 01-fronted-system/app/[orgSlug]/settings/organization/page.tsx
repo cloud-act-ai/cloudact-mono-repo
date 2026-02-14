@@ -79,6 +79,7 @@ import { StatRow } from "@/components/ui/stat-row"
 // Premium components available: PremiumCard, SectionHeader
 // Currently using custom components matching dashboard/pipeline patterns
 import { LoadingState } from "@/components/ui/loading-state"
+import { site } from "@/lib/site"
 
 interface OwnedOrg {
   id: string
@@ -186,7 +187,7 @@ export default function OrganizationSettingsPage() {
   const [isSavingContactDetails, setIsSavingContactDetails] = useState(false)
 
   useEffect(() => {
-    document.title = "Organization Settings | CloudAct.ai"
+    document.title = `Organization Settings | ${site.name}`
   }, [])
 
   // Load backend connection status

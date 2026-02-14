@@ -69,6 +69,7 @@ import {
   previewHierarchyImport,
   importHierarchy,
 } from "@/actions/hierarchy-export-import"
+import { site } from "@/lib/site"
 
 // Level icons mapping - supports both old (department/project/team) and new (c_suite/business_unit/function) level codes
 const LEVEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -156,7 +157,7 @@ export default function HierarchySettingsPage() {
   const [exportImportOpen, setExportImportOpen] = useState(false)
 
   useEffect(() => {
-    document.title = "Hierarchy Settings | CloudAct.ai"
+    document.title = `Hierarchy Settings | ${site.name}`
   }, [])
 
   const loadData = useCallback(async () => {

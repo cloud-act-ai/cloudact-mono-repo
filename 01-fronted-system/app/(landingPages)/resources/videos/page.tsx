@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
+import { siteTitle } from "@/lib/site"
 import { VideosPageClient } from "./client"
 
 export const metadata: Metadata = {
-  title: "Video Tutorials | CloudAct.ai",
+  title: siteTitle("Video Tutorials"),
   description: "Video tutorials and walkthroughs for CloudAct.ai features and cloud cost optimization.",
   openGraph: {
-    title: "Video Tutorials | CloudAct.ai",
+    title: siteTitle("Video Tutorials"),
     description: "Video tutorials and walkthroughs for CloudAct.ai features and cloud cost optimization.",
     type: "website",
   },

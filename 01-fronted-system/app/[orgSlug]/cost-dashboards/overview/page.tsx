@@ -52,7 +52,7 @@ export default function CostOverviewPage() {
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
-    refresh: refreshCostData,
+    clearBackendCache,
     availableFilters,
     // Unified filter API (all client-side, instant)
     filters: contextFilters,
@@ -176,10 +176,10 @@ export default function CostOverviewPage() {
     })
   }, [setUnifiedFilters])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
     try {
-      await refreshCostData()
+      await clearBackendCache()
     } finally {
       setIsRefreshing(false)
     }
@@ -293,7 +293,7 @@ export default function CostOverviewPage() {
       loading={isLoading}
       loadingMessage="Loading cost overview..."
       error={error}
-      errorAction={{ label: "Try again", onClick: handleRefresh }}
+      errorAction={{ label: "Try again", onClick: handleClearCache }}
       isEmpty={isEmpty}
       emptyState={{
         icon: DollarSign,
@@ -301,7 +301,7 @@ export default function CostOverviewPage() {
         description: "Connect your providers and run pipelines to see your cost data here.",
         action: { label: "Connect Providers", href: `/${orgSlug}/integrations` },
       }}
-      onRefresh={handleRefresh}
+      onRefresh={handleClearCache}
       isRefreshing={isRefreshing}
       filterActions={
         <>

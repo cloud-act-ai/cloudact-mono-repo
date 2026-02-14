@@ -28,6 +28,7 @@ import {
   Folders,
   Star,
 } from "lucide-react"
+import { site } from "@/lib/site"
 import { NewsletterForm } from "@/components/landing/newsletter-form"
 import "../premium.css"
 
@@ -119,7 +120,7 @@ const FEATURED_RESOURCES = [
   {
     id: "video-getting-started",
     category: "Video Tutorial",
-    title: "Getting Started with CloudAct.ai",
+    title: `Getting Started with ${site.name}`,
     description: "A comprehensive walkthrough of setting up your first organization and running cost analysis pipelines.",
     readTime: "12 min watch",
     date: "Dec 10, 2024",

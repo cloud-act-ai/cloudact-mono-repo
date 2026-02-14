@@ -43,7 +43,7 @@ export default function SubscriptionCostsPage() {
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
-    refresh: refreshCostData,
+    clearBackendCache,
     // Unified filter API (all client-side, instant)
     filters: contextFilters,
     setUnifiedFilters,
@@ -193,10 +193,10 @@ export default function SubscriptionCostsPage() {
     })
   }, [setUnifiedFilters])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
     try {
-      await refreshCostData()
+      await clearBackendCache()
     } finally {
       setIsRefreshing(false)
     }
@@ -264,7 +264,7 @@ export default function SubscriptionCostsPage() {
       errorAction={
         error?.includes("API key")
           ? { label: "Go to Settings", href: `/${orgSlug}/settings/organization` }
-          : { label: "Try again", onClick: handleRefresh }
+          : { label: "Try again", onClick: handleClearCache }
       }
       isEmpty={isEmpty}
       emptyState={{
@@ -273,7 +273,7 @@ export default function SubscriptionCostsPage() {
         description: "Add your SaaS subscriptions (Slack, Notion, Figma, etc.) and run the subscription cost pipeline to see your spend.",
         action: { label: "Add Subscriptions", href: `/${orgSlug}/integrations/subscriptions` },
       }}
-      onRefresh={handleRefresh}
+      onRefresh={handleClearCache}
       isRefreshing={isRefreshing}
       filterActions={
         <>

@@ -79,7 +79,11 @@ async def main():
                     "Content-Type": "application/json",
                 },
                 json={
-                    "alert_types": ["cost_threshold", "budget", "anomaly"],
+                    "alert_types": [
+                        "cost_threshold", "absolute_threshold",
+                        "budget_percent", "budget_forecast", "hierarchy_budget",
+                        "anomaly_percent_change", "anomaly_std_deviation",
+                    ],
                     "send_notifications": True,
                     "dry_run": False,
                 }

@@ -16,6 +16,7 @@ Features:
 
 import os
 import logging
+import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 
@@ -28,6 +29,8 @@ from src.core.services.budget_crud.models import (
     BudgetUpdateRequest,
     BudgetResponse,
     BudgetListResponse,
+    TopDownAllocationRequest,
+    TopDownAllocationResponse,
 )
 from src.core.services.budget_read.service import get_budget_read_service, BudgetReadService
 from src.core.services.budget_read.models import (
@@ -72,6 +75,20 @@ def check_auth_result_access(auth: AuthResult, org_slug: str) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access data for another organization",
         )
+
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+def _validate_date_param(value: Optional[str], name: str) -> Optional[str]:
+    """Validate date query parameter is YYYY-MM-DD format."""
+    if value is None:
+        return None
+    if not _DATE_RE.match(value):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {name} format — use YYYY-MM-DD",
+        )
+    return value
 
 
 def check_owner_access(auth: AuthResult, org_slug: str) -> None:
@@ -135,6 +152,8 @@ async def get_budget_summary(
 ):
     """Get budget vs actual variance summary."""
     check_auth_result_access(auth, org_slug)
+    _validate_date_param(period_start, "period_start")
+    _validate_date_param(period_end, "period_end")
     try:
         service = get_read_service()
         return await service.get_budget_summary(
@@ -163,6 +182,8 @@ async def get_allocation_tree(
 ):
     """Get budget allocation tree."""
     check_auth_result_access(auth, org_slug)
+    _validate_date_param(period_start, "period_start")
+    _validate_date_param(period_end, "period_end")
     try:
         service = get_read_service()
         return await service.get_allocation_tree(
@@ -191,6 +212,8 @@ async def get_category_breakdown(
 ):
     """Get category breakdown."""
     check_auth_result_access(auth, org_slug)
+    _validate_date_param(period_start, "period_start")
+    _validate_date_param(period_end, "period_end")
     try:
         service = get_read_service()
         return await service.get_category_breakdown(
@@ -220,6 +243,8 @@ async def get_provider_breakdown(
 ):
     """Get provider breakdown."""
     check_auth_result_access(auth, org_slug)
+    _validate_date_param(period_start, "period_start")
+    _validate_date_param(period_end, "period_end")
     try:
         service = get_read_service()
         return await service.get_provider_breakdown(
@@ -230,6 +255,34 @@ async def get_provider_breakdown(
     except Exception as e:
         logger.error(f"Failed to get provider breakdown for {org_slug}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get provider breakdown")
+
+
+@router.post(
+    "/{org_slug}/allocate",
+    response_model=TopDownAllocationResponse,
+    status_code=201,
+    summary="Top-down allocation",
+    description="Create a parent budget and allocate to children (owner only).",
+)
+async def create_top_down_allocation(
+    org_slug: str = Path(..., description="Organization slug"),
+    request: TopDownAllocationRequest = ...,
+    auth: AuthResult = Depends(get_org_or_admin_auth),
+):
+    """Create a parent budget with top-down allocation to children."""
+    check_owner_access(auth, org_slug)
+    created_by = auth.org_data.get("admin_email", "system") if auth.org_data else "admin"
+    try:
+        service = get_crud_service()
+        return await service.create_budget_with_allocations(org_slug, request, created_by)
+    except ValueError as e:
+        error_msg = str(e)
+        if "already exists" in error_msg.lower():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_msg)
+        raise HTTPException(status_code=400, detail=error_msg)
+    except Exception as e:
+        logger.error(f"Failed to create top-down allocation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create budget allocation")
 
 
 @router.get(

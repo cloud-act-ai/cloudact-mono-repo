@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   Shield,
   FileText,
@@ -13,10 +14,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Terms of Service | CloudAct.ai",
+  title: siteTitle("Terms of Service"),
   description: "CloudAct.ai Terms of Service. By using CloudAct.ai, you agree to these terms governing your use of our platform.",
   openGraph: {
-    title: "Terms of Service | CloudAct.ai",
+    title: siteTitle("Terms of Service"),
     description: "Terms of Service governing use of CloudAct.ai platform.",
     type: "website",
   },

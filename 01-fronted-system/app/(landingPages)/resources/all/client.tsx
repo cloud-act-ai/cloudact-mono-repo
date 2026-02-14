@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
+import { site } from "@/lib/site"
 import {
   ArrowRight,
   Clock,
@@ -101,7 +102,7 @@ const ALL_RESOURCES = [
     type: "Video",
     typeIcon: Video,
     category: "Tutorial",
-    title: "Getting Started with CloudAct.ai",
+    title: `Getting Started with ${site.name}`,
     description: "A comprehensive walkthrough of setting up your first organization.",
     readTime: "12 min watch",
     date: "Dec 10, 2024",

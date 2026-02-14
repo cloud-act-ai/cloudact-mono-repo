@@ -246,7 +246,7 @@ cd 01-fronted-system/scripts/supabase_db
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 36 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 37 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 13 | `.claude/commands/{name}.md` |
 | Hooks | 10 | `.claude/hookify.*.local.md` |
 | Summary | - | `.claude/SUMMARY.md` |
@@ -255,7 +255,7 @@ cd 01-fronted-system/scripts/supabase_db
 `/restart` `/health-check` `/cleanup-bq` `/cleanup-supabase` `/docker-local` `/env-setup` `/gcp-integration` `/user-mgmt`
 
 ### Key Skills
-`/infra-cicd` `/deploy-check` `/pr-review` `/env-setup` `/supabase-migrate` `/scheduler-jobs` `/bigquery-ops` `/cost-analysis` `/cost-analytics` `/hierarchy` `/i18n-locale` `/pipeline-ops` `/bootstrap-onboard` `/test-orchestration` `/chat` `/integration-setup` `/provider-mgmt` `/config-validator` `/security-audit` `/frontend-dev` `/api-dev` `/quota-mgmt` `/design` `/console-ui` `/charts` `/home-page` `/account-setup` `/stripe-billing` `/notifications` `/subscription-costs` `/demo-setup` `/web-research` `/bug-hunt` `/openclaw` `/monitoring` `/troubleshooting`
+`/go-live` `/infra-cicd` `/deploy-check` `/pr-review` `/env-setup` `/supabase-migrate` `/scheduler-jobs` `/bigquery-ops` `/cost-analysis` `/cost-analytics` `/hierarchy` `/i18n-locale` `/pipeline-ops` `/bootstrap-onboard` `/test-orchestration` `/chat` `/integration-setup` `/provider-mgmt` `/config-validator` `/security-audit` `/frontend-dev` `/api-dev` `/quota-mgmt` `/design` `/console-ui` `/charts` `/home-page` `/account-setup` `/stripe-billing` `/notifications` `/subscription-costs` `/demo-setup` `/web-research` `/bug-hunt` `/openclaw` `/monitoring` `/troubleshooting`
 
 ### Key Hooks (Enforced)
 - **org-slug-isolation** - Multi-tenant isolation via org_slug
@@ -346,7 +346,7 @@ description: |
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| Infrastructure | `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate`, `scheduler-jobs`, `monitoring` | 7 |
+| Infrastructure | `go-live`, `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate`, `scheduler-jobs`, `monitoring` | 8 |
 | Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs`, `i18n-locale` | 6 |
 | Pipelines & Ops | `pipeline-ops`, `bootstrap-onboard`, `test-orchestration` | 3 |
 | AI & Chat | `chat` | 1 |

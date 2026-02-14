@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { site, siteTitle } from "@/lib/site"
 import {
   ArrowRight,
   Target,
@@ -20,10 +21,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "About Us | CloudAct.ai - Our Mission & Story",
+  title: siteTitle("About Us", "Our Mission & Story"),
   description: "Learn about CloudAct.ai's mission to democratize cost intelligence for the GenAI era. Meet our team and discover our values.",
   openGraph: {
-    title: "About Us | CloudAct.ai",
+    title: siteTitle("About Us"),
     description: "Democratizing cost intelligence for the GenAI era.",
     type: "website",
   },
@@ -113,7 +114,7 @@ export default function AboutPage() {
             <BookOpen className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             The Beginning
           </span>
-          <h2 className="ca-section-title">How CloudAct.ai Started</h2>
+          <h2 className="ca-section-title">{`How ${site.name} Started`}</h2>
         </div>
 
         <div className="ca-story-container">
@@ -166,7 +167,7 @@ export default function AboutPage() {
             <Users className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Our Team
           </span>
-          <h2 className="ca-section-title">Building CloudAct.ai</h2>
+          <h2 className="ca-section-title">{`Building ${site.name}`}</h2>
           <p className="ca-section-subtitle">
             We're a team of cloud infrastructure veterans, AI engineers, and data scientists
             passionate about making cost intelligence accessible to everyone.

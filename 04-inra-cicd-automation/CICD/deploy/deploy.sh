@@ -176,8 +176,11 @@ if [ "$SERVICE" = "frontend" ]; then
     ENV_VARS="${ENV_VARS},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${STRIPE_SCALE}"
     ENV_VARS="${ENV_VARS},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14"
 
-    # Frontend needs: CA_ROOT_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY
-    SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${ENV}:latest"
+    # SMTP email configuration (non-secret values as env vars)
+    ENV_VARS="${ENV_VARS},SMTP_HOST=smtp.gmail.com,SMTP_PORT=587,SMTP_USERNAME=support@cloudact.ai,FROM_EMAIL=support@cloudact.ai,FROM_NAME=CloudAct.ai Support"
+
+    # Frontend needs: CA_ROOT_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY, SMTP_PASSWORD
+    SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${ENV}:latest,SMTP_PASSWORD=smtp-password-${ENV}:latest"
 else
     # Backend services
     # Get pipeline service URL for api-service to proxy requests
@@ -191,15 +194,17 @@ else
     if [ "$SERVICE" = "api-service" ]; then
         # api-service needs pipeline URL for proxying pipeline triggers
         ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY},PIPELINE_SERVICE_URL=${PIPELINE_URL}"
+        SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
         echo -e "${YELLOW}Pipeline Service URL: ${PIPELINE_URL}${NC}"
     elif [ "$SERVICE" = "pipeline-service" ]; then
-        # pipeline-service needs api URL for validation calls
-        ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY},API_SERVICE_URL=${API_URL}"
+        # pipeline-service needs api URL for validation calls + SMTP for alert emails
+        ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY},API_SERVICE_URL=${API_URL},SMTP_HOST=smtp.gmail.com,SMTP_PORT=587,SMTP_USERNAME=support@cloudact.ai,FROM_EMAIL=alerts@cloudact.ai,FROM_NAME=CloudAct.AI"
         echo -e "${YELLOW}API Service URL: ${API_URL}${NC}"
+        SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,SMTP_PASSWORD=smtp-password-${ENV}:latest"
     else
         ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY}"
+        SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
     fi
-    SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
 fi
 
 # BUG-004 FIX: Validate deployment order before deploying pipeline-service

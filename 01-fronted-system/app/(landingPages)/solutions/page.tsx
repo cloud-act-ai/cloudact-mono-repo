@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import Link from "next/link"
+import { site, siteTitle } from "@/lib/site"
 import {
   ArrowRight,
   CheckCircle2,
@@ -28,10 +29,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Solutions | CloudAct.ai - Cost Intelligence for Every Team",
+  title: siteTitle("Solutions", "Cost Intelligence for Every Team"),
   description: "Purpose-built cost solutions for FinOps, Engineering, Finance, and DevOps teams. Solve visibility, budget, and optimization challenges.",
   openGraph: {
-    title: "Solutions | CloudAct.ai",
+    title: siteTitle("Solutions"),
     description: "Cost intelligence solutions for every team and challenge.",
     type: "website",
   },
@@ -320,7 +321,7 @@ export default function SolutionsPage() {
             <Briefcase className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Use Cases
           </span>
-          <h2 className="ca-section-title">How Teams Use CloudAct.ai</h2>
+          <h2 className="ca-section-title">{`How Teams Use ${site.name}`}</h2>
         </div>
 
         <div className="ca-usecases-grid">

@@ -54,9 +54,7 @@ class BudgetCreateRequest(BaseModel):
     @field_validator("hierarchy_level_code")
     @classmethod
     def validate_level_code(cls, v: str) -> str:
-        valid = {"org", "department", "project", "team"}
-        if v.lower() not in valid:
-            raise ValueError(f"hierarchy_level_code must be one of: {', '.join(sorted(valid))}")
+        # Accept any non-empty level code — hierarchy levels are user-configurable
         return v.lower()
 
     @field_validator("budget_type")
@@ -143,3 +141,104 @@ class BudgetListResponse(BaseModel):
     """Response model for list of budgets."""
     budgets: List[BudgetResponse]
     total: int
+
+
+# ============================================
+# Top-Down Allocation Models
+# ============================================
+
+class ChildAllocationItem(BaseModel):
+    """One child in a top-down allocation request."""
+    model_config = ConfigDict(extra="forbid")
+
+    hierarchy_entity_id: str = Field(..., min_length=1, max_length=100)
+    hierarchy_entity_name: str = Field(..., min_length=1, max_length=200)
+    hierarchy_path: Optional[str] = Field(None, max_length=500)
+    hierarchy_level_code: str = Field(..., min_length=1, max_length=50)
+    percentage: float = Field(..., gt=0, le=100, description="Allocation percentage (0-100)")
+    provider: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = Field(None, max_length=1000)
+
+    @field_validator("hierarchy_level_code")
+    @classmethod
+    def validate_level_code(cls, v: str) -> str:
+        return v.lower()
+
+
+class TopDownAllocationRequest(BaseModel):
+    """Request model for top-down budget allocation."""
+    model_config = ConfigDict(extra="forbid")
+
+    # Parent budget fields
+    hierarchy_entity_id: str = Field(..., min_length=1, max_length=100)
+    hierarchy_entity_name: str = Field(..., min_length=1, max_length=200)
+    hierarchy_path: Optional[str] = Field(None, max_length=500)
+    hierarchy_level_code: str = Field(..., min_length=1, max_length=50)
+    category: BudgetCategory = Field(...)
+    budget_type: BudgetType = Field(default=BudgetType.MONETARY)
+    budget_amount: float = Field(..., gt=0)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    period_type: PeriodType = Field(...)
+    period_start: date = Field(...)
+    period_end: date = Field(...)
+    provider: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = Field(None, max_length=1000)
+
+    # Child allocations
+    allocations: List[ChildAllocationItem] = Field(..., min_length=1)
+
+    @field_validator("hierarchy_level_code")
+    @classmethod
+    def validate_level_code(cls, v: str) -> str:
+        return v.lower()
+
+    @field_validator("budget_type")
+    @classmethod
+    def validate_budget_type_category(cls, v: BudgetType, info) -> BudgetType:
+        category = info.data.get("category")
+        if category and v == BudgetType.TOKEN and category != BudgetCategory.GENAI:
+            raise ValueError("Token budgets are only valid for the 'genai' category")
+        if category and v == BudgetType.SEAT and category != BudgetCategory.SUBSCRIPTION:
+            raise ValueError("Seat budgets are only valid for the 'subscription' category")
+        return v
+
+    @field_validator("period_end")
+    @classmethod
+    def validate_period_end(cls, v: date, info) -> date:
+        if "period_start" in info.data and v <= info.data["period_start"]:
+            raise ValueError("period_end must be after period_start")
+        return v
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, v: str) -> str:
+        return v.upper()
+
+    @field_validator("allocations")
+    @classmethod
+    def validate_allocations(cls, v: List[ChildAllocationItem]) -> List[ChildAllocationItem]:
+        total_pct = sum(a.percentage for a in v)
+        if total_pct > 100:
+            raise ValueError(f"Total allocation percentage ({total_pct}%) exceeds 100%")
+        entity_ids = [a.hierarchy_entity_id for a in v]
+        if len(entity_ids) != len(set(entity_ids)):
+            raise ValueError("Duplicate child entity IDs in allocations")
+        return v
+
+
+class ChildAllocationResult(BaseModel):
+    """Result for a single child allocation."""
+    budget: BudgetResponse
+    allocation_id: str
+    allocated_amount: float
+    allocation_percentage: float
+
+
+class TopDownAllocationResponse(BaseModel):
+    """Response model for top-down allocation."""
+    parent_budget: BudgetResponse
+    children: List[ChildAllocationResult]
+    total_allocated: float
+    total_allocated_percentage: float
+    unallocated_amount: float
+    unallocated_percentage: float

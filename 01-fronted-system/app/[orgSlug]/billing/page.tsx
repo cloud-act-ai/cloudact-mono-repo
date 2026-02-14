@@ -42,6 +42,7 @@ import {
 import { RefreshCw } from "lucide-react"
 import { logError } from "@/lib/utils"
 import { formatCurrency as formatCurrencyI18n, DEFAULT_CURRENCY } from "@/lib/i18n"
+import { site } from "@/lib/site"
 
 export default function BillingPage() {
   const params = useParams<{ orgSlug: string }>()
@@ -234,7 +235,7 @@ export default function BillingPage() {
   }, [])
 
   useEffect(() => {
-    document.title = "Billing & Subscription | CloudAct.ai"
+    document.title = `Billing & Subscription | ${site.name}`
   }, [])
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { site, siteTitle } from "@/lib/site"
 import {
   Handshake,
   ArrowRight,
@@ -15,10 +16,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Partners | CloudAct.ai",
+  title: siteTitle("Partners"),
   description: "Partner with CloudAct.ai. Reseller, technology, and consulting partnerships. Grow your business with the leading FinOps platform.",
   openGraph: {
-    title: "Partners | CloudAct.ai",
+    title: siteTitle("Partners"),
     description: "Partner with the leading FinOps platform.",
     type: "website",
   },
@@ -78,7 +79,7 @@ export default function PartnersPage() {
             Partner Program
           </div>
           <h1 className="ca-page-hero-title">
-            Grow with <span className="font-semibold">CloudAct</span>
+            Grow with <span className="font-semibold">CloudAct.ai</span>
           </h1>
           <p className="ca-page-hero-subtitle">
             Join our partner ecosystem and help enterprises optimize their cloud and GenAI costs.
@@ -150,7 +151,7 @@ export default function PartnersPage() {
               <Award className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
               Partner Benefits
             </span>
-            <h2 className="ca-section-title">Why partner with CloudAct.ai?</h2>
+            <h2 className="ca-section-title">{`Why partner with ${site.name}?`}</h2>
           </div>
 
           <div className="ca-partner-benefits-grid">

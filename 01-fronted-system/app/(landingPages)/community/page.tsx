@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { site, siteTitle } from "@/lib/site"
 import {
   Users,
   MessageSquare,
@@ -15,10 +16,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Community | CloudAct.ai",
+  title: siteTitle("Community"),
   description: "Join the CloudAct.ai community. Connect with cloud cost optimization experts, share best practices, and get help.",
   openGraph: {
-    title: "Community | CloudAct.ai",
+    title: siteTitle("Community"),
     description: "Join our community of cloud cost optimization experts.",
     type: "website",
   },
@@ -194,7 +195,7 @@ export default function CommunityPage() {
             <Sparkles className="w-4 h-4" aria-hidden="true" style={{ color: '#ffffff' }} />
             Ready to Connect?
           </div>
-          <h2 className="ca-final-cta-title">Join the CloudAct.ai Community Today</h2>
+          <h2 className="ca-final-cta-title">{`Join the ${site.name} Community Today`}</h2>
           <p className="ca-final-cta-subtitle">
             Get started by joining our Discord server or following us on social media.
           </p>

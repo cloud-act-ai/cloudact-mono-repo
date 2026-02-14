@@ -51,7 +51,7 @@ const WEBINARS = [
   {
     id: "multi-cloud-visibility",
     category: "Product Demo",
-    title: "Multi-Cloud Visibility with CloudAct",
+    title: "Multi-Cloud Visibility with CloudAct.ai",
     description: "See how to unify cost data across AWS, GCP, Azure, and OCI in a single dashboard.",
     duration: "30 min",
     date: "Nov 28, 2024",

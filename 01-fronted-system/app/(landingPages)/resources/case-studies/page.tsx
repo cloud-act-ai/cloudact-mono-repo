@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
+import { siteTitle } from "@/lib/site"
 import { CaseStudiesPageClient } from "./client"
 
 export const metadata: Metadata = {
-  title: "Case Studies | CloudAct.ai",
+  title: siteTitle("Case Studies"),
   description: "Real-world success stories from teams using CloudAct.ai for cloud cost optimization.",
   openGraph: {
-    title: "Case Studies | CloudAct.ai",
+    title: siteTitle("Case Studies"),
     description: "Real-world success stories from teams using CloudAct.ai for cloud cost optimization.",
     type: "website",
   },

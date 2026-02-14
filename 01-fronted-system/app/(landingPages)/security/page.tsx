@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   Shield,
   FileText,
@@ -16,10 +17,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Security | CloudAct.ai",
+  title: siteTitle("Security"),
   description: "CloudAct.ai Security practices. Learn how we protect your data with enterprise-grade security, encryption, and compliance standards.",
   openGraph: {
-    title: "Security | CloudAct.ai",
+    title: siteTitle("Security"),
     description: "Enterprise-grade security for your cloud cost data.",
     type: "website",
   },

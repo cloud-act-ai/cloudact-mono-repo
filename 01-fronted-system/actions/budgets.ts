@@ -15,6 +15,7 @@ import {
   safeJsonParse,
   extractErrorMessage,
 } from "@/lib/api/helpers"
+import { getHierarchyTree, type HierarchyTreeResponse } from "@/actions/hierarchy"
 
 // ============================================
 // Types
@@ -181,6 +182,53 @@ export interface ProviderBreakdownResponse {
 }
 
 // ============================================
+// Top-Down Allocation Types
+// ============================================
+
+export interface ChildAllocationItem {
+  hierarchy_entity_id: string
+  hierarchy_entity_name: string
+  hierarchy_path?: string
+  hierarchy_level_code: string
+  percentage: number
+  provider?: string
+  notes?: string
+}
+
+export interface TopDownAllocationRequest {
+  hierarchy_entity_id: string
+  hierarchy_entity_name: string
+  hierarchy_path?: string
+  hierarchy_level_code: string
+  category: BudgetCategory
+  budget_type?: BudgetType
+  budget_amount: number
+  currency?: string
+  period_type: PeriodType
+  period_start: string
+  period_end: string
+  provider?: string
+  notes?: string
+  allocations: ChildAllocationItem[]
+}
+
+export interface ChildAllocationResult {
+  budget: Budget
+  allocation_id: string
+  allocated_amount: number
+  allocation_percentage: number
+}
+
+export interface TopDownAllocationResponse {
+  parent_budget: Budget
+  children: ChildAllocationResult[]
+  total_allocated: number
+  total_allocated_percentage: number
+  unallocated_amount: number
+  unallocated_percentage: number
+}
+
+// ============================================
 // Helper
 // ============================================
 
@@ -309,6 +357,29 @@ export async function deleteBudget(
   }
 }
 
+export async function createTopDownAllocation(
+  orgSlug: string,
+  request: TopDownAllocationRequest,
+): Promise<{ data?: TopDownAllocationResponse; error?: string }> {
+  try {
+    const response = await budgetFetch(orgSlug, "/allocate", {
+      method: "POST",
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<TopDownAllocationResponse>(response, null as unknown as TopDownAllocationResponse)
+    return { data }
+  } catch (error) {
+    logError("createTopDownAllocation", error)
+    return { error: error instanceof Error ? error.message : "Failed to create budget allocation" }
+  }
+}
+
 // ============================================
 // Read Actions (Analytics)
 // ============================================
@@ -420,5 +491,94 @@ export async function getProviderBreakdown(
   } catch (error) {
     logError("getProviderBreakdown", error)
     return { error: error instanceof Error ? error.message : "Failed to fetch provider breakdown" }
+  }
+}
+
+// ============================================
+// Combined Page Data Loader
+// ============================================
+
+/** Response type for the combined budget page data loader */
+export interface BudgetPageData {
+  summary: BudgetSummaryResponse | null
+  budgetList: BudgetListResponse | null
+  allocationTree: AllocationTreeResponse | null
+  categoryBreakdown: CategoryBreakdownResponse | null
+  providerBreakdown: ProviderBreakdownResponse | null
+  hierarchyTree: HierarchyTreeResponse | null
+  error: string | null
+}
+
+/**
+ * Load all budget page data in a single server action.
+ *
+ * Runs all 6 API calls in parallel (within one server action) to avoid
+ * Next.js flight protocol serialization which forces sequential execution
+ * when calling multiple server actions from the client.
+ *
+ * Result: ~6s load time instead of ~30s.
+ */
+export async function loadBudgetPageData(
+  orgSlug: string,
+  params?: {
+    category?: string
+    hierarchyEntityId?: string
+    periodType?: string
+  },
+): Promise<BudgetPageData> {
+  try {
+    // Run ALL fetches in parallel within this single server action
+    const [summaryRes, listRes, treeRes, catRes, provRes, hierRes] = await Promise.all([
+      getBudgetSummary(orgSlug, {
+        category: params?.category,
+        hierarchy_entity_id: params?.hierarchyEntityId,
+        period_type: params?.periodType as PeriodType | undefined,
+      }),
+      getBudgets(orgSlug, {
+        category: params?.category as BudgetCategory | undefined,
+        hierarchy_entity_id: params?.hierarchyEntityId,
+        period_type: params?.periodType as PeriodType | undefined,
+      }),
+      getAllocationTree(orgSlug, {
+        category: params?.category,
+        root_entity_id: params?.hierarchyEntityId,
+      }),
+      getCategoryBreakdown(orgSlug, {
+        hierarchy_entity_id: params?.hierarchyEntityId,
+        period_type: params?.periodType as PeriodType | undefined,
+      }),
+      getProviderBreakdown(orgSlug, {
+        category: params?.category,
+        hierarchy_entity_id: params?.hierarchyEntityId,
+        period_type: params?.periodType as PeriodType | undefined,
+      }),
+      getHierarchyTree(orgSlug),
+    ])
+
+    // Collect errors from critical endpoints
+    const errors: string[] = []
+    if (summaryRes.error) errors.push(summaryRes.error)
+    if (listRes.error) errors.push(listRes.error)
+
+    return {
+      summary: summaryRes.data ?? null,
+      budgetList: listRes.data ?? null,
+      allocationTree: treeRes.data ?? null,
+      categoryBreakdown: catRes.data ?? null,
+      providerBreakdown: provRes.data ?? null,
+      hierarchyTree: hierRes.success && hierRes.data ? hierRes.data : null,
+      error: errors.length > 0 ? errors[0] : null,
+    }
+  } catch (error) {
+    logError("loadBudgetPageData", error)
+    return {
+      summary: null,
+      budgetList: null,
+      allocationTree: null,
+      categoryBreakdown: null,
+      providerBreakdown: null,
+      hierarchyTree: null,
+      error: error instanceof Error ? error.message : "Failed to load budget data",
+    }
   }
 }

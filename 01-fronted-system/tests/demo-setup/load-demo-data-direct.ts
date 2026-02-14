@@ -1513,8 +1513,8 @@ async function setupDemoBudgets(orgSlug: string, apiKey: string): Promise<{ budg
             period_type: 'quarterly',
             period_start: periodStart,
             period_end: periodEnd,
-            provider: 'openai',
-            notes: 'Q1 2026 OpenAI budget for ML Pipeline project'
+            provider: 'anthropic',
+            notes: 'Q1 2026 Anthropic budget for ML Pipeline project'
         },
         // Team-level budgets
         {
@@ -1528,8 +1528,8 @@ async function setupDemoBudgets(orgSlug: string, apiKey: string): Promise<{ budg
             period_type: 'quarterly',
             period_start: periodStart,
             period_end: periodEnd,
-            provider: 'aws',
-            notes: 'Q1 2026 AWS budget for Backend team'
+            provider: 'gcp',
+            notes: 'Q1 2026 GCP budget for Backend team'
         },
         {
             hierarchy_entity_id: 'TEAM-FRONTEND',
@@ -1555,8 +1555,8 @@ async function setupDemoBudgets(orgSlug: string, apiKey: string): Promise<{ budg
             period_type: 'quarterly',
             period_start: periodStart,
             period_end: periodEnd,
-            provider: 'openai',
-            notes: 'Q1 2026 OpenAI token budget (50M tokens) for ML Ops team'
+            provider: 'anthropic',
+            notes: 'Q1 2026 Anthropic token budget (50M tokens) for ML Ops team'
         },
         {
             hierarchy_entity_id: 'DEPT-ENG',
@@ -1604,6 +1604,55 @@ async function setupDemoBudgets(orgSlug: string, apiKey: string): Promise<{ budg
             errors.push(`Budget creation error for ${budget.hierarchy_entity_id}: ${error}`)
             console.log(`    WARNING: ${errors[errors.length - 1]}`)
         }
+    }
+
+    // Top-down allocation: Org-level cloud budget → departments
+    console.log('    Creating top-down allocation (Org cloud → departments)...')
+    try {
+        const allocResponse = await fetch(
+            `${API_SERVICE_URL}/api/v1/budgets/${orgSlug}/allocate`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({
+                    hierarchy_entity_id: 'ORG',
+                    hierarchy_entity_name: 'Acme Inc',
+                    hierarchy_level_code: 'organization',
+                    category: 'cloud',
+                    budget_type: 'monetary',
+                    budget_amount: 100000,
+                    currency: 'USD',
+                    period_type: 'yearly',
+                    period_start: '2026-01-01',
+                    period_end: '2026-12-31',
+                    notes: '2026 org-level cloud budget with top-down allocation',
+                    allocations: [
+                        { hierarchy_entity_id: 'DEPT-ENG', hierarchy_entity_name: 'Engineering', hierarchy_level_code: 'department', percentage: 45 },
+                        { hierarchy_entity_id: 'DEPT-DS', hierarchy_entity_name: 'Data Science', hierarchy_level_code: 'department', percentage: 30 },
+                        { hierarchy_entity_id: 'DEPT-OPS', hierarchy_entity_name: 'Operations', hierarchy_level_code: 'department', percentage: 15 },
+                    ]
+                })
+            }
+        )
+        if (allocResponse.ok) {
+            const allocResult = await allocResponse.json()
+            budgetsCreated += 1 + allocResult.children.length  // parent + children
+            console.log(`    Allocation created: parent=$100K → ENG=45% ($45K), DS=30% ($30K), OPS=15% ($15K), margin=10% ($10K)`)
+        } else {
+            const errorText = await allocResponse.text()
+            if (allocResponse.status === 409) {
+                console.log('    Allocation already exists (skipped)')
+            } else {
+                errors.push(`Failed to create allocation: ${allocResponse.status} ${errorText.substring(0, 200)}`)
+                console.log(`    WARNING: ${errors[errors.length - 1]}`)
+            }
+        }
+    } catch (error) {
+        errors.push(`Allocation creation error: ${error}`)
+        console.log(`    WARNING: ${errors[errors.length - 1]}`)
     }
 
     console.log(`    Done: ${budgetsCreated} budgets created`)

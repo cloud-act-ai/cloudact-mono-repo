@@ -44,7 +44,7 @@ export default function CloudCostsPage() {
     currency: cachedCurrency,
     isLoading: isCostLoading,
     error: contextError,
-    refresh: refreshCostData,
+    clearBackendCache,
     // Unified filter API (all client-side, instant)
     filters: contextFilters,
     setUnifiedFilters,
@@ -250,10 +250,10 @@ export default function CloudCostsPage() {
     })
   }, [setUnifiedFilters])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
     try {
-      await refreshCostData()
+      await clearBackendCache()
     } finally {
       setIsRefreshing(false)
     }
@@ -329,7 +329,7 @@ export default function CloudCostsPage() {
       errorAction={
         error?.includes("API key")
           ? { label: "Go to Settings", href: `/${orgSlug}/settings/organization` }
-          : { label: "Try again", onClick: handleRefresh }
+          : { label: "Try again", onClick: handleClearCache }
       }
       isEmpty={isEmpty}
       emptyState={{
@@ -338,7 +338,7 @@ export default function CloudCostsPage() {
         description: "Connect your cloud providers (GCP, AWS, Azure) and run the cloud cost pipeline to see your infrastructure spend.",
         action: { label: "Connect Providers", href: `/${orgSlug}/integrations/cloud-providers` },
       }}
-      onRefresh={handleRefresh}
+      onRefresh={handleClearCache}
       isRefreshing={isRefreshing}
       filterActions={
         <>

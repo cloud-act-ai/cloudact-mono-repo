@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   Briefcase,
   MapPin,
@@ -17,10 +18,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Careers | CloudAct.ai",
+  title: siteTitle("Careers"),
   description: "Join CloudAct.ai and help companies manage their cloud and GenAI costs. View open positions and learn about our culture.",
   openGraph: {
-    title: "Careers | CloudAct.ai",
+    title: siteTitle("Careers"),
     description: "Build the future of FinOps. Join our team.",
     type: "website",
   },

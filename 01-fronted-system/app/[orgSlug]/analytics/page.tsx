@@ -29,10 +29,11 @@ import {
   Download,
   Filter,
   Calendar,
-  RefreshCw,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCostData } from "@/contexts/cost-data-context"
@@ -66,7 +67,7 @@ export default function AnalyticsPage() {
   const {
     totalCosts,
     isLoading,
-    refresh,
+    clearBackendCache,
     getFilteredTimeSeries,
     getFilteredProviderBreakdown,
     getFilteredCategoryBreakdown,
@@ -75,7 +76,7 @@ export default function AnalyticsPage() {
   } = useCostData()
 
   const [activeTab, setActiveTab] = useState("overview")
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [, setIsRefreshing] = useState(false)
 
   // Get time series data for charts
   const trendData = useMemo(() => {
@@ -143,10 +144,13 @@ export default function AnalyticsPage() {
     return insights
   }, [trendData, providerData])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
-    await refresh()
-    setIsRefreshing(false)
+    try {
+      await clearBackendCache()
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   // Calculate total and changes
@@ -176,19 +180,11 @@ export default function AnalyticsPage() {
             value={filters.timeRange}
             onChange={(range) => setUnifiedFilters({ timeRange: range })}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
           <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
+          <PageActionsMenu onClearCache={handleClearCache} />
         </div>
       </div>
 
@@ -271,7 +267,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 {isLoading ? (
                   <div className="h-64 flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                   </div>
                 ) : (
                   <DailyTrendChart
@@ -292,7 +288,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 {isLoading ? (
                   <div className="h-64 flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                   </div>
                 ) : (
                   <CostRingChart

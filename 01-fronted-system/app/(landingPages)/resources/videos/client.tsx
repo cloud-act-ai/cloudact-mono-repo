@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { site } from "@/lib/site"
 import {
   ArrowRight,
   Video,
@@ -16,7 +17,7 @@ const VIDEOS = [
   {
     id: "getting-started",
     category: "Tutorial",
-    title: "Getting Started with CloudAct.ai",
+    title: `Getting Started with ${site.name}`,
     description: "A comprehensive walkthrough of setting up your first organization and running cost analysis pipelines.",
     duration: "12 min",
     date: "Dec 10, 2024",
@@ -35,7 +36,7 @@ const VIDEOS = [
   {
     id: "connect-aws",
     category: "Integration",
-    title: "Connecting AWS to CloudAct",
+    title: "Connecting AWS to CloudAct.ai",
     description: "Step-by-step guide to setting up AWS cost and usage report integration.",
     duration: "6 min",
     date: "Nov 28, 2024",
@@ -44,7 +45,7 @@ const VIDEOS = [
   {
     id: "connect-gcp",
     category: "Integration",
-    title: "Connecting GCP to CloudAct",
+    title: "Connecting GCP to CloudAct.ai",
     description: "Learn how to connect your Google Cloud billing export to CloudAct.",
     duration: "5 min",
     date: "Nov 25, 2024",
@@ -229,7 +230,7 @@ export function VideosPageClient() {
             <Sparkles className="w-4 h-4" style={{ color: '#ffffff' }} aria-hidden="true" />
             Get Started
           </div>
-          <h2 className="ca-final-cta-title">Ready to Try CloudAct.ai?</h2>
+          <h2 className="ca-final-cta-title">{`Ready to Try ${site.name}?`}</h2>
           <p className="ca-final-cta-subtitle">
             Start your free trial and follow along with our video tutorials.
           </p>

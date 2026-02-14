@@ -199,6 +199,7 @@ class EmailNotificationAdapter(NotificationProviderInterface):
         msg["Subject"] = f"{self._config.subject_prefix} {title}"
         msg["From"] = f"{self._config.from_name} <{self._config.from_email}>"
         msg["To"] = ", ".join(valid_recipients)
+        msg["Reply-To"] = self._config.from_email
 
         # Attach text body
         text_body = payload.text_body or self._build_text_body(payload)
@@ -292,58 +293,106 @@ class EmailNotificationAdapter(NotificationProviderInterface):
         return "\n".join(lines)
 
     def _build_html_body(self, payload: NotificationPayload) -> str:
-        """Build HTML email body."""
+        """Build branded HTML email body matching frontend CloudAct template."""
         severity_colors = {
-            "info": "#36a64f",
-            "warning": "#ff9900",
-            "error": "#ff0000",
+            "info": "#10b981",
+            "warning": "#f59e0b",
+            "error": "#ef4444",
             "critical": "#8b0000",
         }
+        severity_labels = {
+            "info": "Information",
+            "warning": "Warning",
+            "error": "Error",
+            "critical": "Critical Alert",
+        }
         color = severity_colors.get(payload.severity, "#808080")
+        label = severity_labels.get(payload.severity, payload.severity.upper())
+        year = datetime.now().year
 
         data_rows = ""
         if payload.data:
             for key, value in payload.data.items():
                 data_rows += f"""
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: 500;">{key}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee;">{value}</td>
+                    <td style="padding: 10px 12px; border-bottom: 1px solid #e4e4e7; font-weight: 500; color: #3f3f46; font-size: 14px;">{key}</td>
+                    <td style="padding: 10px 12px; border-bottom: 1px solid #e4e4e7; color: #52525b; font-size: 14px;">{value}</td>
                 </tr>
                 """
 
-        return f"""
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-    <div style="background: linear-gradient(135deg, {color} 0%, {color}cc 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">{payload.title}</h1>
-        <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">
-            {payload.severity.upper()} ALERT
-        </p>
-    </div>
-    <div style="background: #f8f9fa; padding: 24px; border: 1px solid #e9ecef; border-top: none;">
-        <p style="color: #3f3f46; line-height: 1.6; margin: 0 0 16px 0;">
-            {payload.message}
-        </p>
-        {f'''
-        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-            {data_rows}
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{payload.title} - CloudAct.ai</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px 24px 40px; text-align: center; border-bottom: 1px solid #e4e4e7;">
+              <a href="https://cloudact.ai" style="text-decoration: none; display: inline-block;">
+                <img src="https://cloudact.ai/logos/cloudact-logo-black.png" alt="CloudAct.ai" width="160" height="40" style="display: block; max-width: 160px; height: auto; border: 0;" />
+              </a>
+              <h1 style="margin: 20px 0 0 0; font-size: 22px; font-weight: 600; color: #18181b; line-height: 1.3;">{payload.title}</h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px 40px;">
+              <!-- Severity Badge -->
+              <div style="margin: 0 0 20px 0; padding: 12px 16px; background-color: {color}15; border-radius: 8px; border-left: 4px solid {color};">
+                <p style="margin: 0; font-size: 14px; font-weight: 600; color: {color};">{label}</p>
+              </div>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                {payload.message}
+              </p>
+              {f'''<table role="presentation" style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                {data_rows}
+              </table>''' if data_rows else ''}
+              {f'''<p style="margin: 16px 0 0 0; font-size: 13px; color: #71717a;">
+                Organization: <strong>{payload.org_slug}</strong>
+              </p>''' if payload.org_slug else ''}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #fafafa; border-top: 1px solid #e4e4e7; border-radius: 0 0 12px 12px;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td align="center">
+                    <p style="margin: 0; font-size: 12px; color: #71717a;">
+                      Enterprise GenAI, Cloud &amp; Subscription Cost Management
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
         </table>
-        ''' if data_rows else ''}
-        {f'''
-        <p style="color: #71717a; font-size: 12px; margin: 16px 0 0 0;">
-            Organization: <strong>{payload.org_slug}</strong>
-        </p>
-        ''' if payload.org_slug else ''}
-    </div>
-    <div style="text-align: center; padding: 16px; color: #6c757d; font-size: 12px;">
-        <p style="margin: 0;">CloudAct.AI - Cloud Cost Analytics</p>
-        <p style="margin: 4px 0 0 0;">&copy; {datetime.now().year} CloudAct Inc.</p>
-    </div>
+        <!-- Legal Footer (CAN-SPAM) -->
+        <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; margin-top: 16px;">
+          <tr>
+            <td align="center">
+              <p style="margin: 0; font-size: 11px; color: #a1a1aa; line-height: 1.6;">
+                This alert was sent by CloudAct.ai &bull;
+                <a href="https://cloudact.ai/privacy" style="color: #71717a; text-decoration: none;">Privacy Policy</a> &bull;
+                <a href="https://cloudact.ai/terms" style="color: #71717a; text-decoration: none;">Terms of Service</a><br>
+                &copy; {year} CloudAct Inc. All rights reserved.<br>
+                CloudAct Inc., 100 S Murphy Ave, STE 200 PMB4013, Sunnyvale, CA 94086
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
-</html>
-        """
+</html>"""
 
     async def validate_config(self) -> Dict[str, Any]:
         """Validate email configuration."""

@@ -15,6 +15,7 @@ import { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadingState } from "@/components/ui/loading-state"
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
 
 // ============================================
 // Types
@@ -215,15 +216,9 @@ export function CostDashboardShell({
                 </div>
               </div>
 
-              {/* Refresh action (right side) */}
+              {/* Page actions menu (right side) */}
               {onRefresh && (
-                <button
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors disabled:opacity-50"
-                >
-                  {isRefreshing ? "Refreshing..." : "Refresh"}
-                </button>
+                <PageActionsMenu onClearCache={onRefresh} />
               )}
             </div>
 

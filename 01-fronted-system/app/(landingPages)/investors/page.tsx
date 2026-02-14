@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   TrendingUp,
   ArrowRight,
@@ -12,10 +13,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Investors | CloudAct.ai",
+  title: siteTitle("Investors"),
   description: "Investor relations at CloudAct.ai. Learn about our mission to transform cloud cost management and FinOps.",
   openGraph: {
-    title: "Investors | CloudAct.ai",
+    title: siteTitle("Investors"),
     description: "Investor relations at CloudAct.ai.",
     type: "website",
   },

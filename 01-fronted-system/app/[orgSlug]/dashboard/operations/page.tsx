@@ -16,10 +16,10 @@ import {
   Timer,
   Database,
   Loader2,
-  RefreshCw,
   Wallet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
 import { getPipelineRuns } from "@/actions/pipelines"
 import type { PipelineRunSummary } from "@/lib/api/backend"
 
@@ -82,7 +82,7 @@ export default function OperationsPage() {
     loadData()
   }, [loadData])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
     await loadData()
     setIsRefreshing(false)
@@ -149,16 +149,7 @@ export default function OperationsPage() {
             Monitor your system operations and health
           </p>
         </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          variant="outline"
-          size="sm"
-          className="h-9"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <PageActionsMenu onClearCache={handleClearCache} />
       </div>
 
       {/* Stats Row */}

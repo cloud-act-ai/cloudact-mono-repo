@@ -17,16 +17,20 @@ let _transporter: Transporter | null = null
 
 function getTransporter(): Transporter {
   if (!_transporter) {
+    const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com"
+    const smtpPort = Number(process.env.SMTP_PORT) || 587
+    // Port 465 uses implicit TLS (secure=true), port 587 uses STARTTLS (secure=false)
+    const useImplicitTls = smtpPort === 465
     console.log("[Email] Creating SMTP transporter...")
-    console.log(`[Email] SMTP_HOST: ${process.env.SMTP_HOST || "smtp.gmail.com"}`)
-    console.log(`[Email] SMTP_PORT: ${process.env.SMTP_PORT || "587"}`)
+    console.log(`[Email] SMTP_HOST: ${smtpHost}`)
+    console.log(`[Email] SMTP_PORT: ${smtpPort}`)
     console.log(`[Email] SMTP_USERNAME: ${process.env.SMTP_USERNAME ? "SET" : "NOT SET"}`)
     console.log(`[Email] SMTP_PASSWORD: ${process.env.SMTP_PASSWORD ? "SET" : "NOT SET"}`)
 
     _transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: false, // true for 465, false for other ports
+      host: smtpHost,
+      port: smtpPort,
+      secure: useImplicitTls,
       auth: {
         user: process.env.SMTP_USERNAME,
         pass: process.env.SMTP_PASSWORD,
@@ -112,12 +116,13 @@ export async function sendEmail({
         "X-Mailer": `${site.name}/1.0`,
         "X-Priority": "3", // Normal priority (1=high, 3=normal, 5=low)
         "X-Entity-Ref-ID": messageId.replace(/[<>]/g, ""), // Unique reference
-        // List-Unsubscribe for transactional/notification emails (helps spam score)
-        ...(category !== "marketing" && {
-          "List-Unsubscribe": `<mailto:unsubscribe@${site.supportEmail?.split('@')[1] || 'cloudact.ai'}?subject=Unsubscribe>, <${site.url}/unsubscribe>`,
+        // List-Unsubscribe for marketing/notification emails only (NOT transactional)
+        // Transactional emails (password reset, invite, payment) must NOT have unsubscribe
+        ...(category === "marketing" && {
+          "List-Unsubscribe": `<mailto:unsubscribe@${site.supportEmail?.split('@')[1] || 'cloudact.ai'}?subject=Unsubscribe>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         }),
-        // Precedence header for transactional emails
+        // Precedence header
         "Precedence": category === "transactional" ? "transactional" : "bulk",
         // Auto-submitted for automated emails (helps with spam filters)
         "Auto-Submitted": "auto-generated",
@@ -357,7 +362,7 @@ export async function sendPasswordResetEmail({
     title: "Reset Your Password",
     content,
     ctaText: "Reset Password",
-    ctaLink: resetLink,
+    ctaLink: encodeURI(resetLink),
     ctaStyle: "mint",
   })
 
@@ -386,7 +391,7 @@ export async function sendTrialEndingEmail({
   billingLink: string
 }): Promise<boolean> {
   const safeOrgName = escapeHtml(orgName)
-  const safeBillingLink = escapeHtml(billingLink)
+  const safeBillingLink = encodeURI(billingLink)
   const daysRemaining = Math.max(0, Math.floor((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
   const formattedDate = trialEndsAt.toLocaleDateString("en-US", {
     year: "numeric",
@@ -438,7 +443,7 @@ export async function sendPaymentFailedEmail({
   billingLink: string
 }): Promise<boolean> {
   const safeOrgName = escapeHtml(orgName)
-  const safeBillingLink = escapeHtml(billingLink)
+  const safeBillingLink = encodeURI(billingLink)
 
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
@@ -487,7 +492,7 @@ export async function sendWelcomeEmail({
 }): Promise<boolean> {
   const safeName = escapeHtml(name)
   const safeOrgName = escapeHtml(orgName)
-  const safeDashboardLink = escapeHtml(dashboardLink)
+  const safeDashboardLink = encodeURI(dashboardLink)
 
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
@@ -537,7 +542,7 @@ export async function sendSubscriptionConfirmedEmail({
   const safeName = escapeHtml(name)
   const safeOrgName = escapeHtml(orgName)
   const safePlanName = escapeHtml(planName)
-  const safeDashboardLink = escapeHtml(dashboardLink)
+  const safeDashboardLink = encodeURI(dashboardLink)
 
   const content = `
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
@@ -629,7 +634,7 @@ export async function sendContactFormEmail({
     title: "New Contact Form Submission",
     content,
     ctaText: `Reply to ${safeFirstName}`,
-    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(inquiryLabel + " Inquiry - ${site.name}")}`,
+    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(`${inquiryLabel} Inquiry - ${site.name}`)}`,
     ctaStyle: "dark",
   })
 
@@ -695,7 +700,7 @@ export async function sendAccountDeletionEmail({
     title: "Account Deletion Request",
     content,
     ctaText: "Confirm Account Deletion",
-    ctaLink: deleteLink,
+    ctaLink: encodeURI(deleteLink),
     ctaStyle: "coral",
   })
 
@@ -897,7 +902,7 @@ export async function sendJobApplicationEmail({
     title: "New Job Application",
     content,
     ctaText: `Reply to ${safeFirstName}`,
-    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(position + " Application - ${site.name}")}`,
+    ctaLink: `mailto:${safeEmail}?subject=Re: ${encodeURIComponent(`${position} Application - ${site.name}`)}`,
     ctaStyle: "dark",
   })
 
@@ -981,7 +986,7 @@ export async function sendApplicationConfirmationEmail({
     title: "Application Received!",
     content,
     ctaText: "Explore Our Culture",
-    ctaLink: "https://cloudact.ai/about",
+    ctaLink: `${site.url}/about`,
     ctaStyle: "mint",
   })
 
@@ -1075,7 +1080,7 @@ export async function sendNewsletterWelcomeEmail({
     title: `Welcome to ${site.name}!`,
     content,
     ctaText: "Explore Our Resources",
-    ctaLink: "https://cloudact.ai/resources",
+    ctaLink: `${site.url}/resources`,
     ctaStyle: "mint",
   })
 

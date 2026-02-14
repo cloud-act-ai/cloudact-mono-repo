@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   ArrowRight,
   Cloud,
@@ -17,10 +18,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Integrations | CloudAct.ai",
+  title: siteTitle("Integrations"),
   description: "Connect CloudAct.ai with your cloud providers, GenAI platforms, and SaaS subscriptions. AWS, Azure, GCP, OpenAI, Anthropic, and 50+ more integrations.",
   openGraph: {
-    title: "Integrations | CloudAct.ai",
+    title: siteTitle("Integrations"),
     description: "50+ integrations with cloud providers, GenAI platforms, and SaaS tools.",
     type: "website",
   },

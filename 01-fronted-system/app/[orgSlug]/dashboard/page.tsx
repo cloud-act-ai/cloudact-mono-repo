@@ -22,6 +22,7 @@ import {
   Wallet,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { PageActionsMenu } from "@/components/ui/page-actions-menu"
 import { Badge } from "@/components/ui/badge"
 import { getPipelineRuns } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
@@ -284,7 +285,7 @@ export default function DashboardPage() {
     periodCosts,
     currency: contextCurrency,
     isLoading: isCostLoading,
-    refresh: refreshCostData,
+    clearBackendCache,
     availableFilters,
     filters: contextFilters,
     setUnifiedFilters,
@@ -422,10 +423,13 @@ export default function DashboardPage() {
     loadNonCostData()
   }, [loadNonCostData])
 
-  const handleRefresh = async () => {
+  const handleClearCache = async () => {
     setIsRefreshing(true)
-    await Promise.all([refreshCostData(), loadNonCostData()])
-    setIsRefreshing(false)
+    try {
+      await Promise.all([clearBackendCache(), loadNonCostData()])
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const isLoading = isCostLoading || isLocalLoading
@@ -642,13 +646,7 @@ export default function DashboardPage() {
             onCustomRangeChange={handleCustomRangeChange}
             size="sm"
           />
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors disabled:opacity-50"
-          >
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <PageActionsMenu onClearCache={handleClearCache} />
         </div>
       </div>
 

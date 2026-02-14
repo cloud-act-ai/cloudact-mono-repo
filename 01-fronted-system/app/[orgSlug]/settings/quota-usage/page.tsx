@@ -19,6 +19,7 @@ import {
   getOrgQuotaLimits,
   type OrgQuotaLimits,
 } from "@/actions/organization-locale"
+import { site } from "@/lib/site"
 
 // Plan display configuration - matches Stripe product metadata plan_id values
 const PLAN_DISPLAY: Record<string, { name: string; color: string; bgColor: string }> = {
@@ -40,7 +41,7 @@ export default function QuotaUsagePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    document.title = "Usage & Quotas | CloudAct.ai"
+    document.title = `Usage & Quotas | ${site.name}`
   }, [])
 
   const loadQuotaLimits = useCallback(async () => {

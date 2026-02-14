@@ -462,7 +462,7 @@ curl -s "http://localhost:8000/api/v1/subscriptions/${ORG_SLUG}/providers" \
  "Figma","Github","Jira","Linear","Notion","Slack","Vercel","Zoom"]
 ```
 
-### 10. Budget Data (8 budgets)
+### 10. Budget Data (12 budgets = 8 individual + 1 parent + 3 children from allocation)
 
 ```bash
 curl -s "http://localhost:8000/api/v1/budgets/${ORG_SLUG}" \
@@ -472,9 +472,18 @@ curl -s "http://localhost:8000/api/v1/budgets/${ORG_SLUG}" \
 **Expected:**
 ```json
 {
-  "total": 8,
+  "total": 12,
   "categories": ["cloud", "genai", "subscription", "total"]
 }
+```
+
+**Top-down allocation included:** Org cloud $100K → ENG 45% ($45K), DS 30% ($30K), OPS 15% ($15K), 10% margin
+
+```bash
+# Verify allocation tree
+curl -s "http://localhost:8000/api/v1/budgets/${ORG_SLUG}/allocation-tree" \
+  -H "X-API-Key: $ORG_API_KEY" | jq '.roots | length'
+# Expected: >=1 (ORG root with 3 children)
 ```
 
 ### 11. Bootstrap Status (29 tables synced)

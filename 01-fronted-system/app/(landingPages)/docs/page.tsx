@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { siteTitle } from "@/lib/site"
 import {
   Book,
   Code,
@@ -22,10 +23,10 @@ import {
 import "../premium.css"
 
 export const metadata: Metadata = {
-  title: "Documentation | CloudAct.ai",
+  title: siteTitle("Documentation"),
   description: "Complete documentation for CloudAct.ai. API reference, integration guides, SDKs, and best practices for cloud cost optimization.",
   openGraph: {
-    title: "Documentation | CloudAct.ai",
+    title: siteTitle("Documentation"),
     description: "API reference, integration guides, and developer documentation.",
     type: "website",
   },
