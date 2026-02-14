@@ -40,7 +40,7 @@ def get_api_service_url(project_id: str) -> str:
     if project_id == "cloudact-prod":
         return "https://api.cloudact.ai"
     else:  # cloudact-testing-1 (stage + test)
-        return "https://cloudact-api-service-test-667076943102.us-central1.run.app"
+        return "https://cloudact-api-service-test-2adubqjovq-uc.a.run.app"
 
 
 async def check_bootstrap_status(api_url: str, root_api_key: str) -> dict:
