@@ -17,6 +17,8 @@
 #   - quota-reset-monthly Reset monthly quotas
 #   - stale-cleanup       Fix stuck concurrent counters
 #   - quota-cleanup       Delete old quota records
+#   - pipelines           Run cost pipelines for all orgs
+#   - alerts              Process cost alerts
 #
 # =============================================================================
 
@@ -51,6 +53,7 @@ if [[ -z "$ENV" ]] || [[ -z "$JOB_NAME" ]]; then
     echo "    stale-cleanup        - Fix stuck concurrent counters (02:00 UTC, safety net)"
     echo "    quota-reset          - Reset daily quotas (00:00 UTC)"
     echo "    quota-cleanup        - Delete old quota records (01:00 UTC)"
+    echo "    pipelines            - Run cost pipelines for all orgs (06:00 UTC)"
     echo "    alerts               - Process cost alerts (08:00 UTC)"
     echo "    quota-monthly        - Reset monthly quotas (1st of month)"
     echo ""
@@ -103,6 +106,9 @@ case "$JOB_NAME" in
         ;;
     alerts|daily-alerts)
         FULL_JOB_NAME="cloudact-daily-alerts"
+        ;;
+    pipelines|daily-pipelines)
+        FULL_JOB_NAME="cloudact-daily-pipelines"
         ;;
     quota-reset-monthly|quota-monthly)
         FULL_JOB_NAME="cloudact-monthly-quota-reset"

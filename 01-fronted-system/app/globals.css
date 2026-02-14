@@ -25,18 +25,21 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* ========== TYPOGRAPHY SCALE - Ultra Premium ========== */
-  /* Based on 16px base, 1.25 ratio for consistency */
-  --text-xs: 0.6875rem;    /* 11px - Micro labels, badges */
-  --text-sm: 0.8125rem;    /* 13px - Secondary text, captions */
-  --text-base: 0.9375rem;  /* 15px - Body text, inputs */
-  --text-md: 1rem;         /* 16px - Standard body */
-  --text-lg: 1.125rem;     /* 18px - Emphasized body */
-  --text-xl: 1.25rem;      /* 20px - Section titles */
-  --text-2xl: 1.5rem;      /* 24px - Card titles */
-  --text-3xl: 1.875rem;    /* 30px - Page subtitles */
-  --text-4xl: 2.25rem;     /* 36px - Page titles */
-  --text-5xl: 3rem;        /* 48px - Hero headlines */
+  /* ========== TYPOGRAPHY SCALE - Fluid with clamp() ========== */
+  /* Viewport: 375px (mobile) → 1440px (desktop)
+     Small text scales ~10%, large text scales ~30% */
+  --text-2xs: clamp(0.625rem, 0.603rem + 0.09vw, 0.75rem);      /* 10→12px */
+  --text-xs: clamp(0.625rem, 0.603rem + 0.09vw, 0.6875rem);     /* 10→11px */
+  --text-sm: clamp(0.719rem, 0.686rem + 0.14vw, 0.8125rem);     /* 11.5→13px */
+  --text-mid: clamp(0.781rem, 0.748rem + 0.14vw, 0.875rem);     /* 12.5→14px */
+  --text-base: clamp(0.844rem, 0.811rem + 0.14vw, 0.9375rem);   /* 13.5→15px */
+  --text-md: clamp(0.906rem, 0.873rem + 0.14vw, 1rem);          /* 14.5→16px */
+  --text-lg: clamp(1rem, 0.956rem + 0.19vw, 1.125rem);          /* 16→18px */
+  --text-xl: clamp(1.063rem, 0.997rem + 0.28vw, 1.25rem);       /* 17→20px */
+  --text-2xl: clamp(1.25rem, 1.162rem + 0.38vw, 1.5rem);        /* 20→24px */
+  --text-3xl: clamp(1.375rem, 1.199rem + 0.75vw, 1.875rem);     /* 22→30px */
+  --text-4xl: clamp(1.625rem, 1.405rem + 0.94vw, 2.25rem);      /* 26→36px */
+  --text-5xl: clamp(2rem, 1.648rem + 1.50vw, 3rem);             /* 32→48px */
 
   /* Line Heights - Premium spacing */
   --leading-none: 1;

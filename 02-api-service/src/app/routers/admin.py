@@ -8,9 +8,11 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any, Dict
 from datetime import datetime, date, timezone
 import hashlib
+import json
 import secrets
 import logging
 import time
+import uuid
 import httpx
 import os
 
@@ -1912,6 +1914,10 @@ async def cleanup_stale_concurrent(
 
 class ProcessAlertsRequest(BaseModel):
     """Request to process alerts for all organizations."""
+    org_slug: Optional[str] = Field(
+        default=None,
+        description="If provided, process alerts for this org only. Otherwise processes all active orgs."
+    )
     alert_types: List[str] = Field(
         default=[
             "cost_threshold", "absolute_threshold",
@@ -1974,18 +1980,39 @@ async def process_all_alerts(
     org_errors = []
     
     try:
-        # Get all active organizations
-        query = f"""
-        SELECT org_slug, default_currency
-        FROM `{settings.gcp_project_id}.organizations.org_profiles`
-        WHERE status = 'ACTIVE'
-        ORDER BY org_slug
-        """
-        
-        result = bq_client.client.query(query).result()
+        # Get active organizations (optionally filtered by org_slug)
+        if request.org_slug:
+            query = f"""
+            SELECT org_slug, default_currency
+            FROM `{settings.gcp_project_id}.organizations.org_profiles`
+            WHERE status = 'ACTIVE' AND org_slug = @filter_org_slug
+            ORDER BY org_slug
+            """
+            job_config_orgs = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("filter_org_slug", "STRING", request.org_slug),
+                ]
+            )
+            result = bq_client.client.query(query, job_config=job_config_orgs).result()
+        else:
+            query = f"""
+            SELECT org_slug, default_currency
+            FROM `{settings.gcp_project_id}.organizations.org_profiles`
+            WHERE status = 'ACTIVE'
+            ORDER BY org_slug
+            """
+            result = bq_client.client.query(query).result()
+
         orgs = [{"org_slug": row.org_slug, "currency": row.default_currency} for row in result]
-        
-        logger.info(f"Processing alerts for {len(orgs)} active organizations")
+
+        if request.org_slug and not orgs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{request.org_slug}' not found or not active"
+            )
+
+        mode = f"single-org ({request.org_slug})" if request.org_slug else "all-orgs"
+        logger.info(f"Processing alerts for {len(orgs)} active organizations ({mode})")
         
         for org in orgs:
             org_slug = org["org_slug"]
@@ -2291,9 +2318,370 @@ async def process_all_alerts(
             message=message
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Process all alerts failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Process all alerts failed: {str(e)}"
+        )
+
+
+# ============================================
+# Pipeline Run-All Endpoint
+# ============================================
+
+PROVIDER_PIPELINE_MAP = {
+    "GCP_SA":    {"category": "cloud", "path": "cloud/gcp/cost/billing"},
+    "AWS_ROLE":  {"category": "cloud", "path": "cloud/aws/cost/billing"},
+    "AZURE_APP": {"category": "cloud", "path": "cloud/azure/cost/billing"},
+    "OCI_USER":  {"category": "cloud", "path": "cloud/oci/cost/billing"},
+    "OPENAI":    {"category": "genai", "path": "genai/payg/openai"},
+    "CLAUDE":    {"category": "genai", "path": "genai/payg/anthropic"},
+    "GEMINI":    {"category": "genai", "path": "genai/payg/gemini"},
+    "DEEPSEEK":  {"category": "genai", "path": "genai/payg/deepseek"},
+}
+
+
+class RunAllPipelinesRequest(BaseModel):
+    """Request to run cost pipelines for all (or one) organizations."""
+    org_slug: Optional[str] = Field(
+        default=None,
+        description="If provided, run pipelines for this org only. Otherwise runs for all active orgs."
+    )
+    categories: Optional[List[str]] = Field(
+        default=None,
+        description="Filter by category: 'cloud', 'genai'. If omitted, runs all."
+    )
+    providers: Optional[List[str]] = Field(
+        default=None,
+        description="Filter by provider key: 'GCP_SA', 'OPENAI', etc. If omitted, runs all."
+    )
+    date: Optional[str] = Field(
+        default=None,
+        description="Pipeline run date (YYYY-MM-DD). Defaults to yesterday."
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="If true, report what would run without triggering pipelines."
+    )
+
+
+class RunAllPipelinesResponse(BaseModel):
+    """Response from running pipelines for all organizations."""
+    success: bool
+    batch_run_id: str = ""
+    orgs_processed: int
+    orgs_skipped: int
+    pipelines_triggered: int
+    pipelines_failed: int
+    pipelines_skipped_quota: int
+    total_integrations: int
+    results: List[Dict[str, Any]] = Field(default_factory=list)
+    errors: List[Dict[str, Any]] = Field(default_factory=list)
+    message: str
+    elapsed_seconds: float
+
+
+@router.post(
+    "/pipelines/run-all",
+    response_model=RunAllPipelinesResponse,
+    summary="Run cost pipelines for all organizations",
+    description="Triggers cost pipelines for all active orgs with valid integrations. "
+                "Supports filtering by org, category, and provider."
+)
+async def run_all_pipelines(
+    request: RunAllPipelinesRequest,
+    _: str = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+):
+    """
+    Run cost pipelines for all active organizations.
+
+    For each org:
+    1. Find active, validated integration credentials
+    2. Map provider → pipeline path
+    3. Decrypt org API key
+    4. POST to Pipeline Service to trigger each pipeline
+    """
+    start_time = time.time()
+    orgs_processed = 0
+    orgs_skipped = 0
+    pipelines_triggered = 0
+    pipelines_failed = 0
+    pipelines_skipped_quota = 0
+    total_integrations = 0
+    results: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+
+    # Determine run date (default: yesterday)
+    if request.date:
+        run_date = request.date
+    else:
+        from datetime import timedelta
+        run_date = (date.today() - timedelta(days=1)).isoformat()
+
+    try:
+        # 1. Get active organizations
+        if request.org_slug:
+            org_query = f"""
+            SELECT org_slug
+            FROM `{settings.gcp_project_id}.organizations.org_profiles`
+            WHERE status = 'ACTIVE' AND org_slug = @filter_org_slug
+            """
+            org_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("filter_org_slug", "STRING", request.org_slug),
+                ]
+            )
+            org_result = bq_client.client.query(org_query, job_config=org_config).result()
+        else:
+            org_query = f"""
+            SELECT org_slug
+            FROM `{settings.gcp_project_id}.organizations.org_profiles`
+            WHERE status = 'ACTIVE'
+            ORDER BY org_slug
+            """
+            org_result = bq_client.client.query(org_query).result()
+
+        org_slugs = [row.org_slug for row in org_result]
+
+        if request.org_slug and not org_slugs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{request.org_slug}' not found or not active"
+            )
+
+        mode = f"single-org ({request.org_slug})" if request.org_slug else "all-orgs"
+        logger.info(f"Pipeline run-all: {len(org_slugs)} orgs ({mode}), date={run_date}, dry_run={request.dry_run}")
+
+        # 2. Process each org
+        for org_slug in org_slugs:
+            try:
+                # 2a. Get active, validated integration credentials
+                creds_query = f"""
+                SELECT credential_id, provider
+                FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+                WHERE org_slug = @org_slug
+                  AND is_active = TRUE
+                  AND validation_status = 'VALID'
+                """
+                creds_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    ]
+                )
+                creds_result = bq_client.client.query(creds_query, job_config=creds_config).result()
+                creds = list(creds_result)
+
+                if not creds:
+                    orgs_skipped += 1
+                    continue
+
+                # 2b. Filter by categories/providers
+                matched_creds = []
+                for cred in creds:
+                    provider_key = cred.provider
+                    mapping = PROVIDER_PIPELINE_MAP.get(provider_key)
+                    if not mapping:
+                        continue
+                    if request.categories and mapping["category"] not in request.categories:
+                        continue
+                    if request.providers and provider_key not in request.providers:
+                        continue
+                    matched_creds.append((cred, mapping))
+
+                if not matched_creds:
+                    orgs_skipped += 1
+                    continue
+
+                total_integrations += len(matched_creds)
+
+                # 2c. Get org API key and decrypt
+                key_query = f"""
+                SELECT api_key_encrypted, kms_key_version
+                FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+                WHERE org_slug = @org_slug AND is_active = TRUE
+                LIMIT 1
+                """
+                key_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    ]
+                )
+                key_result = bq_client.client.query(key_query, job_config=key_config).result()
+                key_row = next(key_result, None)
+
+                if not key_row or not key_row.api_key_encrypted:
+                    orgs_skipped += 1
+                    errors.append({
+                        "org_slug": org_slug,
+                        "error": "No active API key found"
+                    })
+                    continue
+
+                try:
+                    org_api_key = decrypt_value(
+                        key_row.api_key_encrypted,
+                        key_row.kms_key_version
+                    )
+                except Exception as decrypt_err:
+                    orgs_skipped += 1
+                    errors.append({
+                        "org_slug": org_slug,
+                        "error": f"API key decryption failed: {str(decrypt_err)[:100]}"
+                    })
+                    continue
+
+                # 2d. Trigger each pipeline
+                for cred, mapping in matched_creds:
+                    pipeline_path = mapping["path"]
+
+                    if request.dry_run:
+                        pipelines_triggered += 1
+                        if len(results) < 100:
+                            results.append({
+                                "org_slug": org_slug,
+                                "provider": cred.provider,
+                                "pipeline_path": pipeline_path,
+                                "date": run_date,
+                                "status": "dry_run",
+                            })
+                        continue
+
+                    # POST to Pipeline Service
+                    pipeline_url = (
+                        f"{settings.pipeline_service_url}/api/v1/pipelines"
+                        f"/run/{org_slug}/{pipeline_path}"
+                    )
+                    try:
+                        async with httpx.AsyncClient(timeout=120.0) as client:
+                            resp = await client.post(
+                                pipeline_url,
+                                headers={"X-API-Key": org_api_key},
+                                params={"date": run_date},
+                            )
+
+                        if resp.status_code == 200:
+                            pipelines_triggered += 1
+                            if len(results) < 100:
+                                results.append({
+                                    "org_slug": org_slug,
+                                    "provider": cred.provider,
+                                    "pipeline_path": pipeline_path,
+                                    "date": run_date,
+                                    "status": "triggered",
+                                })
+                        elif resp.status_code == 429:
+                            pipelines_skipped_quota += 1
+                            if len(results) < 100:
+                                results.append({
+                                    "org_slug": org_slug,
+                                    "provider": cred.provider,
+                                    "pipeline_path": pipeline_path,
+                                    "date": run_date,
+                                    "status": "quota_exceeded",
+                                })
+                        else:
+                            pipelines_failed += 1
+                            if len(results) < 100:
+                                results.append({
+                                    "org_slug": org_slug,
+                                    "provider": cred.provider,
+                                    "pipeline_path": pipeline_path,
+                                    "date": run_date,
+                                    "status": "failed",
+                                    "http_status": resp.status_code,
+                                    "detail": resp.text[:200],
+                                })
+                    except httpx.RequestError as req_err:
+                        pipelines_failed += 1
+                        if len(results) < 100:
+                            results.append({
+                                "org_slug": org_slug,
+                                "provider": cred.provider,
+                                "pipeline_path": pipeline_path,
+                                "date": run_date,
+                                "status": "error",
+                                "detail": str(req_err)[:200],
+                            })
+
+                orgs_processed += 1
+
+            except Exception as org_error:
+                orgs_skipped += 1
+                if len(errors) < 20:
+                    errors.append({
+                        "org_slug": org_slug,
+                        "error": str(org_error)[:200]
+                    })
+                logger.warning(f"Pipeline run-all error for {org_slug}: {org_error}")
+
+        elapsed = time.time() - start_time
+        dry_label = " (DRY RUN)" if request.dry_run else ""
+        message = (
+            f"Pipeline run-all{dry_label}: {orgs_processed} orgs processed, "
+            f"{orgs_skipped} skipped, {pipelines_triggered} triggered, "
+            f"{pipelines_failed} failed, {pipelines_skipped_quota} quota-skipped "
+            f"in {elapsed:.2f}s"
+        )
+        logger.info(message)
+
+        # Persist batch run record to BigQuery
+        batch_run_id = str(uuid.uuid4())
+        now_ts = datetime.now(timezone.utc).isoformat()
+        batch_status = "COMPLETED" if pipelines_failed == 0 else "PARTIAL"
+        try:
+            batch_row = {
+                "batch_run_id": batch_run_id,
+                "org_slug": request.org_slug or "ALL",
+                "trigger_type": "MANUAL" if request.org_slug else "SCHEDULED",
+                "status": batch_status,
+                "run_date": run_date,
+                "dry_run": request.dry_run,
+                "categories_filter": json.dumps(request.categories) if request.categories else None,
+                "providers_filter": json.dumps(request.providers) if request.providers else None,
+                "orgs_processed": orgs_processed,
+                "orgs_skipped": orgs_skipped,
+                "pipelines_triggered": pipelines_triggered,
+                "pipelines_failed": pipelines_failed,
+                "pipelines_skipped_quota": pipelines_skipped_quota,
+                "total_integrations": total_integrations,
+                "results": json.dumps(results[:100]),
+                "errors": json.dumps(errors[:20]),
+                "elapsed_seconds": round(elapsed, 2),
+                "triggered_at": now_ts,
+                "completed_at": now_ts,
+                "created_at": now_ts,
+            }
+            table_ref = f"{settings.gcp_project_id}.organizations.org_meta_pipeline_batch_runs"
+            bq_errors = bq_client.client.insert_rows_json(table_ref, [batch_row])
+            if bq_errors:
+                logger.warning(f"Failed to persist batch run {batch_run_id}: {bq_errors}")
+        except Exception as persist_err:
+            logger.warning(f"Failed to persist batch run record: {persist_err}")
+
+        return RunAllPipelinesResponse(
+            success=True,
+            batch_run_id=batch_run_id,
+            orgs_processed=orgs_processed,
+            orgs_skipped=orgs_skipped,
+            pipelines_triggered=pipelines_triggered,
+            pipelines_failed=pipelines_failed,
+            pipelines_skipped_quota=pipelines_skipped_quota,
+            total_integrations=total_integrations,
+            results=results,
+            errors=errors,
+            message=message,
+            elapsed_seconds=round(elapsed, 2),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Pipeline run-all failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Pipeline run-all failed: {str(e)}"
         )

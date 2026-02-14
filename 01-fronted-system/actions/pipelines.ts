@@ -791,3 +791,190 @@ export async function getPipelineRunDetail(
     }
   }
 }
+
+// ============================================
+// Run All Pipelines (Batch)
+// ============================================
+
+interface RunAllPipelinesResult {
+  success: boolean
+  batch_run_id?: string
+  orgs_processed?: number
+  orgs_skipped?: number
+  pipelines_triggered?: number
+  pipelines_failed?: number
+  pipelines_skipped_quota?: number
+  total_integrations?: number
+  message?: string
+  elapsed_seconds?: number
+  error?: string
+}
+
+/**
+ * Run all configured pipelines for an organization.
+ *
+ * Uses the admin endpoint with root key (server-side only).
+ * Triggers all pipelines with valid integrations and quota.
+ */
+export async function runAllOrgPipelines(
+  orgSlug: string,
+  options?: {
+    categories?: string[]   // "cloud", "genai"
+    providers?: string[]    // "GCP_SA", "OPENAI", etc.
+    date?: string           // YYYY-MM-DD, defaults to yesterday
+    dryRun?: boolean
+  }
+): Promise<RunAllPipelinesResult> {
+  try {
+    // Validate org slug
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication and org membership
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
+    }
+
+    // Get root API key (server-side only)
+    const rootKey = process.env.CA_ROOT_API_KEY
+    if (!rootKey) {
+      return { success: false, error: "Admin API key not configured" }
+    }
+
+    // Call admin endpoint with org_slug filter
+    const apiUrl = process.env.NEXT_PUBLIC_API_SERVICE_URL || "http://localhost:8000"
+    const body: Record<string, unknown> = {
+      org_slug: orgSlug,
+      dry_run: options?.dryRun ?? false,
+    }
+    if (options?.categories) body.categories = options.categories
+    if (options?.providers) body.providers = options.providers
+    if (options?.date) body.date = options.date
+
+    const response = await fetch(`${apiUrl}/api/v1/admin/pipelines/run-all`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CA-Root-Key": rootKey,
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      return { success: false, error: `API error (${response.status}): ${text.slice(0, 200)}` }
+    }
+
+    const result = await response.json()
+    return {
+      success: true,
+      batch_run_id: result.batch_run_id,
+      orgs_processed: result.orgs_processed,
+      orgs_skipped: result.orgs_skipped,
+      pipelines_triggered: result.pipelines_triggered,
+      pipelines_failed: result.pipelines_failed,
+      pipelines_skipped_quota: result.pipelines_skipped_quota,
+      total_integrations: result.total_integrations,
+      message: result.message,
+      elapsed_seconds: result.elapsed_seconds,
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to run all pipelines",
+    }
+  }
+}
+
+// ============================================
+// Batch Run History
+// ============================================
+
+export interface BatchRunSummary {
+  batch_run_id: string
+  org_slug: string
+  trigger_type: string
+  status: string
+  run_date?: string
+  dry_run: boolean
+  orgs_processed: number
+  orgs_skipped: number
+  pipelines_triggered: number
+  pipelines_failed: number
+  pipelines_skipped_quota: number
+  total_integrations: number
+  elapsed_seconds: number
+  triggered_at?: string
+  completed_at?: string
+}
+
+/**
+ * Get batch pipeline run history for an organization.
+ */
+export async function getBatchRuns(
+  orgSlug: string,
+  options?: { limit?: number; offset?: number }
+): Promise<{
+  success: boolean
+  runs?: BatchRunSummary[]
+  total?: number
+  error?: string
+}> {
+  try {
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
+    }
+
+    const apiKey = await getOrgApiKey(orgSlug)
+    if (!apiKey) {
+      return { success: false, error: "Organization API key not found." }
+    }
+
+    const params = new URLSearchParams()
+    if (options?.limit) params.append("limit", options.limit.toString())
+    if (options?.offset) params.append("offset", options.offset.toString())
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_SERVICE_URL || "http://localhost:8000"
+    const queryString = params.toString()
+    const url = `${apiUrl}/api/v1/pipelines/${orgSlug}/batch-runs${queryString ? `?${queryString}` : ""}`
+
+    const response = await fetch(url, {
+      headers: {
+        "X-API-Key": apiKey,
+      },
+    })
+
+    if (!response.ok) {
+      return { success: false, error: `API error (${response.status})` }
+    }
+
+    const result = await response.json()
+    return {
+      success: true,
+      runs: result.runs,
+      total: result.total,
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to fetch batch runs",
+    }
+  }
+}

@@ -384,12 +384,13 @@ cd 05-scheduler-jobs
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `bootstrap` | Manual | Initialize organizations dataset + 27 meta tables |
+| `bootstrap` | Manual | Initialize organizations dataset + 28 meta tables |
 | `bootstrap-sync` | Manual | Add new columns to existing meta tables |
 | `org-sync-all` | Manual | Sync ALL org datasets (loops through active orgs) |
 | `quota-reset-daily` | 00:00 UTC | Reset daily pipeline counters |
 | `quota-cleanup` | 01:00 UTC | Delete quota records >90 days |
 | `stale-cleanup` | 02:00 UTC | Fix stuck concurrent counters (safety net) |
+| `pipelines-daily` | 06:00 UTC | Run cost pipelines for all orgs |
 | `alerts-daily` | 08:00 UTC | Process cost alerts for all orgs |
 | `quota-reset-monthly` | 00:05 1st | Reset monthly pipeline counters |
 

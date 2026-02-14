@@ -197,10 +197,10 @@ export function DashboardSidebar({
       onClick={() => toggleSection(section)}
       className="w-full px-4 pt-4 pb-2 flex items-center justify-between group cursor-pointer"
     >
-      <span className="text-[11px] font-semibold text-[var(--text-muted)] tracking-wide">
+      <span className="text-[length:var(--text-xs)] font-semibold text-[var(--text-muted)] tracking-wide">
         {title}
         {badge && (
-          <span className="ml-2 rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">
+          <span className="ml-2 rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[length:var(--text-xs)] font-medium text-[var(--cloudact-coral)]">
             {badge}
           </span>
         )}
@@ -347,7 +347,7 @@ export function DashboardSidebar({
                             <item.icon className="h-4 w-4 flex-shrink-0" />
                             <span>{item.title}</span>
                             {item.badge && (
-                              <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">
+                              <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-2 py-0.5 text-[length:var(--text-xs)] font-medium text-[var(--cloudact-coral)]">
                                 {item.badge}
                               </span>
                             )}
@@ -414,7 +414,7 @@ export function DashboardSidebar({
                   ? "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] ring-2 ring-[var(--cloudact-mint)]/30"
                   : "bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] hover:ring-2 hover:ring-[var(--cloudact-mint)]/30"
               )}>
-                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
+                <span className="text-[var(--cloudact-mint-text)] text-[length:var(--text-xs)] font-semibold">
                   {getUserInitials(userName)}
                 </span>
               </div>

@@ -31,10 +31,13 @@ import { EmptyState } from "@/components/ui/empty-state"
 // Actions
 import {
   runPipeline,
+  runAllOrgPipelines,
   getAvailablePipelines,
   getPipelineRuns,
   getPipelineRunDetail,
+  getBatchRuns,
 } from "@/actions/pipelines"
+import type { BatchRunSummary } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import {
   checkBackendOnboarding,
@@ -196,6 +199,20 @@ export default function PipelinesPage() {
   const [backendConnected, setBackendConnected] = useState(true)
   const [hasApiKey, setHasApiKey] = useState(true)
 
+  // Run All state
+  const [runAllLoading, setRunAllLoading] = useState(false)
+  const [runAllResult, setRunAllResult] = useState<{
+    success: boolean
+    message?: string
+    pipelines_triggered?: number
+    pipelines_failed?: number
+    pipelines_skipped_quota?: number
+  } | null>(null)
+
+  // Batch run history
+  const [batchRuns, setBatchRuns] = useState<BatchRunSummary[]>([])
+  const [batchRunsLoading, setBatchRunsLoading] = useState(false)
+
   // Run history
   const [pipelineRuns, setPipelineRuns] = useState<PipelineRunSummary[]>([])
   const [runsLoading, setRunsLoading] = useState(false)
@@ -271,6 +288,54 @@ export default function PipelinesPage() {
     setRunsLoading(false)
   }, [orgSlug, calculateQuickStats])
 
+  // Load batch run history
+  const loadBatchRuns = useCallback(async () => {
+    setBatchRunsLoading(true)
+    try {
+      const result = await getBatchRuns(orgSlug, { limit: 10 })
+      if (result.success && result.runs) {
+        setBatchRuns(result.runs)
+      }
+    } catch {
+      // Handle silently
+    }
+    setBatchRunsLoading(false)
+  }, [orgSlug])
+
+  // Run All handler
+  const handleRunAll = async (category?: string) => {
+    if (runAllLoading) return
+    setRunAllLoading(true)
+    setRunAllResult(null)
+
+    try {
+      const options: { categories?: string[] } = {}
+      if (category) options.categories = [category]
+
+      const result = await runAllOrgPipelines(orgSlug, options)
+      setRunAllResult({
+        success: result.success,
+        message: result.success
+          ? `${result.pipelines_triggered} pipeline${result.pipelines_triggered !== 1 ? "s" : ""} triggered in ${result.elapsed_seconds}s`
+          : result.error,
+        pipelines_triggered: result.pipelines_triggered,
+        pipelines_failed: result.pipelines_failed,
+        pipelines_skipped_quota: result.pipelines_skipped_quota,
+      })
+      // Refresh runs after trigger
+      setTimeout(() => {
+        loadPipelineRuns()
+        loadBatchRuns()
+      }, 2000)
+    } catch (err) {
+      setRunAllResult({
+        success: false,
+        message: err instanceof Error ? err.message : "Failed to run all pipelines",
+      })
+    }
+    setRunAllLoading(false)
+  }
+
   // Load initial data
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -296,8 +361,9 @@ export default function PipelinesPage() {
 
     if (onboardingStatus.onboarded && apiKeyResult.hasKey) {
       loadPipelineRuns()
+      loadBatchRuns()
     }
-  }, [orgSlug, loadPipelineRuns])
+  }, [orgSlug, loadPipelineRuns, loadBatchRuns])
 
   // Load run details
   const loadRunDetail = async (
@@ -327,6 +393,14 @@ export default function PipelinesPage() {
       return () => clearTimeout(timer)
     }
   }, [lastResult])
+
+  useEffect(() => {
+    if (runAllResult) {
+      const timeout = runAllResult.success ? 10000 : 20000
+      const timer = setTimeout(() => setRunAllResult(null), timeout)
+      return () => clearTimeout(timer)
+    }
+  }, [runAllResult])
 
   // Run pipeline
   const handleRun = async (pipelineId: string) => {
@@ -513,10 +587,91 @@ export default function PipelinesPage() {
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
           <p className="text-[12px] text-[var(--text-secondary)] font-medium">
-            Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
+            Pipelines run daily at 06:00 UTC. Use &quot;Run All&quot; or individual &quot;Run Now&quot; for manual runs.
           </p>
         </div>
       </div>
+
+      {/* Run All Section */}
+      {backendConnected && hasApiKey && connectedPipelines.length > 0 && (
+        <PremiumCard>
+          <div className="p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
+                  Run All Pipelines
+                </h3>
+                <p className="text-[12px] text-[var(--text-tertiary)] mt-1">
+                  Trigger all configured pipelines for yesterday&apos;s data
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleRunAll("cloud")}
+                  disabled={runAllLoading}
+                  className="h-9 px-4 bg-[var(--surface-secondary)] text-[var(--text-primary)] text-[12px] font-semibold rounded-lg hover:bg-[var(--surface-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Cloud className="h-3.5 w-3.5" />
+                  Cloud
+                </button>
+                <button
+                  onClick={() => handleRunAll("genai")}
+                  disabled={runAllLoading}
+                  className="h-9 px-4 bg-[var(--surface-secondary)] text-[var(--text-primary)] text-[12px] font-semibold rounded-lg hover:bg-[var(--surface-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  GenAI
+                </button>
+                <button
+                  onClick={() => handleRunAll()}
+                  disabled={runAllLoading}
+                  className="h-9 px-5 bg-[var(--text-primary)] text-white text-[12px] font-semibold rounded-lg hover:bg-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
+                >
+                  {runAllLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  Run All
+                </button>
+              </div>
+            </div>
+          </div>
+        </PremiumCard>
+      )}
+
+      {/* Run All Result */}
+      {runAllResult && (
+        <div
+          className={`p-4 rounded-xl border flex items-start gap-3 ${
+            runAllResult.success
+              ? "bg-[var(--cloudact-mint)]/10 border-[var(--cloudact-mint)]/20"
+              : "bg-rose-50 border-rose-200"
+          }`}
+        >
+          {runAllResult.success ? (
+            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
+          )}
+          <div>
+            <p
+              className={`text-[12px] font-medium ${
+                runAllResult.success ? "text-[#1a7a3a]" : "text-rose-700"
+              }`}
+            >
+              {runAllResult.message}
+            </p>
+            {runAllResult.success && (runAllResult.pipelines_failed || runAllResult.pipelines_skipped_quota) ? (
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                {runAllResult.pipelines_failed ? `${runAllResult.pipelines_failed} failed` : ""}
+                {runAllResult.pipelines_failed && runAllResult.pipelines_skipped_quota ? " · " : ""}
+                {runAllResult.pipelines_skipped_quota ? `${runAllResult.pipelines_skipped_quota} quota-skipped` : ""}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Result Message */}
       {lastResult && (
@@ -686,6 +841,65 @@ export default function PipelinesPage() {
               ),
             }}
           />
+        </div>
+      )}
+
+      {/* Batch Run History */}
+      {backendConnected && hasApiKey && batchRuns.length > 0 && (
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-[12px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Batch Run History</h2>
+            <button
+              onClick={loadBatchRuns}
+              disabled={batchRunsLoading}
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {batchRunsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <PremiumCard>
+            <div className="divide-y divide-[#E5E5EA]">
+              {batchRuns.map((batch) => (
+                <div key={batch.batch_run_id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <StatusBadge status={batch.status} />
+                      <span className="text-[11px] text-[var(--text-tertiary)] font-mono">
+                        {batch.batch_run_id.slice(0, 8)}
+                      </span>
+                      {batch.dry_run && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                          DRY RUN
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-[12px] text-[var(--text-secondary)]">
+                      <span>{batch.pipelines_triggered} triggered</span>
+                      {batch.pipelines_failed > 0 && (
+                        <span className="text-rose-600">{batch.pipelines_failed} failed</span>
+                      )}
+                      {batch.pipelines_skipped_quota > 0 && (
+                        <span className="text-amber-600">{batch.pipelines_skipped_quota} quota-skipped</span>
+                      )}
+                      <span className="text-[var(--text-tertiary)]">{batch.elapsed_seconds}s</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-[var(--text-tertiary)]">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[var(--surface-secondary)] border border-[var(--border-medium)] font-semibold">
+                      {batch.trigger_type}
+                    </span>
+                    <span>{batch.triggered_at ? formatDateTime(batch.triggered_at) : "-"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </PremiumCard>
         </div>
       )}
 

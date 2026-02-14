@@ -1137,3 +1137,130 @@ async def get_state_transitions(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch state transitions. Please check server logs for details."
         )
+
+
+# ============================================
+# Batch Pipeline Runs (Run-All History)
+# ============================================
+
+class BatchRunSummary(BaseModel):
+    """Summary of a batch pipeline run."""
+    batch_run_id: str = Field(..., description="Unique ID for this batch run")
+    org_slug: str = Field(..., description="Organization or 'ALL'")
+    trigger_type: str = Field(..., description="MANUAL, SCHEDULED, API")
+    status: str = Field(..., description="COMPLETED, PARTIAL, FAILED")
+    run_date: Optional[date] = Field(None, description="Pipeline data date")
+    dry_run: bool = Field(default=False, description="Whether this was a dry run")
+    orgs_processed: int = Field(default=0)
+    orgs_skipped: int = Field(default=0)
+    pipelines_triggered: int = Field(default=0)
+    pipelines_failed: int = Field(default=0)
+    pipelines_skipped_quota: int = Field(default=0)
+    total_integrations: int = Field(default=0)
+    results: Optional[List[Dict[str, Any]]] = Field(None, description="Per-pipeline results")
+    errors: Optional[List[Dict[str, Any]]] = Field(None, description="Org-level errors")
+    elapsed_seconds: float = Field(default=0)
+    triggered_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+
+class BatchRunsResponse(BaseModel):
+    """Response for list of batch runs."""
+    runs: List[BatchRunSummary] = Field(..., description="List of batch runs")
+    total: int = Field(..., description="Total number of batch runs")
+
+
+@router.get(
+    "/pipelines/{org_slug}/batch-runs",
+    response_model=BatchRunsResponse,
+    summary="Get batch pipeline run history",
+    description="List batch run-all history for an organization."
+)
+async def list_batch_runs(
+    org_slug: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    org_context: dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+):
+    """Get batch pipeline run history for an organization."""
+    import json as json_mod
+
+    if org_context["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: org_slug mismatch"
+        )
+
+    try:
+        # Count total
+        count_query = f"""
+        SELECT COUNT(*) as total
+        FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_batch_runs`
+        WHERE org_slug = @org_slug OR org_slug = 'ALL'
+        """
+        count_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            ]
+        )
+        count_result = bq_client.client.query(count_query, job_config=count_config).result()
+        total = next(count_result).total
+
+        # Fetch batch runs
+        query = f"""
+        SELECT *
+        FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_batch_runs`
+        WHERE org_slug = @org_slug OR org_slug = 'ALL'
+        ORDER BY triggered_at DESC
+        LIMIT @limit OFFSET @offset
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("limit", "INT64", limit),
+                bigquery.ScalarQueryParameter("offset", "INT64", offset),
+            ]
+        )
+        result = bq_client.client.query(query, job_config=job_config).result()
+
+        runs = []
+        for row in result:
+            parsed_results = None
+            parsed_errors = None
+            try:
+                if row.results:
+                    parsed_results = json_mod.loads(row.results) if isinstance(row.results, str) else row.results
+                if row.errors:
+                    parsed_errors = json_mod.loads(row.errors) if isinstance(row.errors, str) else row.errors
+            except Exception:
+                pass
+
+            runs.append(BatchRunSummary(
+                batch_run_id=row.batch_run_id,
+                org_slug=row.org_slug,
+                trigger_type=row.trigger_type,
+                status=row.status,
+                run_date=row.run_date,
+                dry_run=row.dry_run,
+                orgs_processed=row.orgs_processed,
+                orgs_skipped=row.orgs_skipped,
+                pipelines_triggered=row.pipelines_triggered,
+                pipelines_failed=row.pipelines_failed,
+                pipelines_skipped_quota=row.pipelines_skipped_quota,
+                total_integrations=row.total_integrations,
+                results=parsed_results,
+                errors=parsed_errors,
+                elapsed_seconds=row.elapsed_seconds,
+                triggered_at=row.triggered_at,
+                completed_at=row.completed_at,
+            ))
+
+        return BatchRunsResponse(runs=runs, total=total)
+
+    except Exception as e:
+        logger.error(f"Error fetching batch runs: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch batch run history."
+        )

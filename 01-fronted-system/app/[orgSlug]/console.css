@@ -21,7 +21,7 @@
    ============================================ */
 
 .console-page-title {
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   font-weight: 700;
   color: #000000;
   letter-spacing: -0.025em;
@@ -31,7 +31,7 @@
 }
 
 .console-heading {
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: #000000;
   letter-spacing: -0.015em;
@@ -40,7 +40,7 @@
 }
 
 .console-section-title {
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: #000000;
   letter-spacing: -0.015em;
@@ -50,7 +50,7 @@
 }
 
 .console-card-title {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.01em;
@@ -58,21 +58,21 @@
 }
 
 .console-body {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   color: #3C3C43;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 .console-small {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   color: #8E8E93;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
 .console-metric {
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   font-weight: 600;
   color: #000000;
   letter-spacing: -0.03em;
@@ -82,7 +82,7 @@
 }
 
 .console-metric-unit {
-  font-size: 1rem;
+  font-size: var(--text-md);
   font-weight: 500;
   color: #3C3C43;
   margin-left: 2px;
@@ -123,7 +123,7 @@
 }
 
 .health-card-label {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -136,14 +136,14 @@
 .health-card-label-blue { color: #1C1C1E; }
 
 .health-card-value {
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   font-weight: 600;
   color: #000000;
   line-height: 1.1;
 }
 
 .health-card-description {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   color: #8E8E93;
 }
 
@@ -245,7 +245,7 @@
 }
 
 .metric-card-label {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -269,7 +269,7 @@
 .metric-card-label-coral-dark { color: #E5544A; }
 
 .metric-card-time {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   color: #8E8E93;
   display: flex;
   align-items: center;
@@ -283,7 +283,7 @@
 }
 
 .metric-card-value {
-  font-size: 1.5rem;
+  font-size: var(--text-2xl);
   font-weight: 600;
   color: #000000;
   line-height: 1.1;
@@ -301,26 +301,26 @@
 }
 
 .metric-card-metric-label {
-  font-size: 0.6875rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .metric-card-metric-value {
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: #000000;
 }
 
 .metric-card-subtitle {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   color: #000000;
   font-weight: 400;
 }
 
 .metric-card-description {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   color: #8E8E93;
 }
 
@@ -427,7 +427,7 @@
 }
 
 .console-table-header {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: #8E8E93;
   padding: 14px 16px;
@@ -450,7 +450,7 @@
 }
 
 .console-table-cell {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   color: #000000;
   padding: 16px;
   border: none;
@@ -474,7 +474,7 @@
 }
 
 [data-sidebar="group-label"] {
-  font-size: 0.6875rem !important;
+  font-size: var(--text-xs) !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
@@ -483,7 +483,7 @@
 }
 
 [data-sidebar="menu-button"] {
-  font-size: 0.875rem !important;
+  font-size: var(--text-mid) !important;
   font-weight: 500 !important;
   color: #1C1C1E !important;
   padding: 12px 20px !important;
@@ -524,7 +524,7 @@
 
 /* Sidebar menu sub-items */
 [data-sidebar="menu-sub-button"] {
-  font-size: 0.8125rem !important;
+  font-size: var(--text-sm) !important;
   font-weight: 400 !important;
   color: #3C3C43 !important;
   padding: 10px 20px 10px 44px !important;
@@ -557,7 +557,7 @@
   justify-content: center;
   gap: 8px;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -586,7 +586,7 @@
   background: var(--cloudact-mint);
   color: #000000;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 12px 24px;
   border: none;
@@ -623,7 +623,7 @@
   background: rgba(60, 60, 67, 0.04);
   color: #000000;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 12px 24px;
   border: 1px solid rgba(60, 60, 67, 0.1);
@@ -659,7 +659,7 @@
   background: var(--cloudact-coral);
   color: white;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 12px 24px;
   border: none;
@@ -696,7 +696,7 @@
   background: var(--cloudact-coral);
   color: white;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 12px 24px;
   border: none;
@@ -732,7 +732,7 @@
   background: transparent;
   color: #000000;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 12px 24px;
   border: none;
@@ -762,7 +762,7 @@
   background: transparent;
   color: var(--cloudact-coral);
   border-radius: 14px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 12px 24px;
   border: none;
@@ -795,7 +795,7 @@
   background: transparent;
   color: #1a7a3a;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 11px 23px;
   border: 1.5px solid var(--cloudact-mint);
@@ -828,7 +828,7 @@
   background: transparent;
   color: #1C1C1E;
   border-radius: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   padding: 0;
   border: none;
@@ -868,14 +868,14 @@
 
 /* Button Sizes */
 .console-button-sm {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   padding: 8px 16px;
   min-height: 36px;
   border-radius: 10px;
 }
 
 .console-button-lg {
-  font-size: 0.9375rem;
+  font-size: var(--text-base);
   padding: 14px 28px;
   min-height: 48px;
   border-radius: 14px;
@@ -893,7 +893,7 @@
 
 .console-tab {
   padding: 10px 20px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 500;
   color: #8E8E93;
   background: transparent;
@@ -922,7 +922,7 @@
    ============================================ */
 
 .console-badge {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   padding: 4px 12px;
   border-radius: 20px;
@@ -1045,7 +1045,7 @@
   border: 1px solid var(--border-medium);
   border-radius: 12px;
   padding: 14px 16px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   color: #1C1C1E;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -1072,7 +1072,7 @@
 }
 
 .console-label {
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   font-weight: 600;
   color: #1C1C1E;
   margin-bottom: 8px;
@@ -1080,7 +1080,7 @@
 }
 
 .console-label-hint {
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   font-weight: 400;
   color: #8E8E93;
   margin-top: 6px;
@@ -1092,7 +1092,7 @@
   border: 1px solid var(--border-medium);
   border-radius: 12px;
   padding: 14px 40px 14px 16px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   color: #1C1C1E;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -1134,7 +1134,7 @@ button[role="combobox"] > span:first-child {
   border: 1px solid var(--border-medium);
   border-radius: 12px;
   padding: 14px 16px;
-  font-size: 0.875rem;
+  font-size: var(--text-mid);
   color: #1C1C1E;
   resize: vertical;
   min-height: 100px;
@@ -1288,7 +1288,7 @@ button[role="combobox"] > span:first-child {
 }
 
 .console-chart-title {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: #8E8E93;
   text-transform: uppercase;
@@ -1312,12 +1312,10 @@ button[role="combobox"] > span:first-child {
   }
 
   .console-page-title {
-    font-size: 1.375rem;
     line-height: 1.2;
   }
 
   .console-section-title {
-    font-size: 1rem;
     margin-bottom: 12px;
   }
 
@@ -1326,34 +1324,16 @@ button[role="combobox"] > span:first-child {
     border-radius: 12px;
   }
 
-  .metric-card-value {
-    font-size: 1.25rem;
-  }
-
-  .metric-card-label {
-    font-size: 0.75rem;
-  }
-
-  .metric-card-description {
-    font-size: 0.6875rem;
-  }
-
-  .console-metric {
-    font-size: 1.25rem;
-  }
-
   .console-stat-card {
     padding: 14px;
     border-radius: 12px;
   }
 
   .console-table-header {
-    font-size: 0.625rem;
     padding: 10px 8px;
   }
 
   .console-table-cell {
-    font-size: 0.75rem;
     padding: 10px 8px;
   }
 
@@ -1397,7 +1377,6 @@ button[role="combobox"] > span:first-child {
   .console-button-sm {
     min-height: 44px;
     padding: 12px 16px;
-    font-size: 0.8125rem;
   }
 
   /* Stack button groups vertically on mobile */
@@ -1411,7 +1390,6 @@ button[role="combobox"] > span:first-child {
   }
 
   [data-sidebar="menu-button"] {
-    font-size: 0.8125rem !important;
     padding: 12px 16px !important;
     border-radius: 10px !important;
     margin: 2px 12px !important;
@@ -1431,7 +1409,6 @@ button[role="combobox"] > span:first-child {
 
   /* Make badges smaller on mobile */
   .console-badge {
-    font-size: 0.625rem;
     padding: 3px 10px;
   }
 

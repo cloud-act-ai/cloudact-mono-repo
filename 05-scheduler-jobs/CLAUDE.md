@@ -17,6 +17,8 @@ This service contains standalone Python scripts that run as Cloud Run Jobs. Thes
 | `quota_reset_daily.py` | `/api/v1/admin/quota/reset-daily` | POST |
 | `quota_reset_monthly.py` | `/api/v1/admin/quota/reset-monthly` | POST |
 | `stale_cleanup.py` | `/api/v1/admin/quota/cleanup-stale` | POST |
+| `pipelines_daily.py` | `/api/v1/admin/pipelines/run-all` | POST |
+| `alerts_daily.py` | `/api/v1/admin/alerts/process-all` | POST |
 | `quota_cleanup.py` | Direct BigQuery (maintenance job) | - |
 
 **Benefits:**
@@ -63,6 +65,7 @@ Pipeline Request → cleanup_stale_concurrent_for_org(org_slug) → reserve_pipe
 | `cloudact-daily-quota-reset` | `jobs/daily/quota_reset_daily.py` | `0 0 * * *` | Reset daily pipeline quotas |
 | `cloudact-daily-quota-cleanup` | `jobs/daily/quota_cleanup.py` | `0 1 * * *` | Delete quota records >90 days |
 | `cloudact-daily-stale-cleanup` | `jobs/daily/stale_cleanup.py` | `0 2 * * *` | Fix stuck concurrent counters (safety net) |
+| `cloudact-daily-pipelines` | `jobs/daily/pipelines_daily.py` | `0 6 * * *` | Run cost pipelines for all orgs |
 | `cloudact-daily-alerts` | `jobs/daily/alerts_daily.py` | `0 8 * * *` | Process cost alerts for all orgs |
 
 ### Scheduled Jobs (Monthly)
@@ -130,6 +133,7 @@ Run these jobs in order after each release:
     │   ├── quota_reset_daily.py  # Reset daily quotas (00:00 UTC)
     │   ├── quota_cleanup.py      # Cleanup old quota records (01:00 UTC)
     │   ├── stale_cleanup.py      # Fix stuck concurrent counters (02:00 UTC) - safety net
+    │   ├── pipelines_daily.py    # Run cost pipelines for all orgs (06:00 UTC)
     │   └── alerts_daily.py       # Process cost alerts (08:00 UTC)
     └── monthly/                  # Monthly jobs
         └── quota_reset_monthly.py # Reset monthly quotas (00:05 UTC 1st)
@@ -167,6 +171,7 @@ Run these jobs in order after each release:
 | `stale-cleanup` | `cloudact-daily-stale-cleanup` | 02:00 UTC (safety net) |
 | `quota-reset` | `cloudact-daily-quota-reset` | 00:00 UTC |
 | `quota-cleanup` | `cloudact-daily-quota-cleanup` | 01:00 UTC |
+| `pipelines` | `cloudact-daily-pipelines` | 06:00 UTC |
 | `alerts` | `cloudact-daily-alerts` | 08:00 UTC |
 | `quota-monthly` | `cloudact-monthly-quota-reset` | 00:05 UTC on 1st |
 
@@ -215,6 +220,7 @@ Jobs are executed as part of **OpenClaw** operations. When running jobs, the con
 | `migrate` | "OpenClaw running Supabase schema migrations" |
 | `quota-reset-*` | "OpenClaw maintaining quota system health" |
 | `stale-cleanup` | "OpenClaw self-healing concurrent counters" |
+| `pipelines-daily` | "OpenClaw running cost pipelines for all orgs" |
 | `alerts-daily` | "OpenClaw processing cost alerts for all orgs" |
 
 ### Pre-Job Context Check (Recommended)

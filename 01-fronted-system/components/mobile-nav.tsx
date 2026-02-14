@@ -136,7 +136,7 @@ export function MobileNav({
               <p className="text-[12px] font-black text-[var(--text-primary)] tracking-wide uppercase leading-tight truncate">
                 {formattedOrgName}
               </p>
-              <p className="text-[11px] font-semibold text-[var(--text-muted)] tracking-wider uppercase leading-tight">
+              <p className="text-[length:var(--text-xs)] font-semibold text-[var(--text-muted)] tracking-wider uppercase leading-tight">
                 Cost Analytics
               </p>
             </div>
@@ -160,7 +160,7 @@ export function MobileNav({
                   onClick={() => toggleGroup(group.label)}
                   className="w-full px-4 pt-4 pb-2 flex items-center justify-between group cursor-pointer"
                 >
-                  <span className="text-[11px] font-semibold text-[var(--text-muted)] tracking-wide">
+                  <span className="text-[length:var(--text-xs)] font-semibold text-[var(--text-muted)] tracking-wide">
                     {group.label}
                   </span>
                   <span className="text-[var(--text-muted)] group-hover:text-[var(--text-tertiary)] transition-colors">
@@ -196,7 +196,7 @@ export function MobileNav({
                           )} />
                           <span className="text-sm">{item.title}</span>
                           {item.badge && (
-                            <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[11px] font-medium text-[var(--cloudact-coral)]">
+                            <span className="ml-auto rounded-full bg-[var(--cloudact-coral)]/10 px-1.5 py-0.5 text-[length:var(--text-xs)] font-medium text-[var(--cloudact-coral)]">
                               {item.badge}
                             </span>
                           )}
@@ -224,7 +224,7 @@ export function MobileNav({
             )}
           >
             <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]">
-              <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
+              <span className="text-[var(--cloudact-mint-text)] text-[length:var(--text-xs)] font-semibold">
                 {getUserInitials(userName)}
               </span>
             </div>
@@ -239,7 +239,7 @@ export function MobileNav({
             <Link
               href="/user-docs"
               target="_blank"
-              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[length:var(--text-xs)] font-medium text-[var(--text-secondary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] rounded-lg transition-colors"
             >
               <HelpCircle className="h-3.5 w-3.5" />
               Help
@@ -247,7 +247,7 @@ export function MobileNav({
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[11px] font-medium text-[var(--text-tertiary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-10 px-3 text-[length:var(--text-xs)] font-medium text-[var(--text-tertiary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] rounded-lg transition-colors"
             >
               <LogOut className="h-3.5 w-3.5" />
               {isLoggingOut ? "..." : "Sign Out"}

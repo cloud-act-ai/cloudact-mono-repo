@@ -131,10 +131,11 @@ test.describe('Pipelines - Cloud Runs', () => {
     expect(count).toBeGreaterThanOrEqual(0);
   });
 
-  test('should have refresh functionality', async ({ page }) => {
+  test('should have refresh functionality for run history', async ({ page }) => {
     await loginAndNavigate(page, '/pipelines/cloud-runs');
 
-    const refreshButton = page.locator('button:has-text("Refresh"), button[aria-label*="refresh"], [data-testid="refresh"]');
+    // Pipeline pages have an inline "Refresh" button for the run history table
+    const refreshButton = page.locator('button:has-text("Refresh"), button[aria-label*="refresh"]');
     if (await refreshButton.isVisible()) {
       await refreshButton.click();
       await page.waitForTimeout(1000);

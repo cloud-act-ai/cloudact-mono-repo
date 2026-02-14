@@ -142,6 +142,7 @@ ALL_JOBS=(
     "cloudact-daily-quota-cleanup"
     "cloudact-daily-billing-reconcile"
     "cloudact-daily-stale-cleanup"
+    "cloudact-daily-pipelines"
     "cloudact-monthly-quota-reset"
 )
 # Note: billing sync jobs (5min-billing-sync-retry, daily-billing-reconcile) are deprecated
@@ -164,6 +165,7 @@ ALL_SCHEDULERS=(
     "cloudact-daily-quota-cleanup-trigger"
     "cloudact-daily-billing-reconcile-trigger"
     "cloudact-daily-stale-cleanup-trigger"
+    "cloudact-daily-pipelines-trigger"
     "cloudact-monthly-quota-reset-trigger"
 )
 # Note: billing sync schedulers are deprecated and will be deleted but not recreated
@@ -345,6 +347,18 @@ create_scheduler "cloudact-daily-stale-cleanup-trigger" \
     "0 2 * * *" \
     "Fix stuck concurrent counters - safety net (02:00 UTC)"
 
+# 06:00 UTC - Daily pipelines (run cost pipelines for all orgs)
+create_job "cloudact-daily-pipelines" \
+    "jobs/daily/pipelines_daily.py" \
+    "45m" \
+    "2Gi" \
+    "1"
+
+create_scheduler "cloudact-daily-pipelines-trigger" \
+    "cloudact-daily-pipelines" \
+    "0 6 * * *" \
+    "Run cost pipelines for all organizations (06:00 UTC)"
+
 # 08:00 UTC - Daily alerts processing
 create_job "cloudact-daily-alerts" \
     "jobs/daily/alerts_daily.py" \
@@ -399,6 +413,7 @@ echo "  Daily:"
 echo "    cloudact-daily-quota-reset        (00:00 UTC)"
 echo "    cloudact-daily-quota-cleanup      (01:00 UTC)"
 echo "    cloudact-daily-stale-cleanup      (02:00 UTC) - safety net"
+echo "    cloudact-daily-pipelines          (06:00 UTC)"
 echo "    cloudact-daily-alerts             (08:00 UTC)"
 echo ""
 echo "  Monthly:"

@@ -113,10 +113,11 @@ export function getNavGroups(orgSlug: string, userRole: string): NavGroup[] {
       id: "pipelines",
       label: "Pipelines",
       collapsedIcon: Workflow,
-      collapsedHref: `/${orgSlug}/pipelines/subscription-runs`,
+      collapsedHref: `/${orgSlug}/pipelines`,
       items: [
+        { title: "Overview", href: `/${orgSlug}/pipelines`, icon: Workflow, exactMatch: true },
         { title: "Subscription Runs", href: `/${orgSlug}/pipelines/subscription-runs`, icon: RefreshCw },
-        { title: "Cloud Runs", href: `/${orgSlug}/pipelines/cloud-runs`, icon: Workflow },
+        { title: "Cloud Runs", href: `/${orgSlug}/pipelines/cloud-runs`, icon: Cloud },
         { title: "GenAI Runs", href: `/${orgSlug}/pipelines/genai-runs`, icon: Cpu },
       ],
     },

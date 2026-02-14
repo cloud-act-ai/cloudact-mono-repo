@@ -13,7 +13,10 @@ Calls the API service's /api/v1/admin/alerts/process-all endpoint which:
 Run at 08:00 UTC daily (business hours for most users).
 
 Usage:
-    python jobs/daily/alerts_daily.py
+    python jobs/daily/alerts_daily.py                              # All orgs (scheduled)
+    python jobs/daily/alerts_daily.py --org-slug acme_inc_abc123   # Single org
+    python jobs/daily/alerts_daily.py --dry-run                    # Dry run (no notifications)
+    python jobs/daily/alerts_daily.py --org-slug acme_inc --dry-run
 
 Environment:
     GCP_PROJECT_ID: GCP Project ID
@@ -21,6 +24,7 @@ Environment:
     API_SERVICE_URL: API service URL (optional, defaults based on environment)
 """
 
+import argparse
 import asyncio
 import os
 import sys
@@ -41,7 +45,18 @@ def get_api_service_url(project_id: str) -> str:
         return "https://cloudact-api-service-test-667076943102.us-central1.run.app"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="CloudAct Daily Alerts Job")
+    parser.add_argument("--org-slug", type=str, default=None,
+                        help="Process alerts for a single org (default: all orgs)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Check thresholds without sending notifications")
+    return parser.parse_args()
+
+
 async def main():
+    args = parse_args()
+
     print("=" * 60)
     print("CloudAct Daily Alerts Job")
     print(f"Started at: {datetime.now(timezone.utc).isoformat()}")
@@ -62,15 +77,32 @@ async def main():
     api_url = get_api_service_url(project_id)
     endpoint = f"{api_url}/api/v1/admin/alerts/process-all"
 
+    mode = f"single-org ({args.org_slug})" if args.org_slug else "all orgs"
     print(f"Project: {project_id}")
     print(f"API URL: {api_url}")
     print(f"Endpoint: {endpoint}")
+    print(f"Mode: {mode}")
+    if args.dry_run:
+        print("Dry run: YES (no notifications will be sent)")
     print("-" * 60)
+
+    # Build request body
+    body = {
+        "alert_types": [
+            "cost_threshold", "absolute_threshold",
+            "budget_percent", "budget_forecast", "hierarchy_budget",
+            "anomaly_percent_change", "anomaly_std_deviation",
+        ],
+        "send_notifications": not args.dry_run,
+        "dry_run": args.dry_run,
+    }
+    if args.org_slug:
+        body["org_slug"] = args.org_slug
 
     # Call the alerts processing endpoint
     async with httpx.AsyncClient(timeout=300.0) as client:
         try:
-            print("Processing alerts for all organizations...")
+            print(f"Processing alerts for {mode}...")
 
             response = await client.post(
                 endpoint,
@@ -78,20 +110,13 @@ async def main():
                     "X-CA-Root-Key": root_api_key,
                     "Content-Type": "application/json",
                 },
-                json={
-                    "alert_types": [
-                        "cost_threshold", "absolute_threshold",
-                        "budget_percent", "budget_forecast", "hierarchy_budget",
-                        "anomaly_percent_change", "anomaly_std_deviation",
-                    ],
-                    "send_notifications": True,
-                    "dry_run": False,
-                }
+                json=body,
             )
 
             if response.status_code == 200:
                 result = response.json()
-                print("\n✅ Alerts processing completed successfully!")
+                dry_label = " (DRY RUN)" if args.dry_run else ""
+                print(f"\n✅ Alerts processing completed successfully!{dry_label}")
                 print(f"  - Organizations processed: {result.get('orgs_processed', 0)}")
                 print(f"  - Alerts triggered: {result.get('alerts_triggered', 0)}")
                 print(f"  - Notifications sent: {result.get('notifications_sent', 0)}")
@@ -104,8 +129,11 @@ async def main():
                         print(f"  - {org_error.get('org_slug')}: {org_error.get('error')}")
 
             elif response.status_code == 404:
-                print("\n⚠️ Alerts endpoint not found (404)")
-                print("  The /api/v1/admin/alerts/process-all endpoint is not available.")
+                if args.org_slug:
+                    print(f"\n⚠️ Organization '{args.org_slug}' not found or not active (404)")
+                else:
+                    print("\n⚠️ Alerts endpoint not found (404)")
+                    print("  The /api/v1/admin/alerts/process-all endpoint is not available.")
                 sys.exit(1)
 
             else:

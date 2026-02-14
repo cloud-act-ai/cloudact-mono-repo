@@ -31,16 +31,134 @@ cd 04-inra-cicd-automation/CICD
 ./secrets/verify-secrets.sh prod
 ```
 
-**Required secrets per environment:**
+**GCP Secret Manager (8 secrets in prod):**
 
-| Secret | Service | Stage | Prod |
-|--------|---------|-------|------|
-| `ca-root-api-key-{env}` | All | `sk_test_*` | Unique |
-| `stripe-secret-key-{env}` | Frontend | `sk_test_*` | `sk_live_*` |
-| `stripe-webhook-secret-{env}` | Frontend | `whsec_*` | `whsec_*` |
-| `supabase-service-role-key-{env}` | Frontend | JWT | JWT |
+| Secret | Used By | Prefix/Type | Verified |
+|--------|---------|-------------|----------|
+| `ca-root-api-key-prod` | Frontend, API, Pipeline, Chat | Unique string | v1 |
+| `stripe-secret-key-prod` | Frontend | `sk_live_*` | v1 |
+| `stripe-webhook-secret-prod` | Frontend | `whsec_*` | v1 |
+| `stripe-publishable-key-prod` | Frontend (hardcoded) | `pk_live_*` | v1 |
+| `supabase-service-role-key-prod` | Frontend, API, Chat | JWT (`eyJ...`) | v1 |
+| `supabase-anon-key-prod` | Frontend (hardcoded) | JWT (`eyJ...`) | v1 |
+| `supabase-access-token-prod` | Migrations only | `sbp_*` | v1 |
+| `smtp-password-prod` | Frontend, Pipeline | Gmail app password | v1 |
 
-## 3. Supabase Migrations
+**KMS (credential encryption):**
+
+| Resource | Value |
+|----------|-------|
+| Keyring | `cloudact-keyring` (us-central1) |
+| Key | `api-key-encryption` (ENCRYPT_DECRYPT) |
+| Used by | API Service, Pipeline Service, Chat Backend |
+
+## 3. Cloud Run Environment Variables (All 4 Services)
+
+### Frontend (cloudact-frontend-prod) - 26 vars
+
+| Var | Source | Value |
+|-----|--------|-------|
+| `GCP_PROJECT_ID` | Plain | `cloudact-prod` |
+| `ENVIRONMENT` | Plain | `production` |
+| `NODE_ENV` | Plain | `production` |
+| `NEXT_PUBLIC_API_SERVICE_URL` | Plain | `https://api.cloudact.ai` |
+| `API_SERVICE_URL` | Plain | `https://api.cloudact.ai` |
+| `NEXT_PUBLIC_PIPELINE_SERVICE_URL` | Plain | `https://pipeline.cloudact.ai` |
+| `PIPELINE_SERVICE_URL` | Plain | `https://pipeline.cloudact.ai` |
+| `NEXT_PUBLIC_APP_URL` | Plain | `https://cloudact.ai` |
+| `CHAT_BACKEND_URL` | Plain | `https://cloudact-chat-backend-prod-zfq7lndpda-uc.a.run.app` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Plain | `https://ovfxswhkkshouhsryzaf.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Plain | JWT (hardcoded) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Plain | `pk_live_*` (hardcoded) |
+| `NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID` | Plain | `price_1SWJMfDoxINmrJKY7tOoJUIs` |
+| `NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID` | Plain | `price_1SWJOYDoxINmrJKY8jEZwVuU` |
+| `NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID` | Plain | `price_1SWJP8DoxINmrJKYfg0jmeLv` |
+| `NEXT_PUBLIC_DEFAULT_TRIAL_DAYS` | Plain | `14` |
+| `SMTP_HOST` | Plain | `smtp.gmail.com` |
+| `SMTP_PORT` | Plain | `587` |
+| `SMTP_USERNAME` | Plain | `support@cloudact.ai` |
+| `FROM_EMAIL` | Plain | `support@cloudact.ai` |
+| `FROM_NAME` | Plain | `CloudAct.ai Support` |
+| `CA_ROOT_API_KEY` | Secret | `ca-root-api-key-prod:latest` |
+| `STRIPE_SECRET_KEY` | Secret | `stripe-secret-key-prod:latest` |
+| `STRIPE_WEBHOOK_SECRET` | Secret | `stripe-webhook-secret-prod:latest` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Secret | `supabase-service-role-key-prod:latest` |
+| `SMTP_PASSWORD` | Secret | `smtp-password-prod:latest` |
+
+### API Service (cloudact-api-service-prod) - 11 vars
+
+| Var | Source | Value |
+|-----|--------|-------|
+| `GCP_PROJECT_ID` | Plain | `cloudact-prod` |
+| `BIGQUERY_LOCATION` | Plain | `US` |
+| `ENVIRONMENT` | Plain | `production` |
+| `PIPELINE_SERVICE_URL` | Plain | `https://pipeline.cloudact.ai` |
+| `KMS_PROJECT_ID` | Plain | `cloudact-prod` |
+| `KMS_LOCATION` | Plain | `us-central1` |
+| `KMS_KEYRING` | Plain | `cloudact-keyring` |
+| `KMS_KEY` | Plain | `api-key-encryption` |
+| `SUPABASE_URL` | Plain | `https://ovfxswhkkshouhsryzaf.supabase.co` |
+| `CA_ROOT_API_KEY` | Secret | `ca-root-api-key-prod:latest` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Secret | `supabase-service-role-key-prod:latest` |
+
+### Pipeline Service (cloudact-pipeline-service-prod) - 13 vars
+
+| Var | Source | Value |
+|-----|--------|-------|
+| `GCP_PROJECT_ID` | Plain | `cloudact-prod` |
+| `BIGQUERY_LOCATION` | Plain | `US` |
+| `ENVIRONMENT` | Plain | `production` |
+| `API_SERVICE_URL` | Plain | `https://api.cloudact.ai` |
+| `KMS_PROJECT_ID` | Plain | `cloudact-prod` |
+| `KMS_LOCATION` | Plain | `us-central1` |
+| `KMS_KEYRING` | Plain | `cloudact-keyring` |
+| `KMS_KEY` | Plain | `api-key-encryption` |
+| `SMTP_HOST` | Plain | `smtp.gmail.com` |
+| `SMTP_PORT` | Plain | `587` |
+| `SMTP_USERNAME` | Plain | `support@cloudact.ai` |
+| `FROM_EMAIL` | Plain | `alerts@cloudact.ai` |
+| `FROM_NAME` | Plain | `CloudAct.AI` |
+| `CA_ROOT_API_KEY` | Secret | `ca-root-api-key-prod:latest` |
+| `SMTP_PASSWORD` | Secret | `smtp-password-prod:latest` |
+
+### Chat Backend (cloudact-chat-backend-prod) - 12 vars
+
+| Var | Source | Value |
+|-----|--------|-------|
+| `GCP_PROJECT_ID` | Plain | `cloudact-prod` |
+| `BIGQUERY_LOCATION` | Plain | `US` |
+| `ENVIRONMENT` | Plain | `production` |
+| `ORGANIZATIONS_DATASET` | Plain | `organizations` |
+| `KMS_PROJECT_ID` | Plain | `cloudact-prod` |
+| `KMS_LOCATION` | Plain | `us-central1` |
+| `KMS_KEYRING` | Plain | `cloudact-keyring` |
+| `KMS_KEY` | Plain | `api-key-encryption` |
+| `CORS_ORIGINS` | Plain | `https://cloudact.ai` |
+| `SUPABASE_URL` | Plain | `https://ovfxswhkkshouhsryzaf.supabase.co` |
+| `CA_ROOT_API_KEY` | Secret | `ca-root-api-key-prod:latest` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Secret | `supabase-service-role-key-prod:latest` |
+
+### Quick Verify Command
+
+```bash
+# Switch to prod first
+gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-prod.json
+
+# Check all secrets have active versions
+for s in ca-root-api-key-prod smtp-password-prod stripe-secret-key-prod \
+  stripe-webhook-secret-prod supabase-service-role-key-prod supabase-anon-key-prod \
+  supabase-access-token-prod stripe-publishable-key-prod; do
+  ver=$(gcloud secrets versions list $s --project=cloudact-prod \
+    --filter="state=ENABLED" --format="value(name)" --limit=1)
+  echo "$s: v$ver"
+done
+
+# Check KMS key exists
+gcloud kms keys list --keyring=cloudact-keyring --location=us-central1 \
+  --project=cloudact-prod --format="table(name,purpose)"
+```
+
+## 4. Supabase Migrations
 
 ```bash
 cd 01-fronted-system/scripts/supabase_db

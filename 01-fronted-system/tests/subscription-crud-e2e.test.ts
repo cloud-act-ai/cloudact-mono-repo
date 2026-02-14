@@ -283,7 +283,7 @@ describe('Subscription CRUD - Functional Validation', () => {
       'deleting',
       'adding',
       'editing',
-      'isRefreshing',
+      'isClearing',
     ]
 
     loadingStates.forEach(state => {
@@ -423,7 +423,7 @@ describe('Subscription CRUD - UI Component Validation', () => {
     const expectedElements = [
       'h1: Subscription Costs',
       'Summary cards (Monthly Cost, Annual Cost, Active Plans, Categories)',
-      'Refresh button',
+      'Page actions menu (3-dot) with Clear Cache',
       'Manage Providers button',
       'Plans table',
       'Provider links',
@@ -570,8 +570,8 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     console.log('✅ Delete custom plan flow validated')
   })
 
-  it('should validate dashboard refresh flow', () => {
-    console.log('📋 Validating dashboard refresh flow...')
+  it('should validate dashboard clear cache flow', () => {
+    console.log('📋 Validating dashboard clear cache flow...')
 
     const flow = [
       '1. Dashboard loads with getAllPlansForCostDashboard(orgSlug)',
@@ -580,10 +580,10 @@ describe('Subscription CRUD - Data Flow Validation', () => {
       '4. Response includes plans and summary (totals, counts)',
       '5. Frontend displays summary cards',
       '6. Frontend renders plans table',
-      '7. Auto-refresh every 30 seconds',
-      '8. User can click manual refresh button',
-      '9. Refresh button shows spinner while loading',
-      '10. Data reloads and UI updates',
+      '7. User opens 3-dot PageActionsMenu',
+      '8. User clicks Clear Cache to bypass backend Polars cache',
+      '9. Clear Cache item shows spinner while loading',
+      '10. Data reloads from BigQuery and UI updates',
     ]
 
     flow.forEach((step, index) => {
@@ -591,7 +591,7 @@ describe('Subscription CRUD - Data Flow Validation', () => {
       console.log(`✅ ${step}`)
     })
 
-    console.log('✅ Dashboard refresh flow validated')
+    console.log('✅ Dashboard clear cache flow validated')
   })
 
   it('should validate disable provider flow', () => {

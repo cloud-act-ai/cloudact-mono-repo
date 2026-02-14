@@ -1,0 +1,122 @@
+[
+  {
+    "name": "batch_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "UUID for this batch run"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier (or 'ALL' for scheduler-triggered all-org runs)"
+  },
+  {
+    "name": "trigger_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "MANUAL, SCHEDULED, API"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "COMPLETED, FAILED, PARTIAL"
+  },
+  {
+    "name": "run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Pipeline data date (the date pipelines were run for)"
+  },
+  {
+    "name": "dry_run",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether this was a dry run"
+  },
+  {
+    "name": "categories_filter",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Category filter applied (e.g. [\"cloud\", \"genai\"])"
+  },
+  {
+    "name": "providers_filter",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Provider filter applied (e.g. [\"GCP_SA\", \"OPENAI\"])"
+  },
+  {
+    "name": "orgs_processed",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of organizations processed"
+  },
+  {
+    "name": "orgs_skipped",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of organizations skipped"
+  },
+  {
+    "name": "pipelines_triggered",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of pipelines successfully triggered"
+  },
+  {
+    "name": "pipelines_failed",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of pipelines that failed to trigger"
+  },
+  {
+    "name": "pipelines_skipped_quota",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of pipelines skipped due to quota limits"
+  },
+  {
+    "name": "total_integrations",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Total matching integrations found"
+  },
+  {
+    "name": "results",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Per-pipeline results (capped at 100)"
+  },
+  {
+    "name": "errors",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Org-level errors (capped at 20)"
+  },
+  {
+    "name": "elapsed_seconds",
+    "type": "FLOAT",
+    "mode": "REQUIRED",
+    "description": "Total elapsed time in seconds"
+  },
+  {
+    "name": "triggered_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the batch run was triggered"
+  },
+  {
+    "name": "completed_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the batch run completed"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when this record was created in the database"
+  }
+]

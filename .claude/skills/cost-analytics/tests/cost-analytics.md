@@ -21,7 +21,7 @@ Cost analytics filter architecture and dashboard validation.
 | 11 | Provider filter toggle uses L1 cache | Cache | `L1_USE_CACHE`, instant toggle |
 | 12 | Category filter toggle uses L1 cache | Cache | `L1_USE_CACHE`, instant toggle |
 | 13 | Hierarchy filter change triggers API call | Cache | `L1_NO_CACHE`, server-side filter required |
-| 14 | Refresh button triggers API call | Cache | `L1_NO_CACHE`, backend cache invalidated |
+| 14 | Clear Cache (PageActionsMenu) triggers API call | Cache | `clearBackendCache()` → `L1_NO_CACHE`, backend Polars cache bypassed |
 | 15 | Org switch resets all cache | Cache | `resetToInitialState()` called, fresh fetch |
 | 16 | Category filter resets on page unmount (CTX-002) | Bug fix | Overview shows ALL categories after leaving GenAI page |
 | 17 | Cross-user auth cache isolation (AUTH-001) | Security | Cache key includes `userId:orgSlug` |
@@ -114,7 +114,7 @@ bq query --use_legacy_sql=false \
 | Category filter (page scope) | Visit GenAI page -> go to Overview | Overview shows ALL categories |
 | Hierarchy filter | Select department -> check API | API call with dept ID in params |
 | Org switch | Switch orgs in dropdown | Cache resets, fresh data loads |
-| Refresh button | Click refresh on cost dashboard | Visible loading state, fresh data |
+| Clear Cache (3-dot menu) | Click PageActionsMenu → Clear Cache | Visible loading state, fresh data from BigQuery |
 | Forecast metrics | Check monthly/annual forecast | Non-zero, reasonable projections |
 | Error boundary recovery | Trigger component error | Error boundary message, not crash |
 
@@ -129,7 +129,7 @@ bq query --use_legacy_sql=false \
 | Provider filter toggle | <10ms | Frontend L1 filter |
 | Category filter toggle | <10ms | Frontend L1 filter |
 | Hierarchy filter change | 2-5s | Backend L1 (new query) |
-| Refresh button | 2-5s | Backend cache invalidation |
+| Clear Cache (PageActionsMenu) | 2-5s | Backend Polars cache invalidation via `clear_cache=true` |
 
 ## Pass Criteria
 
@@ -148,7 +148,7 @@ bq query --use_legacy_sql=false \
 ## Known Limitations
 
 1. **BigQuery dependency**: Backend cache and data layer tests require active BigQuery connection
-2. **Frontend L1 cache has no explicit TTL**: Relies on user actions (refresh, org switch) for invalidation
+2. **Frontend L1 cache has no explicit TTL**: Relies on user actions (Clear Cache via PageActionsMenu, org switch) for invalidation
 3. **Hierarchy filter always triggers API call**: Cannot be filtered client-side due to BigQuery path prefix query
 4. **Performance benchmarks**: Actual latency depends on BigQuery cold start and data volume
 5. **Auth cache race**: 5-second auth cache in `actions/costs.ts` -- cross-user isolation fixed (AUTH-001) but requires `userId` from Supabase session
