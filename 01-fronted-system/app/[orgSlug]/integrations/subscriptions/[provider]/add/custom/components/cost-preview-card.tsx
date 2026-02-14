@@ -25,7 +25,7 @@ export function CostPreviewCard({ formData }: CostPreviewCardProps) {
       <CardContent className="pt-6">
         <div className="space-y-2">
           <p className="text-sm font-medium text-foreground">Cost Preview</p>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Total Cost:</span>
               <span className="ml-2 font-semibold text-[#FF6C5E]">

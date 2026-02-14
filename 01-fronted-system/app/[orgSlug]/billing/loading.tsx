@@ -89,26 +89,28 @@ export default function BillingLoading() {
           <Skeleton className="h-4 w-64 mt-2 rounded-md" />
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* Header row */}
-            <div className="grid grid-cols-5 gap-4 pb-2 border-b">
-              {["Invoice", "Date", "Amount", "Status", "Actions"].map((_, i) => (
-                <Skeleton key={i} className="h-4 w-16 rounded-md" />
+          <div className="overflow-x-auto -mx-6">
+            <div className="min-w-[500px] px-6 space-y-4">
+              {/* Header row */}
+              <div className="grid grid-cols-5 gap-4 pb-2 border-b">
+                {["Invoice", "Date", "Amount", "Status", "Actions"].map((_, i) => (
+                  <Skeleton key={i} className="h-4 w-16 rounded-md" />
+                ))}
+              </div>
+              {/* Invoice rows */}
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="grid grid-cols-5 gap-4 items-center py-3">
+                  <Skeleton className="h-4 w-20 rounded-md" />
+                  <Skeleton className="h-4 w-24 rounded-md" />
+                  <Skeleton className="h-4 w-16 rounded-md" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <div className="flex justify-end gap-2">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
               ))}
             </div>
-            {/* Invoice rows */}
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="grid grid-cols-5 gap-4 items-center py-3">
-                <Skeleton className="h-4 w-20 rounded-md" />
-                <Skeleton className="h-4 w-24 rounded-md" />
-                <Skeleton className="h-4 w-16 rounded-md" />
-                <Skeleton className="h-6 w-16 rounded-full" />
-                <div className="flex justify-end gap-2">
-                  <Skeleton className="h-8 w-8 rounded-lg" />
-                  <Skeleton className="h-8 w-8 rounded-lg" />
-                </div>
-              </div>
-            ))}
           </div>
         </CardContent>
       </Card>

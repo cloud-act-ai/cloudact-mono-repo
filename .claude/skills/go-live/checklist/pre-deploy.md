@@ -101,7 +101,7 @@ cd 04-inra-cicd-automation/CICD
 | `CA_ROOT_API_KEY` | Secret | `ca-root-api-key-prod:latest` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Secret | `supabase-service-role-key-prod:latest` |
 
-### Pipeline Service (cloudact-pipeline-service-prod) - 13 vars
+### Pipeline Service (cloudact-pipeline-service-prod) - 15 vars
 
 | Var | Source | Value |
 |-----|--------|-------|

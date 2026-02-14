@@ -12,7 +12,7 @@ description: |
 Production deployment checklist for CloudAct. Covers everything from pre-deploy validation
 through deployment, post-deploy verification, scheduler setup, and rollback procedures.
 
-**Current Version:** v4.4.2 | **Services:** 4 (Frontend, API, Pipeline, Chat)
+**Current Version:** v4.4.4 | **Services:** 4 (Frontend, API, Pipeline, Chat)
 
 ## Quick Reference
 
@@ -23,7 +23,7 @@ through deployment, post-deploy verification, scheduler setup, and rollback proc
 | [checklist/post-deploy.md](checklist/post-deploy.md) | Verify, monitor, announce | After deploy |
 | [checklist/rollback.md](checklist/rollback.md) | Revert if things break | Emergency only |
 | [tests/smoke-tests.md](tests/smoke-tests.md) | 10-min quick validation | After every deploy |
-| [tests/feature-matrix.md](tests/feature-matrix.md) | 300+ feature tests | Major releases |
+| [tests/feature-matrix.md](tests/feature-matrix.md) | 370+ feature tests | Major releases |
 | [scheduler/cloud-run-jobs.md](scheduler/cloud-run-jobs.md) | Job creation & schedules | First deploy + changes |
 | [scheduler/pipelines.md](scheduler/pipelines.md) | Per-org data pipelines | After org onboarding |
 
@@ -64,12 +64,12 @@ through deployment, post-deploy verification, scheduler setup, and rollback proc
 
 ## Cloud Run Services
 
-| Service | Port | Prod URL | Health |
-|---------|------|----------|--------|
-| Frontend | 3000 | cloudact.ai | `GET /health` |
-| API | 8000 | api.cloudact.ai | `GET /health` |
-| Pipeline | 8001 | pipeline.cloudact.ai | `GET /health` |
-| Chat | 8002 | chat.cloudact.ai | `GET /health` |
+| Service | Port | Memory | Prod URL | Health |
+|---------|------|--------|----------|--------|
+| API | 8000 | 8Gi | api.cloudact.ai | `GET /health` |
+| Pipeline | 8001 | 8Gi | pipeline.cloudact.ai | `GET /health` |
+| Chat | 8002 | 4Gi | chat.cloudact.ai | `GET /health` |
+| Frontend | 3000 | 2Gi | cloudact.ai | `GET /api/health` |
 
 ## Procedures
 
@@ -115,15 +115,18 @@ through deployment, post-deploy verification, scheduler setup, and rollback proc
 ## Critical Learnings
 
 1. **Cloud Build is automated** - Never manual deploy to prod. Use git tags.
-2. **Version is baked** - Update `config.py` version BEFORE creating git tag.
+2. **Version is baked** - Update `version.json` at repo root BEFORE creating git tag.
 3. **Scheduler jobs cascade** - Order: migrate -> bootstrap -> org-sync-all.
 4. **GCP creds: absolute paths** - `/Users/openclaw/.gcp/` not `~/.gcp/`.
-5. **Stage service account** - `cloudact-sa-stage@` but prod is `cloudact-prod@` (no `-sa-`).
+5. **Stage service account** - `cloudact-sa-stage@` and prod is `cloudact-sa-prod@` (both use `-sa-` prefix).
 6. **Stripe keys differ** - Stage uses `sk_test_*`, prod uses `sk_live_*`. Verify before deploy.
 7. **Health check format** - Returns `{"status": "healthy", "service": "...", "version": "..."}`.
-8. **curl exits 0 on 500** - Use `-w '\n%{http_code}'` to detect HTTP errors.
-9. **run-job.sh envs** - Valid: `test`, `stage`, `prod` (NOT `local`).
-10. **Prod confirmation** - `run-job.sh prod` requires typing "yes" (or pipe `echo "yes" |`).
+8. **Frontend health at `/api/health`** - Next.js API route, NOT `/health` like backend services.
+9. **curl exits 0 on 500** - Use `-w '\n%{http_code}'` to detect HTTP errors.
+10. **run-job.sh envs** - Valid: `test`, `stage`, `prod` (NOT `local`).
+11. **Prod confirmation** - `run-job.sh prod` requires typing "yes" (or pipe `echo "yes" |`).
+12. **Job naming** - All jobs use `cloudact-{category}-{name}` (NOT `ca-{env}-*`). Triggers append `-trigger`.
+13. **Cost page routes** - All cost pages under `/{org}/cost-dashboards/` (NOT `/{org}/cloud-costs`).
 
 ## Related Skills
 

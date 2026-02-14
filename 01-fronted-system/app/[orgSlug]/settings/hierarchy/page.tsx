@@ -801,7 +801,7 @@ export default function HierarchySettingsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 {/* BUG-004 FIX: Show required indicator when id_auto_generate is false */}
                 <Label htmlFor="entity_id">ID {requiresEntityId ? "*" : "(optional)"}</Label>
@@ -827,7 +827,7 @@ export default function HierarchySettingsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="owner_name">Owner Name</Label>
                 <Input
@@ -955,7 +955,7 @@ export default function HierarchySettingsPage() {
                 placeholder="Enter name"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit_owner_name">Owner Name</Label>
                 <Input

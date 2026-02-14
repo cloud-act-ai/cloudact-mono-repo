@@ -60,7 +60,7 @@ case $ACTION in
             if [ -f "$SA_KEY" ]; then
                 gcloud auth activate-service-account --key-file="$SA_KEY" 2>/dev/null || true
 
-                for service in api-service pipeline-service frontend; do
+                for service in api-service pipeline-service chat-backend frontend; do
                     # Get current image tag
                     IMAGE=$(gcloud run services describe cloudact-${service}-${env} \
                         --project=$PROJECT \
@@ -97,7 +97,7 @@ case $ACTION in
             # Activate service account
             gcloud auth activate-service-account --key-file="$HOME/.gcp/cloudact-${env}.json" 2>/dev/null || true
 
-            for service in api-service pipeline-service frontend; do
+            for service in api-service pipeline-service chat-backend frontend; do
                 IMAGE="gcr.io/${PROJECT}/cloudact-${service}-${env}"
                 echo -e "  ${YELLOW}${service}:${NC}"
 

@@ -280,7 +280,8 @@ steps:
       - '-c'
       - |
         # Update all Cloud Run jobs to use the new image
-        JOBS="cloudact-bootstrap cloudact-bootstrap-sync cloudact-org-sync-all cloudact-quota-reset-daily cloudact-quota-reset-monthly cloudact-stale-cleanup cloudact-quota-cleanup cloudact-billing-sync-retry cloudact-billing-sync-reconcile"
+        # Job names match create-all-jobs.sh (manual + daily + monthly)
+        JOBS="cloudact-manual-supabase-migrate cloudact-manual-bootstrap cloudact-manual-org-sync-all cloudact-daily-quota-reset cloudact-daily-quota-cleanup cloudact-daily-stale-cleanup cloudact-daily-pipelines cloudact-daily-alerts cloudact-monthly-quota-reset"
 
         for JOB in $$JOBS; do
           if gcloud run jobs describe $$JOB --region=${_REGION} --project=${_PROJECT_ID} &>/dev/null; then

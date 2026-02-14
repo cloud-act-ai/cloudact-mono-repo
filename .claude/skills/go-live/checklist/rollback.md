@@ -53,18 +53,23 @@ git push origin v4.4.1-rollback
 ## Pause Scheduler Jobs
 
 ```bash
-# Pause all scheduled triggers
-gcloud scheduler jobs pause ca-prod-quota-reset-daily --location=us-central1 --project=cloudact-prod
-gcloud scheduler jobs pause ca-prod-quota-cleanup --location=us-central1 --project=cloudact-prod
-gcloud scheduler jobs pause ca-prod-stale-cleanup --location=us-central1 --project=cloudact-prod
-gcloud scheduler jobs pause ca-prod-alerts-daily --location=us-central1 --project=cloudact-prod
-gcloud scheduler jobs pause ca-prod-quota-reset-monthly --location=us-central1 --project=cloudact-prod
+# Pause all scheduled triggers (actual names use cloudact-*-trigger convention)
+gcloud scheduler jobs pause cloudact-daily-quota-reset-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs pause cloudact-daily-quota-cleanup-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs pause cloudact-daily-stale-cleanup-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs pause cloudact-daily-pipelines-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs pause cloudact-daily-alerts-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs pause cloudact-monthly-quota-reset-trigger --location=us-central1 --project=cloudact-prod
 ```
 
 Resume after fix:
 ```bash
-gcloud scheduler jobs resume ca-prod-quota-reset-daily --location=us-central1 --project=cloudact-prod
-# ... same for others
+gcloud scheduler jobs resume cloudact-daily-quota-reset-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs resume cloudact-daily-quota-cleanup-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs resume cloudact-daily-stale-cleanup-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs resume cloudact-daily-pipelines-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs resume cloudact-daily-alerts-trigger --location=us-central1 --project=cloudact-prod
+gcloud scheduler jobs resume cloudact-monthly-quota-reset-trigger --location=us-central1 --project=cloudact-prod
 ```
 
 ## BigQuery Recovery

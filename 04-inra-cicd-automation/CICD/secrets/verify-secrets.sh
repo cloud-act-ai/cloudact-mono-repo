@@ -7,8 +7,8 @@
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
 # Required secrets for each service
-FRONTEND_SECRETS="ca-root-api-key stripe-secret-key stripe-webhook-secret supabase-service-role-key"
-BACKEND_SECRETS="ca-root-api-key"
+FRONTEND_SECRETS="ca-root-api-key stripe-secret-key stripe-webhook-secret supabase-service-role-key smtp-password"
+BACKEND_SECRETS="ca-root-api-key supabase-service-role-key smtp-password"
 
 check_env() {
     local ENV=$1
@@ -63,5 +63,6 @@ if [ -n "$1" ]; then
 else
     # Check all environments
     check_env "test" "cloudact-testing-1" "$HOME/.gcp/cloudact-testing-1-e44da390bf82.json"
+    check_env "stage" "cloudact-testing-1" "$HOME/.gcp/cloudact-testing-1-e44da390bf82.json"
     check_env "prod" "cloudact-prod" "$HOME/.gcp/cloudact-prod.json"
 fi

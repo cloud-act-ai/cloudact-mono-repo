@@ -929,7 +929,7 @@ function CreateRuleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label>Category</Label>
               <Select value={category} onValueChange={(v) => {
@@ -984,7 +984,7 @@ function CreateRuleDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v as RulePriority)}>
@@ -1203,7 +1203,7 @@ function CreateSummaryDialog({
             {errors.name && <p className="text-[11px] text-red-500">{errors.name}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label>Frequency</Label>
               <Select value={summaryType} onValueChange={(v) => {

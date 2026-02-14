@@ -464,7 +464,7 @@ function BudgetFormDialog({
               </Select>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Select value={category} onValueChange={(v) => setCategory(v as BudgetCategory)} disabled={isEdit}>
@@ -501,7 +501,7 @@ function BudgetFormDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Period</Label>
                 <Select value={periodType} onValueChange={(v) => setPeriodType(v as PeriodType)}>
@@ -524,7 +524,7 @@ function BudgetFormDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Provider (optional)</Label>
                 <Input placeholder="e.g., gcp, openai" value={provider} onChange={(e) => setProvider(e.target.value)} />
@@ -566,7 +566,7 @@ function BudgetFormDialog({
             </div>
 
             <div className="border border-[var(--border-subtle)] rounded-lg overflow-hidden">
-              <div className="grid grid-cols-[1fr_80px_100px] gap-2 px-3 py-2 bg-[var(--surface-secondary)] text-xs font-medium text-[var(--text-tertiary)]">
+              <div className="grid grid-cols-[1fr_60px_80px] sm:grid-cols-[1fr_80px_100px] gap-2 px-3 py-2 bg-[var(--surface-secondary)] text-xs font-medium text-[var(--text-tertiary)]">
                 <span>Child</span>
                 <span className="text-right">%</span>
                 <span className="text-right">Amount</span>
@@ -575,7 +575,7 @@ function BudgetFormDialog({
                 const pct = parseFloat(row.percentage) || 0
                 const childAmount = Math.round(parsedAmount * pct) / 100
                 return (
-                  <div key={row.hierarchy_entity_id} className="grid grid-cols-[1fr_80px_100px] gap-2 items-center px-3 py-2 border-t border-[var(--border-subtle)]">
+                  <div key={row.hierarchy_entity_id} className="grid grid-cols-[1fr_60px_80px] sm:grid-cols-[1fr_80px_100px] gap-2 items-center px-3 py-2 border-t border-[var(--border-subtle)]">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--text-primary)] truncate">{row.hierarchy_entity_name}</p>
                       <p className="text-[10px] text-[var(--text-tertiary)]">{row.hierarchy_level_code}</p>
@@ -596,7 +596,7 @@ function BudgetFormDialog({
                 )
               })}
               {/* Margin / Unallocated row */}
-              <div className="grid grid-cols-[1fr_80px_100px] gap-2 items-center px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
+              <div className="grid grid-cols-[1fr_60px_80px] sm:grid-cols-[1fr_80px_100px] gap-2 items-center px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--surface-secondary)]/50">
                 <p className="text-sm text-[var(--text-tertiary)] italic">Unallocated (margin)</p>
                 <p className={`text-sm text-right font-medium ${unallocPct < 0 ? "text-rose-600" : "text-[var(--text-tertiary)]"}`}>
                   {unallocPct.toFixed(1)}%

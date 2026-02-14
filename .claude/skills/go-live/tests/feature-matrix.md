@@ -1,6 +1,6 @@
 # Feature Test Matrix
 
-Comprehensive feature validation for major releases. 300+ tests across 20 categories.
+Comprehensive feature validation for major releases. 370+ tests across 24 categories.
 
 ## Summary
 
@@ -22,14 +22,16 @@ Comprehensive feature validation for major releases. 300+ tests across 20 catego
 | Console - Budgets | 18 | CRUD, allocation wizard, variance, filters |
 | Console - Alerts | 20 | CRUD, test, email/Slack, templates, budget alerts |
 | Console - Notifications | 10 | Channels, rules, history |
+| Console - Chat | 20 | BYOK, conversations, agents, streaming |
+| Console - Pipelines | 14 | Overview, cloud-runs, genai-runs, subscription-runs |
 | Console - Settings | 22 | Profile, org, API keys, team |
 | Console - Billing | 25 | Plan, payment, invoices, webhooks |
 | Console - Quota/UI | 17 | Usage display, warnings, dark mode |
-| Pipelines | 9 | Run, status, retry, circuit breaker |
 | API | 10 | Health, bootstrap, CORS, rate limit |
+| Chat Backend API | 8 | Health, messages, conversations, BYOK |
 | Security | 12 | JWT, API keys, multi-tenant, XSS, HTTPS |
 | Delete Flows | 16 | User delete, org delete, cascade |
-| **TOTAL** | **~322** | |
+| **TOTAL** | **~370** | |
 
 ## Landing Pages (26 tests)
 
@@ -193,6 +195,82 @@ Comprehensive feature validation for major releases. 300+ tests across 20 catego
 | Date range | Updates | P0 |
 | MoM/YoY comparison | Toggle | P1 |
 
+## Console - Chat (20 tests)
+
+### Chat Page (10)
+
+| Component | Expected | Priority |
+|-----------|----------|----------|
+| Chat page loads | Visit /{org}/chat | P0 |
+| Conversation list | Shows existing conversations | P0 |
+| New conversation | Create button works | P0 |
+| Send message | Text input + submit | P0 |
+| Streaming response | Real-time token display | P0 |
+| Conversation history | Previous messages load | P0 |
+| Delete conversation | Removes from list | P1 |
+| Empty state | No conversations message | P1 |
+| Chat loading | Skeleton/spinner shows | P1 |
+| Error state | Backend down message | P1 |
+
+### BYOK Settings (5)
+
+| Component | Expected | Priority |
+|-----------|----------|----------|
+| AI settings page | Renders in integrations | P0 |
+| Add API key | BYOK credential save | P0 |
+| KMS encryption | Key encrypted at rest | P0 |
+| Model selection | Available models list | P1 |
+| Delete key | Remove BYOK credential | P1 |
+
+### Chat Backend (5)
+
+| Component | Expected | Priority |
+|-----------|----------|----------|
+| Multi-agent orchestrator | Agent routing works | P0 |
+| BigQuery session | Data queries execute | P0 |
+| Org isolation | Chat scoped to org | P0 |
+| CopilotKit AG-UI | Frontend protocol works | P1 |
+| Rate limiting | Message limits enforced | P1 |
+
+## Console - Pipelines (14 tests)
+
+### Pipeline Pages (8)
+
+| Component | Expected | Priority |
+|-----------|----------|----------|
+| Overview page | Visit /{org}/pipelines | P0 |
+| Cloud runs page | Visit /{org}/pipelines/cloud-runs | P0 |
+| GenAI runs page | Visit /{org}/pipelines/genai-runs | P0 |
+| Subscription runs page | Visit /{org}/pipelines/subscription-runs | P0 |
+| Run history table | Shows recent executions | P0 |
+| Status badges | Success/failed/running | P0 |
+| Run details | Click row shows details | P1 |
+| Empty state | No runs message | P1 |
+
+### Pipeline Execution (6)
+
+| Component | Expected | Priority |
+|-----------|----------|----------|
+| Trigger pipeline | Manual run button | P0 |
+| Pipeline status | Progress updates | P0 |
+| Retry failed | Re-run button works | P1 |
+| Circuit breaker | Rate limit respected | P1 |
+| Concurrent limit | Plan quota enforced | P0 |
+| Error display | Failure reason shown | P1 |
+
+## Chat Backend API (8 tests)
+
+| Endpoint | Expected | Priority |
+|----------|----------|----------|
+| `GET /health` | 200 + healthy + version | P0 |
+| `POST /api/v1/chat/{org}/message` | Streaming response | P0 |
+| `GET /api/v1/chat/{org}/conversations` | Conversation list | P0 |
+| `GET /api/v1/chat/{org}/conversations/{id}` | Single conversation | P0 |
+| `DELETE /api/v1/chat/{org}/conversations/{id}` | Deletes conversation | P1 |
+| CORS header | `https://cloudact.ai` allowed | P0 |
+| Auth required | 401 without API key | P0 |
+| Org isolation | 403 for wrong org | P0 |
+
 ## Security (12 tests)
 
 | Check | Expected | Priority |
@@ -253,9 +331,9 @@ Comprehensive feature validation for major releases. 300+ tests across 20 catego
 
 ## How to Run
 
-- **P0 tests**: Must pass before go-live (~120 tests)
-- **P1 tests**: Should pass, acceptable to defer (~130 tests)
-- **P2 tests**: Nice to have (~50 tests)
+- **P0 tests**: Must pass before go-live (~150 tests)
+- **P1 tests**: Should pass, acceptable to defer (~150 tests)
+- **P2 tests**: Nice to have (~70 tests)
 
 Use `/account-setup` skill for automated Playwright testing of auth flows.
 Use `/demo-setup` skill to create test account with data.

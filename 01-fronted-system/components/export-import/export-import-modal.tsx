@@ -448,7 +448,7 @@ export function ExportImportModal({
                 )}
 
                 {/* Summary */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-center">
                     <Plus className="h-4 w-4 mx-auto text-green-600" />
                     <p className="text-base font-bold text-green-700">

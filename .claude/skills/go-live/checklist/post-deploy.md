@@ -18,11 +18,11 @@ Run AFTER deployment completes and health checks pass.
 - [ ] Date range filter works
 - [ ] Currency display formatted correctly
 
-### Cost Pages
-- [ ] Cloud costs page loads
-- [ ] GenAI costs page loads
-- [ ] Subscription costs page loads
-- [ ] Unified costs page loads
+### Cost Pages (all under `/{orgSlug}/cost-dashboards/`)
+- [ ] Overview page loads (`/cost-dashboards/overview`)
+- [ ] Cloud costs page loads (`/cost-dashboards/cloud-costs`)
+- [ ] GenAI costs page loads (`/cost-dashboards/genai-costs`)
+- [ ] Subscription costs page loads (`/cost-dashboards/subscription-costs`)
 - [ ] Filters work (provider, date range, hierarchy)
 
 ### Integrations
@@ -43,6 +43,21 @@ Run AFTER deployment completes and health checks pass.
 - [ ] Budget alert rules evaluate correctly (alerts-daily job)
 - [ ] Test alert sends email
 - [ ] Email template renders correctly
+
+### Chat (AI Assistant)
+- [ ] Chat page loads (`/{orgSlug}/chat`)
+- [ ] BYOK settings accessible (AI settings in integrations)
+- [ ] Chat backend health: `curl -s https://chat.cloudact.ai/health`
+- [ ] New conversation works (if BYOK key configured)
+
+### Pipelines
+- [ ] Pipelines overview loads (`/{orgSlug}/pipelines`)
+- [ ] Cloud runs page loads (`/{orgSlug}/pipelines/cloud-runs`)
+- [ ] GenAI runs page loads (`/{orgSlug}/pipelines/genai-runs`)
+- [ ] Subscription runs page loads (`/{orgSlug}/pipelines/subscription-runs`)
+
+### Notifications
+- [ ] Notifications page loads (`/{orgSlug}/notifications`)
 
 ### Settings
 - [ ] Org settings page loads
@@ -105,12 +120,16 @@ gcloud alpha logging tail \
 - [ ] Recent webhook deliveries show 200 status
 - [ ] No failed webhooks in backlog
 
-## 6. Email Delivery
+## 6. Notifications & Email Delivery
 
-- [ ] Send test alert email
+- [ ] Pipeline Service `/notifications/send` endpoint responds
+- [ ] API Service → Pipeline Service notification dispatch works
+- [ ] Send test alert email (via channel test)
 - [ ] Verify email received
-- [ ] Check email template rendering
-- [ ] Verify sender domain (noreply@cloudact.ai)
+- [ ] Check email template rendering (branded HTML)
+- [ ] Verify sender: alerts@cloudact.ai (Pipeline) / support@cloudact.ai (Frontend)
+- [ ] Test Slack channel delivery (if configured)
+- [ ] Verify `process_all_alerts` dispatches notifications (not just logs)
 
 ## 7. Announce
 

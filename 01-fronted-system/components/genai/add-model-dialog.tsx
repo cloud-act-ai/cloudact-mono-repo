@@ -376,7 +376,7 @@ export function AddModelDialog({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="model_family" className="text-sm font-medium text-[var(--text-secondary)]">
                     Model Family
@@ -416,7 +416,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="input_per_1m" className="text-sm font-medium text-[var(--text-secondary)]">
                     Input Price / 1M Tokens <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
@@ -475,7 +475,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cached_input_per_1m" className="text-sm font-medium text-[var(--text-secondary)]">
                     Cached Input / 1M (Optional)
@@ -518,7 +518,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="rate_limit_rpm" className="text-sm font-medium text-[var(--text-secondary)]">
                     Rate Limit (RPM)
@@ -549,7 +549,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="volume_tier" className="text-sm font-medium text-[var(--text-secondary)]">
                     Volume Tier
@@ -616,7 +616,7 @@ export function AddModelDialog({
               </div>
 
               {/* Issue #48: Added unit_name field for PTU type identification */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="model_group" className="text-sm font-medium text-[var(--text-secondary)]">
                     Model Group
@@ -643,7 +643,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="commitment_type" className="text-sm font-medium text-[var(--text-secondary)]">
                     Commitment Type
@@ -683,7 +683,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="ptu_hourly_rate" className="text-sm font-medium text-[var(--text-secondary)]">
                     Hourly Rate per Unit
@@ -739,7 +739,7 @@ export function AddModelDialog({
               </div>
 
               {/* Issue #46: Use standardized field names (min_units, max_units) */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="min_units" className="text-sm font-medium text-[var(--text-secondary)]">
                     Min Units
@@ -785,7 +785,7 @@ export function AddModelDialog({
               </div>
 
               {/* Issue #46: Added tokens_per_unit_minute field */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="tokens_per_unit_minute" className="text-sm font-medium text-[var(--text-secondary)]">
                     Tokens per Unit/Minute
@@ -817,7 +817,7 @@ export function AddModelDialog({
               </div>
 
               {/* Discount and overage fields */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="term_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     Term Discount %
@@ -894,7 +894,7 @@ export function AddModelDialog({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gpu_type" className="text-sm font-medium text-[var(--text-secondary)]">
                     GPU Type <span className="text-[#FF6C5E]" aria-hidden="true">*</span>
@@ -949,7 +949,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gpu_count" className="text-sm font-medium text-[var(--text-secondary)]">
                     GPU Count
@@ -1008,7 +1008,7 @@ export function AddModelDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="spot_discount_pct" className="text-sm font-medium text-[var(--text-secondary)]">
                     Spot Discount %

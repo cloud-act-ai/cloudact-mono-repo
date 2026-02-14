@@ -13,7 +13,7 @@ export function ProviderSelector({ value, onChange, credentialStatus }: Provider
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-[var(--text-muted)]">LLM Provider</label>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {LLM_PROVIDERS.map((provider) => {
           const hasCred = credentialStatus?.[provider.id]
           return (

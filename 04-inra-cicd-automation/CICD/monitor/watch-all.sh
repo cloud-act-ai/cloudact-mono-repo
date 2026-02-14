@@ -10,7 +10,7 @@ ENV=${1:-test}
 LIMIT=${2:-20}
 PROJECT_ID=${3:-cloudact-testing-1}
 
-SERVICES=("cloudact-api-service-${ENV}" "cloudact-pipeline-service-${ENV}" "cloudact-frontend-${ENV}")
+SERVICES=("cloudact-api-service-${ENV}" "cloudact-pipeline-service-${ENV}" "cloudact-chat-backend-${ENV}" "cloudact-frontend-${ENV}")
 
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}  CloudAct Logs Viewer - Environment: ${ENV}${NC}"

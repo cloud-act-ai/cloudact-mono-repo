@@ -1,6 +1,6 @@
 {
-  "version": "v4.4.3",
-  "release": "v4.4.3",
-  "release_timestamp": "2026-02-13T12:00:00Z",
-  "changelog": "Fix email notifications: SMTP prod secrets, 12 template bugs, branded alert HTML, process_all_alerts dispatch, Pipeline Service /notifications/send endpoint"
+  "version": "v4.4.4",
+  "release": "v4.4.4",
+  "release_timestamp": "2026-02-14T12:00:00Z",
+  "changelog": "Go-live bug fixes: Cloud Build job names, stage Supabase vars, Stripe price ID, chat-backend in ops scripts, go-live docs update"
 }

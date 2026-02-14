@@ -692,6 +692,8 @@ export default function ProviderDetailPage() {
             </div>
           ) : (
             <>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="min-w-[640px]">
               {/* Table Header */}
               <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#90FCA6]/[0.02]">
                 <div className="col-span-1 console-table-header">Status</div>
@@ -881,6 +883,8 @@ export default function ProviderDetailPage() {
                   )
                 })}
               </div>
+              </div>
+            </div>
 
               {/* Add Custom Subscription Footer */}
               <div className="px-4 py-4 border-t border-border bg-[#90FCA6]/[0.02]">
@@ -1075,7 +1079,7 @@ export default function ProviderDetailPage() {
             </div>
 
             {/* Price and Currency */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">Price ({getCurrencySymbol(orgCurrency)}) *</Label>
                 <Input
@@ -1119,7 +1123,7 @@ export default function ProviderDetailPage() {
             </div>
 
             {/* Billing Cycle and Pricing Model */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Billing Cycle *</Label>
                 <Select

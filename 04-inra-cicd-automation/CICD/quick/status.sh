@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../environments.conf" 2>/dev/null || {
             prod)  echo "cloudact-prod" ;;
         esac
     }
-    SERVICES=("api-service" "pipeline-service" "frontend")
+    SERVICES=("api-service" "pipeline-service" "chat-backend" "frontend")
     REGION="us-central1"
 }
 

@@ -367,7 +367,7 @@ export default function AddCustomProviderPage() {
             </div>
 
             {/* Price and Billing Cycle */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="unit_price">Unit Price *</Label>
                 <div className="relative">
@@ -434,7 +434,7 @@ export default function AddCustomProviderPage() {
             </div>
 
             {/* Pricing Model and Currency */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="pricing_model">Pricing Model *</Label>
                 <Select

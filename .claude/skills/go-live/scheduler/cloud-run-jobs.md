@@ -38,8 +38,7 @@ gcloud scheduler jobs list --location=us-central1 --project=cloudact-prod
 
 | Job | Command | When | Purpose |
 |-----|---------|------|---------|
-| bootstrap | `./run-job.sh prod bootstrap` | First deploy, schema changes | Create organizations dataset + 27 meta tables |
-| bootstrap-sync | `./run-job.sh prod bootstrap-sync` | After adding columns | Add new columns to existing meta tables |
+| bootstrap | `./run-job.sh prod bootstrap` | First deploy, schema changes | Create organizations dataset + 28 meta tables (smart: auto-detects fresh vs sync) |
 | org-sync-all | `./run-job.sh prod org-sync-all` | After bootstrap, schema changes | Sync ALL org datasets with latest schema |
 | migrate | `./run-job.sh prod migrate` | Before bootstrap | Run Supabase migrations via Cloud Run |
 
@@ -81,18 +80,18 @@ echo "yes" | ./run-job.sh prod org-sync-all
 
 ### Job Shortcuts
 
-| Shortcut | Full Name |
-|----------|-----------|
-| `bootstrap` | `ca-{env}-bootstrap` |
-| `bootstrap-sync` | `ca-{env}-bootstrap-sync` |
-| `org-sync-all` | `ca-{env}-org-sync-all` |
-| `migrate` | `ca-{env}-migrate` |
-| `quota-reset-daily` | `ca-{env}-quota-reset-daily` |
-| `quota-cleanup` | `ca-{env}-quota-cleanup` |
-| `stale-cleanup` | `ca-{env}-stale-cleanup` |
+| Shortcut | Full Cloud Run Job Name |
+|----------|------------------------|
+| `bootstrap` | `cloudact-manual-bootstrap` |
+| `bootstrap-sync` | `cloudact-manual-bootstrap` (alias - same smart job) |
+| `org-sync-all` | `cloudact-manual-org-sync-all` |
+| `migrate` | `cloudact-manual-supabase-migrate` |
+| `quota-reset-daily` | `cloudact-daily-quota-reset` |
+| `quota-cleanup` | `cloudact-daily-quota-cleanup` |
+| `stale-cleanup` | `cloudact-daily-stale-cleanup` |
 | `pipelines` | `cloudact-daily-pipelines` |
-| `alerts-daily` | `ca-{env}-alerts-daily` |
-| `quota-reset-monthly` | `ca-{env}-quota-reset-monthly` |
+| `alerts-daily` | `cloudact-daily-alerts` |
+| `quota-reset-monthly` | `cloudact-monthly-quota-reset` |
 
 ## Verification
 
@@ -108,7 +107,7 @@ gcloud run jobs executions list \
 
 # Check specific job status
 gcloud run jobs executions list \
-  --job=ca-prod-bootstrap \
+  --job=cloudact-manual-bootstrap \
   --region=us-central1 \
   --project=cloudact-prod
 
@@ -119,12 +118,12 @@ watch -n 60 'gcloud run jobs executions list --region=us-central1 --project=clou
 ## Pause/Resume Schedulers
 
 ```bash
-# Pause (during incidents)
-gcloud scheduler jobs pause ca-prod-quota-reset-daily \
+# Pause (during incidents) - use trigger names (cloudact-*-trigger)
+gcloud scheduler jobs pause cloudact-daily-quota-reset-trigger \
   --location=us-central1 --project=cloudact-prod
 
 # Resume (after fix)
-gcloud scheduler jobs resume ca-prod-quota-reset-daily \
+gcloud scheduler jobs resume cloudact-daily-quota-reset-trigger \
   --location=us-central1 --project=cloudact-prod
 ```
 

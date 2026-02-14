@@ -6,7 +6,7 @@ Quick validation after every production deploy. Run these before declaring succe
 
 | # | Test | Command | Expected |
 |---|------|---------|----------|
-| 1 | Frontend health | `curl -s https://cloudact.ai/health` | 200 + healthy |
+| 1 | Frontend health | `curl -s https://cloudact.ai/api/health` | 200 + healthy |
 | 2 | API health | `curl -s https://api.cloudact.ai/health` | 200 + healthy |
 | 3 | Pipeline health | `curl -s https://pipeline.cloudact.ai/health` | 200 + healthy |
 | 4 | Chat health | `curl -s https://chat.cloudact.ai/health` | 200 + healthy |
@@ -15,11 +15,14 @@ Quick validation after every production deploy. Run these before declaring succe
 
 ```bash
 # Run all health checks
-for svc in cloudact.ai api.cloudact.ai pipeline.cloudact.ai chat.cloudact.ai; do
+for svc in api.cloudact.ai pipeline.cloudact.ai chat.cloudact.ai; do
   echo -n "$svc: "
   curl -s -w ' [%{http_code}]' "https://$svc/health"
   echo
 done
+echo -n "cloudact.ai: "
+curl -s -w ' [%{http_code}]' "https://cloudact.ai/api/health"
+echo
 ```
 
 ## Auth Flows (3 min)
@@ -46,12 +49,17 @@ done
 
 | # | Test | Action | Expected |
 |---|------|--------|----------|
-| 17 | Cloud costs | Visit /{org}/cloud-costs | Page loads |
-| 18 | GenAI costs | Visit /{org}/genai-costs | Page loads |
-| 19 | Budgets | Visit /{org}/budgets | Budget list renders |
-| 20 | Integrations | Visit /{org}/integrations | Provider list |
-| 21 | Settings | Visit /{org}/settings | Org config |
-| 22 | Billing | Visit /{org}/settings/billing | Plan info |
+| 17 | Cost overview | Visit /{org}/cost-dashboards/overview | Page loads |
+| 18 | Cloud costs | Visit /{org}/cost-dashboards/cloud-costs | Page loads |
+| 19 | GenAI costs | Visit /{org}/cost-dashboards/genai-costs | Page loads |
+| 20 | Subscription costs | Visit /{org}/cost-dashboards/subscription-costs | Page loads |
+| 21 | Budgets | Visit /{org}/budgets | Budget list renders |
+| 22 | Integrations | Visit /{org}/integrations | Provider list |
+| 23 | Pipelines | Visit /{org}/pipelines | Pipeline list |
+| 24 | Chat | Visit /{org}/chat | Chat page renders |
+| 25 | Notifications | Visit /{org}/notifications | Notification list |
+| 26 | Settings | Visit /{org}/settings | Org config |
+| 27 | Billing | Visit /{org}/settings/billing | Plan info |
 
 ## API Quick Check (1 min)
 
@@ -71,9 +79,11 @@ curl -s -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
 
 ## Pass Criteria
 
-- All 4 health endpoints return 200
+- All 4 health endpoints return 200 (frontend uses `/api/health`)
 - Login/logout flow works
 - Dashboard renders with data
+- All cost dashboard pages load under `/cost-dashboards/`
+- Chat page loads
 - No 500 errors in logs
 - Version matches deployed tag
 
