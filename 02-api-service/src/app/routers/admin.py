@@ -1948,7 +1948,7 @@ class ProcessAlertsResponse(BaseModel):
 
 
 @router.post(
-    "/alerts/process-all",
+    "/admin/alerts/process-all",
     response_model=ProcessAlertsResponse,
     summary="Process alerts for all organizations",
     description="Scheduled job endpoint: checks cost thresholds and sends notifications for all orgs"
@@ -2385,7 +2385,7 @@ class RunAllPipelinesResponse(BaseModel):
 
 
 @router.post(
-    "/pipelines/run-all",
+    "/admin/pipelines/run-all",
     response_model=RunAllPipelinesResponse,
     summary="Run cost pipelines for all organizations",
     description="Triggers cost pipelines for all active orgs with valid integrations. "
