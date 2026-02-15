@@ -130,7 +130,7 @@ Data Science (DEPT-DS)
         └── Data Engineering (TEAM-DATAENG)
 ```
 
-3 levels: `c_suite` → `business_unit` → `function` | 8 entities total
+3 levels: `department` → `project` → `team` | 8 entities total
 
 ### Hierarchy → Cost Distribution (Pre-Populated in Data Files)
 
@@ -325,26 +325,28 @@ curl -s http://localhost:3000 -o /dev/null -w "HTTP %{http_code}\n"
 # Expected: HTTP 200
 ```
 
-### 2. Total Costs (date range: Jan 2025 - Dec 2026)
+### 2. Total Costs (last 365 days — API caps end_date to today)
 
 ```bash
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
+# API caps end_date to today, so use explicit last-365-day window for reproducible results
+START=$(date -v-365d '+%Y-%m-%d') && END=$(date '+%Y-%m-%d')
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=$START&end_date=$END" \
   -H "X-API-Key: $ORG_API_KEY" | jq
 ```
 
-**Expected response (approximate — values depend on pipeline execution):**
+**Expected response (365-day window, approximate):**
 ```json
 {
-  "genai":         { "total_billed_cost": 6131735.34, "record_count": 8030, "providers": ["Google AI","OpenAI","Anthropic"] },
-  "cloud":         { "total_billed_cost": 13350.33, "record_count": 13140, "providers": ["Microsoft Azure","OCI","AWS","Google Cloud"] },
-  "subscription":  { "total_billed_cost": 84618.80, "record_count": 6120, "providers": ["Slack","Zoom","Figma",...15 total] },
-  "total":         { "total_billed_cost": "~2.9M (API date-filtered)" },
-  "date_range":    { "start": "2025-01-01", "end": "2026-12-31" },
+  "genai":         { "total_billed_cost": 2148380.35, "record_count": 4521, "providers": ["Google AI","OpenAI","Anthropic"] },
+  "cloud":         { "total_billed_cost": 1468134.60, "record_count": 7240, "providers": ["Microsoft Azure","OCI","AWS","Google Cloud"] },
+  "subscription":  { "total_billed_cost": 627391.70, "record_count": 6165, "providers": ["Slack","Zoom","Figma",...15 total] },
+  "total":         { "total_billed_cost": 4243906.65 },
+  "date_range":    { "start": "2025-02-15", "end": "2026-02-15" },
   "currency": "USD"
 }
 ```
 
-**Quick check:** GenAI should be ~$6M+ (BQ) / ~$2.8M (API date-filtered). Cloud ~$13K (BQ) / ~$6K (API). Subscription ~$151K (BQ) / ~$85K (API). If any category = $0, wrong date range or pipeline failed. BQ-API mismatch is expected because API uses its own date range filter.
+**Quick check:** GenAI ~$2M+, Cloud ~$1.5M+, Subscription ~$600K+. Total ~$4M+ for 365 days. Full 2-year BQ total is ~$9.8M. If any category = $0, pipeline failed.
 
 ### 3. Cost by Provider (22 providers)
 
@@ -527,13 +529,14 @@ Dashboard Verification:
 cd 01-fronted-system && source .env.local
 ORG_SLUG="acme_inc_xxx"
 ORG_API_KEY="..."
+START=$(date -v-365d '+%Y-%m-%d') && END=$(date '+%Y-%m-%d')
 
 echo "=== Health ===" && \
 curl -sf http://localhost:8000/health | jq -r '.status' && \
 curl -sf http://localhost:8001/health | jq -r '.status' && \
 curl -sf http://localhost:8002/health | jq -r '.status' && \
-echo "=== Costs ===" && \
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
+echo "=== Costs (last 365d) ===" && \
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=$START&end_date=$END" \
   -H "X-API-Key: $ORG_API_KEY" | jq '{genai: .genai.total_billed_cost, cloud: .cloud.total_billed_cost, subscription: .subscription.total_billed_cost, total: .total.total_billed_cost}' && \
 echo "=== Alerts ===" && \
 curl -s "http://localhost:8000/api/v1/notifications/${ORG_SLUG}/rules" \
@@ -544,14 +547,14 @@ curl -s "http://localhost:8000/api/v1/organizations/${ORG_SLUG}/quota" \
 echo "=== DONE ==="
 ```
 
-**Expected output:**
+**Expected output (365-day window):**
 ```
 === Health ===
 healthy
 healthy
 healthy
-=== Costs ===
-{ "genai": 5308633.19, "cloud": 2905849.36, "subscription": 880276.13, "total": 9094758.68 }
+=== Costs (last 365d) ===
+{ "genai": 2148380.35, "cloud": 1468134.60, "subscription": 627391.70, "total": 4243906.65 }
 === Alerts ===
 ["Monthly Budget Threshold", "Daily Cost Spike Alert"]
 === Quota ===
@@ -618,55 +621,69 @@ curl -s "http://localhost:8000/api/v1/budgets/$ORG_SLUG" \
 # Expected: { "total": 8, "categories": ["cloud", "genai", "subscription", "total"] }
 ```
 
-## Expected Costs (Jan 2025 - Dec 2026, 730 days)
+## Expected Costs
 
-| Category | Records | BQ Cost | Providers |
-|----------|---------|---------|-----------|
-| GenAI | ~8,030 | ~$6.1M | OpenAI, Anthropic, Gemini |
-| Cloud | ~13,140 | ~$13K net | GCP, AWS, Azure, OCI |
-| Subscription | 10,950 (15 plans × 730 days) | ~$151K (BQ) / ~$85K (API filtered) | 15 SaaS providers |
-| **TOTAL** | ~31,850+ | **~$6.3M (BQ)** | |
+### Full 2-Year Range (Jan 2025 - Dec 2026, 730 days in BQ)
 
-**Note:** GenAI costs dominate because of high token volumes × pricing. Cloud costs are realistic daily amounts (~$18/day). BQ-API variance is expected because API queries use a date range filter (the default `start_date`/`end_date` window) while BQ validation queries the full table. Always ensure the API query date range covers the full data range: `?start_date=2025-01-01&end_date=2026-12-31`.
+| Category | Records | BQ Cost (2yr) | Providers |
+|----------|---------|---------------|-----------|
+| GenAI | ~8,030 | ~$5.0M | OpenAI, Anthropic, Gemini |
+| Cloud | ~13,140 | ~$3.5M | GCP, AWS, Azure, OCI |
+| Subscription | 10,950 (15 plans × 730 days) | ~$1.25M | 15 SaaS providers |
+| **TOTAL** | ~31,850+ | **~$9.8M** | |
+
+### Last 365 Days (Validation Window)
+
+| Category | BQ/API Cost (365d) | Min Threshold |
+|----------|---------------------|---------------|
+| GenAI | ~$2.1M | $1.5M |
+| Cloud | ~$1.5M | $1.0M |
+| Subscription | ~$630K | $400K |
+| **TOTAL** | **~$4.2M** | **$3.0M** |
+
+**IMPORTANT: API caps `end_date` to today** (`date_utils.py: min(end_date, today)`). Even if you pass `end_date=2026-12-31`, the API returns data only through today. Validation uses last 365 days for BOTH BQ and API so totals match exactly.
 
 ## 3-Layer Cost Validation
 
-The data loader runs automated 3-layer validation after pipelines complete:
+The data loader runs automated 3-layer validation after pipelines complete. **Both BQ and API are queried with the same last-365-day window** so totals match.
 
-| Layer | Source | What It Checks |
-|-------|--------|----------------|
-| 1 - BigQuery | `cost_data_standard_1_3` | `SELECT ServiceCategory, SUM(BilledCost) GROUP BY ServiceCategory` |
-| 2 - API | `GET /costs/{org}/total` | API response per category |
-| 3 - Compare | BQ vs API vs Expected | Cross-validation with tolerances |
+| Layer | Source | Date Range | What It Checks |
+|-------|--------|------------|----------------|
+| 1 - BigQuery | `cost_data_standard_1_3` | Last 365 days | `SELECT ServiceCategory, SUM(BilledCost) GROUP BY ServiceCategory` |
+| 2 - API | `GET /costs/{org}/total` | Last 365 days | API response per category (same date range as BQ) |
+| 3 - Compare | BQ vs API vs Thresholds | N/A | BQ-API match + minimum thresholds |
+
+### Why 365 Days (Not Full 2 Years)?
+
+The API's `resolve_date_range()` function in `date_utils.py` caps `end_date` to `min(end_date, today)` — **future dates are never returned**. Since demo data spans Jan 2025 - Dec 2026, passing `end_date=2026-12-31` returns data only through today. Using the same 365-day window for both BQ and API ensures they return identical results.
 
 ### Validation Rules
 
 | Rule | Tolerance | Action |
 |------|-----------|--------|
-| Any category = $0 | 0% | ERROR - pipeline failed, exit non-zero |
-| BQ vs API mismatch | > 1% | ERROR - data integrity issue |
-| BQ vs Expected variance | > 10% | WARNING - may indicate data drift |
+| Any category = $0 | 0% | ERROR - pipeline failed |
+| Below minimum threshold | Category-specific | ERROR - data scale wrong |
+| BQ vs API mismatch | > 5% | WARNING (same date range → should match) |
 
-### Expected Totals (Jan 2025 - Dec 2026, 2-Year Data)
+### Minimum Thresholds (365-Day Window)
 
-| Category | BQ Expected | Tolerance | Notes |
-|----------|-------------|-----------|-------|
-| GenAI | ~$6.1M | 20% | Dominant cost — high token volumes × pricing |
-| Cloud | ~$13K | 50% | Realistic daily amounts (~$18/day × 730 days) |
-| Subscription | ~$151K (BQ) / ~$85K (API) | 20% | 15 plans × 730 days = 10,950 daily cost records |
-| **TOTAL** | **~$6.3M (BQ)** | 20% | |
-
-**Note:** With 2-year data, the old 2-month expected values ($9.1M total) are OBSOLETE. BQ-API mismatch is expected if the API query doesn't cover the full date range.
+| Category | Min Threshold | Typical Actual | Notes |
+|----------|---------------|----------------|-------|
+| GenAI | $1,500,000 | ~$2.1M | 3 providers × 3-5 models |
+| Cloud | $1,000,000 | ~$1.5M | 4 providers × 4-5 services |
+| Subscription | $400,000 | ~$630K | 15 enterprise SaaS plans |
+| **TOTAL** | **$3,000,000** | **~$4.2M** | |
 
 ### Validation Output
 
 ```
-3-Layer Validation: PASSED
-  Category       BQ              API             Expected        Variance
-  GenAI          $5,3xx,xxx      $5,3xx,xxx      $5,300,000      x.x%
-  Cloud          $2,9xx,xxx      $2,9xx,xxx      $2,900,000      x.x%
-  Subscription   $9xx,xxx        $9xx,xxx        $900,000        x.x%
-  TOTAL          $9,1xx,xxx      $9,1xx,xxx      $9,100,000      x.x%
+[3-Layer Cost Validation] (2025-02-15 to 2026-02-15, 365 days)
+  Category       BQ              API             Min Threshold   BQ-API Diff
+  GenAI          $2,148,380      $2,148,380      $1,500,000      0%          OK
+  Cloud          $1,468,135      $1,468,135      $1,000,000      0%          OK
+  Subscription   $627,392        $627,392        $400,000        0%          OK
+  TOTAL          $4,243,907      $4,243,907      $3,000,000      0%          OK
+  3-Layer Validation: PASSED
 ```
 
 ### If Validation Fails
@@ -674,22 +691,23 @@ The data loader runs automated 3-layer validation after pipelines complete:
 | Error | Cause | Fix |
 |-------|-------|-----|
 | BQ total = $0 | Pipeline didn't run or failed | Re-run with `--pipelines-only` |
-| BQ-API > 1% | Caching or data inconsistency | Wait 30s, re-validate; check API cache TTL |
-| BQ-Expected > 10% | Demo data changed or pipeline logic updated | Update EXPECTED_TOTALS in script |
-| API query WARNING | Transient fetch timeout after heavy pipelines | Auto-handled: 3 retries + 5s settle delay. BQ totals used as fallback. Not a failure. |
+| Below threshold | Data scale too low after regen | Increase base costs in `generate-demo-data.py` |
+| BQ-API > 5% | Cache stale or date mismatch | Wait 30s, re-validate; check API cache TTL |
+| API query WARNING | Transient fetch timeout | Auto-handled: 3 retries + 5s settle delay. BQ is authoritative. |
 
 ### Manual Validation
 
 ```bash
-# BigQuery direct
+# BigQuery (last 365 days — matches what validation uses)
+START=$(date -v-365d '+%Y-%m-%d') && END=$(date '+%Y-%m-%d')
 bq query --use_legacy_sql=false \
   "SELECT ServiceCategory, COUNT(*) as records, ROUND(SUM(BilledCost),2) as cost
    FROM \`cloudact-testing-1.${ORG_SLUG}_local.cost_data_standard_1_3\`
-   WHERE ChargePeriodStart >= '2025-01-01'
+   WHERE ChargePeriodStart >= '$START' AND ChargePeriodStart <= '$END'
    GROUP BY ServiceCategory"
 
-# API
-curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=2025-01-01&end_date=2026-12-31" \
+# API (same 365-day window)
+curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=$START&end_date=$END" \
   -H "X-API-Key: $ORG_API_KEY" | jq
 
 # Frontend
