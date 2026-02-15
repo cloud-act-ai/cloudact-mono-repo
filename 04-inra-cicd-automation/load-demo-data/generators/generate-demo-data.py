@@ -141,33 +141,33 @@ SUMMER_DIP_MULTIPLIER = 0.6  # Lower usage during vacation week
 # GenAI Provider Configurations
 # =============================================================================
 
-# INCREASED 50x for realistic enterprise GenAI spend (~$30-50K/year)
+# Enterprise GenAI spend (~$5M over 2 years, tuned to match pricing seed)
 GENAI_PROVIDERS = {
     "openai": {
         "models": [
-            {"model": "gpt-4o", "model_family": "gpt-4o", "input_base": 100000000, "output_base": 20000000, "cached_ratio": 0.3},  # 50x
-            {"model": "gpt-4o-mini", "model_family": "gpt-4o", "input_base": 150000000, "output_base": 30000000, "cached_ratio": 0.25},  # 50x
-            {"model": "gpt-4-turbo", "model_family": "gpt-4", "input_base": 50000000, "output_base": 10000000, "cached_ratio": 0.2},  # 50x
-            {"model": "gpt-3.5-turbo", "model_family": "gpt-3.5", "input_base": 250000000, "output_base": 50000000, "cached_ratio": 0.1},  # 50x
-            {"model": "text-embedding-3-large", "model_family": "embedding", "input_base": 400000000, "output_base": 0, "cached_ratio": 0},  # 50x
+            {"model": "gpt-4o", "model_family": "gpt-4o", "input_base": 82000000, "output_base": 16400000, "cached_ratio": 0.3},
+            {"model": "gpt-4o-mini", "model_family": "gpt-4o", "input_base": 123000000, "output_base": 24600000, "cached_ratio": 0.25},
+            {"model": "gpt-4-turbo", "model_family": "gpt-4", "input_base": 41000000, "output_base": 8200000, "cached_ratio": 0.2},
+            {"model": "gpt-3.5-turbo", "model_family": "gpt-3.5", "input_base": 205000000, "output_base": 41000000, "cached_ratio": 0.1},
+            {"model": "text-embedding-3-large", "model_family": "embedding", "input_base": 328000000, "output_base": 0, "cached_ratio": 0},
         ],
         "credential_id": "cred_openai_demo_001",
         "pipeline_id": "genai_payg_openai",
     },
     "anthropic": {
         "models": [
-            {"model": "claude-3-5-sonnet-20241022", "model_family": "claude-3.5", "input_base": 125000000, "output_base": 25000000, "cached_ratio": 0.35},  # 50x
-            {"model": "claude-3-opus-20240229", "model_family": "claude-3", "input_base": 40000000, "output_base": 7500000, "cached_ratio": 0.25},  # 50x
-            {"model": "claude-3-haiku-20240307", "model_family": "claude-3", "input_base": 200000000, "output_base": 40000000, "cached_ratio": 0.2},  # 50x
+            {"model": "claude-3-5-sonnet-20241022", "model_family": "claude-3.5", "input_base": 102000000, "output_base": 20500000, "cached_ratio": 0.35},
+            {"model": "claude-3-opus-20240229", "model_family": "claude-3", "input_base": 33000000, "output_base": 6200000, "cached_ratio": 0.25},
+            {"model": "claude-3-haiku-20240307", "model_family": "claude-3", "input_base": 164000000, "output_base": 33000000, "cached_ratio": 0.2},
         ],
         "credential_id": "cred_anthropic_demo_001",
         "pipeline_id": "genai_payg_anthropic",
     },
     "gemini": {
         "models": [
-            {"model": "gemini-1.5-pro", "model_family": "gemini-1.5", "input_base": 75000000, "output_base": 15000000, "cached_ratio": 0.2},  # 50x
-            {"model": "gemini-1.5-flash", "model_family": "gemini-1.5", "input_base": 175000000, "output_base": 35000000, "cached_ratio": 0.15},  # 50x
-            {"model": "gemini-1.0-pro", "model_family": "gemini-1.0", "input_base": 50000000, "output_base": 10000000, "cached_ratio": 0.1},  # 50x
+            {"model": "gemini-1.5-pro", "model_family": "gemini-1.5", "input_base": 62000000, "output_base": 12300000, "cached_ratio": 0.2},
+            {"model": "gemini-1.5-flash", "model_family": "gemini-1.5", "input_base": 144000000, "output_base": 28700000, "cached_ratio": 0.15},
+            {"model": "gemini-1.0-pro", "model_family": "gemini-1.0", "input_base": 41000000, "output_base": 8200000, "cached_ratio": 0.1},
         ],
         "credential_id": "cred_gemini_demo_001",
         "pipeline_id": "genai_payg_gemini",
@@ -191,129 +191,129 @@ CREDIT_PERCENTAGE = 0.07  # 7% of records will be credits
 
 # GCP Services with realistic usage patterns
 # Schema: gcp_billing_cost.json (matches 03-data-pipeline-service/configs/cloud/gcp/cost/schemas/billing_cost.json)
-# Target: ~$50-200 total per provider for 30 days
+# Target: ~$1M+ per provider over 2 years (enterprise scale)
 GCP_SERVICES = [
     {
         "service_id": "6F81-5844-456A", "service_description": "Cloud Run",
         "sku_id": "D2C2-5678-ABCD", "sku_description": "CPU Allocation Time",
-        "base_cost": 0.80, "usage_unit": "second", "usage_pricing_unit": "vCPU-second",
+        "base_cost": 220, "usage_unit": "second", "usage_pricing_unit": "vCPU-second",
         "base_usage": 86400, "price_per_unit": 0.000024
     },
     {
         "service_id": "24E6-581D-38E5", "service_description": "Cloud Build",
         "sku_id": "E4F5-6789-BCDE", "sku_description": "Build Time",
-        "base_cost": 0.60, "usage_unit": "second", "usage_pricing_unit": "build-minute",
+        "base_cost": 165, "usage_unit": "second", "usage_pricing_unit": "build-minute",
         "base_usage": 3600, "price_per_unit": 0.003
     },
     {
         "service_id": "95FF-2EF5-5EA1", "service_description": "BigQuery",
         "sku_id": "F5G6-7890-CDEF", "sku_description": "Analysis",
-        "base_cost": 1.20, "usage_unit": "byte", "usage_pricing_unit": "tebibyte",
+        "base_cost": 330, "usage_unit": "byte", "usage_pricing_unit": "tebibyte",
         "base_usage": 1099511627776, "price_per_unit": 5.0  # 1TB scanned
     },
     {
         "service_id": "152E-C115-5142", "service_description": "Cloud Storage",
         "sku_id": "G6H7-8901-DEFG", "sku_description": "Standard Storage US Multi-region",
-        "base_cost": 0.40, "usage_unit": "byte-seconds", "usage_pricing_unit": "gibibyte month",
+        "base_cost": 110, "usage_unit": "byte-seconds", "usage_pricing_unit": "gibibyte month",
         "base_usage": 53687091200000, "price_per_unit": 0.020  # 50GB for 30 days
     },
     {
         "service_id": "9662-B51E-5089", "service_description": "Cloud Key Management Service",
         "sku_id": "H7I8-9012-EFGH", "sku_description": "Active software symmetric key versions",
-        "base_cost": 0.10, "usage_unit": "requests", "usage_pricing_unit": "key version",
+        "base_cost": 30, "usage_unit": "requests", "usage_pricing_unit": "key version",
         "base_usage": 10000, "price_per_unit": 0.00003
     },
 ]
 
 # AWS Services with realistic usage patterns
 # Schema: aws_billing_cost.json
-# Target: ~$50-200 total per provider for 30 days
+# Target: ~$1M+ per provider over 2 years (enterprise scale)
 AWS_SERVICES = [
     {
         "service_code": "AmazonEC2", "product_name": "Amazon Elastic Compute Cloud",
         "usage_type": "USW2-BoxUsage:t3.medium", "operation": "RunInstances",
-        "base_cost": 1.00, "usage_unit": "Hrs", "pricing_unit": "Hrs",
+        "base_cost": 280, "usage_unit": "Hrs", "pricing_unit": "Hrs",
         "base_usage": 24, "price_per_unit": 0.0416
     },
     {
         "service_code": "AmazonS3", "product_name": "Amazon Simple Storage Service",
         "usage_type": "USW2-TimedStorage-ByteHrs", "operation": "StandardStorage",
-        "base_cost": 0.50, "usage_unit": "GB-Mo", "pricing_unit": "GB-Mo",
+        "base_cost": 145, "usage_unit": "GB-Mo", "pricing_unit": "GB-Mo",
         "base_usage": 100, "price_per_unit": 0.023
     },
     {
         "service_code": "AWSLambda", "product_name": "AWS Lambda",
         "usage_type": "USW2-Lambda-GB-Second", "operation": "Invoke",
-        "base_cost": 0.30, "usage_unit": "Lambda-GB-Second", "pricing_unit": "Lambda-GB-Second",
+        "base_cost": 85, "usage_unit": "Lambda-GB-Second", "pricing_unit": "Lambda-GB-Second",
         "base_usage": 400000, "price_per_unit": 0.0000166667
     },
     {
         "service_code": "AmazonRDS", "product_name": "Amazon Relational Database Service",
         "usage_type": "USW2-InstanceUsage:db.t3.medium", "operation": "CreateDBInstance",
-        "base_cost": 0.80, "usage_unit": "Hrs", "pricing_unit": "Hrs",
+        "base_cost": 220, "usage_unit": "Hrs", "pricing_unit": "Hrs",
         "base_usage": 24, "price_per_unit": 0.068
     },
     {
         "service_code": "AmazonCloudWatch", "product_name": "Amazon CloudWatch",
         "usage_type": "USW2-CW:Requests", "operation": "GetMetricData",
-        "base_cost": 0.20, "usage_unit": "Requests", "pricing_unit": "Requests",
+        "base_cost": 55, "usage_unit": "Requests", "pricing_unit": "Requests",
         "base_usage": 50000, "price_per_unit": 0.00001
     },
 ]
 
 # Azure Services with realistic usage patterns
 # Schema: azure_billing_cost.json
-# Target: ~$50-200 total per provider for 30 days
+# Target: ~$1M+ per provider over 2 years (enterprise scale)
 AZURE_SERVICES = [
     {
         "meter_category": "Virtual Machines", "service_name": "Virtual Machines",
         "resource_type": "Microsoft.Compute/virtualMachines",
         "meter_subcategory": "D2s v3",
-        "base_cost": 0.90, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.096
+        "base_cost": 220, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.096
     },
     {
         "meter_category": "Storage", "service_name": "Storage",
         "resource_type": "Microsoft.Storage/storageAccounts",
         "meter_subcategory": "Standard HDD Managed Disks",
-        "base_cost": 0.35, "unit_of_measure": "GB/Month", "base_usage": 128, "price_per_unit": 0.04
+        "base_cost": 90, "unit_of_measure": "GB/Month", "base_usage": 128, "price_per_unit": 0.04
     },
     {
         "meter_category": "Azure App Service", "service_name": "App Service",
         "resource_type": "Microsoft.Web/sites",
         "meter_subcategory": "B1 Basic",
-        "base_cost": 0.50, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.018
+        "base_cost": 125, "unit_of_measure": "Hours", "base_usage": 24, "price_per_unit": 0.018
     },
     {
         "meter_category": "Azure SQL Database", "service_name": "SQL Database",
         "resource_type": "Microsoft.Sql/servers/databases",
         "meter_subcategory": "Basic",
-        "base_cost": 0.40, "unit_of_measure": "DTU-Hours", "base_usage": 720, "price_per_unit": 0.0025
+        "base_cost": 100, "unit_of_measure": "DTU-Hours", "base_usage": 720, "price_per_unit": 0.0025
     },
 ]
 
 # OCI Services with realistic usage patterns
 # Schema: oci_billing_cost.json
-# Target: ~$50-200 total per provider for 30 days
+# Target: ~$1M+ per provider over 2 years (enterprise scale)
 OCI_SERVICES = [
     {
         "service_name": "COMPUTE", "sku_name": "VM.Standard.E4.Flex",
         "sku_part_number": "B92484",
-        "base_cost": 0.65, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.025
+        "base_cost": 135, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.025
     },
     {
         "service_name": "OBJECT_STORAGE", "sku_name": "Object Storage - Storage",
         "sku_part_number": "B91962",
-        "base_cost": 0.25, "unit": "GB MONTHS", "base_usage": 100, "price_per_unit": 0.0255
+        "base_cost": 55, "unit": "GB MONTHS", "base_usage": 100, "price_per_unit": 0.0255
     },
     {
         "service_name": "AUTONOMOUS_DATABASE", "sku_name": "Autonomous Transaction Processing",
         "sku_part_number": "B91616",
-        "base_cost": 0.60, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.2546
+        "base_cost": 125, "unit": "OCPU HOURS", "base_usage": 24, "price_per_unit": 0.2546
     },
     {
         "service_name": "FUNCTIONS", "sku_name": "Functions - Requests",
         "sku_part_number": "B92166",
-        "base_cost": 0.15, "unit": "REQUESTS", "base_usage": 1000000, "price_per_unit": 0.0000002
+        "base_cost": 35, "unit": "REQUESTS", "base_usage": 1000000, "price_per_unit": 0.0000002
     },
 ]
 
@@ -323,22 +323,46 @@ OCI_SERVICES = [
 # =============================================================================
 
 SUBSCRIPTIONS = [
-    {"provider": "chatgpt_plus", "plan_name": "TEAM", "display_name": "ChatGPT Team", "category": "ai", "seats": 25, "pricing_model": "PER_SEAT", "unit_price": 25.0, "billing_cycle": "monthly"},
-    {"provider": "claude_pro", "plan_name": "TEAM", "display_name": "Claude Team", "category": "ai", "seats": 20, "pricing_model": "PER_SEAT", "unit_price": 25.0, "billing_cycle": "monthly"},
-    {"provider": "slack", "plan_name": "BUSINESS_PLUS", "display_name": "Slack Business+", "category": "communication", "seats": 50, "pricing_model": "PER_SEAT", "unit_price": 15.0, "billing_cycle": "monthly"},
-    {"provider": "github", "plan_name": "TEAM", "display_name": "GitHub Team", "category": "developer_tools", "seats": 30, "pricing_model": "PER_SEAT", "unit_price": 4.0, "billing_cycle": "monthly"},
-    {"provider": "figma", "plan_name": "ORGANIZATION", "display_name": "Figma Organization", "category": "design", "seats": 15, "pricing_model": "PER_SEAT", "unit_price": 45.0, "billing_cycle": "monthly"},
-    {"provider": "notion", "plan_name": "BUSINESS", "display_name": "Notion Business", "category": "productivity", "seats": 40, "pricing_model": "PER_SEAT", "unit_price": 18.0, "billing_cycle": "monthly"},
-    {"provider": "cursor", "plan_name": "PRO", "display_name": "Cursor Pro", "category": "developer_tools", "seats": 10, "pricing_model": "PER_SEAT", "unit_price": 20.0, "billing_cycle": "monthly"},
-    {"provider": "vercel", "plan_name": "PRO", "display_name": "Vercel Pro", "category": "infrastructure", "seats": 1, "pricing_model": "FLAT_FEE", "unit_price": 20.0, "billing_cycle": "monthly"},
-    {"provider": "copilot", "plan_name": "BUSINESS", "display_name": "GitHub Copilot Business", "category": "ai", "seats": 25, "pricing_model": "PER_SEAT", "unit_price": 19.0, "billing_cycle": "monthly"},
-    {"provider": "linear", "plan_name": "STANDARD", "display_name": "Linear Standard", "category": "project_management", "seats": 20, "pricing_model": "PER_SEAT", "unit_price": 8.0, "billing_cycle": "monthly"},
-    {"provider": "zoom", "plan_name": "BUSINESS", "display_name": "Zoom Business", "category": "communication", "seats": 30, "pricing_model": "PER_SEAT", "unit_price": 21.99, "billing_cycle": "monthly"},
-    {"provider": "jira", "plan_name": "STANDARD", "display_name": "Jira Standard", "category": "project_management", "seats": 35, "pricing_model": "PER_SEAT", "unit_price": 8.15, "billing_cycle": "monthly"},
-    {"provider": "confluence", "plan_name": "STANDARD", "display_name": "Confluence Standard", "category": "productivity", "seats": 35, "pricing_model": "PER_SEAT", "unit_price": 6.05, "billing_cycle": "monthly"},
-    {"provider": "canva", "plan_name": "TEAM", "display_name": "Canva for Teams", "category": "design", "seats": 20, "pricing_model": "PER_SEAT", "unit_price": 14.99, "billing_cycle": "monthly"},
-    {"provider": "adobe_cc", "plan_name": "ALL_APPS", "display_name": "Adobe All Apps", "category": "design", "seats": 10, "pricing_model": "PER_SEAT", "unit_price": 59.99, "billing_cycle": "monthly"},
+    {"provider": "chatgpt_plus", "plan_name": "TEAM", "display_name": "ChatGPT Team", "category": "ai", "seats": 150, "pricing_model": "PER_SEAT", "unit_price": 30.0, "billing_cycle": "monthly", "team": "TEAM-MLOPS"},
+    {"provider": "claude_pro", "plan_name": "TEAM", "display_name": "Claude Team", "category": "ai", "seats": 120, "pricing_model": "PER_SEAT", "unit_price": 30.0, "billing_cycle": "monthly", "team": "TEAM-MLOPS"},
+    {"provider": "slack", "plan_name": "BUSINESS_PLUS", "display_name": "Slack Business+", "category": "communication", "seats": 300, "pricing_model": "PER_SEAT", "unit_price": 15.0, "billing_cycle": "monthly", "team": "TEAM-BACKEND"},
+    {"provider": "github", "plan_name": "ENTERPRISE", "display_name": "GitHub Enterprise", "category": "developer_tools", "seats": 200, "pricing_model": "PER_SEAT", "unit_price": 21.0, "billing_cycle": "monthly", "team": "TEAM-BACKEND"},
+    {"provider": "figma", "plan_name": "ORGANIZATION", "display_name": "Figma Organization", "category": "design", "seats": 80, "pricing_model": "PER_SEAT", "unit_price": 45.0, "billing_cycle": "monthly", "team": "TEAM-FRONTEND"},
+    {"provider": "notion", "plan_name": "BUSINESS", "display_name": "Notion Business", "category": "productivity", "seats": 250, "pricing_model": "PER_SEAT", "unit_price": 18.0, "billing_cycle": "monthly", "team": "TEAM-FRONTEND"},
+    {"provider": "cursor", "plan_name": "BUSINESS", "display_name": "Cursor Business", "category": "developer_tools", "seats": 80, "pricing_model": "PER_SEAT", "unit_price": 40.0, "billing_cycle": "monthly", "team": "TEAM-BACKEND"},
+    {"provider": "vercel", "plan_name": "ENTERPRISE", "display_name": "Vercel Enterprise", "category": "infrastructure", "seats": 1, "pricing_model": "FLAT_FEE", "unit_price": 500.0, "billing_cycle": "monthly", "team": "TEAM-DATAENG"},
+    {"provider": "copilot", "plan_name": "ENTERPRISE", "display_name": "GitHub Copilot Enterprise", "category": "ai", "seats": 150, "pricing_model": "PER_SEAT", "unit_price": 39.0, "billing_cycle": "monthly", "team": "TEAM-MLOPS"},
+    {"provider": "linear", "plan_name": "BUSINESS", "display_name": "Linear Business", "category": "project_management", "seats": 120, "pricing_model": "PER_SEAT", "unit_price": 12.0, "billing_cycle": "monthly", "team": "TEAM-BACKEND"},
+    {"provider": "zoom", "plan_name": "BUSINESS", "display_name": "Zoom Business", "category": "communication", "seats": 200, "pricing_model": "PER_SEAT", "unit_price": 21.99, "billing_cycle": "monthly", "team": "TEAM-BACKEND"},
+    {"provider": "jira", "plan_name": "PREMIUM", "display_name": "Jira Premium", "category": "project_management", "seats": 200, "pricing_model": "PER_SEAT", "unit_price": 17.65, "billing_cycle": "monthly", "team": "TEAM-BACKEND"},
+    {"provider": "confluence", "plan_name": "PREMIUM", "display_name": "Confluence Premium", "category": "productivity", "seats": 200, "pricing_model": "PER_SEAT", "unit_price": 11.55, "billing_cycle": "monthly", "team": "TEAM-FRONTEND"},
+    {"provider": "canva", "plan_name": "ENTERPRISE", "display_name": "Canva Enterprise", "category": "design", "seats": 100, "pricing_model": "PER_SEAT", "unit_price": 30.0, "billing_cycle": "monthly", "team": "TEAM-FRONTEND"},
+    {"provider": "adobe_cc", "plan_name": "ALL_APPS", "display_name": "Adobe All Apps Enterprise", "category": "design", "seats": 50, "pricing_model": "PER_SEAT", "unit_price": 59.99, "billing_cycle": "monthly", "team": "TEAM-FRONTEND"},
 ]
+
+# Hierarchy lookup for subscriptions
+SUBSCRIPTION_HIERARCHY = {
+    "TEAM-BACKEND": {
+        "entity_id": "TEAM-BACKEND", "entity_name": "Backend",
+        "level_code": "team", "path": "/DEPT-ENG/PROJ-PLATFORM/TEAM-BACKEND",
+        "path_names": "Engineering > Platform > Backend",
+    },
+    "TEAM-FRONTEND": {
+        "entity_id": "TEAM-FRONTEND", "entity_name": "Frontend",
+        "level_code": "team", "path": "/DEPT-ENG/PROJ-PLATFORM/TEAM-FRONTEND",
+        "path_names": "Engineering > Platform > Frontend",
+    },
+    "TEAM-MLOPS": {
+        "entity_id": "TEAM-MLOPS", "entity_name": "ML Ops",
+        "level_code": "team", "path": "/DEPT-DS/PROJ-MLPIPE/TEAM-MLOPS",
+        "path_names": "Data Science > ML Pipeline > ML Ops",
+    },
+    "TEAM-DATAENG": {
+        "entity_id": "TEAM-DATAENG", "entity_name": "Data Engineering",
+        "level_code": "team", "path": "/DEPT-DS/PROJ-MLPIPE/TEAM-DATAENG",
+        "path_names": "Data Science > ML Pipeline > Data Engineering",
+    },
+}
 
 
 # =============================================================================
@@ -1083,8 +1107,10 @@ def generate_subscription_plans_data(start_date: date) -> List[Dict]:
     records = []
 
     for i, sub in enumerate(SUBSCRIPTIONS, 1):
+        team_id = sub.get("team", "TEAM-BACKEND")
+        h = SUBSCRIPTION_HIERARCHY[team_id]
         record = {
-            "org_slug": ORG_SLUG,
+            "x_org_slug": ORG_SLUG,
             "subscription_id": f"sub_{sub['provider']}_{sub['plan_name'].lower()}_{i:03d}",
             "provider": sub["provider"],
             "plan_name": sub["plan_name"],
@@ -1106,12 +1132,12 @@ def generate_subscription_plans_data(start_date: date) -> List[Dict]:
             "payment_method": "credit_card",
             "invoice_id_last": f"INV-{start_date.strftime('%Y%m')}-{i:04d}",
             "owner_email": "finance@genai-community.com",
-            "department": "",
-            "x_hierarchy_entity_id": "",
-            "x_hierarchy_entity_name": "",
-            "x_hierarchy_level_code": "",
-            "x_hierarchy_path": "",
-            "x_hierarchy_path_names": "",
+            "department": h["entity_name"],
+            "x_hierarchy_entity_id": h["entity_id"],
+            "x_hierarchy_entity_name": h["entity_name"],
+            "x_hierarchy_level_code": h["level_code"],
+            "x_hierarchy_path": h["path"],
+            "x_hierarchy_path_names": h["path_names"],
             "renewal_date": "",
             "contract_id": "",
             "notes": f"Demo subscription for {sub['display_name']}",
@@ -1152,7 +1178,7 @@ def generate_subscription_costs_daily(start_date: date, end_date: date) -> List[
             annual_run_rate = round(daily_cost * 365, 2)
 
             record = {
-                "org_slug": ORG_SLUG,
+                "x_org_slug": ORG_SLUG,
                 "provider": sub["provider"],
                 "subscription_id": subscription_id,
                 "plan_name": sub["plan_name"],
