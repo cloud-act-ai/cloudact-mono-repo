@@ -480,6 +480,41 @@ The BudgetManager sub-agent in the chat backend (port 8002) allows users to quer
 
 **Security:** All tools use `bind_org_slug()` to prevent cross-org access via prompt injection.
 
+## Budget Verification
+
+### API Verification
+```bash
+# List all budgets
+curl -s "http://localhost:8000/api/v1/budgets/$ORG_SLUG" -H "X-API-Key: $API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Budgets: {len(d[\"budgets\"])}'); [print(f'  {b[\"hierarchy_entity_id\"]} {b[\"category\"]} ${b[\"budget_amount\"]:,.0f}') for b in d['budgets']]"
+
+# Budget summary with variance
+curl -s "http://localhost:8000/api/v1/budgets/$ORG_SLUG/summary" -H "X-API-Key: $API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Total Budget: ${d[\"total_budget\"]:,.0f}'); print(f'Total Actual: ${d[\"total_actual\"]:,.0f}'); print(f'Over: {d[\"budgets_over\"]}, Under: {d[\"budgets_under\"]}')"
+
+# Allocation tree
+curl -s "http://localhost:8000/api/v1/budgets/$ORG_SLUG/allocation-tree" -H "X-API-Key: $API_KEY" | python3 -m json.tool | head -30
+```
+
+### Frontend Verification
+```bash
+# Verify budget page renders in browser (part of full verification)
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --api-key=$API_KEY --pages=budgets
+```
+
+**Known issue**: Budget page may show "Loading..." in Playwright + Next.js dev mode. The verification script uses API fallback to confirm data exists. In production, the page loads normally.
+
+### Demo Budget Data
+| Entity | Category | Type | Amount | Period |
+|--------|----------|------|--------|--------|
+| DEPT-ENG | cloud | monetary | $30,000 | quarterly |
+| DEPT-DS | genai | monetary | $25,000 | quarterly |
+| PROJ-PLATFORM | cloud | monetary | $20,000 | quarterly |
+| PROJ-MLPIPE | genai | monetary | $20,000 | quarterly |
+| TEAM-BACKEND | cloud | monetary | $12,000 | quarterly |
+| TEAM-FRONTEND | subscription | monetary | $3,000 | quarterly |
+| TEAM-MLOPS | genai | token | 50M tokens | quarterly |
+| DEPT-ENG | total | monetary | $50,000 | quarterly |
+| ORG (parent) | cloud | monetary | $100,000 | yearly |
+
 ## Troubleshooting
 
 | Issue | Cause | Fix |

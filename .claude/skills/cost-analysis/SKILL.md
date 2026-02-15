@@ -374,6 +374,37 @@ ORDER BY month DESC;
 - [ ] FOCUS 1.3 fields populated
 - [ ] Hierarchy mapping correct
 
+## Cost Verification
+
+### API Cost Validation
+```bash
+# Total costs (last 365 days)
+curl -s "http://localhost:8000/api/v1/costs/$ORG_SLUG/total?start_date=$(date -v-365d +%Y-%m-%d)&end_date=$(date +%Y-%m-%d)" -H "X-API-Key: $API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'GenAI: \${d.get(\"genai\",0):,.2f}'); print(f'Cloud: \${d.get(\"cloud\",0):,.2f}'); print(f'Sub: \${d.get(\"subscription\",0):,.2f}'); print(f'Total: \${d.get(\"total\",0):,.2f}')"
+
+# Cost summary by provider
+curl -s "http://localhost:8000/api/v1/costs/$ORG_SLUG/summary?start_date=$(date -v-365d +%Y-%m-%d)&end_date=$(date +%Y-%m-%d)" -H "X-API-Key: $API_KEY" | python3 -m json.tool | head -40
+```
+
+### Frontend Cost Verification
+```bash
+# Verify all cost dashboards (4 pages)
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --pages=dashboard,cloud,genai,subscription
+```
+
+### Important: API Date Capping
+The API service caps `end_date` to today in `date_utils.py` (`end_date = min(end_date, today)`). This means:
+- **BQ query**: Returns all data in the date range (including future dates in demo data)
+- **API query**: Never returns data beyond today's date
+- **Validation**: Always use the same date range for both BQ and API queries to get matching results
+
+### Demo Cost Targets (365-day window)
+| Category | Expected Range | Minimum Threshold |
+|----------|---------------|-------------------|
+| GenAI | ~$2M - $2.5M | $1,500,000 |
+| Cloud | ~$1.2M - $1.6M | $1,000,000 |
+| Subscription | ~$500K - $700K | $400,000 |
+| **Total** | ~$4M - $5M | $3,000,000 |
+
 ## Common Issues
 
 | Issue | Solution |

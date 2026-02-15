@@ -473,14 +473,18 @@ class BudgetReadService:
                     eid = b["hierarchy_entity_id"]
                     bcat = b["category"]
                     bprov = b.get("provider")
-                    bp_start = str(b["period_start"])
-                    bp_end = str(b["period_end"])
-                    key = (eid, bcat, bprov, bp_start, bp_end)
+                    bp_start_str = str(b["period_start"])
+                    bp_end_str = str(b["period_end"])
+                    key = (eid, bcat, bprov, bp_start_str, bp_end_str)
                     if key not in actual_lookup:
                         # Filter costs to this budget's specific period
+                        # Use date objects (not strings) for Polars date comparison
+                        from datetime import date as _date
+                        bp_start_date = _date.fromisoformat(bp_start_str)
+                        bp_end_date = _date.fromisoformat(bp_end_str)
                         period_costs = costs_df.filter(
-                            (pl.col("charge_date") >= bp_start) &
-                            (pl.col("charge_date") <= bp_end)
+                            (pl.col("charge_date") >= bp_start_date) &
+                            (pl.col("charge_date") <= bp_end_date)
                         ) if "charge_date" in costs_df.columns else costs_df
                         # Match entity directly OR via hierarchy path (boundary-safe)
                         entity_costs = self._filter_by_entity(period_costs, eid)

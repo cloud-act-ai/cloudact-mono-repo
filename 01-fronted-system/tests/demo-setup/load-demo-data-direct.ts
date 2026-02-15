@@ -230,48 +230,86 @@ function checkDatasetExists(dataset: string): boolean {
 }
 
 /**
- * Attempt to create dataset via manual onboarding
+ * Ensure dataset exists AND has tables with schemas.
+ *
+ * Fresh account creation (Playwright) creates the dataset via onboarding,
+ * but tables may not exist yet. This function:
+ * 1. Creates dataset via onboarding if missing
+ * 2. Syncs org dataset to create all tables with proper schemas
+ *
+ * Without this sync, all bq load commands fail with:
+ * "No schema specified on job or table"
  */
 async function ensureDatasetExists(orgSlug: string, dataset: string): Promise<boolean> {
-    if (checkDatasetExists(dataset)) {
-        console.log(`    Dataset exists: ${dataset}`)
-        return true
-    }
-
-    console.log(`    Dataset missing: ${dataset} - attempting onboarding...`)
     const apiServiceUrl = API_SERVICE_URL_DEFAULT
 
+    if (!checkDatasetExists(dataset)) {
+        console.log(`    Dataset missing: ${dataset} - attempting onboarding...`)
+        try {
+            const response = await fetch(`${apiServiceUrl}/api/v1/organizations/onboard`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CA-Root-Key': CA_ROOT_API_KEY,
+                },
+                body: JSON.stringify({
+                    org_slug: orgSlug,
+                    company_name: orgSlug.replace(/_[a-z0-9]+$/, '').replace(/_/g, ' '),
+                    admin_email: 'demo@cloudact.ai',
+                }),
+            })
+
+            if (response.ok || response.status === 409) {
+                console.log(`    Onboarding triggered (${response.status}), waiting for dataset...`)
+                await new Promise(resolve => setTimeout(resolve, 5000))
+            } else {
+                const errorText = await response.text()
+                console.error(`    Onboarding failed: ${response.status} ${errorText}`)
+                return false
+            }
+        } catch (error) {
+            console.error(`    Onboarding error: ${error}`)
+            return false
+        }
+    } else {
+        console.log(`    Dataset exists: ${dataset}`)
+    }
+
+    // Always sync org dataset to ensure tables exist with proper schemas.
+    // Fresh onboarding creates dataset but may not create all tables.
+    // The sync endpoint is non-destructive: creates missing tables, adds missing columns.
+    console.log(`    Syncing org dataset (ensuring tables + schemas exist)...`)
     try {
-        const response = await fetch(`${apiServiceUrl}/api/v1/organizations/onboard`, {
+        const syncResponse = await fetch(`${apiServiceUrl}/api/v1/organizations/${orgSlug}/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CA-Root-Key': CA_ROOT_API_KEY,
             },
-            body: JSON.stringify({
-                org_slug: orgSlug,
-                company_name: orgSlug.replace(/_[a-z0-9]+$/, '').replace(/_/g, ' '),
-                admin_email: 'demo@cloudact.ai',
-            }),
+            body: JSON.stringify({ add_missing_columns: true }),
         })
 
-        if (response.ok || response.status === 409) {
-            console.log(`    Onboarding triggered (${response.status}), waiting for dataset...`)
-            await new Promise(resolve => setTimeout(resolve, 5000))
-
-            if (checkDatasetExists(dataset)) {
-                console.log(`    Dataset created: ${dataset}`)
-                return true
-            }
+        if (syncResponse.ok) {
+            const syncData = await syncResponse.json()
+            const tablesCreated = syncData.tables_created ?? syncData.created ?? 0
+            const tablesExisting = syncData.tables_existing ?? syncData.existing ?? 0
+            console.log(`    Sync complete: ${tablesCreated} tables created, ${tablesExisting} already existed`)
+        } else if (syncResponse.status === 409) {
+            console.log(`    Sync: already up-to-date`)
+        } else {
+            const errorText = await syncResponse.text()
+            console.log(`    Sync returned ${syncResponse.status}: ${errorText.substring(0, 200)}`)
+            // Don't fail — tables may already exist from a previous run
         }
 
-        const errorText = await response.text()
-        console.error(`    Onboarding failed: ${response.status} ${errorText}`)
-        return false
+        // Wait for tables to be queryable
+        await new Promise(resolve => setTimeout(resolve, 3000))
     } catch (error) {
-        console.error(`    Onboarding error: ${error}`)
-        return false
+        console.log(`    Sync warning: ${error}`)
+        // Non-fatal — tables may already exist
     }
+
+    return checkDatasetExists(dataset)
 }
 
 async function syncProcedures(): Promise<boolean> {

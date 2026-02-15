@@ -5,7 +5,6 @@ Provides a singleton Supabase client for database operations.
 Used for quota enforcement instead of BigQuery.
 """
 
-import os
 import logging
 from typing import Optional
 
@@ -20,21 +19,22 @@ def get_supabase_client() -> Client:
     """
     Get or create the Supabase client singleton.
 
-    Reads configuration from environment variables:
-    - SUPABASE_URL: The Supabase project URL
-    - SUPABASE_SERVICE_ROLE_KEY: The service role key for server-side operations
+    Reads configuration from Settings (which loads .env.local via pydantic-settings).
 
     Returns:
         Supabase Client instance
 
     Raises:
-        ValueError: If required environment variables are missing
+        ValueError: If required settings are missing
     """
     global _client
 
     if _client is None:
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        from src.app.config import get_settings
+        settings = get_settings()
+
+        url = settings.supabase_url
+        key = settings.supabase_service_role_key
 
         if not url:
             raise ValueError("Missing SUPABASE_URL environment variable")

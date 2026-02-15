@@ -473,6 +473,18 @@ class Settings(BaseSettings):
 
 
     # ============================================
+    # Supabase Configuration (Quota Tracking)
+    # ============================================
+    supabase_url: Optional[str] = Field(
+        default=None,
+        description="Supabase project URL for quota tracking"
+    )
+    supabase_service_role_key: Optional[str] = Field(
+        default=None,
+        description="Supabase service role key for server-side operations"
+    )
+
+    # ============================================
     # Central Dataset and Table Configuration
     # ============================================
     central_metadata_dataset: str = Field(

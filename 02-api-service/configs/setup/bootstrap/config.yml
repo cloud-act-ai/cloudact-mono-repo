@@ -85,6 +85,13 @@ tables:
       field: "ingestion_date"
     clustering: ["org_slug", "overall_status"]
 
+  org_meta_pipeline_batch_runs:
+    description: "Batch pipeline run history (run-all operations)"
+    partition:
+      type: "DAY"
+      field: "triggered_at"
+    clustering: ["org_slug", "status"]
+
   # ============================================
   # Enterprise Multi-Tenancy Tables (P0 Fixes)
   # Note: User management, roles, and frontend rate limiting handled by Supabase

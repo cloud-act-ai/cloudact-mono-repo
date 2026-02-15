@@ -261,6 +261,34 @@ For each active org:
 └─ Record org_alert_history
 ```
 
+## Notification Verification
+
+### API Verification
+```bash
+# List channels
+curl -s "http://localhost:8000/api/v1/notifications/$ORG_SLUG/channels" -H "X-API-Key: $API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'  {c[\"name\"]} ({c[\"channel_type\"]}) active={c[\"is_active\"]}') for c in d]"
+
+# List rules
+curl -s "http://localhost:8000/api/v1/notifications/$ORG_SLUG/rules" -H "X-API-Key: $API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'  {r[\"name\"]}') for r in d]"
+
+# Notification stats
+curl -s "http://localhost:8000/api/v1/notifications/$ORG_SLUG/stats" -H "X-API-Key: $API_KEY" | python3 -m json.tool
+```
+
+### Frontend Verification
+```bash
+# Verify notifications page renders
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --api-key=$API_KEY --pages=notifications
+```
+
+The notifications page has an **Overview** tab showing summary stats (channel count, active rule count, delivery rate) and separate **Channels**, **Alerts**, **Summaries**, **History** tabs with detailed data.
+
+### Demo Alert Rules
+| Rule | Type | Threshold | Channel |
+|------|------|-----------|---------|
+| Daily Cost Spike Alert | daily_cost_spike | $5,000/day | Email (demo@cloudact.ai) |
+| Monthly Budget Threshold | budget_threshold | 80% of $50K | Email (demo@cloudact.ai) |
+
 ## Troubleshooting
 
 | Issue | Cause | Fix |

@@ -341,6 +341,35 @@ The demo account includes 8 budgets and 2 alert rules for end-to-end filter test
 
 **Filter test scenarios:** Category "cloud" → 3 budgets. Entity "DEPT-ENG" → 2 budgets. Period "quarterly" → all 8. Status "over" → depends on actual spend.
 
+## Filter Verification
+
+### Frontend Filter Testing
+```bash
+# Verify cost pages with filters (data must be visible on all cost dashboard pages)
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --pages=dashboard,cloud,genai,subscription
+```
+
+### Verifying Filters Work
+After demo data is loaded, the following filters should return non-empty results:
+
+| Filter | Dashboard | Cloud Costs | GenAI Costs | Subscription Costs |
+|--------|-----------|-------------|-------------|-------------------|
+| Period: Last 365 days | Total ~$4M | ~$1.5M | ~$2M | ~$600K |
+| Provider: GCP | Reduced total | GCP only | - | - |
+| Provider: OpenAI | Reduced total | - | OpenAI only | - |
+| Category: cloud | Cloud costs only | Same | - | - |
+| Hierarchy: DEPT-ENG | Engineering costs | Engineering | Engineering | Engineering |
+| Search: "google" | Filtered | Google Cloud | Google AI | - |
+
+### Filter API Endpoints
+```bash
+# Cost total with provider filter
+curl -s "http://localhost:8000/api/v1/costs/$ORG_SLUG/total?provider=gcp&start_date=$(date -v-365d +%Y-%m-%d)" -H "X-API-Key: $API_KEY" | python3 -m json.tool
+
+# Cost total with hierarchy filter
+curl -s "http://localhost:8000/api/v1/costs/$ORG_SLUG/total?hierarchy_entity_id=DEPT-ENG&start_date=$(date -v-365d +%Y-%m-%d)" -H "X-API-Key: $API_KEY" | python3 -m json.tool
+```
+
 ## Troubleshooting
 
 | Issue | Cause | Fix |

@@ -77,6 +77,7 @@ Env vars override presets: `GCP_PROJECT_ID`, `API_SERVICE_URL`, `PIPELINE_SERVIC
 | Cleanup script | `01-fronted-system/tests/demo-setup/cleanup-demo-account.ts` |
 | Data loader | `01-fronted-system/tests/demo-setup/load-demo-data-direct.ts` |
 | Dashboard verify | `01-fronted-system/tests/demo-setup/verify-dashboard.ts` |
+| Frontend verify | `01-fronted-system/tests/demo-setup/verify-frontend.ts` |
 | Config | `01-fronted-system/tests/demo-setup/config.ts` |
 | Data generator | `04-inra-cicd-automation/load-demo-data/generators/generate-demo-data.py` |
 | Hierarchy template | `01-fronted-system/lib/seed/hierarchy_template.csv` |
@@ -523,6 +524,14 @@ Dashboard Verification:
   Result: PASSED
 ```
 
+### Full Verification (API + Frontend)
+```bash
+# After data load completes:
+# 1. API/BQ validation (built into load-demo-data-direct.ts)
+# 2. Frontend verification
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY
+```
+
 ### Quick All-in-One Check
 
 ```bash
@@ -714,6 +723,43 @@ curl -s "http://localhost:8000/api/v1/costs/${ORG_SLUG}/total?start_date=$START&
 # Login: http://localhost:3000 → demo@cloudact.ai / Demo1234
 # Dashboard: http://localhost:3000/${ORG_SLUG}/dashboard
 ```
+
+## Frontend Verification (Playwright)
+
+Comprehensive 7-page Playwright verification validates demo data renders correctly across the entire UI.
+
+### Pages Verified
+| Page | Path | Checks | Expected |
+|------|------|--------|----------|
+| Dashboard | `/cost-dashboards/overview` | Dollar amounts, cost categories | 3+ amounts >= $1,000, Cloud/GenAI/Subscription |
+| Cloud Costs | `/cost-dashboards/cloud-costs` | Dollar amounts, providers | 2+ amounts, GCP/AWS/Azure/OCI |
+| GenAI Costs | `/cost-dashboards/genai-costs` | Dollar amounts, providers | 2+ amounts, OpenAI/Anthropic/Google AI |
+| Subscription Costs | `/cost-dashboards/subscription-costs` | Dollar amounts, SaaS names | 2+ amounts, Slack/Figma/Notion |
+| Budgets | `/budgets` | Data indicators or API fallback | Variance/DEPT-ENG or API confirms data |
+| Notifications | `/notifications` | Channels, Active Rules | Shows channel count and rule count |
+| Pipelines | `/pipelines` | COMPLETED status | Pipeline/Run indicators |
+
+### API Fallback
+Pages that use server actions (Budgets, Notifications) may stay in "Loading..." state in Playwright + Next.js dev mode. The verification script has an **API fallback**: if the page doesn't render within 60s, it directly queries the API to confirm data exists.
+
+### Running Frontend Verification
+```bash
+# Basic (no API fallback)
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG
+
+# With API fallback for pages that don't render (recommended)
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --api-key=$ORG_API_KEY
+
+# Specific pages only
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --pages=dashboard,budgets
+
+# Custom screenshot directory
+npx tsx tests/demo-setup/verify-frontend.ts --org-slug=$ORG_SLUG --screenshot-dir=/tmp
+```
+
+### Known Issues
+- **Budgets page "Loading..." in Playwright**: The budget page's server action makes 6 parallel API calls. In dev mode, the first Playwright visit often stays in loading state. A page reload resolves it, but the test uses API fallback as a safety net.
+- **Notifications Overview tab**: Doesn't show individual rule names — shows summary stats (channel count, active rule count). The Alerts tab has the details.
 
 ## Critical: Do's and Don'ts
 
