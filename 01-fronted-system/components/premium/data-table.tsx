@@ -453,9 +453,11 @@ export function PremiumDataTable<T extends object>({
     return sortedData.slice(start, start + pageSize)
   }, [sortedData, currentPage, pageSize, paginated])
 
-  // Reset page when data changes
+  // Reset page and expanded state when filters/sort change
   React.useEffect(() => {
     setCurrentPage(1)
+    setExpandedRows(new Set())
+    setExpandedDetails({})
   }, [searchQuery, filters, sortColumn, sortDirection])
 
   // Handlers

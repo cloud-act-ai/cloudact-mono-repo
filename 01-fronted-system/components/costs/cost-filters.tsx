@@ -790,7 +790,7 @@ export function getTimeRangeLabel(
   if (timeRange === "custom" && customRange) {
     const start = new Date(customRange.startDate)
     const end = new Date(customRange.endDate)
-    const formatDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    const formatDate = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
     return `${formatDate(start)} - ${formatDate(end)}`
   }
   const option = TIME_RANGE_OPTIONS.find((opt) => opt.value === timeRange)

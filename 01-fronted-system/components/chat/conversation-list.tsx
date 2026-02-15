@@ -34,7 +34,7 @@ function formatRelativeTime(dateStr: string): string {
   if (diffHr < 24) return `${diffHr}h ago`
   if (diffDay === 1) return "Yesterday"
   if (diffDay < 7) return `${diffDay}d ago`
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 }
 
 export const ConversationList = memo(function ConversationList({

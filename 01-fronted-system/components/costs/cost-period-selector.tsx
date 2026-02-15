@@ -111,10 +111,10 @@ export function getPeriodDates(period: PeriodType, baseDate: Date = new Date()):
 
   let label: string
   if (period === "D") {
-    label = endDate.toLocaleDateString("en-US", formatYear)
+    label = endDate.toLocaleDateString(undefined, formatYear)
   } else {
-    const start = startDate.toLocaleDateString("en-US", formatOptions)
-    const end = endDate.toLocaleDateString("en-US", formatYear)
+    const start = startDate.toLocaleDateString(undefined, formatOptions)
+    const end = endDate.toLocaleDateString(undefined, formatYear)
     label = `${start} - ${end}`
   }
 

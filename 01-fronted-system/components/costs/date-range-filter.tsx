@@ -162,7 +162,7 @@ export function getDefaultDateRange(): DateRange {
  */
 export function formatDateRangeDisplay(range: DateRange): string {
   const formatDate = (d: Date) => {
-    return d.toLocaleDateString("en-US", {
+    return d.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined
@@ -227,7 +227,7 @@ export function DateRangeFilter({
 
   const applyCustomRange = useCallback(() => {
     if (customRange?.from && customRange?.to) {
-      const formatDate = (d: Date) => d.toLocaleDateString("en-US", {
+      const formatDate = (d: Date) => d.toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
         year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined
@@ -342,7 +342,7 @@ export function DateRangeFilter({
                 <div className="flex justify-between">
                   <span>From:</span>
                   <span className="font-medium text-[var(--text-secondary)]">
-                    {value.start.toLocaleDateString("en-US", {
+                    {value.start.toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
                       year: "numeric"
@@ -352,7 +352,7 @@ export function DateRangeFilter({
                 <div className="flex justify-between mt-1">
                   <span>To:</span>
                   <span className="font-medium text-[var(--text-secondary)]">
-                    {value.end.toLocaleDateString("en-US", {
+                    {value.end.toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
                       year: "numeric"
@@ -391,7 +391,7 @@ export function DateRangeFilter({
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-[var(--text-secondary)]">
                     {customRange?.from ? (
-                      customRange.from.toLocaleDateString("en-US", {
+                      customRange.from.toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
                         year: "numeric"
@@ -403,7 +403,7 @@ export function DateRangeFilter({
                   <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
                   <div className="text-[var(--text-secondary)]">
                     {customRange?.to ? (
-                      customRange.to.toLocaleDateString("en-US", {
+                      customRange.to.toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
                         year: "numeric"

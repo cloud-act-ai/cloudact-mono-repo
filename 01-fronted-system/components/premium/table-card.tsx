@@ -84,7 +84,7 @@ export function PipelineRunCard({
       if (minutes < 60) return `${minutes}m ago`
       if (hours < 24) return `${hours}h ago`
 
-      return date.toLocaleString("en-US", {
+      return date.toLocaleString(undefined, {
         month: "short",
         day: "numeric",
         hour: "numeric",

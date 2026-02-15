@@ -115,7 +115,8 @@ export function ChartTooltip({
             const dateValue = firstPayload?.date as string | undefined
             if (dateValue) {
               const date = new Date(dateValue)
-              const formattedDate = date.toLocaleDateString("en-US", {
+              if (isNaN(date.getTime())) return null
+              const formattedDate = date.toLocaleDateString(undefined, {
                 weekday: "short",
                 month: "short",
                 day: "numeric",

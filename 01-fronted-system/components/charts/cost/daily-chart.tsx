@@ -93,7 +93,7 @@ export function DailyCostChart({
       const date = new Date(point.date)
       return {
         date: point.date,
-        label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        label: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         value: point.total,
       }
     })

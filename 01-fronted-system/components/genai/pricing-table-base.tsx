@@ -482,13 +482,19 @@ function PricingTableBaseInner({
       const num = Number(value)
       // Handle NaN gracefully
       if (Number.isNaN(num)) return "—"
-      return `$${num.toFixed(column.key.includes("per_1m") ? 2 : 4)}`
+      const decimals = column.key.includes("per_1m") ? 2 : 4
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }).format(num)
     }
     if (column.type === "number") {
       const num = Number(value)
       // Handle NaN gracefully
       if (Number.isNaN(num)) return "—"
-      return num.toLocaleString("en-US")
+      return num.toLocaleString(undefined)
     }
     if (column.type === "percentage") {
       const num = Number(value)
