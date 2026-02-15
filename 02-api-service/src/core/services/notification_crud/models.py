@@ -447,6 +447,7 @@ class NotificationSummaryUpdate(BaseModel):
     currency_display: Optional[str] = None
     provider_filter: Optional[List[str]] = None
     hierarchy_filter: Optional[Dict[str, str]] = None
+    last_sent_at: Optional[datetime] = Field(default=None, description="Last send timestamp")
 
 
 class NotificationSummary(NotificationSummaryBase):

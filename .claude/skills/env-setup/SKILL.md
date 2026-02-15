@@ -172,7 +172,7 @@ open http://localhost:8001/docs
 
 ### 8. Initialize Test Data
 ```bash
-# Bootstrap (creates 27 meta tables)
+# Bootstrap (creates 30 meta tables)
 curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
   -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
 

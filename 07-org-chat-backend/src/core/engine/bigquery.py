@@ -11,14 +11,14 @@ from functools import lru_cache
 
 from google.cloud import bigquery
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from google.api_core.exceptions import ServiceUnavailable, TooManyRequests
+from google.api_core.exceptions import ServiceUnavailable, TooManyRequests, InternalServerError
 
 from src.app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 # Transient errors worth retrying
-_TRANSIENT_ERRORS = (ConnectionError, TimeoutError, ServiceUnavailable, TooManyRequests)
+_TRANSIENT_ERRORS = (ConnectionError, TimeoutError, ServiceUnavailable, TooManyRequests, InternalServerError)
 
 
 class CircuitBreaker:
@@ -53,7 +53,10 @@ class CircuitBreaker:
                     self.state = "half_open"
                     return True
                 return False
-            return True  # half_open: allow one attempt
+            # half_open: allow exactly one probe attempt, then block
+            # until that attempt resolves (record_success or record_failure)
+            self.state = "open"
+            return True
 
 
 _bq_breaker = CircuitBreaker()

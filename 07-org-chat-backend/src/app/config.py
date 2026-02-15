@@ -4,10 +4,67 @@ Centralized settings with environment variable support.
 """
 
 import os
+import json
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from functools import lru_cache
+from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _get_version_info() -> dict:
+    """
+    Load version info from version.json at repo root.
+    Returns defaults if file not found.
+    """
+    version_paths = [
+        Path(__file__).parent.parent.parent.parent / "version.json",  # From src/app/config.py
+        Path(__file__).parent.parent.parent / "version.json",          # Fallback
+        Path("version.json"),                                           # Current dir
+    ]
+
+    for version_path in version_paths:
+        if version_path.exists():
+            try:
+                with open(version_path) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+    return {}
+
+
+def _get_dynamic_timestamp() -> str:
+    """Generate current timestamp in ISO 8601 format with PST timezone."""
+    pst = timezone(timedelta(hours=-8))
+    return datetime.now(pst).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def _get_app_version() -> str:
+    """Get app version from env var or version.json."""
+    if env_val := os.environ.get("APP_VERSION"):
+        return env_val
+    version_info = _get_version_info()
+    return version_info.get("version", "v4.4.4")
+
+
+def _get_release_version() -> str:
+    """Get release version from env var or version.json."""
+    if env_val := os.environ.get("RELEASE_VERSION"):
+        return env_val
+    version_info = _get_version_info()
+    return version_info.get("release", "v4.4.4")
+
+
+def _get_release_timestamp() -> str:
+    """Get release timestamp from env var, version.json, or generate dynamically."""
+    if env_val := os.environ.get("RELEASE_TIMESTAMP"):
+        return env_val
+    version_info = _get_version_info()
+    if ts := version_info.get("release_timestamp"):
+        return ts
+    return _get_dynamic_timestamp()
 
 
 class Settings(BaseSettings):
@@ -25,7 +82,18 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = Field(default="org-chat-backend")
-    app_version: str = Field(default="1.0.0")
+    app_version: str = Field(
+        default_factory=_get_app_version,
+        description="Application version from version.json"
+    )
+    release_version: str = Field(
+        default_factory=_get_release_version,
+        description="Git release tag version. Set via RELEASE_VERSION env var or version.json"
+    )
+    release_timestamp: str = Field(
+        default_factory=_get_release_timestamp,
+        description="Release build timestamp. Auto-generated if not set via RELEASE_TIMESTAMP env var"
+    )
     environment: str = Field(default="development")
     debug: bool = Field(default=False)
     log_level: str = Field(default="INFO")

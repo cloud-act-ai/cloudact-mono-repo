@@ -57,6 +57,25 @@ class BudgetReadService:
         self.budgets_table = f"{project_id}.{dataset_id}.org_budgets"
         self.allocations_table = f"{project_id}.{dataset_id}.org_budget_allocations"
 
+    def _filter_by_entity(self, costs_df: pl.DataFrame, entity_id: str) -> pl.DataFrame:
+        """Filter costs for a hierarchy entity using boundary-safe matching.
+
+        Matches:
+        - Direct assignment: x_hierarchy_entity_id == entity_id
+        - Ancestor rollup: entity_id appears as a complete path segment
+          (e.g., /DEPT-1/ or ending with /DEPT-1)
+
+        Uses literal=True to prevent regex injection from entity IDs
+        containing special characters.
+        """
+        if costs_df.is_empty():
+            return costs_df
+        return costs_df.filter(
+            (pl.col("x_hierarchy_entity_id") == entity_id) |
+            (pl.col("x_hierarchy_path").str.contains(f"/{entity_id}/", literal=True)) |
+            (pl.col("x_hierarchy_path").str.ends_with(f"/{entity_id}"))
+        )
+
     def _get_cost_table(self, org_slug: str) -> str:
         """Get the FOCUS 1.3 cost table for an org."""
         from src.app.config import settings
@@ -133,7 +152,7 @@ class BudgetReadService:
                 {category_case}
             FROM `{cost_table}`
             WHERE CAST(ChargePeriodStart AS DATE) >= @period_start
-            AND CAST(ChargePeriodStart AS DATE) < @period_end
+            AND CAST(ChargePeriodStart AS DATE) <= @period_end
             {category_where}
         """
 
@@ -255,7 +274,7 @@ class BudgetReadService:
                 bp_end = date_type.fromisoformat(budget_period_end)
                 costs_df = costs_df.filter(
                     (pl.col("charge_date") >= bp_start) &
-                    (pl.col("charge_date") < bp_end)
+                    (pl.col("charge_date") <= bp_end)
                 )
                 if budget_cat and budget_cat != "total":
                     costs_df = costs_df.filter(pl.col("category") == budget_cat)
@@ -278,10 +297,7 @@ class BudgetReadService:
             # Filter by hierarchy entity if budget is entity-specific
             entity_id = budget["hierarchy_entity_id"]
             if entity_id and not costs_df.is_empty():
-                entity_costs = costs_df.filter(
-                    (pl.col("x_hierarchy_entity_id") == entity_id) |
-                    (pl.col("x_hierarchy_path").str.contains(entity_id))
-                )
+                entity_costs = self._filter_by_entity(costs_df, entity_id)
                 actual = float(entity_costs["BilledCost"].sum()) if not entity_costs.is_empty() else 0.0
             else:
                 actual = float(costs_df["BilledCost"].sum()) if not costs_df.is_empty() else 0.0
@@ -389,8 +405,31 @@ class BudgetReadService:
         for b in budgets:
             budget_map[b["budget_id"]] = dict(b)
 
-        # Build tree nodes
-        def build_node(budget_id: str, actual_lookup: dict, _depth: int = 0) -> AllocationNode:
+        # Build tree nodes (with cycle detection to prevent infinite recursion)
+        def build_node(budget_id: str, actual_lookup: dict, _depth: int = 0, _visited: set | None = None) -> AllocationNode:
+            if _visited is None:
+                _visited = set()
+            if budget_id in _visited:
+                # Circular allocation detected — return leaf node to break cycle gracefully
+                logger.warning(f"Circular allocation detected at budget {budget_id}, returning leaf node")
+                b = budget_map[budget_id]
+                entity_id = b["hierarchy_entity_id"]
+                actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider")), 0.0))
+                return AllocationNode(
+                    budget_id=budget_id,
+                    hierarchy_entity_id=entity_id,
+                    hierarchy_entity_name=b["hierarchy_entity_name"],
+                    hierarchy_level_code=b["hierarchy_level_code"],
+                    category=b["category"],
+                    budget_amount=float(b["budget_amount"]),
+                    allocated_to_children=0,
+                    unallocated=float(b["budget_amount"]),
+                    actual_amount=round(actual, 2),
+                    variance=round(float(b["budget_amount"]) - actual, 2),
+                    currency=b["currency"],
+                    children=[],
+                )
+            _visited.add(budget_id)
             if _depth > 20:
                 raise ValueError("Allocation tree exceeds maximum depth of 20")
             b = budget_map[budget_id]
@@ -399,7 +438,7 @@ class BudgetReadService:
             child_nodes = []
             for ca in children_allocs:
                 if ca["child_budget_id"] in budget_map:
-                    child_nodes.append(build_node(ca["child_budget_id"], actual_lookup, _depth + 1))
+                    child_nodes.append(build_node(ca["child_budget_id"], actual_lookup, _depth + 1, _visited))
 
             entity_id = b["hierarchy_entity_id"]
             actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider")), 0.0))
@@ -436,11 +475,8 @@ class BudgetReadService:
                     bprov = b.get("provider")
                     key = (eid, bcat, bprov)
                     if key not in actual_lookup:
-                        # Match entity directly OR via hierarchy path (parent rollup)
-                        entity_costs = costs_df.filter(
-                            (pl.col("x_hierarchy_entity_id") == eid) |
-                            (pl.col("x_hierarchy_path").str.contains(eid))
-                        )
+                        # Match entity directly OR via hierarchy path (boundary-safe)
+                        entity_costs = self._filter_by_entity(costs_df, eid)
                         # Scope to budget's category (unless "total" = all categories)
                         if bcat and bcat != "total":
                             entity_costs = entity_costs.filter(pl.col("category") == bcat)
@@ -460,10 +496,11 @@ class BudgetReadService:
         roots = []
         total_budget = 0.0
         total_allocated = 0.0
+        visited: set = set()
         for b in budgets:
             bid = b["budget_id"]
             if bid not in child_to_parent:
-                roots.append(build_node(bid, actual_lookup))
+                roots.append(build_node(bid, actual_lookup, _visited=visited))
                 total_budget += float(b["budget_amount"])
                 total_allocated += sum(
                     c["allocated_amount"] for c in parent_to_children.get(bid, [])
@@ -525,8 +562,10 @@ class BudgetReadService:
         min_start = str(range_result[0]["min_start"])
         max_end = str(range_result[0]["max_end"])
 
-        # Fetch all actuals
+        # Fetch all actuals (scoped to hierarchy entity if filter is set)
         costs_df = await self._fetch_actual_costs(org_slug, min_start, max_end)
+        if hierarchy_entity_id and not costs_df.is_empty():
+            costs_df = self._filter_by_entity(costs_df, hierarchy_entity_id)
         actual_by_cat = {}
         if not costs_df.is_empty():
             agg = sum_by_category(costs_df)
@@ -615,14 +654,11 @@ class BudgetReadService:
                 bp_end = date_type.fromisoformat(str(b["period_end"]))
                 costs_df = all_costs_df.filter(
                     (pl.col("charge_date") >= bp_start) &
-                    (pl.col("charge_date") < bp_end)
+                    (pl.col("charge_date") <= bp_end)
                 )
-                # Filter by entity (direct + hierarchy path rollup)
+                # Filter by entity (direct + boundary-safe hierarchy path rollup)
                 if entity_id:
-                    costs_df = costs_df.filter(
-                        (pl.col("x_hierarchy_entity_id") == entity_id) |
-                        (pl.col("x_hierarchy_path").str.contains(entity_id))
-                    )
+                    costs_df = self._filter_by_entity(costs_df, entity_id)
                 # Filter by category
                 if bcat and bcat != "total":
                     costs_df = costs_df.filter(pl.col("category") == bcat)

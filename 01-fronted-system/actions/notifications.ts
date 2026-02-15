@@ -366,7 +366,8 @@ export async function createNotificationChannel(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationChannel>(response, {} as NotificationChannel)
+    const data = await safeJsonParse<NotificationChannel | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("createNotificationChannel", error) }
@@ -404,7 +405,8 @@ export async function updateNotificationChannel(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationChannel>(response, {} as NotificationChannel)
+    const data = await safeJsonParse<NotificationChannel | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("updateNotificationChannel", error) }
@@ -548,7 +550,8 @@ export async function createNotificationRule(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationRule>(response, {} as NotificationRule)
+    const data = await safeJsonParse<NotificationRule | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("createNotificationRule", error) }
@@ -586,7 +589,8 @@ export async function updateNotificationRule(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationRule>(response, {} as NotificationRule)
+    const data = await safeJsonParse<NotificationRule | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("updateNotificationRule", error) }
@@ -651,7 +655,8 @@ export async function pauseNotificationRule(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationRule>(response, {} as NotificationRule)
+    const data = await safeJsonParse<NotificationRule | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("pauseNotificationRule", error) }
@@ -684,7 +689,8 @@ export async function resumeNotificationRule(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationRule>(response, {} as NotificationRule)
+    const data = await safeJsonParse<NotificationRule | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("resumeNotificationRule", error) }
@@ -761,7 +767,8 @@ export async function createNotificationSummary(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationSummary>(response, {} as NotificationSummary)
+    const data = await safeJsonParse<NotificationSummary | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("createNotificationSummary", error) }
@@ -799,7 +806,8 @@ export async function updateNotificationSummary(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationSummary>(response, {} as NotificationSummary)
+    const data = await safeJsonParse<NotificationSummary | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("updateNotificationSummary", error) }
@@ -947,7 +955,8 @@ export async function acknowledgeNotification(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<NotificationHistoryEntry>(response, {} as NotificationHistoryEntry)
+    const data = await safeJsonParse<NotificationHistoryEntry | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
     return { success: true, data }
   } catch (error) {
     return { success: false, error: logError("acknowledgeNotification", error) }
@@ -1125,10 +1134,11 @@ export async function getScheduledAlert(
       return { success: false, error: extractErrorMessage(errorText) }
     }
 
-    const result = await safeJsonParse<{ success: boolean; alert: ScheduledAlertConfig }>(
+    const result = await safeJsonParse<{ success: boolean; alert: ScheduledAlertConfig } | null>(
       response,
-      { success: false, alert: {} as ScheduledAlertConfig }
+      null
     )
+    if (!result) return { success: false, error: "Invalid response from server" }
     return { success: result.success, data: result.alert }
   } catch (error) {
     return { success: false, error: logError("getScheduledAlert", error) }
@@ -1212,5 +1222,226 @@ export async function getAlertHistory(
     return { success: result.success, data: result.history }
   } catch (error) {
     return { success: false, error: logError("getAlertHistory", error) }
+  }
+}
+
+// ============================================
+// Cost Alert Types (Simplified Frontend API)
+// ============================================
+
+export interface CostAlertSummary {
+  alert_id: string
+  name: string
+  scope: string
+  threshold_value: number
+  threshold_currency: string
+  is_enabled: boolean
+  last_triggered_at?: string
+  severity: string
+  channels: string[]
+  schedule_cron: string
+}
+
+export interface CostAlertCreateRequest {
+  name: string
+  description?: string
+  scope?: string
+  threshold_value: number
+  threshold_currency?: string
+  period?: string
+  severity?: string
+  channels?: string[]
+  cooldown_hours?: number
+  schedule_cron?: string
+  schedule_timezone?: string
+  hierarchy_path?: string
+}
+
+export interface CostAlertUpdateRequest {
+  name?: string
+  description?: string
+  threshold_value?: number
+  threshold_currency?: string
+  severity?: string
+  channels?: string[]
+  cooldown_hours?: number
+  schedule_cron?: string
+  is_enabled?: boolean
+}
+
+// ============================================
+// Cost Alert Actions
+// ============================================
+
+export async function listCostAlerts(
+  orgSlug: string,
+  scope?: string,
+  enabledOnly?: boolean
+): Promise<ActionResponse<CostAlertSummary[]>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) return { success: false, error: "Organization API key not found." }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const params = new URLSearchParams()
+    if (scope) params.append("scope", scope)
+    if (enabledOnly) params.append("enabled_only", "true")
+
+    const url = `${apiUrl}/api/v1/cost-alerts/${orgSlug}${params.toString() ? `?${params.toString()}` : ""}`
+    const response = await fetchWithTimeout(url, {
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<CostAlertSummary[]>(response, [])
+    return { success: true, data }
+  } catch (error) {
+    return { success: false, error: logError("listCostAlerts", error) }
+  }
+}
+
+export async function createCostAlert(
+  orgSlug: string,
+  request: CostAlertCreateRequest
+): Promise<ActionResponse<CostAlertSummary>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) return { success: false, error: "Organization API key not found." }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(`${apiUrl}/api/v1/cost-alerts/${orgSlug}`, {
+      method: "POST",
+      headers: { "X-API-Key": orgApiKey, "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<CostAlertSummary | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
+    return { success: true, data }
+  } catch (error) {
+    return { success: false, error: logError("createCostAlert", error) }
+  }
+}
+
+export async function updateCostAlert(
+  orgSlug: string,
+  alertId: string,
+  request: CostAlertUpdateRequest
+): Promise<ActionResponse<CostAlertSummary>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) return { success: false, error: "Organization API key not found." }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(`${apiUrl}/api/v1/cost-alerts/${orgSlug}/${alertId}`, {
+      method: "PUT",
+      headers: { "X-API-Key": orgApiKey, "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<CostAlertSummary | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
+    return { success: true, data }
+  } catch (error) {
+    return { success: false, error: logError("updateCostAlert", error) }
+  }
+}
+
+export async function deleteCostAlert(
+  orgSlug: string,
+  alertId: string
+): Promise<ActionResponse<void>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) return { success: false, error: "Organization API key not found." }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(`${apiUrl}/api/v1/cost-alerts/${orgSlug}/${alertId}`, {
+      method: "DELETE",
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: logError("deleteCostAlert", error) }
+  }
+}
+
+export async function enableCostAlert(
+  orgSlug: string,
+  alertId: string
+): Promise<ActionResponse<CostAlertSummary>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) return { success: false, error: "Organization API key not found." }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(`${apiUrl}/api/v1/cost-alerts/${orgSlug}/${alertId}/enable`, {
+      method: "POST",
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<CostAlertSummary | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
+    return { success: true, data }
+  } catch (error) {
+    return { success: false, error: logError("enableCostAlert", error) }
+  }
+}
+
+export async function disableCostAlert(
+  orgSlug: string,
+  alertId: string
+): Promise<ActionResponse<CostAlertSummary>> {
+  try {
+    const authContext = await getAuthContext(orgSlug)
+    if (!authContext) return { success: false, error: "Organization API key not found." }
+    const { apiKey: orgApiKey } = authContext
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(`${apiUrl}/api/v1/cost-alerts/${orgSlug}/${alertId}/disable`, {
+      method: "POST",
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: extractErrorMessage(errorText) }
+    }
+
+    const data = await safeJsonParse<CostAlertSummary | null>(response, null)
+    if (!data) return { success: false, error: "Invalid response from server" }
+    return { success: true, data }
+  } catch (error) {
+    return { success: false, error: logError("disableCostAlert", error) }
   }
 }

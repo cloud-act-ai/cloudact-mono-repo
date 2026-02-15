@@ -50,8 +50,8 @@ function getVersionInfo(): { version: string; release: string; release_timestamp
   const dynamicTimestamp = pstDate.toISOString().replace("Z", "-0800")
 
   return {
-    version: envVersion || "v4.1.2",
-    release: envRelease || "v4.1.2",
+    version: envVersion || "v4.4.4",
+    release: envRelease || "v4.4.4",
     release_timestamp: envTimestamp || dynamicTimestamp
   }
 }

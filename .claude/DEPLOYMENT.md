@@ -97,7 +97,7 @@ cd 04-inra-cicd-automation/CICD
 ```bash
 cd 05-scheduler-jobs
 
-# Bootstrap (creates dataset + 27 tables if new, syncs columns if exists)
+# Bootstrap (creates dataset + 30 tables if new, syncs columns if exists)
 ./scripts/run-job.sh stage bootstrap     # Stage
 ./scripts/run-job.sh prod bootstrap      # Production
 

@@ -30,10 +30,17 @@ def guard_query(
         Estimated bytes processed.
 
     Raises:
-        QueryTooExpensiveError: If estimated bytes exceed the gate.
+        QueryTooExpensiveError: If estimated bytes exceed the gate or dry-run fails.
     """
     settings = get_settings()
-    estimated_bytes = dry_run_estimate(query, params)
+
+    try:
+        estimated_bytes = dry_run_estimate(query, params)
+    except Exception as e:
+        # Malformed queries or BQ errors during dry-run should block execution
+        raise QueryTooExpensiveError(
+            f"Query dry-run failed (query may be malformed): {e}"
+        ) from e
 
     if estimated_bytes > settings.bq_max_bytes_gate:
         gb = estimated_bytes / (1024 ** 3)

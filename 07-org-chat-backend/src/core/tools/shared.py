@@ -7,6 +7,7 @@ import re
 import time
 import hashlib
 import logging
+import threading
 import concurrent.futures
 from datetime import date, timedelta
 from functools import partial
@@ -38,7 +39,8 @@ def validate_enum(value: str, allowed: Set[str], field_name: str) -> str:
 
 
 # Dry-run result cache: hash -> (estimated_bytes, timestamp)
-_dry_run_cache = {}  # type: Dict[str, Tuple[int, float]]
+_dry_run_cache: Dict[str, Tuple[int, float]] = {}
+_dry_run_cache_lock = threading.Lock()
 _DRY_RUN_CACHE_TTL = 300  # 5 minutes
 _DRY_RUN_CACHE_MAX_SIZE = 500  # Prevent unbounded memory growth
 
@@ -47,19 +49,28 @@ def _cached_guard_query(
     query: str,
     params: Optional[List[bigquery.ScalarQueryParameter]] = None,
 ) -> int:
-    """Guard query with a simple hash-based cache for dry-run results."""
-    cache_key = hashlib.sha256(query.encode()).hexdigest()[:16]
+    """Guard query with a thread-safe hash-based cache for dry-run results."""
+    # Include params in cache key so different param values aren't confused
+    param_str = ""
+    if params:
+        param_str = "|".join(f"{p.name}={p.value}" for p in params)
+    cache_key = hashlib.sha256(f"{query}|{param_str}".encode()).hexdigest()[:16]
+
     now = time.time()
-    cached = _dry_run_cache.get(cache_key)
-    if cached and (now - cached[1]) < _DRY_RUN_CACHE_TTL:
-        return cached[0]
+    with _dry_run_cache_lock:
+        cached = _dry_run_cache.get(cache_key)
+        if cached and (now - cached[1]) < _DRY_RUN_CACHE_TTL:
+            return cached[0]
+
     result = guard_query(query, params)
-    # Evict expired entries if cache is too large
-    if len(_dry_run_cache) >= _DRY_RUN_CACHE_MAX_SIZE:
-        expired = [k for k, (_, ts) in _dry_run_cache.items() if now - ts >= _DRY_RUN_CACHE_TTL]
-        for k in expired:
-            del _dry_run_cache[k]
-    _dry_run_cache[cache_key] = (result, now)
+
+    with _dry_run_cache_lock:
+        # Evict expired entries if cache is too large
+        if len(_dry_run_cache) >= _DRY_RUN_CACHE_MAX_SIZE:
+            expired = [k for k, (_, ts) in _dry_run_cache.items() if now - ts >= _DRY_RUN_CACHE_TTL]
+            for k in expired:
+                del _dry_run_cache[k]
+        _dry_run_cache[cache_key] = (result, now)
     return result
 
 

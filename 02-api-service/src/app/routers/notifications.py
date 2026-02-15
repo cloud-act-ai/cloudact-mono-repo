@@ -921,10 +921,11 @@ async def send_summary_now(
 
                 if response.status_code == 200:
                     # Update last_sent_at in the summary
+                    from datetime import datetime as _dt, timezone as _tz
                     from src.core.services.notification_crud.models import NotificationSummaryUpdate
                     await service.update_summary(
                         org_slug, summary_id,
-                        NotificationSummaryUpdate()  # updated_at set automatically
+                        NotificationSummaryUpdate(last_sent_at=_dt.now(_tz.utc))
                     )
 
                     return {

@@ -851,7 +851,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
       // RETRY-001: Check if ALL results failed with auth errors (cold start scenario)
       const allFailed = !totalCostsResult.success && !providerResult.success && !granularResult.success
       const hasAuthError = [totalCostsResult.error, providerResult.error, granularResult.error]
-        .some(e => e && (e.includes("Authentication failed") || e.includes("Unable to access")))
+        .some(e => typeof e === 'string' && (e.includes("Authentication failed") || e.includes("Unable to access")))
 
       if (allFailed && hasAuthError && retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current++

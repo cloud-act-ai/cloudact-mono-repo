@@ -304,7 +304,7 @@ export async function createBudget(
       return { error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<Budget>(response, null as unknown as Budget)
+    const data = await safeJsonParse<Budget>(response, { budget_id: "" } as Budget)
     return { data }
   } catch (error) {
     logError("createBudget", error)
@@ -328,7 +328,7 @@ export async function updateBudget(
       return { error: extractErrorMessage(errorText) }
     }
 
-    const data = await safeJsonParse<Budget>(response, null as unknown as Budget)
+    const data = await safeJsonParse<Budget>(response, { budget_id: "" } as Budget)
     return { data }
   } catch (error) {
     logError("updateBudget", error)
@@ -373,6 +373,7 @@ export async function createTopDownAllocation(
     }
 
     const data = await safeJsonParse<TopDownAllocationResponse>(response, null as unknown as TopDownAllocationResponse)
+    if (!data) return { error: "Invalid response from server" }
     return { data }
   } catch (error) {
     logError("createTopDownAllocation", error)
@@ -405,6 +406,7 @@ export async function getBudgetSummary(
     }
 
     const data = await safeJsonParse<BudgetSummaryResponse>(response, null as unknown as BudgetSummaryResponse)
+    if (!data) return { error: "Invalid response from server" }
     return { data }
   } catch (error) {
     logError("getBudgetSummary", error)
@@ -433,6 +435,7 @@ export async function getAllocationTree(
     }
 
     const data = await safeJsonParse<AllocationTreeResponse>(response, null as unknown as AllocationTreeResponse)
+    if (!data) return { error: "Invalid response from server" }
     return { data }
   } catch (error) {
     logError("getAllocationTree", error)
@@ -459,6 +462,7 @@ export async function getCategoryBreakdown(
     }
 
     const data = await safeJsonParse<CategoryBreakdownResponse>(response, null as unknown as CategoryBreakdownResponse)
+    if (!data) return { error: "Invalid response from server" }
     return { data }
   } catch (error) {
     logError("getCategoryBreakdown", error)
@@ -487,6 +491,7 @@ export async function getProviderBreakdown(
     }
 
     const data = await safeJsonParse<ProviderBreakdownResponse>(response, null as unknown as ProviderBreakdownResponse)
+    if (!data) return { error: "Invalid response from server" }
     return { data }
   } catch (error) {
     logError("getProviderBreakdown", error)
@@ -542,6 +547,7 @@ export async function loadBudgetPageData(
       getAllocationTree(orgSlug, {
         category: params?.category,
         root_entity_id: params?.hierarchyEntityId,
+        period_type: params?.periodType,
       }),
       getCategoryBreakdown(orgSlug, {
         hierarchy_entity_id: params?.hierarchyEntityId,

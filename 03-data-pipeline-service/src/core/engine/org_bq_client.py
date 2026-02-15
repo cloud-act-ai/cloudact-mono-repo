@@ -239,7 +239,8 @@ class OrgBigQueryClient:
                 ]
             )
 
-            self.client.query(insert_query, job_config=job_config)
+            cost_job = self.client.query(insert_query, job_config=job_config)
+            cost_job.result()  # Wait for completion to detect failures
 
             logger.debug(
                 f"Tracked query cost",
@@ -251,7 +252,10 @@ class OrgBigQueryClient:
             )
 
         except Exception as e:
-            logger.warning(f"Failed to track query cost: {e}")
+            logger.error(
+                f"Failed to track query cost for {self.org_slug}: {e}",
+                exc_info=True
+            )
 
     def query(
         self,

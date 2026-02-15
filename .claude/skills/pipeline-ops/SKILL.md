@@ -358,6 +358,17 @@ steps:
 Requirements consolidated from:
 - `03_PIPELINES.md` - Pipeline execution
 
+## Development Rules (Non-Negotiable)
+
+- **Multi-tenancy support** - ALL pipeline writes MUST include `x_org_slug` and full `x_*` lineage fields
+- **Reusability and repeatability** - Pipelines must be idempotent. Re-runs produce same results.
+- **BigQuery best practices** - Clustering, partitioning, query timeouts on all tables
+- **No over-engineering** - Simple, direct pipeline configs. Follow existing YAML patterns.
+- **Enterprise-grade for 10k customers** - Must scale. Tier-based limits, concurrent execution caps.
+- **Don't break existing functionality** - Run all pipeline tests before/after changes
+- **ZERO mock tests** - All pipeline tests must hit real BigQuery
+- **Update skills with learnings** - Document pipeline patterns and fixes in skill files
+
 ## Related Skills
 
 - `subscription-costs` - SaaS subscription cost pipeline

@@ -701,7 +701,7 @@ export default function OrganizationSettingsPage() {
         {/* Header */}
         <div className="flex items-start gap-3 sm:gap-4">
           <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-            <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+            <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
           </div>
           <div>
             <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -722,7 +722,7 @@ export default function OrganizationSettingsPage() {
       {/* Premium Header */}
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-          <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+          <Building2 className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
         </div>
         <div>
           <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -741,15 +741,15 @@ export default function OrganizationSettingsPage() {
 
       {error && (
         <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 animate-in slide-in-from-top-2 duration-300">
-          <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
-          <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
+          <AlertTriangle className="h-4 w-4 text-[var(--cloudact-coral)]" />
+          <AlertDescription className="text-[var(--cloudact-coral)]">{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
         <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2 duration-300">
-          <CheckCircle2 className="h-4 w-4 text-[#1a7a3a]" />
-          <AlertDescription className="text-[#1a7a3a] font-medium">{success}</AlertDescription>
+          <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+          <AlertDescription className="text-[var(--cloudact-mint-text)] font-medium">{success}</AlertDescription>
         </Alert>
       )}
 
@@ -759,7 +759,7 @@ export default function OrganizationSettingsPage() {
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="general"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[var(--cloudact-mint-text)] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">General</span>
@@ -767,7 +767,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="contact"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[var(--cloudact-mint-text)] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Contact</span>
@@ -775,7 +775,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="backend"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[var(--cloudact-mint-text)] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Backend</span>
@@ -783,7 +783,7 @@ export default function OrganizationSettingsPage() {
             </TabsTrigger>
             <TabsTrigger
               value="danger"
-              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:text-[#FF6C5E]/80 data-[state=inactive]:hover:border-[#FF6C5E]/50 data-[state=inactive]:bg-transparent data-[state=active]:border-[#FF6C5E] data-[state=active]:text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E]/5 data-[state=active]:shadow-none min-w-fit"
+              className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--cloudact-coral)] data-[state=inactive]:hover:text-[var(--cloudact-coral)]/80 data-[state=inactive]:hover:border-[var(--cloudact-coral)]/50 data-[state=inactive]:bg-transparent data-[state=active]:border-[#FF6C5E] data-[state=active]:text-[var(--cloudact-coral)] data-[state=active]:bg-[#FF6C5E]/5 data-[state=active]:shadow-none min-w-fit"
             >
               <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Danger Zone</span>
@@ -798,7 +798,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-[#1a7a3a]" />
+              <Building2 className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Organization Details</h2>
@@ -813,7 +813,7 @@ export default function OrganizationSettingsPage() {
           {/* Organization Name */}
           <div className="space-y-2">
             <Label htmlFor="orgName" className="text-[13px] font-medium text-foreground">
-              Organization Name <span className="text-[#FF6C5E]">*</span>
+              Organization Name <span className="text-[var(--cloudact-coral)]">*</span>
             </Label>
             <div className="flex gap-2">
               <Input
@@ -823,7 +823,7 @@ export default function OrganizationSettingsPage() {
                 onChange={(e) => { setOrgName(e.target.value); setError(null); }}
                 placeholder="Enter organization name"
                 maxLength={100}
-                className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] flex-1"
+                className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)] flex-1"
               />
               {hasOrgNameChanges && (
                 <Button
@@ -852,7 +852,7 @@ export default function OrganizationSettingsPage() {
               value={orgSlug}
               readOnly
               disabled
-              className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg bg-[var(--surface-secondary)] text-[var(--text-tertiary)] cursor-not-allowed"
+              className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg bg-[var(--surface-secondary)] text-[var(--text-tertiary)] cursor-not-allowed"
             />
             <p className="text-[12px] text-muted-foreground">
               Unique identifier used in URLs (cannot be changed)
@@ -866,7 +866,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
+              <Sparkles className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Organization Logo</h2>
@@ -899,7 +899,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-[#1a7a3a]" />
+              <Activity className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Locale Settings</h2>
@@ -914,10 +914,10 @@ export default function OrganizationSettingsPage() {
           {/* Currency Selection */}
           <div className="space-y-2">
             <Label htmlFor="currency" className="text-[13px] font-medium text-foreground">
-              Currency <span className="text-[#FF6C5E]">*</span>
+              Currency <span className="text-[var(--cloudact-coral)]">*</span>
             </Label>
             <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
-              <SelectTrigger id="currency" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="currency" className="h-10 text-[13px] border border-[var(--border-medium)] rounded-lg hover:border-[var(--cloudact-mint)] transition-colors">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -936,10 +936,10 @@ export default function OrganizationSettingsPage() {
           {/* Timezone Selection */}
           <div className="space-y-2">
             <Label htmlFor="timezone" className="text-[13px] font-medium text-foreground">
-              Timezone <span className="text-[#FF6C5E]">*</span>
+              Timezone <span className="text-[var(--cloudact-coral)]">*</span>
             </Label>
             <Select value={timezone} onValueChange={handleTimezoneChange}>
-              <SelectTrigger id="timezone" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="timezone" className="h-10 text-[13px] border border-[var(--border-medium)] rounded-lg hover:border-[var(--cloudact-mint)] transition-colors">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -962,7 +962,7 @@ export default function OrganizationSettingsPage() {
             </Label>
             <div className="flex gap-2">
               <Select value={fiscalYearStart.toString()} onValueChange={(val) => { setFiscalYearStart(parseInt(val)); setError(null); }}>
-                <SelectTrigger id="fiscal-year" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg flex-1 hover:border-[#90FCA6] transition-colors">
+                <SelectTrigger id="fiscal-year" className="h-10 text-[13px] border border-[var(--border-medium)] rounded-lg flex-1 hover:border-[var(--cloudact-mint)] transition-colors">
                   <SelectValue placeholder="Select fiscal year start" />
                 </SelectTrigger>
                 <SelectContent>
@@ -995,7 +995,7 @@ export default function OrganizationSettingsPage() {
               Date Format
             </Label>
             <Select value={dateFormat} onValueChange={(val) => { setDateFormat(val); setError(null); }}>
-              <SelectTrigger id="date-format" className="h-10 text-[13px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="date-format" className="h-10 text-[13px] border border-[var(--border-medium)] rounded-lg hover:border-[var(--cloudact-mint)] transition-colors">
                 <SelectValue placeholder="Select date format" />
               </SelectTrigger>
               <SelectContent>
@@ -1048,7 +1048,7 @@ export default function OrganizationSettingsPage() {
       {/* Information Note - Premium */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/10 to-transparent border border-[#90FCA6]/20">
         <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
-          <strong className="text-[#1a7a3a] font-semibold">Note:</strong> Currency and timezone changes affect how data is displayed.
+          <strong className="text-[var(--cloudact-mint-text)] font-semibold">Note:</strong> Currency and timezone changes affect how data is displayed.
           Settings sync to BigQuery for cost calculations. All team members share these locale settings.
         </p>
       </div>
@@ -1060,7 +1060,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <User className="h-5 w-5 text-[#1a7a3a]" />
+              <User className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Contact Details</h2>
@@ -1096,7 +1096,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_name || ""}
                       onChange={(e) => updateContactField("business_person_name", e.target.value)}
                       placeholder="John Smith"
-                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                     />
                   </div>
 
@@ -1110,7 +1110,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_position || ""}
                       onChange={(e) => updateContactField("business_person_position", e.target.value)}
                       placeholder="CTO, Finance Manager"
-                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                     />
                   </div>
 
@@ -1124,7 +1124,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_department || ""}
                       onChange={(e) => updateContactField("business_person_department", e.target.value)}
                       placeholder="Engineering, Finance"
-                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                     />
                   </div>
                 </div>
@@ -1142,7 +1142,7 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_email || ""}
                     onChange={(e) => updateContactField("contact_email", e.target.value)}
                     placeholder="contact@company.com"
-                    className="h-10 px-3 text-[13px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                    className="h-10 px-3 text-[13px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                   />
                 </div>
 
@@ -1156,7 +1156,7 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_phone || ""}
                     onChange={(e) => updateContactField("contact_phone", e.target.value)}
                     placeholder="+1 234-567-8900"
-                    className="h-10 px-3 text-[13px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                    className="h-10 px-3 text-[13px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                   />
                 </div>
               </div>
@@ -1178,7 +1178,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_address_line1 || ""}
                       onChange={(e) => updateContactField("business_address_line1", e.target.value)}
                       placeholder="123 Main Street"
-                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                     />
                   </div>
 
@@ -1192,7 +1192,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_address_line2 || ""}
                       onChange={(e) => updateContactField("business_address_line2", e.target.value)}
                       placeholder="Suite 100, Floor 2"
-                      className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                      className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                     />
                   </div>
 
@@ -1207,7 +1207,7 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_city || ""}
                         onChange={(e) => updateContactField("business_city", e.target.value)}
                         placeholder="San Francisco"
-                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                        className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                       />
                     </div>
 
@@ -1221,7 +1221,7 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_state || ""}
                         onChange={(e) => updateContactField("business_state", e.target.value)}
                         placeholder="CA"
-                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                        className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                       />
                     </div>
 
@@ -1235,7 +1235,7 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_postal_code || ""}
                         onChange={(e) => updateContactField("business_postal_code", e.target.value)}
                         placeholder="94102"
-                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                        className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)]"
                       />
                     </div>
 
@@ -1250,7 +1250,7 @@ export default function OrganizationSettingsPage() {
                         onChange={(e) => updateContactField("business_country", e.target.value.toUpperCase())}
                         placeholder="US"
                         maxLength={2}
-                        className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] uppercase"
+                        className="h-10 px-3 text-[14px] border border-[var(--border-medium)] rounded-lg focus:border-[var(--cloudact-mint)] focus:ring-1 focus:ring-[var(--cloudact-mint)] uppercase"
                       />
                       <p className="text-[11px] text-muted-foreground">ISO 3166-1 (e.g., US, GB, IN)</p>
                     </div>
@@ -1260,8 +1260,8 @@ export default function OrganizationSettingsPage() {
 
               {hasContactChanges && (
                 <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2">
-                  <AlertTriangle className="h-4 w-4 text-[#1a7a3a]" />
-                  <AlertDescription className="text-[#1a7a3a] font-medium">
+                  <AlertTriangle className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+                  <AlertDescription className="text-[var(--cloudact-mint-text)] font-medium">
                     You have unsaved changes. Click Save to apply or Reset to discard.
                   </AlertDescription>
                 </Alert>
@@ -1309,7 +1309,7 @@ export default function OrganizationSettingsPage() {
         <div className="p-6 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-[#1a7a3a]" />
+              <Activity className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">Backend Connection</h2>
@@ -1331,8 +1331,8 @@ export default function OrganizationSettingsPage() {
               {/* Backend Error Alert */}
               {backendError && (
                 <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 animate-in slide-in-from-top-2">
-                  <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
-                  <AlertDescription className="text-[#FF6C5E] font-medium">
+                  <AlertTriangle className="h-4 w-4 text-[var(--cloudact-coral)]" />
+                  <AlertDescription className="text-[var(--cloudact-coral)] font-medium">
                     {backendError}
                   </AlertDescription>
                 </Alert>
@@ -1366,7 +1366,7 @@ export default function OrganizationSettingsPage() {
                   </div>
                 </div>
                 {backendOnboarded && apiKeyValid !== false && (
-                  <Badge className="flex-shrink-0 bg-[#90FCA6]/15 text-[#1a7a3a] border-0 px-3 py-1 font-semibold">
+                  <Badge className="flex-shrink-0 bg-[#90FCA6]/15 text-[var(--cloudact-mint-text)] border-0 px-3 py-1 font-semibold">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Active
                   </Badge>
@@ -1390,18 +1390,18 @@ export default function OrganizationSettingsPage() {
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
                       apiKeyValid === false ? 'bg-[#FF6C5E]/15' : 'bg-[#90FCA6]/15'
                     }`}>
-                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#1a7a3a]'}`} />
+                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[var(--cloudact-coral)]' : 'text-[var(--cloudact-mint-text)]'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-medium text-[var(--text-primary)]">API Key</p>
-                      <p className={`text-[12px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[var(--text-secondary)]'}`}>
+                      <p className={`text-[12px] font-mono truncate ${apiKeyValid === false ? 'text-[var(--cloudact-coral)]' : 'text-[var(--text-secondary)]'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
                     </div>
                   </div>
                   {apiKeyValid === true && (
-                    <Badge className="flex-shrink-0 ml-3 bg-[#90FCA6]/15 text-[#1a7a3a] border-0 font-semibold">
+                    <Badge className="flex-shrink-0 ml-3 bg-[#90FCA6]/15 text-[var(--cloudact-mint-text)] border-0 font-semibold">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Valid
                     </Badge>
@@ -1465,7 +1465,7 @@ export default function OrganizationSettingsPage() {
             <AlertTriangle className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h2 className="text-[20px] font-bold text-[#FF6C5E] tracking-tight">Danger Zone</h2>
+            <h2 className="text-[20px] font-bold text-[var(--cloudact-coral)] tracking-tight">Danger Zone</h2>
             <p className="text-[12px] text-[var(--text-tertiary)] mt-1">
               Irreversible actions that require careful consideration
             </p>
@@ -1477,7 +1477,7 @@ export default function OrganizationSettingsPage() {
           <div className="bg-[var(--surface-primary)] rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
             <div className="p-8">
               <div className="flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-coral)]" />
                 <span className="ml-2 text-[14px] text-[var(--text-tertiary)]">Loading organizations...</span>
               </div>
             </div>
@@ -1487,10 +1487,10 @@ export default function OrganizationSettingsPage() {
             <div className="p-6 sm:p-8 border-b border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 to-transparent">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-[#FF6C5E]" />
+                  <Building2 className="h-5 w-5 text-[var(--cloudact-coral)]" />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#FF6C5E] tracking-tight">Organizations You Own</h3>
+                  <h3 className="text-[16px] font-bold text-[var(--cloudact-coral)] tracking-tight">Organizations You Own</h3>
                   <p className="text-[12px] text-[var(--text-tertiary)]">
                     Transfer ownership or delete before deleting your account
                   </p>
@@ -1501,7 +1501,7 @@ export default function OrganizationSettingsPage() {
               {ownedOrgs.map((org) => (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between p-4 sm:p-5 border-2 border-black/[0.04] rounded-2xl bg-gradient-to-br from-white to-[#FF6C5E]/[0.02] hover:border-[#FF6C5E]/20 transition-all duration-200"
+                  className="flex items-center justify-between p-4 sm:p-5 border-2 border-black/[0.04] rounded-2xl bg-gradient-to-br from-white to-[#FF6C5E]/[0.02] hover:border-[var(--cloudact-coral)]/20 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-black/[0.03] flex items-center justify-center">
@@ -1512,7 +1512,7 @@ export default function OrganizationSettingsPage() {
                       <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                        <Badge className="ml-1 bg-[#FF6C5E]/10 text-[#FF6C5E] border-0 text-xs font-semibold px-2 py-0.5">Owner</Badge>
+                        <Badge className="ml-1 bg-[#FF6C5E]/10 text-[var(--cloudact-coral)] border-0 text-xs font-semibold px-2 py-0.5">Owner</Badge>
                       </div>
                     </div>
                   </div>
@@ -1621,7 +1621,7 @@ export default function OrganizationSettingsPage() {
             </DialogHeader>
             <div className="py-4">
               <Alert variant="destructive" className="mb-4 border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
-                <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
+                <AlertTriangle className="h-4 w-4 text-[var(--cloudact-coral)]" />
                 <AlertDescription>
                   All organization data, members, invites, and settings will be permanently deleted.
                   {selectedOrgForDelete?.member_count && selectedOrgForDelete.member_count > 1 && (
@@ -1677,10 +1677,10 @@ export default function OrganizationSettingsPage() {
           <div className="p-6 sm:p-8 border-b border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 to-transparent">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-[#FF6C5E]" />
+                <AlertTriangle className="h-5 w-5 text-[var(--cloudact-coral)]" />
               </div>
               <div>
-                <h3 className="text-[16px] font-bold text-[#FF6C5E] tracking-tight">Delete Account</h3>
+                <h3 className="text-[16px] font-bold text-[var(--cloudact-coral)] tracking-tight">Delete Account</h3>
                 <p className="text-[12px] text-[var(--text-tertiary)]">
                   Permanently delete your account and all associated data
                 </p>
@@ -1691,9 +1691,9 @@ export default function OrganizationSettingsPage() {
             {deletionRequested ? (
               <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/10 to-transparent border border-[#90FCA6]/20">
                 <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-[#1a7a3a] mt-0.5" />
+                  <Mail className="h-5 w-5 text-[var(--cloudact-mint-text)] mt-0.5" />
                   <div>
-                    <p className="font-semibold text-[#1a7a3a]">Verification email sent!</p>
+                    <p className="font-semibold text-[var(--cloudact-mint-text)]">Verification email sent!</p>
                     <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                       Please check your inbox and click the confirmation link to complete account deletion.
                       The link will expire in 30 minutes.
@@ -1704,8 +1704,8 @@ export default function OrganizationSettingsPage() {
             ) : ownedOrgs.length > 0 ? (
               <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 to-transparent border border-[#FF6C5E]/20">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-[#FF6C5E] mt-0.5" />
-                  <p className="text-[12px] text-[#FF6C5E] font-medium">
+                  <AlertTriangle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5" />
+                  <p className="text-[12px] text-[var(--cloudact-coral)] font-medium">
                     You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
                     Please transfer ownership or delete them before deleting your account.
                   </p>
@@ -1714,8 +1714,8 @@ export default function OrganizationSettingsPage() {
             ) : (
               <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 to-transparent border border-[#FF6C5E]/20">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-[#FF6C5E] mt-0.5" />
-                  <p className="text-[12px] text-[#FF6C5E] font-medium">
+                  <AlertTriangle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5" />
+                  <p className="text-[12px] text-[var(--cloudact-coral)] font-medium">
                     Deleting your account will permanently remove you from all organizations and cannot be
                     undone. Your data will be lost forever.
                   </p>

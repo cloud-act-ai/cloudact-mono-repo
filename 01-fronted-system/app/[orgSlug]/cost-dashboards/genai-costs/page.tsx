@@ -324,7 +324,7 @@ export default function GenAICostsPage() {
           <CostRingChart
             title="LLM Spend"
             segments={ringSegments}
-            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "qtd" ? "QTD" : timeRange === "custom" ? "Custom" : timeRange === "last_month" ? "Last Mo" : `${timeRange}d`}
             insight={`Spending across ${ringSegments.length} AI provider${ringSegments.length > 1 ? "s" : ""}.`}
             size={200}
             thickness={22}

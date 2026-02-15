@@ -328,7 +328,7 @@ export default function SubscriptionCostsPage() {
           <CostRingChart
             title="SaaS Spend"
             segments={ringSegments}
-            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "qtd" ? "QTD" : timeRange === "custom" ? "Custom" : timeRange === "last_month" ? "Last Mo" : `${timeRange}d`}
             insight={`${subscriptionCount} subscription${subscriptionCount !== 1 ? "s" : ""} across ${ringSegments.length} provider${ringSegments.length > 1 ? "s" : ""}.`}
             size={200}
             thickness={22}

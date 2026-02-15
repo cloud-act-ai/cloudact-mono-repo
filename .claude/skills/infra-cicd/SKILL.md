@@ -763,7 +763,7 @@ cd 05-scheduler-jobs
 
 | Job | Script | Purpose | Timeout |
 |-----|--------|---------|---------|
-| `cloudact-bootstrap` | `jobs/bootstrap.py` | Initialize organizations dataset + 27 meta tables | 30m |
+| `cloudact-bootstrap` | `jobs/bootstrap.py` | Initialize organizations dataset + 30 meta tables | 30m |
 | `cloudact-bootstrap-sync` | `jobs/bootstrap_sync.py` | Add new columns to existing meta tables | 30m |
 | `cloudact-org-sync-all` | `jobs/org_sync_all.py` | Sync ALL org datasets (loops through active orgs) | 60m |
 

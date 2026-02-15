@@ -392,6 +392,15 @@ Requirements consolidated from:
 - `00_CONSOLE_UI_DESIGN_STANDARDS.md` - Console UI design standards and component patterns
 - `00_INTERNATIONALIZATION.md` - Internationalization and localization requirements
 
+## Development Rules (Non-Negotiable)
+
+- **No over-engineering** - Simple, direct fixes. Don't add features or refactor beyond what was asked.
+- **Multi-tenancy support** - Proper `orgSlug` isolation in every page and component
+- **Don't break existing functionality** - Run `npm run build` and `npm run test` before/after changes
+- **Reusability and repeatability** - Follow existing component patterns. Use shadcn/ui primitives.
+- **Enterprise-grade for 10k customers** - Must scale. Proper loading states, error boundaries, pagination.
+- **Update skills with learnings** - Document UI patterns and fixes in skill files
+
 ## Related Skills
 
 | Skill | Relationship |

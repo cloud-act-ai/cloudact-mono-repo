@@ -74,12 +74,12 @@ export function useAdvancedFilters(config?: FilterConfig) {
   const activeCount = useMemo(() => {
     let count = 0
     if (filters.search) count++
-    if (config?.category !== false && filters.category !== "all") count++
-    if (config?.periodType !== false && filters.periodType !== "all") count++
-    if (config?.status !== false && filters.status !== "all") count++
-    if (config?.hierarchyEntity !== false && filters.hierarchyEntityId !== "all") count++
-    if (config?.provider !== false && filters.provider !== "all") count++
-    if (config?.timeRange !== false && filters.timeRange !== "all") count++
+    if (config?.category === true && filters.category !== "all") count++
+    if (config?.periodType === true && filters.periodType !== "all") count++
+    if (config?.status === true && filters.status !== "all") count++
+    if (config?.hierarchyEntity === true && filters.hierarchyEntityId !== "all") count++
+    if (config?.provider === true && filters.provider !== "all") count++
+    if (config?.timeRange === true && filters.timeRange !== "all") count++
     return count
   }, [filters, config])
 

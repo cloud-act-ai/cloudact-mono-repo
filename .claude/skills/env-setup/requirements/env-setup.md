@@ -115,7 +115,7 @@ Defined in SKILL.md. Additional context from:
 
 ### FR-ES-008: Test Data Initialization
 
-- **FR-ES-008.1**: Bootstrap creates the `organizations` dataset with 27 meta tables via `POST /api/v1/admin/bootstrap`
+- **FR-ES-008.1**: Bootstrap creates the `organizations` dataset with 30 meta tables via `POST /api/v1/admin/bootstrap`
 - **FR-ES-008.2**: Demo account setup via `npx tsx tests/demo-setup/setup-demo-account.ts` (creates Supabase user + Stripe subscription + BigQuery dataset)
 - **FR-ES-008.3**: Demo data loaded via `npx tsx tests/demo-setup/load-demo-data-direct.ts` (cost data for Dec 2025 - Jan 2026)
 - **FR-ES-008.4**: Demo credentials: `demo@cloudact.ai` / `Demo1234` / Acme Inc

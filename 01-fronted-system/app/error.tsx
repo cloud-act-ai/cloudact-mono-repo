@@ -61,7 +61,7 @@ export default function GlobalError({
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={reset} className="bg-mint hover:bg-mint-dark text-black">
+          <Button onClick={reset} className="bg-mint hover:bg-[var(--cloudact-mint-dark)] text-black">
             <RefreshCw className="h-4 w-4 mr-2" />
             Try again
           </Button>

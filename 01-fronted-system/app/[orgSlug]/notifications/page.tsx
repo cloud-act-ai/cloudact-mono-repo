@@ -334,7 +334,7 @@ function ChannelCard({
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
             channel.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-[var(--surface-secondary)]"
           }`}>
-            <Icon className={`h-5 w-5 ${channel.is_active ? "text-[#1a7a3a]" : "text-[var(--text-muted)]"}`} />
+            <Icon className={`h-5 w-5 ${channel.is_active ? "text-[var(--cloudact-mint-text)]" : "text-[var(--text-muted)]"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ function ChannelCard({
                 {channel.name}
               </span>
               {channel.is_default && (
-                <span className="px-2 py-0.5 text-xs font-semibold bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] rounded-full">
+                <span className="px-2 py-0.5 text-xs font-semibold bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] rounded-full">
                   DEFAULT
                 </span>
               )}
@@ -422,7 +422,7 @@ function RuleCard({
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
             rule.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-[var(--surface-secondary)]"
           }`}>
-            <CategoryIcon className={`h-5 w-5 ${rule.is_active ? "text-[#1a7a3a]" : "text-[var(--text-muted)]"}`} />
+            <CategoryIcon className={`h-5 w-5 ${rule.is_active ? "text-[var(--cloudact-mint-text)]" : "text-[var(--text-muted)]"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -504,7 +504,7 @@ function SummaryCard({
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
             summary.is_active ? "bg-[var(--cloudact-mint)]/10" : "bg-[var(--surface-secondary)]"
           }`}>
-            <Calendar className={`h-5 w-5 ${summary.is_active ? "text-[#1a7a3a]" : "text-[var(--text-muted)]"}`} />
+            <Calendar className={`h-5 w-5 ${summary.is_active ? "text-[var(--cloudact-mint-text)]" : "text-[var(--text-muted)]"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -1331,6 +1331,344 @@ function CreateSummaryDialog({
 }
 
 // ============================================================================
+// Edit Channel Dialog
+// ============================================================================
+
+function EditChannelDialog({
+  channel,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  channel: NotificationChannel
+  onClose: () => void
+  onSubmit: (channelId: string, update: NotificationChannelUpdate) => void
+  loading: boolean
+}) {
+  const [name, setName] = useState(channel.name)
+  const [emailRecipients, setEmailRecipients] = useState(
+    channel.email_recipients?.join(", ") || ""
+  )
+  const [isDefault, setIsDefault] = useState(channel.is_default)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const validateInputs = (): boolean => {
+    const newErrors: Record<string, string> = {}
+    if (!name.trim()) newErrors.name = "Name is required"
+    if (channel.channel_type === "email") {
+      const emailValidation = validateEmailList(emailRecipients)
+      if (!emailValidation.valid) newErrors.emailRecipients = emailValidation.errors[0]
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = () => {
+    if (!validateInputs()) return
+    const update: NotificationChannelUpdate = { name, is_default: isDefault }
+    if (channel.channel_type === "email") {
+      update.email_recipients = emailRecipients.split(",").map((e) => e.trim()).filter(Boolean)
+    }
+    onSubmit(channel.channel_id, update)
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Channel</DialogTitle>
+          <DialogDescription>Update notification channel settings</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setErrors((prev) => ({ ...prev, name: "" })) }}
+              className={errors.name ? "border-red-500" : ""}
+            />
+            {errors.name && <p className="text-[11px] text-red-500">{errors.name}</p>}
+          </div>
+          {channel.channel_type === "email" && (
+            <div className="space-y-2">
+              <Label>Recipients (comma-separated)</Label>
+              <Input
+                value={emailRecipients}
+                onChange={(e) => { setEmailRecipients(e.target.value); setErrors((prev) => ({ ...prev, emailRecipients: "" })) }}
+                className={errors.emailRecipients ? "border-red-500" : ""}
+              />
+              {errors.emailRecipients && <p className="text-[11px] text-red-500">{errors.emailRecipients}</p>}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={isDefault}
+              onCheckedChange={setIsDefault}
+              className="data-[state=checked]:bg-[var(--cloudact-mint)]"
+            />
+            <Label>Set as default channel</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !name}
+            className="bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)]"
+          >
+            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============================================================================
+// Edit Rule Dialog
+// ============================================================================
+
+function EditRuleDialog({
+  rule,
+  onClose,
+  onSubmit,
+  loading,
+  channels,
+}: {
+  rule: NotificationRule
+  onClose: () => void
+  onSubmit: (ruleId: string, update: NotificationRuleUpdate) => void
+  loading: boolean
+  channels: NotificationChannel[]
+}) {
+  const [name, setName] = useState(rule.name)
+  const [description, setDescription] = useState(rule.description || "")
+  const [priority, setPriority] = useState<RulePriority>(rule.priority)
+  const [cooldownMinutes, setCooldownMinutes] = useState(String(rule.cooldown_minutes || 60))
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(rule.notify_channel_ids || [])
+
+  const handleSubmit = () => {
+    const update: NotificationRuleUpdate = {
+      name,
+      description: description || undefined,
+      priority,
+    }
+    onSubmit(rule.rule_id, update)
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Alert Rule</DialogTitle>
+          <DialogDescription>Update alert rule settings</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Description (optional)</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select value={priority} onValueChange={(v) => setPriority(v as RulePriority)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="info">Info</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Cooldown (minutes)</Label>
+              <Input type="number" value={cooldownMinutes} onChange={(e) => setCooldownMinutes(e.target.value)} />
+            </div>
+          </div>
+          <div className="p-3 bg-[var(--surface-secondary)] rounded-xl">
+            <div className="text-[11px] text-[var(--text-tertiary)]">
+              Category: <span className="capitalize font-medium text-[var(--text-secondary)]">{rule.rule_category}</span>
+              {" "}&middot;{" "}Type: <span className="font-medium text-[var(--text-secondary)]">{getRuleTypeLabel(rule.rule_type)}</span>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !name}
+            className="bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)]"
+          >
+            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============================================================================
+// Edit Summary Dialog
+// ============================================================================
+
+function EditSummaryDialog({
+  summary,
+  onClose,
+  onSubmit,
+  loading,
+  channels,
+}: {
+  summary: NotificationSummary
+  onClose: () => void
+  onSubmit: (summaryId: string, update: NotificationSummaryUpdate) => void
+  loading: boolean
+  channels: NotificationChannel[]
+}) {
+  const [name, setName] = useState(summary.name)
+  const [scheduleCron, setScheduleCron] = useState(summary.schedule_cron || "0 9 * * *")
+  const [timezone, setTimezone] = useState(summary.schedule_timezone || "UTC")
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(summary.notify_channel_ids || [])
+  const [includeSections, setIncludeSections] = useState<string[]>(summary.include_sections || ["cost_summary", "top_services", "anomalies"])
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const validateInputs = (): boolean => {
+    const newErrors: Record<string, string> = {}
+    if (!name.trim()) newErrors.name = "Name is required"
+    const cronValidation = isValidCron(scheduleCron)
+    if (!cronValidation.valid) newErrors.scheduleCron = cronValidation.error || "Invalid cron expression"
+    if (selectedChannels.length === 0) newErrors.channels = "Select at least one channel"
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = () => {
+    if (!validateInputs()) return
+    const update: NotificationSummaryUpdate = {
+      name,
+      schedule_cron: scheduleCron,
+      schedule_timezone: timezone,
+      notify_channel_ids: selectedChannels,
+      include_sections: includeSections,
+    }
+    onSubmit(summary.summary_id, update)
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Summary Schedule</DialogTitle>
+          <DialogDescription>Update cost summary schedule settings</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setErrors((prev) => ({ ...prev, name: "" })) }}
+              className={errors.name ? "border-red-500" : ""}
+            />
+            {errors.name && <p className="text-[11px] text-red-500">{errors.name}</p>}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-2">
+              <Label>Schedule (Cron)</Label>
+              <Input
+                value={scheduleCron}
+                onChange={(e) => { setScheduleCron(e.target.value); setErrors((prev) => ({ ...prev, scheduleCron: "" })) }}
+                className={errors.scheduleCron ? "border-red-500" : ""}
+              />
+              {errors.scheduleCron && <p className="text-[11px] text-red-500">{errors.scheduleCron}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Timezone</Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UTC">UTC</SelectItem>
+                  <SelectItem value="America/New_York">Eastern Time</SelectItem>
+                  <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                  <SelectItem value="Europe/London">London</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Include Sections</Label>
+            <div className="space-y-2">
+              {[
+                { id: "cost_summary", label: "Cost Summary" },
+                { id: "top_services", label: "Top Services" },
+                { id: "anomalies", label: "Anomalies" },
+                { id: "trends", label: "Trends" },
+                { id: "forecasts", label: "Forecasts" },
+              ].map((section) => (
+                <label key={section.id} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeSections.includes(section.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setIncludeSections([...includeSections, section.id])
+                      else setIncludeSections(includeSections.filter((s) => s !== section.id))
+                    }}
+                    className="rounded border-[var(--border-medium)]"
+                  />
+                  <span className="text-[12px]">{section.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Notification Channels</Label>
+            <div className={`space-y-2 ${errors.channels ? "border border-red-500 rounded-lg p-2" : ""}`}>
+              {channels.filter((c) => c.is_active).map((channel) => (
+                <label key={channel.channel_id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedChannels.includes(channel.channel_id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedChannels([...selectedChannels, channel.channel_id])
+                        setErrors((prev) => ({ ...prev, channels: "" }))
+                      } else {
+                        setSelectedChannels(selectedChannels.filter((id) => id !== channel.channel_id))
+                      }
+                    }}
+                    className="rounded border-[var(--border-medium)]"
+                  />
+                  <span className="text-[12px]">{channel.name}</span>
+                  <span className="text-[11px] text-[var(--text-tertiary)] capitalize">({channel.channel_type})</span>
+                </label>
+              ))}
+            </div>
+            {errors.channels && <p className="text-[11px] text-red-500">{errors.channels}</p>}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)]"
+          >
+            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -1380,28 +1718,63 @@ export default function NotificationsPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true)
 
-    const [onboardingStatus, apiKeyResult] = await Promise.all([
-      checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
-      hasStoredApiKey(orgSlug),
-    ])
-
-    setBackendConnected(onboardingStatus.onboarded)
-    setHasApiKey(apiKeyResult.hasKey)
-
-    if (onboardingStatus.onboarded && apiKeyResult.hasKey) {
-      const [channelsRes, rulesRes, summariesRes, historyRes, statsRes] = await Promise.all([
-        listNotificationChannels(orgSlug),
-        listNotificationRules(orgSlug),
-        listNotificationSummaries(orgSlug),
-        listNotificationHistory(orgSlug, { limit: 50 }),
-        getNotificationStats(orgSlug),
+    try {
+      const [onboardingStatus, apiKeyResult] = await Promise.all([
+        checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
+        hasStoredApiKey(orgSlug),
       ])
 
-      if (channelsRes.success && channelsRes.data) setChannels(channelsRes.data)
-      if (rulesRes.success && rulesRes.data) setRules(rulesRes.data)
-      if (summariesRes.success && summariesRes.data) setSummaries(summariesRes.data)
-      if (historyRes.success && historyRes.data) setHistory(historyRes.data)
-      if (statsRes.success && statsRes.data) setStats(statsRes.data)
+      setBackendConnected(onboardingStatus.onboarded)
+      setHasApiKey(apiKeyResult.hasKey)
+
+      if (onboardingStatus.onboarded && apiKeyResult.hasKey) {
+        const [channelsRes, rulesRes, summariesRes, historyRes, statsRes] = await Promise.allSettled([
+          listNotificationChannels(orgSlug),
+          listNotificationRules(orgSlug),
+          listNotificationSummaries(orgSlug),
+          listNotificationHistory(orgSlug, { limit: 50 }),
+          getNotificationStats(orgSlug),
+        ])
+
+        const errors: string[] = []
+
+        if (channelsRes.status === "fulfilled" && channelsRes.value.success && channelsRes.value.data) {
+          setChannels(channelsRes.value.data)
+        } else if (channelsRes.status === "fulfilled" && !channelsRes.value.success) {
+          errors.push(`Channels: ${channelsRes.value.error}`)
+        }
+
+        if (rulesRes.status === "fulfilled" && rulesRes.value.success && rulesRes.value.data) {
+          setRules(rulesRes.value.data)
+        } else if (rulesRes.status === "fulfilled" && !rulesRes.value.success) {
+          errors.push(`Rules: ${rulesRes.value.error}`)
+        }
+
+        if (summariesRes.status === "fulfilled" && summariesRes.value.success && summariesRes.value.data) {
+          setSummaries(summariesRes.value.data)
+        } else if (summariesRes.status === "fulfilled" && !summariesRes.value.success) {
+          errors.push(`Summaries: ${summariesRes.value.error}`)
+        }
+
+        if (historyRes.status === "fulfilled" && historyRes.value.success && historyRes.value.data) {
+          setHistory(historyRes.value.data)
+        } else if (historyRes.status === "fulfilled" && !historyRes.value.success) {
+          errors.push(`History: ${historyRes.value.error}`)
+        }
+
+        if (statsRes.status === "fulfilled" && statsRes.value.success && statsRes.value.data) {
+          setStats(statsRes.value.data)
+        } else if (statsRes.status === "fulfilled" && !statsRes.value.success) {
+          errors.push(`Stats: ${statsRes.value.error}`)
+        }
+
+        if (errors.length > 0) {
+          setMessage({ type: "error", text: `Some data failed to load: ${errors[0]}` })
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load notifications data:", err)
+      setMessage({ type: "error", text: "Failed to load notification data. Please try again." })
     }
 
     setIsLoading(false)
@@ -1719,12 +2092,12 @@ export default function NotificationsPage() {
             : "bg-rose-50 border-rose-200"
         }`}>
           {message.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0" />
           ) : (
             <XCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
           <p className={`text-[12px] font-medium ${
-            message.type === "success" ? "text-[#1a7a3a]" : "text-rose-700"
+            message.type === "success" ? "text-[var(--cloudact-mint-text)]" : "text-rose-700"
           }`}>
             {message.text}
           </p>
@@ -1787,7 +2160,7 @@ export default function NotificationsPage() {
               >
                 <div className="flex items-center gap-3 p-4">
                   <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-                    <Plus className="h-5 w-5 text-[#1a7a3a]" />
+                    <Plus className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
                   </div>
                   <div>
                     <div className="text-[13px] font-semibold text-[var(--text-primary)]">Add Channel</div>
@@ -2011,6 +2384,36 @@ export default function NotificationsPage() {
         loading={creating}
         channels={channels}
       />
+
+      {/* Edit Dialogs */}
+      {editingChannel && (
+        <EditChannelDialog
+          channel={editingChannel}
+          onClose={() => setEditingChannel(null)}
+          onSubmit={handleEditChannel}
+          loading={creating}
+        />
+      )}
+
+      {editingRule && (
+        <EditRuleDialog
+          rule={editingRule}
+          onClose={() => setEditingRule(null)}
+          onSubmit={handleEditRule}
+          loading={creating}
+          channels={channels}
+        />
+      )}
+
+      {editingSummary && (
+        <EditSummaryDialog
+          summary={editingSummary}
+          onClose={() => setEditingSummary(null)}
+          onSubmit={handleEditSummary}
+          loading={creating}
+          channels={channels}
+        />
+      )}
 
       {/* UX-003 FIX: Delete Confirmation Dialog */}
       <Dialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>

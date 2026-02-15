@@ -97,7 +97,8 @@ class TestOrgCache:
     def test_cache_expires_after_ttl(self):
         with patch("src.core.security.org_validator.execute_query", return_value=[{"1": 1}]) as mock_exec:
             validate_org("ttl_org")
-            _org_cache["ttl_org"] = (True, time.time() - 400)
+            # TTL is 3600s (1 hour), so set timestamp well past that
+            _org_cache["ttl_org"] = (True, time.time() - 3700)
             validate_org("ttl_org")
             assert mock_exec.call_count == 2
 

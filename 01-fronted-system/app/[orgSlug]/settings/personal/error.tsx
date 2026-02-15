@@ -43,7 +43,7 @@ export default function PersonalSettingsError({
           </div>
         </CardContent>
         <CardFooter className="flex justify-center gap-4">
-          <Button onClick={reset} className="bg-mint hover:bg-mint-dark text-black">
+          <Button onClick={reset} className="bg-mint hover:bg-[var(--cloudact-mint-dark)] text-black">
             <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </Button>

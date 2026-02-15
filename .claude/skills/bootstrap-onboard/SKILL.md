@@ -10,7 +10,7 @@ description: |
 
 ## Overview
 
-CloudAct uses a two-phase initialization: system bootstrap (**27 meta tables**) and org onboarding (20+ org tables + 4 materialized views).
+CloudAct uses a two-phase initialization: system bootstrap (**30 meta tables**) and org onboarding (20+ org tables + 4 materialized views).
 
 **Key Principle: Only ADD, never DELETE. Incremental schema evolution without data loss.**
 
@@ -58,7 +58,7 @@ gcloud logging read \
 
 | Scenario | Detection | Result |
 |----------|-----------|--------|
-| **Fresh** (no organizations dataset) | Auto-detect | Creates dataset + **27 tables** |
+| **Fresh** (no organizations dataset) | Auto-detect | Creates dataset + **30 tables** |
 | **Existing** (dataset exists, tables present) | Auto-detect | Sync: `Already in sync - no changes needed` |
 | **Conflict** (dataset exists, 0 tables) | Auto-fallback | Tries fresh → falls back to sync |
 
@@ -94,7 +94,7 @@ curl POST /api/v1/organizations/{org}/sync -d '{"sync_missing_tables":true,"sync
 CA_ROOT_API_KEY (system admin)
     │
     ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (27 tables)
+    │   └── One-time system initialization (30 tables)
     │
     ├── Bootstrap Status/Sync: GET/POST /api/v1/admin/bootstrap/status|sync
     │   └── Check sync status, add missing tables/columns
@@ -107,7 +107,7 @@ CA_ROOT_API_KEY (system admin)
 
 ## Phase 1: System Bootstrap
 
-### 27 Meta Tables (organizations dataset)
+### 30 Meta Tables (organizations dataset)
 
 | # | Table | Purpose |
 |---|-------|---------|
@@ -426,6 +426,16 @@ Pattern: ^[a-zA-Z0-9_]{3,50}$
 Requirements consolidated from:
 - `01_ORGANIZATION_ONBOARDING.md` (v1.8, 2026-02-08)
 - `cloudactinc_customer_onboarding.md` (2026-02-05)
+
+## Development Rules (Non-Negotiable)
+
+- **BigQuery best practices** - All bootstrap tables MUST have clustering and partitioning
+- **Multi-tenancy support** - Proper `org_slug` isolation. Dataset naming: `{org_slug}_prod`
+- **Enterprise-grade for 10k customers** - Must scale. Smart sync (incremental, not full recreate).
+- **Supabase best practices** - RLS, connection pooling, tight integration with auth
+- **No over-engineering** - Only ADD, never DELETE. Incremental schema evolution.
+- **Don't break existing functionality** - Run all tests before/after schema changes
+- **Update skills with learnings** - Document bootstrap patterns and fixes in skill files
 
 ## Related Skills
 

@@ -17,6 +17,21 @@ from google.cloud import bigquery
 from croniter import croniter
 
 from src.core.security.kms_encryption import encrypt_value, decrypt_value
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_json_loads(value: Any, field_name: str = "field") -> Any:
+    """Safely parse a JSON string, returning None on failure."""
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"Failed to parse JSON for {field_name}: {e}")
+        return None
 from .models import (
     ChannelType,
     RuleCategory,
@@ -45,8 +60,6 @@ from .models import (
     ScheduledAlertUpdate,
     AlertHistoryEntry,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class NotificationSettingsService:
@@ -483,9 +496,13 @@ class NotificationSettingsService:
             rules = []
             for row in results:
                 rule_data = dict(row)
-                # Parse conditions from JSON
+                # Parse conditions from JSON safely
                 if rule_data.get("conditions"):
-                    rule_data["conditions"] = RuleConditions.from_json(rule_data["conditions"])
+                    try:
+                        rule_data["conditions"] = RuleConditions.from_json(rule_data["conditions"])
+                    except (json.JSONDecodeError, TypeError, Exception) as e:
+                        logger.warning(f"Failed to parse rule conditions for rule {rule_data.get('rule_id')}: {e}")
+                        rule_data["conditions"] = None
                 rules.append(NotificationRule(**rule_data))
             return rules
         except Exception as e:
@@ -511,7 +528,11 @@ class NotificationSettingsService:
                 return None
             rule_data = dict(results[0])
             if rule_data.get("conditions"):
-                rule_data["conditions"] = RuleConditions.from_json(rule_data["conditions"])
+                try:
+                    rule_data["conditions"] = RuleConditions.from_json(rule_data["conditions"])
+                except (json.JSONDecodeError, TypeError, Exception) as e:
+                    logger.warning(f"Failed to parse rule conditions for rule {rule_id}: {e}")
+                    rule_data["conditions"] = None
             return NotificationRule(**rule_data)
         except Exception as e:
             logger.error(f"Failed to get rule {rule_id}: {e}")
@@ -732,7 +753,7 @@ class NotificationSettingsService:
             for row in results:
                 summary_data = dict(row)
                 if summary_data.get("hierarchy_filter"):
-                    summary_data["hierarchy_filter"] = json.loads(summary_data["hierarchy_filter"])
+                    summary_data["hierarchy_filter"] = _safe_json_loads(summary_data["hierarchy_filter"], "hierarchy_filter")
                 summaries.append(NotificationSummary(**summary_data))
             return summaries
         except Exception as e:
@@ -758,7 +779,7 @@ class NotificationSettingsService:
                 return None
             summary_data = dict(results[0])
             if summary_data.get("hierarchy_filter"):
-                summary_data["hierarchy_filter"] = json.loads(summary_data["hierarchy_filter"])
+                summary_data["hierarchy_filter"] = _safe_json_loads(summary_data["hierarchy_filter"], "hierarchy_filter")
             return NotificationSummary(**summary_data)
         except Exception as e:
             logger.error(f"Failed to get summary {summary_id}: {e}")
@@ -864,6 +885,9 @@ class NotificationSettingsService:
                 elif isinstance(value, int):
                     updates.append(f"{field} = @{field}")
                     params.append(bigquery.ScalarQueryParameter(field, "INT64", value))
+                elif isinstance(value, datetime):
+                    updates.append(f"{field} = @{field}")
+                    params.append(bigquery.ScalarQueryParameter(field, "TIMESTAMP", value))
                 else:
                     updates.append(f"{field} = @{field}")
                     params.append(bigquery.ScalarQueryParameter(field, "STRING", str(value)))
@@ -955,7 +979,7 @@ class NotificationSettingsService:
             for row in results:
                 entry_data = dict(row)
                 if entry_data.get("trigger_data"):
-                    entry_data["trigger_data"] = json.loads(entry_data["trigger_data"])
+                    entry_data["trigger_data"] = _safe_json_loads(entry_data["trigger_data"], "trigger_data")
                 history.append(NotificationHistoryEntry(**entry_data))
             return history
         except Exception as e:
@@ -981,7 +1005,7 @@ class NotificationSettingsService:
                 return None
             entry_data = dict(results[0])
             if entry_data.get("trigger_data"):
-                entry_data["trigger_data"] = json.loads(entry_data["trigger_data"])
+                entry_data["trigger_data"] = _safe_json_loads(entry_data["trigger_data"], "trigger_data")
             return NotificationHistoryEntry(**entry_data)
         except Exception as e:
             logger.error(f"Failed to get history entry {notification_id}: {e}")
@@ -1038,7 +1062,7 @@ class NotificationSettingsService:
             delivered = [h for h in history_24h if h.status == NotificationStatus.DELIVERED]
             pending_ack = [h for h in history_24h if h.notification_type == "alert" and not h.acknowledged_at]
 
-            delivery_rate = len(delivered) / len(history_24h) if history_24h else 0.0
+            delivery_rate = round((len(delivered) / len(history_24h)) * 100, 1) if history_24h else 0.0
 
             return NotificationStats(
                 total_channels=len(channels),
@@ -1090,16 +1114,23 @@ class NotificationSettingsService:
             alerts = []
             for row in results:
                 alert_data = dict(row)
-                # Parse JSON fields
+                # Parse JSON fields safely
                 if alert_data.get("source_params"):
-                    alert_data["source_params"] = json.loads(alert_data["source_params"])
+                    alert_data["source_params"] = _safe_json_loads(alert_data["source_params"], "source_params")
                 if alert_data.get("conditions"):
-                    alert_data["conditions"] = json.loads(alert_data["conditions"])
+                    parsed = _safe_json_loads(alert_data["conditions"], "conditions")
+                    if parsed is None:
+                        logger.warning(f"Skipping alert {alert_data.get('alert_id')} with malformed conditions")
+                        continue
+                    alert_data["conditions"] = parsed
                 if alert_data.get("recipient_config"):
-                    alert_data["recipient_config"] = json.loads(alert_data["recipient_config"])
+                    alert_data["recipient_config"] = _safe_json_loads(alert_data["recipient_config"], "recipient_config")
                 if alert_data.get("channel_config"):
-                    alert_data["channel_config"] = json.loads(alert_data["channel_config"])
-                alerts.append(ScheduledAlert(**alert_data))
+                    alert_data["channel_config"] = _safe_json_loads(alert_data["channel_config"], "channel_config")
+                try:
+                    alerts.append(ScheduledAlert(**alert_data))
+                except Exception as e:
+                    logger.warning(f"Skipping alert {alert_data.get('alert_id')} due to validation error: {e}")
             return alerts
         except Exception as e:
             logger.error(f"Failed to list scheduled alerts for {org_slug}: {e}")
@@ -1125,15 +1156,19 @@ class NotificationSettingsService:
             if not results:
                 return None
             alert_data = dict(results[0])
-            # Parse JSON fields
+            # Parse JSON fields safely
             if alert_data.get("source_params"):
-                alert_data["source_params"] = json.loads(alert_data["source_params"])
+                alert_data["source_params"] = _safe_json_loads(alert_data["source_params"], "source_params")
             if alert_data.get("conditions"):
-                alert_data["conditions"] = json.loads(alert_data["conditions"])
+                parsed = _safe_json_loads(alert_data["conditions"], "conditions")
+                if parsed is None:
+                    logger.warning(f"Alert {alert_id} has malformed conditions JSON")
+                    return None
+                alert_data["conditions"] = parsed
             if alert_data.get("recipient_config"):
-                alert_data["recipient_config"] = json.loads(alert_data["recipient_config"])
+                alert_data["recipient_config"] = _safe_json_loads(alert_data["recipient_config"], "recipient_config")
             if alert_data.get("channel_config"):
-                alert_data["channel_config"] = json.loads(alert_data["channel_config"])
+                alert_data["channel_config"] = _safe_json_loads(alert_data["channel_config"], "channel_config")
             return ScheduledAlert(**alert_data)
         except Exception as e:
             logger.error(f"Failed to get scheduled alert {alert_id}: {e}")
@@ -1390,9 +1425,9 @@ class NotificationSettingsService:
             for row in results:
                 entry_data = dict(row)
                 if entry_data.get("trigger_data"):
-                    entry_data["trigger_data"] = json.loads(entry_data["trigger_data"])
+                    entry_data["trigger_data"] = _safe_json_loads(entry_data["trigger_data"], "trigger_data")
                 if entry_data.get("condition_results"):
-                    entry_data["condition_results"] = json.loads(entry_data["condition_results"])
+                    entry_data["condition_results"] = _safe_json_loads(entry_data["condition_results"], "condition_results")
                 history.append(AlertHistoryEntry(**entry_data))
             return history
         except Exception as e:
@@ -1489,8 +1524,13 @@ class NotificationSettingsService:
                 return False  # Never triggered, not in cooldown
 
             last_triggered = results[0].last_triggered_at
+            # Ensure timezone-aware comparison
+            if last_triggered.tzinfo is None:
+                last_triggered = last_triggered.replace(tzinfo=timezone.utc)
+            else:
+                last_triggered = last_triggered.astimezone(timezone.utc)
             cooldown_until = last_triggered + timedelta(hours=cooldown_hours)
-            return datetime.now(timezone.utc) < cooldown_until.replace(tzinfo=timezone.utc)
+            return datetime.now(timezone.utc) < cooldown_until
         except Exception as e:
             logger.error(f"Failed to check alert cooldown: {e}")
             return False  # On error, allow trigger

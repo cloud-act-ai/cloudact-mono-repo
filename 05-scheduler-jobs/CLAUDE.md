@@ -57,7 +57,7 @@ Pipeline Request → cleanup_stale_concurrent_for_org(org_slug) → reserve_pipe
 | `cloudact-manual-bootstrap` | `jobs/manual/bootstrap_smart.py` | Smart: fresh if new, sync if exists | AFTER API deploy |
 | `cloudact-manual-org-sync-all` | `jobs/manual/org_sync_all.py` | Sync ALL org datasets | AFTER bootstrap |
 
-> **Note:** `bootstrap` is now a smart job that auto-detects whether to run fresh bootstrap (creates dataset + 27 tables) or sync (adds new columns to existing tables). No need for separate bootstrap-sync job.
+> **Note:** `bootstrap` is now a smart job that auto-detects whether to run fresh bootstrap (creates dataset + 30 tables) or sync (adds new columns to existing tables). No need for separate bootstrap-sync job.
 
 ### Scheduled Jobs (Daily)
 | Cloud Run Job | Script | Schedule | Purpose |

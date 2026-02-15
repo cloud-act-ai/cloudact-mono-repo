@@ -162,6 +162,15 @@ curl -s -X POST \
 | Token expired | Get new token from Supabase dashboard |
 | jq not installed | `brew install jq` |
 
+## Development Rules (Non-Negotiable)
+
+- **Supabase best practices** - RLS policies on all tables, connection pooling, tight auth integration
+- **Multi-tenancy support** - Proper `org_slug` isolation in all migration SQL
+- **Don't break existing functionality** - Always `--dry-run` first, then run migrations
+- **No over-engineering** - Simple, direct SQL migrations. No unnecessary abstractions.
+- **Enterprise-grade for 10k customers** - Migrations must scale. Use indexes, constraints properly.
+- **Update skills with learnings** - Document migration patterns and fixes in skill files
+
 ## Script Internals
 
 The `migrate.sh` script:

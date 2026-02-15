@@ -664,9 +664,10 @@ def classify_exception(exc: Exception) -> ConvergenceException:
             original_error=exc
         )
 
-    # Default: Transient error
-    return TransientError(
-        message=str(exc),
-        error_code=ErrorCode.SERVICE_UNAVAILABLE,
+    # Default: Permanent error (unknown exceptions like KeyError, AttributeError,
+    # RuntimeError are programming bugs that won't succeed on retry)
+    return PermanentError(
+        message=f"Unexpected error: {type(exc).__name__}: {exc}",
+        error_code=ErrorCode.INVALID_REQUEST,
         original_error=exc
     )

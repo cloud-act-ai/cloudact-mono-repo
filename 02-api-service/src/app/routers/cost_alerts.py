@@ -8,7 +8,7 @@ Provides a frontend-friendly interface that transforms to full ScheduledAlertCre
 import os
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Path
 
 from src.core.services.notification_crud import (
     get_notification_settings_service,
@@ -50,13 +50,17 @@ def _query_template_to_scope(template: QueryTemplate) -> CostAlertScope:
 
 def _alert_to_summary(alert: ScheduledAlert) -> CostAlertSummary:
     """Convert full ScheduledAlert to simplified CostAlertSummary."""
-    # Extract threshold from conditions
+    # Extract threshold from conditions safely
     threshold_value = 0.0
     threshold_currency = "USD"
-    if alert.conditions:
+    if alert.conditions and isinstance(alert.conditions, list) and len(alert.conditions) > 0:
         first_condition = alert.conditions[0]
-        threshold_value = first_condition.value
-        threshold_currency = first_condition.unit
+        if isinstance(first_condition, dict):
+            threshold_value = first_condition.get("value", 0.0) or 0.0
+            threshold_currency = first_condition.get("unit", "USD") or "USD"
+        else:
+            threshold_value = getattr(first_condition, "value", 0.0) or 0.0
+            threshold_currency = getattr(first_condition, "unit", "USD") or "USD"
 
     # Determine scope from query template
     scope = _query_template_to_scope(alert.source_query_template)
@@ -384,7 +388,7 @@ async def disable_cost_alert(
 )
 async def bulk_enable_cost_alerts(
     org_slug: str = Path(..., description="Organization slug"),
-    alert_ids: List[str] = ...,
+    alert_ids: List[str] = Body(..., description="List of alert IDs to enable"),
     current_org: dict = Depends(get_current_org),
 ):
     """Enable multiple cost alerts."""
@@ -419,7 +423,7 @@ async def bulk_enable_cost_alerts(
 )
 async def bulk_disable_cost_alerts(
     org_slug: str = Path(..., description="Organization slug"),
-    alert_ids: List[str] = ...,
+    alert_ids: List[str] = Body(..., description="List of alert IDs to disable"),
     current_org: dict = Depends(get_current_org),
 ):
     """Disable multiple cost alerts."""

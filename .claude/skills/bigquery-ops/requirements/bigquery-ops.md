@@ -15,7 +15,7 @@ Cost data architecture spanning all three cost types (Cloud, GenAI, SaaS Subscri
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Bootstrap (Cloud Run Job)                                              │
-│  Creates: organizations dataset (27 meta tables)                        │
+│  Creates: organizations dataset (30 meta tables)                        │
 │  Stored procedures, pricing tables, system config                       │
 └─────────────────────┬───────────────────────────────────────────────────┘
                       │
@@ -23,7 +23,7 @@ Cost data architecture spanning all three cost types (Cloud, GenAI, SaaS Subscri
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  BigQuery: organizations (system dataset)                               │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │ 27 meta tables (org_subscriptions, genai_payg_pricing, etc.)      │  │
+│  │ 30 meta tables (org_subscriptions, genai_payg_pricing, etc.)      │  │
 │  │ Stored procedures (sp_cloud_*, sp_genai_*, sp_subscription_*)     │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────┬───────────────────────────────────────────────────┘
@@ -213,7 +213,7 @@ Frontend (3000) <-- Server Actions <-- API Service (8000) <-- Polars + Cache
 | Layer | Tool | Scope |
 |-------|------|-------|
 | Schema validation | pytest | JSON schema files parse correctly, required fields present |
-| Bootstrap | pytest + BigQuery | 27 meta tables created, stored procedures deployed |
+| Bootstrap | pytest + BigQuery | 30 meta tables created, stored procedures deployed |
 | Onboarding | pytest + BigQuery | Per-org dataset created with 30+ tables, correct schema |
 | Stored procedures | pytest + BigQuery | FOCUS conversion output, consolidation correctness |
 | Polars read layer | pytest | Query results match expected aggregations, cache behavior |

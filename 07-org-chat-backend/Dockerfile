@@ -21,11 +21,13 @@ COPY --from=builder /install /usr/local
 COPY --chown=appuser:appuser . .
 
 ARG TARGET_ENV=local
+ARG VERSION=unknown
 
 USER appuser
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV RELEASE_VERSION=${VERSION}
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:${PORT:-8002}/health || exit 1

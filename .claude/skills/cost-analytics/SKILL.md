@@ -597,6 +597,15 @@ cd 01-fronted-system && npm run test
 Requirements consolidated from:
 - `03_DASHBOARD_ANALYTICS.md` - Dashboard analytics
 
+## Development Rules (Non-Negotiable)
+
+- **LRU in-memory cache** - NO Redis at all. Backend uses Polars LRU (L1/L2). Frontend uses React state.
+- **Multi-tenancy support** - Cache keys MUST include `org_slug`. Auth cache MUST include `userId`.
+- **Enterprise-grade for 10k customers** - Must scale. Memory-bounded caches (512MB L1, 128MB L2).
+- **No over-engineering** - Simple filter logic. Don't add caching layers or abstractions beyond current pattern.
+- **Don't break existing functionality** - Run `npm run build` and all tests before/after changes
+- **BigQuery best practices** - Parameterized queries, partition pruning, clustering-first filters
+
 ## Related Skills
 
 - `cost-analysis` - FOCUS 1.3 standard, calculation formulas

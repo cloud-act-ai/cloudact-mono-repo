@@ -172,7 +172,7 @@ Quick reference for triggering each skill with example prompts.
 
 # Verification
 "Verify bootstrap completed successfully"
-"Check if all 27 meta tables exist"
+"Check if all 30 meta tables exist"
 "Confirm org dataset was created"
 
 # Troubleshooting

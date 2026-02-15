@@ -194,8 +194,8 @@ export default function CloudCostsPage() {
         if (timeRange === "custom" && customRange) {
           startDate = new Date(customRange.startDate)
           endDate.setTime(new Date(customRange.endDate).getTime())
-        } else if (typeof timeRange === "number") {
-          startDate.setDate(startDate.getDate() - timeRange)
+        } else if (["7","14","30","90","365"].includes(timeRange)) {
+          startDate.setDate(startDate.getDate() - parseInt(timeRange, 10))
         } else if (timeRange === "mtd") {
           startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
         } else if (timeRange === "ytd") {
@@ -393,7 +393,7 @@ export default function CloudCostsPage() {
           <CostRingChart
             title="Cloud Spend"
             segments={ringSegments}
-            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "qtd" ? "QTD" : timeRange === "custom" ? "Custom" : timeRange === "last_month" ? "Last Mo" : `${timeRange}d`}
             insight={`Spending across ${ringSegments.length} cloud provider${ringSegments.length > 1 ? "s" : ""}.`}
             size={200}
             thickness={22}
@@ -416,9 +416,9 @@ export default function CloudCostsPage() {
 
       {/* FOCUS 1.3 Cost Breakdown (FinOps Standard) */}
       {totalCosts?.cloud && (
-        <Card className="border-slate-200 animate-fade-up animation-delay-300">
+        <Card className="border-[var(--border-subtle)] animate-fade-up animation-delay-300">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-slate-900">
+            <CardTitle className="text-base font-semibold text-[var(--text-primary)]">
               Cost Breakdown (FOCUS 1.3)
             </CardTitle>
             <CardDescription>
@@ -428,14 +428,14 @@ export default function CloudCostsPage() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
               {/* BilledCost - Gross cost */}
-              <div className="text-center p-3 sm:p-4 rounded-lg bg-slate-50">
-                <p className="text-xs sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+              <div className="text-center p-3 sm:p-4 rounded-lg bg-[var(--surface-secondary)]">
+                <p className="text-xs sm:text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-1">
                   BilledCost
                 </p>
-                <p className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums">
+                <p className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
                   {formatCost(totalCosts.cloud.total_billed_cost ?? totalCosts.cloud.mtd_cost ?? 0, orgCurrency)}
                 </p>
-                <p className="text-xs sm:text-xs text-slate-400 mt-1">Gross (before credits)</p>
+                <p className="text-xs sm:text-xs text-[var(--text-muted)] mt-1">Gross (before credits)</p>
               </div>
 
               {/* Savings - Credits applied */}

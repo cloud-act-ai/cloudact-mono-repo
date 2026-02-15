@@ -146,7 +146,7 @@ gcloud run jobs executions list --region=us-central1 --project=cloudact-prod --l
 2. Read job logs (see monitoring skill)
 3. Verify GCP credentials are active
 4. Check if `organizations` dataset exists in BQ console
-5. Verify 27 meta tables present
+5. Verify 30 meta tables present
 
 ### Quota Issues
 1. Check current quota:
@@ -183,6 +183,16 @@ gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-pr
 | `source .env.local` + `npx tsx` | Env vars don't propagate. Use inline: `VAR=$(grep ...) npx tsx ...` |
 | GCP credential paths | ABSOLUTE paths only: `/Users/openclaw/.gcp/` (NOT `~/.gcp/`) |
 
+## Development Rules (Non-Negotiable)
+
+- **No over-engineering** - Simple, direct fixes. Fix the root cause, don't add workarounds.
+- **Multi-tenancy support** - Always check `org_slug` isolation when debugging data issues
+- **Don't break existing functionality** - Run all tests before/after applying fixes
+- **ZERO mock tests** - Validate fixes against real services, not mocks
+- **Update skills with learnings** - Document new error patterns and fixes in skill files
+- **LRU in-memory cache** - NO Redis. If debugging cache issues, it's always LRU-based.
+- **Enterprise-grade for 10k customers** - Fixes must scale. No single-org workarounds.
+
 ## Related Skills
 - `/monitoring` - Logs, health checks, observability
 - `/pipeline-ops` - Pipeline-specific debugging
@@ -192,4 +202,4 @@ gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-pr
 - `/security-audit` - Auth and security issues
 
 ---
-**Last Updated:** 2026-02-12
+**Last Updated:** 2026-02-14

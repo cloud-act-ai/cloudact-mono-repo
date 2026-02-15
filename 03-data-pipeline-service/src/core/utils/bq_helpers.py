@@ -457,10 +457,10 @@ async def _batch_load(
     Returns:
         InsertResult with counts
     """
-    # Convert to newline-delimited JSON
-    json_buffer = io.StringIO()
+    # Convert to newline-delimited JSON (BytesIO required by load_table_from_file)
+    json_buffer = io.BytesIO()
     for row in rows:
-        json_buffer.write(json.dumps(row, default=str) + "\n")
+        json_buffer.write((json.dumps(row, default=str) + "\n").encode("utf-8"))
     json_buffer.seek(0)
 
     # Configure load job

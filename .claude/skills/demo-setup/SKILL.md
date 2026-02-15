@@ -724,7 +724,7 @@ Stripe → /onboarding/success?session_id=... → completeOnboarding() server ac
 
 ### Bootstrap
 
-**DO:** Run `POST /admin/bootstrap/sync` if missing tables are reported. Bootstrap creates 27 tables (23 core + 4 chat).
+**DO:** Run `POST /admin/bootstrap/sync` if missing tables are reported. Bootstrap creates 30 tables (26 core + 4 chat).
 
 **DON'T:** Block onboarding on missing `org_chat_*` tables — they're non-critical. Code filters them out automatically.
 

@@ -46,6 +46,7 @@ import {
   getUserInitials,
   formatUserName,
 } from "@/lib/nav-data"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
   orgSlug: string
@@ -367,6 +368,9 @@ export function DashboardSidebar({
       {/* Footer */}
       <SidebarFooter className="px-0 py-2 mt-auto border-t border-[var(--border-subtle)]">
         <SidebarMenu className="gap-0">
+
+          {/* Theme Toggle */}
+          <ThemeToggle collapsed={isCollapsed} />
 
           {/* User Profile - Clickable to navigate to profile page */}
           {!isCollapsed && (

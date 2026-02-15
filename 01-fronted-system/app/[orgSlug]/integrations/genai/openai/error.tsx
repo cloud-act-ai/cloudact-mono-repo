@@ -18,7 +18,7 @@ export default function Error({
       </p>
       <button
         onClick={reset}
-        className="h-11 px-4 bg-mint text-black rounded-xl hover:bg-mint-dark transition-colors"
+        className="h-11 px-4 bg-mint text-black rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors"
       >
         Try again
       </button>

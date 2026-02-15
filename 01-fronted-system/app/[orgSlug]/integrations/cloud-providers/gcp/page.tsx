@@ -564,7 +564,7 @@ export default function GCPIntegrationPage() {
                   onDragLeave={handleDragLeave}
                   onClick={() => fileInputRef.current?.click()}
                   className={`
-                    relative overflow-hidden border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all bg-white
+                    relative overflow-hidden border-[3px] border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all bg-white
                     ${isDragging
                       ? "border-[#90FCA6] bg-[#90FCA6]/10 scale-[1.02]"
                       : "border-[var(--border-medium)] hover:border-[#90FCA6] hover:bg-[var(--surface-secondary)]"

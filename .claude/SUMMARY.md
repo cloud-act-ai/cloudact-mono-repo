@@ -188,7 +188,7 @@
 |------|------|--------|---------|
 | `settings.json` | Permission | Deny | Block `rm -rf`, `DROP DATABASE` |
 | `validate-integration-code.py` | PreToolUse | Deny | Prevent Supabase integration writes |
-| `org-slug-isolation` | Hookify | Warn | 27 meta tables, field naming (org_slug vs x_org_slug) |
+| `org-slug-isolation` | Hookify | Warn | 30 meta tables, field naming (org_slug vs x_org_slug) |
 | `pipeline-metadata-fields` | Hookify | Warn | x_* fields, service boundaries |
 | `notification-service` | Hookify | Warn | Notification architecture (CRUD vs Sending) |
 | `service-integration-standards` | Hookify | Warn | Deployment, directories, 3-service arch |
@@ -210,7 +210,7 @@
 
 ```
 Frontend (3000)              API Service (8000)           Pipeline Service (8001)
-├─ Next.js 16 + Supabase     ├─ Bootstrap (27 tables)     ├─ Run pipelines
+├─ Next.js 16 + Supabase     ├─ Bootstrap (30 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
 ├─ AI Chat (CopilotKit)      ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
 ├─ Quota warnings            ├─ Hierarchy CRUD            └─ BigQuery writes
@@ -239,7 +239,7 @@ Chat Backend (8002)                     ↓
 
 | Dataset | Field | Example Tables |
 |---------|-------|----------------|
-| `organizations` (meta - 27 tables) | `org_slug` | org_profiles, org_api_keys, org_notification_* |
+| `organizations` (meta - 30 tables) | `org_slug` | org_profiles, org_api_keys, org_notification_* |
 | `{org_slug}_prod` (customer - 19 tables) | `x_org_slug` | genai_*, cloud_*, cost_data_standard_1_3 |
 
 **Rule:** Customer datasets ALWAYS use `x_` prefix:

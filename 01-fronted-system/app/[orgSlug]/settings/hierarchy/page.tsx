@@ -85,12 +85,12 @@ const LEVEL_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
 
 const LEVEL_COLORS: Record<string, { icon: string; bg: string; badge: string }> = {
   // Old level codes
-  department: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
-  project: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
+  department: { icon: "text-[var(--cloudact-mint-text)]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[var(--cloudact-mint-text)]" },
+  project: { icon: "text-[var(--cloudact-coral)]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[var(--cloudact-coral)]" },
   team: { icon: "text-[var(--text-secondary)]", bg: "bg-[var(--surface-secondary)]", badge: "bg-[var(--surface-secondary)] text-[var(--text-secondary)]" },
   // New N-level codes
-  c_suite: { icon: "text-[#1a7a3a]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[#1a7a3a]" },
-  business_unit: { icon: "text-[#FF6C5E]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[#FF6C5E]" },
+  c_suite: { icon: "text-[var(--cloudact-mint-text)]", bg: "bg-[#90FCA6]/15", badge: "bg-[#90FCA6]/15 text-[var(--cloudact-mint-text)]" },
+  business_unit: { icon: "text-[var(--cloudact-coral)]", bg: "bg-[#FF6C5E]/10", badge: "bg-[#FF6C5E]/10 text-[var(--cloudact-coral)]" },
   function: { icon: "text-[var(--text-secondary)]", bg: "bg-[var(--surface-secondary)]", badge: "bg-[var(--surface-secondary)] text-[var(--text-secondary)]" },
 }
 
@@ -430,7 +430,7 @@ export default function HierarchySettingsPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-lg hover:bg-[#90FCA6]/15 hover:text-[#1a7a3a] transition-colors"
+                className="h-7 w-7 rounded-lg hover:bg-[#90FCA6]/15 hover:text-[var(--cloudact-mint-text)] transition-colors"
                 onClick={(e) => {
                   e.stopPropagation()
                   openCreateDialog(childLevel.level_code, node.entity_id)
@@ -456,7 +456,7 @@ export default function HierarchySettingsPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
+              className="h-7 w-7 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[var(--cloudact-coral)] transition-colors"
               onClick={(e) => {
                 e.stopPropagation()
                 openDeleteDialog(node.entity_id, node.entity_name, node.level_code)
@@ -513,7 +513,7 @@ export default function HierarchySettingsPage() {
       <div className="space-y-4 sm:space-y-6 lg:space-y-8">
         <div className="flex items-start gap-3 sm:gap-4">
           <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-            <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+            <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
           </div>
           <div>
             <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -534,7 +534,7 @@ export default function HierarchySettingsPage() {
       {/* Premium Header */}
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-          <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+          <Network className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
         </div>
         <div>
           <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -596,7 +596,7 @@ export default function HierarchySettingsPage() {
           <TabsList className="w-full sm:w-auto flex gap-0.5 sm:gap-1 -mb-px h-auto bg-transparent p-0 overflow-x-auto scrollbar-hide">
             <TabsTrigger
               value="tree"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[var(--cloudact-mint-text)] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
             >
               <Network className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Org Structure</span>
@@ -608,7 +608,7 @@ export default function HierarchySettingsPage() {
                 <TabsTrigger
                   key={level.level_code}
                   value={level.level_code}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-slate-300 data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[#1a7a3a] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation rounded-none data-[state=inactive]:border-transparent data-[state=inactive]:text-[var(--text-tertiary)] data-[state=inactive]:hover:text-[var(--text-secondary)] data-[state=inactive]:hover:border-[var(--border-medium)] data-[state=inactive]:bg-transparent data-[state=active]:border-[var(--cloudact-mint-dark)] data-[state=active]:text-[var(--cloudact-mint-text)] data-[state=active]:bg-[var(--cloudact-mint)]/5 data-[state=active]:shadow-none"
                 >
                   <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="hidden sm:inline">{level.level_name_plural}</span>
@@ -688,7 +688,7 @@ export default function HierarchySettingsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 rounded-lg hover:bg-[#90FCA6]/10 hover:text-[#1a7a3a] transition-colors"
+                                  className="h-8 w-8 rounded-lg hover:bg-[#90FCA6]/10 hover:text-[var(--cloudact-mint-text)] transition-colors"
                                   onClick={() => openCreateDialog(childLevel.level_code, entity.entity_id)}
                                   title={`Add ${childLevel.level_name}`}
                                 >
@@ -707,7 +707,7 @@ export default function HierarchySettingsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E] transition-colors"
+                                className="h-8 w-8 rounded-lg hover:bg-[#FF6C5E]/10 hover:text-[var(--cloudact-coral)] transition-colors"
                                 onClick={() => openDeleteDialog(entity.entity_id, entity.entity_name, entity.level_code)}
                               >
                                 <Trash2 className="h-4 w-4" />

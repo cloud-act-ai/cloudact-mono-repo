@@ -765,7 +765,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
     throw new BackendAPIError(
       response.status,
-      (errorData.detail as string) || `HTTP ${response.status}: ${response.statusText}`,
+      (typeof errorData.detail === 'string' ? errorData.detail : Array.isArray(errorData.detail) ? errorData.detail.map((e: { msg?: string }) => e.msg || JSON.stringify(e)).join('; ') : `HTTP ${response.status}: ${response.statusText}`),
       retryAfter,
       errorData
     )

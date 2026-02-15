@@ -6,6 +6,7 @@ pydantic-settings>=2.10.0
 
 # Google Cloud Platform
 google-cloud-bigquery==3.14.1
+google-cloud-bigquery-storage==2.25.0
 google-cloud-secret-manager==2.18.1
 google-cloud-logging==3.9.0
 google-cloud-trace==1.12.0

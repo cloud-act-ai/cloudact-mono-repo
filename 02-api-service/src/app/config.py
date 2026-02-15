@@ -138,7 +138,7 @@ def _get_app_version() -> str:
     if env_val := os.environ.get("APP_VERSION"):
         return env_val
     version_info = _get_version_info()
-    return version_info.get("version", "v4.1.2")
+    return version_info.get("version", "v4.4.4")
 
 
 def _get_release_version() -> str:
@@ -146,7 +146,7 @@ def _get_release_version() -> str:
     if env_val := os.environ.get("RELEASE_VERSION"):
         return env_val
     version_info = _get_version_info()
-    return version_info.get("release", "v4.1.2")
+    return version_info.get("release", "v4.4.4")
 
 
 def _get_release_timestamp() -> str:

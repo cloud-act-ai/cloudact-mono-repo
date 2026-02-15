@@ -59,7 +59,7 @@ gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-pr
 ### API Service Testing
 ```
 02-api-service/tests/
-├── test_bootstrap.py         # 27 meta table creation
+├── test_bootstrap.py         # 30 meta table creation
 ├── test_organizations.py     # Org onboarding
 ├── test_integrations.py      # Provider integrations
 ├── test_subscriptions.py     # SaaS subscriptions
@@ -324,6 +324,16 @@ python -m pytest tests/ -v -k "cost and not integration"
 
 Requirements consolidated from:
 - `05_TESTING.md` - Testing strategy
+
+## Development Rules (Non-Negotiable)
+
+- **ZERO mock tests** - All tests must hit real services (BigQuery, Supabase, APIs). No `jest.mock()`, no `unittest.mock` for core logic.
+- **Parallel test execution** - Use `pytest-xdist` (`-n auto`) for backend tests
+- **Run all tests before/after** - Don't break existing functionality. Full suite validation required.
+- **No over-engineering** - Simple, direct test fixtures. No unnecessary abstractions.
+- **Multi-tenancy isolation** - All test fixtures must use unique `org_slug` to prevent cross-org contamination
+- **Enterprise-grade for 10k customers** - Tests must validate at scale (multi-org, multi-currency fixtures)
+- **Update skills with learnings** - Document test patterns and fixes in skill files
 
 ## Related Skills
 - `config-validator` - Validate test configs

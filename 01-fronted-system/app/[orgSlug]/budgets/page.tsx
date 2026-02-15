@@ -256,8 +256,12 @@ function BudgetFormDialog({
 
   function handleEqualSplit() {
     if (allocRows.length === 0) return
-    const equalPct = Math.floor((100 / allocRows.length) * 100) / 100
-    setAllocRows((rows) => rows.map((r) => ({ ...r, percentage: String(equalPct) })))
+    const basePct = Math.floor((100 / allocRows.length) * 100) / 100
+    const remainder = Math.round((100 - basePct * allocRows.length) * 100) / 100
+    setAllocRows((rows) => rows.map((r, i) => ({
+      ...r,
+      percentage: String(i === rows.length - 1 ? Math.round((basePct + remainder) * 100) / 100 : basePct),
+    })))
   }
 
   function updateAllocPercentage(idx: number, value: string) {
@@ -722,7 +726,7 @@ function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle>Delete Budget</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete the budget for <strong>{budgetName}</strong>? This action can be undone by an admin.
+            Are you sure you want to delete the budget for <strong>{budgetName}</strong>? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

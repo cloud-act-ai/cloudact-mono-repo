@@ -276,7 +276,7 @@ kill %1
 | .env.local files present | 3/3 services configured |
 | Health checks passing | 3/3 services return OK |
 | API docs accessible | 2/2 Swagger UIs load |
-| Bootstrap succeeds | 27 meta tables created |
+| Bootstrap succeeds | 30 meta tables created |
 | Docker Compose valid | Config parses, services start |
 
 ## Known Limitations

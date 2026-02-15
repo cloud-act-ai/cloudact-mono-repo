@@ -19,11 +19,14 @@ Configuration:
 """
 
 import logging
+import io
 import json
+import math
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
+import google.cloud.exceptions
 from google.cloud import bigquery
 from google.cloud.bigquery import SchemaField
 
@@ -181,7 +184,7 @@ class BQLoader:
         try:
             table = self.bq_client.client.get_table(table_id)
             return table
-        except Exception:
+        except google.cloud.exceptions.NotFound:
             # Table doesn't exist, create it
             pass
 
@@ -249,8 +252,10 @@ class BQLoader:
                 break
 
         if not schema_file:
-            logger.warning(f"Schema template {template_name} not found, inferring schema")
-            return []
+            raise FileNotFoundError(
+                f"Schema template '{template_name}' not found. "
+                f"Searched: {possible_paths}"
+            )
 
         try:
             with open(schema_file, 'r') as f:
@@ -305,28 +310,29 @@ class BQLoader:
         partition_field: Optional[str] = None
     ) -> int:
         """Load rows into BigQuery table."""
-        # Add ingestion timestamp if not present
+        # Add ingestion timestamp without mutating input rows
+        now = datetime.now(timezone.utc).isoformat()
+        load_rows = []
         for row in rows:
-            if "ingestion_timestamp" not in row:
-                row["ingestion_timestamp"] = datetime.now(timezone.utc).isoformat()
+            r = row.copy()
+            if "ingestion_timestamp" not in r:
+                r["ingestion_timestamp"] = now
+            load_rows.append(r)
 
         job_config = bigquery.LoadJobConfig(
             write_disposition=write_disposition,
             source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
         )
 
-        # Convert to JSON lines
-        json_data = "\n".join(json.dumps(row) for row in rows)
-
         job = self.bq_client.client.load_table_from_json(
-            rows,
+            load_rows,
             table_id,
             job_config=job_config
         )
 
         job.result()  # Wait for job to complete
 
-        return len(rows)
+        return len(load_rows)
 
     async def _load_data_idempotent(
         self,
@@ -339,8 +345,9 @@ class BQLoader:
         """
         CRUD-001 FIX: Load rows using MERGE for idempotent writes.
 
-        Uses BigQuery MERGE with UNNEST pattern (correct approach, no temp tables).
-        This prevents duplicate data on pipeline re-runs.
+        Uses a staging temp table + MERGE pattern to prevent SQL injection.
+        Rows are loaded into a temp table via load_table_from_json (no string
+        interpolation of values), then MERGE'd into the target table.
 
         Args:
             table_id: Full BigQuery table ID
@@ -355,84 +362,91 @@ class BQLoader:
         if not rows:
             return 0
 
-        # Add lineage columns for traceability
+        # Add lineage columns without mutating input rows
         run_id = context.get("run_id") or str(uuid.uuid4())
         pipeline_id = context.get("pipeline_id", "generic_bq_loader")
         credential_id = context.get("credential_id", "default")
         run_date = context.get("start_date") or datetime.now(timezone.utc).date().isoformat()
         ingested_at = datetime.now(timezone.utc).isoformat()
 
+        enriched_rows = []
         for row in rows:
+            r = row.copy()
             # PIPE-004 FIX: Always force org_slug from context for multi-tenant isolation
-            # Never trust row data - always override with authenticated context value
-            row["org_slug"] = org_slug  # Forced from context, not row.get()
-            row["x_pipeline_id"] = pipeline_id  # Forced from context
-            row["x_credential_id"] = credential_id  # Forced from context
-            row["x_pipeline_run_date"] = row.get("x_pipeline_run_date", run_date)
-            row["x_run_id"] = run_id  # Forced from context
-            row["x_ingested_at"] = ingested_at  # Always current timestamp
+            r["org_slug"] = org_slug
+            r["x_pipeline_id"] = pipeline_id
+            r["x_credential_id"] = credential_id
+            r["x_pipeline_run_date"] = r.get("x_pipeline_run_date", run_date)
+            r["x_run_id"] = run_id
+            r["x_ingested_at"] = ingested_at
+
+            # Validate numeric values (reject inf/nan which can't be loaded)
+            for k, v in r.items():
+                if isinstance(v, float) and (math.isinf(v) or math.isnan(v)):
+                    r[k] = None
+            enriched_rows.append(r)
 
         try:
             client = self.bq_client.client
             total_affected = 0
 
-            # Process in batches (UNNEST has practical limits ~500 rows)
+            # Process in batches
             batch_size = 500
-            for i in range(0, len(rows), batch_size):
-                batch = rows[i:i + batch_size]
+            for i in range(0, len(enriched_rows), batch_size):
+                batch = enriched_rows[i:i + batch_size]
 
-                # Get column names from first row
-                columns = list(batch[0].keys())
-                update_columns = [c for c in columns if c not in merge_keys]
+                # Create a temp staging table
+                temp_suffix = uuid.uuid4().hex[:8]
+                temp_table_id = f"{table_id}_staging_{temp_suffix}"
 
-                # Build UNNEST source with proper value escaping
-                struct_values = []
-                for row in batch:
-                    field_values = []
-                    for col in columns:
-                        val = row.get(col)
-                        if val is None:
-                            field_values.append(f"CAST(NULL AS STRING) as {col}")
-                        elif isinstance(val, bool):
-                            field_values.append(f"{'TRUE' if val else 'FALSE'} as {col}")
-                        elif isinstance(val, (int, float)):
-                            field_values.append(f"{val} as {col}")
-                        elif col.endswith("_date") or col == "x_pipeline_run_date":
-                            field_values.append(f"DATE('{val}') as {col}")
-                        elif col == "x_ingested_at" or col == "ingestion_timestamp":
-                            field_values.append(f"TIMESTAMP('{val}') as {col}")
-                        else:
-                            escaped = str(val).replace("'", "''")
-                            field_values.append(f"'{escaped}' as {col}")
-                    struct_values.append(f"STRUCT({', '.join(field_values)})")
+                try:
+                    # Load batch into staging table via load_table_from_json
+                    # This is safe: no SQL string interpolation of row values
+                    load_config = bigquery.LoadJobConfig(
+                        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+                        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+                        autodetect=True,
+                    )
 
-                unnest_source = ", ".join(struct_values)
+                    load_job = client.load_table_from_json(
+                        batch, temp_table_id, job_config=load_config
+                    )
+                    load_job.result()
 
-                # Build MERGE ON clause
-                on_clause = " AND ".join([
-                    f"COALESCE(CAST(T.{k} AS STRING), '') = COALESCE(CAST(S.{k} AS STRING), '')"
-                    for k in merge_keys
-                ])
+                    # Build MERGE from staging table (only table/column names, no values)
+                    columns = list(batch[0].keys())
+                    update_columns = [c for c in columns if c not in merge_keys]
 
-                update_set = ", ".join([f"{c} = S.{c}" for c in update_columns]) if update_columns else "x_ingested_at = S.x_ingested_at"
-                insert_columns = ", ".join(columns)
-                insert_values = ", ".join([f"S.{c}" for c in columns])
+                    on_clause = " AND ".join([
+                        f"COALESCE(CAST(T.{k} AS STRING), '') = COALESCE(CAST(S.{k} AS STRING), '')"
+                        for k in merge_keys
+                    ])
+                    update_set = (
+                        ", ".join([f"{c} = S.{c}" for c in update_columns])
+                        if update_columns
+                        else "x_ingested_at = S.x_ingested_at"
+                    )
+                    insert_columns = ", ".join(columns)
+                    insert_values = ", ".join([f"S.{c}" for c in columns])
 
-                # MERGE using UNNEST - correct BigQuery pattern
-                merge_query = f"""
-                    MERGE `{table_id}` T
-                    USING UNNEST([{unnest_source}]) S
-                    ON {on_clause}
-                    WHEN MATCHED THEN
-                        UPDATE SET {update_set}
-                    WHEN NOT MATCHED THEN
-                        INSERT ({insert_columns})
-                        VALUES ({insert_values})
-                """
+                    merge_query = f"""
+                        MERGE `{table_id}` T
+                        USING `{temp_table_id}` S
+                        ON {on_clause}
+                        WHEN MATCHED THEN
+                            UPDATE SET {update_set}
+                        WHEN NOT MATCHED THEN
+                            INSERT ({insert_columns})
+                            VALUES ({insert_values})
+                    """
 
-                job = client.query(merge_query)
-                job.result()
-                total_affected += job.num_dml_affected_rows or len(batch)
+                    job = client.query(merge_query)
+                    job.result()
+                    total_affected += job.num_dml_affected_rows or len(batch)
+
+                finally:
+                    # Always clean up staging table
+                    client.delete_table(temp_table_id, not_found_ok=True)
 
             logger.info(
                 f"Idempotent MERGE load complete",

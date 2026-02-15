@@ -872,7 +872,12 @@ export async function runAllOrgPipelines(
       return { success: false, error: `API error (${response.status}): ${text.slice(0, 200)}` }
     }
 
-    const result = await response.json()
+    let result
+    try {
+      result = await response.json()
+    } catch {
+      return { success: false, error: "Failed to parse response" }
+    }
     return {
       success: true,
       batch_run_id: result.batch_run_id,
@@ -965,7 +970,12 @@ export async function getBatchRuns(
       return { success: false, error: `API error (${response.status})` }
     }
 
-    const result = await response.json()
+    let result
+    try {
+      result = await response.json()
+    } catch {
+      return { success: false, error: "Failed to parse response" }
+    }
     return {
       success: true,
       runs: result.runs,

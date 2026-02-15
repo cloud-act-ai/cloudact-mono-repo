@@ -401,7 +401,7 @@ export default function GenAIRunsPage() {
             <div className="text-[12px] font-medium text-[var(--text-primary)]">
               {formatDuration(row.duration_ms)}
             </div>
-            <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
+            <div className="h-1.5 w-24 bg-[var(--border-medium)] rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full ${getDurationColor()}`}
                 style={{ width: getDurationWidth(row.duration_ms) }}
@@ -426,8 +426,8 @@ export default function GenAIRunsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Page Header */}
       <div className="flex items-start gap-3 sm:gap-4">
-        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-          <Brain className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/30 to-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[var(--cloudact-mint)]/20">
+          <Brain className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
         </div>
         <div>
           <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -476,13 +476,13 @@ export default function GenAIRunsPage() {
           }`}
         >
           {lastResult.success ? (
-            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0" />
           ) : (
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
           <p
             className={`text-[12px] font-medium ${
-              lastResult.success ? "text-[#1a7a3a]" : "text-rose-700"
+              lastResult.success ? "text-[var(--cloudact-mint-text)]" : "text-rose-700"
             }`}
           >
             {lastResult.message}
@@ -506,7 +506,7 @@ export default function GenAIRunsPage() {
                   flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-[11px] sm:text-[13px] font-medium whitespace-nowrap border-b-2 transition-all touch-manipulation
                   ${
                     isActive
-                      ? "border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5"
+                      ? "border-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)] bg-[var(--cloudact-mint)]/5"
                       : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:border-[var(--border-medium)]"
                   }
                 `}
@@ -521,7 +521,7 @@ export default function GenAIRunsPage() {
                 <span
                   className={`
                   inline-flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-4 sm:h-5 px-1 sm:px-1.5 rounded-full text-xs sm:text-[11px] font-semibold
-                  ${isActive ? "bg-[var(--cloudact-mint)] text-[#1a7a3a]" : "bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"}
+                  ${isActive ? "bg-[var(--cloudact-mint)] text-[var(--cloudact-mint-text)]" : "bg-[var(--surface-secondary)] text-[var(--text-tertiary)]"}
                 `}
                 >
                   {tabPipelineCount}
@@ -562,7 +562,7 @@ export default function GenAIRunsPage() {
               size="lg"
             />
           ) : (
-            <div className="divide-y divide-[#E5E5EA]">
+            <div className="divide-y divide-[var(--border-medium)]">
               {tabPipelines.map((pipeline) => {
                 const isConnected = isPipelineConnected(pipeline)
                 return (
@@ -595,7 +595,7 @@ export default function GenAIRunsPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

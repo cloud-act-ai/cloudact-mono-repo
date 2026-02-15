@@ -193,8 +193,8 @@ export default function IntegrationsPage() {
           {/* Header - Same pattern as dashboard */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div className="flex items-start gap-3 sm:gap-4">
-              <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-                <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+              <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/30 to-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[var(--cloudact-mint)]/20">
+                <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
               </div>
               <div>
                 <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -218,8 +218,8 @@ export default function IntegrationsPage() {
       {/* Premium Header with enhanced typography */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
         <div className="flex items-start gap-3 sm:gap-4">
-          <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-            <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+          <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/30 to-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[var(--cloudact-mint)]/20">
+            <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
           </div>
           <div>
             <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -273,7 +273,7 @@ export default function IntegrationsPage() {
           <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent"></div>
           <div className="flex items-center gap-2 sm:gap-2.5">
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-              <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1a7a3a]" />
+              <Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
             </div>
             <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
               <span className="font-bold text-[var(--text-primary)]">{cloudCount}</span> Cloud
@@ -282,7 +282,7 @@ export default function IntegrationsPage() {
           <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent"></div>
           <div className="flex items-center gap-2 sm:gap-2.5">
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
-              <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#FF6C5E]" />
+              <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-coral)]" />
             </div>
             <span className="text-[12px] sm:text-[13px] text-[var(--text-secondary)]">
               <span className="font-bold text-[var(--text-primary)]">{genaiCount}</span> GenAI
@@ -331,7 +331,7 @@ export default function IntegrationsPage() {
                         <Icon className="h-5 w-5 sm:h-7 sm:w-7" style={{ color: getAccentStyle(category.accent).css }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)] group-hover:text-[#1a7a3a] transition-colors">{category.name}</h3>
+                        <h3 className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)] group-hover:text-[var(--cloudact-mint-text)] transition-colors">{category.name}</h3>
                         <p className="text-[11px] sm:text-[12px] text-[var(--text-tertiary)] mt-0.5 sm:mt-1">{category.description}</p>
                       </div>
                     </div>
@@ -373,7 +373,7 @@ export default function IntegrationsPage() {
                           </span>
                         )}
                         <div className="h-8 w-8 rounded-lg bg-[var(--surface-secondary)] group-hover:bg-[var(--cloudact-mint)]/10 flex items-center justify-center transition-all duration-200">
-                          <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[#1a7a3a] group-hover:translate-x-0.5 transition-all duration-200" />
+                          <ChevronRight className="h-4 w-4 text-[var(--text-muted)] group-hover:text-[var(--cloudact-mint-text)] group-hover:translate-x-0.5 transition-all duration-200" />
                         </div>
                       </div>
                     </div>
@@ -392,7 +392,7 @@ export default function IntegrationsPage() {
 
         <div className="relative flex items-start gap-3 sm:gap-4">
           <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/15 to-[var(--cloudact-mint-light)]/15 border border-[var(--cloudact-mint)]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+            <Shield className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
           </div>
           <div>
             <h3 className="text-[14px] sm:text-[16px] font-bold text-[var(--text-primary)]">Enterprise Security</h3>

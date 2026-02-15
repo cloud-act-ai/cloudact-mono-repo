@@ -24,7 +24,7 @@ Defined in SKILL.md (`config-validator/SKILL.md`). Validation rules derived from
 │  ├── cloud/                     │   ├── org_profiles.json            │
 │  │   ├── gcp/cost/billing.yml   │   ├── org_api_keys.json           │
 │  │   ├── aws/cost/billing.yml   │   ├── org_subscriptions.json      │
-│  │   ├── azure/cost/billing.yml │   │   ... (27 meta tables)        │
+│  │   ├── azure/cost/billing.yml │   │   ... (30 meta tables)        │
 │  │   └── oci/cost/billing.yml   └── organizations/onboarding/       │
 │  ├── genai/                         schemas/ (20 files)              │
 │  │   ├── payg/openai.yml            ├── cost_data_standard_1_3.json │

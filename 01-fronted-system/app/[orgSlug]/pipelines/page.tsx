@@ -79,45 +79,45 @@ interface QuickStats {
 function AnimatedPipelineFlow() {
   return (
     <div className="relative w-full h-32 bg-gradient-to-br from-[var(--cloudact-mint)]/5 via-[var(--cloudact-mint-light)] to-[var(--cloudact-coral)]/5 rounded-2xl overflow-hidden border border-[var(--cloudact-mint)]/10">
-      <div className="absolute inset-0 flex items-center justify-between px-8">
+      <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8">
         {/* Source */}
-        <div className="flex flex-col items-center gap-2 z-10">
-          <div className="w-12 h-12 rounded-full bg-[var(--cloudact-mint)] flex items-center justify-center shadow-lg">
-            <Cloud className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
+        <div className="flex flex-col items-center gap-1.5 sm:gap-2 z-10">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[var(--cloudact-mint)] flex items-center justify-center shadow-lg">
+            <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--cloudact-mint-text)]" />
           </div>
-          <span className="text-[11px] font-semibold text-[var(--cloudact-mint-text)]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-[var(--cloudact-mint-text)]">
             Source
           </span>
         </div>
 
         {/* Animated Flow Lines */}
-        <div className="flex-1 relative h-1 mx-4">
+        <div className="flex-1 relative h-1 mx-2 sm:mx-4">
           <div className="absolute inset-0 bg-[var(--cloudact-mint)]/20 rounded-full" />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--cloudact-mint)] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite]" />
         </div>
 
         {/* Processing */}
-        <div className="flex flex-col items-center gap-2 z-10">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center shadow-lg animate-pulse">
-            <Activity className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
+        <div className="flex flex-col items-center gap-1.5 sm:gap-2 z-10">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center shadow-lg animate-pulse">
+            <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--cloudact-mint-text)]" />
           </div>
-          <span className="text-[11px] font-semibold text-[var(--cloudact-mint-text)]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-[var(--cloudact-mint-text)]">
             Process
           </span>
         </div>
 
         {/* Animated Flow Lines */}
-        <div className="flex-1 relative h-1 mx-4">
+        <div className="flex-1 relative h-1 mx-2 sm:mx-4">
           <div className="absolute inset-0 bg-[var(--cloudact-coral)]/20 rounded-full" />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--cloudact-coral)] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite_0.5s]" />
         </div>
 
         {/* Destination */}
-        <div className="flex flex-col items-center gap-2 z-10">
-          <div className="w-12 h-12 rounded-full bg-[var(--cloudact-coral)] flex items-center justify-center shadow-lg">
-            <Zap className="h-6 w-6 text-white" />
+        <div className="flex flex-col items-center gap-1.5 sm:gap-2 z-10">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[var(--cloudact-coral)] flex items-center justify-center shadow-lg">
+            <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
           </div>
-          <span className="text-[11px] font-semibold text-[var(--cloudact-coral)]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-[var(--cloudact-coral)]">
             Analytics
           </span>
         </div>
@@ -539,8 +539,8 @@ export default function PipelinesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 lg:py-6 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Premium Header */}
       <div className="flex items-start gap-3 sm:gap-4">
-        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[#90FCA6]/20">
-          <Play className="h-5 w-5 sm:h-7 sm:w-7 text-[#1a7a3a]" />
+        <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/30 to-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 shadow-sm border border-[var(--cloudact-mint)]/20">
+          <Play className="h-5 w-5 sm:h-7 sm:w-7 text-[var(--cloudact-mint-text)]" />
         </div>
         <div>
           <h1 className="text-[20px] sm:text-[24px] lg:text-[28px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">
@@ -650,14 +650,14 @@ export default function PipelinesPage() {
           }`}
         >
           {runAllResult.success ? (
-            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+            <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0 mt-0.5" />
           ) : (
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
           )}
           <div>
             <p
               className={`text-[12px] font-medium ${
-                runAllResult.success ? "text-[#1a7a3a]" : "text-rose-700"
+                runAllResult.success ? "text-[var(--cloudact-mint-text)]" : "text-rose-700"
               }`}
             >
               {runAllResult.message}
@@ -683,13 +683,13 @@ export default function PipelinesPage() {
           }`}
         >
           {lastResult.success ? (
-            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0" />
           ) : (
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
           <p
             className={`text-[12px] font-medium ${
-              lastResult.success ? "text-[#1a7a3a]" : "text-rose-700"
+              lastResult.success ? "text-[var(--cloudact-mint-text)]" : "text-rose-700"
             }`}
           >
             {lastResult.message}
@@ -714,7 +714,7 @@ export default function PipelinesPage() {
               size="lg"
             />
           ) : (
-            <div className="divide-y divide-[#E5E5EA]">
+            <div className="divide-y divide-[var(--border-medium)]">
               {connectedPipelines.map((pipeline) => (
                 <AvailablePipelineCard
                   key={pipeline.id}
@@ -748,7 +748,7 @@ export default function PipelinesPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -852,7 +852,7 @@ export default function PipelinesPage() {
             <button
               onClick={loadBatchRuns}
               disabled={batchRunsLoading}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] text-[12px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {batchRunsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -864,7 +864,7 @@ export default function PipelinesPage() {
           </div>
 
           <PremiumCard>
-            <div className="divide-y divide-[#E5E5EA]">
+            <div className="divide-y divide-[var(--border-medium)]">
               {batchRuns.map((batch) => (
                 <div key={batch.batch_run_id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1 min-w-0">

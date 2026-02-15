@@ -190,7 +190,7 @@ export function CostDashboardShell({
   return (
     <main
       className={cn(
-        "min-h-screen bg-white",
+        "min-h-screen bg-[var(--surface-primary)]",
         className
       )}
       role="main"
@@ -203,8 +203,8 @@ export function CostDashboardShell({
             {/* Row 1: Title (left) + Settings Menu (right) */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6]/30 to-[#90FCA6]/10 flex items-center justify-center shadow-sm border border-[#90FCA6]/20">
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--cloudact-mint)]/30 to-[var(--cloudact-mint)]/10 flex items-center justify-center shadow-sm border border-[var(--cloudact-mint)]/20">
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--cloudact-mint-text)]" />
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl lg:text-[24px] font-bold text-[var(--text-primary)] tracking-tight leading-tight">

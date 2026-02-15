@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
 
 import { site } from "@/lib/site"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 // Load DM Sans for the entire app - premium, modern sans-serif
@@ -105,8 +106,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${dmSans.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        {children}
-        <Toaster position="top-right" richColors closeButton duration={5000} />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster position="top-right" richColors closeButton duration={5000} />
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

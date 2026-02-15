@@ -17,6 +17,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react"
+import { useTheme } from "next-themes"
 import { useCostDataOptional, type TimeRange, type CustomDateRange } from "@/contexts/cost-data-context"
 import { formatCost, formatCostCompact } from "@/lib/costs/formatters"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
@@ -135,6 +136,26 @@ export const defaultChartTheme: ChartTheme = {
   },
 }
 
+export const darkChartTheme: ChartTheme = {
+  ...defaultChartTheme,
+  // Backgrounds - dark surfaces
+  background: "#1c1c1e",
+  cardBackground: "#2c2c2e",
+  grid: "#3a3a3c",
+
+  // Text - light on dark
+  text: "#f8fafc",
+  mutedText: "#94a3b8",
+
+  // Shadows - stronger on dark
+  shadows: {
+    tooltip: "0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3)",
+    card: "0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15)",
+    cardHover: "0 12px 32px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2)",
+    glow: "0 0 40px rgba(144, 252, 166, 0.2)",
+  },
+}
+
 // ============================================
 // Context Types
 // ============================================
@@ -215,6 +236,8 @@ export function ChartProvider({
 }: ChartProviderProps) {
   // Get data from CostDataContext if available
   const costData = useCostDataOptional()
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
 
   // Currency priority: prop > context > default
   const currency = overrideCurrency || costData?.currency || DEFAULT_CURRENCY
@@ -223,15 +246,16 @@ export function ChartProvider({
   const timeRange = costData?.filters?.timeRange ?? "30"
   const customRange = costData?.filters?.customRange
 
-  // Merge theme with overrides
+  // Merge theme with overrides, auto-applying dark theme
+  const baseTheme = isDark ? darkChartTheme : defaultChartTheme
   const theme = useMemo<ChartTheme>(() => ({
-    ...defaultChartTheme,
+    ...baseTheme,
     ...overrideTheme,
     categories: {
-      ...defaultChartTheme.categories,
+      ...baseTheme.categories,
       ...overrideTheme?.categories,
     },
-  }), [overrideTheme])
+  }), [overrideTheme, baseTheme])
 
   // Memoized formatters
   const formatValue = useCallback(

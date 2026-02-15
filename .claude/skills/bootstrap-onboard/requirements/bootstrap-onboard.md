@@ -2,7 +2,7 @@
 
 ## Overview
 
-System bootstrap and organization onboarding for CloudAct. Covers two-phase onboarding (Frontend Supabase/Stripe + Backend BigQuery), the central `organizations` dataset (27 meta tables), per-org datasets (30+ tables), API key management, org sync, and fiscal year configuration.
+System bootstrap and organization onboarding for CloudAct. Covers two-phase onboarding (Frontend Supabase/Stripe + Backend BigQuery), the central `organizations` dataset (30 meta tables), per-org datasets (30+ tables), API key management, org sync, and fiscal year configuration.
 
 ## Source Specifications
 
@@ -252,7 +252,7 @@ POST /api/v1/procedures/sync (Pipeline Service, port 8001)
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `bootstrap` | Manual | Initialize organizations dataset + 27 meta tables |
+| `bootstrap` | Manual | Initialize organizations dataset + 30 meta tables |
 | `bootstrap-sync` | Manual | Add new columns to existing meta tables |
 | `org-sync-all` | Manual | Sync ALL org datasets (loops through active orgs) |
 
@@ -302,7 +302,7 @@ After onboarding, all of the following must be verified:
 
 | Test Type | Tool | Command |
 |-----------|------|---------|
-| Bootstrap status | curl | `curl /api/v1/admin/bootstrap/status` — verify all 27 meta tables exist |
+| Bootstrap status | curl | `curl /api/v1/admin/bootstrap/status` — verify all 30 meta tables exist |
 | Table creation | curl | `curl /api/v1/admin/bootstrap` — verify organizations dataset created |
 | Schema sync | curl | `curl /api/v1/admin/bootstrap/sync` — verify new columns added without data loss |
 | Org onboarding E2E | Playwright | `npx tsx tests/demo-setup/setup-demo-account.ts` — full signup-to-dashboard |
@@ -365,6 +365,6 @@ Bootstrap/onboard changes fit into the **API Service release cycle**. Schema add
 |-------|-------------|
 | `/stripe-billing` | Billing management (webhooks, products, prices). Checkout triggers onboarding. |
 | `/account-setup` | Tests frontend onboarding flows (signup, login, invite). |
-| `/bigquery-ops` | BigQuery schema management. Bootstrap creates 27 meta tables. |
+| `/bigquery-ops` | BigQuery schema management. Bootstrap creates 30 meta tables. |
 | `/pipeline-ops` | Pipeline configs deployed to per-org datasets. |
 | `/quota-mgmt` | Plan limits enforced by quota system after onboarding. |

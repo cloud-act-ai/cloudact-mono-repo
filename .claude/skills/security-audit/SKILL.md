@@ -275,6 +275,15 @@ bq show --format=prettyjson {org_slug}_prod | jq '.access'
 Requirements consolidated from:
 - `05_SECURITY.md` - Security architecture
 
+## Development Rules (Non-Negotiable)
+
+- **Multi-tenancy support** - Proper `org_slug` isolation. Every query, every endpoint, every cache key.
+- **Enterprise-grade for 10k customers** - Must scale. Rate limiting, KMS encryption, audit logging.
+- **No over-engineering** - Simple, direct security patterns. Use existing tools (KMS, BigQuery, Supabase).
+- **ZERO mock tests** - Security tests must hit real services to validate actual behavior
+- **Supabase best practices** - RLS policies, connection pooling, tight integration
+- **Don't break existing functionality** - Run all security tests before/after changes
+
 ## Related Skills
 - `bootstrap-onboard` - Secure setup
 - `integration-setup` - Credential management

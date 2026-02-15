@@ -8,7 +8,7 @@ Multi-org cloud cost analytics. BigQuery-powered. **Frontend** (3000) + **API Se
 
 ```
 Frontend (3000)              API Service (8000)           Pipeline Service (8001)
-├─ Next.js 16 + Supabase     ├─ Bootstrap (27 tables)     ├─ Run pipelines
+├─ Next.js 16 + Supabase     ├─ Bootstrap (30 tables)     ├─ Run pipelines
 ├─ Stripe Billing            ├─ Org onboarding            ├─ Cost calculation
 ├─ Quota warnings            ├─ Subscription CRUD         ├─ FOCUS 1.3 conversion
 ├─ AI Chat (CopilotKit)      ├─ Hierarchy CRUD            └─ BigQuery writes
@@ -384,7 +384,7 @@ cd 05-scheduler-jobs
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| `bootstrap` | Manual | Initialize organizations dataset + 28 meta tables |
+| `bootstrap` | Manual | Initialize organizations dataset + 30 meta tables |
 | `bootstrap-sync` | Manual | Add new columns to existing meta tables |
 | `org-sync-all` | Manual | Sync ALL org datasets (loops through active orgs) |
 | `quota-reset-daily` | 00:00 UTC | Reset daily pipeline counters |

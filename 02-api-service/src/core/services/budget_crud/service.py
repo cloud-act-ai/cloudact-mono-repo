@@ -134,7 +134,10 @@ class BudgetCRUDService:
             ]
             job_config = bigquery.QueryJobConfig(query_parameters=params)
             self.client.query(query, job_config=job_config).result()
-            return await self.get_budget(org_slug, budget_id)
+            result = await self.get_budget(org_slug, budget_id)
+            if not result:
+                raise ValueError(f"Budget {budget_id} was created but could not be retrieved — possible BigQuery replication delay")
+            return result
         except Exception as e:
             logger.error(f"Failed to create budget: {e}")
             raise
@@ -224,9 +227,15 @@ class BudgetCRUDService:
             bigquery.ScalarQueryParameter("budget_id", "STRING", budget_id),
         ]
 
+        # Fields that can be explicitly set to NULL (cleared)
+        nullable_fields = {"provider", "notes", "hierarchy_path"}
+
         update_data = request.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            if value is not None:
+            if value is None and field in nullable_fields:
+                # Allow clearing nullable fields to NULL
+                updates.append(f"{field} = NULL")
+            elif value is not None:
                 if isinstance(value, bool):
                     updates.append(f"{field} = @{field}")
                     params.append(bigquery.ScalarQueryParameter(field, "BOOL", value))

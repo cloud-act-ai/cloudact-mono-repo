@@ -363,7 +363,7 @@ export function ExportImportModal({
                     Click to select a CSV file
                   </p>
                   <p className="text-xs text-[var(--text-tertiary)]">
-                    or drag and drop here
+                    Supports .csv format
                   </p>
                 </div>
                 <input

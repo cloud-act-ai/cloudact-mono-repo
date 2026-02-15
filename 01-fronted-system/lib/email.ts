@@ -221,7 +221,7 @@ function baseEmailLayout({
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; background-color: ${BRAND.white}; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);">
+        <table role="presentation" style="width: 100%; max-width: 560px; border-collapse: collapse; background-color: ${BRAND.white}; border-radius: 12px; box-shadow: 0 2px 8px #00000014;">
           <!-- Header with Logo (fallback to styled text) -->
           <tr>
             <td style="padding: 32px 40px 24px 40px; text-align: center; border-bottom: 1px solid ${BRAND.gray[200]};">
@@ -230,7 +230,7 @@ function baseEmailLayout({
                 <span style="font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]};">${site.name}</span>
                 <![endif]-->
                 <!--[if !mso]><!-->
-                <img src="${BRAND.logoUrl}" alt="${site.name}" width="160" height="40" style="display: block; max-width: 160px; height: auto; border: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                <img src="${BRAND.logoUrl}" alt="${site.name}" width="160" height="40" style="display: block; max-width: 160px; height: auto; border: 0;" />
                 <span style="display: none; font-size: 24px; font-weight: 700; color: ${BRAND.gray[900]}; letter-spacing: -0.5px;">
                   Cloud<span style="color: ${BRAND.mintDark};">Act</span>.AI
                 </span>
@@ -349,7 +349,7 @@ export async function sendPasswordResetEmail({
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 We received a request to reset your password for your ${site.name} account.
               </p>
-              <div style="margin: 30px 0 0 0; padding: 16px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
+              <div style="margin: 30px 0 0 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                   <strong>Security Notice:</strong> If you didn't request this, please ignore this email. Your password won't be changed.
                 </p>
@@ -403,7 +403,7 @@ export async function sendTrialEndingEmail({
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Your free trial for <strong>${safeOrgName}</strong> on ${site.name} will end in <strong>${daysRemaining} days</strong> (${formattedDate}).
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                   To avoid any interruption to your service, please add a payment method before your trial ends.
                 </p>
@@ -449,7 +449,7 @@ export async function sendPaymentFailedEmail({
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 We were unable to process your payment for <strong>${safeOrgName}</strong> on ${site.name}.
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.error};">
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #fee2e2; border-radius: 8px; border-left: 4px solid ${BRAND.error};">
                 <p style="margin: 0; font-size: 14px; color: #991b1b;">
                   <strong>Action Required:</strong> Please update your payment method to avoid service interruption.
                 </p>
@@ -551,7 +551,7 @@ export async function sendSubscriptionConfirmedEmail({
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 Thank you for subscribing to <strong>${safeOrgName}</strong> on ${site.name}!
               </p>
-              <div style="margin: 0 0 30px 0; padding: 20px; background-color: rgba(144, 252, 166, 0.15); border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
+              <div style="margin: 0 0 30px 0; padding: 20px; background-color: #e8fff0; border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: #047857;">Your plan:</p>
                 <p style="margin: 0; font-size: 18px; font-weight: 600; color: ${BRAND.gray[900]};">${safePlanName}</p>
               </div>
@@ -679,7 +679,7 @@ export async function sendAccountDeletionEmail({
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: ${BRAND.gray[700]};">
                 You have requested to delete your ${site.name} account.
               </p>
-              <div style="margin: 0 0 24px 0; padding: 20px; background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.error};">
+              <div style="margin: 0 0 24px 0; padding: 20px; background-color: #fee2e2; border-radius: 8px; border-left: 4px solid ${BRAND.error};">
                 <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #991b1b;">
                   ⚠️ This action is permanent and cannot be undone.
                 </p>
@@ -746,7 +746,7 @@ export async function sendDemoRequestEmail({
   const safeMessage = message ? escapeHtml(message.trim()) : "No additional message"
 
   const content = `
-              <div style="margin-bottom: 20px; padding: 16px; background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
+              <div style="margin-bottom: 20px; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid ${BRAND.warning};">
                 <p style="margin: 0; font-size: 14px; font-weight: 600; color: #92400e;">
                   🔥 HIGH PRIORITY - Schedule within 24 hours
                 </p>
@@ -765,16 +765,18 @@ export async function sendDemoRequestEmail({
                 <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeCompany}</p>
               </div>
 
-              <div style="display: flex; gap: 24px; margin-bottom: 24px;">
-                <div style="flex: 1;">
-                  <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Company Size</p>
-                  <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeCompanySize}</p>
-                </div>
-                <div style="flex: 1;">
-                  <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Role</p>
-                  <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeRole}</p>
-                </div>
-              </div>
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                <tr>
+                  <td style="width: 50%; vertical-align: top; padding-right: 12px;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Company Size</p>
+                    <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeCompanySize}</p>
+                  </td>
+                  <td style="width: 50%; vertical-align: top; padding-left: 12px;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Role</p>
+                    <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${safeRole}</p>
+                  </td>
+                </tr>
+              </table>
 
               <div style="margin-bottom: 24px;">
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND.gray[500]};">Areas of Interest</p>
@@ -1031,7 +1033,7 @@ export async function sendNewsletterNotificationEmail({
                 <p style="margin: 0; font-size: 16px; color: ${BRAND.gray[900]};">${new Date().toISOString()}</p>
               </div>
 
-              <div style="padding: 16px; background-color: rgba(144, 252, 166, 0.15); border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
+              <div style="padding: 16px; background-color: #e8fff0; border-radius: 8px; border-left: 4px solid ${BRAND.mint};">
                 <p style="margin: 0; font-size: 14px; color: #047857;">
                   <strong>Action:</strong> Add to newsletter list in your email marketing platform.
                 </p>

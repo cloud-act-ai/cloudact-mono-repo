@@ -65,13 +65,13 @@ interface IntegrationItem {
 
 // Move color classes outside component to prevent recreation on every render
 const QUICK_ACTION_COLOR_CLASSES = {
-  teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[#90FCA6]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
+  teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[var(--cloudact-mint)]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
   coral: "from-[#FF6C5E]/10 to-[#FF6C5E]/5 border-[#FF6C5E]/20 hover:shadow-[0_8px_24px_rgba(255,108,94,0.15)]",
   slate: "from-slate-500/10 to-slate-500/5 border-slate-500/20 hover:shadow-[0_8px_24px_rgba(100,116,139,0.15)]",
 } as const
 
 const QUICK_ACTION_ICON_CLASSES = {
-  teal: "bg-[#90FCA6] text-[#1a7a3a]",
+  teal: "bg-[var(--cloudact-mint)] text-[var(--cloudact-mint-text)]",
   coral: "bg-[#FF6C5E] text-white",
   slate: "bg-slate-500 text-white",
 } as const
@@ -97,10 +97,10 @@ const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case "completed":
     case "success":
-      return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
+      return "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] border-[var(--cloudact-mint)]/20"
     case "running":
     case "in_progress":
-      return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
+      return "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] border-[var(--cloudact-mint)]/20"
     case "failed":
     case "error":
       return "bg-red-500/10 text-red-600 border-red-500/20"
@@ -667,7 +667,7 @@ export default function DashboardPage() {
           {/* Section Header - Enterprise style */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="h-1 w-1 rounded-full bg-[#90FCA6]" />
+              <div className="h-1 w-1 rounded-full bg-[var(--cloudact-mint)]" />
               <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
                 Cost Trend Analysis
               </h2>
@@ -843,7 +843,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No integrations configured</p>
                   <p className="text-xs text-[var(--text-tertiary)] mb-4">Connect your first provider to start tracking costs</p>
                   <Link href={`/${orgSlug}/integrations`}>
-                    <button className="inline-flex items-center gap-2 h-9 px-4 bg-[#90FCA6] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow transition-all">
+                    <button className="inline-flex items-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow transition-all">
                       Add Integration
                     </button>
                   </Link>
@@ -992,7 +992,7 @@ export default function DashboardPage() {
           <CardContent className="relative p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
               <div className="flex items-center gap-4 text-center sm:text-left">
-                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-xl bg-[#90FCA6]/15 shrink-0">
+                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--cloudact-mint)]/15 shrink-0">
                   <Users className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div className="space-y-0.5">
@@ -1005,7 +1005,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <Link href={`/${orgSlug}/settings/members`}>
-                <button className="inline-flex items-center gap-2 h-10 px-5 bg-[#90FCA6] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <button className="inline-flex items-center gap-2 h-10 px-5 bg-[var(--cloudact-mint)] text-[var(--text-primary)] text-sm font-medium rounded-lg hover:bg-[#6EE890] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                   <Users className="h-4 w-4" />
                   Manage Team
                 </button>

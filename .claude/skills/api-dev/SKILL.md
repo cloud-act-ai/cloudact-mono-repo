@@ -384,6 +384,17 @@ prefix="/api/v1/my-feature"
 "How do I mock BigQuery in tests?"
 ```
 
+## Development Rules (Non-Negotiable)
+
+- **No over-engineering** - Simple, direct fixes. Don't add features, refactor, or make "improvements" beyond what was asked.
+- **Multi-tenancy support** - Proper `org_slug` isolation in every endpoint and query
+- **Enterprise-grade for 10k customers** - Must scale. Rate limiting, connection pooling, query timeouts.
+- **LRU in-memory cache** - NO Redis at all. Use `functools.lru_cache` or custom LRU only.
+- **ZERO mock tests** - All tests must hit real services (BigQuery, Supabase, APIs)
+- **Reusability and repeatability** - Patterns that work everywhere. Follow existing codebase patterns.
+- **Don't break existing functionality** - Run all tests before/after changes
+- **Update skills with learnings** - Document fixes in skill files
+
 ## Related Skills
 - `test-orchestration` - API testing
 - `security-audit` - Auth patterns

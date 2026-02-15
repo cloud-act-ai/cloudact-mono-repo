@@ -278,7 +278,7 @@ function PremiumDrawerBody({ className, children, ...props }: PremiumDrawerBodyP
       className={cn(
         "flex-1 overflow-y-auto",
         "px-6 py-5",
-        "scrollbar-thin scrollbar-thumb-[var(--border-subtle)] scrollbar-track-transparent",
+        "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--border-subtle)] [&::-webkit-scrollbar-track]:bg-transparent",
         className
       )}
       {...props}

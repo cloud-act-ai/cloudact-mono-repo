@@ -28,7 +28,6 @@ from tenacity import (
     retry_if_exception_type
 )
 from src.core.exceptions import classify_exception
-import google.auth.transport.requests
 
 # Optional circuit breaker dependency (added by linter)
 try:
@@ -77,6 +76,7 @@ def is_transient_error(exception: Exception) -> bool:
         TimeoutError,
         google_api_exceptions.ServiceUnavailable,  # 503
         google_api_exceptions.TooManyRequests,     # 429
+        google_api_exceptions.InternalServerError,  # 500
     )
     return isinstance(exception, transient_exceptions)
 
@@ -87,6 +87,7 @@ TRANSIENT_RETRY_POLICY = retry_if_exception_type((
     TimeoutError,
     google_api_exceptions.ServiceUnavailable,
     google_api_exceptions.TooManyRequests,
+    google_api_exceptions.InternalServerError,
 ))
 
 
@@ -178,59 +179,18 @@ class BigQueryClient:
 
         This ensures only one client is created even with 10k concurrent threads.
         """
-        # First check (lock-free fast path)
         if self._client is None:
             with self._client_lock:
-                # Second check (under lock)
                 if self._client is None:
-                    # Configure HTTP connection pool for high concurrency
-                    # This prevents connection exhaustion with 100+ parallel pipelines
-                    import google.auth.transport.requests
-                    import requests.adapters
-
-                    # Create HTTP session with connection pooling
-                    session = requests.Session()
-
-                    # Connection timeout settings
-                    CONNECTION_TIMEOUT_SECONDS = 60  # Time to establish connection
-                    READ_TIMEOUT_SECONDS = 300  # Time to read response (5 minutes for large queries)
-
-                    # Configure adapter with connection pool settings
-                    # pool_block=True provides backpressure: requests wait for available connection
-                    # This prevents connection drops under extreme load (10k+ concurrent users)
-                    adapter = requests.adapters.HTTPAdapter(
-                        pool_connections=500,  # Number of connection pools to cache
-                        pool_maxsize=500,      # Max connections per pool
-                        max_retries=3,         # Retry failed requests
-                        pool_block=True        # Block if pool is full (backpressure mechanism)
-                    )
-
-                    session.mount('https://', adapter)
-                    session.mount('http://', adapter)
-
-                    # Set default timeouts for all requests
-                    # Format: (connect_timeout, read_timeout)
-                    session.timeout = (CONNECTION_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
-
-                    # Create BigQuery client with custom HTTP session
                     self._client = bigquery.Client(
                         project=self.project_id,
                         location=self.location
                     )
-
-                    # Note: In newer versions of google-cloud-bigquery, _http is read-only
-                    # The client now manages its own connection pooling internally
-                    # Keeping the custom session/adapter setup for potential future use
-                    # but not overriding the client's HTTP session
-
                     logger.info(
-                        "Initialized BigQuery client with connection pooling",
+                        "Initialized BigQuery client",
                         extra={
                             "project_id": self.project_id,
                             "location": self.location,
-                            "max_connections": 500,
-                            "connection_timeout_seconds": CONNECTION_TIMEOUT_SECONDS,
-                            "read_timeout_seconds": READ_TIMEOUT_SECONDS
                         }
                     )
         return self._client
@@ -258,20 +218,20 @@ class BigQueryClient:
         wait=wait_exponential(multiplier=1, min=2, max=30),
         retry=TRANSIENT_RETRY_POLICY
     )
-    async def get_dataset(self, dataset_id: str) -> Dataset:
-        """Get a BigQuery dataset (async wrapper)"""
+    def get_dataset(self, dataset_id: str) -> Dataset:
+        """Get a BigQuery dataset."""
         return self.client.get_dataset(dataset_id)
 
-    async def get_table(self, table_id: str) -> Table:
-        """Get a BigQuery table (async wrapper)"""
+    def get_table(self, table_id: str) -> Table:
+        """Get a BigQuery table."""
         return self.client.get_table(table_id)
 
-    async def create_dataset_raw(self, dataset: Dataset) -> Dataset:
-        """Create a BigQuery dataset from Dataset object (async wrapper)"""
+    def create_dataset_raw(self, dataset: Dataset) -> Dataset:
+        """Create a BigQuery dataset from Dataset object."""
         return self.client.create_dataset(dataset, exists_ok=True)
 
-    async def create_table_raw(self, table: Table) -> Table:
-        """Create a BigQuery table from Table object (async wrapper)"""
+    def create_table_raw(self, table: Table) -> Table:
+        """Create a BigQuery table from Table object."""
         return self.client.create_table(table, exists_ok=True)
 
     def create_dataset(

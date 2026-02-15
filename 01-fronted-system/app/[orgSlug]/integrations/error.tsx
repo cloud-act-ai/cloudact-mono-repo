@@ -54,7 +54,7 @@ export default function IntegrationsError({
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={reset}
-          className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-mint text-black text-[14px] font-semibold rounded-xl hover:bg-mint-dark transition-colors"
+          className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-mint text-black text-[14px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
           Try Again

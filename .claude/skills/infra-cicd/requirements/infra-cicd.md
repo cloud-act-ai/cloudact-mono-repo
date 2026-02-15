@@ -131,7 +131,7 @@ All cost data MUST be unified into `cost_data_standard_1_3` (FOCUS 1.3):
 | Job | Schedule | Purpose |
 |-----|----------|---------|
 | supabase-migrate | Manual (before deploy) | Supabase DB migrations |
-| bootstrap | Manual (after API deploy) | Smart bootstrap: fresh or sync 27 meta tables |
+| bootstrap | Manual (after API deploy) | Smart bootstrap: fresh or sync 30 meta tables |
 | org-sync-all | Manual (after bootstrap) | Sync ALL org datasets |
 | quota-reset-daily | 00:00 UTC daily | Reset daily pipeline counters |
 | quota-cleanup | 01:00 UTC daily | Delete quota records >90 days |

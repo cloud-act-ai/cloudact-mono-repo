@@ -2067,8 +2067,13 @@ async def process_all_alerts(
                     costs_result = bq_client.client.query(costs_query).result()
                     costs_row = next(costs_result, None)
                     current_cost = float(costs_row.total_cost) if costs_row and costs_row.total_cost else 0.0
-                except Exception:
+                except Exception as cost_err:
                     current_cost = 0.0
+                    error_str = str(cost_err)
+                    if "Not found" in error_str or "notFound" in error_str:
+                        logger.debug(f"No cost data table for {org_slug}: {cost_err}")
+                    else:
+                        logger.warning(f"Cost query failed for {org_slug}: {cost_err}")
 
                 # Fetch active budgets for budget-aware rules (budget_percent, budget_forecast, hierarchy_budget)
                 budget_rules_present = any(
@@ -2134,11 +2139,20 @@ async def process_all_alerts(
                     triggered = False
                     rule_type = rule.rule_type
 
-                    # Parse conditions JSON
+                    # Parse conditions JSON safely
                     try:
-                        conditions = _json.loads(rule.conditions) if isinstance(rule.conditions, str) else {}
+                        if rule.conditions and isinstance(rule.conditions, str):
+                            conditions = _json.loads(rule.conditions)
+                        elif isinstance(rule.conditions, dict):
+                            conditions = rule.conditions
+                        else:
+                            conditions = {}
                     except (_json.JSONDecodeError, TypeError):
                         conditions = {}
+
+                    if not conditions:
+                        logger.debug(f"Skipping rule {rule.rule_id} for {org_slug}: no valid conditions")
+                        continue
 
                     if rule_type in ("cost_threshold", "absolute_threshold"):
                         # Simple cost vs threshold (threshold_amount stored in conditions)

@@ -170,6 +170,16 @@ def run_read_query(org_slug: str, query: str) -> Dict[str, Any]:
                      f"Only {sorted(allowed_datasets)} are permitted."
         }
 
+    # SECURITY: Validate project ID in 3-part table references (project.dataset.table)
+    for match in _TABLE_REF_PATTERN.finditer(query):
+        ref = match.group(1)
+        parts = ref.split(".")
+        if len(parts) == 3 and parts[0] != settings.gcp_project_id:
+            return {
+                "error": f"Access denied: query references project '{parts[0]}'. "
+                         f"Only project '{settings.gcp_project_id}' is permitted."
+            }
+
     # Ensure LIMIT is present (inject if missing)
     if not re.search(r"\bLIMIT\b", query, re.IGNORECASE):
         query = query.rstrip().rstrip(";") + " LIMIT 500"

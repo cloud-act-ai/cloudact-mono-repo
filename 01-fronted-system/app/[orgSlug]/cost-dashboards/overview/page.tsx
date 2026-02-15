@@ -355,7 +355,7 @@ export default function CostOverviewPage() {
           <CostRingChart
             title="Total Spend"
             segments={ringSegments}
-            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : `${timeRange}d`}
+            centerLabel={timeRange === "mtd" ? "MTD" : timeRange === "ytd" ? "YTD" : timeRange === "qtd" ? "QTD" : timeRange === "custom" ? "Custom" : timeRange === "last_month" ? "Last Mo" : `${timeRange}d`}
             insight={`Spending across ${ringSegments.length} cost ${ringSegments.length > 1 ? "categories" : "category"} in selected period.`}
             size={200}
             thickness={22}

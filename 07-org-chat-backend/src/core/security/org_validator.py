@@ -6,6 +6,7 @@ Layer 4 of 6-layer security model.
 import re
 import time
 import logging
+import threading
 from typing import Dict, Tuple
 
 from google.cloud import bigquery
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Cache validated orgs with TTL to avoid repeated BQ lookups
 # Stores: org_slug -> (validated: bool, timestamp: float)
 _org_cache: Dict[str, Tuple[bool, float]] = {}
+_org_cache_lock = threading.Lock()
 
 _ORG_SLUG_PATTERN = re.compile(r"^[a-z0-9_]{3,50}$")
 
@@ -32,7 +34,7 @@ class OrgValidationError(Exception):
 
 
 def _evict_stale_cache() -> None:
-    """Remove expired entries and enforce size limit."""
+    """Remove expired entries and enforce size limit. Must be called under _org_cache_lock."""
     now = time.time()
     expired = [k for k, (_, ts) in _org_cache.items() if now - ts > _CACHE_TTL_SECONDS]
     for k in expired:
@@ -57,9 +59,10 @@ def validate_org(org_slug: str) -> None:
         raise OrgValidationError(f"Invalid org_slug format: {org_slug!r}")
 
     now = time.time()
-    cached = _org_cache.get(org_slug)
-    if cached and (now - cached[1]) < _CACHE_TTL_SECONDS:
-        return
+    with _org_cache_lock:
+        cached = _org_cache.get(org_slug)
+        if cached and (now - cached[1]) < _CACHE_TTL_SECONDS:
+            return
 
     settings = get_settings()
     dataset = settings.organizations_dataset
@@ -72,14 +75,16 @@ def validate_org(org_slug: str) -> None:
     if not rows:
         raise OrgValidationError(f"Organization not found: {org_slug}")
 
-    _org_cache[org_slug] = (True, now)
-    logger.debug(f"Validated org_slug: {org_slug}")
+    with _org_cache_lock:
+        _org_cache[org_slug] = (True, now)
+        # Periodic cleanup
+        if len(_org_cache) > _CACHE_MAX_SIZE:
+            _evict_stale_cache()
 
-    # Periodic cleanup
-    if len(_org_cache) > _CACHE_MAX_SIZE:
-        _evict_stale_cache()
+    logger.debug(f"Validated org_slug: {org_slug}")
 
 
 def clear_org_cache() -> None:
     """Clear the org validation cache (for testing)."""
-    _org_cache.clear()
+    with _org_cache_lock:
+        _org_cache.clear()
