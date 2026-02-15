@@ -4,7 +4,8 @@ Secure multi-org authentication using centralized organizations dataset.
 Supports subscription validation, quota management, and credential retrieval.
 Fallback to local file-based API keys for development.
 
-Quota enforcement is handled via Supabase (not BigQuery).
+Quota enforcement is handled by the API service (8000) via Supabase.
+Pipeline service calls API service endpoints, never Supabase directly.
 """
 
 import hashlib
@@ -29,7 +30,6 @@ from src.app.config import settings
 from src.core.exceptions import classify_exception
 from src.core.security.kms_encryption import decrypt_value
 from src.core.utils.rate_limiter import get_rate_limiter
-from src.core.utils.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
     test_keys_file = Path(__file__).parent.parent.parent.parent / "test_api_keys.json"
 
     if not test_keys_file.exists():
-        logger.warning(f"Test API keys file not found: {test_keys_file}")
+        logger.debug(f"Test API keys file not found: {test_keys_file}")
         _test_api_keys = {}
         return _test_api_keys
 
@@ -584,174 +584,65 @@ async def validate_subscription(
 
 async def validate_quota(
     org: Dict = Depends(get_current_org),
-    _subscription: Dict = Depends(validate_subscription),  # Validates subscription, result used by Supabase RPC
-    _bq_client: BigQueryClient = Depends(get_bigquery_client)  # Kept for backward compatibility
+    _subscription: Dict = Depends(validate_subscription),
 ) -> Dict[str, Any]:
     """
     Validate org has not exceeded daily/monthly pipeline quotas.
 
-    Uses Supabase org_quotas table for usage tracking and organizations table for limits.
-    Returns quota info or raises HTTPException if exceeded.
-
-    Args:
-        org: Organization object from get_current_org
-        subscription: Subscription info from validate_subscription
-        bq_client: BigQuery client instance (kept for backward compatibility)
+    Calls the API service (8000) which owns Supabase quota enforcement.
 
     Returns:
-        Dict containing:
-            - pipelines_run_today: Current daily usage
-            - pipelines_run_month: Current monthly usage
-            - concurrent_pipelines_running: Current concurrent pipelines
-            - daily_limit: Daily limit from subscription
-            - monthly_limit: Monthly limit from subscription
-            - concurrent_limit: Concurrent limit from subscription
-            - remaining_today: Remaining daily quota
-            - remaining_month: Remaining monthly quota
+        Dict with quota info (limits, usage, remaining)
 
     Raises:
         HTTPException: 429 if quota exceeded
     """
+    import httpx
+
     org_slug = org["org_slug"]
 
     try:
-        supabase = get_supabase_client()
+        api_service_url = settings.api_service_url
+        url = f"{api_service_url}/api/v1/organizations/{org_slug}/quota"
 
-        # Get organization ID from Supabase (limits come from check_quota_available RPC)
-        org_result = supabase.table("organizations").select(
-            "id"
-        ).eq("org_slug", org_slug).single().execute()
-
-        if not org_result.data:
-            logger.error(f"Organization not found in Supabase: {org_slug}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Organization not found"
+        async with httpx.AsyncClient(timeout=settings.api_service_timeout) as client:
+            response = await client.get(
+                url,
+                headers={"X-API-Key": org.get("api_key", ""), "Content-Type": "application/json"}
             )
 
-        org_data = org_result.data
-        org_id = org_data["id"]
-
-        # NOTE: Quota limits are stored in Supabase organizations table
-        # (pipelines_per_day_limit, pipelines_per_month_limit, concurrent_pipelines_limit)
-        # The check_quota_available RPC function uses these limits internally
-
-        # Call the check_quota_available function in Supabase
-        # This function handles get_or_create for today's quota record
-        quota_check = supabase.rpc("check_quota_available", {"p_org_id": org_id}).execute()
-
-        if not quota_check.data or len(quota_check.data) == 0:
-            logger.error(f"Failed to check quota for org: {org_slug}")
+        if response.status_code == 200:
+            data = response.json()
+            quota_info = {
+                "pipelines_run_today": data.get("pipelines_run_today", 0),
+                "pipelines_run_month": data.get("pipelines_run_month", 0),
+                "concurrent_pipelines_running": data.get("concurrent_running", 0),
+                "daily_limit": data.get("daily_limit", 6),
+                "monthly_limit": data.get("monthly_limit", 180),
+                "concurrent_limit": data.get("concurrent_limit", 1),
+                "remaining_today": data.get("remaining_today", 0),
+                "remaining_month": data.get("remaining_month", 0),
+            }
+            logger.info(f"Quota validated for org: {org_slug} - {quota_info['remaining_today']} remaining today")
+            return quota_info
+        elif response.status_code == 429:
+            detail = response.json().get("detail", "Quota exceeded")
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
+        else:
+            logger.error(f"API service returned {response.status_code} for quota check: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Quota check failed"
+                detail="Quota validation service error"
             )
-
-        quota_result = quota_check.data[0]
-
-        # Check if quota is available
-        if not quota_result["can_run"]:
-            reason = quota_result.get("reason", "Quota exceeded")
-            logger.warning(f"Quota exceeded for org {org_slug}: {reason}")
-
-            if "Concurrent" in reason:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"{reason} ({quota_result['concurrent_used']}/{quota_result['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
-                    headers={"Retry-After": "300"}  # 5 minutes
-                )
-            elif "Daily" in reason:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"{reason} ({quota_result['daily_used']}/{quota_result['daily_limit']} pipelines/day). Try again tomorrow.",
-                    headers={"Retry-After": "86400"}  # 24 hours
-                )
-            elif "Monthly" in reason:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"{reason} ({quota_result['monthly_used']}/{quota_result['monthly_limit']} pipelines/month). Upgrade your plan.",
-                )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=reason
-                )
-
-        # Return quota info
-        quota_info = {
-            "pipelines_run_today": quota_result["daily_used"],
-            "pipelines_run_month": quota_result["monthly_used"],
-            "concurrent_pipelines_running": quota_result["concurrent_used"],
-            "daily_limit": quota_result["daily_limit"],
-            "monthly_limit": quota_result["monthly_limit"],
-            "concurrent_limit": quota_result["concurrent_limit"],
-            "remaining_today": quota_result["daily_limit"] - quota_result["daily_used"],
-            "remaining_month": quota_result["monthly_limit"] - quota_result["monthly_used"],
-            "org_id": org_id  # Include org_id for later use in increment/decrement
-        }
-
-        logger.info(f"Quota validated for org: {org_slug} - {quota_info['remaining_today']} remaining today")
-        return quota_info
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error validating quota: {e}", exc_info=True)
+        logger.error(f"Error validating quota via API service: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Quota validation service error"
         )
-
-
-async def increment_pipeline_usage(
-    org_slug: str,
-    pipeline_status: str,
-    _bq_client: Optional[BigQueryClient] = None  # Kept for backward compatibility, quota uses Supabase now
-):
-    """
-    Update pipeline usage counters in Supabase.
-
-    Uses Supabase RPC functions for atomic updates:
-    - RUNNING: calls increment_pipeline_count() to increment daily/monthly/concurrent
-    - SUCCESS/FAILED: calls decrement_concurrent() to decrement concurrent and update success/fail stats
-
-    Args:
-        org_slug: Organization identifier
-        pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
-        _bq_client: Deprecated, kept for backward compatibility (quota moved to Supabase)
-    """
-    try:
-        supabase = get_supabase_client()
-
-        # Get organization ID from Supabase
-        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
-
-        if not org_result.data:
-            logger.error(f"Organization not found in Supabase for usage update: {org_slug}")
-            return
-
-        org_id = org_result.data["id"]
-
-        if pipeline_status == "RUNNING":
-            # Increment all counters using Supabase RPC function
-            supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
-            logger.info(f"Incremented pipeline usage for org {org_slug}: status={pipeline_status}")
-
-        elif pipeline_status in ["SUCCESS", "FAILED"]:
-            # Decrement concurrent and update success/failed counters
-            succeeded = pipeline_status == "SUCCESS"
-            supabase.rpc("decrement_concurrent", {
-                "p_org_id": org_id,
-                "p_succeeded": succeeded
-            }).execute()
-            logger.info(f"Updated pipeline completion for org {org_slug}: status={pipeline_status}")
-
-        else:
-            logger.warning(f"Unknown pipeline status: {pipeline_status}")
-            return
-
-    except Exception as e:
-        logger.error(f"Failed to update pipeline usage in Supabase: {e}", exc_info=True)
 
 
 async def get_org_credentials(

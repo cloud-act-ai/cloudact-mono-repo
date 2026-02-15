@@ -8,7 +8,6 @@ from src.app.dependencies.auth import (
     get_current_org,
     validate_subscription,
     validate_quota,
-    increment_pipeline_usage,
     get_org_credentials,
     get_provider_config,
 
@@ -32,7 +31,6 @@ __all__ = [
     "get_current_org",
     "validate_subscription",
     "validate_quota",
-    "increment_pipeline_usage",
     "get_org_credentials",
     "get_provider_config",
 

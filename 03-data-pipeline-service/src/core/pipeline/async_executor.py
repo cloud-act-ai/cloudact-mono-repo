@@ -31,7 +31,6 @@ from src.core.observability.metrics import (
 )
 from src.core.notifications.service import get_notification_service
 from src.core.utils.pipeline_lock import get_pipeline_lock_manager, PipelineLockManager
-from src.core.utils.supabase_client import get_supabase_client
 from pydantic import ValidationError
 
 # ============================================
@@ -536,154 +535,50 @@ class AsyncPipelineExecutor:
                 exc_info=True
             )
 
-    async def _increment_concurrent_counter(self) -> None:
+    async def _report_completion_to_api(self, pipeline_status: str) -> None:
         """
-        DEPRECATED: This method is no longer used.
+        Report pipeline completion to the API service.
 
-        Concurrent counter is now incremented by api-service during validation
-        to prevent race conditions. See pipelines.py validate_pipeline_with_api_service().
+        The API service handles all Supabase quota operations:
+        - Decrementing concurrent_running counter
+        - Updating success/fail counters
 
-        Kept for reference only. Do not call this method.
-
-        If needed, this now uses Supabase instead of BigQuery.
+        Args:
+            pipeline_status: "SUCCESS", "FAILED", or "BLOCKED"
         """
+        import httpx
+
         try:
-            supabase = get_supabase_client()
+            api_service_url = settings.api_service_url
+            url = f"{api_service_url}/api/v1/validator/complete/{self.org_slug}?pipeline_status={pipeline_status}"
 
-            # Get organization ID from Supabase
-            org_result = supabase.table("organizations").select("id").eq("org_slug", self.org_slug).single().execute()
+            async with httpx.AsyncClient(timeout=settings.api_service_timeout) as client:
+                response = await client.post(
+                    url,
+                    headers={
+                        "X-API-Key": self.org_api_key_id or "",
+                        "Content-Type": "application/json"
+                    }
+                )
 
-            if not org_result.data:
-                self.logger.warning(f"Organization not found in Supabase: {self.org_slug}")
-                return
-
-            org_id = org_result.data["id"]
-
-            # Call Supabase RPC function to increment pipeline count
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                BQ_EXECUTOR,
-                lambda: supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
-            )
-
-            self.logger.info(
-                f"Incremented concurrent pipelines counter via Supabase",
-                org_slug=self.org_slug
-            )
-
-            # Update Prometheus metric
-            if result.data:
-                concurrent_running = result.data.get("concurrent_running", 0)
-                set_active_pipelines(self.org_slug, concurrent_running)
-
-        except Exception as e:
-            # MEMORY LEAK FIX #28: Background task errors properly logged
-            self.logger.warning(
-                f"Failed to increment concurrent pipelines counter: {e}",
-                org_slug=self.org_slug,
-                exc_info=True
-            )
-
-    async def _decrement_concurrent_counter(self) -> None:
-        """
-        Decrement only the concurrent_pipelines_running counter via Supabase.
-
-        Used for BLOCKED pipelines where we need to release the quota slot
-        without updating success/fail counters since the pipeline never ran.
-        """
-        try:
-            supabase = get_supabase_client()
-
-            # Get organization ID from Supabase
-            org_result = supabase.table("organizations").select("id").eq("org_slug", self.org_slug).single().execute()
-
-            if not org_result.data:
-                self.logger.warning(f"Organization not found in Supabase: {self.org_slug}")
-                return
-
-            org_id = org_result.data["id"]
-
-            # Decrement concurrent counter - pass succeeded=True but this won't
-            # affect the daily counts since the pipeline was blocked (never really ran)
-            # The decrement_concurrent function only updates concurrent_running
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                BQ_EXECUTOR,
-                lambda: supabase.rpc("decrement_concurrent", {
-                    "p_org_id": org_id,
-                    "p_succeeded": True  # Doesn't matter for blocked pipelines
-                }).execute()
-            )
-
-            self.logger.info(
-                f"Decremented concurrent counter for blocked pipeline via Supabase",
-                org_slug=self.org_slug,
-                pipeline_id=self.tracking_pipeline_id
-            )
+                if response.status_code == 200:
+                    self.logger.info(
+                        f"Reported pipeline completion to API service",
+                        org_slug=self.org_slug,
+                        pipeline_status=pipeline_status
+                    )
+                else:
+                    self.logger.warning(
+                        f"API service returned {response.status_code} for completion report",
+                        org_slug=self.org_slug,
+                        pipeline_status=pipeline_status
+                    )
 
         except Exception as e:
             self.logger.warning(
-                f"Failed to decrement concurrent counter: {e}",
+                f"Failed to report pipeline completion to API service: {e}",
                 org_slug=self.org_slug,
-                exc_info=True
-            )
-
-    async def _update_org_usage_quotas(self) -> None:
-        """
-        Update customer usage quotas after pipeline completion via Supabase.
-
-        Quotas are tracked at ORG level (not customer/user level).
-        All users in an org share the same quota.
-        """
-        try:
-            # Determine success status based on pipeline status
-            if self.status == "COMPLETED":
-                succeeded = True
-            elif self.status in ["FAILED", "TIMEOUT"]:
-                succeeded = False
-            else:
-                # For other statuses (CANCELLED, etc.), treat as neither success nor failure
-                # Just decrement concurrent counter
-                succeeded = True  # Doesn't affect success/fail counters much
-
-            supabase = get_supabase_client()
-
-            # Get organization ID from Supabase
-            org_result = supabase.table("organizations").select("id").eq("org_slug", self.org_slug).single().execute()
-
-            if not org_result.data:
-                self.logger.warning(f"Organization not found in Supabase: {self.org_slug}")
-                return
-
-            org_id = org_result.data["id"]
-
-            # Call Supabase RPC function to decrement concurrent and update success/fail counters
-            # NOTE: The decrement_concurrent function handles:
-            # - Decrementing concurrent_running
-            # - Incrementing pipelines_succeeded_today or pipelines_failed_today based on p_succeeded
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                BQ_EXECUTOR,
-                lambda: supabase.rpc("decrement_concurrent", {
-                    "p_org_id": org_id,
-                    "p_succeeded": succeeded
-                }).execute()
-            )
-
-            self.logger.info(
-                f"Updated customer usage quotas via Supabase",
-                org_slug=self.org_slug,
-                status=self.status,
-                succeeded=succeeded,
-                concurrent_decremented=1
-            )
-
-        except Exception as e:
-            # MEMORY LEAK FIX #28: Background task errors properly logged
-            self.logger.warning(
-                f"Failed to update customer usage quotas: {e}",
-                org_slug=self.org_slug,
-                status=self.status,
+                pipeline_status=pipeline_status,
                 exc_info=True
             )
 
@@ -759,13 +654,12 @@ class AsyncPipelineExecutor:
             except Exception as e:
                 self.logger.warning(f"Failed to log BLOCKED state transition: {e}")
 
-            # CRITICAL: Decrement concurrent counter even for BLOCKED pipelines
-            # The api-service already incremented it via reserve_pipeline_quota_atomic()
-            # before we detected the duplicate, so we must decrement to avoid counter drift.
+            # CRITICAL: Report BLOCKED to API service to release the reserved quota slot.
+            # The api-service incremented concurrent counter during validation.
             try:
-                await self._decrement_concurrent_counter()
+                await self._report_completion_to_api("BLOCKED")
             except Exception as e:
-                self.logger.warning(f"Failed to decrement concurrent counter for BLOCKED pipeline: {e}")
+                self.logger.warning(f"Failed to report BLOCKED pipeline to API service: {e}")
 
             return {
                 "pipeline_logging_id": self.pipeline_logging_id,
@@ -1112,11 +1006,9 @@ class AsyncPipelineExecutor:
             except Exception as cleanup_error:
                 self.logger.error(f"Error during metadata logger cleanup: {cleanup_error}", exc_info=True)
 
-            # Update customer usage quotas
-            try:
-                await self._update_org_usage_quotas()
-            except Exception as quota_error:
-                self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
+            # NOTE: Pipeline completion reporting to API service (quota decrement)
+            # is handled by run_async_pipeline_task() in pipelines.py, not here.
+            # The executor only reports for BLOCKED pipelines (see above).
 
             # ============================================
             # RELEASE PIPELINE LOCK

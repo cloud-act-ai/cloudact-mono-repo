@@ -3336,3 +3336,71 @@ async def repair_org_tables(
         tables_failed=tables_failed,
         message=message
     )
+
+
+# ============================================
+# Member Email Resolution (for Pipeline Alerts)
+# ============================================
+
+@router.get(
+    "/organizations/{org_slug}/members/emails",
+    summary="Get org member emails",
+    description="Get email addresses for org members (used by pipeline alert service)"
+)
+async def get_member_emails(
+    org_slug: str,
+    role: Optional[str] = Query(default=None, description="Filter by role: owner, admin, member"),
+    _admin: None = Depends(verify_admin_key)
+):
+    """Return email addresses of org members from Supabase."""
+    try:
+        supabase = get_supabase_client()
+
+        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
+        if not org_result.data:
+            raise HTTPException(status_code=404, detail=f"Organization {org_slug} not found")
+
+        org_id = org_result.data["id"]
+
+        # Get members
+        query = supabase.table("organization_members").select(
+            "user_id, role"
+        ).eq("org_id", org_id).eq("status", "active")
+
+        if role:
+            query = query.eq("role", role)
+
+        members_result = query.execute()
+
+        if not members_result.data:
+            return {"org_slug": org_slug, "members": [], "count": 0}
+
+        # Get user emails from auth.users via profiles or auth admin
+        user_ids = [m["user_id"] for m in members_result.data if m.get("user_id")]
+
+        emails = []
+        for member in members_result.data:
+            user_id = member.get("user_id")
+            if not user_id:
+                continue
+
+            try:
+                # Look up email from profiles table
+                profile = supabase.table("profiles").select("email, full_name").eq("id", user_id).single().execute()
+                if profile.data and profile.data.get("email"):
+                    emails.append({
+                        "email": profile.data["email"],
+                        "name": profile.data.get("full_name", ""),
+                        "role": member.get("role", "member")
+                    })
+            except Exception:
+                # Profile may not exist, skip
+                continue
+
+        return {"org_slug": org_slug, "members": emails, "count": len(emails)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get member emails for {org_slug}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to resolve members")

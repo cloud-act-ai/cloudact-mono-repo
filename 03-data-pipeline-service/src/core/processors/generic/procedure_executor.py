@@ -164,9 +164,9 @@ class ProcedureExecutorProcessor:
                 # Warn if dates are in the future
                 today = date.today()
                 if start > today:
-                    self.logger.warning(f"start_date {start} is in the future")
+                    self.logger.info(f"start_date {start} is in the future")
                 if end > today:
-                    self.logger.warning(f"end_date {end} is in the future (projections may be inaccurate)")
+                    self.logger.info(f"end_date {end} is in the future (projections may be inaccurate)")
 
             except ValueError as e:
                 return {

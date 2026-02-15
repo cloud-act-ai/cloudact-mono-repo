@@ -15,8 +15,8 @@ import pytz
 
 from src.app.dependencies.auth import verify_api_key_header, verify_admin_key, OrgContext, get_current_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
-from src.core.utils.supabase_client import get_supabase_client
 from src.app.config import settings
+import httpx
 from google.cloud import bigquery
 import json
 
@@ -26,6 +26,30 @@ logger = logging.getLogger(__name__)
 def get_utc_date() -> date:
     """Get current date in UTC timezone to ensure consistency with BigQuery."""
     return datetime.now(timezone.utc).date()
+
+
+async def _get_org_quota_from_api(org_slug: str) -> Optional[Dict[str, Any]]:
+    """Get org quota info from API service (8000). Returns None on failure."""
+    try:
+        api_url = f"{settings.api_service_url}/api/v1/organizations/{org_slug}/quota"
+        async with httpx.AsyncClient(timeout=settings.api_service_timeout) as client:
+            resp = await client.get(api_url, headers={"X-CA-Root-Key": settings.ca_root_api_key or ""})
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        logger.warning(f"Failed to get quota for {org_slug} from API service: {e}")
+    return None
+
+
+async def _report_completion_to_api(org_slug: str, pipeline_status: str) -> None:
+    """Report pipeline completion to API service to update quota counters."""
+    try:
+        url = f"{settings.api_service_url}/api/v1/validator/complete/{org_slug}?pipeline_status={pipeline_status}"
+        async with httpx.AsyncClient(timeout=settings.api_service_timeout) as client:
+            await client.post(url, headers={"X-CA-Root-Key": settings.ca_root_api_key or ""})
+    except Exception as e:
+        logger.warning(f"Failed to report completion for {org_slug}: {e}")
+
 
 router = APIRouter()
 
@@ -189,7 +213,7 @@ async def get_pipelines_due_now(
     - is_active = TRUE
     - next_run_time <= NOW()
     - Org status = ACTIVE
-    - Org quota not exceeded (checked via Supabase)
+    - Org quota not exceeded (checked via API service)
 
     Args:
         bq_client: BigQuery client instance
@@ -233,44 +257,25 @@ async def get_pipelines_due_now(
     if not results:
         return []
 
-    # Check quota availability via Supabase for each org
-    supabase = get_supabase_client()
+    # Check quota availability via API service for each org
     filtered_pipelines = []
 
     # Get unique org_slugs from results
     org_slugs = list(set(row['org_slug'] for row in results))
 
-    # Batch get quota status from Supabase
+    # Batch get quota status from API service
     org_quota_map = {}
     for org_slug in org_slugs:
-        try:
-            # Get org limits from organizations table
-            org_result = supabase.table("organizations").select(
-                "id, daily_limit, monthly_limit, concurrent_limit"
-            ).eq("org_slug", org_slug).eq("status", "ACTIVE").single().execute()
-
-            if not org_result.data:
-                continue
-
-            org_data = org_result.data
-            org_id = org_data["id"]
-
-            # Get current quota usage
-            quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
-
-            if quota_result.data:
-                quota = quota_result.data
-                org_quota_map[org_slug] = {
-                    "daily_limit": org_data.get("daily_limit", 10),
-                    "monthly_limit": org_data.get("monthly_limit", 300),
-                    "concurrent_limit": org_data.get("concurrent_limit", 3),
-                    "pipelines_run_today": quota.get("pipelines_run_today", 0),
-                    "pipelines_run_month": quota.get("pipelines_run_month", 0),
-                    "concurrent_running": quota.get("concurrent_running", 0),
-                }
-        except Exception as e:
-            logger.warning(f"Failed to get quota for org {org_slug}: {e}")
-            continue
+        quota_data = await _get_org_quota_from_api(org_slug)
+        if quota_data:
+            org_quota_map[org_slug] = {
+                "daily_limit": quota_data.get("daily_limit", 10),
+                "monthly_limit": quota_data.get("monthly_limit", 300),
+                "concurrent_limit": quota_data.get("concurrent_limit", 3),
+                "pipelines_run_today": quota_data.get("pipelines_run_today", 0),
+                "pipelines_run_month": quota_data.get("pipelines_run_month", 0),
+                "concurrent_running": quota_data.get("concurrent_running", 0),
+            }
 
     # Filter pipelines based on quota
     for row in results:
@@ -620,7 +625,7 @@ async def process_queue(
                 logger.info(f"At concurrency limit ({current_processing}/{settings.pipeline_global_concurrent_limit}), stopping batch")
                 break
 
-            # Get next pipeline from queue (we'll check concurrent limits via Supabase)
+            # Get next pipeline from queue (we'll check concurrent limits via API service)
             query = f"""
             SELECT
                 q.run_id,
@@ -640,8 +645,7 @@ async def process_queue(
                 # Queue is empty
                 break
 
-            # Find first pipeline from an org not at concurrent limit (via Supabase)
-            supabase = get_supabase_client()
+            # Find first pipeline from an org not at concurrent limit (via API service)
             queue_item = None
             run_id = None
             org_slug = None
@@ -652,27 +656,19 @@ async def process_queue(
                 candidate_org_slug = candidate['org_slug']
 
                 try:
-                    # Get org_id and concurrent limit from Supabase
-                    org_result = supabase.table("organizations").select(
-                        "id, concurrent_limit"
-                    ).eq("org_slug", candidate_org_slug).single().execute()
-
-                    if not org_result.data:
+                    quota_data = await _get_org_quota_from_api(candidate_org_slug)
+                    if not quota_data:
                         continue
 
-                    org_id = org_result.data["id"]
-                    concurrent_limit = org_result.data.get("concurrent_limit", 3)
+                    concurrent_limit = quota_data.get("concurrent_limit", 3)
+                    current_concurrent = quota_data.get("concurrent_running", 0)
 
-                    # Get current concurrent count
-                    quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
-                    if quota_result.data:
-                        current_concurrent = quota_result.data.get("concurrent_running", 0)
-                        if current_concurrent < concurrent_limit:
-                            queue_item = candidate
-                            run_id = candidate['run_id']
-                            org_slug = candidate_org_slug
-                            pipeline_id = candidate['pipeline_id']
-                            break
+                    if current_concurrent < concurrent_limit:
+                        queue_item = candidate
+                        run_id = candidate['run_id']
+                        org_slug = candidate_org_slug
+                        pipeline_id = candidate['pipeline_id']
+                        break
                 except Exception as check_err:
                     logger.warning(f"Failed to check concurrent limit for {candidate_org_slug}: {check_err}")
                     continue
@@ -697,17 +693,18 @@ async def process_queue(
 
             bq_client.client.query(update_query, job_config=job_config).result()
 
-            # BUG-002 FIX: Increment concurrent counter when starting pipeline via Supabase
+            # BUG-002 FIX: Reserve quota via API service's validator before starting pipeline
             try:
-                # Get org_id for Supabase operations
-                org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
-                if org_result.data:
-                    org_id = org_result.data["id"]
-                    # Use increment_pipeline_count RPC which handles concurrent increment
-                    supabase.rpc("increment_pipeline_count", {"p_org_id": org_id}).execute()
-                    logger.debug(f"Incremented concurrent counter for {org_slug} via Supabase")
+                reserve_url = f"{settings.api_service_url}/api/v1/validator/validate/{org_slug}"
+                async with httpx.AsyncClient(timeout=settings.api_service_timeout) as api_client:
+                    await api_client.post(
+                        reserve_url,
+                        headers={"X-CA-Root-Key": settings.ca_root_api_key or ""},
+                        json={"pipeline_id": pipeline_id}
+                    )
+                logger.debug(f"Reserved quota for {org_slug} via API service")
             except Exception as inc_err:
-                logger.warning(f"Failed to increment scheduler concurrent counter for {org_slug}: {inc_err}")
+                logger.warning(f"Failed to reserve scheduler quota for {org_slug}: {inc_err}")
 
             # Get pipeline configuration and parameters
             config_query = f"""
@@ -747,7 +744,7 @@ async def process_queue(
             parameters = json.loads(config['parameters']) if config['parameters'] else {}
 
             # Create closure with captured variables for this iteration
-            # BUG-002 FIX: Pass org_slug for concurrent counter management via Supabase
+            # BUG-002 FIX: Pass org_slug for concurrent counter management via API service
             def make_execute_and_update(exec_instance, rid, cfg, bq, org_slug_captured):
                 async def execute_and_update():
                     try:
@@ -855,21 +852,17 @@ async def process_queue(
                             bq.client.query(delete_queue_query, job_config=run_job_config).result()
 
                     finally:
-                        # BUG-002 FIX: Always decrement concurrent counter via Supabase
+                        # BUG-002 FIX: Always report completion to API service
                         try:
-                            supabase_client = get_supabase_client()
-                            org_result = supabase_client.table("organizations").select("id").eq("org_slug", org_slug_captured).single().execute()
-                            if org_result.data:
-                                org_id = org_result.data["id"]
-                                supabase_client.rpc("decrement_concurrent", {"p_org_id": org_id}).execute()
-                                logger.debug(f"Decremented concurrent counter for {org_slug_captured} via Supabase")
+                            await _report_completion_to_api(org_slug_captured, "SUCCESS")
+                            logger.debug(f"Reported completion for {org_slug_captured} via API service")
                         except Exception as dec_err:
-                            logger.error(f"Failed to decrement scheduler concurrent counter for {org_slug_captured}: {dec_err}")
+                            logger.error(f"Failed to report scheduler completion for {org_slug_captured}: {dec_err}")
 
                 return execute_and_update
 
             # Spawn background task (returns immediately)
-            # BUG-002 FIX: Pass org_slug for concurrent counter decrement via Supabase
+            # BUG-002 FIX: Pass org_slug for concurrent counter decrement via API service
             background_tasks.add_task(make_execute_and_update(
                 executor, run_id, config, bq_client, org_slug
             ))
@@ -1294,29 +1287,21 @@ async def reset_daily_quotas_endpoint(
     admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset daily quota counters via Supabase.
-
-    Logic:
-    1. Get all active organizations from Supabase
-    2. Call get_or_create_quota RPC for each org to ensure today's record exists
-    3. Return count of orgs reset
-
-    Security:
-    - Requires admin API key
-
-    Performance:
-    - Uses Supabase RPC for atomic operations
+    Reset daily quota counters. Delegates to API service (8000) which owns Supabase.
     """
-    from src.core.utils.quota_reset import reset_daily_quotas
-
     try:
-        result = await reset_daily_quotas()
+        url = f"{settings.api_service_url}/api/v1/admin/quota/reset-daily"
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(url, headers={"X-CA-Root-Key": settings.ca_root_api_key or ""})
 
-        return {
-            **result,
-            "executed_at": datetime.now(timezone.utc).isoformat()
-        }
+        if resp.status_code == 200:
+            result = resp.json()
+            return {**result, "executed_at": datetime.now(timezone.utc).isoformat()}
+        else:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to reset daily quotas: {e}", exc_info=True)
         raise HTTPException(
@@ -1414,17 +1399,12 @@ async def cleanup_orphaned_pipelines(
                 cleaned_count = cleanup_job.num_dml_affected_rows or 0
 
                 if cleaned_count > 0:
-                    # Decrement concurrent_pipelines_running counter via Supabase
+                    # Report completion to API service for each cleaned pipeline
                     try:
-                        supabase = get_supabase_client()
-                        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
-                        if org_result.data:
-                            org_id = org_result.data["id"]
-                            # Decrement for each cleaned pipeline
-                            for _ in range(cleaned_count):
-                                supabase.rpc("decrement_concurrent", {"p_org_id": org_id}).execute()
+                        for _ in range(cleaned_count):
+                            await _report_completion_to_api(org_slug, "FAILED")
                     except Exception as dec_err:
-                        logger.warning(f"Failed to decrement concurrent counter for {org_slug}: {dec_err}")
+                        logger.warning(f"Failed to report orphan cleanup for {org_slug}: {dec_err}")
 
                     total_cleaned += cleaned_count
                     org_details.append({
@@ -1468,35 +1448,27 @@ async def reset_concurrent_counter(
     admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset concurrent_pipelines_running counter to 0 for a specific org via Supabase.
+    Reset concurrent_pipelines_running counter to 0 for a specific org.
 
+    Delegates to API service's cleanup-stale endpoint which owns Supabase access.
     Use this when the counter is stuck due to pipeline crashes or bugs.
-    This does NOT affect actual running pipelines - use cleanup-orphaned-pipelines for that.
     """
     try:
-        supabase = get_supabase_client()
+        # Get current value from API service
+        quota_data = await _get_org_quota_from_api(org_slug)
+        old_value = quota_data.get("concurrent_running", 0) if quota_data else 0
 
-        # Get org_id from organizations table
-        org_result = supabase.table("organizations").select("id").eq("org_slug", org_slug).single().execute()
-
-        if not org_result.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Organization {org_slug} not found"
+        # Call API service's stale cleanup endpoint for this org
+        url = f"{settings.api_service_url}/api/v1/admin/quota/cleanup-stale"
+        async with httpx.AsyncClient(timeout=settings.api_service_timeout) as client:
+            resp = await client.post(
+                url,
+                headers={"X-CA-Root-Key": settings.ca_root_api_key or ""},
+                json={"org_slug": org_slug}
             )
 
-        org_id = org_result.data["id"]
-
-        # Get current quota value
-        quota_result = supabase.rpc("get_or_create_quota", {"p_org_id": org_id}).execute()
-        old_value = quota_result.data.get("concurrent_running", 0) if quota_result.data else 0
-
-        # Reset concurrent_running to 0 in org_quotas
-        today = get_utc_date()
-        supabase.table("org_quotas").update({
-            "concurrent_running": 0,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }).eq("org_id", org_id).eq("usage_date", today.isoformat()).execute()
+        if resp.status_code != 200:
+            logger.warning(f"API service returned {resp.status_code} for stale cleanup: {org_slug}")
 
         logger.info(
             f"Reset concurrent counter for org {org_slug}: {old_value} -> 0",
@@ -1530,31 +1502,21 @@ async def reset_monthly_quotas_endpoint(
     admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset monthly quota counters for all organizations via Supabase.
-
-    Should be called on the 1st of each month at 00:00 UTC by Cloud Scheduler.
-
-    Logic:
-    1. Check if today is the 1st of the month (skip if not)
-    2. Call Supabase reset_monthly_quotas RPC
-    3. Return count of records updated
-
-    Security:
-    - Requires admin API key
-
-    Schedule:
-    - Run at 00:05 UTC on 1st of month (after daily reset at 00:00)
+    Reset monthly quota counters. Delegates to API service (8000) which owns Supabase.
     """
-    from src.core.utils.quota_reset import reset_monthly_quotas
-
     try:
-        result = await reset_monthly_quotas()
+        url = f"{settings.api_service_url}/api/v1/admin/quota/reset-monthly"
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(url, headers={"X-CA-Root-Key": settings.ca_root_api_key or ""})
 
-        return {
-            **result,
-            "executed_at": datetime.now(timezone.utc).isoformat()
-        }
+        if resp.status_code == 200:
+            result = resp.json()
+            return {**result, "executed_at": datetime.now(timezone.utc).isoformat()}
+        else:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Monthly quota reset failed: {e}", exc_info=True)
         raise HTTPException(
@@ -1572,34 +1534,21 @@ async def reset_stale_concurrent_endpoint(
     admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Reset concurrent pipeline counts that are stale via Supabase.
-
-    Handles cases where pipelines crashed without decrementing the concurrent count.
-    Any pipeline that's been "running" for more than 1 hour is considered stale.
-
-    Logic:
-    1. Find orgs with concurrent_running > 0 in Supabase org_quotas
-    2. Count actually running pipelines in BigQuery (RUNNING/PENDING < 1 hour old)
-    3. Fix any discrepancies between counter and actual count
-    4. Mark stale pipelines as FAILED in BigQuery
-
-    Security:
-    - Requires admin API key
-    - Only fixes genuinely stale counters
-
-    Schedule:
-    - Run every 15 minutes
+    Reset stale concurrent pipeline counts. Delegates to API service (8000) which owns Supabase.
     """
-    from src.core.utils.quota_reset import reset_stale_concurrent_counts
-
     try:
-        result = await reset_stale_concurrent_counts()
+        url = f"{settings.api_service_url}/api/v1/admin/quota/cleanup-stale"
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(url, headers={"X-CA-Root-Key": settings.ca_root_api_key or ""})
 
-        return {
-            **result,
-            "executed_at": datetime.now(timezone.utc).isoformat()
-        }
+        if resp.status_code == 200:
+            result = resp.json()
+            return {**result, "executed_at": datetime.now(timezone.utc).isoformat()}
+        else:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Stale concurrent count reset failed: {e}", exc_info=True)
         raise HTTPException(
