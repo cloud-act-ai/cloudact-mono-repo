@@ -116,7 +116,6 @@ def validate_credential_format(provider: str, credential: str) -> Dict[str, Any]
     # API_KEY validation
     if config.credential_type == "API_KEY":
         # Check key prefix if specified in config
-        # Check key prefix if specified in config
         if config.key_prefix:
             prefixes = tuple(config.key_prefix) if isinstance(config.key_prefix, list) else config.key_prefix
             if not credential.startswith(prefixes):

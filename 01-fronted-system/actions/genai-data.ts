@@ -36,6 +36,7 @@ import type {
 // Import BillingPeriod, TierType, PricingType, FreeTierResetFrequency, DiscountReason
 // directly from @/lib/api/backend where needed
 import { getCachedApiKey } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 import {
   VALID_BILLING_PERIODS,
   VALID_TIER_TYPES,
@@ -63,15 +64,6 @@ export interface LLMDataResult<T = unknown> {
 
 // Types are now imported directly from @/lib/api/backend by components that need them
 // Re-exports removed to fix Turbopack server action compilation issue
-
-// ============================================
-// Input Validation
-// ============================================
-
-function isValidOrgSlug(orgSlug: string): boolean {
-  if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
-}
 
 function isValidProvider(provider: string): provider is LLMProvider {
   // Use shared validation from constants - includes: openai, anthropic, gemini, deepseek, custom

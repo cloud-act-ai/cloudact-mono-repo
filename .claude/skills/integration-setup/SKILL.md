@@ -203,6 +203,16 @@ Requirements consolidated from:
 - `03_INTEGRATIONS.md` - Integration setup and provider management
 - `05_GCP_INTEGRATION.md` - GCP-specific integration details
 
+## 5 Implementation Pillars
+
+| Pillar | How Integration Setup Handles It |
+|--------|-------------------------------|
+| **i18n** | Provider credentials are currency-agnostic; pricing models may differ by region but credential format is universal |
+| **Enterprise** | KMS encryption for all credentials at rest, credential rotation support via re-setup endpoint, provider whitelist validation against `providers.yml` |
+| **Cross-Service** | Frontend settings (3000) → API (8000) encrypts+stores in `org_integration_credentials` → Pipeline (8001) decrypts+uses → Chat (8002) decrypts for BYOK |
+| **Multi-Tenancy** | `org_integration_credentials` scoped by `org_slug`, `encrypted_value` per org per provider, `validate_org_slug()` on all credential endpoints |
+| **Reusability** | Shared `KMSEncryption` class for encrypt/decrypt, provider registry pattern in `providers.yml`, credential validation framework per provider type |
+
 ## Related Skills
 - `pipeline-ops` - Run provider pipelines
 - `security-audit` - Audit credential security

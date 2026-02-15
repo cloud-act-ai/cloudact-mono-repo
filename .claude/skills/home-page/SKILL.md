@@ -819,6 +819,16 @@ const screenshots = [
 - Gradient div needs: `className="absolute inset-0 pointer-events-none"`
 - Content container needs: `className="relative z-10"`
 
+## 5 Implementation Pillars
+
+| Pillar | How Home Page Handles It |
+|--------|-------------------------------|
+| **i18n** | Public-facing content in English only (no org context); pricing section shows USD; future: multi-language landing pages |
+| **Enterprise** | SEO optimization, Core Web Vitals performance, CDN-friendly static generation via Next.js, professional brand image |
+| **Cross-Service** | Landing page links to `/signup` (auth flow), `/pricing` (Stripe), `/docs`; no backend service calls (fully static) |
+| **Multi-Tenancy** | N/A -- public marketing pages with no org-scoped content |
+| **Reusability** | Shared landing section components, hero patterns, Framer Motion animation utilities, consistent CTA button styles with inline `style={{}}` |
+
 ## Source Specifications
 
 Requirements consolidated from:

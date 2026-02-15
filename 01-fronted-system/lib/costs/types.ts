@@ -108,9 +108,10 @@ export interface FiscalYearConfig {
 }
 
 /**
- * Default fiscal year: April 1 - March 31
+ * Default fiscal year: January 1 - December 31
+ * (Canonical default per lib/i18n/constants.ts DEFAULT_FISCAL_YEAR_START = 1)
  */
 export const DEFAULT_FISCAL_YEAR_CONFIG: FiscalYearConfig = {
-  startMonth: 4,
+  startMonth: 1,
   startDay: 1,
 }

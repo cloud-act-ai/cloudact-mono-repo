@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import type { TimeRange } from "@/contexts/cost-data-context"
 import { cn } from "@/lib/utils"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -831,8 +832,8 @@ export function TimeRangeFilter({
         const today = new Date()
         const start = new Date(today)
         start.setDate(start.getDate() - 30)
-        setTempStartDate(start.toISOString().split("T")[0])
-        setTempEndDate(today.toISOString().split("T")[0])
+        setTempStartDate(formatLocalDate(start))
+        setTempEndDate(formatLocalDate(today))
       }
     } else {
       onChange(range)
@@ -959,7 +960,7 @@ export function TimeRangeFilter({
                   value={tempEndDate}
                   onChange={(e) => setTempEndDate(e.target.value)}
                   min={tempStartDate || undefined}
-                  max={new Date().toISOString().split("T")[0]}
+                  max={formatLocalDate(new Date())}
                   className={cn(
                     "w-full px-3 py-2 rounded-md border border-[var(--border-subtle)]",
                     "text-sm text-[var(--text-secondary)]",

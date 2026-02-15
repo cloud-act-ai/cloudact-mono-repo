@@ -76,12 +76,16 @@ class TestMultiTenancyIsolation:
 
     def test_org_slug_validation(self):
         """Test that invalid org_slugs are rejected."""
-        # Valid org slugs
+        # Valid org slugs (lowercase only)
         assert validate_org_slug("acme_inc") == "acme_inc"
         assert validate_org_slug("org123") == "org123"
-        assert validate_org_slug("Test_Org_2024") == "Test_Org_2024"
+        assert validate_org_slug("test_org_2024") == "test_org_2024"
 
-        # Invalid org slugs
+        # Invalid org slugs - uppercase not allowed
+        with pytest.raises(ValueError):
+            validate_org_slug("Test_Org_2024")  # Contains uppercase
+
+        # Other invalid org slugs
         with pytest.raises(ValueError):
             validate_org_slug("")  # Empty
 

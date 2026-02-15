@@ -54,7 +54,7 @@ export function HeroDashboard() {
                <ChevronDown className="w-3 h-3 ml-1" />
              </div>
              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-xs font-bold ring-2 ring-emerald-500/20">
-               GK
+               CA
              </div>
            </div>
         </div>

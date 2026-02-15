@@ -882,7 +882,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-lg font-bold text-[var(--text-primary)]">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: budgetSummary.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetSummary.total_budget)}
+                      {new Intl.NumberFormat(undefined, { style: "currency", currency: budgetSummary.currency || "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetSummary.total_budget)}
                     </p>
                     <p className="text-xs text-[var(--text-tertiary)]">Total Budget</p>
                   </div>
@@ -890,7 +890,7 @@ export default function DashboardPage() {
                 <div className="w-px h-8 bg-[var(--border-subtle)]" />
                 <div>
                   <p className="text-lg font-bold text-[var(--text-primary)]">
-                    {new Intl.NumberFormat("en-US", { style: "currency", currency: budgetSummary.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetSummary.total_actual)}
+                    {new Intl.NumberFormat(undefined, { style: "currency", currency: budgetSummary.currency || "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetSummary.total_actual)}
                   </p>
                   <p className="text-xs text-[var(--text-tertiary)]">Actual Spend</p>
                 </div>

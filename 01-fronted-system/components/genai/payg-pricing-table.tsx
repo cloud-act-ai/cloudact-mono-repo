@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { Zap, AlertCircle, Loader2 } from "lucide-react"
 import { PricingTableBase, PricingColumn, PricingRow, VersionConflict, PricingFieldValue } from "./pricing-table-base"
 import { GenAIPAYGPricing } from "@/lib/data/genai/genai-payg-pricing"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 import { AddModelDialog } from "./add-model-dialog"
 
 // ============================================================================
@@ -433,10 +434,10 @@ export function PAYGPricingTable({
         supports_streaming: true,
         supports_tools: model.supports_tools || false,
         sla_uptime_pct: 99.9,
-        effective_from: new Date().toISOString().split("T")[0],
+        effective_from: formatLocalDate(new Date()),
         effective_to: null,
         status: "active",
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: formatLocalDate(new Date()),
         notes: "Custom model",
       })
       setShowAddDialog(false)

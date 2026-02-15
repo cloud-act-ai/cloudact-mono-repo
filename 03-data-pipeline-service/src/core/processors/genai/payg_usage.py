@@ -41,8 +41,14 @@ from .provider_adapters import (
     DeepSeekAdapter
 )
 
-# Cache for provider API responses (in-memory, cleared per execution)
+# Cache for provider API responses (in-memory, bounded to prevent memory leaks)
 _api_response_cache: Dict[str, Any] = {}
+_API_RESPONSE_CACHE_MAX_SIZE = 100
+
+
+def clear_api_response_cache() -> None:
+    """Clear the API response cache. Call between pipeline runs to prevent memory leaks."""
+    _api_response_cache.clear()
 
 
 class PAYGUsageProcessor:
@@ -101,7 +107,7 @@ class PAYGUsageProcessor:
         if not is_valid_org_slug(org_slug):
             return {
                 "status": "FAILED",
-                "error": "Invalid org_slug format. Must be alphanumeric with underscores, 3-50 characters (^[a-zA-Z0-9_]{3,50}$)"
+                "error": "Invalid org_slug format. Must be lowercase alphanumeric with underscores, 3-50 characters (^[a-z0-9_]{3,50}$)"
             }
 
         provider = config.get("provider")
@@ -192,7 +198,9 @@ class PAYGUsageProcessor:
                 usage_records = _api_response_cache[cache_key]
             else:
                 usage_records = await adapter.extract_payg_usage(start_date, end_date)
-                # Cache the response for potential retries
+                # Cache the response for potential retries (bounded to prevent memory leaks)
+                if len(_api_response_cache) >= _API_RESPONSE_CACHE_MAX_SIZE:
+                    _api_response_cache.clear()
                 _api_response_cache[cache_key] = usage_records
 
             if not usage_records:

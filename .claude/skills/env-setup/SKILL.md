@@ -351,6 +351,16 @@ npm install
 "GCP auth not working locally"
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Env Setup Handles It |
+|--------|-------------------------------|
+| **i18n** | Local dev uses default locale (USD/UTC); test environments support multi-currency fixtures via org onboarding |
+| **Enterprise** | Docker-based local development; GCP credential management via service accounts; consistent environment parity across local/stage/prod |
+| **Cross-Service** | Sets up all 4 services locally (ports 3000/8000/8001/8002); configures BigQuery test project and Supabase connection |
+| **Multi-Tenancy** | Local dev creates isolated test orgs via bootstrap + onboard; `.env.local` has test project credentials scoped per org |
+| **Reusability** | Shared `.env` patterns across services; `docker-compose.yml`; setup scripts; venv activation patterns for Python services |
+
 ## Related Skills
 - `bootstrap-onboard` - Initialize system
 - `test-orchestration` - Run tests

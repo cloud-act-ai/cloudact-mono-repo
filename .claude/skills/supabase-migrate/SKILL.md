@@ -180,6 +180,16 @@ The `migrate.sh` script:
 4. Stops on first failure
 5. Requires confirmation for stage/prod (unless `--yes`)
 
+## 5 Implementation Pillars
+
+| Pillar | How Supabase Migrate Handles It |
+|--------|-------------------------------|
+| **i18n** | Migrations may add locale columns (`currency`, `timezone`, `date_format`) to the `organizations` table |
+| **Enterprise** | Migration versioning with checksums; rollback support via `--force`; dry-run mode; multi-environment targeting (local/stage/prod) |
+| **Cross-Service** | Supabase schema changes affect Frontend (RLS policies) and API (auth queries); coordinate with BigQuery schema for data consistency |
+| **Multi-Tenancy** | RLS policies enforce org isolation; migrations must not break cross-org boundaries; `org_slug` scoping in all new tables |
+| **Reusability** | Shared `migrate.sh` script; consistent migration file naming (`NN_*.sql`); Management API pattern for all environments |
+
 ## Current Status
 
 Run these commands to check current status:

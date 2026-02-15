@@ -17,17 +17,12 @@ import { stripe, getStripe } from "@/lib/stripe"
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { headers } from "next/headers"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 
 // Price ID validation - verify it's a valid Stripe price format
 // Price IDs start with "price_" and are fetched dynamically from Stripe
 const isValidStripePriceId = (priceId: string): boolean => {
   return priceId.startsWith("price_") && priceId.length > 10
-}
-
-// OrgSlug validation - prevent path traversal and injection
-// Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
-const isValidOrgSlug = (slug: string): boolean => {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
 }
 
 // Safe parseInt with NaN handling - returns default value if invalid
@@ -373,7 +368,8 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
     }
 
     // Generate idempotency key to prevent duplicate sessions
-    const idempotencyKey = `checkout_${org.id}_${priceId}`
+    // Include a time window (per-minute) so abandoned checkouts don't block retries
+    const idempotencyKey = `checkout_${org.id}_${priceId}_${Math.floor(Date.now() / 60000)}`
 
     // Fetch price details to check for specific trial period
     const price = await stripe.prices.retrieve(priceId)
@@ -852,9 +848,7 @@ export async function changeSubscriptionPlan(
     })
 
     const newProduct = newPrice.product as Stripe.Product
-    const newPlanLimits = {
-      max_team_members: parseInt(newProduct.metadata?.max_team_members || "2", 10)
-    }
+    const newSeatLimit = parseInt(newProduct.metadata?.teamMembers || "2", 10)
 
     // Check Seat Limit
     const { count: memberCount, error: countError } = await adminClient
@@ -865,11 +859,11 @@ export async function changeSubscriptionPlan(
 
     if (countError) {
       // Fail safe: don't block if we can't check member count
-    } else if (memberCount !== null && memberCount > newPlanLimits.max_team_members) {
+    } else if (memberCount !== null && memberCount > newSeatLimit) {
       return {
         success: false,
         subscription: null,
-        error: `Cannot downgrade: Your team has ${memberCount} active members, but the new plan only allows ${newPlanLimits.max_team_members}. Please remove members first.`
+        error: `Cannot downgrade: Your team has ${memberCount} active members, but the new plan only allows ${newSeatLimit}. Please remove members first.`
       }
     }
 
@@ -1314,6 +1308,7 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
         current_period_start: new Date(periodStart * 1000).toISOString(),
         current_period_end: new Date(periodEnd * 1000).toISOString(),
         trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+        subscription_ends_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
         ...limits,
       })
       .eq("id", org.id)

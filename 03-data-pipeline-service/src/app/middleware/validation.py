@@ -28,9 +28,9 @@ def generate_request_id() -> str:
 # Validation Rules Configuration
 # ============================================
 
-# Organization slug validation: alphanumeric, underscores, hyphens only (3-64 chars)
-# Prevents SQL injection, path traversal, and invalid dataset names
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{3,64}$')
+# Organization slug validation: lowercase alphanumeric + underscores only (3-50 chars)
+# Must match canonical pattern across all services: ^[a-z0-9_]{3,50}$
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 
 # Date format validation: YYYY-MM-DD
 DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')

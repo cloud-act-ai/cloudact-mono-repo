@@ -161,11 +161,12 @@ export function extractErrorMessage(errorText: string): string {
 
 /**
  * Validate org slug format.
- * Must be 3-50 alphanumeric characters or underscores.
+ * Must be 3-50 lowercase alphanumeric characters or underscores.
+ *
+ * @deprecated Use isValidOrgSlug from @/lib/utils/validation instead.
+ * Kept for backward compatibility with existing imports.
  */
-export function isValidOrgSlug(slug: string): boolean {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
-}
+export { isValidOrgSlug } from "@/lib/utils/validation"
 
 /**
  * Validate subscription ID format.

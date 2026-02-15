@@ -2,8 +2,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 
-const SUPABASE_URL = 'https://kwroaccbrxppfiysqlzs.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cm9hY2NicnhwcGZpeXNxbHpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDAzNTM5MCwiZXhwIjoyMDc5NjExMzkwfQ.sW39fSpR0b1i5izgXVwGaV3sXdWmMGI22sX4zAnywuM';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kwroaccbrxppfiysqlzs.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('SUPABASE_SERVICE_ROLE_KEY environment variable is required. Set it in .env.local');
+  process.exit(1);
+}
 const API_URL = 'http://localhost:8000';
 const ORG_SLUG = 'guru_inc_12012025';
 

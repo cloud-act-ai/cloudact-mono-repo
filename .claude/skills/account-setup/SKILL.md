@@ -282,6 +282,16 @@ account-flows.spec.ts
 | Tests timeout | Slow network/server | Increase timeout in config |
 | `webServer` fails | Port 3000 already in use | Use `reuseExistingServer: true` |
 
+## 5 Implementation Pillars
+
+| Pillar | How Account Setup Handles It |
+|--------|-------------------------------|
+| **i18n** | Org locale (currency, timezone, date_format) set during onboarding step 2, propagated to BigQuery datasets + Supabase org record |
+| **Enterprise** | Playwright E2E testing validates all flows, atomic org creation (Supabase + BigQuery), rate limiting on signup/login (5/5min), security event logging |
+| **Cross-Service** | Frontend signup (3000) → Supabase auth (JWT) → API (8000) `bootstrap` + `onboard` endpoints → BigQuery dataset creation + 30 meta tables |
+| **Multi-Tenancy** | Unique `org_slug` generation (`company_name` + base36 timestamp), org isolation enforced from creation, Supabase RLS policies per org |
+| **Reusability** | Shared auth flows (`requireAuth`, `requireOrgMembership`), test fixtures (`test-credentials.ts`), onboarding checklist pattern reused across signup variants |
+
 ## Related Skills
 
 | Skill | Relationship |

@@ -44,19 +44,19 @@ const PLAN_FEATURES: Record<string, { name: string; color: string; icon: React.R
     name: "Starter",
     color: "#007AFF",
     icon: <Zap className="h-5 w-5" />,
-    features: ["Up to 5 team members", "3 integrations", "10 pipeline runs/day", "Email support"],
+    features: ["Up to 2 team members", "3 integrations", "6 pipeline runs/day", "Email support"],
   },
   professional: {
     name: "Professional",
     color: "#90FCA6",
     icon: <TrendingUp className="h-5 w-5" />,
-    features: ["Up to 20 team members", "10 integrations", "50 pipeline runs/day", "Priority support"],
+    features: ["Up to 6 team members", "6 integrations", "25 pipeline runs/day", "Priority support"],
   },
   scale: {
     name: "Scale",
     color: "#8B5CF6",
     icon: <Building2 className="h-5 w-5" />,
-    features: ["Up to 100 team members", "Unlimited integrations", "Unlimited pipelines", "Dedicated support"],
+    features: ["Up to 11 team members", "10 integrations", "100 pipeline runs/day", "Dedicated support"],
   },
 }
 
@@ -140,13 +140,13 @@ export default function BillingPage() {
         return
       }
       if (result.url) {
-        router.push(result.url)
+        window.location.href = result.url
+        return // Don't reset loading - we're navigating away
       }
     } catch {
       setError("Failed to open billing portal")
-    } finally {
-      setIsRedirectingToPortal(false)
     }
+    setIsRedirectingToPortal(false)
   }
 
   // Stats for StatRow component - same pattern as dashboard/pipelines
@@ -280,10 +280,10 @@ export default function BillingPage() {
                   {billingInfo?.paymentMethod ? (
                     <>
                       <h3 className="text-[14px] font-semibold text-[var(--text-primary)] tracking-tight">
-                        {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} •••• {billingInfo.paymentMethod.last4}
+                        {(billingInfo.paymentMethod.brand || "Card").charAt(0).toUpperCase() + (billingInfo.paymentMethod.brand || "card").slice(1)} •••• {billingInfo.paymentMethod.last4 || "****"}
                       </h3>
                       <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
-                        Expires {billingInfo.paymentMethod.expMonth.toString().padStart(2, "0")}/{billingInfo.paymentMethod.expYear}
+                        Expires {(billingInfo.paymentMethod.expMonth ?? 1).toString().padStart(2, "0")}/{billingInfo.paymentMethod.expYear ?? "----"}
                       </p>
                     </>
                   ) : (
@@ -335,13 +335,13 @@ export default function BillingPage() {
                         Invoice {invoice.number || invoice.id.slice(-8)}
                       </h4>
                       <p className="text-[11px] text-[var(--text-tertiary)]">
-                        {new Date(invoice.created).toLocaleDateString()}
+                        {invoice.created ? new Date(invoice.created).toLocaleDateString() : "N/A"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                      {invoice.currency} {invoice.amountPaid.toFixed(2)}
+                      {new Intl.NumberFormat(undefined, { style: "currency", currency: (invoice.currency || "usd").toUpperCase() }).format(invoice.amountPaid ?? 0)}
                     </span>
                     <Badge className={`text-[11px] px-2 py-0.5 ${invoice.status === "paid" ? "bg-green-100 text-green-700" : "bg-[var(--surface-secondary)] text-[var(--text-secondary)]"}`}>
                       {invoice.status}

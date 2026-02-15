@@ -242,6 +242,16 @@ curl -s "https://cloudact-chat-backend-test-*.a.run.app/health"
 curl -s "https://chat.cloudact.ai/health"
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Chat System Handles It |
+|--------|-------------------------------|
+| **i18n** | BYOK respects org currency in cost tool responses; dates rendered in org timezone via `formatLocalDate()` |
+| **Enterprise** | KMS encryption for BYOK credentials, audit trail in `org_chat_tool_calls`, structured JSON logging across all agents |
+| **Cross-Service** | Frontend (CopilotKit 3000) → Chat Backend (8002) via AG-UI SSE → BigQuery; credentials fetched from API (8000) via KMS decrypt |
+| **Multi-Tenancy** | `bind_org_slug()` on all 17 tools via `functools.partial`, `org_validator.py` checks format+existence, `{org_slug}_prod` dataset isolation, 10GB dry-run gate |
+| **Reusability** | `safe_query()` wraps all BQ calls with dry-run+parameterization, `bind_org_slug()` pattern shared across all tool modules, `model_factory` for LLM provider abstraction |
+
 ## Related Skills
 
 | Skill | Relationship |

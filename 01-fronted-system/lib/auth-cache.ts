@@ -17,6 +17,7 @@
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 
 // ============================================
 // Types
@@ -59,10 +60,7 @@ const inFlightRequests = new Map<string, Promise<CachedAuthContext | null>>()
 // Validation
 // ============================================
 
-export function isValidOrgSlug(orgSlug: string): boolean {
-  if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-z0-9_]{3,50}$/.test(orgSlug)
-}
+// isValidOrgSlug imported from @/lib/utils/validation (see imports above)
 
 // ============================================
 // Internal Auth Check (uncached)
@@ -138,7 +136,12 @@ async function requireOrgMembershipInternal(orgSlug: string): Promise<AuthResult
  * @returns Auth context with API key, or null if auth fails
  */
 export async function getAuthContext(orgSlug: string): Promise<CachedAuthContext | null> {
-  const cacheKey = orgSlug
+  // First, get the current user to scope cache per-user (prevents cross-user data leaks)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const cacheKey = `${user.id}:${orgSlug}`
   const cached = authCache.get(cacheKey)
   const now = Date.now()
 
@@ -251,7 +254,12 @@ export async function getCachedApiKey(orgSlug: string): Promise<string | null> {
  * @param orgSlug - Organization slug to invalidate
  */
 export function invalidateAuthCache(orgSlug: string): void {
-  authCache.delete(orgSlug)
+  // Clear all user-scoped cache entries for this org
+  for (const key of authCache.keys()) {
+    if (key.endsWith(`:${orgSlug}`)) {
+      authCache.delete(key)
+    }
+  }
 }
 
 /**

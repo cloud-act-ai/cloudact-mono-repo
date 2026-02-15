@@ -822,6 +822,16 @@ gcloud scheduler jobs resume cloudact-quota-reset-daily-trigger \
 | test, stage | cloudact-testing-1 |
 | prod | cloudact-prod |
 
+## 5 Implementation Pillars
+
+| Pillar | How Infra CICD Handles It |
+|--------|-------------------------------|
+| **i18n** | Docker images include exchange rate CSV; locale constants baked at build time via environment variables |
+| **Enterprise** | Cloud Build pipelines for automated deploys; git-tag-based production deployment; automated stage on push to main |
+| **Cross-Service** | Builds and deploys all 4 services + scheduler jobs; shared `cloudbuild-*.yaml` templates; cross-service URL configuration via `deploy.sh` |
+| **Multi-Tenancy** | Each Cloud Run service handles its own auth (`X-API-Key` / `X-CA-Root-Key`); no shared state between service instances |
+| **Reusability** | Shared CICD scripts (`build.sh`, `push.sh`, `deploy.sh`); `cloudbuild` templates; `environments.conf` config; GCP Secret Manager patterns |
+
 ## Source Specifications
 
 Requirements consolidated from:

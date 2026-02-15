@@ -430,6 +430,16 @@ useEffect(() => {
 
 **Why:** `setUnifiedFilters` identity changes on every context state update. If placed directly in `useEffect` deps, it causes infinite re-renders.
 
+## 5 Implementation Pillars
+
+| Pillar | How Advanced Filters Handles It |
+|--------|-------------------------------|
+| **i18n** | Date filters respect org timezone via `formatLocalDate()`, currency filters use org's `default_currency` for threshold display |
+| **Enterprise** | URL-persisted filter state for shareable dashboard links, filter combinations tested at scale (10k+ orgs), `serverFilterKey` ensures stable re-fetch deps |
+| **Cross-Service** | Frontend filter context dispatches `serverParams` → API (8000) query params → BigQuery WHERE clauses; used across budgets, alerts, and cost dashboards |
+| **Multi-Tenancy** | All filter queries include `org_slug` parameter, hierarchy entity filters scoped to org's own tree, no cross-org entity leakage |
+| **Reusability** | Shared `AdvancedFilterBar` component + `useAdvancedFilters` hook consumed by budgets/alerts/costs, `matchesSearch`/`matchesBudgetStatus`/`matchesAlertStatus` helpers |
+
 ## Related Skills
 
 | Skill | Relationship |

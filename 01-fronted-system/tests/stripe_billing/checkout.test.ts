@@ -50,10 +50,10 @@ const isValidStripePriceId = (priceId: string): boolean => {
 
 /**
  * Validate org slug format
- * Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
+ * Backend requires: lowercase alphanumeric with underscores only (no hyphens, no uppercase), 3-50 characters
  */
 const isValidOrgSlug = (slug: string): boolean => {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+  return /^[a-z0-9_]{3,50}$/.test(slug)
 }
 
 /**
@@ -249,7 +249,8 @@ describe('Stripe Checkout Functions Test Suite', () => {
       it('should accept valid org slugs', () => {
         expect(isValidOrgSlug("acme_ml01ua8p")).toBe(true)
         expect(isValidOrgSlug("test_n2kf9x4m")).toBe(true)
-        expect(isValidOrgSlug("ABC")).toBe(true) // Minimum 3 chars
+        expect(isValidOrgSlug("abc")).toBe(true) // Minimum 3 chars
+        expect(isValidOrgSlug("ABC")).toBe(false) // Uppercase not allowed
         expect(isValidOrgSlug("a".repeat(50))).toBe(true) // Maximum 50 chars
       })
 

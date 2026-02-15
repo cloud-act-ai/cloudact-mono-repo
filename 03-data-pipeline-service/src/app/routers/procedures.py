@@ -273,7 +273,7 @@ async def list_procedures(
         logger.error(f"Failed to list procedures: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list procedures: {str(e)}"
+            detail="Failed to list procedures"
         )
 
 
@@ -433,9 +433,10 @@ async def sync_single_procedure(
         )
 
     except Exception as e:
+        logger.error(f"Failed to sync procedure {procedure_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to sync procedure: {str(e)}"
+            detail="Failed to sync procedure"
         )
 
 
@@ -482,7 +483,7 @@ async def delete_procedure(
         logger.error(f"Failed to delete procedure {procedure_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete procedure: {str(e)}"
+            detail="Failed to delete procedure"
         )
 
 
@@ -548,7 +549,7 @@ async def get_procedure(
         logger.error(f"Failed to get procedure details: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get procedure details: {str(e)}"
+            detail="Failed to get procedure details"
         )
 
 

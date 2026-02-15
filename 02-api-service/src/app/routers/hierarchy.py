@@ -165,9 +165,10 @@ async def create_level(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to create hierarchy level for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to create hierarchy level"
         )
 
 
@@ -192,9 +193,10 @@ async def update_level(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to update hierarchy level for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to update hierarchy level"
         )
 
 
@@ -219,9 +221,10 @@ async def delete_level(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to delete hierarchy level for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to delete hierarchy level"
         )
 
 
@@ -242,9 +245,10 @@ async def seed_default_levels(
     try:
         return await service.seed_default_levels(org_slug, user_id)
     except RuntimeError as e:
+        logger.error(f"Failed to seed default levels for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to seed default hierarchy levels"
         )
 
 
@@ -292,9 +296,10 @@ async def seed_default_entities(
     except HTTPException:
         raise
     except RuntimeError as e:
+        logger.error(f"Failed to seed default entities for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to seed default hierarchy entities"
         )
 
 
@@ -416,9 +421,10 @@ async def create_entity(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to create hierarchy entity for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to create hierarchy entity"
         )
 
 
@@ -443,9 +449,10 @@ async def update_entity(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to update hierarchy entity {entity_id} for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to update hierarchy entity"
         )
 
 
@@ -470,9 +477,10 @@ async def move_entity(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to move hierarchy entity {entity_id} for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to move hierarchy entity"
         )
 
 
@@ -518,9 +526,10 @@ async def delete_entity(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except RuntimeError as e:
+        logger.error(f"Failed to delete hierarchy entity {entity_id} for {org_slug}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Failed to delete hierarchy entity"
         )
 
 

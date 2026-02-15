@@ -158,6 +158,16 @@ with open('subscription_plans.csv') as f:
 Requirements consolidated from:
 - `02_SAAS_SUBSCRIPTION_COSTS.md` - SaaS subscription costs
 
+## 5 Implementation Pillars
+
+| Pillar | How Subscription Costs Handles It |
+|--------|-------------------------------|
+| **i18n** | SaaS costs stored in plan's `currency` field, multi-currency conversion to USD via exchange rates, `formatCost()` for all frontend display |
+| **Enterprise** | Subscription lifecycle tracking (active/cancelled/expired), pro-rated daily cost calculation, plan version history via `edit-version` endpoint |
+| **Cross-Service** | Frontend plan CRUD (3000) → API (8000) stores in `subscription_plans` → Pipeline (8001) calculates daily costs → BigQuery `cost_data_standard_1_3` (FOCUS 1.3) |
+| **Multi-Tenancy** | `subscription_plans` scoped by `x_org_slug`, pipeline output includes `x_org_slug` in every row, `{org_slug}_prod` dataset isolation |
+| **Reusability** | Shared FOCUS 1.3 schema for output, subscription pipeline YAML configs follow `BaseProcessor` pattern, cost formatters from `lib/costs/` |
+
 ## Related Skills
 
 - `pipeline-ops` - Pipeline execution and debugging

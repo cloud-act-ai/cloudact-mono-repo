@@ -335,6 +335,16 @@ Requirements consolidated from:
 - **Enterprise-grade for 10k customers** - Tests must validate at scale (multi-org, multi-currency fixtures)
 - **Update skills with learnings** - Document test patterns and fixes in skill files
 
+## 5 Implementation Pillars
+
+| Pillar | How Test Orchestration Handles It |
+|--------|-------------------------------|
+| **i18n** | Multi-currency test fixtures (USD, EUR, AED, INR), timezone-aware date assertions, locale formatting tests |
+| **Enterprise** | Multi-org testing, parallel test execution, fixture isolation, comprehensive coverage |
+| **Cross-Service** | Tests span Frontend -> API -> Pipeline -> BigQuery, integration tests validate cross-service contracts |
+| **Multi-Tenancy** | Test fixtures create isolated orgs, cleanup after tests, no shared state between test orgs |
+| **Reusability** | Shared test utilities, fixture factories, assertion helpers, mock patterns |
+
 ## Related Skills
 - `config-validator` - Validate test configs
 - `security-audit` - Security test coverage

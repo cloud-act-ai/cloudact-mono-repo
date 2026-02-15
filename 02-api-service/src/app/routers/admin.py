@@ -1543,7 +1543,7 @@ async def get_org_api_key_dev(
         logger.error(f"[DEV] Failed to retrieve API key: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve API key: {str(e)}"
+            detail="Failed to retrieve API key"
         )
 
 
@@ -1703,7 +1703,7 @@ async def reset_daily_quotas(
         logger.error(f"Daily quota reset failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Daily quota reset failed: {str(e)}"
+            detail="Daily quota reset failed"
         )
 
 
@@ -1780,7 +1780,7 @@ async def reset_monthly_quotas(
         logger.error(f"Monthly quota reset failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Monthly quota reset failed: {str(e)}"
+            detail="Monthly quota reset failed"
         )
 
 
@@ -1904,7 +1904,7 @@ async def cleanup_stale_concurrent(
         logger.error(f"Stale cleanup failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Stale cleanup failed: {str(e)}"
+            detail="Stale cleanup failed"
         )
 
 
@@ -2059,8 +2059,8 @@ async def process_all_alerts(
                 costs_query = f"""
                 SELECT SUM(BilledCost) as total_cost
                 FROM `{settings.gcp_project_id}.{org_slug}_prod.cost_data_standard_1_3`
-                WHERE BillingPeriodStart >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-                  AND BillingPeriodStart < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
+                WHERE ChargePeriodStart >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+                  AND ChargePeriodStart < DATE_ADD(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 1 MONTH)
                 """
 
                 try:
@@ -2097,8 +2097,8 @@ async def process_all_alerts(
                             COALESCE(SUM(c.BilledCost), 0) AS actual_cost
                         FROM `{settings.gcp_project_id}.organizations.org_budgets` b
                         LEFT JOIN `{settings.gcp_project_id}.{org_slug}_prod.cost_data_standard_1_3` c
-                            ON c.BillingPeriodStart >= b.period_start
-                            AND c.BillingPeriodStart < b.period_end
+                            ON c.ChargePeriodStart >= b.period_start
+                            AND c.ChargePeriodStart < b.period_end
                             AND (
                                 b.hierarchy_entity_id = 'ORG'
                                 OR c.x_hierarchy_entity_id = b.hierarchy_entity_id
@@ -2338,7 +2338,7 @@ async def process_all_alerts(
         logger.error(f"Process all alerts failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Process all alerts failed: {str(e)}"
+            detail="Process all alerts failed"
         )
 
 
@@ -2698,5 +2698,5 @@ async def run_all_pipelines(
         logger.error(f"Pipeline run-all failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Pipeline run-all failed: {str(e)}"
+            detail="Pipeline run-all failed"
         )

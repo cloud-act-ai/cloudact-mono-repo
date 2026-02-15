@@ -83,7 +83,7 @@ async def evaluate_scheduled_alerts(
         logger.error(f"Alert evaluation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Alert evaluation failed: {str(e)}"
+            detail="Alert evaluation failed"
         )
 
 
@@ -298,7 +298,7 @@ async def evaluate_org_alerts(
         logger.error(f"Org alert evaluation failed for {org_slug}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Alert evaluation failed: {str(e)}"
+            detail="Alert evaluation failed"
         )
 
 

@@ -6,6 +6,7 @@
  */
 
 import { TOKEN_THRESHOLDS, TOKEN_SUFFIXES } from "./constants"
+import { getCurrencySymbol } from "@/lib/i18n/formatters"
 
 // ============================================
 // Token Formatting
@@ -241,7 +242,7 @@ export function getTrendBgClass(
  * Format cost per 1M tokens
  */
 export function formatCostPer1M(cost: number, currency: string = "USD"): string {
-  const formatter = new Intl.NumberFormat("en-US", {
+  const formatter = new Intl.NumberFormat(undefined, {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -257,14 +258,15 @@ export function formatCostPerToken(
   cost: number,
   currency: string = "USD"
 ): string {
-  if (cost === 0) return "$0.00"
+  const symbol = getCurrencySymbol(currency)
+  if (cost === 0) return `${symbol}0.00`
 
   // Use scientific notation for very small values
   if (cost < 0.000001) {
-    return `$${cost.toExponential(2)}`
+    return `${symbol}${cost.toExponential(2)}`
   }
 
-  const formatter = new Intl.NumberFormat("en-US", {
+  const formatter = new Intl.NumberFormat(undefined, {
     style: "currency",
     currency,
     minimumFractionDigits: 6,
@@ -282,7 +284,7 @@ export function formatCostPerToken(
  */
 export function formatUsageDate(dateStr: string): string {
   const date = new Date(dateStr)
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -297,7 +299,7 @@ export function formatUsageDateRange(start: string, end: string): string {
   const endDate = new Date(end)
 
   const formatDate = (d: Date) =>
-    d.toLocaleDateString("en-US", {
+    d.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     })

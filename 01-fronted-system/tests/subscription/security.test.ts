@@ -53,7 +53,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_SERVICE_URL || 'http://localhos
  * Validate org slug (same validation as backend)
  */
 function isValidOrgSlug(slug: string): boolean {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+  return /^[a-z0-9_]{3,50}$/.test(slug)
 }
 
 /**

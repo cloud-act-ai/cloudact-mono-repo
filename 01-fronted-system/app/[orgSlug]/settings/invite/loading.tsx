@@ -23,7 +23,7 @@ export default function InviteLoading() {
       {/* Stats Row */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-4">
+          <div key={i} className="bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] p-3 sm:p-4">
             <div className="flex items-center gap-2 sm:gap-4">
               <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl flex-shrink-0" />
               <div className="space-y-1.5">
@@ -41,9 +41,9 @@ export default function InviteLoading() {
       </div>
 
       {/* Member Cards */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="px-5 py-4 border-b border-slate-100 last:border-b-0">
+          <div key={i} className="px-5 py-4 border-b border-[var(--border-subtle)] last:border-b-0">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-11 w-11 rounded-xl" />

@@ -76,7 +76,7 @@ class CommitmentUsageProcessor:
         if not is_valid_org_slug(org_slug):
             return {
                 "status": "FAILED",
-                "error": "Invalid org_slug format. Must be alphanumeric with underscores, 3-50 characters (^[a-zA-Z0-9_]{3,50}$)"
+                "error": "Invalid org_slug format. Must be lowercase alphanumeric with underscores, 3-50 characters (^[a-z0-9_]{3,50}$)"
             }
 
         provider = config.get("provider")

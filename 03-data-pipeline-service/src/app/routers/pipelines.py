@@ -538,10 +538,10 @@ async def trigger_templated_pipeline(
     # FIX 1: VALIDATE ORG_SLUG FORMAT (Security)
     # ============================================
     # Prevents path traversal and injection attacks
-    if not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+    if not re.match(r'^[a-z0-9_]{3,50}$', org_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores."
+            detail="Invalid org_slug format. Must be 3-50 lowercase alphanumeric characters with underscores."
         )
 
     # Verify org_slug matches authenticated org

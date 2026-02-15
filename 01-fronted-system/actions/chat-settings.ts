@@ -6,12 +6,10 @@
  */
 
 import type { ChatSettings, ChatSettingsInput, ProviderInfo } from "@/lib/chat/constants"
+import { requireOrgMembership } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 
 const API_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL || "http://localhost:8000"
-
-function isValidOrgSlug(orgSlug: string): boolean {
-  return /^[a-z0-9_]{3,50}$/.test(orgSlug)
-}
 
 async function apiRequest(
   path: string,
@@ -41,8 +39,7 @@ export async function getChatSettings(
   }
 
   try {
-    const url = `${API_URL}/api/v1/chat-settings/${orgSlug}`
-    console.log(`[getChatSettings] GET ${url} (key: ${apiKey ? apiKey.slice(0, 12) + "..." : "MISSING"})`)
+    await requireOrgMembership(orgSlug)
 
     const response = await apiRequest(
       `/api/v1/chat-settings/${orgSlug}`,
@@ -50,22 +47,21 @@ export async function getChatSettings(
       apiKey
     )
 
-    console.log(`[getChatSettings] Response: ${response.status} ${response.statusText}`)
-
     if (response.status === 204 || response.status === 404) {
       return { success: true, data: undefined }
     }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
-      console.warn(`[getChatSettings] Error: ${err.detail || response.status}`)
       return { success: false, error: err.detail || "Failed to load settings" }
     }
 
     const data = await response.json()
     return { success: true, data: data || undefined }
   } catch (e) {
-    console.error(`[getChatSettings] Exception:`, e)
+    if (e instanceof Error && e.message.includes("membership")) {
+      return { success: false, error: "Access denied" }
+    }
     return { success: false, error: "Failed to connect to API" }
   }
 }
@@ -83,6 +79,7 @@ export async function saveChatSettings(
   }
 
   try {
+    await requireOrgMembership(orgSlug)
     const response = await apiRequest(
       `/api/v1/chat-settings/${orgSlug}`,
       {
@@ -117,6 +114,7 @@ export async function deleteChatSettings(
   }
 
   try {
+    await requireOrgMembership(orgSlug)
     const response = await apiRequest(
       `/api/v1/chat-settings/${orgSlug}/${settingId}`,
       { method: "DELETE" },
@@ -146,6 +144,7 @@ export async function getProviders(
   }
 
   try {
+    await requireOrgMembership(orgSlug)
     const response = await apiRequest(
       `/api/v1/chat-settings/${orgSlug}/providers`,
       { method: "GET" },

@@ -48,10 +48,10 @@ const isValidStripePriceId = (priceId: string): boolean => {
 
 /**
  * OrgSlug validation - prevent path traversal and injection
- * Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
+ * Backend requires: lowercase alphanumeric with underscores only (no hyphens, no uppercase), 3-50 characters
  */
 const isValidOrgSlug = (slug: string): boolean => {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+  return /^[a-z0-9_]{3,50}$/.test(slug)
 }
 
 /**
@@ -158,9 +158,11 @@ describe('Stripe Billing Validation Functions', () => {
     it('should accept valid org slugs', () => {
       expect(isValidOrgSlug('acme_corp')).toBe(true)
       expect(isValidOrgSlug('acme_corp_123')).toBe(true)
-      expect(isValidOrgSlug('ABC')).toBe(true) // Min 3 chars
+      expect(isValidOrgSlug('abc')).toBe(true) // Min 3 chars
       expect(isValidOrgSlug('a1b2c3')).toBe(true)
-      expect(isValidOrgSlug('MyCompany_2025')).toBe(true)
+      expect(isValidOrgSlug('my_company_2025')).toBe(true)
+      expect(isValidOrgSlug('ABC')).toBe(false) // Uppercase not allowed
+      expect(isValidOrgSlug('MyCompany_2025')).toBe(false) // Uppercase not allowed
       expect(isValidOrgSlug('test_org_12345678901234567890')).toBe(true)
     })
 

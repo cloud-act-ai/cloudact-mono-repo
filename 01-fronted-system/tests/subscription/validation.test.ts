@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest'
 // =============================================
 
 const isValidOrgSlug = (slug: string): boolean => {
-    return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+    return /^[a-z0-9_]{3,50}$/.test(slug)
 }
 
 const isValidProviderName = (provider: string): boolean => {
@@ -103,12 +103,12 @@ describe('Flow 18: SaaS Subscription Validation Unit Tests', () => {
                 expect(isValidOrgSlug('acmecorp')).toBe(true)
             })
 
-            it('should accept uppercase letters only', () => {
-                expect(isValidOrgSlug('ACMECORP')).toBe(true)
+            it('should reject uppercase letters only', () => {
+                expect(isValidOrgSlug('ACMECORP')).toBe(false)
             })
 
-            it('should accept mixed case letters', () => {
-                expect(isValidOrgSlug('AcmeCorp')).toBe(true)
+            it('should reject mixed case letters', () => {
+                expect(isValidOrgSlug('AcmeCorp')).toBe(false)
             })
 
             it('should accept numbers only', () => {

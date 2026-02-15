@@ -324,10 +324,9 @@ export async function onboardToBackend(input: {
     const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
     if (!backendUrl) {
       return {
-        success: true,
+        success: false,
         orgSlug: input.orgSlug,
-        apiKey: undefined,
-        apiKeyFingerprint: undefined,
+        error: "Backend service URL not configured. Contact support.",
       }
     }
 

@@ -92,13 +92,12 @@ import { type HierarchyTreeNode } from "@/actions/hierarchy"
 // Helpers
 // ============================================
 
-function formatCurrency(amount: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+import { formatCost } from "@/lib/costs/formatters"
+
+// Use the shared formatCost with compact decimals for budget display
+// Default currency is passed from page-level state (org's currency from summary)
+function formatCurrency(amount: number, currency?: string): string {
+  return formatCost(amount, currency || "USD", { decimals: 0 })
 }
 
 function getCategoryIcon(category: string) {
@@ -486,14 +485,14 @@ function BudgetFormDialog({
                 <Select value={budgetType} onValueChange={(v) => setBudgetType(v as BudgetType)} disabled={isEdit}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="monetary">Monetary ($)</SelectItem>
+                    <SelectItem value="monetary">Monetary</SelectItem>
                     <SelectItem value="token">Tokens</SelectItem>
                     <SelectItem value="seat">Seats</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Amount{budgetType === "monetary" ? " ($)" : budgetType === "token" ? " (tokens)" : " (seats)"}</Label>
+                <Label>Amount{budgetType === "monetary" ? "" : budgetType === "token" ? " (tokens)" : " (seats)"}</Label>
                 <Input
                   type="number"
                   min="1"
@@ -772,11 +771,11 @@ function VarianceRow({
         </div>
         <div className="flex items-center gap-4 flex-shrink-0">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(item.budget_amount)}</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(item.budget_amount, item.currency)}</p>
             <p className="text-xs text-[var(--text-tertiary)]">Budget</p>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(item.actual_amount)}</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(item.actual_amount, item.currency)}</p>
             <p className="text-xs text-[var(--text-tertiary)]">Actual</p>
           </div>
           <div className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getVarianceColor(item.is_over_budget)}`}>
@@ -810,7 +809,7 @@ function VarianceRow({
       <div className="mt-3 h-2 rounded-full bg-[var(--surface-secondary)] overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${item.is_over_budget ? "bg-rose-500" : "bg-[var(--cloudact-mint)]"}`}
-          style={{ width: `${Math.min((item.actual_amount / Math.max(item.budget_amount, 1)) * 100, 100)}%` }}
+          style={{ width: `${item.budget_amount > 0 ? Math.min((item.actual_amount / item.budget_amount) * 100, 100) : 0}%` }}
         />
       </div>
     </div>
@@ -1236,8 +1235,8 @@ export default function BudgetsPage() {
         <PremiumCard>
           <StatRow
             stats={[
-              { icon: Target, value: formatCurrency(summary.total_budget), label: "Total Budget", color: "mint" },
-              { icon: DollarSign, value: formatCurrency(summary.total_actual), label: "Total Actual", color: "blue" },
+              { icon: Target, value: formatCurrency(summary.total_budget, summary.currency), label: "Total Budget", color: "mint" },
+              { icon: DollarSign, value: formatCurrency(summary.total_actual, summary.currency), label: "Total Actual", color: "blue" },
               {
                 icon: summary.total_variance >= 0 ? TrendingDown : TrendingUp,
                 value: `${summary.total_variance_percent >= 0 ? "" : "+"}${Math.abs(summary.total_variance_percent).toFixed(1)}%`,

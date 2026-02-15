@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Validation patterns
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 
 # Table names
 HIERARCHY_LEVELS_TABLE = "org_hierarchy_levels"

@@ -15,12 +15,7 @@
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { randomBytes } from "crypto"
 import { sendInviteEmail } from "@/lib/email"
-
-// OrgSlug validation - prevent path traversal and injection
-// Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
-const isValidOrgSlug = (slug: string): boolean => {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
-}
+import { isValidOrgSlug, isValidEmail } from "@/lib/utils/validation"
 
 // SCALE-002 + MT-001 FIX: Use Supabase-backed rate limiting instead of in-memory Map
 // In-memory rate limiting doesn't work across serverless instances
@@ -146,13 +141,14 @@ export async function fetchMembersData(orgSlug: string) {
       profiles: profileMap.get(member.user_id) || null,
     }))
 
-    // Get pending invites (with pagination)
+    // Get pending invites (with pagination, exclude expired)
     const MAX_INVITES_PER_PAGE = 50
     const { data: invitesData, error: invitesError } = await adminClient
       .from("invites")
       .select("id, email, role, status, created_at, expires_at")
       .eq("org_id", org.id)
       .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(MAX_INVITES_PER_PAGE)
 
@@ -193,13 +189,6 @@ export async function fetchMembersData(orgSlug: string) {
     const errorMessage = err instanceof Error ? err.message : "Failed to fetch data"
     return { success: false, error: errorMessage }
   }
-}
-
-// Email validation regex (RFC 5322 simplified)
-const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-
-function isValidEmail(email: string): boolean {
-  return EMAIL_REGEX.test(email) && email.length <= 254
 }
 
 // Only owner can invite - and can only invite as collaborator or read_only (not owner)
@@ -495,6 +484,10 @@ export async function removeMember(orgSlug: string, memberUserId: string) {
       return { success: false, error: "Failed to remove member" }
     }
 
+    // Invalidate auth cache so removed member loses access immediately
+    const { invalidateAuthCache } = await import("@/lib/auth-cache")
+    invalidateAuthCache(orgSlug)
+
     return { success: true, message: "Member removed successfully" }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Failed to remove member"
@@ -586,6 +579,10 @@ export async function updateMemberRole(
     if (updateError) {
       return { success: false, error: "Failed to update member role" }
     }
+
+    // Invalidate auth cache so role change takes effect immediately
+    const { invalidateAuthCache } = await import("@/lib/auth-cache")
+    invalidateAuthCache(orgSlug)
 
     return { success: true, message: "Member role updated successfully" }
   } catch (err: unknown) {
@@ -911,6 +908,11 @@ export async function resendInvite(orgSlug: string, inviteId: string) {
     } = await supabase.auth.getUser()
     if (!user) {
       return { success: false, error: "Not authenticated" }
+    }
+
+    // Rate limit check (same as inviteMember to prevent email spam)
+    if (!(await checkInviteRateLimit(user.id, orgSlug))) {
+      return { success: false, error: "Too many invites. Please try again later." }
     }
 
     // Get organization details

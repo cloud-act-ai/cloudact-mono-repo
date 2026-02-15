@@ -156,7 +156,8 @@ T = TypeVar('T')
 
 # Common patterns
 ENTITY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
-EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+# Import canonical email pattern from validators
+from src.core.utils.validators import EMAIL_PATTERN
 
 
 def validate_entity_id_format(entity_id: str) -> bool:

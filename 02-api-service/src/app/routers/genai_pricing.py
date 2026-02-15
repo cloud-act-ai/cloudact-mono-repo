@@ -43,7 +43,7 @@ UNIFIED_SUBSCRIPTIONS_TABLE = "subscription_plans"
 UNIFIED_PRICING_TABLE = "genai_model_pricing"
 
 # Valid providers for filtering (including 'custom' for user-defined)
-VALID_PROVIDERS = {"openai", "anthropic", "gemini", "custom"}
+VALID_PROVIDERS = {"openai", "anthropic", "gemini", "deepseek", "custom"}
 
 
 def _get_genai_providers_enum():
@@ -73,10 +73,10 @@ def validate_provider(provider: str) -> str:
 
 def validate_org_slug(org_slug: str) -> None:
     """Validate org_slug format to prevent path traversal and injection."""
-    if not org_slug or not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+    if not org_slug or not re.match(r'^[a-z0-9_]{3,50}$', org_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores."
+            detail="Invalid org_slug format. Must be 3-50 lowercase alphanumeric characters with underscores."
         )
 
 

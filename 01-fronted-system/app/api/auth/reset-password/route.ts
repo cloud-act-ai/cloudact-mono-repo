@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { sendPasswordResetEmail } from "@/lib/email"
 import { checkForgotPasswordRateLimit, logPasswordResetRequest } from "@/actions/auth"
+import { isValidEmail } from "@/lib/utils/validation"
 
 // Lazy initialization - client created on first use, not at module load
 // This prevents build-time errors when env vars aren't available
@@ -19,11 +20,6 @@ function getSupabaseAdmin(): SupabaseClient {
     )
   }
   return supabaseAdmin
-}
-
-// Email validation
-const isValidEmail = (email: string): boolean => {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254
 }
 
 export async function POST(request: NextRequest) {

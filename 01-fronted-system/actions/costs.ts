@@ -16,12 +16,12 @@
 
 import { logError } from "@/lib/utils"
 import { getAuthContext, invalidateAuthCache, requireOrgMembership } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
   safeJsonParse,
   extractErrorMessage,
-  isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
 // Note: unstable_cache was considered for cost trend caching but skipped
 // to avoid stale data issues. Client-side caching via CostDataContext is sufficient.
@@ -197,8 +197,7 @@ export interface CostFilterParams {
 
 // AUTH-003 FIX: Removed duplicate auth functions.
 // Now uses shared getAuthContext from lib/auth-cache.ts
-// Note: isValidOrgSlugHelper is re-exported for external validation needs
-export const isValidOrgSlug = isValidOrgSlugHelper
+// isValidOrgSlug imported from @/lib/utils/validation (see imports above)
 
 // ============================================
 // GenAI/LLM Costs

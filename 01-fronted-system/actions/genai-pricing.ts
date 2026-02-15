@@ -1,7 +1,7 @@
 "use server"
 
 import { getCachedApiKey, requireOrgMembership } from "@/lib/auth-cache"
-import { isValidOrgSlug as isValidOrgSlugHelper } from "@/lib/api/helpers"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 
 // Note: Do NOT re-export types from "use server" files - it causes bundling errors
 // Import types directly from @/lib/types/genai-pricing where needed
@@ -258,8 +258,8 @@ function getClientSafeErrorMessage(
 // Authorization (uses shared auth-cache module)
 // ============================================================================
 
-// Re-export validation for external use
-export const isValidOrgSlug = isValidOrgSlugHelper
+// isValidOrgSlug imported from @/lib/utils/validation (see imports above)
+// For external use, import directly from @/lib/utils/validation
 
 // ============================================================================
 // Helper Functions

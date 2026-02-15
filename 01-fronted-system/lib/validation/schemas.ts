@@ -15,15 +15,15 @@ import { z } from "zod"
 
 /**
  * Organization slug validation
- * Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
+ * Backend requires: lowercase alphanumeric with underscores only (no hyphens, no uppercase), 3-50 characters
  */
 export const orgSlugSchema = z
   .string()
   .min(3, "Organization slug must be at least 3 characters")
   .max(50, "Organization slug must be at most 50 characters")
   .regex(
-    /^[a-zA-Z0-9_]{3,50}$/,
-    "Organization slug must contain only letters, numbers, and underscores"
+    /^[a-z0-9_]{3,50}$/,
+    "Organization slug must contain only lowercase letters, numbers, and underscores"
   )
 
 /**
@@ -119,9 +119,14 @@ export const setupIntegrationSchema = z.object({
 // ============================================
 
 /**
- * User role validation
+ * User role validation (matches DB constraint: owner, collaborator, read_only)
  */
-export const userRoleSchema = z.enum(["owner", "admin", "collaborator", "read_only"])
+export const userRoleSchema = z.enum(["owner", "collaborator", "read_only"])
+
+/**
+ * Invite role validation (subset: only collaborator or read_only can be invited)
+ */
+export const inviteRoleSchema = z.enum(["collaborator", "read_only"])
 
 /**
  * Invite member input
@@ -129,7 +134,7 @@ export const userRoleSchema = z.enum(["owner", "admin", "collaborator", "read_on
 export const inviteMemberSchema = z.object({
   orgSlug: orgSlugSchema,
   email: emailSchema,
-  role: userRoleSchema,
+  role: inviteRoleSchema,
 })
 
 /**
@@ -138,7 +143,7 @@ export const inviteMemberSchema = z.object({
 export const updateMemberRoleSchema = z.object({
   orgSlug: orgSlugSchema,
   memberId: uuidSchema,
-  newRole: userRoleSchema,
+  newRole: inviteRoleSchema,
 })
 
 /**

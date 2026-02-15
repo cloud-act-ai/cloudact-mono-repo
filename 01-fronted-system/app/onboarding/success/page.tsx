@@ -36,6 +36,7 @@ function SuccessContent() {
   // Prevent duplicate processing and back button issues
   const processingRef = useRef(false)
   const hasProcessedRef = useRef(false)
+  const isMountedRef = useRef(true)
   // FIX SEC-002: Track retry attempts for rate limiting
   const retryCountRef = useRef(0)
   const lastRetryTimeRef = useRef(0)
@@ -61,15 +62,19 @@ function SuccessContent() {
     // FIX IDEM-001: Check sessionStorage to prevent back-button re-processing
     const storageKey = `onboarding_processed_${sessionId}`
     if (!isRetry && typeof window !== "undefined") {
-      const processedOrgSlug = sessionStorage.getItem(storageKey)
-      if (processedOrgSlug) {
-        // This session was already processed - redirect to dashboard
-        hasProcessedRef.current = true
-        setOrgSlug(processedOrgSlug)
-        setStatus("success")
-        router.push(`/${processedOrgSlug}/integrations?welcome=true`)
-        processingRef.current = false
-        return
+      try {
+        const processedOrgSlug = sessionStorage.getItem(storageKey)
+        if (processedOrgSlug) {
+          // This session was already processed - redirect to dashboard
+          hasProcessedRef.current = true
+          setOrgSlug(processedOrgSlug)
+          setStatus("success")
+          router.push(`/${processedOrgSlug}/integrations?welcome=true`)
+          processingRef.current = false
+          return
+        }
+      } catch {
+        // sessionStorage unavailable (private browsing, etc) - continue processing
       }
     }
 
@@ -102,11 +107,14 @@ function SuccessContent() {
       const result = await completeOnboarding(sessionId)
 
       if (!result.success) {
-        // FIX GAP-006: Mark current stage as error
-        const currentStageIdx = progressStages.findIndex(s => s.status === "in_progress")
-        if (currentStageIdx >= 0) {
-          setProgressStages(prev => updateStageStatus(prev, currentStageIdx, "error", result.error))
-        }
+        // FIX GAP-006: Mark current stage as error (use functional updater to avoid stale closure)
+        setProgressStages(prev => {
+          const currentStageIdx = prev.findIndex(s => s.status === "in_progress")
+          if (currentStageIdx >= 0) {
+            return updateStageStatus(prev, currentStageIdx, "error", result.error)
+          }
+          return prev
+        })
         setStatus("error")
         setError(result.error || "Failed to complete setup")
         processingRef.current = false
@@ -140,7 +148,7 @@ function SuccessContent() {
 
       // FIX IDEM-001: Save to sessionStorage to prevent back-button re-processing
       if (result.orgSlug && typeof window !== "undefined") {
-        sessionStorage.setItem(storageKey, result.orgSlug)
+        try { sessionStorage.setItem(storageKey, result.orgSlug) } catch { /* private browsing */ }
       }
 
       // Send welcome email (non-blocking - don't fail if email fails)
@@ -183,11 +191,15 @@ function SuccessContent() {
       router.push(`/${result.orgSlug}/integrations?welcome=true`)
 
     } catch (err: unknown) {
-      setStatus("error")
-      setError(err instanceof Error ? err.message : "Something went wrong. Please contact support.")
+      if (isMountedRef.current) {
+        setStatus("error")
+        setError(err instanceof Error ? err.message : "Something went wrong. Please contact support.")
+      }
     } finally {
       processingRef.current = false
-      setIsRetrying(false)
+      if (isMountedRef.current) {
+        setIsRetrying(false)
+      }
     }
   }, [sessionId, router])
 
@@ -216,6 +228,8 @@ function SuccessContent() {
   }, [processCheckout])
 
   useEffect(() => {
+    isMountedRef.current = true
+
     // Check if we're coming back via back button after processing
     if (typeof window !== "undefined") {
       const state = window.history.state
@@ -229,6 +243,8 @@ function SuccessContent() {
     }
 
     processCheckout()
+
+    return () => { isMountedRef.current = false }
   }, [processCheckout, orgSlug, router])
 
   if (status === "processing") {

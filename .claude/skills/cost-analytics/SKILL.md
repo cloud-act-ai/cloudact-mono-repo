@@ -606,6 +606,16 @@ Requirements consolidated from:
 - **Don't break existing functionality** - Run `npm run build` and all tests before/after changes
 - **BigQuery best practices** - Parameterized queries, partition pruning, clustering-first filters
 
+## 5 Implementation Pillars
+
+| Pillar | How Cost Analytics Handles It |
+|--------|-------------------------------|
+| **i18n** | Cost filter context fetches org currency from Supabase; Polars cache keys include currency; all amounts use `formatCost()` |
+| **Enterprise** | L1/L2 caching (Polars LRU + React context), granular cache invalidation, TTL until midnight UTC |
+| **Cross-Service** | Frontend context -> API (8000) Polars service -> BigQuery; cache invalidation endpoint for cross-service freshness |
+| **Multi-Tenancy** | All cost queries scoped by `org_slug`, cache keys include `org_slug`, dataset isolation `{org_slug}_prod` |
+| **Reusability** | Shared `CostDataContext`, `useFilteredCosts` hook, granular sub-caches, `formatCost()`/`formatPercent()` |
+
 ## Related Skills
 
 - `cost-analysis` - FOCUS 1.3 standard, calculation formulas

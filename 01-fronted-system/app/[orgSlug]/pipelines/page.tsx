@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import {
   Loader2,
@@ -44,26 +44,11 @@ import {
   hasStoredApiKey,
 } from "@/actions/backend-onboarding"
 import {
+  PipelineConfig,
   PipelineRunSummary,
   PipelineRunDetail as PipelineRunDetailType,
 } from "@/lib/api/backend"
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface PipelineConfig {
-  id: string
-  name: string
-  description: string
-  category: string  // Top-level category (cloud, genai, subscription)
-  provider: string  // Provider within category (gcp, aws, openai, etc.)
-  domain: string
-  pipeline: string
-  required_integration: string
-  schedule?: string
-  enabled: boolean
-}
+import { formatRelativeDateTime, formatLocalDate } from "@/lib/i18n/formatters"
 
 interface QuickStats {
   runsToday: number
@@ -146,31 +131,6 @@ function AnimatedPipelineFlow() {
 // Helper Functions
 // ============================================================================
 
-const formatDateTime = (dateString?: string) => {
-  if (!dateString) return "-"
-  try {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor(diff / (1000 * 60))
-
-    if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  } catch {
-    return dateString
-  }
-}
-
 const formatDuration = (ms?: number) => {
   if (ms === undefined || ms === null) return "-"
   if (ms < 1000) return `${ms}ms`
@@ -190,6 +150,7 @@ export default function PipelinesPage() {
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([])
   const [integrations, setIntegrations] = useState<Record<string, { status: string }>>({})
   const [runningPipeline, setRunningPipeline] = useState<string | null>(null)
+  const isRunningRef = useRef(false)
   const [lastResult, setLastResult] = useState<{
     pipelineId: string
     success: boolean
@@ -275,6 +236,7 @@ export default function PipelinesPage() {
         // Deduplicate by pipeline_logging_id to prevent React key warnings
         const seen = new Set<string>()
         const uniqueRuns = result.data.runs.filter((run: PipelineRunSummary) => {
+          if (!run.pipeline_logging_id) return true // Keep runs without IDs
           if (seen.has(run.pipeline_logging_id)) return false
           seen.add(run.pipeline_logging_id)
           return true
@@ -404,15 +366,16 @@ export default function PipelinesPage() {
 
   // Run pipeline
   const handleRun = async (pipelineId: string) => {
-    // Prevent double-clicks while pipeline is running
-    if (runningPipeline) return
+    // Prevent double-clicks while pipeline is running (ref for synchronous check)
+    if (isRunningRef.current || runningPipeline) return
+    isRunningRef.current = true
     setRunningPipeline(pipelineId)
     setLastResult(null)
 
     try {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const dateStr = yesterday.toISOString().split("T")[0]
+      const dateStr = formatLocalDate(yesterday)
 
       const result = await runPipeline(orgSlug, pipelineId, {
         date: dateStr,
@@ -433,6 +396,7 @@ export default function PipelinesPage() {
       })
     }
 
+    isRunningRef.current = false
     setRunningPipeline(null)
     setTimeout(() => loadPipelineRuns(), 2000)
   }
@@ -490,7 +454,7 @@ export default function PipelinesPage() {
       accessorKey: "start_time",
       cell: (row) => (
         <div className="text-[12px] text-[var(--text-secondary)]">
-          {formatDateTime(row.start_time)}
+          {formatRelativeDateTime(row.start_time)}
         </div>
       ),
     },
@@ -894,7 +858,7 @@ export default function PipelinesPage() {
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[var(--surface-secondary)] border border-[var(--border-medium)] font-semibold">
                       {batch.trigger_type}
                     </span>
-                    <span>{batch.triggered_at ? formatDateTime(batch.triggered_at) : "-"}</span>
+                    <span>{batch.triggered_at ? formatRelativeDateTime(batch.triggered_at) : "-"}</span>
                   </div>
                 </div>
               ))}

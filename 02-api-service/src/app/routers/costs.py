@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 # Multi-Tenancy Security Helpers
 # ==============================================================================
 
-# Valid org_slug pattern: alphanumeric + underscore, 3-50 chars
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+# Valid org_slug pattern: lowercase alphanumeric + underscore, 3-50 chars
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 
 
 def validate_org_slug_format(org_slug: str) -> None:

@@ -395,6 +395,16 @@ prefix="/api/v1/my-feature"
 - **Don't break existing functionality** - Run all tests before/after changes
 - **Update skills with learnings** - Document fixes in skill files
 
+## 5 Implementation Pillars
+
+| Pillar | How API Dev Handles It |
+|--------|-------------------------------|
+| **i18n** | `validate_org_slug()` at entry, `SupportedCurrency` enum (20 currencies), `org_profiles` stores locale settings |
+| **Enterprise** | Pydantic v2 validation, structured logging, rate limiting, KMS encryption, audit logs |
+| **Cross-Service** | Frontend calls via `X-API-Key`, proxies to Pipeline (8001), serves Chat (8002) settings |
+| **Multi-Tenancy** | `get_current_org()` dependency injection, parameterized `@org_slug` queries, `{org_slug}_prod` datasets |
+| **Reusability** | Shared services (`cost_read`, `hierarchy_crud`, `notification_crud`), Pydantic models, `BigQueryClient` |
+
 ## Related Skills
 - `test-orchestration` - API testing
 - `security-audit` - Auth patterns

@@ -295,7 +295,7 @@ async def test_run_pipeline_invalid_org_slug_format():
     """
     Test running pipeline with invalid org slug format returns 400.
 
-    Org slug must match: ^[a-zA-Z0-9_]{3,50}$
+    Org slug must match: ^[a-z0-9_]{3,50}$
     Expected: 400 Bad Request with format validation error
     """
     with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:

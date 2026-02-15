@@ -13,7 +13,6 @@
  * 4. API Key: Retrieved from secure server-side storage
  */
 
-import { createClient } from "@/lib/supabase/server"
 import {
   PipelineBackendClient as BackendClient,
 } from "@/lib/api/backend"
@@ -31,6 +30,7 @@ import type {
 // Note: Do NOT re-export types from "use server" files - it causes bundling errors
 // Import IntegrationStatus directly from lib/api/backend where needed
 import { getCachedApiKey } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 
 // ============================================
 // Types
@@ -85,15 +85,7 @@ export interface IntegrationResult {
 // Input Validation
 // ============================================
 
-/**
- * Validate org slug format.
- * Prevents path traversal and injection attacks.
- */
-// Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
-function isValidOrgSlug(orgSlug: string): boolean {
-  if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
-}
+// isValidOrgSlug imported from @/lib/utils/validation (see imports above)
 
 /**
  * Validate provider is a known integration provider.
@@ -244,11 +236,15 @@ export async function updateIntegrationMetadata(
     }
 
     // Step 2: Verify authentication and authorization
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return { success: false, provider: input.provider, error: "Authentication required" }
+    const { requireOrgMembership } = await import("@/lib/auth-cache")
+    try {
+      await requireOrgMembership(input.orgSlug)
+    } catch (err) {
+      return {
+        success: false,
+        provider: input.provider,
+        error: err instanceof Error ? err.message : "Not authorized",
+      }
     }
 
     // Step 3: Get org API key

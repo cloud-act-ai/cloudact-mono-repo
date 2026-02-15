@@ -730,10 +730,10 @@ class EditVersionResponse(BaseModel):
 
 def validate_org_slug(org_slug: str) -> None:
     """Validate org_slug format."""
-    if not org_slug or not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+    if not org_slug or not re.match(r'^[a-z0-9_]{3,50}$', org_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores."
+            detail="Invalid org_slug format. Must be 3-50 lowercase alphanumeric characters with underscores."
         )
 
 
@@ -1252,7 +1252,7 @@ async def list_providers(
 
     # Check cache first
     # MT-002: Cache key uses org_slug which is validated by validate_org_slug() above.
-    # Validation ensures org_slug matches ^[a-zA-Z0-9_]{3,50}$ preventing injection/collisions.
+    # Validation ensures org_slug matches ^[a-z0-9_]{3,50}$ preventing injection/collisions.
     cache = get_cache()
     cache_key = f"providers_list_{org_slug}"
     cached_result = cache.get(cache_key)
@@ -2228,19 +2228,19 @@ async def create_plan(
         logger.error(f"BigQuery bad request: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid data format for BigQuery: {e}"
+            detail="Invalid data format"
         )
     except google.api_core.exceptions.Forbidden as e:
         logger.error(f"BigQuery permission denied: {e}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Permission denied to access BigQuery: {e}"
+            detail="Permission denied"
         )
     except google.api_core.exceptions.ResourceExhausted as e:
         logger.error(f"BigQuery quota exceeded: {e}")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"BigQuery quota exceeded. Please try again later: {e}"
+            detail="Service quota exceeded. Please try again later"
         )
     except Exception as e:
         # ERR-001: Broad catch needed to handle unexpected errors (network issues, serialization, etc.)

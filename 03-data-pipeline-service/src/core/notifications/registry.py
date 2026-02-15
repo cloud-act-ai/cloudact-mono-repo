@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 # Validation Constants
 # ==============================================================================
 
-# Org slug must be alphanumeric with underscores/hyphens, 1-64 chars
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
+# Org slug: lowercase alphanumeric + underscores only, 3-50 chars
+# Must match canonical pattern across all services
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 
 
 def _validate_org_slug(org_slug: str) -> str:

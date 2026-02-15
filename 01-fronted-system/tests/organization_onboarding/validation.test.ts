@@ -32,12 +32,12 @@ import { sanitizeOrgName, isValidOrgName } from '@/lib/utils/validation'
 
 /**
  * Validate org slug format
- * Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
+ * Backend requires: lowercase alphanumeric with underscores only (no hyphens, no uppercase), 3-50 characters
  * Source: actions/backend-onboarding.ts
  */
 function isValidOrgSlug(orgSlug: string): boolean {
   if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
+  return /^[a-z0-9_]{3,50}$/.test(orgSlug)
 }
 
 /**
@@ -310,7 +310,6 @@ describe('isValidOrgSlug', () => {
       expect(isValidOrgSlug('acme_corp')).toBe(true)
       expect(isValidOrgSlug('tech_innovations_llc')).toBe(true)
       expect(isValidOrgSlug('company123')).toBe(true)
-      expect(isValidOrgSlug('ACME_CORP')).toBe(true)
     })
 
     it('should accept slugs with underscores', () => {
@@ -319,9 +318,11 @@ describe('isValidOrgSlug', () => {
       expect(isValidOrgSlug('a_b_c')).toBe(true)
     })
 
-    it('should accept mixed case', () => {
-      expect(isValidOrgSlug('AcmeCorp')).toBe(true)
-      expect(isValidOrgSlug('TechCo_USA')).toBe(true)
+    it('should reject uppercase characters', () => {
+      expect(isValidOrgSlug('ACME_CORP')).toBe(false)
+      expect(isValidOrgSlug('AcmeCorp')).toBe(false)
+      expect(isValidOrgSlug('TechCo_USA')).toBe(false)
+      expect(isValidOrgSlug('Org_Name')).toBe(false)
     })
 
     it('should accept boundary lengths', () => {

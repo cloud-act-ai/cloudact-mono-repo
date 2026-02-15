@@ -200,6 +200,14 @@ class IdempotentWriterMixin:
         """
 
         if additional_conditions:
+            # Validate: only allow simple column=value conditions, no subqueries or SQL keywords
+            import re
+            _SAFE_CONDITION_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*@[a-zA-Z_][a-zA-Z0-9_]*$')
+            if not _SAFE_CONDITION_RE.match(additional_conditions.strip()):
+                raise ValueError(
+                    f"Unsafe additional_delete_conditions rejected: {additional_conditions!r}. "
+                    "Only simple 'column = @param' conditions are allowed."
+                )
             delete_query += f"\n  AND {additional_conditions}"
 
         logger.debug(

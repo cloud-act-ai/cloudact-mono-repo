@@ -262,6 +262,16 @@ Requirements consolidated from:
 - `01_HIERARCHY.md` - Organization hierarchy model and cost allocation
 - `CLOUD_RESOURCE_TAGGING_GUIDE.md` - Cloud resource tagging for hierarchy resolution
 
+## 5 Implementation Pillars
+
+| Pillar | How Hierarchy Handles It |
+|--------|-------------------------------|
+| **i18n** | Hierarchy node names support Unicode, export/import handles UTF-8 encoding |
+| **Enterprise** | N-level depth, import/export CSV, audit trail in `org_audit_logs`, version-safe CRUD |
+| **Cross-Service** | API (8000) CRUD -> BigQuery `organizations.org_hierarchy` -> Pipeline (8001) copies to `{org}_prod.x_org_hierarchy` -> Cost allocation |
+| **Multi-Tenancy** | All hierarchy queries scoped by `org_slug`, entity IDs prefixed (`DEPT-*`, `PROJ-*`, `TEAM-*`), parameterized queries |
+| **Reusability** | Shared tree traversal, hierarchy filter component in `advanced-filters`, export/import patterns |
+
 ## Related Skills
 
 - `pipeline-ops` - Pipeline execution that uses hierarchy

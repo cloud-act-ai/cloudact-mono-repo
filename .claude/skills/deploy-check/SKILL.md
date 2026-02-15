@@ -97,6 +97,16 @@ cd 04-inra-cicd-automation/CICD/quick
 | `stripe-webhook-secret-{env}` | Frontend | Stripe webhook signing |
 | `supabase-service-role-key-{env}` | Frontend | Supabase service role JWT |
 
+## 5 Implementation Pillars
+
+| Pillar | How Deploy Check Handles It |
+|--------|-------------------------------|
+| **i18n** | Verify locale settings survive deployment, exchange rate CSV included in Docker image |
+| **Enterprise** | Pre/post deployment health checks, rollback procedures, version validation, secret verification |
+| **Cross-Service** | Validates all 4 services (Frontend 3000, API 8000, Pipeline 8001, Chat 8002) after deploy |
+| **Multi-Tenancy** | Verify auth is enabled post-deploy (`DISABLE_AUTH=false`), org isolation intact, dataset access verified |
+| **Reusability** | Shared health check patterns, deploy scripts in `04-inra-cicd-automation`, `status.sh` for all envs |
+
 ## Troubleshooting
 
 | Issue | Solution |

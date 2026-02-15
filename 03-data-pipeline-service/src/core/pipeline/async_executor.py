@@ -128,8 +128,8 @@ class AsyncPipelineExecutor:
     """
 
     # PIPE-001 FIX: org_slug validation pattern aligned with API service
-    # Pattern: alphanumeric (mixed case) + underscore, 3-50 chars (matches middleware/validators)
-    ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+    # Pattern: lowercase alphanumeric + underscore, 3-50 chars (matches middleware/validators)
+    ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 
     @staticmethod
     def _validate_org_slug(org_slug: str) -> None:

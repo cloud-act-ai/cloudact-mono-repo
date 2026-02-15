@@ -102,6 +102,7 @@ import {
   SummaryType,
 } from "@/actions/notifications"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
+import { isValidEmail } from "@/lib/utils/validation"
 
 // ============================================================================
 // Types
@@ -119,11 +120,7 @@ interface QuickStats {
 // Validation Functions (VAL-001 to VAL-005)
 // ============================================================================
 
-// VAL-001: Email validation
-const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email.trim())
-}
+// VAL-001: Email validation — uses canonical isValidEmail from lib/utils/validation
 
 const validateEmailList = (emails: string): { valid: boolean; errors: string[] } => {
   if (!emails.trim()) {
@@ -228,7 +225,7 @@ const formatDateTime = (dateString?: string) => {
     if (minutes < 60) return `${minutes}m ago`
     if (hours < 24) return `${hours}h ago`
 
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString(undefined, {
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -660,6 +657,20 @@ function CreateChannelDialog({
 
   // VAL-001/VAL-002 FIX: Validation error state
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // NOTIF-002 FIX: Reset form state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setChannelType("email")
+      setName("")
+      setEmailRecipients("")
+      setSlackWebhook("")
+      setSlackChannel("")
+      setWebhookUrl("")
+      setIsDefault(false)
+      setErrors({})
+    }
+  }, [open])
 
   // Validate inputs before submit
   const validateInputs = (): boolean => {
@@ -1806,8 +1817,8 @@ export default function NotificationsPage() {
   const handleToggleChannel = async (channel: NotificationChannel) => {
     // STATE-001 FIX: Optimistic update with rollback on failure
     const previousState = channel.is_active
-    // Optimistic update
-    setChannels(channels.map((c) =>
+    // Optimistic update - use functional updater to avoid stale closure
+    setChannels(prev => prev.map((c) =>
       c.channel_id === channel.channel_id ? { ...c, is_active: !c.is_active } : c
     ))
 
@@ -1816,8 +1827,8 @@ export default function NotificationsPage() {
     })
 
     if (!result.success) {
-      // Rollback on failure
-      setChannels(channels.map((c) =>
+      // Rollback on failure - use functional updater
+      setChannels(prev => prev.map((c) =>
         c.channel_id === channel.channel_id ? { ...c, is_active: previousState } : c
       ))
       setMessage({ type: "error", text: result.error || "Failed to update channel" })
@@ -1858,8 +1869,8 @@ export default function NotificationsPage() {
   const handleToggleRule = async (rule: NotificationRule) => {
     // STATE-002 FIX: Optimistic update with rollback on failure
     const previousState = rule.is_active
-    // Optimistic update
-    setRules(rules.map((r) =>
+    // Optimistic update - use functional updater to avoid stale closure
+    setRules(prev => prev.map((r) =>
       r.rule_id === rule.rule_id ? { ...r, is_active: !r.is_active } : r
     ))
 
@@ -1868,8 +1879,8 @@ export default function NotificationsPage() {
       : await resumeNotificationRule(orgSlug, rule.rule_id)
 
     if (!result.success) {
-      // Rollback on failure
-      setRules(rules.map((r) =>
+      // Rollback on failure - use functional updater
+      setRules(prev => prev.map((r) =>
         r.rule_id === rule.rule_id ? { ...r, is_active: previousState } : r
       ))
       setMessage({ type: "error", text: result.error || "Failed to update rule" })
@@ -1910,8 +1921,8 @@ export default function NotificationsPage() {
   const handleToggleSummary = async (summary: NotificationSummary) => {
     // STATE-003 FIX: Optimistic update with rollback on failure
     const previousState = summary.is_active
-    // Optimistic update
-    setSummaries(summaries.map((s) =>
+    // Optimistic update - use functional updater to avoid stale closure
+    setSummaries(prev => prev.map((s) =>
       s.summary_id === summary.summary_id ? { ...s, is_active: !s.is_active } : s
     ))
 
@@ -1920,8 +1931,8 @@ export default function NotificationsPage() {
     })
 
     if (!result.success) {
-      // Rollback on failure
-      setSummaries(summaries.map((s) =>
+      // Rollback on failure - use functional updater
+      setSummaries(prev => prev.map((s) =>
         s.summary_id === summary.summary_id ? { ...s, is_active: previousState } : s
       ))
       setMessage({ type: "error", text: result.error || "Failed to update summary" })

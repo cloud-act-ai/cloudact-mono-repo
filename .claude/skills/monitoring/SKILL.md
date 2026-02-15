@@ -192,6 +192,16 @@ gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-pr
 | Job stuck PENDING | Quotas, IAM | Check Cloud Run limits |
 | No logs appearing | Logging API enabled | Enable Cloud Logging API |
 
+## 5 Implementation Pillars
+
+| Pillar | How Monitoring Handles It |
+|--------|-------------------------------|
+| **i18n** | Log timestamps in UTC, user-facing alerts respect org timezone |
+| **Enterprise** | Cloud Run structured logging, Cloud Build monitoring, health endpoint checks, error tracking |
+| **Cross-Service** | Monitors all 4 services + Cloud Run Jobs, cross-service request tracing via `request_id` |
+| **Multi-Tenancy** | Logs include `org_slug` for tenant-scoped debugging, no PII in logs, audit log separation |
+| **Reusability** | Shared `watch-all.sh`, `status.sh`, log format patterns, health check endpoints |
+
 ## Related Skills
 - `/infra-cicd` - Deployment and infrastructure
 - `/deploy-check` - Pre/post deployment validation

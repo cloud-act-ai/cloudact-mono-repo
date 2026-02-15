@@ -188,7 +188,7 @@ function AvailableCard({
 export default function SubscriptionIntegrationsPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
-  const isValidOrgSlug = orgSlug && typeof orgSlug === 'string' && /^[a-zA-Z0-9_-]{2,100}$/.test(orgSlug)
+  const isValidOrgSlug = orgSlug && typeof orgSlug === 'string' && /^[a-z0-9_]{3,50}$/.test(orgSlug)
 
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -238,8 +238,6 @@ export default function SubscriptionIntegrationsPage() {
   }, [successMessage])
 
   const handleToggle = async (provider: string, enabled: boolean) => {
-    const previousProviders = [...providers]
-    setProviders(prev => prev.map(p => p.provider === provider ? { ...p, is_enabled: enabled } : p))
     setTogglingProvider(provider)
     setError(null)
 
@@ -254,11 +252,9 @@ export default function SubscriptionIntegrationsPage() {
         )
         await loadData()
       } else {
-        setProviders(previousProviders)
         setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
       }
     } catch {
-      setProviders(previousProviders)
       setError(`Failed to ${enabled ? 'enable' : 'disable'} provider`)
     } finally {
       setTogglingProvider(null)

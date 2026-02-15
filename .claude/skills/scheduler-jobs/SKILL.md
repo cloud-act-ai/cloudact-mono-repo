@@ -276,6 +276,16 @@ bq ls --project_id=cloudact-prod | grep -c "_prod$"
 | Alerts job: "0 orgs processed" | No alert rules configured | Create alerts via `/cost-alerts` API |
 | Job image outdated | Docker image not rebuilt | Run `gcloud builds submit` with cloudbuild-jobs.yaml |
 
+## 5 Implementation Pillars
+
+| Pillar | How Scheduler Jobs Handles It |
+|--------|-------------------------------|
+| **i18n** | Quota resets at UTC boundaries, alert processing respects org timezone for quiet hours |
+| **Enterprise** | Cloud Run Jobs with retry policies, idempotent execution, structured logging, monitoring |
+| **Cross-Service** | Scheduler -> API (8000) admin endpoints (bootstrap, quota reset, alert processing) -> BigQuery |
+| **Multi-Tenancy** | Jobs iterate over ALL orgs, each operation scoped by `org_slug`, fail-per-org not fail-all |
+| **Reusability** | Shared `run-job.sh` script, `create-all-jobs.sh`, consistent job structure (`src/*.py`) |
+
 ## Related Skills
 
 | Skill | Relationship |

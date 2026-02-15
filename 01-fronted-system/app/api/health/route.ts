@@ -178,13 +178,15 @@ async function checkBackendService(url: string, name: string): Promise<ServiceHe
 export async function GET() {
   const apiServiceUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
   const pipelineServiceUrl = process.env.PIPELINE_SERVICE_URL || process.env.NEXT_PUBLIC_PIPELINE_SERVICE_URL
+  const chatBackendUrl = process.env.CHAT_BACKEND_URL || process.env.NEXT_PUBLIC_CHAT_BACKEND_URL
 
   // Run all checks in parallel
-  const [supabase, stripe, apiService, pipelineService] = await Promise.all([
+  const [supabase, stripe, apiService, pipelineService, chatBackend] = await Promise.all([
     checkSupabase(),
     checkStripe(),
     checkBackendService(apiServiceUrl || "", "API Service"),
     checkBackendService(pipelineServiceUrl || "", "Pipeline Service"),
+    checkBackendService(chatBackendUrl || "", "Chat Backend"),
   ])
 
   const checks = {
@@ -192,6 +194,7 @@ export async function GET() {
     payments: stripe,
     api: apiService,
     pipeline: pipelineService,
+    chat: chatBackend,
   }
 
   // Determine overall status

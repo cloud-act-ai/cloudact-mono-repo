@@ -57,7 +57,7 @@ settings = get_settings()
 # Multi-Tenancy Security
 # ==============================================================================
 
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 ENTITY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
 
 

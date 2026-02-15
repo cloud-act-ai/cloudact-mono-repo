@@ -385,6 +385,16 @@ getTrendColor(change)                    // Green (positive) / Coral (negative)
 | Button shadow too dark in dark mode | Hardcoded shadow values | Use `--shadow-*` CSS variables |
 | Typography inconsistent | Mixing raw Tailwind with console classes | Use `.console-*` classes exclusively in console |
 
+## 5 Implementation Pillars
+
+| Pillar | How Theme Handles It |
+|--------|-------------------------------|
+| **i18n** | Theme respects text direction (LTR/RTL prep via logical properties); font stacks include CJK fallback fonts |
+| **Enterprise** | CSS custom properties for runtime theming; dark/light mode toggle ready; consistent token system with 286 variables |
+| **Cross-Service** | Theme applied globally across all console and landing pages via CSS variables in `globals.css` and `console.css` |
+| **Multi-Tenancy** | Single theme for all orgs (brand consistency enforced); no per-tenant customization supported |
+| **Reusability** | CSS custom properties, Tailwind config extension, shared color tokens (mint, coral, obsidian), and typographic scale via `.console-*` classes |
+
 ## Related Skills
 
 | Skill | Relationship |

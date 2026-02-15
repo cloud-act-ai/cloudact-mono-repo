@@ -4,7 +4,7 @@
  * Filter and group cost records client-side for fast chart interactions.
  */
 
-import type { CostRecord } from "@/actions/costs"
+import type { CostRecord, GranularCostRow } from "@/actions/costs"
 import type { DateRange, GroupedCostData, TimeSeriesPoint, CostFilterOptions } from "./types"
 
 // ============================================
@@ -464,27 +464,9 @@ export function getDateRangeFromRecords(records: CostRecord[]): DateRange | null
 // Granular Data Filters (for trend-granular endpoint)
 // ============================================
 
-/**
- * Granular cost data row from /costs/{org}/trend-granular endpoint.
- * Pre-aggregated by date + provider + hierarchy for client-side filtering.
- *
- * FE-001 FIX: Updated to use new 5-field hierarchy model instead of
- * old dept_id/project_id/team_id fields. This supports the unified
- * hierarchy entity model with flexible levels.
- */
-export interface GranularCostRow {
-  date: string  // "2024-01-15"
-  provider: string  // "openai"
-  category: "genai" | "cloud" | "subscription" | "other"
-  // New 5-field hierarchy model (FE-001)
-  hierarchy_entity_id: string | null      // e.g., "DEPT-001", "PROJ-002", "TEAM-003"
-  hierarchy_entity_name: string | null    // e.g., "Engineering", "Project Alpha"
-  hierarchy_level_code: string | null     // "DEPT", "PROJ", "TEAM"
-  hierarchy_path: string | null           // "/DEPT-001/PROJ-002/TEAM-003"
-  hierarchy_path_names: string | null     // "/Engineering/Project Alpha/Backend Team"
-  total_cost: number
-  record_count: number
-}
+// GranularCostRow: canonical definition in @/actions/costs
+// Re-exported here for barrel compatibility via lib/costs/index.ts
+export type { GranularCostRow } from "@/actions/costs"
 
 /**
  * Filter options for granular data

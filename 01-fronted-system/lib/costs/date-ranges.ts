@@ -6,6 +6,7 @@
  */
 
 import { DateRange, FiscalYearConfig, DEFAULT_FISCAL_YEAR_CONFIG } from "./types"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 
 // ============================================
 // Date Utilities
@@ -136,7 +137,7 @@ function subYears(date: Date, years: number): Date {
  * Format date for label (e.g., "Dec 30, 2025")
  */
 function formatLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -242,7 +243,7 @@ export const dateRanges = {
     return {
       start: startOfMonth(lastMonthDate),
       end: endOfMonth(lastMonthDate),
-      label: lastMonthDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+      label: lastMonthDate.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
     }
   },
 
@@ -457,7 +458,7 @@ export const dateRanges = {
     return {
       start: startOfMonth(d),
       end: endOfMonth(d),
-      label: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+      label: d.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
     }
   },
 
@@ -539,8 +540,8 @@ export function isDateInRange(date: Date, range: DateRange): boolean {
  */
 export function toApiParams(range: DateRange): { start_date: string; end_date: string } {
   return {
-    start_date: range.start.toISOString().split("T")[0],
-    end_date: range.end.toISOString().split("T")[0],
+    start_date: formatLocalDate(range.start),
+    end_date: formatLocalDate(range.end),
   }
 }
 

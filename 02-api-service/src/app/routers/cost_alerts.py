@@ -27,6 +27,7 @@ from src.core.services.notification_crud.models import (
     SCOPE_TO_QUERY_TEMPLATE,
 )
 from src.app.dependencies.auth import get_current_org
+from src.core.utils.validators import validate_org_slug
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ async def list_cost_alerts(
     current_org: dict = Depends(get_current_org),
 ):
     """List cost threshold alerts for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -134,6 +136,7 @@ async def get_cost_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific cost alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -174,6 +177,7 @@ async def create_cost_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Create a new cost threshold alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -209,6 +213,7 @@ async def update_cost_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Update a cost threshold alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -296,6 +301,7 @@ async def delete_cost_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Delete a cost threshold alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -331,6 +337,7 @@ async def enable_cost_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Enable a cost threshold alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -360,6 +367,7 @@ async def disable_cost_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Disable a cost threshold alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -392,6 +400,7 @@ async def bulk_enable_cost_alerts(
     current_org: dict = Depends(get_current_org),
 ):
     """Enable multiple cost alerts."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -427,6 +436,7 @@ async def bulk_disable_cost_alerts(
     current_org: dict = Depends(get_current_org),
 ):
     """Disable multiple cost alerts."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -465,64 +475,68 @@ async def get_cost_alert_presets(
     current_org: dict = Depends(get_current_org),
 ):
     """Get preset templates for common cost alert configurations."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
+
+    # Use org's default currency for preset thresholds
+    org_currency = current_org.get("default_currency", "USD")
 
     presets = [
         {
             "id": "cloud_1000",
-            "name": "Cloud Cost Threshold ($1,000)",
+            "name": f"Cloud Cost Threshold (1,000 {org_currency})",
             "scope": "cloud",
             "threshold_value": 1000,
-            "threshold_currency": "USD",
+            "threshold_currency": org_currency,
             "period": "current_month",
             "severity": "warning",
             "channels": ["email"],
-            "description": "Alert when monthly cloud costs exceed $1,000",
+            "description": f"Alert when monthly cloud costs exceed 1,000 {org_currency}",
         },
         {
             "id": "cloud_5000_critical",
-            "name": "Critical Cloud Spend ($5,000)",
+            "name": f"Critical Cloud Spend (5,000 {org_currency})",
             "scope": "cloud",
             "threshold_value": 5000,
-            "threshold_currency": "USD",
+            "threshold_currency": org_currency,
             "period": "current_month",
             "severity": "critical",
             "channels": ["email", "slack"],
-            "description": "Critical alert when cloud costs exceed $5,000",
+            "description": f"Critical alert when cloud costs exceed 5,000 {org_currency}",
         },
         {
             "id": "genai_500",
-            "name": "GenAI Cost Threshold ($500)",
+            "name": f"GenAI Cost Threshold (500 {org_currency})",
             "scope": "genai",
             "threshold_value": 500,
-            "threshold_currency": "USD",
+            "threshold_currency": org_currency,
             "period": "current_month",
             "severity": "warning",
             "channels": ["email"],
-            "description": "Alert when monthly GenAI costs exceed $500",
+            "description": f"Alert when monthly GenAI costs exceed 500 {org_currency}",
         },
         {
             "id": "openai_200",
-            "name": "OpenAI Cost Threshold ($200)",
+            "name": f"OpenAI Cost Threshold (200 {org_currency})",
             "scope": "openai",
             "threshold_value": 200,
-            "threshold_currency": "USD",
+            "threshold_currency": org_currency,
             "period": "current_month",
             "severity": "warning",
             "channels": ["email"],
-            "description": "Alert when monthly OpenAI costs exceed $200",
+            "description": f"Alert when monthly OpenAI costs exceed 200 {org_currency}",
         },
         {
             "id": "total_2500",
-            "name": "Total Monthly Cost ($2,500)",
+            "name": f"Total Monthly Cost (2,500 {org_currency})",
             "scope": "all",
             "threshold_value": 2500,
-            "threshold_currency": "USD",
+            "threshold_currency": org_currency,
             "period": "current_month",
             "severity": "warning",
             "channels": ["email"],
-            "description": "Alert when total monthly costs exceed $2,500",
+            "description": f"Alert when total monthly costs exceed 2,500 {org_currency}",
         },
     ]
 
@@ -544,6 +558,7 @@ async def create_from_preset(
     current_org: dict = Depends(get_current_org),
 ):
     """Create a new cost alert from a preset template."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 

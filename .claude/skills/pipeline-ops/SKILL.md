@@ -369,6 +369,16 @@ Requirements consolidated from:
 - **ZERO mock tests** - All pipeline tests must hit real BigQuery
 - **Update skills with learnings** - Document pipeline patterns and fixes in skill files
 
+## 5 Implementation Pillars
+
+| Pillar | How Pipeline Operations Handles It |
+|--------|-------------------------------|
+| **i18n** | `CurrencyService` converts billing currency at pipeline time; `x_*` lineage fields track original currency; exchange rates CSV applied in stored procedures |
+| **Enterprise** | Idempotent writes (delete-before-insert), state machine transitions per step, structured step logging, DQ validation via `sp_*_validate_data` procedures |
+| **Cross-Service** | API (8000) validates org+quota → Pipeline (8001) executes steps → BigQuery writes raw+FOCUS; quota decrement on pipeline completion |
+| **Multi-Tenancy** | `verify_api_key()` at pipeline entry, `{org_slug}_prod` dataset isolation, `x_org_slug` REQUIRED in every row, parameterized `@org_slug` in all procedures |
+| **Reusability** | `BaseProcessor` pattern for all extractors, `IdempotentWriterMixin` for BQ writes, `retry_with_backoff` decorator, YAML config-driven pipeline definitions |
+
 ## Related Skills
 
 - `subscription-costs` - SaaS subscription cost pipeline

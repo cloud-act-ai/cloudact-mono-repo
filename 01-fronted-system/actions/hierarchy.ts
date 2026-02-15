@@ -9,12 +9,12 @@
 
 import { logError } from "@/lib/utils"
 import { getCachedApiKey } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
   safeJsonParse,
   extractErrorMessage,
-  isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
 
 // ============================================
@@ -183,7 +183,7 @@ export interface CreateLevelInput {
 // Auth Helpers
 // ============================================
 
-const isValidOrgSlug = isValidOrgSlugHelper
+// isValidOrgSlug imported from @/lib/utils/validation (see imports above)
 
 const isValidEntityId = (id: string): boolean => {
   if (!id || typeof id !== "string") return false

@@ -82,9 +82,9 @@ function Marquee({
         {items.map((provider, i) => (
           <div
             key={`${provider.name}-${i}`}
-            className="group flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-100 rounded-lg hover:border-slate-200 hover:shadow-md transition-all duration-200 cursor-pointer flex-shrink-0"
+            className="group flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-100 rounded-lg hover:border-slate-300 hover:shadow-md transition-all duration-300 cursor-pointer flex-shrink-0"
           >
-            <div className="relative w-6 h-6 flex items-center justify-center">
+            <div className="relative w-6 h-6 flex items-center justify-center transition-all duration-300 filter grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100">
               <Image
                 src={provider.logo}
                 alt={provider.name}
@@ -93,7 +93,7 @@ function Marquee({
                 className="object-contain"
               />
             </div>
-            <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
+            <span className="text-sm font-medium text-slate-500 group-hover:text-slate-900 transition-colors duration-300 whitespace-nowrap">
               {provider.name}
             </span>
           </div>
@@ -125,7 +125,7 @@ export function IntegrationsWall() {
             Connects with everything you use
           </h2>
           <p className="text-base text-slate-600">
-            50+ integrations with cloud providers, AI services, and SaaS tools
+            30+ integrations with cloud providers, AI services, and SaaS tools
           </p>
         </motion.div>
       </div>

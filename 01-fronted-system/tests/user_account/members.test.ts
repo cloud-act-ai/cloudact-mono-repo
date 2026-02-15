@@ -247,7 +247,7 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
 
             for (const slug of invalidSlugs) {
                 // Direct validation check
-                const isValid = /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+                const isValid = /^[a-z0-9_]{3,50}$/.test(slug)
                 expect(isValid).toBe(false)
             }
         })
@@ -1148,7 +1148,7 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
             ]
 
             for (const input of maliciousInputs) {
-                const isValid = /^[a-zA-Z0-9_]{3,50}$/.test(input)
+                const isValid = /^[a-z0-9_]{3,50}$/.test(input)
                 expect(isValid).toBe(false)
             }
         })
@@ -1162,7 +1162,7 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
             ]
 
             for (const input of maliciousInputs) {
-                const isValid = /^[a-zA-Z0-9_]{3,50}$/.test(input)
+                const isValid = /^[a-z0-9_]{3,50}$/.test(input)
                 expect(isValid).toBe(false)
             }
         })

@@ -684,10 +684,14 @@ export interface PeriodDateRange {
 }
 
 /**
- * Format date as YYYY-MM-DD for API calls
+ * Format date as YYYY-MM-DD for API calls using local timezone
+ * (toISOString() converts to UTC which shifts dates for negative UTC offsets)
  */
 function formatDateForApi(date: Date): string {
-  return date.toISOString().split("T")[0]
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 /**
@@ -788,7 +792,7 @@ export function getPreviousMonthRange(): PeriodDateRange {
   const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0) // Last day of prev month
   const prevMonthStart = new Date(prevMonthEnd.getFullYear(), prevMonthEnd.getMonth(), 1)
 
-  const monthName = prevMonthStart.toLocaleDateString("en-US", { month: "short" })
+  const monthName = prevMonthStart.toLocaleDateString(undefined, { month: "short" })
 
   return {
     startDate: formatDateForApi(prevMonthStart),
@@ -961,7 +965,7 @@ export function getSpecificMonthRange(monthsAgo: number = 0): PeriodDateRange {
   const targetMonth = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1)
   const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
 
-  const monthName = targetMonth.toLocaleDateString("en-US", { month: "short" })
+  const monthName = targetMonth.toLocaleDateString(undefined, { month: "short" })
   const days = monthEnd.getDate()
 
   return {

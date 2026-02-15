@@ -132,7 +132,7 @@ async def send_notification(
         logger.error(f"Failed to send notification for {request.org_slug}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Notification send failed: {str(e)}"
+            detail="Notification send failed"
         )
 
 
@@ -214,7 +214,7 @@ async def test_notification_channel(
         logger.error(f"Test notification failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Test notification failed: {str(e)}"
+            detail="Test notification failed"
         )
 
 
@@ -268,5 +268,5 @@ async def send_summary(
         logger.error(f"Summary send failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Summary send failed: {str(e)}"
+            detail="Summary send failed"
         )

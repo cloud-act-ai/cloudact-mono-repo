@@ -414,7 +414,7 @@ class BudgetReadService:
                 logger.warning(f"Circular allocation detected at budget {budget_id}, returning leaf node")
                 b = budget_map[budget_id]
                 entity_id = b["hierarchy_entity_id"]
-                actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider")), 0.0))
+                actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider"), str(b["period_start"]), str(b["period_end"])), 0.0))
                 return AllocationNode(
                     budget_id=budget_id,
                     hierarchy_entity_id=entity_id,
@@ -441,7 +441,7 @@ class BudgetReadService:
                     child_nodes.append(build_node(ca["child_budget_id"], actual_lookup, _depth + 1, _visited))
 
             entity_id = b["hierarchy_entity_id"]
-            actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider")), 0.0))
+            actual = float(actual_lookup.get((entity_id, b["category"], b.get("provider"), str(b["period_start"]), str(b["period_end"])), 0.0))
             budget_amount = float(b["budget_amount"])
 
             return AllocationNode(
@@ -473,10 +473,17 @@ class BudgetReadService:
                     eid = b["hierarchy_entity_id"]
                     bcat = b["category"]
                     bprov = b.get("provider")
-                    key = (eid, bcat, bprov)
+                    bp_start = str(b["period_start"])
+                    bp_end = str(b["period_end"])
+                    key = (eid, bcat, bprov, bp_start, bp_end)
                     if key not in actual_lookup:
+                        # Filter costs to this budget's specific period
+                        period_costs = costs_df.filter(
+                            (pl.col("charge_date") >= bp_start) &
+                            (pl.col("charge_date") <= bp_end)
+                        ) if "charge_date" in costs_df.columns else costs_df
                         # Match entity directly OR via hierarchy path (boundary-safe)
-                        entity_costs = self._filter_by_entity(costs_df, eid)
+                        entity_costs = self._filter_by_entity(period_costs, eid)
                         # Scope to budget's category (unless "total" = all categories)
                         if bcat and bcat != "total":
                             entity_costs = entity_costs.filter(pl.col("category") == bcat)

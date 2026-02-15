@@ -12,6 +12,7 @@ from google.cloud.exceptions import NotFound
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
+from src.core.utils.validators import EMAIL_PATTERN
 
 
 class OrgDryRunProcessor:
@@ -51,15 +52,15 @@ class OrgDryRunProcessor:
         import re
 
         try:
-            # Must be alphanumeric with underscores, 3-50 characters
-            if not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+            # Must be lowercase alphanumeric with underscores, 3-50 characters
+            if not re.match(r'^[a-z0-9_]{3,50}$', org_slug):
                 self._add_validation(
                     check_name="org_slug_format",
                     passed=False,
                     message="Invalid org_slug format",
                     details={
                         "org_slug": org_slug,
-                        "requirement": "alphanumeric with underscores, 3-50 characters"
+                        "requirement": "lowercase alphanumeric with underscores, 3-50 characters"
                     }
                 )
                 return False
@@ -302,12 +303,8 @@ class OrgDryRunProcessor:
 
     async def _validate_email_format(self, email: str) -> bool:
         """Validate email format"""
-        import re
-
         try:
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-
-            if not re.match(email_pattern, email):
+            if not EMAIL_PATTERN.match(email):
                 self._add_validation(
                     check_name="email_format",
                     passed=False,

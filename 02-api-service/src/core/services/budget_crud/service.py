@@ -51,7 +51,7 @@ class BudgetCRUDService:
         self,
         org_slug: str,
         request: BudgetCreateRequest,
-        created_by: Optional[str] = None,
+        created_by: str = "system",
     ) -> BudgetResponse:
         """Create a new budget."""
         # Check for duplicate: same entity + category + period + provider
@@ -220,6 +220,13 @@ class BudgetCRUDService:
             return None
         if not existing.is_active:
             raise ValueError("Cannot update a deleted budget")
+
+        # Cross-validate period dates against existing values
+        update_data_raw = request.model_dump(exclude_unset=True)
+        new_start = update_data_raw.get("period_start", existing.period_start)
+        new_end = update_data_raw.get("period_end", existing.period_end)
+        if new_start and new_end and new_end <= new_start:
+            raise ValueError("period_end must be after period_start")
 
         updates = []
         params = [

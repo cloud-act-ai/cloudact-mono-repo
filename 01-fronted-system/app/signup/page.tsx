@@ -12,7 +12,7 @@ import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
 import { COUNTRY_CODES } from "@/lib/constants/countries"
 import { isValidPhone, getPhoneHint, formatPhoneNumber, getPhonePlaceholder } from "@/lib/utils/phone"
-import { sanitizeOrgName, isValidOrgName } from "@/lib/utils/validation"
+import { sanitizeOrgName, isValidOrgName, isValidEmail } from "@/lib/utils/validation"
 
 const ORG_TYPES = [
   { value: "personal", label: "Personal" },
@@ -135,8 +135,7 @@ function SignupForm() {
     if (prefillEmail) {
       try {
         const decoded = decodeURIComponent(prefillEmail)
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (emailRegex.test(decoded) && decoded.length <= 254) {
+        if (isValidEmail(decoded)) {
           setEmail(decoded)
         }
       } catch (decodeError) {
@@ -631,7 +630,7 @@ function SignupForm() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => { setServerError(null); setStep(1) }}
                 disabled={isLoading}
                 className="w-1/3 h-[48px] sm:h-[52px] rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 text-[14px] sm:text-[15px] font-semibold text-gray-600 dark:text-white/70 transition-all duration-200 hover:border-gray-200 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/10 disabled:opacity-50"
               >

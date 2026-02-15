@@ -100,6 +100,16 @@ Requirements consolidated from:
 - `01_BILLING_STRIPE.md` (v2.3, 2026-02-08)
 - `01_ORGANIZATION_ONBOARDING.md` (v1.8) - Plan limits section
 
+## 5 Implementation Pillars
+
+| Pillar | How Stripe Billing Handles It |
+|--------|-------------------------------|
+| **i18n** | Stripe handles currency per-price object; plan prices rendered in org's currency; billing page uses `formatCost()` for display |
+| **Enterprise** | Webhook signature verification (`stripe.webhooks.constructEvent`), idempotency keys on checkout, plan upgrade/downgrade eligibility validation |
+| **Cross-Service** | Frontend (3000) → Stripe API → Webhook → Supabase (billing_status + plan update) → API (8000) reads limits for quota enforcement |
+| **Multi-Tenancy** | Supabase `org_id` scoping on all billing queries, owner-only authorization for billing actions, `stripe_customer_id` unique per org |
+| **Reusability** | Shared plan constants (`SUBSCRIPTION_LIMITS`), `stripe.ts` server action patterns, `plan_change_audit` table reused by quota and billing flows |
+
 ## Related Skills
 
 - `/account-setup` - E2E testing of billing pages (display only, no actual checkout)

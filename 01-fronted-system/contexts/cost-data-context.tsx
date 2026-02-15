@@ -347,7 +347,7 @@ function calculatePeriodCost(granularData: GranularCostRow[], period: PeriodRang
     if (!row.date) continue
     const rowTs = new Date(row.date).getTime()
     if (rowTs >= startTs && rowTs <= endTs) {
-      total += row.total_cost || 0
+      total += row.total_cost ?? 0
     }
   }
 
@@ -364,7 +364,7 @@ function calculatePeriodCost(granularData: GranularCostRow[], period: PeriodRang
  */
 function calculatePeriodCostsFromGranular(
   granularData: GranularCostRow[],
-  fiscalStartMonth: number = 4
+  fiscalStartMonth: number = 1
 ): PeriodCostsData {
   // Get all period date ranges (same as getExtendedPeriodCosts used)
   const periods = {
@@ -891,7 +891,7 @@ export function CostDataProvider({ children, orgSlug }: CostDataProviderProps) {
         // EDGE-002 FIX: Store org's fiscal year for period calculations
         fiscalYearStartMonth,
         lastFetchedAt: new Date(),
-        dataAsOf: periodCosts.dataAsOf || null,
+        dataAsOf: periodCosts.dataAsOf ?? null,
         cachedDateRange: { start: startDate, end: endDate },
         cacheVersion: prev.cacheVersion + 1,
         isStale: false,
@@ -1299,7 +1299,7 @@ export function useDailyTrend() {
 
     // Calculate rolling average
     const totalCost = data.reduce((sum, d) => sum + d.value, 0)
-    const avgDaily = data.length > 0 ? totalCost / data.length : 0
+    const avgDaily = data.length > 0 && Number.isFinite(totalCost) ? totalCost / data.length : 0
     data.forEach(d => { d.rollingAvg = Math.round(avgDaily * 100) / 100 })
 
     // Calculate summary stats for the selected range

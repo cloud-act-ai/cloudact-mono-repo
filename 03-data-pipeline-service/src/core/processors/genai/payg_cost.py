@@ -47,14 +47,12 @@ BQ_BACKOFF_MULTIPLIER = 2.0  # Double wait time on each retry: 1s → 2s → 4s 
 
 # SECURITY: Valid table name pattern for SQL injection prevention
 import re
-import time
-from google.api_core import exceptions as google_exceptions
-from typing import Callable, TypeVar, Any
+from typing import Callable, TypeVar
 
 T = TypeVar('T')
 
 
-def retry_with_backoff(
+async def retry_with_backoff(
     func: Callable[..., T],
     *args: Any,
     max_retries: int = BQ_MAX_RETRIES,
@@ -105,7 +103,7 @@ def retry_with_backoff(
                         f"BigQuery rate limit/error (attempt {attempt + 1}/{max_retries}): {e}. "
                         f"Retrying in {wait_time:.1f}s..."
                     )
-                time.sleep(wait_time)
+                await asyncio.sleep(wait_time)
                 backoff *= multiplier
             else:
                 if logger:
@@ -869,7 +867,7 @@ class PAYGCostProcessor:
 
         try:
             # Issue #45: Use retry wrapper for BigQuery rate limits
-            job = retry_with_backoff(
+            job = await retry_with_backoff(
                 bq_client.client.query,
                 delete_query,
                 job_config=bigquery.QueryJobConfig(query_parameters=query_params),

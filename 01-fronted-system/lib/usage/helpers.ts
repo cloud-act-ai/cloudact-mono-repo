@@ -23,6 +23,7 @@ import {
   calculatePercentage,
   type DateInfo,
 } from "./calculations"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 
 // ============================================
 // Filtering
@@ -36,8 +37,8 @@ export function filterByDateRange(
   startDate: Date,
   endDate: Date
 ): GenAIUsageRecord[] {
-  const start = startDate.toISOString().split("T")[0]
-  const end = endDate.toISOString().split("T")[0]
+  const start = formatLocalDate(startDate)
+  const end = formatLocalDate(endDate)
 
   return records.filter((r) => r.usage_date >= start && r.usage_date <= end)
 }

@@ -14,7 +14,7 @@
  *
  * Prerequisites:
  * - Frontend server running on port 3000
- * - API Service running on port 8001 (for plan seeding/management)
+ * - API Service running on port 8000 (for plan seeding/management)
  * - Supabase configured with subscription_providers_meta table
  * - Test user authenticated with org API key
  * - Backend must have subscription_plans table in BigQuery
@@ -41,7 +41,7 @@ const getEnv = (key: string, defaultValue = ''): string => {
 
 const SUPABASE_URL = getEnv('NEXT_PUBLIC_SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = getEnv('SUPABASE_SERVICE_ROLE_KEY')
-const API_SERVICE_URL = getEnv('NEXT_PUBLIC_API_SERVICE_URL', 'http://localhost:8001')
+const API_SERVICE_URL = getEnv('NEXT_PUBLIC_API_SERVICE_URL', 'http://localhost:8000')
 
 // Check if credentials are available
 const SKIP_TESTS = !SUPABASE_URL || !SUPABASE_SERVICE_KEY

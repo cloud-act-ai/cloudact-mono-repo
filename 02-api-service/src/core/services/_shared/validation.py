@@ -9,8 +9,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Valid org_slug pattern: alphanumeric + underscore only, 3-50 chars
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+# Valid org_slug pattern: lowercase alphanumeric + underscore only, 3-50 chars
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 
 
 def validate_org_slug(org_slug: str) -> str:

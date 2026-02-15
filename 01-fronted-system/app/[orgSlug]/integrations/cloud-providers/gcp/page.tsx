@@ -299,11 +299,13 @@ export default function GCPIntegrationPage() {
         await loadIntegration()
       } else {
         setError(result.error || result.message || "Setup failed. Please check your Service Account JSON and try again.")
-        setWizardStep(2)
+        clearFile()
+        setWizardStep(1)
       }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Failed to setup integration")
-      setWizardStep(2)
+      clearFile()
+      setWizardStep(1)
     } finally {
       setUploadLoading(false)
     }
@@ -413,14 +415,14 @@ export default function GCPIntegrationPage() {
 
       if (result.success) {
         setSuccessMessage("Billing export configuration saved successfully!")
-        setShowBillingConfig(false)
-        // STATE-001 FIX: Clear local form state before reloading to prevent stale data
+        await loadIntegration()
+        // Clear local form state after successful reload
         setBillingExportTable("")
         setDetailedExportTable("")
         setPricingExportTable("")
         setCudTable("")
         setAdditionalAccounts([])
-        await loadIntegration()
+        setShowBillingConfig(false)
       } else {
         setError(result.error || "Failed to save configuration")
       }

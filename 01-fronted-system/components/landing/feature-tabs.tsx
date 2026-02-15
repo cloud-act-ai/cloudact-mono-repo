@@ -26,7 +26,7 @@ export function FeatureTabs() {
     },
     anomalies: {
       title: "Catch Spikes Before the Invoice",
-      description: "Real-time anomaly detection alerts you instantly via Slack or PagerDuty when cost spikes occur. Prevent runaway jobs and zombie resources.",
+      description: "Real-time anomaly detection alerts you instantly via Slack or webhooks when cost spikes occur. Prevent runaway jobs and zombie resources.",
       stats: [
         { label: "Detection Speed", value: "< 5 min" },
         { label: "False Positives", value: "Low" },
@@ -35,7 +35,7 @@ export function FeatureTabs() {
     },
     genai: {
       title: "Trace Every Token to a Customer",
-      description: "The first FinOps platform built for the AI era. Track token usage, model variants (GPT-4 vs 3.5), and vector DB costs per tenant.",
+      description: "The first FinOps platform built for the AI era. Track token usage, model variants (GPT-4o vs Claude), and vector DB costs per tenant.",
       stats: [
         { label: "Model Coverage", value: "All" },
         { label: "Token Accuracy", value: "99.9%" },

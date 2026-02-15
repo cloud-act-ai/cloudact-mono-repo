@@ -535,7 +535,7 @@ class Settings(BaseSettings):
         description="Valid integration provider names (includes CLAUDE alias for ANTHROPIC)"
     )
     genai_providers: List[str] = Field(
-        default=["OPENAI", "ANTHROPIC", "CLAUDE"],
+        default=["OPENAI", "ANTHROPIC", "CLAUDE", "GEMINI", "DEEPSEEK"],
         description="GenAI providers (subset of valid_providers)"
     )
     provider_credential_names: Dict[str, str] = Field(

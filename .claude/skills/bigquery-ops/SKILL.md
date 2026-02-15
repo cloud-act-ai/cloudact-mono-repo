@@ -399,6 +399,16 @@ elif need UPDATE/DELETE:         → DML via bq_client.query()
 - **Parameterized queries only** - Never use f-strings for user input. Always `@param` syntax.
 - **Don't break existing functionality** - Run all tests before/after schema changes
 
+## 5 Implementation Pillars
+
+| Pillar | How BigQuery Ops Handles It |
+|--------|-------------------------------|
+| **i18n** | `org_profiles` stores locale settings (`default_currency`, `default_timezone`); cost queries respect currency at aggregation time |
+| **Enterprise** | Partitioned tables (`x_ingestion_date`), clustered by `x_org_slug`; dry-run gate (10GB max, SELECT-only); audit logging on all DDL |
+| **Cross-Service** | BigQuery is the shared data layer: API (8000) reads via Polars, Pipeline (8001) writes via `load_table_from_dataframe`, Chat (8002) queries via sessions |
+| **Multi-Tenancy** | `{org_slug}_prod` dataset isolation per org; parameterized `@org_slug` in ALL queries; `organizations` meta-dataset shared with RLS-like scoping |
+| **Reusability** | `safe_query()` pattern for parameterized queries; shared bootstrap schemas in `02-api-service/src/core/bigquery/schemas/`; `x_*` lineage fields standard |
+
 ## Related Skills
 
 - `pipeline-ops` - Pipeline management

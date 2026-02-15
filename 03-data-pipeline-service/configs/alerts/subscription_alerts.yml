@@ -37,7 +37,7 @@ alerts:
     recipients:
       type: custom
       emails:
-        - surasani.rama@gmail.com
+        - alerts@cloudact.ai
 
     notification:
       template: subscription_cost_alert

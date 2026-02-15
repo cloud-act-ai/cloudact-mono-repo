@@ -639,6 +639,16 @@ curl -s "http://localhost:8000/api/v1/budgets/$ORG/summary" -H "X-API-Key: $KEY"
 # Expected: { budget_total, actual_total, variance, budgets_over, budgets_under }
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Budget Planning Handles It |
+|--------|-------------------------------|
+| **i18n** | Budget amounts stored in org's `default_currency`, `formatCost()` for all display, period boundaries respect org timezone for month/quarter/year resets |
+| **Enterprise** | Hierarchy-based allocation (Dept->Project->Team), variance tracking with status thresholds, forecasting via run-rate projection, `plan_change_audit` history |
+| **Cross-Service** | Frontend budgets page (3000) → API (8000) CRUD + read endpoints → BigQuery `org_budgets`; alerts system (`admin.py`) evaluates `budget_percent` rules against budget data |
+| **Multi-Tenancy** | `org_slug` in all budget queries, `org_budgets` + `org_budget_allocations` in `organizations` dataset, parameterized `@org_slug` in all BQ reads |
+| **Reusability** | Shared hierarchy tree for entity selection, budget categories (`cloud`/`genai`/`subscription`/`total`) reused across CRUD+read+chat, `formatCost()` from shared `lib/costs` |
+
 ## Related Skills
 
 | Skill | Relationship |

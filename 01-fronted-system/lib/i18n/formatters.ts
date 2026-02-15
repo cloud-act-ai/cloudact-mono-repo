@@ -416,6 +416,48 @@ export function formatRelativeTime(
 }
 
 // ============================================
+// PIPELINE RELATIVE DATE/TIME FORMATTING
+// ============================================
+
+/**
+ * Format a date string as relative time for pipeline UIs.
+ *
+ * Returns "Just now" (< 1 min), "Xm ago" (< 1 hour), "Xh ago" (< 24 hours),
+ * or a short locale date for older entries.
+ *
+ * Unlike `formatRelativeTime` (which uses Intl.RelativeTimeFormat), this is a
+ * compact formatter purpose-built for pipeline run tables and cards.
+ *
+ * @param dateString - ISO date string (optional)
+ * @returns Formatted relative time string, or "-" if no date provided
+ */
+export function formatRelativeDateTime(dateString?: string): string {
+  if (!dateString) return "-"
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return dateString
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor(diff / (1000 * 60))
+
+    if (minutes < 1) return "Just now"
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  } catch {
+    return dateString ?? "-"
+  }
+}
+
+// ============================================
 // NUMBER FORMATTING
 // ============================================
 
@@ -482,4 +524,27 @@ export function formatCompact(
     if (safeVal >= 1e3) return `${(safeVal / 1e3).toFixed(1)}K`
     return safeVal.toString()
   }
+}
+
+// ============================================
+// Date Utilities (Local Timezone)
+// ============================================
+
+/**
+ * Format a Date as YYYY-MM-DD using LOCAL timezone.
+ *
+ * IMPORTANT: Do NOT use `date.toISOString().split("T")[0]` for user-facing dates
+ * or API parameters derived from user selections. That converts to UTC first,
+ * which shifts the date for users in negative UTC offsets (e.g., US timezones).
+ *
+ * Use `getTodayDateUTC()` from `lib/api/helpers.ts` only for server-side UTC dates.
+ *
+ * @param date - Date object to format
+ * @returns YYYY-MM-DD string in local timezone
+ */
+export function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }

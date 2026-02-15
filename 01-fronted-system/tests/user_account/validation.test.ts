@@ -41,7 +41,7 @@ function isValidUUID(uuid: string): boolean {
 
 function isValidOrgSlug(slug: string): boolean {
   if (!slug || typeof slug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+  return /^[a-z0-9_]{3,50}$/.test(slug)
 }
 
 function isValidInviteToken(token: string): boolean {
@@ -353,9 +353,10 @@ describe('Org Slug Validation', () => {
       expect(isValidOrgSlug(maxSlug)).toBe(true)
     })
 
-    it('should accept mixed case', () => {
-      expect(isValidOrgSlug('AcmeCorp')).toBe(true)
-      expect(isValidOrgSlug('MyOrg123')).toBe(true)
+    it('should reject uppercase characters', () => {
+      expect(isValidOrgSlug('AcmeCorp')).toBe(false)
+      expect(isValidOrgSlug('MyOrg123')).toBe(false)
+      expect(isValidOrgSlug('ACME')).toBe(false)
     })
   })
 

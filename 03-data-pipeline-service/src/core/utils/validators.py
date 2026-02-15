@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 
 
 # Validation patterns
-ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
 EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 API_KEY_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{32,}$')
@@ -22,9 +22,11 @@ VALID_PROVIDERS = {
     'openai',
     'anthropic',
     'gemini',
+    'deepseek',
     'gcp',
     'aws',
-    'azure'
+    'azure',
+    'oci'
 }
 
 
@@ -64,7 +66,7 @@ def validate_org_slug(org_slug: str, field_name: str = "org_slug") -> str:
     if not ORG_SLUG_PATTERN.match(org_slug):
         raise ValidationError(
             field_name,
-            "Organization slug must be alphanumeric with underscores, 3-50 characters (^[a-zA-Z0-9_]{3,50}$)"
+            "Organization slug must be lowercase alphanumeric with underscores, 3-50 characters (^[a-z0-9_]{3,50}$)"
         )
 
     return org_slug

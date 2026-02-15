@@ -12,7 +12,7 @@
  */
 
 // ============================================
-// CURRENCIES (ISO 4217) - 16 supported
+// CURRENCIES (ISO 4217) - 20 supported
 // ============================================
 
 export interface CurrencyInfo {
@@ -94,6 +94,7 @@ export const SUPPORTED_TIMEZONES: readonly TimezoneInfo[] = [
   { value: "Asia/Tokyo", label: "JST - Tokyo, Japan", offset: "+09:00" },
   { value: "Asia/Shanghai", label: "CST - Shanghai, China", offset: "+08:00" },
   { value: "Australia/Sydney", label: "AEST/AEDT - Sydney, Australia", offset: "+10:00" },
+  { value: "Pacific/Auckland", label: "NZST/NZDT - Auckland, New Zealand", offset: "+12:00" },
 ] as const
 
 export const TIMEZONE_VALUES = SUPPORTED_TIMEZONES.map(tz => tz.value)

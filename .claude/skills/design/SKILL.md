@@ -600,6 +600,16 @@ All console components MUST use CSS variables instead of hardcoded `slate-*` Tai
 
 ---
 
+## 5 Implementation Pillars
+
+| Pillar | How Design Handles It |
+|--------|-------------------------------|
+| **i18n** | RTL-ready layout patterns; currency symbol placement varies by locale; number formatting respects locale via `Intl.NumberFormat` |
+| **Enterprise** | WCAG 2.1 AA accessibility (4.5:1 contrast), consistent brand identity across all surfaces, responsive design, dark/light mode CSS variables ready |
+| **Cross-Service** | Design system shared across landing pages (public) and console pages (authenticated); consistent tokens applied to all 4 services' UI surfaces |
+| **Multi-Tenancy** | No tenant-specific theming (brand consistency enforced); only org logo upload available in settings |
+| **Reusability** | Design tokens (colors, typography, spacing) in CSS variables; component library; consistent 8px grid; DM Sans + JetBrains Mono font stack |
+
 ## Related Skills
 
 | Skill | Relationship |

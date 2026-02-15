@@ -15,15 +15,7 @@
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { randomBytes } from "crypto"
-
-// Validate email format (RFC 5322 simplified)
-// Note: Utility function available for future email validation needs
-const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function isValidEmail(email: string): boolean {
-  return EMAIL_REGEX.test(email) && email.length <= 254
-}
+import { isValidOrgSlug, isValidEmail } from "@/lib/utils/validation"
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -31,12 +23,6 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 function isValidUUID(uuid: string): boolean {
   if (!uuid || typeof uuid !== "string") return false
   return UUID_REGEX.test(uuid)
-}
-
-// Validate org slug format (alphanumeric + underscore, 3-50 chars)
-function isValidOrgSlug(slug: string): boolean {
-  if (!slug || typeof slug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
 }
 
 // ============================================
@@ -387,11 +373,14 @@ export async function transferOwnership(
       .eq("id", newOwnerMembership.id)
 
     if (promoteError) {
-      // Rollback
-      await adminClient
+      // Rollback — re-promote current owner
+      const { error: rollbackError } = await adminClient
         .from("organization_members")
         .update({ role: "owner" })
         .eq("id", currentOwnership.id)
+      if (rollbackError) {
+        console.error("[transferOwnership] CRITICAL: Rollback failed - org may have no owner!", { orgId, rollbackError: rollbackError.message })
+      }
       return { success: false, error: "Failed to transfer ownership" }
     }
 
@@ -506,17 +495,25 @@ export async function deleteOrganization(
     }
 
     // Revoke all pending invites
-    await adminClient
+    const { error: revokeError } = await adminClient
       .from("invites")
       .update({ status: "revoked" })
       .eq("org_id", orgId)
       .eq("status", "pending")
 
+    if (revokeError) {
+      console.error("[deleteOrganization] Failed to revoke invites:", revokeError.message)
+    }
+
     // Deactivate all memberships
-    await adminClient
+    const { error: deactivateError } = await adminClient
       .from("organization_members")
       .update({ status: "inactive" })
       .eq("org_id", orgId)
+
+    if (deactivateError) {
+      console.error("[deleteOrganization] Failed to deactivate memberships:", deactivateError.message)
+    }
 
     // Soft-delete the organization in Supabase
     // Sets billing_status to 'deleted', is_deleted flag, and deleted_at timestamp
@@ -601,6 +598,12 @@ export async function requestAccountDeletion(): Promise<{
         error: `You own ${ownedOrgsResult.data.length} organization(s). Please transfer ownership or delete them before deleting your account.`,
       }
     }
+
+    // Revoke any existing deletion tokens for this user (prevent multiple valid tokens)
+    await adminClient
+      .from("account_deletion_tokens")
+      .delete()
+      .eq("user_id", user.id)
 
     // Generate deletion token
     const token = randomBytes(32).toString("hex")
@@ -726,7 +729,7 @@ export async function confirmAccountDeletion(token: string): Promise<{
       .eq("status", "pending")
 
     // Anonymize profile data (GDPR compliance - keep record but remove PII)
-    await adminClient
+    const { error: anonymizeError } = await adminClient
       .from("profiles")
       .update({
         full_name: "[DELETED]",
@@ -737,12 +740,17 @@ export async function confirmAccountDeletion(token: string): Promise<{
       })
       .eq("id", userId)
 
+    if (anonymizeError) {
+      console.error("[confirmAccountDeletion] CRITICAL: Profile anonymization failed:", anonymizeError.message)
+      return { success: false, error: "Failed to anonymize profile data. Account deletion aborted." }
+    }
+
     // Delete the auth user (this will cascade to profile due to trigger)
     // Note: In production, you might want to keep the auth user disabled instead
     const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId)
 
     if (authDeleteError) {
-      // Continue anyway - profile is anonymized
+      console.error("[confirmAccountDeletion] Auth user deletion failed (profile already anonymized):", authDeleteError.message)
     }
 
     // Token already consumed by consumeDeletionToken above

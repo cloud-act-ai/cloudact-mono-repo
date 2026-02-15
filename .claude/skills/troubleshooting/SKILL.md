@@ -193,6 +193,16 @@ gcloud auth activate-service-account --key-file=/Users/openclaw/.gcp/cloudact-pr
 - **LRU in-memory cache** - NO Redis. If debugging cache issues, it's always LRU-based.
 - **Enterprise-grade for 10k customers** - Fixes must scale. No single-org workarounds.
 
+## 5 Implementation Pillars
+
+| Pillar | How Troubleshooting Handles It |
+|--------|-------------------------------|
+| **i18n** | Debug locale sync issues (Supabase vs BigQuery); currency mismatch diagnostics; timezone boundary errors in date filters |
+| **Enterprise** | Structured diagnostic steps; cross-environment debugging (local/stage/prod); log analysis via `gcloud logging`; error pattern recognition |
+| **Cross-Service** | Trace errors across Frontend -> API -> Pipeline -> BigQuery -> Chat; `request_id` / `x_run_id` correlation across service boundaries |
+| **Multi-Tenancy** | Always scope debugging to specific `org_slug`; verify data isolation; check for cross-tenant data leaks in query results |
+| **Reusability** | Shared diagnostic SQL queries; health check endpoints (`/health`); log search patterns; recovery procedures documented per error type |
+
 ## Related Skills
 - `/monitoring` - Logs, health checks, observability
 - `/pipeline-ops` - Pipeline-specific debugging

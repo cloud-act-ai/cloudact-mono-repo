@@ -31,6 +31,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { cn } from "@/lib/utils"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useChartConfig, getCategoryChartColors } from "../provider/chart-provider"
 import { ChartTooltip } from "../shared/tooltip"
@@ -146,7 +147,7 @@ function getBucketKey(dateStr: string, aggregationType: AggregationType): string
       const diff = date.getDate() - day + (day === 0 ? -6 : 1) // Adjust for Sunday
       const monday = new Date(date)
       monday.setDate(diff)
-      return monday.toISOString().split("T")[0]
+      return formatLocalDate(monday)
     }
 
     case "monthly": {

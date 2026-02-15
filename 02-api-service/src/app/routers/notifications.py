@@ -47,6 +47,7 @@ from src.core.services.notification_read import (
     HistoryQueryParams,
 )
 from src.app.dependencies.auth import get_current_org
+from src.core.utils.validators import validate_org_slug
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ async def list_channels(
     current_org: dict = Depends(get_current_org),
 ):
     """List notification channels for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -104,6 +106,7 @@ async def get_channel(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific notification channel."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -134,6 +137,7 @@ async def create_channel(
     current_org: dict = Depends(get_current_org),
 ):
     """Create a new notification channel."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -163,6 +167,7 @@ async def update_channel(
     current_org: dict = Depends(get_current_org),
 ):
     """Update a notification channel."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -191,6 +196,7 @@ async def delete_channel(
     current_org: dict = Depends(get_current_org),
 ):
     """Delete a notification channel."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -217,6 +223,7 @@ async def test_channel(
     current_org: dict = Depends(get_current_org),
 ):
     """Send a test notification to verify channel configuration."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -311,6 +318,7 @@ async def list_rules(
     current_org: dict = Depends(get_current_org),
 ):
     """List notification rules for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -335,6 +343,7 @@ async def get_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific notification rule."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -364,6 +373,7 @@ async def create_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Create a new notification rule."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -393,6 +403,7 @@ async def update_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Update a notification rule."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -421,6 +432,7 @@ async def delete_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Delete a notification rule."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -448,6 +460,7 @@ async def pause_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Pause a notification rule."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -476,6 +489,7 @@ async def resume_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Resume a paused notification rule."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -504,6 +518,7 @@ async def test_rule(
     current_org: dict = Depends(get_current_org),
 ):
     """Test a notification rule by evaluating its conditions against current data."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -529,7 +544,7 @@ async def test_rule(
             cost_service = get_cost_read_service()
 
             # Get cost data based on rule category
-            if rule.rule_category.value in ["cost_spike", "budget_threshold"]:
+            if rule.rule_category.value in ["cost", "subscription"]:
                 # Get MTD costs
                 cost_query = CostQuery(org_slug=org_slug, period=DatePeriod.MTD)
                 cost_data = await cost_service.get_cost_summary(cost_query)
@@ -539,17 +554,17 @@ async def test_rule(
                     evaluation_data["current_mtd_cost"] = total_cost
 
                     # Evaluate threshold conditions
-                    if conditions.threshold_value and total_cost >= conditions.threshold_value:
+                    if conditions.threshold_amount and total_cost >= conditions.threshold_amount:
                         would_trigger = True
-                        trigger_reason = f"Cost ${total_cost:.2f} exceeds threshold ${conditions.threshold_value:.2f}"
+                        trigger_reason = f"Cost {total_cost:.2f} exceeds threshold {conditions.threshold_amount:.2f}"
 
-                    # Evaluate percentage change
-                    if conditions.percentage_change:
+                    # Evaluate percentage change via threshold_percent
+                    if conditions.threshold_percent:
                         pct_change = cost_data.get("percentage_change", 0)
                         evaluation_data["percentage_change"] = pct_change
-                        if pct_change >= conditions.percentage_change:
+                        if pct_change >= conditions.threshold_percent:
                             would_trigger = True
-                            trigger_reason = f"Cost increased {pct_change:.1f}% (threshold: {conditions.percentage_change}%)"
+                            trigger_reason = f"Cost increased {pct_change:.1f}% (threshold: {conditions.threshold_percent}%)"
 
             elif rule.rule_category.value == "anomaly_detection":
                 # For anomaly detection, check if current spend deviates significantly
@@ -619,6 +634,7 @@ async def list_summaries(
     current_org: dict = Depends(get_current_org),
 ):
     """List notification summaries for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -643,6 +659,7 @@ async def get_summary(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific notification summary."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -672,6 +689,7 @@ async def create_summary(
     current_org: dict = Depends(get_current_org),
 ):
     """Create a new notification summary."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -701,6 +719,7 @@ async def update_summary(
     current_org: dict = Depends(get_current_org),
 ):
     """Update a notification summary."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -729,6 +748,7 @@ async def delete_summary(
     current_org: dict = Depends(get_current_org),
 ):
     """Delete a notification summary."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -755,6 +775,7 @@ async def preview_summary(
     current_org: dict = Depends(get_current_org),
 ):
     """Generate a preview of the summary content using current cost data."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -852,6 +873,7 @@ async def send_summary_now(
     current_org: dict = Depends(get_current_org),
 ):
     """Immediately send the summary by generating content and sending to channels."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -983,6 +1005,7 @@ async def list_history(
     current_org: dict = Depends(get_current_org),
 ):
     """List notification history for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1009,6 +1032,7 @@ async def get_history_entry(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific notification history entry."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1037,6 +1061,7 @@ async def acknowledge_notification(
     current_org: dict = Depends(get_current_org),
 ):
     """Acknowledge a notification."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1070,6 +1095,7 @@ async def get_stats(
     current_org: dict = Depends(get_current_org),
 ):
     """Get notification statistics for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1097,6 +1123,7 @@ async def list_scheduled_alerts(
     current_org: dict = Depends(get_current_org),
 ):
     """List scheduled alert configurations from pipeline service."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1139,6 +1166,7 @@ async def get_scheduled_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific scheduled alert configuration."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1186,6 +1214,7 @@ async def test_scheduled_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Test a scheduled alert by evaluating its conditions."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1238,6 +1267,7 @@ async def get_alert_history(
     current_org: dict = Depends(get_current_org),
 ):
     """Get alert history for an organization."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1334,6 +1364,7 @@ async def list_org_alerts(
     current_org: dict = Depends(get_current_org),
 ):
     """List org-specific scheduled alerts."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1358,6 +1389,7 @@ async def get_org_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Get a specific org-specific scheduled alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1387,6 +1419,7 @@ async def create_org_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Create a new org-specific scheduled alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1416,6 +1449,7 @@ async def update_org_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Update an org-specific scheduled alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1448,6 +1482,7 @@ async def delete_org_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Delete an org-specific scheduled alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1475,6 +1510,7 @@ async def enable_org_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Enable an org-specific scheduled alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1503,6 +1539,7 @@ async def disable_org_alert(
     current_org: dict = Depends(get_current_org),
 ):
     """Disable an org-specific scheduled alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 
@@ -1534,6 +1571,7 @@ async def get_org_alert_history(
     current_org: dict = Depends(get_current_org),
 ):
     """Get evaluation history for a specific alert."""
+    validate_org_slug(org_slug)
     if current_org.get("org_slug") != org_slug:
         raise HTTPException(status_code=403, detail="Access denied to this organization")
 

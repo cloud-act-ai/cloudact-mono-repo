@@ -94,9 +94,9 @@ lib/i18n/ (Formatters)                ├─ default_country              Pipeli
 | SEK | kr | 2 | SE |
 | KRW | ₩ | 0 | KR |
 
-## Supported Timezones (15)
+## Supported Timezones (16)
 
-UTC, America/New_York, America/Chicago, America/Denver, America/Los_Angeles, Europe/London, Europe/Berlin, Europe/Paris, Asia/Dubai, Asia/Kolkata, Asia/Singapore, Asia/Tokyo, Asia/Shanghai, Australia/Sydney, Pacific/Auckland
+UTC, America/New_York, America/Chicago, America/Denver, America/Los_Angeles, Europe/London, Europe/Berlin, Europe/Paris, Asia/Dubai, Asia/Riyadh, Asia/Kolkata, Asia/Singapore, Asia/Tokyo, Asia/Shanghai, Australia/Sydney, Pacific/Auckland
 
 ## Date Formats (6)
 
@@ -267,6 +267,26 @@ curl -s "https://cloudact-api-service-test-*.a.run.app/api/v1/organizations/{org
 curl -s "https://api.cloudact.ai/api/v1/organizations/{org}/locale" \
   -H "X-API-Key: {key}"
 ```
+
+## Known Issues (2026-02-14 Audit)
+
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Multi-currency aggregation | CRITICAL | `cost_read/aggregations.py` sums costs without conversion (CURR-001). Warning logged but amounts not converted. |
+| Fiscal year BQ sync gap | CRITICAL | `fiscal_year_start_month` stored in Supabase only, not synced to BigQuery `org_profiles`. Backend defaults to January. |
+| Hardcoded `en-US` dates | MEDIUM | `date-ranges.ts`, `dashboard-calculators.ts` hardcode `"en-US"` locale in `toLocaleDateString()` calls. |
+| `formatPercent` confusion | MEDIUM | `lib/i18n/formatters.ts` expects 0-1 range; `lib/costs/formatters.ts` expects 0-100 range. Two functions with same name. |
+| Date format not applied | LOW | `date_format` setting (6 formats) collected via settings but `formatDate()` uses `Intl.DateTimeFormat` dateStyle instead. |
+
+## 5 Implementation Pillars
+
+| Pillar | How i18n Locale Handles It |
+|--------|-------------------------------|
+| **i18n** | THIS IS the i18n skill: 20 currencies, 16 timezones, 6 date formats, 4 fiscal year options, exchange rate CSV, `formatCost()` / `formatDateTime()` formatters |
+| **Enterprise** | Exchange rate audit trail via `convertWithAudit()`; staleness detection (30-day threshold); locale sync validation between Supabase and BigQuery |
+| **Cross-Service** | Locale stored in Supabase (frontend reads), synced to BigQuery `org_profiles` (backend reads); API endpoints for locale CRUD; Pipeline converts currencies at aggregation |
+| **Multi-Tenancy** | Each org has independent locale settings; `org_slug` scoping on all locale API endpoints; no cross-org locale leakage |
+| **Reusability** | Shared formatters in `lib/i18n/` and `lib/currency/`; `SUPPORTED_CURRENCIES` constant; `getFiscalYearFromTimezone()` auto-suggest; server actions for locale CRUD |
 
 ## Related Skills
 

@@ -57,17 +57,17 @@ function getPipelineServiceUrl(): string {
 /**
  * Validate org_slug format.
  * Prevents path traversal and injection attacks.
- * MUST match backend validation: alphanumeric + underscore only, 3-50 chars
+ * MUST match backend validation: lowercase alphanumeric + underscore only, 3-50 chars
  */
 function validateOrgSlug(orgSlug: string): void {
   if (!orgSlug || typeof orgSlug !== "string") {
     throw new Error("org_slug is required and must be a string")
   }
-  // Match backend validation: alphanumeric + underscore only, 3-50 chars (NO hyphens)
-  if (!/^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)) {
+  // Match backend validation: lowercase alphanumeric + underscore only, 3-50 chars (NO hyphens, NO uppercase)
+  if (!/^[a-z0-9_]{3,50}$/.test(orgSlug)) {
     throw new Error(
       `Invalid org_slug format: "${orgSlug}". ` +
-      "Must be 3-50 characters, alphanumeric with underscores only (no hyphens)."
+      "Must be 3-50 characters, lowercase alphanumeric with underscores only (no hyphens, no uppercase)."
     )
   }
 }

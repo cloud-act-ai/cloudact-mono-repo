@@ -330,6 +330,16 @@ git tag v4.4.0
 git push origin v4.4.0
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How PR Review Handles It |
+|--------|-------------------------------|
+| **i18n** | Check for hardcoded `$`, `en-US`, `USD`; verify `formatCost()` usage; flag `toISOString().split("T")[0]` date patterns |
+| **Enterprise** | Automated code review with test execution; breaking change detection; version bump validation; security file flagging |
+| **Cross-Service** | Review changes across all services; validate API contract changes; check cross-service dependency impacts |
+| **Multi-Tenancy** | Flag missing `org_slug` validation; check `requireOrgMembership()` in new actions; verify parameterized queries in SQL |
+| **Reusability** | Shared review checklist; automated lint rules; PR template with standard sections; merge safety checks |
+
 ## Related Skills
 
 - `/test-orchestration` - Detailed test execution

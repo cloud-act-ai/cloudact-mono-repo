@@ -682,6 +682,16 @@ Unused components and deprecated code removed after dependency verification:
 
 ---
 
+## 5 Implementation Pillars
+
+| Pillar | How Console UI Handles It |
+|--------|-------------------------------|
+| **i18n** | All data display components use `formatCost()`/`formatDate()` from shared libs; no hardcoded currency or date formatting in components |
+| **Enterprise** | Consistent empty states, error boundaries, loading skeletons, pagination patterns, and breadcrumbs across every console page |
+| **Cross-Service** | Console layout wraps all authenticated pages; sidebar links to all service features (costs, pipelines, chat, budgets, alerts) |
+| **Multi-Tenancy** | `orgSlug` in all route params `[orgSlug]/`; sidebar scoped to org's enabled features and plan tier |
+| **Reusability** | Shared card components, table components, sidebar layout, page templates, metric display patterns in `components/ui/` and `components/costs/` |
+
 ## Related Skills
 
 | Skill | Relationship |

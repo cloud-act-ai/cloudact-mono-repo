@@ -311,7 +311,7 @@ describe('Quota System: check_quota_available response', () => {
 
 describe('Quota System: org_slug validation', () => {
   const validOrgSlug = (slug: string): boolean => {
-    return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+    return /^[a-z0-9_]{3,50}$/.test(slug)
   }
 
   it('should accept valid org slugs', () => {

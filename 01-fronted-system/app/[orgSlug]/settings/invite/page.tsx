@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge"
 import { UserPlus, Trash2, Mail, Copy, CheckCircle2, Loader2, Users, Clock, Check, AlertCircle, Eye, Edit3, RefreshCw } from "lucide-react"
 import { fetchMembersData, inviteMember, removeMember, updateMemberRole, cancelInvite, resendInvite } from "@/actions/members"
 import { logError } from "@/lib/utils"
+import { isValidEmail } from "@/lib/utils/validation"
 
 interface Member {
   id: string
@@ -82,14 +83,11 @@ export default function InviteMembersPage() {
   const [isInviting, setIsInviting] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
+  const [updatingRoleForUser, setUpdatingRoleForUser] = useState<string | null>(null)
+  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Email validation regex
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-    return emailRegex.test(email) && email.length <= 254
-  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -125,7 +123,7 @@ export default function InviteMembersPage() {
   }, [fetchData])
 
   const handleInvite = async () => {
-    if (!validateEmail(inviteEmail)) {
+    if (!isValidEmail(inviteEmail)) {
       setEmailError("Please enter a valid email address")
       return
     }
@@ -160,36 +158,53 @@ export default function InviteMembersPage() {
 
   const handleRemoveMember = async () => {
     const memberIdToRemove = memberToRemove
-    if (!memberIdToRemove) return
+    if (!memberIdToRemove || isRemoving) return
 
-    const result = await removeMember(orgSlug, memberIdToRemove)
-    if (result.success) {
-      toast.success("Member removed successfully")
-      setMemberToRemove(null)
-      await fetchData() // Await to ensure UI reflects deletion before any further actions
-    } else {
-      toast.error(result.error || "Failed to remove member")
-      setMemberToRemove(null)
+    setIsRemoving(true)
+    try {
+      const result = await removeMember(orgSlug, memberIdToRemove)
+      if (result.success) {
+        toast.success("Member removed successfully")
+        setMemberToRemove(null)
+        await fetchData()
+      } else {
+        toast.error(result.error || "Failed to remove member")
+        setMemberToRemove(null)
+      }
+    } finally {
+      setIsRemoving(false)
     }
   }
 
   const handleUpdateRole = async (memberUserId: string, newRole: "collaborator" | "read_only") => {
-    const result = await updateMemberRole(orgSlug, memberUserId, newRole)
-    if (result.success) {
-      toast.success("Role updated successfully")
-      await fetchData() // Await to ensure UI reflects role change
-    } else {
-      toast.error(result.error || "Failed to update role")
+    if (updatingRoleForUser) return
+    setUpdatingRoleForUser(memberUserId)
+    try {
+      const result = await updateMemberRole(orgSlug, memberUserId, newRole)
+      if (result.success) {
+        toast.success("Role updated successfully")
+        await fetchData()
+      } else {
+        toast.error(result.error || "Failed to update role")
+      }
+    } finally {
+      setUpdatingRoleForUser(null)
     }
   }
 
   const handleCancelInvite = async (inviteId: string) => {
-    const result = await cancelInvite(orgSlug, inviteId)
-    if (result.success) {
-      toast.success("Invitation cancelled")
-      await fetchData() // Await to ensure UI reflects cancellation
-    } else {
-      toast.error(result.error || "Failed to cancel invitation")
+    if (cancelingInviteId) return
+    setCancelingInviteId(inviteId)
+    try {
+      const result = await cancelInvite(orgSlug, inviteId)
+      if (result.success) {
+        toast.success("Invitation cancelled")
+        await fetchData()
+      } else {
+        toast.error(result.error || "Failed to cancel invitation")
+      }
+    } finally {
+      setCancelingInviteId(null)
     }
   }
 
@@ -276,7 +291,7 @@ export default function InviteMembersPage() {
   const currentSeats = members.length
   const pendingInvitesCount = invites.length
   // STATE-001 FIX: Include pending invites in seat calculation (they reserve seats)
-  const seatsAvailable = seatLimit ? seatLimit - currentSeats - pendingInvitesCount : 0
+  const seatsAvailable = seatLimit ? Math.max(0, seatLimit - currentSeats - pendingInvitesCount) : 0
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-0">
@@ -297,7 +312,15 @@ export default function InviteMembersPage() {
             </div>
           </div>
           {isOwner && (
-            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+            <Dialog open={isInviteDialogOpen} onOpenChange={(open) => {
+              setIsInviteDialogOpen(open)
+              if (!open) {
+                setInviteEmail("")
+                setEmailError(null)
+                setInviteLink(null)
+                setInviteRole("collaborator")
+              }
+            }}>
               <DialogTrigger asChild>
                 <button
                   disabled={!seatLimit || seatsAvailable <= 0}
@@ -387,7 +410,7 @@ export default function InviteMembersPage() {
                       </Button>
                       <button
                         onClick={handleInvite}
-                        disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)}
+                        disabled={isInviting || !inviteEmail || !isValidEmail(inviteEmail)}
                         className="h-10 px-5 text-[12px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[var(--text-primary)] rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50"
                       >
                         {isInviting ? (
@@ -702,7 +725,7 @@ export default function InviteMembersPage() {
                     <Check className="h-4 w-4 text-[#8B5CF6]" />
                   ) : (
                     <div className="h-4 w-4 flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-slate-300" />
+                      <div className="h-2 w-2 rounded-full bg-[var(--border-medium)]" />
                     </div>
                   )}
                   <span className={`text-[12px] ${allowed ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"}`}>{perm}</span>
@@ -731,7 +754,7 @@ export default function InviteMembersPage() {
                     <Check className="h-4 w-4 text-[var(--text-secondary)]" />
                   ) : (
                     <div className="h-4 w-4 flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-slate-300" />
+                      <div className="h-2 w-2 rounded-full bg-[var(--border-medium)]" />
                     </div>
                   )}
                   <span className={`text-[12px] ${allowed ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"}`}>{perm}</span>

@@ -12,6 +12,7 @@
 
 import { cn } from "@/lib/utils"
 import { useState, useMemo } from "react"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 
 // ============================================
 // Types
@@ -255,8 +256,8 @@ export function usePeriodSelector(
 
   const dates = useMemo(() => getPeriodDates(period), [period])
 
-  const startDate = dates.startDate.toISOString().split("T")[0]
-  const endDate = dates.endDate.toISOString().split("T")[0]
+  const startDate = formatLocalDate(dates.startDate)
+  const endDate = formatLocalDate(dates.endDate)
 
   return {
     period,

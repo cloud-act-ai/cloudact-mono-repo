@@ -39,7 +39,7 @@ const screenshots = [
   },
   {
     id: "integrations",
-    title: "50+ Integrations",
+    title: "30+ Integrations",
     description: "Connect all your cloud providers, AI platforms, and SaaS tools in minutes. Native multi-cloud support.",
     icon: Plug,
     color: "mint",
@@ -82,7 +82,7 @@ function DashboardMockup({ activeId }: { activeId: string }) {
             Last 30 days
           </div>
           <div className="w-7 h-7 rounded-full bg-[#90FCA6]/20 flex items-center justify-center text-[#90FCA6] text-[10px] font-bold">
-            GK
+            CA
           </div>
         </div>
       </div>
@@ -388,7 +388,7 @@ function IntegrationsContent() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Plug className="w-4 h-4 text-[#90FCA6]" />
-          <span className="text-xs text-[#90FCA6]/90 font-medium">50+ Integrations</span>
+          <span className="text-xs text-[#90FCA6]/90 font-medium">30+ Integrations</span>
         </div>
         <span className="px-1.5 py-0.5 bg-[#90FCA6]/20 text-[#90FCA6] text-[8px] rounded border border-[#90FCA6]/30">
           All Connected
@@ -602,7 +602,7 @@ export function ProductScreenshots() {
   const goPrev = () => setActiveIndex((i) => (i - 1 + screenshots.length) % screenshots.length)
 
   return (
-    <section className="py-24 lg:py-32 bg-white relative overflow-hidden">
+    <section className="py-16 lg:py-20 bg-white relative overflow-hidden">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-white" />
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#90FCA6]/5 rounded-full blur-[150px]" />
@@ -621,7 +621,7 @@ export function ProductScreenshots() {
             <div className="flex justify-center mb-4">
               <div className="w-12 h-1 rounded-full bg-[#90FCA6]" />
             </div>
-            <span className="inline-block text-sm font-semibold text-emerald-600 uppercase tracking-wider mb-3">
+            <span className="inline-block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
               See It In Action
             </span>
             <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-4">

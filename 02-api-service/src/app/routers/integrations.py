@@ -11,7 +11,7 @@ URL Structure: /api/v1/integrations/{org_slug}/{provider}/setup|validate
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime, timezone
 from pathlib import Path
@@ -178,17 +178,12 @@ class SetupIntegrationRequest(BaseModel):
         None,
         description="Additional metadata (e.g., project_id for GCP)"
     )
-    skip_validation: bool = Field(
-        False,
-        description="Skip credential validation (not recommended)"
-    )
-
     model_config = ConfigDict(extra="forbid")
 
-    # BUG-014 FIX: Validate credential is not empty after stripping
-    @staticmethod
-    def validate_credential(v: str) -> str:
-        """Validate credential is not empty or whitespace-only"""
+    @field_validator("credential")
+    @classmethod
+    def validate_credential(cls, v: str) -> str:
+        """Validate credential is not empty or whitespace-only."""
         if not v or not v.strip():
             raise ValueError("Credential cannot be empty or whitespace-only")
         return v.strip()
@@ -198,7 +193,7 @@ class IntegrationStatusResponse(BaseModel):
     """Response for integration status."""
     provider: str
     # Use 'status' as the serialized field name for frontend compatibility
-    validation_status: Literal["VALID", "INVALID", "PENDING", "NOT_CONFIGURED"] = Field(
+    validation_status: Literal["VALID", "INVALID", "PENDING", "NOT_CONFIGURED", "PARTIAL_VALID", "EXPIRED"] = Field(
         ..., serialization_alias="status"
     )
     credential_name: Optional[str] = None
@@ -408,7 +403,7 @@ async def setup_gcp_integration(
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or f"GCP SA ({sa_data.get('project_id')})",
         metadata=metadata,
-        skip_validation=setup_request.skip_validation,
+        skip_validation=False,
         user_id=org.get("user_id"),
         request_id=request_id,
         api_key_id=org.get("org_api_key_id")
@@ -461,7 +456,7 @@ async def setup_openai_integration(
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or "OpenAI API Key",
         metadata=setup_request.metadata,
-        skip_validation=setup_request.skip_validation,
+        skip_validation=False,
         user_id=org.get("user_id"),
         request_id=request_id,
         api_key_id=org.get("org_api_key_id")
@@ -512,7 +507,7 @@ async def setup_anthropic_integration(
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or "Anthropic API Key",
         metadata=setup_request.metadata,
-        skip_validation=setup_request.skip_validation,
+        skip_validation=False,
         user_id=org.get("user_id"),
         request_id=request_id,
         api_key_id=org.get("org_api_key_id")
@@ -563,7 +558,7 @@ async def setup_gemini_integration(
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or "Gemini API Key",
         metadata=setup_request.metadata,
-        skip_validation=setup_request.skip_validation,
+        skip_validation=False,
         user_id=org.get("user_id"),
         request_id=request_id,
         api_key_id=org.get("org_api_key_id")
@@ -614,7 +609,7 @@ async def setup_deepseek_integration(
         credential=setup_request.credential,
         credential_name=setup_request.credential_name or "DeepSeek API Key",
         metadata=setup_request.metadata,
-        skip_validation=setup_request.skip_validation,
+        skip_validation=False,
         user_id=org.get("user_id"),
         request_id=request_id,
         api_key_id=org.get("org_api_key_id")
@@ -877,10 +872,6 @@ class UpdateIntegrationRequest(BaseModel):
         None,
         description="Updated additional metadata"
     )
-    skip_validation: bool = Field(
-        False,
-        description="Skip credential validation"
-    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -994,7 +985,7 @@ async def update_integration(
             credential=update_request.credential,
             credential_name=update_request.credential_name or existing_name,
             metadata=update_request.metadata,
-            skip_validation=update_request.skip_validation,
+            skip_validation=False,
             user_id=org.get("user_id"),
             request_id=request_id,
             api_key_id=org.get("org_api_key_id")

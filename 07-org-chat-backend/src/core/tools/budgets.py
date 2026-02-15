@@ -95,28 +95,40 @@ def budget_summary(
         ),
         actual_costs AS (
             SELECT
-                x_source_system AS cost_category,
+                CASE
+                    WHEN LOWER(ServiceProviderName) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft', 'oci', 'oracle')
+                         OR LOWER(x_source_system) LIKE '%cloud%' OR LOWER(x_source_system) LIKE '%billing%' THEN 'cloud'
+                    WHEN LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'gemini', 'claude', 'deepseek', 'cohere', 'mistral')
+                         OR LOWER(ServiceCategory) IN ('genai', 'llm', 'ai and machine learning')
+                         OR LOWER(x_source_system) LIKE '%genai%' THEN 'genai'
+                    WHEN LOWER(x_source_system) = 'subscription_costs_daily' THEN 'subscription'
+                    ELSE 'cloud'
+                END AS cost_category,
                 ROUND(SUM(BilledCost), 2) AS actual_spend
             FROM `{org_dataset}.cost_data_standard_1_3`
             WHERE ChargePeriodStart >= (SELECT MIN(period_start) FROM budgets)
               AND ChargePeriodEnd <= (SELECT MAX(period_end) FROM budgets)
             GROUP BY cost_category
+        ),
+        total_actual AS (
+            SELECT ROUND(SUM(actual_spend), 2) AS total_spend FROM actual_costs
         )
         SELECT
             b.category,
             COUNT(*) AS budget_count,
             ROUND(SUM(b.budget_amount), 2) AS total_budget,
-            COALESCE(a.actual_spend, 0) AS total_actual,
-            ROUND(SUM(b.budget_amount) - COALESCE(a.actual_spend, 0), 2) AS variance,
-            ROUND(SAFE_DIVIDE(COALESCE(a.actual_spend, 0), SUM(b.budget_amount)) * 100, 1) AS utilization_pct,
+            CASE WHEN b.category = 'total' THEN (SELECT total_spend FROM total_actual)
+                 ELSE COALESCE(a.actual_spend, 0)
+            END AS total_actual,
+            ROUND(SUM(b.budget_amount) - CASE WHEN b.category = 'total' THEN COALESCE((SELECT total_spend FROM total_actual), 0)
+                                               ELSE COALESCE(a.actual_spend, 0) END, 2) AS variance,
+            ROUND(SAFE_DIVIDE(
+                CASE WHEN b.category = 'total' THEN COALESCE((SELECT total_spend FROM total_actual), 0)
+                     ELSE COALESCE(a.actual_spend, 0) END,
+                SUM(b.budget_amount)) * 100, 1) AS utilization_pct,
             MIN(b.currency) AS currency
         FROM budgets b
-        LEFT JOIN actual_costs a ON (
-            (b.category = 'cloud' AND a.cost_category = 'cloud')
-            OR (b.category = 'genai' AND a.cost_category = 'genai')
-            OR (b.category = 'subscription' AND a.cost_category = 'subscription')
-            OR (b.category = 'total')
-        )
+        LEFT JOIN actual_costs a ON (b.category = a.cost_category)
         GROUP BY b.category, a.actual_spend
         ORDER BY b.category
     """
@@ -166,7 +178,15 @@ def budget_variance(
         actual_by_entity AS (
             SELECT
                 x_hierarchy_entity_id AS entity_id,
-                x_source_system AS cost_category,
+                CASE
+                    WHEN LOWER(ServiceProviderName) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft', 'oci', 'oracle')
+                         OR LOWER(x_source_system) LIKE '%cloud%' OR LOWER(x_source_system) LIKE '%billing%' THEN 'cloud'
+                    WHEN LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'gemini', 'claude', 'deepseek', 'cohere', 'mistral')
+                         OR LOWER(ServiceCategory) IN ('genai', 'llm', 'ai and machine learning')
+                         OR LOWER(x_source_system) LIKE '%genai%' THEN 'genai'
+                    WHEN LOWER(x_source_system) = 'subscription_costs_daily' THEN 'subscription'
+                    ELSE 'cloud'
+                END AS cost_category,
                 ROUND(SUM(BilledCost), 2) AS actual_spend
             FROM `{org_dataset}.cost_data_standard_1_3`
             WHERE ChargePeriodStart >= (SELECT MIN(period_start) FROM budgets)
@@ -194,20 +214,23 @@ def budget_variance(
     """
     params = [bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
 
+    # Build WHERE clause additively to avoid double-replace bug
+    budget_where_extra = []
     if category:
         validate_enum(category.lower(), _VALID_CATEGORIES, "category")
-        query = query.replace(
-            "WHERE org_slug = @org_slug AND is_active = TRUE",
-            "WHERE org_slug = @org_slug AND is_active = TRUE AND category = @category",
-        )
+        budget_where_extra.append("AND category = @category")
         params.append(bigquery.ScalarQueryParameter("category", "STRING", category.lower()))
 
     if hierarchy_entity_id:
+        budget_where_extra.append("AND hierarchy_entity_id = @entity_id")
+        params.append(bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id))
+
+    if budget_where_extra:
+        extra = " ".join(budget_where_extra)
         query = query.replace(
             "WHERE org_slug = @org_slug AND is_active = TRUE",
-            "WHERE org_slug = @org_slug AND is_active = TRUE AND hierarchy_entity_id = @entity_id",
+            f"WHERE org_slug = @org_slug AND is_active = TRUE {extra}",
         )
-        params.append(bigquery.ScalarQueryParameter("entity_id", "STRING", hierarchy_entity_id))
 
     query += " ORDER BY actual_spend DESC LIMIT @limit"
     params.append(bigquery.ScalarQueryParameter("limit", "INT64", limit))

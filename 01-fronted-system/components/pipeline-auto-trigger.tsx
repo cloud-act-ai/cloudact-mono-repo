@@ -47,6 +47,7 @@ import {
   type DailyPipelineCheckResult,
 } from "@/actions/pipeline-status"
 import { getMonthStartUTC, getTodayDateUTC } from "@/lib/api/helpers"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 
 // ============================================
 // Pipeline Configuration
@@ -109,7 +110,7 @@ function getFailedCount(orgSlug: string, pipelineId: string): number {
   const countKey = `${FAILED_COUNT_KEY_PREFIX}${orgSlug}-${pipelineId}`
   const resetKey = `${FAILED_COUNT_RESET_KEY_PREFIX}${orgSlug}-${pipelineId}`
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = formatLocalDate(new Date())
   const storedDate = localStorage.getItem(resetKey)
 
   // Reset count if it's a new day
@@ -131,7 +132,7 @@ function incrementFailedCount(orgSlug: string, pipelineId: string): void {
 
   const countKey = `${FAILED_COUNT_KEY_PREFIX}${orgSlug}-${pipelineId}`
   const resetKey = `${FAILED_COUNT_RESET_KEY_PREFIX}${orgSlug}-${pipelineId}`
-  const today = new Date().toISOString().split("T")[0]
+  const today = formatLocalDate(new Date())
 
   // Ensure date is set
   localStorage.setItem(resetKey, today)

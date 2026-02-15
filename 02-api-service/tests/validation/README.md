@@ -4,7 +4,7 @@ Comprehensive validation and security tests for the API service. These tests ens
 
 ## Test Coverage
 
-### 1. org_slug Validation (^[a-zA-Z0-9_]{3,50}$)
+### 1. org_slug Validation (^[a-z0-9_]{3,50}$)
 
 **Invalid Cases (16 test scenarios):**
 - Length: too short (< 3), too long (> 50)

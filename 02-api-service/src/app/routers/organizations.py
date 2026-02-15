@@ -103,9 +103,9 @@ class OnboardOrgRequest(BaseModel):
     @classmethod
     def validate_org_slug(cls, v):
         """Validate org_slug format."""
-        if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
+        if not re.match(r'^[a-z0-9_]{3,50}$', v):
             raise ValueError(
-                'org_slug must be alphanumeric with underscores, 3-50 characters'
+                'org_slug must be lowercase alphanumeric with underscores, 3-50 characters'
             )
         return v
 
@@ -248,9 +248,9 @@ class DryRunRequest(BaseModel):
     @classmethod
     def validate_org_slug(cls, v):
         """Validate org_slug format."""
-        if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
+        if not re.match(r'^[a-z0-9_]{3,50}$', v):
             raise ValueError(
-                'org_slug must be alphanumeric with underscores, 3-50 characters'
+                'org_slug must be lowercase alphanumeric with underscores, 3-50 characters'
             )
         return v
 
@@ -673,6 +673,10 @@ async def sync_org_dataset(
 
             with open(schema_file, 'r') as f:
                 schema_json = json.load(f)
+
+            # Skip non-schema files (e.g. schema_versions.json which is a dict, not a list)
+            if not isinstance(schema_json, list):
+                continue
 
             schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
             table_id = f"{full_dataset_id}.{table_name}"
@@ -1201,11 +1205,11 @@ async def onboard_org(
         INSERT INTO `{settings.gcp_project_id}.organizations.org_profiles`
         (org_slug, company_name, admin_email, org_dataset_id, status, subscription_plan,
          default_currency, default_country, default_language, default_timezone,
-         created_at, updated_at)
+         fiscal_year_start_month, created_at, updated_at)
         VALUES
         (@org_slug, @company_name, @admin_email, @org_dataset_id, 'ACTIVE', @subscription_plan,
          @default_currency, @default_country, @default_language, @default_timezone,
-         CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+         1, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -1650,7 +1654,7 @@ async def onboard_org(
                 "api_key": "[redacted]",  # Don't store actual key
                 "api_key_id": org_api_key_id,
                 "dataset_id": settings.get_org_dataset_name(org_slug),
-                "subscription_id": subscription_id,
+                "subscription_plan": request.subscription_plan,
                 "tables_created": tables_created
             })
 

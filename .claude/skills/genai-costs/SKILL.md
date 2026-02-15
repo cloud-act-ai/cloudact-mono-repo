@@ -274,6 +274,16 @@ curl -s "http://localhost:8000/api/v1/pipeline-logs/{org}?limit=5" \
 Requirements consolidated from:
 - `02_GENAI_COSTS.md` - GenAI cost pipelines
 
+## 5 Implementation Pillars
+
+| Pillar | How GenAI Costs Handles It |
+|--------|-------------------------------|
+| **i18n** | GenAI costs stored in `BillingCurrency` (FOCUS 1.3), display with `formatCost()`, pricing per-1M tokens formatted via `Intl.NumberFormat` |
+| **Enterprise** | Model pricing overrides per org (`is_override` flag), usage tracking across 6 providers, cost allocation by model/provider/team via hierarchy |
+| **Cross-Service** | Pipeline (8001) ingests PAYG/commitment/infrastructure data → BigQuery unified tables → API (8000) reads via cost endpoints → Frontend + Chat (8002) display |
+| **Multi-Tenancy** | `{org_slug}_prod` datasets for all 12 GenAI tables, `x_org_slug` lineage in every row, org-scoped pricing tables with per-org overrides |
+| **Reusability** | Shared FOCUS 1.3 schema (`cost_data_standard_1_3`), `PricingTableBase` component pattern, cost formatters from `lib/costs/`, unified consolidation procedures |
+
 ## Implementation Status
 
 | Phase | Status |

@@ -283,7 +283,7 @@ export default function CostOverviewPage() {
   }, [getProvidersByCategory])
 
   // Check if data is truly empty (not just loading)
-  const isEmpty = !isLoading && !totalSummary && providers.length === 0
+  const isEmpty = !isLoading && (!totalSummary || (typeof totalSummary === 'object' && Object.keys(totalSummary).length === 0)) && providers.length === 0
 
   return (
     <CostDashboardShell

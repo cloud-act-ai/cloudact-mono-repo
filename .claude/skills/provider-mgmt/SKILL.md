@@ -302,6 +302,16 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
 # Expected: All procedures synced to BigQuery
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Provider Management Handles It |
+|--------|-------------------------------|
+| **i18n** | Provider names are display strings (Unicode-safe), pricing varies by region/currency |
+| **Enterprise** | Provider registry with whitelist validation, credential encryption, 11+ providers supported |
+| **Cross-Service** | Frontend settings -> API (8000) stores credentials -> Pipeline (8001) uses for ingestion -> Chat (8002) BYOK |
+| **Multi-Tenancy** | `org_integration_credentials` per org, `encrypted_value` with KMS, org-scoped provider count enforcement (quota) |
+| **Reusability** | Provider registry pattern, shared credential encryption/decryption, config-driven pipeline definitions |
+
 ## Related Skills
 - `integration-setup` - Configure integrations
 - `pipeline-ops` - Run provider pipelines

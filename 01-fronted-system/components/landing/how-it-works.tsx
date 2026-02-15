@@ -28,7 +28,15 @@ export function HowItWorks() {
   ]
 
   return (
-    <div className="container px-4 mx-auto max-w-7xl">
+    <section className="relative py-16 lg:py-20 bg-white overflow-hidden">
+      {/* CORAL gradient (alternating) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 108, 94, 0.06), transparent 70%)'
+        }}
+      />
+      <div className="container relative z-10 px-4 mx-auto max-w-7xl">
         {/* Header */}
         <div className="text-center mb-16">
           <motion.div
@@ -85,5 +93,6 @@ export function HowItWorks() {
           ))}
         </div>
       </div>
+    </section>
   )
 }

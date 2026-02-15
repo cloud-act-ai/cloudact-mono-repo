@@ -231,12 +231,13 @@ class CostReadService:
                     "LOWER(x_source_system) LIKE '%cloud%' OR "
                     "LOWER(x_source_system) LIKE '%gcp%' OR "
                     "LOWER(x_source_system) LIKE '%aws%' OR "
-                    "LOWER(x_source_system) LIKE '%azure%')"
+                    "LOWER(x_source_system) LIKE '%azure%' OR "
+                    "LOWER(x_source_system) LIKE '%oci%')"
                 )
                 query_params.append(bigquery.ArrayQueryParameter("cloud_providers", "STRING", cloud_providers))
             elif category_lower == "genai":
                 # Filter to GenAI providers (case-insensitive)
-                genai_providers = ["openai", "anthropic", "google ai", "cohere", "mistral", "gemini", "claude", "azure openai", "aws bedrock", "vertex ai"]
+                genai_providers = ["openai", "anthropic", "google ai", "cohere", "mistral", "gemini", "claude", "deepseek", "azure openai", "aws bedrock", "vertex ai"]
                 where_conditions.append(
                     "((LOWER(ServiceProviderName) IN UNNEST(@genai_providers) OR "
                     "LOWER(ServiceCategory) IN ('genai', 'llm', 'ai and machine learning') OR "
@@ -344,11 +345,11 @@ class CostReadService:
 
         elif category_lower == "genai":
             # Filter to GenAI providers
-            genai_providers = ["openai", "anthropic", "google", "google ai", "cohere", "mistral", "gemini", "claude", "azure openai", "aws bedrock", "vertex ai"]
+            genai_providers = ["openai", "anthropic", "google", "google ai", "cohere", "mistral", "gemini", "claude", "deepseek", "azure openai", "aws bedrock", "vertex ai"]
             if "ServiceProviderName" in df.columns and "ServiceCategory" in df.columns:
                 provider_match = pl.col("ServiceProviderName").fill_null("").str.to_lowercase().is_in(genai_providers)
                 category_match = pl.col("ServiceCategory").fill_null("").str.to_lowercase().is_in(["genai", "llm", "ai and machine learning"])
-                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("genai|llm|openai|anthropic|gemini")
+                source_match = pl.col("x_source_system").fill_null("").str.to_lowercase().str.contains("genai|llm|openai|anthropic|gemini|deepseek")
                 not_saas = pl.col("x_source_system").fill_null("").ne("subscription_costs_daily")
                 df = df.filter((provider_match | category_match | source_match) & not_saas)
 

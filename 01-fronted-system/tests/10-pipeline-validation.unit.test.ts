@@ -18,11 +18,11 @@ import { describe, it, expect } from 'vitest'
 
 /**
  * Validate org slug format.
- * Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
+ * Backend requires: lowercase alphanumeric with underscores only (no hyphens, no uppercase), 3-50 characters
  */
 function isValidOrgSlug(orgSlug: string): boolean {
     if (!orgSlug || typeof orgSlug !== "string") return false
-    return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
+    return /^[a-z0-9_]{3,50}$/.test(orgSlug)
 }
 
 /**
@@ -66,9 +66,15 @@ describe('Pipeline Validation: org_slug format', () => {
     it('should accept valid org slugs', () => {
         expect(isValidOrgSlug('acme_corp')).toBe(true)
         expect(isValidOrgSlug('test123')).toBe(true)
-        expect(isValidOrgSlug('Org_Name_123')).toBe(true)
+        expect(isValidOrgSlug('org_name_123')).toBe(true)
         expect(isValidOrgSlug('abc')).toBe(true)  // minimum 3 chars
         expect(isValidOrgSlug('a'.repeat(50))).toBe(true)  // maximum 50 chars
+    })
+
+    it('should reject uppercase characters', () => {
+        expect(isValidOrgSlug('Org_Name_123')).toBe(false)  // uppercase not allowed
+        expect(isValidOrgSlug('ACME')).toBe(false)
+        expect(isValidOrgSlug('AcmeCorp')).toBe(false)
     })
 
     it('should reject invalid org slugs', () => {

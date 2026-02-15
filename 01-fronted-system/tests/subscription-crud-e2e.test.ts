@@ -214,7 +214,7 @@ describe('Subscription CRUD - Functional Validation', () => {
     console.log('📋 Validating input validation rules...')
 
     const validationRules = {
-      orgSlug: /^[a-zA-Z0-9_]{3,50}$/,
+      orgSlug: /^[a-z0-9_]{3,50}$/,
       providerName: /^[a-z0-9][a-z0-9_]{0,48}[a-z0-9]$/,
       price: 'Must be >= 0',
       seats: 'Must be >= 1',

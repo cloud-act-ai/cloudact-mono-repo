@@ -275,6 +275,14 @@ For each active org:
 | History shows "failed" | Channel delivery error | Check error_message in history, fix channel config |
 | Cost alert preset missing | Org doesn't exist or no data | Verify org exists and has cost data |
 
+## Bug Fixes & Verified Learnings (2026-02-14)
+
+| Bug ID | Issue | Fix |
+|--------|-------|-----|
+| BUG-ADMIN-01 | Alert processing in `admin.py` used `BillingPeriodStart` instead of `ChargePeriodStart` | Changed both cost query (line 2062-2063) and budget JOIN (line 2100-2101) to `ChargePeriodStart` to match all other cost queries across the system |
+| BUG-ALERTS-01 | `cost_alerts.py` missing `validate_org_slug()` on all 10 endpoints | Added `validate_org_slug(org_slug)` as first validation call in all endpoints |
+| BUG-NOTIF-01 | `NotificationChannelUpdate` extended `BaseModel` bypassing all validators | Added email, Slack channel, and URL validators directly to the update model |
+
 ## Bug Fixes & Verified Learnings (2026-02-12)
 
 | Bug ID | Issue | Fix |
@@ -356,6 +364,16 @@ Alert rules can trigger on budget thresholds using these rule types:
 - `org_budget_allocations` (8 fields) — parent-child budget relationships
 
 **Shared filter system:** Both budget and alert pages use the same `useAdvancedFilters()` hook and `AdvancedFilterBar` component. See `/advanced-filters` skill.
+
+## 5 Implementation Pillars
+
+| Pillar | How Notifications Handles It |
+|--------|-------------------------------|
+| **i18n** | Alert amounts formatted with org's `default_currency` via `formatCost()`; alert timestamps respect org timezone; notification templates locale-aware |
+| **Enterprise** | Multi-channel delivery (email, Slack, webhook); scheduled summaries; alert rule engine with threshold evaluation; audit trail for all notifications sent |
+| **Cross-Service** | Alert rules stored in BigQuery; evaluated by scheduler job (8001); managed via API (8000); displayed in Frontend (3000); chat agent has 4 alert MCP tools |
+| **Multi-Tenancy** | All alert rules, channels, and notifications scoped by `org_slug`; `validate_org_slug()` on all endpoints; no cross-org alert leakage |
+| **Reusability** | Shared `AdvancedFilterBar` for alert pages; reusable alert channel CRUD; shared notification templates; `useAdvancedFilters()` hook for filter state |
 
 ## Related Skills
 

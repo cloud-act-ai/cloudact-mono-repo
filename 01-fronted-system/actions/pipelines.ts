@@ -16,6 +16,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { BackendClient, PipelineConfig, PipelineRunsResponse, PipelineRunDetail } from "@/lib/api/backend"
 import { getCachedApiKey } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 import { pipelineRunParamsSchema, pipelineRunWithDateSchema, validateInput } from "@/lib/validation/schemas"
 
 // ============================================
@@ -32,20 +33,6 @@ interface PipelineRunResult {
   message?: string
   error?: string
   result?: unknown
-}
-
-// ============================================
-// Input Validation
-// ============================================
-
-/**
- * Validate org slug format.
- * Prevents path traversal and injection attacks.
- */
-// Backend requires: alphanumeric with underscores only (no hyphens), 3-50 characters
-function isValidOrgSlug(orgSlug: string): boolean {
-  if (!orgSlug || typeof orgSlug !== "string") return false
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
 }
 
 /**

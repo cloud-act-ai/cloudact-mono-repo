@@ -22,7 +22,7 @@ export function getOrgSlug(params: { orgSlug?: string | string[] }): string {
  * Validate orgSlug format
  * Valid: 3-50 chars, lowercase alphanumeric + underscore only
  * MUST match backend pattern: ^[a-z0-9_]{3,50}$ — enforced at EVERY layer
+ *
+ * Re-exported from @/lib/utils/validation for convenience.
  */
-export function isValidOrgSlug(slug: string): boolean {
-  return /^[a-z0-9_]{3,50}$/.test(slug)
-}
+export { isValidOrgSlug } from "@/lib/utils/validation"

@@ -208,8 +208,8 @@ export default function CloudCostsPage() {
         // BUG-005 FIX: Pass hierarchy filter to API
         const result = await getCostByService(
           orgSlug,
-          startDate.toISOString().split("T")[0],
-          endDate.toISOString().split("T")[0],
+          `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(startDate.getDate()).padStart(2, "0")}`,
+          `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`,
           {
             categories: ["cloud"],
             providers: filters.providers.length > 0 ? filters.providers : undefined,
@@ -287,7 +287,7 @@ export default function CloudCostsPage() {
       return {
         key: serviceName,
         name: serviceName,
-        type: "GCP",
+        type: s.provider || "Cloud",
         // FOCUS 1.3 cost columns
         billedCost: billedCost,
         effectiveCost: effectiveCost,

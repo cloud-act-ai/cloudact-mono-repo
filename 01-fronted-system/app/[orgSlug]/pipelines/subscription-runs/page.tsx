@@ -36,26 +36,11 @@ import {
   hasStoredApiKey,
 } from "@/actions/backend-onboarding"
 import {
+  PipelineConfig,
   PipelineRunSummary,
   PipelineRunDetail as PipelineRunDetailType,
 } from "@/lib/api/backend"
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface PipelineConfig {
-  id: string
-  name: string
-  description: string
-  category: string  // Top-level category (cloud, genai, subscription)
-  provider: string  // Provider within category (gcp, aws, openai, etc.)
-  domain: string
-  pipeline: string
-  required_integration: string
-  schedule?: string
-  enabled: boolean
-}
+import { formatRelativeDateTime, formatLocalDate } from "@/lib/i18n/formatters"
 
 // ============================================================================
 // Helper Functions
@@ -76,31 +61,6 @@ const isSubscriptionPipeline = (pipeline: PipelineConfig) => {
     id.includes("subscription") ||
     pipelineName.includes("saas")
   )
-}
-
-const formatDateTime = (dateString?: string) => {
-  if (!dateString) return "-"
-  try {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor(diff / (1000 * 60))
-
-    if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  } catch {
-    return dateString
-  }
 }
 
 const formatDuration = (ms?: number) => {
@@ -239,7 +199,7 @@ export default function SubscriptionRunsPage() {
     try {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const date = yesterday.toISOString().split("T")[0]
+      const date = formatLocalDate(yesterday)
 
       const result = await runPipeline(orgSlug, pipelineId, { date })
       setLastResult({
@@ -323,7 +283,7 @@ export default function SubscriptionRunsPage() {
       accessorKey: "start_time",
       cell: (row) => (
         <div className="text-[12px] text-[var(--text-secondary)]">
-          {formatDateTime(row.start_time)}
+          {formatRelativeDateTime(row.start_time)}
         </div>
       ),
     },

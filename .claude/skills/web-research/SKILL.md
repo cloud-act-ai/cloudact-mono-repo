@@ -278,6 +278,16 @@ def find_cheapest_model(input_tokens: int, output_tokens: int, providers: list):
 | Regional pricing | Some providers have regional rates |
 | Batch pricing | Check for batch/commitment discounts |
 
+## 5 Implementation Pillars
+
+| Pillar | How Web Research Handles It |
+|--------|-------------------------------|
+| **i18n** | Research pricing in multiple currencies; compare regional pricing differences across provider geographies |
+| **Enterprise** | Structured research output with source attribution; date-stamped findings for audit trail and pricing history |
+| **Cross-Service** | Research feeds into `provider-mgmt` (pricing CSVs), `cost-analysis` (benchmarks), and `genai-costs` (model pricing tables) |
+| **Multi-Tenancy** | N/A -- research is org-agnostic; outputs are templates applied per-org at implementation time |
+| **Reusability** | Research templates, pricing comparison table formats, provider analysis frameworks reused across all provider types |
+
 ## Related Skills
 - `cost-analysis` - Apply pricing to usage data
 - `provider-mgmt` - Add new provider with pricing

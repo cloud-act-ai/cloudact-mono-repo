@@ -97,7 +97,7 @@ const isValidStripePriceId = (priceId: string): boolean => {
 }
 
 const isValidOrgSlug = (slug: string): boolean => {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+  return /^[a-z0-9_]{3,50}$/.test(slug)
 }
 
 const safeParseInt = (value: string | undefined, defaultValue: number): number => {

@@ -7,7 +7,7 @@
  * 3. Idempotency: In-memory + database deduplication with async-safe processing tracking
  * 4. Event Cache Management: 1-hour TTL + LRU eviction (max 1000 events)
  * 5. Plan ID Validation: Explicit handling with lower bound validation for all limits
- * 6. Replay Attack Prevention: Rejects events older than 5 minutes
+ * 6. Replay Attack Prevention: Handled by Stripe signature verification (constructEvent tolerance)
  * 7. Optimistic Locking: Prevents out-of-order event processing via stripe_webhook_last_event_at
  *
  * QUOTA MANAGEMENT (Supabase-based):
@@ -292,22 +292,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // SEC-001 FIX: Validate event timestamp to prevent replay attacks
-  // Reject events older than 5 minutes (300 seconds)
-  const MAX_EVENT_AGE_SECONDS = 300;
-  const eventTimestamp = event.created;
-  const currentTimestamp = Math.floor(Date.now() / 1000);
-  const eventAge = currentTimestamp - eventTimestamp;
-
-  if (eventAge > MAX_EVENT_AGE_SECONDS) {
-    console.warn(
-      `[Stripe Webhook] Rejecting stale event ${event.id}: ${eventAge}s old (max: ${MAX_EVENT_AGE_SECONDS}s)`
-    );
-    return NextResponse.json(
-      { error: "Event too old", age: eventAge },
-      { status: 400 }
-    );
-  }
+  // NOTE: Replay attack prevention is handled by stripe.webhooks.constructEvent()
+  // which validates the signature timestamp with a default 300s tolerance.
+  // We do NOT add a separate event age check here because Stripe retries
+  // webhook deliveries for up to 3 days with exponential backoff, and the
+  // event.created timestamp stays the same across retries. A separate age
+  // check would reject all legitimate retries.
 
   // Idempotency check - prevent duplicate processing
   // First check in-memory (fast path for same-instance duplicates)
@@ -615,6 +605,7 @@ export async function POST(request: NextRequest) {
             .update({
               billing_status: "active",
               stripe_webhook_last_event_id: event.id,
+              stripe_webhook_last_event_at: new Date(event.created * 1000).toISOString(),
             })
             .eq("stripe_subscription_id", subscriptionId)
             .eq("billing_status", "past_due");
@@ -637,13 +628,18 @@ export async function POST(request: NextRequest) {
             .update({
               billing_status: "past_due",
               stripe_webhook_last_event_id: event.id,
+              stripe_webhook_last_event_at: new Date(event.created * 1000).toISOString(),
             })
             .eq("stripe_subscription_id", failedSubId)
             .select("org_name, org_slug")
             .single();
 
+          if (error) {
+            throw new Error(`Failed to update billing status on payment failure: ${error.message}`);
+          }
+
           // Send payment failed email to customer
-          if (invoice.customer_email && org && !error) {
+          if (invoice.customer_email && org) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
             const billingLink = `${appUrl}/${org.org_slug}/billing`;
 
@@ -775,8 +771,10 @@ export async function POST(request: NextRequest) {
 
       case "customer.deleted": {
         const customer = event.data.object;
+        const custDeleteTimestamp = new Date(event.created * 1000).toISOString();
 
         // Atomic update - clear all Stripe references together (org remains, just unlinked from Stripe)
+        // Include optimistic locking to prevent out-of-order processing
         const { error: customerDeleteError } = await supabase
           .from("organizations")
           .update({
@@ -785,8 +783,10 @@ export async function POST(request: NextRequest) {
             stripe_price_id: null,
             billing_status: "canceled",
             stripe_webhook_last_event_id: event.id,
+            stripe_webhook_last_event_at: custDeleteTimestamp,
           })
-          .eq("stripe_customer_id", customer.id);
+          .eq("stripe_customer_id", customer.id)
+          .or(`stripe_webhook_last_event_at.is.null,stripe_webhook_last_event_at.lt.${custDeleteTimestamp}`);
 
         if (customerDeleteError) {
           console.warn("[Stripe Webhook] Failed to clear Stripe references on customer delete:", customerDeleteError.message);
@@ -823,10 +823,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Return 500 so Stripe will retry the webhook
+    // Only include event identifiers (from Stripe), not internal error details
     return NextResponse.json(
       {
         error: "Webhook processing failed",
-        message: errorMessage,
         eventId: event?.id,
         eventType: event?.type,
       },

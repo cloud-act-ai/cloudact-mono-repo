@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { Clock } from "lucide-react"
 import { PricingTableBase, PricingColumn, PricingRow } from "./pricing-table-base"
 import { GenAICommitmentPricing } from "@/lib/data/genai/genai-commitment-pricing"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 import { AddModelDialog } from "./add-model-dialog"
 
 interface CommitmentPricingTableProps {
@@ -143,7 +144,7 @@ export function CommitmentPricingTable({
         supports_overage: model.supports_overage || false,
         overage_rate_per_unit: model.overage_rate_per_unit || null,  // Issue #24
         status: "active",
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: formatLocalDate(new Date()),
       })
       setShowAddDialog(false)
     } catch (error) {

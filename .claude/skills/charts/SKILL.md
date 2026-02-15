@@ -416,6 +416,16 @@ import {
 
 ---
 
+## 5 Implementation Pillars
+
+| Pillar | How Charts Handles It |
+|--------|-------------------------------|
+| **i18n** | Chart tooltips use `formatCost()` with org currency; axis labels respect locale number formatting; date axes use org timezone |
+| **Enterprise** | Responsive chart sizing via `ResponsiveContainer`; color-blind safe palettes; data point limits for performance; sparklines for compact views |
+| **Cross-Service** | Charts consume data from `CostDataContext` (which fetches from API 8000); used in dashboard, analytics, and budget pages |
+| **Multi-Tenancy** | Chart data is pre-filtered by `org_slug` before rendering; no tenant data leaks into chart configs or color mappings |
+| **Reusability** | `CostTrendChart`, `CostRingChart`, `MetricGrid`, `ChartProvider` context, preset configurations, and shared color palette in `design-tokens.ts` |
+
 ## Related Skills
 
 | Skill | Relationship |

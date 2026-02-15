@@ -64,8 +64,9 @@ QUERY_TEMPLATES = {
             COUNT(*) as record_count
         FROM `{project}.{dataset}.cost_data_standard_1_3`
         WHERE (
-            LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'google', 'gemini')
+            LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'google ai', 'gemini', 'claude', 'deepseek', 'cohere', 'mistral')
             OR LOWER(ServiceCategory) IN ('genai', 'llm', 'ai and machine learning')
+            OR LOWER(x_source_system) LIKE '%genai%'
         )
         AND x_source_system != 'subscription_costs_daily'
         AND DATE(ChargePeriodStart) >= @start_date
@@ -246,7 +247,7 @@ QUERY_TEMPLATES = {
             ROUND(a.avg_daily_cost * EXTRACT(DAY FROM LAST_DAY(CURRENT_DATE())), 2) as projected_cost,
             ROUND(a.avg_daily_cost, 2) as avg_daily_cost,
             a.days_with_data,
-            'USD' as currency
+            COALESCE((SELECT MAX(BillingCurrency) FROM `{project}.{dataset}.cost_data_standard_1_3` WHERE DATE(ChargePeriodStart) >= DATE_TRUNC(CURRENT_DATE(), MONTH)), 'USD') as currency
         FROM aggregates a
     """,
 }

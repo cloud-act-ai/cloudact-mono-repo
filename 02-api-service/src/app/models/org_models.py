@@ -115,7 +115,7 @@ SUBSCRIPTION_LIMITS = {
         "providers_limit": 3,
         "daily_limit": 6,
         "monthly_limit": 180,
-        "concurrent_limit": 20,
+        "concurrent_limit": 1,
         "price": 19
     },
     SubscriptionPlan.PROFESSIONAL: {
@@ -123,7 +123,7 @@ SUBSCRIPTION_LIMITS = {
         "providers_limit": 6,
         "daily_limit": 25,
         "monthly_limit": 750,
-        "concurrent_limit": 20,
+        "concurrent_limit": 2,
         "price": 69
     },
     SubscriptionPlan.SCALE: {
@@ -131,7 +131,7 @@ SUBSCRIPTION_LIMITS = {
         "providers_limit": 10,
         "daily_limit": 100,
         "monthly_limit": 3000,
-        "concurrent_limit": 20,
+        "concurrent_limit": 5,
         "price": 199
     },
     SubscriptionPlan.ENTERPRISE: {
@@ -184,11 +184,11 @@ class OnboardOrgRequest(BaseModel):
     @field_validator('org_slug')
     @classmethod
     def validate_org_slug(cls, v: str) -> str:
-        """Validate org_slug format: alphanumeric + underscore only."""
-        if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
+        """Validate org_slug format: lowercase alphanumeric + underscore only."""
+        if not re.match(r'^[a-z0-9_]{3,50}$', v):
             raise ValueError(
                 'org_slug must be 3-50 characters containing only '
-                'alphanumeric characters and underscores'
+                'lowercase alphanumeric characters and underscores'
             )
         return v
 

@@ -22,7 +22,8 @@ from typing import Dict, Any, List
 class SupportedCurrency(str, Enum):
     """
     ISO 4217 currency codes.
-    Major 10 + Arab Countries (16 total).
+    Major 10 + Arab Countries + Additional (20 total).
+    Must match frontend SUPPORTED_CURRENCIES in lib/i18n/constants.ts.
     """
     # Major currencies
     USD = "USD"  # US Dollar
@@ -35,6 +36,11 @@ class SupportedCurrency(str, Enum):
     CNY = "CNY"  # Chinese Yuan
     INR = "INR"  # Indian Rupee
     SGD = "SGD"  # Singapore Dollar
+    # Additional currencies (matching frontend)
+    HKD = "HKD"  # Hong Kong Dollar
+    NZD = "NZD"  # New Zealand Dollar
+    SEK = "SEK"  # Swedish Krona
+    KRW = "KRW"  # South Korean Won
     # Arab countries
     AED = "AED"  # UAE Dirham
     SAR = "SAR"  # Saudi Riyal
@@ -57,6 +63,10 @@ CURRENCY_METADATA: Dict[str, Dict[str, Any]] = {
     "CNY": {"symbol": "CN¥", "name": "Chinese Yuan", "decimals": 2, "country": "CN"},
     "INR": {"symbol": "₹", "name": "Indian Rupee", "decimals": 2, "country": "IN"},
     "SGD": {"symbol": "S$", "name": "Singapore Dollar", "decimals": 2, "country": "SG"},
+    "HKD": {"symbol": "HK$", "name": "Hong Kong Dollar", "decimals": 2, "country": "HK"},
+    "NZD": {"symbol": "NZ$", "name": "New Zealand Dollar", "decimals": 2, "country": "NZ"},
+    "SEK": {"symbol": "kr", "name": "Swedish Krona", "decimals": 2, "country": "SE"},
+    "KRW": {"symbol": "₩", "name": "South Korean Won", "decimals": 0, "country": "KR"},
     "AED": {"symbol": "د.إ", "name": "UAE Dirham", "decimals": 2, "country": "AE"},
     "SAR": {"symbol": "﷼", "name": "Saudi Riyal", "decimals": 2, "country": "SA"},
     "QAR": {"symbol": "ر.ق", "name": "Qatari Riyal", "decimals": 2, "country": "QA"},
@@ -145,6 +155,7 @@ SUPPORTED_TIMEZONES: List[str] = [
     "Asia/Tokyo",
     "Asia/Shanghai",
     "Australia/Sydney",
+    "Pacific/Auckland",
 ]
 
 
@@ -165,6 +176,7 @@ TIMEZONE_METADATA: Dict[str, Dict[str, str]] = {
     "Asia/Tokyo": {"label": "Tokyo (JST)", "offset": "+09:00"},
     "Asia/Shanghai": {"label": "Shanghai (CST)", "offset": "+08:00"},
     "Australia/Sydney": {"label": "Sydney (AEST)", "offset": "+10:00"},
+    "Pacific/Auckland": {"label": "Auckland (NZST)", "offset": "+12:00"},
 }
 
 
@@ -175,6 +187,7 @@ TIMEZONE_METADATA: Dict[str, Dict[str, str]] = {
 SUPPORTED_COUNTRIES: List[str] = [
     "US", "GB", "DE", "FR", "JP", "CA", "AU", "CN", "IN", "SG", "CH",
     "AE", "SA", "QA", "KW", "BH", "OM", "EG", "JO", "LB",
+    "HK", "NZ", "SE", "KR",
 ]
 
 
@@ -199,6 +212,10 @@ COUNTRY_METADATA: Dict[str, str] = {
     "EG": "Egypt",
     "JO": "Jordan",
     "LB": "Lebanon",
+    "HK": "Hong Kong",
+    "NZ": "New Zealand",
+    "SE": "Sweden",
+    "KR": "South Korea",
 }
 
 

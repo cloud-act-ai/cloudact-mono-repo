@@ -421,6 +421,16 @@ Pattern: ^[a-zA-Z0-9_]{3,50}$
 "What are extra_columns in status?"
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Bootstrap/Onboard Handles It |
+|--------|-------------------------------|
+| **i18n** | Onboarding sets org locale (currency, timezone, country, language, fiscal year) in Supabase `organizations` table during setup |
+| **Enterprise** | 30 meta tables created atomically; idempotent bootstrap (safe to re-run); structured logging for every onboarding step |
+| **Cross-Service** | Bootstrap creates BigQuery `organizations` dataset; onboarding creates Supabase org + BigQuery `{org_slug}_prod` dataset + org tables across both stores |
+| **Multi-Tenancy** | Each org gets isolated dataset (`{org_slug}_prod`); `org_slug` validated at entry; org API key generated and hashed (SHA256) during onboarding |
+| **Reusability** | Shared bootstrap schemas; `onboard_organization()` reusable across API + scheduler; schema sync via `bootstrap-sync` job for column additions |
+
 ## Source Specifications
 
 Requirements consolidated from:

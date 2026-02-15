@@ -79,11 +79,26 @@ gcloud config set project cloudact-prod
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Multi-Tenancy Isolation (6 Layers)
+
+| Layer | Component | Blocks | Status |
+|-------|-----------|--------|--------|
+| 1. Authentication | Supabase JWT (frontend), API key hash (backend) | Unauthenticated access | SOLID |
+| 2. Authorization | `requireOrgMembership()` / `get_current_org()` on every endpoint | User A accessing Org B | SOLID |
+| 3. Agent Scoping | `bind_org_slug()` via `functools.partial` in chat backend | LLM prompt injection | SOLID |
+| 4. Query Isolation | Parameterized `@org_slug` in all BigQuery queries | SQL injection | SOLID |
+| 5. Dataset Isolation | `{org_slug}_prod` per-org datasets | Storage-level leakage | SOLID |
+| 6. Dry-run Gate | 10GB max bytes, SELECT-only for Explorer | Resource abuse | SOLID |
+
+**Critical rule:** `org_slug` format `^[a-z0-9_]{3,50}$` enforced at EVERY entry point across all 4 services.
+
+**Audit result (2026-02-14):** 0 CRITICAL, 0 HIGH vulnerabilities. 60+ files audited across all 4 services. 100% of org-scoped endpoints enforce tenant boundaries.
+
 ## API Key Hierarchy
 | Key Type | Header | Scope | Storage |
 |----------|--------|-------|---------|
-| CA_ROOT_API_KEY | X-CA-Root-Key | System admin | Environment var |
-| Org API Key | X-API-Key | Organization | BigQuery (hashed) |
+| CA_ROOT_API_KEY | X-CA-Root-Key | System admin | Environment var (constant-time `hmac.compare_digest`) |
+| Org API Key | X-API-Key | Organization | BigQuery `org_api_keys` (SHA256 hashed) |
 
 ## Security Controls
 
@@ -269,6 +284,16 @@ bq show --format=prettyjson {org_slug}_prod | jq '.access'
 "Auth failing in production"
 "KMS decryption error"
 ```
+
+## 5 Implementation Pillars
+
+| Pillar | How Security Audit Handles It |
+|--------|-------------------------------|
+| **i18n** | Security audit verifies locale settings don't bypass validation; KMS encryption handles all character encodings; audit logs include locale context |
+| **Enterprise** | KMS encryption for all credentials; constant-time `hmac.compare_digest()` for root key; rate limiting per org; comprehensive audit logging; OWASP Top 10 compliance |
+| **Cross-Service** | Auth middleware on all 4 services; `X-CA-Root-Key` for admin ops, `X-API-Key` for org ops; security tests span all services |
+| **Multi-Tenancy** | 6-layer isolation model (Auth → Authorization → Agent Scoping → Query Isolation → Dataset Isolation → Dry-run Gate); `org_slug` validation at every entry point |
+| **Reusability** | Shared auth middleware patterns; `verify_root_key()` / `verify_org_key()` reusable dependencies; security test templates; audit query patterns |
 
 ## Source Specifications
 

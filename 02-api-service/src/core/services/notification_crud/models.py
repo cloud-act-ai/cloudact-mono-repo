@@ -11,8 +11,8 @@ from pydantic import BaseModel, Field, field_validator
 import json
 import re
 
-# VAL-002 FIX: Email validation regex
-EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+# VAL-002 FIX: Email validation - import canonical pattern
+from src.core.utils.validators import EMAIL_PATTERN as EMAIL_REGEX
 
 # VAL-004 FIX: URL validation regex
 URL_REGEX = re.compile(r'^https?://[^\s/$.?#].[^\s]*$', re.IGNORECASE)
@@ -163,7 +163,7 @@ class NotificationChannelCreate(NotificationChannelBase):
 
 
 class NotificationChannelUpdate(BaseModel):
-    """Update notification channel request"""
+    """Update notification channel request — inherits validators from NotificationChannelBase."""
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     is_default: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -177,6 +177,40 @@ class NotificationChannelUpdate(BaseModel):
     webhook_url: Optional[str] = None
     webhook_headers: Optional[Dict[str, str]] = None
     webhook_method: Optional[str] = None
+
+    # Reuse validators from NotificationChannelBase for update operations
+    @field_validator("email_recipients", "email_cc_recipients", mode="before")
+    @classmethod
+    def validate_emails(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return None
+        validated = []
+        for email in v:
+            if email and EMAIL_REGEX.match(email.strip()):
+                validated.append(email.strip().lower())
+            elif email:
+                raise ValueError(f"Invalid email address: {email}")
+        return validated if validated else None
+
+    @field_validator("slack_channel", mode="before")
+    @classmethod
+    def validate_slack_channel(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not SLACK_CHANNEL_REGEX.match(v):
+            raise ValueError(f"Invalid Slack channel format: {v}")
+        return v
+
+    @field_validator("slack_webhook_url", "webhook_url", mode="before")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not URL_REGEX.match(v):
+            raise ValueError(f"Invalid URL format: {v}. Must be a valid HTTP/HTTPS URL")
+        return v
 
 
 class NotificationChannel(NotificationChannelBase):
@@ -324,6 +358,13 @@ class NotificationRuleUpdate(BaseModel):
     quiet_hours_end: Optional[str] = None
     quiet_hours_timezone: Optional[str] = None
 
+    @field_validator("quiet_hours_start", "quiet_hours_end", mode="before")
+    @classmethod
+    def validate_quiet_hours_time(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not TIME_REGEX.match(v):
+            raise ValueError("Time must be in HH:MM format (00:00 - 23:59)")
+        return v
+
 
 class NotificationRule(NotificationRuleBase):
     """Full notification rule model"""
@@ -448,6 +489,15 @@ class NotificationSummaryUpdate(BaseModel):
     provider_filter: Optional[List[str]] = None
     hierarchy_filter: Optional[Dict[str, str]] = None
     last_sent_at: Optional[datetime] = Field(default=None, description="Last send timestamp")
+
+    @field_validator("schedule_cron", mode="before")
+    @classmethod
+    def validate_cron(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            parts = v.strip().split()
+            if len(parts) != 5:
+                raise ValueError("Cron expression must have exactly 5 fields (min hour dom month dow)")
+        return v
 
 
 class NotificationSummary(NotificationSummaryBase):
@@ -576,7 +626,7 @@ class AlertCondition(BaseModel):
     """Single alert condition"""
     field: str = Field(..., description="Field to evaluate")
     operator: str = Field(..., description="Operator: gt, lt, eq, gte, lte, between")
-    value: float = Field(..., description="Threshold value")
+    value: Any = Field(..., description="Threshold value (float for most operators, [min, max] list for between)")
     unit: str = Field(default="USD", description="Unit for the value")
 
     @field_validator("operator")

@@ -335,6 +335,16 @@ params:
   org_slug: "{org_slug}"    # WRONG - must use ${} syntax
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Config Validator Handles It |
+|--------|-------------------------------|
+| **i18n** | Pipeline YAML configs may include `currency_code` fields, validated against supported currencies |
+| **Enterprise** | Schema validation (JSON Schema), YAML syntax validation, provider registry cross-check |
+| **Cross-Service** | Validates configs used by Pipeline (8001), schemas used by API (8000) bootstrap, provider configs |
+| **Multi-Tenancy** | Configs are org-agnostic templates; runtime validation adds `org_slug` context at execution time |
+| **Reusability** | Shared JSON schemas in `configs/setup/`, YAML pipeline configs in `configs/{provider}/`, validator patterns |
+
 ## Related Skills
 - `pipeline-ops` - Pipeline management
 - `bigquery-ops` - Schema operations

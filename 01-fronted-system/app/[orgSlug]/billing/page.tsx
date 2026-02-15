@@ -446,7 +446,7 @@ export default function BillingPage() {
     if (!date) return "—"
     const parsed = new Date(date)
     if (isNaN(parsed.getTime())) return "—"
-    return parsed.toLocaleDateString("en-US", {
+    return parsed.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",

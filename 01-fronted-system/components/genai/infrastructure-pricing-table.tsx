@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { Server } from "lucide-react"
 import { PricingTableBase, PricingColumn, PricingRow } from "./pricing-table-base"
 import { GenAIInfrastructurePricing } from "@/lib/data/genai/genai-infrastructure-pricing"
+import { formatLocalDate } from "@/lib/i18n/formatters"
 import { AddModelDialog } from "./add-model-dialog"
 
 interface InfrastructurePricingTableProps {
@@ -143,7 +144,7 @@ export function InfrastructurePricingTable({
         region: model.region || "us-central1",
         cloud_provider: provider,
         status: "active",
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: formatLocalDate(new Date()),
       })
       setShowAddDialog(false)
     } catch (error) {

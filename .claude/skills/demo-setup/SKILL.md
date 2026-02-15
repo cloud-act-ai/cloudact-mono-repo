@@ -782,6 +782,16 @@ SUPABASE_SERVICE_ROLE_KEY=$(grep ...) npx tsx tests/demo-setup/cleanup-demo-acco
 | **`.env.prod` secrets = placeholders** | Values say `INJECTED_FROM_SECRET_MANAGER` | Fixed: `config.ts` auto-fetches from GCP Secret Manager |
 | **Script uses localhost on prod** | Hardcoded `http://localhost:8000` URLs | Fixed: imports `TEST_CONFIG` from `config.ts` for env-aware URLs |
 
+## 5 Implementation Pillars
+
+| Pillar | How Demo Setup Handles It |
+|--------|-------------------------------|
+| **i18n** | Demo accounts can be created with any supported currency/timezone for testing locale features |
+| **Enterprise** | Playwright automation, end-to-end flow validation, reproducible test data |
+| **Cross-Service** | Signup -> Supabase -> API bootstrap -> Pipeline execution -> BigQuery data -> Dashboard verification |
+| **Multi-Tenancy** | Each demo creates isolated `org_slug` (`acme_inc_{timestamp}`), full dataset isolation, cleanup removes all data |
+| **Reusability** | Shared Playwright fixtures, pipeline execution patterns, seed data scripts |
+
 ## Related Skills
 
 | Skill | Relationship |

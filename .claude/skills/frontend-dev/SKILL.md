@@ -401,6 +401,16 @@ Requirements consolidated from:
 - **Enterprise-grade for 10k customers** - Must scale. Proper loading states, error boundaries, pagination.
 - **Update skills with learnings** - Document UI patterns and fixes in skill files
 
+## 5 Implementation Pillars
+
+| Pillar | How Frontend Dev Handles It |
+|--------|-------------------------------|
+| **i18n** | Use `formatCost()` from `lib/costs/formatters`, `formatCurrency()` from `lib/i18n`, never hardcode `$` or `en-US` |
+| **Enterprise** | Server components for performance, auth guards on every page, error boundaries, loading states |
+| **Cross-Service** | Server actions call API (8000) via `BackendClient`, pipeline status from (8001), chat settings to (8002) |
+| **Multi-Tenancy** | `requireOrgMembership()` in every server action, `org_slug` in URL params, RLS in Supabase queries |
+| **Reusability** | Shared components (`console-ui`), contexts (`CostDataContext`), formatters, `auth-cache.ts` |
+
 ## Related Skills
 
 | Skill | Relationship |

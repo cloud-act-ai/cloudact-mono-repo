@@ -15,6 +15,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { requireOrgMembership, getCachedApiKey } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 import {
   CURRENCY_CODES,
   TIMEZONE_VALUES,
@@ -28,16 +29,7 @@ import {
 // Input Validation
 // ============================================
 
-/**
- * Validate org slug format.
- * Prevents path traversal and injection attacks.
- * Backend requires: ^[a-zA-Z0-9_]{3,50}$ (alphanumeric with underscores)
- */
-function isValidOrgSlug(orgSlug: string): boolean {
-  if (!orgSlug || typeof orgSlug !== "string") return false
-  // Match backend validation pattern
-  return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
-}
+// isValidOrgSlug imported from @/lib/utils/validation (see imports above)
 
 /**
  * Validate currency code (ISO 4217).

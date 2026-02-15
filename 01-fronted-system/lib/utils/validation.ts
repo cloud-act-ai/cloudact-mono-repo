@@ -53,15 +53,16 @@ export function isValidOrgName(name: string): boolean {
 /**
  * Org slug validation pattern (must match backend)
  *
- * Backend pattern (02-api-service): ^[a-zA-Z0-9_]{3,50}$
+ * Backend pattern (02-api-service): ^[a-z0-9_]{3,50}$
  * - 3-50 characters
- * - Alphanumeric and underscores only
+ * - Lowercase alphanumeric and underscores only
  * - NO hyphens (backend doesn't allow them)
+ * - NO uppercase (slugs are always lowercase)
  *
  * IMPORTANT: This pattern MUST stay in sync with backend validation.
  * @see 02-api-service/src/app/routers/organizations.py
  */
-export const ORG_SLUG_PATTERN = /^[a-zA-Z0-9_]{3,50}$/
+export const ORG_SLUG_PATTERN = /^[a-z0-9_]{3,50}$/
 
 /**
  * Validate organization slug format
@@ -87,6 +88,25 @@ export function isValidOrgSlug(slug: string): boolean {
  * @param input - Raw input to convert to slug
  * @returns Sanitized slug (may still need uniqueness check)
  */
+/**
+ * Email validation regex (RFC 5322 simplified)
+ *
+ * Canonical source for all email validation in the frontend.
+ * Matches the backend pattern in 02-api-service/src/core/utils/validators.py
+ */
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+
+/**
+ * Validate email address format
+ *
+ * @param email - Email address to validate
+ * @returns true if valid, false otherwise
+ */
+export function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== "string") return false
+  return EMAIL_REGEX.test(email) && email.length <= 254
+}
+
 export function sanitizeToOrgSlug(input: string): string {
   return input
     .toLowerCase()

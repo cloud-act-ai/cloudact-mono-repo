@@ -9,12 +9,12 @@
 
 import { logError } from "@/lib/utils"
 import { getCachedApiKey } from "@/lib/auth-cache"
+import { isValidOrgSlug } from "@/lib/utils/validation"
 import {
   getApiServiceUrl,
   fetchWithTimeout,
   safeJsonParse,
   extractErrorMessage,
-  isValidOrgSlug as isValidOrgSlugHelper,
 } from "@/lib/api/helpers"
 
 // ============================================
@@ -63,14 +63,6 @@ export interface ImportResult {
   deleted_count: number
   unchanged_count: number
   errors: string[]
-}
-
-// ============================================
-// Validation Helpers
-// ============================================
-
-function isValidOrgSlug(orgSlug: string): boolean {
-  return isValidOrgSlugHelper(orgSlug)
 }
 
 // ============================================

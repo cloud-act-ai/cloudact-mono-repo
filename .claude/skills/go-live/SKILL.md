@@ -143,6 +143,16 @@ through deployment, post-deploy verification, scheduler setup, and rollback proc
 17. **Demo scripts are env-aware** - Use `--env=prod` flag. Config auto-resolves URLs and secrets per environment.
 18. **Supabase migrations first** - Run `migrate.sh --yes --prod` BEFORE scheduler jobs (migrate → bootstrap → org-sync-all).
 
+## 5 Implementation Pillars
+
+| Pillar | How Go-Live Handles It |
+|--------|-------------------------------|
+| **i18n** | Verify locale settings in production; check exchange rates CSV freshness; validate currency display on live dashboards |
+| **Enterprise** | Pre-deploy checklist, post-deploy health validation, rollback procedures, secret verification via GCP Secret Manager, monitoring setup |
+| **Cross-Service** | Deploys all 4 services + scheduler jobs; validates cross-service connectivity; end-to-end smoke tests across Frontend/API/Pipeline/Chat |
+| **Multi-Tenancy** | Verify org isolation post-deploy; test with demo org; confirm `DISABLE_AUTH=false` in production environment |
+| **Reusability** | Shared deployment scripts (`deploy.sh`, `status.sh`, `releases.sh`), health check endpoints, reusable smoke test suite |
+
 ## Related Skills
 
 | Skill | Relationship |

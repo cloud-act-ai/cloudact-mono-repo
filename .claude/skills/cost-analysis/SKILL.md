@@ -452,6 +452,16 @@ bq query --nouse_legacy_sql \
 # Expected: 0 nulls in required fields
 ```
 
+## 5 Implementation Pillars
+
+| Pillar | How Cost Analysis Handles It |
+|--------|-------------------------------|
+| **i18n** | `formatCost()` / `formatCostCompact()` for display, 20 currencies supported, `BillingCurrency` column in FOCUS 1.3, exchange rates CSV for cross-currency conversion |
+| **Enterprise** | Polars-powered aggregation on API side, LRU cache (100 entries, TTL midnight reset), pagination on all list endpoints, structured cost query logging |
+| **Cross-Service** | Pipeline (8001) writes `cost_data_standard_1_3` → API (8000) reads via Polars `CostReadService` → Frontend (3000) displays with shared formatters |
+| **Multi-Tenancy** | All queries parameterized with `@org_slug`, `{org_slug}_prod` dataset isolation, `SubAccountId` = org_slug in FOCUS schema |
+| **Reusability** | `CostReadService` shared across all cost pages, shared formatters (`formatCost`, `formatCostCompact`, `formatRunRate`), `lib/costs/` barrel export for frontend |
+
 ## Related Skills
 - `cost-analytics` - **Unified filter architecture, caching, troubleshooting** (see this for cache/filter flows)
 - `subscription-costs` - SaaS subscription cost pipelines

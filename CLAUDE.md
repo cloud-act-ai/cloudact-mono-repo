@@ -246,7 +246,7 @@ cd 01-fronted-system/scripts/supabase_db
 
 | Resource | Count | Location |
 |----------|-------|----------|
-| Skills | 37 | `.claude/skills/{name}/SKILL.md` |
+| Skills | 40 | `.claude/skills/{name}/SKILL.md` |
 | Commands | 13 | `.claude/commands/{name}.md` |
 | Hooks | 10 | `.claude/hookify.*.local.md` |
 | Summary | - | `.claude/SUMMARY.md` |
@@ -255,7 +255,7 @@ cd 01-fronted-system/scripts/supabase_db
 `/restart` `/health-check` `/cleanup-bq` `/cleanup-supabase` `/docker-local` `/env-setup` `/gcp-integration` `/user-mgmt`
 
 ### Key Skills
-`/go-live` `/infra-cicd` `/deploy-check` `/pr-review` `/env-setup` `/supabase-migrate` `/scheduler-jobs` `/bigquery-ops` `/cost-analysis` `/cost-analytics` `/hierarchy` `/i18n-locale` `/pipeline-ops` `/bootstrap-onboard` `/test-orchestration` `/chat` `/integration-setup` `/provider-mgmt` `/config-validator` `/security-audit` `/frontend-dev` `/api-dev` `/quota-mgmt` `/design` `/console-ui` `/charts` `/home-page` `/account-setup` `/stripe-billing` `/notifications` `/subscription-costs` `/demo-setup` `/web-research` `/bug-hunt` `/openclaw` `/monitoring` `/troubleshooting`
+`/go-live` `/infra-cicd` `/deploy-check` `/pr-review` `/env-setup` `/supabase-migrate` `/scheduler-jobs` `/bigquery-ops` `/cost-analysis` `/cost-analytics` `/hierarchy` `/i18n-locale` `/pipeline-ops` `/bootstrap-onboard` `/test-orchestration` `/chat` `/integration-setup` `/provider-mgmt` `/config-validator` `/security-audit` `/frontend-dev` `/api-dev` `/quota-mgmt` `/design` `/console-ui` `/charts` `/home-page` `/account-setup` `/stripe-billing` `/notifications` `/subscription-costs` `/demo-setup` `/web-research` `/bug-hunt` `/monitoring` `/troubleshooting` `/budget-planning` `/advanced-filters` `/genai-costs` `/theme`
 
 ### Key Hooks (Enforced)
 - **org-slug-isolation** - Multi-tenant isolation via org_slug
@@ -294,8 +294,8 @@ Skills are **structured domain knowledge** that guide Claude's behavior. They ar
     └── {name}.md               # OPTIONAL — Test plan (unit, integration, E2E)
 ```
 
-**30 skills** have the full trifecta (SKILL.md + requirements + tests).
-**4 utility skills** (`web-research`, `charts`, `console-ui`, `design`) have SKILL.md only — they're reference/design tools, not CloudAct features.
+**33 skills** have the full trifecta (SKILL.md + requirements + tests).
+**7 utility/reference skills** (`web-research`, `charts`, `console-ui`, `design`, `monitoring`, `troubleshooting`, `go-live`) have SKILL.md only or non-standard structure.
 
 #### SKILL.md Frontmatter Format
 
@@ -332,6 +332,20 @@ description: |
 → Key Files → Related Skills
 ```
 
+#### 5 Implementation Pillars (MANDATORY for every feature)
+
+Every implementation, code change, or feature MUST consider these 5 pillars. They are non-negotiable enterprise foundations:
+
+| # | Pillar | Rule | Key Pattern |
+|---|--------|------|-------------|
+| 1 | **i18n / Internationalization** | All currency display uses `formatCost()` from `lib/costs/formatters`. All dates use `formatLocalDate()` (never `toISOString().split("T")[0]`). No hardcoded `$`, `"en-US"`, or `"USD"`. Respect org's `default_currency`, `default_timezone`, `date_format`. 20 currencies, 16 timezones. | `formatCost(amount, currency)`, `Intl.NumberFormat(undefined, {style:"currency"})` |
+| 2 | **Enterprise Readiness** | Audit logging for all mutations. Structured JSON logging (not console.log). Rate limiting at entry points. KMS encryption for all credentials. No `DISABLE_AUTH` in production. Scale to 10k orgs. | `logger.info()`, KMS encrypt/decrypt, `hmac.compare_digest()` |
+| 3 | **Cross-Service Integration** | Every feature touches multiple services (Frontend 3000 ↔ API 8000 ↔ Pipeline 8001 ↔ Chat 8002). Document the data flow. Use `X-API-Key` for org ops, `X-CA-Root-Key` for admin. Parameterized queries everywhere. | Architecture diagrams in skills, API contracts, error propagation |
+| 4 | **Multi-Tenancy Isolation** | `org_slug` validated (`^[a-z0-9_]{3,50}$`) at EVERY entry point. `requireOrgMembership()` in frontend actions. `get_current_org()` in API routers. `bind_org_slug()` in chat tools. `{org_slug}_prod` dataset isolation. Parameterized `@org_slug` in all queries. NEVER trust org_slug from LLM. | 6-layer model: Auth → Authorization → Agent Scoping → Query Isolation → Dataset Isolation → Dry-run Gate |
+| 5 | **Reusability / DRY** | Use shared formatters (`lib/costs/formatters`, `lib/i18n/formatters`). Use shared filters (`advanced-filters`). Use shared components (`console-ui`, `charts`). Use shared auth (`auth-cache.ts`, `auth.py`). Never duplicate — import. One source of truth per concept. | `formatCost()`, `formatCurrency()`, `safe_query()`, `bind_org_slug()`, `getCachedApiKey()` |
+
+**Enforcement:** These pillars are checked during `/bug-hunt` audits and `/pr-review`. Missing any pillar in a feature = CRITICAL finding.
+
 #### Best Practices for Defining Skills
 
 1. **One domain per skill** — `/chat` owns chat, `/pipeline-ops` owns pipelines. No overlap.
@@ -341,21 +355,21 @@ description: |
 5. **Procedures > Descriptions** — Step-by-step workflows are more useful than paragraphs of explanation.
 6. **Requirements are specs** — Use FR/NFR numbering. These survive context compression better than prose.
 7. **Tests validate the spec** — Test plans reference the FR numbers from requirements.
+8. **5 Pillars in every skill** — Every skill MUST address how its domain handles i18n, enterprise readiness, cross-service integration, multi-tenancy, and reusability.
 
-#### Skill Categories (36 Total)
+#### Skill Categories (40 Total)
 
 | Category | Skills | Count |
 |----------|--------|-------|
 | Infrastructure | `go-live`, `infra-cicd`, `deploy-check`, `pr-review`, `env-setup`, `supabase-migrate`, `scheduler-jobs`, `monitoring` | 8 |
-| Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs`, `i18n-locale` | 6 |
+| Data & Analytics | `cost-analysis`, `cost-analytics`, `bigquery-ops`, `hierarchy`, `genai-costs`, `i18n-locale`, `budget-planning` | 7 |
 | Pipelines & Ops | `pipeline-ops`, `bootstrap-onboard`, `test-orchestration` | 3 |
 | AI & Chat | `chat` | 1 |
 | Config & Integration | `integration-setup`, `provider-mgmt`, `config-validator`, `security-audit` | 4 |
-| Development | `frontend-dev`, `api-dev`, `quota-mgmt` | 3 |
-| Design & UI | `design`, `console-ui`, `charts`, `home-page` | 4 |
+| Development | `frontend-dev`, `api-dev`, `quota-mgmt`, `advanced-filters` | 4 |
+| Design & UI | `design`, `console-ui`, `charts`, `home-page`, `theme` | 5 |
 | Frontend & Billing | `account-setup`, `stripe-billing`, `notifications` | 3 |
 | Research & Debug | `subscription-costs`, `web-research`, `bug-hunt`, `troubleshooting` | 4 |
-| Identity | `openclaw` | 1 |
 
 #### Quick Reference
 

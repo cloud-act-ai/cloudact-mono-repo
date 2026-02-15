@@ -428,9 +428,11 @@ export async function completeOnboarding(sessionId: string) {
     const companyName = session.metadata?.pending_company_name
     const companyType = session.metadata?.pending_company_type || "company"
     let orgSlug = session.metadata?.pending_org_slug
-    // i18n fields (from signup via session metadata)
-    const pendingCurrency = session.metadata?.pending_currency || "USD"
-    const pendingTimezone = session.metadata?.pending_timezone || "UTC"
+    // i18n fields (from signup via session metadata) — validate with fallback
+    const rawPendingCurrency = session.metadata?.pending_currency || "USD"
+    const rawPendingTimezone = session.metadata?.pending_timezone || "UTC"
+    const pendingCurrency = isValidCurrency(rawPendingCurrency) ? rawPendingCurrency : DEFAULT_CURRENCY
+    const pendingTimezone = isValidTimezone(rawPendingTimezone) ? rawPendingTimezone : DEFAULT_TIMEZONE
 
     if (!companyName || !orgSlug) {
       return { success: false, error: "Missing company information" }
@@ -500,7 +502,7 @@ export async function completeOnboarding(sessionId: string) {
       const newSlug = `${orgSlug}_${suffix}`
 
       // Validate new slug doesn't exceed max length (50 chars) and still matches pattern
-      const slugPattern = /^[a-zA-Z0-9_]{3,50}$/
+      const slugPattern = /^[a-z0-9_]{3,50}$/
       if (!slugPattern.test(newSlug)) {
         // Truncate base slug to fit within 50 chars total
         const maxBaseLength = 50 - suffix.length - 1 // -1 for underscore

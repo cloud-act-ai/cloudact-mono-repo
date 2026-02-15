@@ -33,27 +33,11 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { runPipeline, getAvailablePipelines, getPipelineRuns, getPipelineRunDetail } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
-import { PipelineRunSummary, PipelineRunDetail as PipelineRunDetailType } from "@/lib/api/backend"
+import { PipelineConfig, PipelineRunSummary, PipelineRunDetail as PipelineRunDetailType } from "@/lib/api/backend"
+import { formatRelativeDateTime } from "@/lib/i18n/formatters"
 
 // Pipeline run modal
 import { PipelineRunModal } from "@/components/pipelines/pipeline-run-modal"
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface PipelineConfig {
-  id: string
-  name: string
-  description: string
-  category: string  // Top-level category (cloud, genai, subscription)
-  provider: string  // Provider within category (gcp, aws, openai, etc.)
-  domain: string
-  pipeline: string
-  required_integration: string
-  schedule?: string
-  enabled: boolean
-}
 
 // Tab configuration for GenAI pipeline categories
 const PIPELINE_TABS = [
@@ -90,31 +74,6 @@ const PIPELINE_TABS = [
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const formatDateTime = (dateString?: string) => {
-  if (!dateString) return "-"
-  try {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor(diff / (1000 * 60))
-
-    if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  } catch {
-    return dateString
-  }
-}
 
 const formatDuration = (ms?: number) => {
   if (ms === undefined || ms === null) return "-"
@@ -378,7 +337,7 @@ export default function GenAIRunsPage() {
       header: "Started",
       accessorKey: "start_time",
       cell: (row) => (
-        <div className="text-[12px] text-[var(--text-secondary)]">{formatDateTime(row.start_time)}</div>
+        <div className="text-[12px] text-[var(--text-secondary)]">{formatRelativeDateTime(row.start_time)}</div>
       ),
     },
     {

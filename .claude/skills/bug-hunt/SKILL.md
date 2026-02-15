@@ -27,7 +27,7 @@ Find 50 real, actionable bugs in any feature. No theoretical concerns. No over-e
 
 ### STEP 1: Locate Feature Files
 
-Search ALL 3 services for the feature. **Must check every relevant file.**
+Search ALL 5 services for the feature. **Must check every relevant file.**
 
 #### Frontend Service (01-fronted-system/)
 ```
@@ -152,18 +152,71 @@ Search ALL 3 services for the feature. **Must check every relevant file.**
     └── test_security.py
 ```
 
+#### Chat Backend (07-org-chat-backend/)
+```
+07-org-chat-backend/
+├── src/app/
+│   ├── main.py                       # FastAPI app, all endpoints
+│   ├── config.py                     # Settings (env-driven)
+│   └── dependencies/
+│       └── auth.py                   # ChatContext: org_slug + api_key validation
+├── src/core/
+│   ├── agents/                       # ADK agents
+│   │   ├── orchestrator.py           # Root agent
+│   │   ├── cost_analyst.py           # 5 cost tools
+│   │   ├── alert_manager.py          # 4 alert tools
+│   │   ├── budget_manager.py         # 4 budget tools
+│   │   ├── usage_analyst.py          # 4 usage tools
+│   │   └── explorer.py              # 3 explorer tools (SQL)
+│   ├── tools/                        # MCP tool implementations
+│   │   ├── costs.py                  # Cost queries
+│   │   ├── alerts.py                 # Alert management
+│   │   ├── budgets.py                # Budget queries
+│   │   ├── usage.py                  # Usage metrics
+│   │   └── explorer.py              # SQL explorer + query guard
+│   ├── security/
+│   │   ├── org_validator.py          # Org validation + TTL cache
+│   │   ├── query_guard.py            # Dry-run gate (10GB limit)
+│   │   └── kms_decryption.py         # KMS decrypt for BYOK
+│   └── sessions/
+│       └── bq_session_store.py       # Conversations + messages
+└── tests/
+```
+
+#### Scheduler Jobs (05-scheduler-jobs/)
+```
+05-scheduler-jobs/
+├── src/
+│   ├── bootstrap.py                  # Initial system setup
+│   ├── org_sync_all.py               # Sync ALL org datasets
+│   ├── quota_reset_daily.py          # 00:00 UTC daily
+│   ├── quota_reset_monthly.py        # 00:05 UTC 1st of month
+│   ├── stale_cleanup.py              # 02:00 UTC daily (fix stuck counters)
+│   ├── quota_cleanup.py              # 01:00 UTC daily (delete >90 days)
+│   ├── pipelines_daily.py            # 06:00 UTC (cost pipelines)
+│   └── alerts_daily.py               # 08:00 UTC (process alerts)
+└── scripts/
+    ├── create-all-jobs.sh            # Create Cloud Run Jobs
+    ├── run-job.sh                    # Run a specific job
+    └── list-jobs.sh                  # List all jobs
+```
+
 #### Feature-to-Files Quick Reference
 
-| Feature | Frontend | API Service | Pipeline Service |
-|---------|----------|-------------|------------------|
-| **pipeline-setup** | `app/[orgSlug]/integrations/` | `routers/integrations.py`, `services/integration_service.py` | `routers/pipelines.py`, `pipeline/executor.py` |
-| **quota-enforcement** | `components/quota/` | `routers/quota.py`, `services/quota_service.py` | `middleware/quota.py` |
-| **subscription-billing** | `app/[orgSlug]/subscriptions/` | `routers/subscriptions.py`, `services/subscription_service.py` | `configs/subscription/` |
-| **org-onboarding** | `app/[orgSlug]/onboarding/` | `routers/organizations.py`, `services/organization_service.py` | N/A |
-| **integration-credentials** | `components/integrations/` | `routers/integrations.py`, `security/kms_encryption.py` | `processors/*/authenticator.py` |
-| **hierarchy** | `app/[orgSlug]/settings/hierarchy/` | `routers/hierarchy.py`, `services/hierarchy_service.py` | N/A |
-| **genai-costs** | `app/[orgSlug]/costs/` | `routers/costs.py` | `processors/genai/*.py`, `configs/genai/` |
-| **cloud-provider** | `app/[orgSlug]/integrations/cloud-providers/` | `routers/integrations.py` | `processors/cloud/`, `configs/cloud/` |
+| Feature | Frontend | API Service | Pipeline Service | Chat Backend |
+|---------|----------|-------------|------------------|--------------|
+| **pipeline-setup** | `app/[orgSlug]/integrations/` | `routers/integrations.py` | `routers/pipelines.py`, `pipeline/executor.py` | N/A |
+| **quota-enforcement** | `components/quota-warning-banner.tsx` | `dependencies/auth.py`, `models/org_models.py` | `routers/pipelines.py` | N/A |
+| **subscription-billing** | `app/[orgSlug]/settings/` | `routers/organizations.py` | N/A | N/A |
+| **org-onboarding** | `actions/backend-onboarding.ts` | `routers/organizations.py` | N/A | N/A |
+| **integration-credentials** | `actions/integrations.ts` | `routers/integrations.py`, `security/kms_encryption.py` | `processors/*/` | `security/kms_decryption.py` |
+| **hierarchy** | `actions/hierarchy.ts` | `routers/hierarchy.py`, `services/hierarchy_crud/` | N/A | N/A |
+| **genai-costs** | `app/[orgSlug]/cost-dashboards/` | `services/cost_read/` | `processors/genai/*.py` | `tools/costs.py` |
+| **cloud-provider** | `app/[orgSlug]/integrations/` | `routers/integrations.py` | `processors/cloud/` | N/A |
+| **chat** | `app/[orgSlug]/chat/` | N/A | N/A | `agents/`, `tools/`, `sessions/` |
+| **budget** | `app/[orgSlug]/budget/` | N/A | N/A | `tools/budgets.py` |
+| **alerts** | `app/[orgSlug]/notifications/` | `routers/cost_alerts.py`, `services/notification_crud/` | N/A | `tools/alerts.py` |
+| **i18n** | `lib/i18n/`, `contexts/` | `routers/organizations.py` (locale) | N/A | N/A |
 
 ### STEP 2: Trace Data Flow
 
@@ -172,7 +225,7 @@ Search ALL 3 services for the feature. **Must check every relevant file.**
 │                           FULL REQUEST FLOW                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  Frontend (Next.js)                                                          │
+│  Frontend (Next.js :3000)                                                    │
 │  ├── Page/Component → Server Action → API Call                              │
 │  │                                                                           │
 │  ▼                                                                           │
@@ -182,6 +235,13 @@ Search ALL 3 services for the feature. **Must check every relevant file.**
 │  ▼ (if pipeline execution needed)                                            │
 │  Pipeline Service (FastAPI :8001)                                            │
 │  ├── Middleware (auth) → Router → Executor → Processor → BigQuery           │
+│  │                                                                           │
+│  Frontend → Chat Backend (FastAPI :8002, VPC internal only)                  │
+│  ├── AG-UI/CopilotKit → ADK Agents → MCP Tools → BigQuery                  │
+│  │   Credentials: KMS decrypt per-request, org_slug bound to tools          │
+│  │                                                                           │
+│  Scheduler Jobs (Cloud Run Jobs :05)                                         │
+│  ├── Quota resets, stale cleanup, alert processing, pipeline scheduling     │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -437,7 +497,34 @@ cd 03-data-pipeline-service && python -m pytest tests/ -v
 "Start with MT-001 and MT-002"
 ```
 
+## Audit History
+
+### 2026-02-14 Comprehensive Audit (19 fixes applied)
+
+| Area | CRITICAL | HIGH | MEDIUM | LOW | Fixes |
+|------|----------|------|--------|-----|-------|
+| Cross-service integration | 1 | 0 | 1 | 2 | `BillingPeriodStart` → `ChargePeriodStart` in admin.py alert processing |
+| i18n & enterprise | 3 | 6 | 7 | 4 | Missing currencies (HKD/NZD/SEK/KRW), timezone shift, budgets formatCurrency, GenAI pricing `$` |
+| Multi-tenancy isolation | 0 | 0 | 2 | 3 | org_slug regex consistency (lowercase only), security audit model documented |
+| Auth & validation | 3 | 2 | 0 | 0 | `requireOrgMembership`, `validate_org_slug`, `skip_validation` removal |
+| Pipelines & data | 2 | 1 | 0 | 0 | SQL injection guard, async sleep, API cache bounds |
+| Notifications | 1 | 0 | 0 | 0 | `NotificationChannelUpdate` validator bypass |
+
+**Total:** 19 code fixes across 17 files + 5 skill updates
+
+## 5 Implementation Pillars
+
+| Pillar | How Bug Hunt Handles It |
+|--------|-------------------------------|
+| **i18n** | Checks for hardcoded `$`, `en-US`, `USD`; validates `formatCost()` usage; flags `toISOString().split("T")[0]` date patterns; verifies currency enum parity |
+| **Enterprise** | Audits logging patterns (structured vs console.log); checks rate limiting; validates KMS encryption usage; verifies audit trail completeness |
+| **Cross-Service** | Validates API contracts between all 4 services; checks data flow consistency (e.g., `ChargePeriodStart` vs `BillingPeriodStart`); verifies shared constant parity |
+| **Multi-Tenancy** | Checks `org_slug` validation at every entry point; verifies `requireOrgMembership()` in actions; audits parameterized queries; validates 6-layer isolation |
+| **Reusability** | Flags duplicated formatters; checks for local functions that should use shared imports; validates DRY patterns across similar pages |
+
 ## Related Skills
-- `security-audit` - Deep security analysis
+- `security-audit` - Deep security analysis (6-layer multi-tenancy model)
 - `test-orchestration` - Add tests for found bugs
 - `config-validator` - Validate configurations
+- `i18n-locale` - Currency, timezone, date format issues
+- `notifications` - Alert processing bugs

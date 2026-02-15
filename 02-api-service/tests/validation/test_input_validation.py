@@ -2,7 +2,7 @@
 Input Validation Tests - Comprehensive Security and Data Validation
 
 Tests all input validation including:
-- org_slug validation (^[a-zA-Z0-9_]{3,50}$)
+- org_slug validation (^[a-z0-9_]{3,50}$)
 - Email validation
 - API key format validation
 - Request body validation
@@ -86,7 +86,7 @@ async def test_invalid_org_slug_in_path(invalid_org_slug, reason, valid_admin_ke
     """
     Test that invalid org_slug values in URL paths are rejected.
 
-    Validates org_slug pattern: ^[a-zA-Z0-9_]{3,50}$
+    Validates org_slug pattern: ^[a-z0-9_]{3,50}$
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

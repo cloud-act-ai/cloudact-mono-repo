@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -20,11 +20,18 @@ export default function ResetPasswordPage() {
   const [isSessionReady, setIsSessionReady] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [sessionError, setSessionError] = useState<string | null>(null)
+  const sessionReadyRef = useRef(false)
 
   // Handle recovery token from URL hash and establish session
   useEffect(() => {
     const supabase = createClient()
     let timeoutId: NodeJS.Timeout
+
+    const markSessionReady = () => {
+      sessionReadyRef.current = true
+      setIsSessionReady(true)
+      setIsCheckingSession(false)
+    }
 
     const processRecoveryToken = async () => {
       // Check for hash fragment with access_token (implicit flow)
@@ -43,8 +50,7 @@ export default function ResetPasswordPage() {
           })
 
           if (data.session && !error) {
-            setIsSessionReady(true)
-            setIsCheckingSession(false)
+            markSessionReady()
             // Clear the hash from URL for cleaner display
             window.history.replaceState(null, "", window.location.pathname)
             return true
@@ -55,8 +61,7 @@ export default function ResetPasswordPage() {
       // Fallback: check if we already have a valid session
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        setIsSessionReady(true)
-        setIsCheckingSession(false)
+        markSessionReady()
         return true
       }
 
@@ -67,8 +72,7 @@ export default function ResetPasswordPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
-          setIsSessionReady(true)
-          setIsCheckingSession(false)
+          markSessionReady()
           if (timeoutId) clearTimeout(timeoutId)
         }
       }
@@ -79,7 +83,8 @@ export default function ResetPasswordPage() {
       if (!hasSession) {
         // Wait for token processing, then show error if no session
         timeoutId = setTimeout(() => {
-          if (!isSessionReady) {
+          // Use ref to avoid stale closure
+          if (!sessionReadyRef.current) {
             setSessionError("Invalid or expired reset link. Please request a new one.")
             setIsCheckingSession(false)
           }
@@ -91,7 +96,8 @@ export default function ResetPasswordPage() {
       subscription.unsubscribe()
       if (timeoutId) clearTimeout(timeoutId)
     }
-  }, [isSessionReady])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -106,6 +112,24 @@ export default function ResetPasswordPage() {
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters")
+      setIsLoading(false)
+      return
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter")
+      setIsLoading(false)
+      return
+    }
+
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase letter")
+      setIsLoading(false)
+      return
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one number")
       setIsLoading(false)
       return
     }
